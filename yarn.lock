@@ -1285,7 +1285,7 @@
     "@cosmjs/math" "^0.30.1"
     "@cosmjs/utils" "^0.30.1"
 
-"@cosmjs/cosmwasm-stargate@0.29.5", "@cosmjs/cosmwasm-stargate@^0.29.5":
+"@cosmjs/cosmwasm-stargate@0.29.5":
   version "0.29.5"
   resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.29.5.tgz#3f257da682658833e0f4eb9e8ff758e4d927663a"
   integrity sha512-TNdSvm2tEE3XMCuxHxquzls56t40hC8qnLeYJWHsY2ECZmRK3KrnpRReEr7N7bLtODToK7X/riYrV0JaYxjrYA==
@@ -4449,12 +4449,14 @@
     "@noble/secp256k1" "~1.7.0"
     "@scure/base" "~1.1.0"
 
-"@sei-js/core@1.3.0":
-  version "1.3.0"
-  resolved "https://registry.yarnpkg.com/@sei-js/core/-/core-1.3.0.tgz#8e8724dd8c9a5cd9eaa0c8c168d2a196473b5b12"
-  integrity sha512-DIt8eXufDtMFoyJlbJ0ugKNHXwL/YSybMFYt5Lpy3ZmtfwV2ufNJkG7NXOYw6gF85kDLDC+dVzhj+L4ZlzUcnA==
+"@sei-js/core@1.4.0":
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/@sei-js/core/-/core-1.4.0.tgz#5c87de7b246b656c2a792ddf6b8179922d4d6863"
+  integrity sha512-21DCSTPagM3x6WrGHEYbbPvdvyaGuEDYGFjq5W9+DIDedCdo4uHeL8ihQ7SycwRh0g1zwulJCw/a7J7NpnV5Fg==
   dependencies:
-    "@cosmjs/cosmwasm-stargate" "^0.29.5"
+    "@cosmjs/amino" "0.29.5"
+    "@cosmjs/cosmwasm-stargate" "0.29.5"
+    "@cosmjs/crypto" "0.29.5"
     "@cosmjs/encoding" "0.29.5"
     "@cosmjs/json-rpc" "0.29.5"
     "@cosmjs/math" "0.29.5"
