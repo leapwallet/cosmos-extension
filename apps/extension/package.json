@@ -47,7 +47,7 @@
     "@types/post-message-stream": "3.0.1",
     "@types/webextension-polyfill": "0.9.0",
     "@zxcvbn-ts/core": "2.1.0",
-    "@zxcvbn-ts/language-common": "2.0.1",
+    "@zxcvbn-ts/language-common": "3.0.3",
     "@zxcvbn-ts/language-de": "2.1.0",
     "@zxcvbn-ts/language-en": "2.1.0",
     "@zxcvbn-ts/matcher-pwned": "2.0.7",
