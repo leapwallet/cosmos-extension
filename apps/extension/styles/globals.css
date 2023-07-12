@@ -1,0 +1,259 @@
+@tailwind base;
+
+@layer base {
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    background: none;
+  }
+}
+
+@tailwind components;
+
+@layer base {
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Medium.woff2') format('woff2');
+    font-weight: 500;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Medium.woff2') format('woff2');
+    font-weight: 600;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Black.woff2') format('woff2');
+    font-weight: 800;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Light.woff2') format('woff2');
+    font-weight: 300;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Black.woff2') format('woff2');
+    font-weight: 900;
+  }
+}
+
+@layer base {
+  html {
+    font-family: 'Satoshi';
+  }
+}
+
+@tailwind utilities;
+
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .word-spacing-16 {
+    word-spacing: 16px;
+  }
+}
+
+b {
+  font-weight: 400;
+}
+
+ul li {
+  margin-left: 16px;
+  list-style-type: disc;
+}
+
+body {
+  background-color: #e5e5e5;
+  font-family: 'Satoshi';
+  font-size: 16px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  list-style-type: circle;
+  font-weight: 400;
+}
+
+div#popup-layout {
+  transform: none !important;
+}
+
+.card-container {
+  @apply flex flex-col justify-center items-start p-4 rounded-2xl dark:bg-gray-900 bg-white-100;
+}
+
+.dark .body {
+  background-color: #000000;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+}
+
+::-webkit-scrollbar-corner {
+  display: none;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.leap-logo {
+  position: absolute;
+  top: 40px;
+  left: 64px;
+  height: 64px;
+}
+
+.dark .container {
+  background-color: black;
+}
+
+.container {
+  position: relative;
+  overflow: hidden;
+}
+
+@media only screen and (max-width: 400px) {
+  .container {
+    border-radius: 0;
+  }
+}
+
+.support {
+  position: absolute;
+  top: 720px;
+  margin: auto;
+  width: 112px;
+}
+
+#pro-tip {
+  position: absolute;
+  top: 50px;
+  right: 50px;
+}
+
+#toggle-switch::after {
+  content: '';
+  @apply h-7 w-7 absolute left-0.5 top-0.5 bg-white-100 rounded-full transform scale-110 transition duration-200;
+}
+
+#toggle-switch:checked:after {
+  content: '';
+  @apply transform scale-110 translate-x-5;
+}
+
+.material-icons-round {
+  font-family: 'Material Icons Round';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+
+.lds-ring {
+  display: inline-block;
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.lds-ring div {
+  box-sizing: border-box;
+  display: block;
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: 3px;
+  border-width: 3px;
+  border-radius: 9999px;
+  animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  border-color: #3acf92 transparent transparent transparent;
+}
+
+.lds-ring div.white {
+  border-top-color: #fff;
+}
+
+.lds-ring div:nth-child(1) {
+  animation-delay: -0.45s;
+}
+
+.lds-ring div:nth-child(2) {
+  animation-delay: -0.3s;
+}
+
+.lds-ring div:nth-child(3) {
+  animation-delay: -0.15s;
+}
+
+@keyframes lds-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-4.reset {
+  all: unset;
+}
+
+.markdown a {
+  color: #726fdc;
+}

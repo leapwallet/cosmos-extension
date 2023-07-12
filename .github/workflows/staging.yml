@@ -1,0 +1,27 @@
+name: 🌀 Staging Workflow
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    name: Lint and Build
+    runs-on: ubuntu-latest
+    env:
+      INLINE_RUNTIME_CHUNK: false
+      LEAP_WALLET_BACKEND_API_URL: 'https://staging-api.leapwallet.io'
+      WALLET_BALANCE_FETCHER_URL: 'https://wallet-balance-fetcher.leapwallet.workers.dev/'
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2.4.1
+        with:
+          node-version: '16.13.0'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@leapwallet'
+          cache: 'yarn'
+      - name: 📥 Install Dependencies
+        run: yarn --ignore-engines
+      - name: 🚦 Formatting and Linting
+        run: yarn run check

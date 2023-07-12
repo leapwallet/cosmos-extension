@@ -1,0 +1,27 @@
+{
+  "name": "@leapwallet/cosmos-wallet-provider",
+  "version": "0.4.27",
+  "description": "Cosmos Wallet Provider for Leap Wallet.",
+  "main": "dist/index.js",
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "test": "jest",
+    "eslint:lint": "eslint ./src",
+    "eslint:fix": "eslint --fix ./src",
+    "prettier:check": "prettier -c ./src",
+    "prettier:write": "prettier -w ./src",
+    "prepublish": "yarn build"
+  },
+  "dependencies": {
+    "@leapwallet/cosmos-wallet-sdk": "0.4.27",
+    "@metamask/post-message-stream": "6.0.0",
+    "uuid": "9.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.2"
+  }
+}

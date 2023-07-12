@@ -1,0 +1,318 @@
+import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import axios from 'axios'
+import classNames from 'classnames'
+import AlertStrip from 'components/alert-strip/AlertStrip'
+import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import Text from 'components/text'
+import { CUSTOM_ENDPOINTS } from 'config/storage-keys'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
+import { useChainInfos } from 'hooks/useChainInfos'
+import { useDebounceCallback } from 'hooks/useDebounceCallback'
+import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { Images } from 'images'
+import React, { useEffect, useState } from 'react'
+import { Colors } from 'theme/colors'
+import { imgOnError } from 'utils/imgOnError'
+import Browser from 'webextension-polyfill'
+
+import { ListChains, ListChainsProps } from '../SelectChain'
+
+type SelectChainSheetProps = ListChainsProps & {
+  readonly isVisible: boolean
+  readonly onClose: VoidFunction
+}
+
+function SelectChainSheet({
+  isVisible,
+  onClose,
+  onChainSelect,
+  selectedChain,
+}: SelectChainSheetProps) {
+  return (
+    <BottomSheet
+      isVisible={isVisible}
+      onClose={onClose}
+      headerTitle='Select Chain'
+      headerActionType={HeaderActionType.CANCEL}
+      closeOnClickBackDrop={true}
+    >
+      <div className='h-[400px]'>
+        <ListChains selectedChain={selectedChain} onChainSelect={onChainSelect} />
+      </div>
+    </BottomSheet>
+  )
+}
+
+type CustomEndpointInputProps = {
+  label: string
+  inputValue: string
+  // eslint-disable-next-line no-unused-vars
+  inputOnChange: (value: string) => void
+  crossOnClick: VoidFunction
+  name: string
+  error: string
+}
+
+function CustomEndpointInput({
+  label,
+  inputValue,
+  inputOnChange,
+  crossOnClick,
+  name,
+  error,
+}: CustomEndpointInputProps) {
+  return (
+    <label
+      htmlFor={name}
+      className='rounded-2xl bg-white-100 dark:bg-gray-900 p-4 block mt-3 w-full'
+    >
+      <span className='text-gray-300 text-sm'>{label}</span>
+
+      <div className='flex mt-2 border border-[0.5px] p-[2px] border-gray-300 dark:border-gray-50 rounded-lg overflow-hidden'>
+        <input
+          type='url'
+          id={name}
+          name={name}
+          className='flex-1 h-[32px] pl-[8px] bg-transparent text-gray-900 dark:text-white-100 outline-none'
+          value={inputValue}
+          onChange={(event) => inputOnChange(event.target.value)}
+        />
+        <button
+          className={classNames('w-[30px] flex items-center justify-center', {
+            'cursor-pointer': inputValue.length,
+            'cursor-default': inputValue.length === 0,
+          })}
+          onClick={inputValue.length ? crossOnClick : undefined}
+        >
+          <img src={inputValue.length ? Images.Misc.CrossFilled : Images.Misc.FilledPen} />
+        </button>
+      </div>
+
+      {error && (
+        <Text size='sm' color='text-red-300 mt-2'>
+          {error}
+        </Text>
+      )}
+    </label>
+  )
+}
+
+export function CustomEndpoints({ goBack }: { goBack: () => void }) {
+  const activeChain = useActiveChain()
+  const chainInfos = useChainInfos()
+  const defaultTokenLogo = useDefaultTokenLogo()
+
+  const [showSelectChain, setShowSelectChain] = useState(false)
+  const [selectedChain, setSelectedChain] = useState(activeChain)
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
+
+  const isChainHaveTestnetOnly =
+    chainInfos[selectedChain].chainId === chainInfos[selectedChain].testnetChainId
+  const { rpcUrl, lcdUrl } = useChainApis(
+    selectedChain,
+    isChainHaveTestnetOnly ? 'testnet' : 'mainnet',
+  )
+
+  const { debounce } = useDebounceCallback()
+  const [validating, setValidating] = useState(false)
+  const [showAlertMsg, setShowAlertMsg] = useState(false)
+  const [customEndpoints, setCustomEndpoints] = useState({
+    rpc: rpcUrl ?? '',
+    lcd: lcdUrl ?? '',
+  })
+
+  useEffect(() => {
+    setCustomEndpoints({
+      rpc: rpcUrl ?? '',
+      lcd: lcdUrl ?? '',
+    })
+  }, [rpcUrl, lcdUrl])
+
+  const validateEndpoints = async (name: string, value: string) => {
+    let error = ''
+    const selectedChainInfo = chainInfos[selectedChain]
+
+    if (name === 'rpc') {
+      try {
+        const { data } = await axios.get(`${value}/status`)
+        const { node_info: nodeInfo } = data.result
+
+        if (nodeInfo.network.trim() !== selectedChainInfo.chainId) {
+          error = `RPC endpoint has different chain id (expected: ${selectedChainInfo.chainId}, actual: ${nodeInfo.network})`
+        }
+      } catch (_) {
+        error = 'Invalid RPC url. Failed to get /status response.'
+      } finally {
+        setValidating(false)
+      }
+    }
+
+    if (name === 'lcd') {
+      try {
+        const { data } = await axios.get(`${value}/cosmos/base/tendermint/v1beta1/node_info`)
+        const { default_node_info: nodeInfo } = data
+
+        if (nodeInfo.network.trim() !== selectedChainInfo.chainId) {
+          error = `LCD endpoint has different chain id (expected: ${selectedChainInfo.chainId}, actual: ${nodeInfo.network})`
+        }
+      } catch (_) {
+        error = 'Invalid LCD url. Failed to get /cosmos/base/tendermint/v1beta1/node_info response.'
+      } finally {
+        setValidating(false)
+      }
+    }
+
+    if (error) {
+      setErrors((prevValue) => ({ ...prevValue, [name]: error }))
+    } else {
+      delete errors[name]
+      setErrors(errors)
+    }
+  }
+
+  const debouncedValidateEndpoints = debounce((name: string, value: string) => {
+    validateEndpoints(name, value)
+  }, 750)
+
+  const handleInputChange = (name: string, value: string) => {
+    value = value.trim()
+    setCustomEndpoints((prevValue) => ({ ...prevValue, [name]: value }))
+
+    if (value) {
+      setValidating(true)
+      debouncedValidateEndpoints(name, value)
+    } else {
+      delete errors[name]
+      setErrors(errors)
+    }
+  }
+
+  const handleResetClick = () => {
+    setCustomEndpoints({ rpc: rpcUrl ?? '', lcd: lcdUrl ?? '' })
+    setErrors({})
+  }
+
+  const handleSaveClick = async () => {
+    const storage = await Browser.storage.local.get([CUSTOM_ENDPOINTS])
+    if (storage[CUSTOM_ENDPOINTS]) {
+      await Browser.storage.local.set({
+        [CUSTOM_ENDPOINTS]: JSON.stringify({
+          ...JSON.parse(storage[CUSTOM_ENDPOINTS]),
+          [selectedChain]: customEndpoints,
+        }),
+      })
+    } else {
+      await Browser.storage.local.set({
+        [CUSTOM_ENDPOINTS]: JSON.stringify({
+          [selectedChain]: customEndpoints,
+        }),
+      })
+    }
+
+    setShowAlertMsg(true)
+  }
+
+  const isSaveDisabled =
+    validating ||
+    !!errors.rpc ||
+    !!errors.lcd ||
+    customEndpoints.rpc === '' ||
+    customEndpoints.lcd === '' ||
+    (rpcUrl === customEndpoints.rpc && lcdUrl === customEndpoints.lcd)
+
+  return (
+    <>
+      <div className='pb-5 h-[600px]'>
+        <Header
+          topColor={Colors.getChainColor(activeChain)}
+          title='Custom Endpoints'
+          action={{ type: HeaderActionType.BACK, onClick: goBack }}
+        />
+        <div className='flex flex-col items-center p-[28px] h-[530px] relative'>
+          {showAlertMsg && (
+            <AlertStrip
+              message='Saved changes successfully'
+              bgColor={Colors.green600}
+              alwaysShow={false}
+              onHide={() => setShowAlertMsg(false)}
+              className='absolute top-[2px] left-[40px] z-10 rounded-2xl w-80 h-auto p-2'
+              timeOut={1000}
+            />
+          )}
+
+          <GenericCard
+            title={chainInfos[selectedChain].chainName ?? ''}
+            img={
+              <img
+                src={chainInfos[selectedChain].chainSymbolImageUrl ?? defaultTokenLogo}
+                className='w-[28px] h-[28px] mr-2 border rounded-full dark:border-[#333333] border-[#cccccc]'
+                onError={imgOnError(defaultTokenLogo)}
+              />
+            }
+            isRounded={true}
+            title2='Chain'
+            icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
+            onClick={() => setShowSelectChain(true)}
+          />
+
+          <CustomEndpointInput
+            label='RPC'
+            inputValue={customEndpoints.rpc}
+            crossOnClick={() => handleInputChange('rpc', '')}
+            inputOnChange={(value) => handleInputChange('rpc', value)}
+            name='rpc-endpoint'
+            error={errors.rpc}
+          />
+
+          <CustomEndpointInput
+            label='LCD'
+            inputValue={customEndpoints.lcd}
+            crossOnClick={() => handleInputChange('lcd', '')}
+            inputOnChange={(value) => handleInputChange('lcd', value)}
+            name='lcd-endpoint'
+            error={errors.lcd}
+          />
+
+          <div className='flex flex-col w-full mt-auto'>
+            {validating && (
+              <p className='font-bold text-gray-900 dark:text-gray-50 text-center mb-2'>
+                Validating endpoints..
+              </p>
+            )}
+
+            <div className='flex flex-row justify-between'>
+              <Buttons.Generic
+                style={{ height: '48px', background: Colors.gray900, color: Colors.white100 }}
+                onClick={handleResetClick}
+              >
+                Reset
+              </Buttons.Generic>
+
+              <Buttons.Generic
+                style={{
+                  background: Colors.getChainColor(activeChain),
+                }}
+                className='ml-3 h-[48px] cursor-pointer text-white-100'
+                onClick={handleSaveClick}
+                disabled={isSaveDisabled}
+              >
+                Save
+              </Buttons.Generic>
+            </div>
+          </div>
+        </div>
+      </div>
+      <SelectChainSheet
+        isVisible={showSelectChain}
+        onClose={() => setShowSelectChain(false)}
+        selectedChain={selectedChain}
+        onChainSelect={(chaiName: SupportedChain) => {
+          setSelectedChain(chaiName)
+          setShowSelectChain(false)
+        }}
+      />
+    </>
+  )
+}

@@ -1,0 +1,272 @@
+@layer base {
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    background: none;
+  }
+}
+
+@layer base {
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Medium.woff2') format('woff2');
+    font-weight: 500;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Medium.woff2') format('woff2');
+    font-weight: 600;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Black.woff2') format('woff2');
+    font-weight: 800;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Light.woff2') format('woff2');
+    font-weight: 300;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/Satoshi-Black.woff2') format('woff2');
+    font-weight: 900;
+  }
+}
+
+@layer base {
+  html {
+    font-family: 'Satoshi';
+  }
+}
+
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .word-spacing-16 {
+    word-spacing: 16px;
+  }
+}
+
+b {
+  font-weight: 400;
+}
+
+ul li {
+  margin-left: 16px;
+  list-style-type: disc;
+}
+
+body {
+  background-color: #e5e5e5;
+  font-family: 'Satoshi';
+  font-size: 16px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  list-style-type: circle;
+  font-weight: 400;
+}
+
+.dark .body {
+  background-color: #000000;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+}
+
+::-webkit-scrollbar-corner {
+  display: none;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.leap-logo {
+  position: absolute;
+  top: 40px;
+  left: 64px;
+  height: 64px;
+}
+
+.dark .container {
+  background-color: black;
+}
+
+div.stake-reward-card > div:first-of-type {
+  width: 100%;
+}
+
+.container {
+  position: relative;
+  overflow: hidden;
+}
+
+@media only screen and (max-width: 400px) {
+  .container {
+    border-radius: 0;
+  }
+}
+
+.header-container {
+  width: 100vw;
+  max-width: 420px;
+}
+
+.header-container > div.div {
+  width: 100vw;
+  max-width: 420px;
+}
+
+div.block.absolute.w-full.max-w-3xl.top-0.left-0 {
+  height: 100%;
+}
+
+div.block.absolute.w-full.max-w-3xl.left-0.bottom-0.z-\[1000\] {
+  max-width: 420px;
+}
+
+.popup-layout {
+  max-height: 680px;
+}
+
+.send-to-search-bar,
+.send-to-search-bar > input {
+  width: 100%;
+}
+
+@media only screen and (max-width: 420px) {
+  /* DropUp */
+  div.block.absolute.w-full.max-w-3xl.left-0.bottom-0.z-\[1000\] {
+    width: 100vw;
+  }
+
+  div.demo-header,
+  div.header-bg-gradient {
+    display: none;
+  }
+
+  .popup-layout {
+    max-height: unset;
+  }
+}
+
+.div.relative.h-\[72px\] {
+  width: 100%;
+}
+
+.div.relative.h-\[72px\] > .flex.absolute.bottom-0 {
+  width: 100%;
+}
+
+.div.relative.h-\[72px\] > .flex.absolute.bottom-0 > .flex.h-\[1px\].justify-center.items-center {
+  width: 100%;
+}
+
+.home-cta-btns > button {
+  width: 45%;
+}
+
+.side-nav-section > div {
+  width: 100%;
+}
+
+.side-nav-header > div {
+  width: 100vw;
+  max-width: 420px;
+}
+
+div.card-divider {
+  width: 90%;
+}
+
+.portfolio-distribution,
+.all-assets {
+  width: calc(100% - 54px);
+}
+
+.all-assets > div {
+  width: 100%;
+}
+
+.tx-details-container > div {
+  width: 100%;
+}
+
+.support {
+  position: absolute;
+  top: 720px;
+  margin: auto;
+  width: 112px;
+}
+
+#pro-tip {
+  position: absolute;
+  top: 50px;
+  right: 50px;
+}
+
+#toggle-switch::after {
+  content: '';
+  @apply h-7 w-7 absolute bg-white-100 left-0.5 top-0.5 rounded-full transform scale-110 transition duration-200;
+}
+
+#toggle-switch:checked:after {
+  content: '';
+  @apply transform scale-110 translate-x-5;
+}
+
+.material-icons-round {
+  font-family: 'Material Icons Round';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px; /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}

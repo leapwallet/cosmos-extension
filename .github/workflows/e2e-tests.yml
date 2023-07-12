@@ -1,0 +1,53 @@
+name: 🧪 E2E Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v2
+        env:
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
+        with:
+          node-version: '16.13.0'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@leapwallet'
+      - name: 📥 Install Dependencies
+        run: |
+          rm -rf node_modules
+          yarn --force --ignore-engines
+      - name: 🤐 Load Env Secrets
+        run: |
+          cd ./apps/extension && touch .env.development
+          echo LEAP_WALLET_BACKEND_API_URL="${{ env.LEAP_WALLET_BACKEND_API_URL }}" >> .env.development
+          echo WALLET_BALANCE_FETCHER_URL="${{ env.WALLET_BALANCE_FETCHER_URL }}" >> .env.development
+          echo KADO_ON_RAMP_API_KEY="${{ secrets.KADO_ON_RAMP_API_KEY }}" >> .env.development
+          echo SENTRY_DSN="${{ secrets.SENTRY_DSN }}" >> .env.production
+          echo SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" >> .env.development
+          echo VERSION="${{ github.event.release.tag_name }}" >> .env.development
+      - name: 🏗️ Build Staging Wallet Extension
+        env:
+          CI: false
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          yarn build:ext:staging
+          export NODE_ENV=development
+      - name: 🧪 Test Code
+        uses: mujo-code/puppeteer-headful@18.9.0
+        env:
+          CI: 'true'
+        with:
+          args: yarn test:extension
+      - name: 📝 Coverage Report
+        uses: raulanatol/jest-coverage-comment-action@main
+        with:
+          github-token: ${{ secrets.NODE_AUTH_TOKEN }}
+          working-directory: './apps/extension'
+          use-existing-reports: true

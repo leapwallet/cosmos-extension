@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    /* Language and Environment */
+    "target": "es2016",
+    "useUnknownInCatchVariables": false,
+    /* Modules */
+    "module": "ESNext",
+    "rootDir": "src",
+    "moduleResolution": "node",
+    /* Emit */
+    "outDir": "dist",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "baseUrl": "src/",
+    "lib": ["es2020", "DOM"],
+    /* Type Checking */
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "../../node_modules", ".yalc"]
+}

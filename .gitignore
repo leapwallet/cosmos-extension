@@ -1,0 +1,14 @@
+*/dist
+node_modules/
+*DS_Store
+yarn-error.log
+.idea/
+build
+.yalc/
+.vscode
+yalc.lock
+lerna-debug.log
+apps/extension/.env.production
+apps/extension/.env.development
+apps/extension/.env.production.compass
+apps/extension/.env.development.compass

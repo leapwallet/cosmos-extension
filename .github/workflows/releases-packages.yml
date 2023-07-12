@@ -1,0 +1,29 @@
+name: 📦 Release Packages
+
+on:
+  push:
+    branches:
+      - release
+    paths:
+      - 'packages/**'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      GH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2.4.1
+        with:
+          node-version: '16.13.0'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@leapwallet'
+
+      - name: bootstrap
+        run: yarn bootstrap
+
+      - name: Bump version and publish package
+        run:
+          yarn publish:ci

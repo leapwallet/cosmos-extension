@@ -1,0 +1,26 @@
+.modal-back > .modal {
+  padding: 1rem;
+}
+
+.DocSearch-Input {
+  margin: 0;
+}
+
+.DocSearch-MagnifierLabel {
+  margin: 0;
+  margin-right: 1rem;
+}
+
+.search-list {
+  max-height: 50vh;
+  padding: 0;
+}
+
+.search-list > div {
+  margin-top: 1rem;
+  padding: 2px;
+}
+
+.flex-logo {
+  display: none;
+}

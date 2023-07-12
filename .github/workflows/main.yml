@@ -1,0 +1,45 @@
+name: ❇️ Release Build
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  build-and-save:
+    name: Save Production Build Artifacts
+    runs-on: ubuntu-latest
+    env:
+      INLINE_RUNTIME_CHUNK: false
+      LEAP_WALLET_BACKEND_API_URL: 'https://api.leapwallet.io'
+      WALLET_BALANCE_FETCHER_URL: 'https://wallet-balance-fetcher.leapwallet.workers.dev/'
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2.4.1
+        with:
+          node-version: '16.13.0'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@leapwallet'
+          cache: 'yarn'
+      - name: 📥 Install Dependencies
+        run: yarn --ignore-engines
+      - name: 🚦 Formatting and Linting
+        run: yarn run check
+      - name: 🤐 Load Env Secrets
+        run: |
+          cd ./apps/extension && touch .env.production
+          echo LEAP_WALLET_BACKEND_API_URL="${{ env.LEAP_WALLET_BACKEND_API_URL }}" >> .env.production
+          echo WALLET_BALANCE_FETCHER_URL="${{ env.WALLET_BALANCE_FETCHER_URL }}" >> .env.production
+          echo KADO_ON_RAMP_API_KEY="${{ secrets.KADO_ON_RAMP_API_KEY }}" >> .env.production
+          echo SENTRY_DSN="${{ secrets.SENTRY_DSN }}" >> .env.production
+          echo SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" >> .env.production
+          echo VERSION="${{ github.event.release.tag_name }}" >> .env.production
+      - name: 🏗️ Build Wallet Extension
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          yarn build:extension
+      - name: 📤 Upload Build Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: leap-cosmos-wallet
+          path: ./apps/extension/build
