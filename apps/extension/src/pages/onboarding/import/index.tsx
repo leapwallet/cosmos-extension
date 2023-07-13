@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import browser from 'webextension-polyfill'
 
 import { IMPORT_WALLET_DATA } from '../constants'
 import ImportLedgerView from './ImportLedgerView'
@@ -432,6 +433,10 @@ export default function OnboardingImportWallet() {
       if (!savedPassword) {
         await moveToNextStep()
       }
+      if (password) {
+        browser.runtime.sendMessage({ type: 'unlock', data: { password } })
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error.message.trim() === 'Wallet already present') {

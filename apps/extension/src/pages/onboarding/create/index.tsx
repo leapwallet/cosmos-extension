@@ -6,6 +6,7 @@ import { usePassword } from 'hooks/settings/usePassword'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
+import browser from 'webextension-polyfill'
 
 import { ConfirmSecretPhraseView } from './ConfirmSecretPhraseView'
 import { SeedPhraseView } from './SeedPhraseView'
@@ -20,6 +21,7 @@ export default function OnboardingCreateWallet() {
 
   const onOnboardingCompleted = async (password: string) => {
     await onOnboardingComplete(mnemonic, password, { 0: true }, 'create')
+    browser.runtime.sendMessage({ type: 'unlock', data: { password } })
     navigate('/onboardingSuccess')
   }
 
