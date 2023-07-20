@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+import { sleep } from '@leapwallet/cosmos-wallet-sdk'
 import { ENCRYPTED_ACTIVE_WALLET, KeyChain } from '@leapwallet/leap-keychain'
 import { decrypt } from '@leapwallet/leap-keychain'
 import ExtensionPage from 'components/extension-page'
@@ -9,9 +10,7 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import React, { ReactElement, ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { useRef } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Colors } from 'theme/colors'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import browser, { extension } from 'webextension-polyfill'
 
 import { useSetPassword } from '../hooks/settings/usePassword'
@@ -109,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         if (message.data.status === 'success') {
           signin(message.data.password)
         } else {
-          setLoading(false)
+          setLoading(() => false)
         }
       }
     }
@@ -121,6 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         setNoAccount(false)
         browser.runtime.onMessage.addListener(listener)
         browser.runtime.sendMessage({ type: 'popup-open' })
+        setTimeout(() => {
+          if (loading) {
+            setLoading(false)
+            //browser.runtime.onMessage.removeListener(listener)
+          }
+        }, 5000)
       } else {
         setNoAccount(true)
         setLoading(false)

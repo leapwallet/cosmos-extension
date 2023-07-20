@@ -226,8 +226,9 @@ const GasPriceOptions = ({
       return
     }
 
+    const gasPriceBN = new BigNumber(gasPriceOption.gasPrice.amount.toFloatApproximation())
     // if the dapp has specified a fee granter or has set disableFeeCheck on SignOptions, the fees is being paid by the dapp we ignore the fee asset balance checks
-    if (disableBalanceCheck) {
+    if (disableBalanceCheck || gasPriceBN.isZero()) {
       setError(null)
       return
     }
@@ -235,7 +236,6 @@ const GasPriceOptions = ({
       return setError(`You do not have any ${feeTokenData.denom.coinDenom} tokens`)
     }
     const isIbcDenom = !!feeTokenAsset?.ibcDenom
-    const gasPriceBN = new BigNumber(gasPriceOption.gasPrice.amount.toFloatApproximation())
     const amount = gasPriceBN
       .multipliedBy(gasLimit)
       .multipliedBy(gasAdjustment)
