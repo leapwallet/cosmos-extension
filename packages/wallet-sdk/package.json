@@ -40,7 +40,7 @@
     "@injectivelabs/networks": "1.0.105",
     "@injectivelabs/sdk-ts": "1.0.498",
     "@leapwallet/leap-js": "0.1.1",
-    "@ledgerhq/hw-app-cosmos": "6.28.1",
+    "@ledgerhq/hw-app-cosmos": "6.28.4",
     "@ledgerhq/hw-transport-webhid": "6.27.15",
     "@ledgerhq/hw-transport-webusb": "6.27.15",
     "@leapwallet/leap-keychain": "0.1.7",
