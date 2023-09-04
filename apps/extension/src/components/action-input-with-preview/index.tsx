@@ -80,6 +80,7 @@ export const ActionInputWithPreview = React.forwardRef(
               {preview}
             </motion.div>
           ) : (
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             <motion.input
               initial={{ opacity: 0.9 }}

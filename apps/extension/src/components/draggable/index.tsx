@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
 
 interface PropTypes {
   children?: React.ReactNode
+  // eslint-disable-next-line no-unused-vars
   onDragEnd: (result: DropResult) => void
 }
 

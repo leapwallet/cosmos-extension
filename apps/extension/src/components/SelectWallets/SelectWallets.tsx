@@ -1,3 +1,4 @@
+import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -9,14 +10,14 @@ import { sliceAddress } from 'utils/strings'
 import { Wallet } from '../../hooks/wallet/useWallet'
 import useWallets = Wallet.useWallets
 
-import { walletLabels } from '../../config/constants'
-import Key = Wallet.Key
 import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 
+import { walletLabels } from '../../config/constants'
+
 type SelectWalletsProps = {
-  selectedWallets: Wallet.Key[]
-  setSelectedWallets: React.Dispatch<React.SetStateAction<Wallet.Key[]>>
+  selectedWallets: Key[]
+  setSelectedWallets: React.Dispatch<React.SetStateAction<Key[]>>
   forceChain?: SupportedChain
 }
 
@@ -75,7 +76,7 @@ export const SelectWallets = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallets, activeChain])
 
-  const handleCardClick = (wallet: Wallet.Key) => {
+  const handleCardClick = (wallet: Key) => {
     const index = selectedWallets.findIndex(
       (selectedWallet) => selectedWallet.addresses[chain] === wallet.addresses[chain],
     )

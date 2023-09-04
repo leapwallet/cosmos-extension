@@ -1,6 +1,6 @@
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
 import Text from 'components/text'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import React, { ReactNode } from 'react'
 import { Colors } from 'theme/colors'
 
@@ -34,7 +34,6 @@ export default function PopupLayout({
           {showBetaTag && (
             <Text
               size='xs'
-              // color='text-white-100'
               style={{ borderColor: Colors.getChainColor(activeChain) }}
               className='absolute border-[1px] z-10 top-[25px] px-[10px] py-[3px] rounded-2xl font-medium left-[64px]'
             >

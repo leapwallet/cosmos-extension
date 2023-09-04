@@ -1,4 +1,5 @@
 import { Buttons, Input } from '@leapwallet/leap-ui'
+import classNames from 'classnames'
 import CssLoader from 'components/css-loader/CssLoader'
 import Text from 'components/text'
 import { useSetPassword } from 'hooks/settings/usePassword'
@@ -202,7 +203,7 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
               <Text size='sm' color='text-gray-400 font-bold'>
                 Recommended security practice:
               </Text>
-              <Text size='md' color='font-bold text-white-100'>
+              <Text size='md' color='font-bold text-gray-400 dark:text-white-100'>
                 Always choose a <span className='text-green-300'>&nbsp;strong&nbsp;</span> password
               </Text>
             </div>
@@ -231,30 +232,35 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
             </Text>
           )}
 
-          {!isCompassWallet() && (
-            <div className='flex flex-row items-center mt-6'>
-              <input
-                type='checkbox'
-                id='terms'
-                name='terms'
-                value='terms'
-                className='cursor-pointer mr-2 h-4 w-4 bg-black-50'
-                checked={termsOfUseAgreedCheck}
-                onChange={(e) => setTermsOfUseAgreedCheck(e.target.checked)}
-              />
-              <Text size='md' color='text-gray-400'>
-                By proceeding, you agree to our
-                <a
-                  href='https://www.leapwallet.io/terms'
-                  target='_blank'
-                  rel='noreferrer'
-                  className='text-indigo-300 font-medium ml-1'
-                >
-                  Terms of Use
-                </a>
-              </Text>
-            </div>
-          )}
+          <div className='flex flex-row items-center mt-6'>
+            <input
+              type='checkbox'
+              id='terms'
+              name='terms'
+              value='terms'
+              className='cursor-pointer mr-2 h-4 w-4 bg-black-50'
+              checked={termsOfUseAgreedCheck}
+              onChange={(e) => setTermsOfUseAgreedCheck(e.target.checked)}
+            />
+            <Text size='md' color='text-gray-400'>
+              By proceeding, you agree to our
+              <a
+                href={
+                  isCompassWallet()
+                    ? 'https://compasswallet.io/terms'
+                    : 'https://www.leapwallet.io/terms'
+                }
+                target='_blank'
+                rel='noreferrer'
+                className={classNames('font-medium ml-1', {
+                  'text-indigo-300': !isCompassWallet(),
+                })}
+                style={isCompassWallet() ? { color: Colors.compassPrimary } : {}}
+              >
+                Terms of Use
+              </a>
+            </Text>
+          </div>
         </form>
       </div>
       <div>

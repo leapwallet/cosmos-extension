@@ -26,7 +26,17 @@ const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
         {...rest}
       >
         <div className={'flex flex-col justify-center items-center'}>
-          <span className='material-icons-round'>{image.src}</span>
+          {image.alt === 'IBC' ? (
+            <img
+              src={image.src}
+              alt=''
+              className={classNames('invert dark:invert-0', {
+                'opacity-30': disabled,
+              })}
+            />
+          ) : (
+            <span className='material-icons-round'>{image.src}</span>
+          )}
         </div>
       </button>
       {image.alt !== '' ? (
