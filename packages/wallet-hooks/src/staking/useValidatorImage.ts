@@ -1,6 +1,6 @@
 import { Validator } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 const validatorImageCache = new Map<string, string>();
 

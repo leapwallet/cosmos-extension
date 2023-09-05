@@ -27,6 +27,7 @@ export function EnterPasswordView({
   const testPassword = SeedPhrase.useTestPassword()
   const activeWallet = useActiveWallet()
   const activeChain = useActiveChain()
+
   const {
     register,
     handleSubmit,
@@ -36,11 +37,11 @@ export function EnterPasswordView({
 
   const onSubmit = (e?: React.BaseSyntheticEvent) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handleSubmit((values: any) => {
+    handleSubmit(async (values: any) => {
       try {
         const cipher = activeWallet?.cipher
         if (!cipher) throw new Error('No cipher')
-        testPassword(values.password, cipher)
+        await testPassword(values.password, cipher)
         setPassword(values.password)
         setRevealed(true)
       } catch (err) {

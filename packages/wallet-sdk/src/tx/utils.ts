@@ -12,7 +12,6 @@ import {
   stakingTypes,
   vestingTypes,
 } from '@cosmjs/stargate/build/modules';
-import axios from 'axios';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
 import { PubKey } from 'cosmjs-types/cosmos/crypto/secp256k1/keys';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
@@ -20,6 +19,7 @@ import { AuthInfo, Fee, TxBody, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import Long from 'long';
 
 import { ChainInfos, SupportedChain } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
 import { sleep } from '../utils';
 
 export function getTxHashFromSignedTx({
@@ -105,13 +105,19 @@ function pubkeyTypeUrl(chain: SupportedChain) {
 
 export async function getTxData(txHash: string, lcdUrl: string) {
   try {
-    const data = await axios.get(`${lcdUrl}/cosmos/tx/v1beta1/txs/${txHash}`);
+    const data = await axiosWrapper({
+      baseURL: lcdUrl,
+      method: 'get',
+      url: `/cosmos/tx/v1beta1/txs/${txHash}`,
+    });
+
     if (data.data.code === 3) {
       return {
         code: data.data.code,
       };
     }
     const result = data.data.tx_response;
+
     return {
       code: result.code,
       height: result.height,
@@ -131,7 +137,7 @@ export async function getIBCAcknowledgement(
   transactionHash: string,
   pollCount = 100,
 ) {
-  const { sequence, channelId, receivingAddress } = await getIbcTxData(originChainLcd, transactionHash);
+  const { sequence, channelId } = await getIbcTxData(originChainLcd, transactionHash);
   const packetAck = await pollForPacketAck(recevingChainLcd, sequence, channelId, pollCount);
 
   if (packetAck.data.acknowledgement) {
@@ -141,7 +147,11 @@ export async function getIBCAcknowledgement(
 
 export async function getIbcTxData(originChainLcd: string, transactionHash: string) {
   // get the tx data
-  const tx = await axios.get(`${originChainLcd}/cosmos/tx/v1beta1/txs/${transactionHash}`);
+  const tx = await axiosWrapper({
+    baseURL: originChainLcd,
+    method: 'get',
+    url: `/cosmos/tx/v1beta1/txs/${transactionHash}`,
+  });
 
   const txData = tx.data.tx_response;
   // get the sequence number and port id of the packet
@@ -167,9 +177,11 @@ export async function pollForPacketAck(
     throw new Error('Timeout waiting for acknowledgement');
   }
   try {
-    return await axios.get(
-      `${receivingChainLcd}/ibc/core/channel/v1/channels/${channelId}/ports/transfer/packet_acks/${sequence}`,
-    );
+    return await axiosWrapper({
+      baseURL: receivingChainLcd,
+      method: 'get',
+      url: `/ibc/core/channel/v1/channels/${channelId}/ports/transfer/packet_acks/${sequence}`,
+    });
   } catch (e) {
     await sleep(1000);
     return pollForPacketAck(receivingChainLcd, sequence, channelId, intervalCount - 1);

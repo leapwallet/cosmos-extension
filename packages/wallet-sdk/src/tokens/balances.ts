@@ -2,12 +2,12 @@ import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { createProtobufRpcClient, QueryClient, StargateClient } from '@cosmjs/stargate';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 import { evmosToEth } from '@evmos/address-converter';
-import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { QueryClientImpl, QueryDenomTraceResponse } from 'cosmjs-types/ibc/applications/transfer/v1/query';
 import { Contract, ethers } from 'ethers';
 
 import { ChainInfo, ChainInfos, SupportedChain } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
 import { BalancesResponse } from '../types/bank';
 
 export type IQueryDenomTraceResponse = QueryDenomTraceResponse;
@@ -15,13 +15,15 @@ export type IQueryDenomTraceResponse = QueryDenomTraceResponse;
 export async function fetchAllBalancesRestApi(lcdUrl: string, address: string, fallBackRpcUrl?: string) {
   // leading whitespaces on request url can cause requests to fail on react native
   try {
-    const url = `${lcdUrl.trim()}/cosmos/bank/v1beta1/${
-      address.toLowerCase().includes('terra') ? 'spendable_' : ''
-    }balances/${address}?pagination.limit=1000`;
-    const response = await axios.get<BalancesResponse>(url, {
+    const response = await axiosWrapper<BalancesResponse>({
+      baseURL: lcdUrl.trim(),
       headers: { 'Cache-Control': 'no-cache' },
-      timeout: 5000,
+      method: 'get',
+      url: `/cosmos/bank/v1beta1/${
+        address.toLowerCase().includes('terra') ? 'spendable_' : ''
+      }balances/${address}?pagination.limit=1000`,
     });
+
     return response.data.balances.map(({ amount, denom }) => {
       return { amount: new BigNumber(amount), denom };
     });
@@ -126,7 +128,11 @@ export class TransferQueryClient {
 }
 
 export async function getIbcDenomTrace(lcdUrl: string, hash: string) {
-  const url = `${lcdUrl.trim()}/ibc/apps/transfer/v1/denom_traces/${hash}`;
-  const response = await axios.get<{ denom_trace: { base_denom: string; path: string } }>(url);
+  const response = await axiosWrapper<{ denom_trace: { base_denom: string; path: string } }>({
+    baseURL: lcdUrl.trim(),
+    method: 'get',
+    url: `/ibc/apps/transfer/v1/denom_traces/${hash}`,
+  });
+
   return response.data.denom_trace;
 }

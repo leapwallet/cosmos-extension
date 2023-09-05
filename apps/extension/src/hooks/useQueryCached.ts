@@ -1,7 +1,6 @@
 import {
   QueryFunction,
   QueryKey,
-  QueryOptions,
   useQuery,
   UseQueryOptions,
   UseQueryResult,

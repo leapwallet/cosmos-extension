@@ -12,6 +12,7 @@ import { capitalize } from 'utils/strings'
 interface propTypes {
   isVisible: boolean
   onCloseHandler: () => void
+  // eslint-disable-next-line no-unused-vars
   setTokenData: (id: string, tokenName: string, tokenIcon: string, tokenBalance: string) => void
   selectedTokenName: string
   selectedTokenId: string

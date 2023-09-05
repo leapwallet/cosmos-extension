@@ -5,11 +5,12 @@ import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useContactsSearch } from 'hooks/useContacts'
+import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 
-import { SendContextType, useSendContext } from '../../context'
+import { useSendContext } from '../../context'
 
 type ContactsSheetProps = {
   isOpen: boolean
@@ -27,7 +28,9 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
   const trimmedSearchQuery = searchQuery.trim()
   const contacts = useContactsSearch(trimmedSearchQuery)
   const chainInfos = useChainInfos()
-  const { setMemo } = useSendContext() as SendContextType
+  const { setMemo } = useSendContext()
+
+  const defaultTokenLogo = useDefaultTokenLogo()
 
   const handleAvatarClick = (contact: AddressBook.SavedAddress, chainImage: string | undefined) => {
     onContactSelect({
@@ -58,7 +61,8 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
         >
           {contacts.length > 0 ? (
             contacts.map((contact) => {
-              const chainImage = Images.Logos.getChainImage(contact.blockchain as SupportedChain)
+              const chainImage =
+                chainInfos[contact.blockchain].chainSymbolImageUrl ?? defaultTokenLogo
 
               return (
                 <AvatarCard

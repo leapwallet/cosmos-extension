@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import Fuse from 'fuse.js'
+import { useEffect, useMemo, useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 
 export const useContacts = () => {
@@ -31,19 +32,22 @@ export const useContacts = () => {
 export const useContactsSearch = (searchQuery?: string): AddressBook.SavedAddress[] => {
   const { contacts, loading } = useContacts()
 
-  const search = (searchQuery?: string) => {
+  const searchResult = useMemo(() => {
     if (loading) {
       return []
     }
+    const contactsList = Object.values(contacts)
     const cleanSearchQuery = searchQuery?.trim().toLowerCase() ?? ''
     if (cleanSearchQuery.length === 0) {
-      return Object.values(contacts)
+      return contactsList
     }
-    const searchResults = Object.values(contacts).filter((contact) => {
-      return contact.name.toLowerCase().includes(cleanSearchQuery)
+    return new Fuse(contactsList, {
+      threshold: 0.3,
+      keys: ['name', 'address'],
     })
-    return searchResults
-  }
+      .search(cleanSearchQuery)
+      .map((contact) => contact.item)
+  }, [contacts, loading, searchQuery])
 
-  return search(searchQuery)
+  return searchResult
 }

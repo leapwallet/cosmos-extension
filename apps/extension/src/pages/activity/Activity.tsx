@@ -91,6 +91,10 @@ function Activity() {
                     setShowSideNav(true)
                   },
                   type: HeaderActionType.NAVIGATION,
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  // @ts-ignore
+                  className:
+                    'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
                 }}
                 imgSrc={chainInfos[activeChain].chainSymbolImageUrl ?? defaultTokenLogo}
                 onImgClick={
@@ -106,10 +110,21 @@ function Activity() {
             }
           >
             <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
+
+            {isCompassWallet() && isTestnet && (
+              <AlertStrip
+                message='You are on Sei Testnet'
+                bgColor={themeColor}
+                alwaysShow={isTestnet}
+              />
+            )}
+
             {showSelectedChainAlert && !isCompassWallet() && (
               <AlertStrip
                 message={`You are on ${chainInfos[activeChain].chainName}${
-                  isTestnet ? ' Testnet' : ''
+                  isTestnet && !chainInfos[activeChain]?.chainName.includes('Testnet')
+                    ? ' Testnet'
+                    : ''
                 }`}
                 bgColor={themeColor}
                 alwaysShow={isTestnet}

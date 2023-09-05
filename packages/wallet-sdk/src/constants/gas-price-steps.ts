@@ -41,7 +41,7 @@ export const GAS_PRICE_STEPS = {
   nomic: { low: 0.01, average: 0.025, high: 0.04 },
   omniflix: { low: 0.01, average: 0.025, high: 0.04 },
   onomy: { low: 0.01, average: 0.025, high: 0.04 },
-  passage: { low: 0, average: 0, high: 0 },
+  passage: { low: 0.001, average: 0.0025, high: 0.01 },
   persistenceNew: { low: 0.01, average: 0.025, high: 0.04 },
   persistence: { low: 0.01, average: 0.025, high: 0.04 },
   planq: { low: 20000000000, average: 25000000000, high: 30000000000 },
@@ -71,4 +71,5 @@ export const GAS_PRICE_STEPS = {
   mayachain: { low: 0.01, average: 0.025, high: 0.04 },
   empowerchain: { low: 0.025, average: 0.025, high: 0.03 },
   dydx: { low: 0.01, average: 0.025, high: 0.04 },
+  celestiatestnet3: { low: 0.01, average: 0.025, high: 0.04 },
 };

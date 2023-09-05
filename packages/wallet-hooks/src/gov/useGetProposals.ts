@@ -1,6 +1,5 @@
-import { CosmosSDK } from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper, CosmosSDK } from '@leapwallet/cosmos-wallet-sdk';
 import { QueryStatus, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import qs from 'qs';
 import { useRef, useState } from 'react';
 
@@ -24,12 +23,12 @@ export function useGetProposals(paginationLimit = 30) {
   const queryData = useQuery({
     queryKey: [govQueryIds.proposals, activeChain, lcdUrl, paginationKey],
     queryFn: async (): Promise<Proposal[]> => {
-      let url = `${lcdUrl}/cosmos/gov/v1beta1/proposals`;
+      let url = `/cosmos/gov/v1beta1/proposals`;
 
       switch (activeChainInfo.cosmosSDK) {
         case CosmosSDK.Version_Point_46:
         case CosmosSDK.Version_Point_47:
-          url = `${lcdUrl}/cosmos/gov/v1/proposals`;
+          url = `/cosmos/gov/v1/proposals`;
           break;
       }
 
@@ -39,9 +38,14 @@ export function useGetProposals(paginationLimit = 30) {
         'pagination.key': paginationKey,
       };
       const query = qs.stringify(params);
-      const { data } = await axios.get(`${url}?${query}`);
-      paginationKeyRef.current = data.pagination.next_key;
 
+      const { data } = await axiosWrapper({
+        baseURL: lcdUrl,
+        method: 'get',
+        url: `${url}?${query}`,
+      });
+
+      paginationKeyRef.current = data.pagination.next_key;
       let proposals = [];
 
       switch (activeChainInfo.cosmosSDK) {
@@ -105,15 +109,16 @@ export function useGetProposal(id: number, enabled: boolean) {
   return useQuery(
     [govQueryIds.proposals, activeChain, selectedNetwork, id],
     async (): Promise<any> => {
-      const url = `${lcdUrl}/cosmos/gov/v1beta1/proposals/${id}/tally`;
-      const tallying = `${lcdUrl}/cosmos/gov/v1beta1/params/tallying`;
-      const poolUrl = `${lcdUrl}/cosmos/staking/v1beta1/pool`;
-      const proposerUrl = `${lcdUrl}/cosmos/gov/v1beta1/proposals/${id}/deposits`;
+      const url = `/cosmos/gov/v1beta1/proposals/${id}/tally`;
+      const tallying = '/cosmos/gov/v1beta1/params/tallying';
+      const poolUrl = '/cosmos/staking/v1beta1/pool';
+      const proposerUrl = `/cosmos/gov/v1beta1/proposals/${id}/deposits`;
+
       const [data1, data2, data3, data4] = await Promise.all([
-        axios.get(url),
-        axios.get(tallying),
-        axios.get(poolUrl),
-        axios.get(proposerUrl),
+        axiosWrapper({ baseURL: lcdUrl, method: 'get', url }),
+        axiosWrapper({ baseURL: lcdUrl, method: 'get', url: tallying }),
+        axiosWrapper({ baseURL: lcdUrl, method: 'get', url: poolUrl }),
+        axiosWrapper({ baseURL: lcdUrl, method: 'get', url: proposerUrl }),
       ]);
       const proposer = data4.data.deposits[data4.data.deposits.length - 1];
       return {

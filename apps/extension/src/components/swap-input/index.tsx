@@ -20,6 +20,7 @@ export type SwapInputProps = Swap & {
   amount: string
   targetAmount: string
   feeInCurrency: string
+  // eslint-disable-next-line no-unused-vars
   setAmount: (amount: string) => void
   onSwapClick: () => void
   placeholder?: string
@@ -35,30 +36,27 @@ export type SwapInputProps = Swap & {
 }
 
 const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
-  (
-    {
-      name,
-      balance,
-      amount,
-      targetAmount,
-      feeInCurrency,
-      setAmount,
-      onMaxClick,
-      onSwapClick,
-      onTokenClick,
-      onTargetTokenClick,
-      targetName,
-      targetTokenIcon,
-      targetUnitPrice,
-      icon,
-      onSlippageClick,
-      onReviewClick,
-      slippage,
-      isFeeAvailable,
-      junoDollarValue,
-    },
-    ref,
-  ) => {
+  ({
+    name,
+    balance,
+    amount,
+    targetAmount,
+    feeInCurrency,
+    setAmount,
+    onMaxClick,
+    onSwapClick,
+    onTokenClick,
+    onTargetTokenClick,
+    targetName,
+    targetTokenIcon,
+    targetUnitPrice,
+    icon,
+    onSlippageClick,
+    onReviewClick,
+    slippage,
+    isFeeAvailable,
+    junoDollarValue,
+  }) => {
     const [isError, setIsError] = useState(false)
     const [formatBalance] = useformatCurrency()
 

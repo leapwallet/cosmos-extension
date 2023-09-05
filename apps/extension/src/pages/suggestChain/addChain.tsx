@@ -19,7 +19,6 @@ import { BETA_CHAINS } from 'config/storage-keys'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import SideNav from 'pages/home/side-nav'
 import React, { ChangeEvent, FormEvent, useState } from 'react'
@@ -30,13 +29,13 @@ import browser from 'webextension-polyfill'
 
 type TAddChainFormProps = {
   updateKeyStore: (
-    wallet: Wallet.Key,
+    wallet: Key,
     activeChain: SupportedChain,
     actionType?: 'UPDATE' | 'DELETE',
     chainInfo?: ChainInfo,
-  ) => Promise<Record<string, Wallet.Key>>
+  ) => Promise<Record<string, Key>>
   activeWallet: Key
-  setActiveWallet: (wallet: Wallet.Key) => Promise<void>
+  setActiveWallet: (wallet: Key) => Promise<void>
   setActiveChain: (chain: SupportedChain, chainInfo?: ChainInfo) => Promise<void>
 }
 const AddChainForm = ({
@@ -174,7 +173,7 @@ const AddChainForm = ({
         [denom]: {
           coinDenom: addressPrefix,
           coinMinimalDenom: denom,
-          coinDecimals: decimals,
+          coinDecimals: Number(decimals),
           coinGeckoId: '',
           icon: Images.Logos.GenericLight,
           chain: chainName,
@@ -360,8 +359,8 @@ export default function AddChain() {
             </div>
           </div>
           <AddChainForm
-            updateKeyStore={updateKeyStore as () => Promise<Record<string, Wallet.Key>>}
-            activeWallet={activeWallet as Wallet.Key}
+            updateKeyStore={updateKeyStore as () => Promise<Record<string, Key>>}
+            activeWallet={activeWallet as Key}
             setActiveWallet={setActiveWallet}
             setActiveChain={setActiveChain}
           />

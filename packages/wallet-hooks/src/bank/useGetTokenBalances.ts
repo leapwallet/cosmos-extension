@@ -14,7 +14,7 @@ import { useCallback, useMemo } from 'react';
 import { Token } from 'types/bank';
 
 import { LeapWalletApi } from '../apis';
-import { Currency } from '../connectors';
+import { Currency, MarketPercentageChangesResponse } from '../connectors';
 import { useGetIbcDenomTrace } from '../ibc';
 import { currencyDetail, useChainsRegistry, useUserPreferredCurrency } from '../settings';
 import {
@@ -78,30 +78,30 @@ function getQueryFn(
           }
 
           const amount = fromSmall(new BigNumber(balance.amount).toString(), denom?.coinDecimals);
-          const usdValue =
+
+          const [usdValue, percentChange] =
             parseFloat(amount) > 0 && denom?.coinGeckoId
-              ? await fetchCurrency(
-                  amount,
-                  isCW20Balances ? denom?.coinMinimalDenom : denom.coinGeckoId,
-                  denom?.chain as unknown as SupportedChain,
-                  currencyPreferred,
-                )
-              : undefined;
+              ? await Promise.all([
+                  await fetchCurrency(
+                    amount,
+                    isCW20Balances ? denom?.coinMinimalDenom : denom.coinGeckoId,
+                    denom?.chain as unknown as SupportedChain,
+                    currencyPreferred,
+                  ),
+                  await LeapWalletApi.operateMarketPercentChanges(
+                    [denom.coinGeckoId],
+                    denom?.chain as unknown as SupportedChain,
+                  ),
+                ])
+              : [undefined, {}];
 
           const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
-          const percentChange =
-            parseFloat(amount) > 0 && denom?.coinGeckoId
-              ? await LeapWalletApi.operateMarketPercentChanges(
-                  [denom.coinGeckoId],
-                  denom?.chain as unknown as SupportedChain,
-                )
-              : {};
 
           return {
             name: denom?.name,
             amount,
             symbol: denom?.coinDenom,
-            percentChange: percentChange[denom?.coinGeckoId],
+            percentChange: (percentChange as MarketPercentageChangesResponse)[denom?.coinGeckoId],
             usdValue: usdValue ?? '',
             coinMinimalDenom: denom?.coinMinimalDenom,
             img: denom?.icon,
@@ -399,7 +399,6 @@ function useIbcTokensBalances(
           assets.forEach((asset) => {
             if (!asset) return;
             const marketPrice = Object.entries(marketPrices).find(([platform, marketPrice]) => {
-              console.log(platform, marketPrice, asset.chain, asset.coinGeckoId, marketPrice[asset.coinGeckoId]);
               return platform === asset.chain && marketPrice[asset.coinGeckoId];
             });
 

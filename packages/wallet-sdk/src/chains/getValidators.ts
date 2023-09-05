@@ -1,13 +1,8 @@
-import axios from 'axios';
-
 import { ChainInfo, ChainInfos, SupportedChain } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
 import { ChainValidator } from '../types/validators';
-import { fromSmall } from '../utils';
+import { fromSmall, getRestUrl } from '../utils';
 import { getInjectiveValidatorLogo } from './injective/getInjectiveValidators';
-
-export const getRestUrl =
-  (chainInfos: Record<SupportedChain, ChainInfo>) => (chain: SupportedChain) => (isTestnet: boolean) =>
-    !isTestnet ? chainInfos[chain].apis.rest : chainInfos[chain].apis.restTest;
 
 export async function getValidatorsList(
   chain: SupportedChain,
@@ -15,13 +10,18 @@ export async function getValidatorsList(
   lcdUrl?: string,
   chainInfos?: Record<SupportedChain, ChainInfo>,
 ) {
-  const url = lcdUrl ?? getRestUrl(chainInfos ?? ChainInfos)(chain)(isTestnet);
-  let queryURL = `${url}/cosmos/staking/v1beta1/validators?pagination.limit=500`;
+  const baseURL = lcdUrl ?? getRestUrl(chainInfos ?? ChainInfos, chain, isTestnet);
+  let queryURL = `/cosmos/staking/v1beta1/validators?pagination.limit=500`;
+
   if (chain === 'nibiru') {
     queryURL = `${queryURL}&status=BOND_STATUS_BONDED`;
   }
 
-  const res = await axios.get(queryURL);
+  const res = await axiosWrapper({
+    baseURL,
+    method: 'get',
+    url: queryURL,
+  });
 
   const decimals = Object.values((chainInfos ?? ChainInfos)[chain].nativeDenoms)[0].coinDecimals;
 

@@ -1,8 +1,11 @@
-import axios from 'axios';
+import { axiosWrapper } from '@leapwallet/cosmos-wallet-sdk';
 
 export async function getCoreumHybridTokenInfo(lcdUrl: string, coinMinimalDenom: string) {
-  const url = `${lcdUrl}/coreum/asset/ft/v1/tokens/${coinMinimalDenom}`;
-  const { data } = await axios.get(url);
+  const { data } = await axiosWrapper({
+    baseURL: lcdUrl,
+    method: 'get',
+    url: `/coreum/asset/ft/v1/tokens/${coinMinimalDenom}`,
+  });
 
   const { symbol, precision } = data.token;
   return { symbol, precision };

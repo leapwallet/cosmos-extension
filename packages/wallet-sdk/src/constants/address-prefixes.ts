@@ -98,4 +98,5 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   maya: 'mayachain',
   empower: 'empowerchain',
   dydx: 'dydx',
+  celestia: 'celestiatestnet3',
 };

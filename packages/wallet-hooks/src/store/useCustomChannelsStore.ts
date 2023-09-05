@@ -48,7 +48,7 @@ export function useAddCustomChannel({ sourceChain, targetChain }: { sourceChain?
   const _activeChain = useActiveChain();
   const activeChain = sourceChain ?? _activeChain;
 
-  const { lcdUrl } = useChainApis('osmosis');
+  const { lcdUrl } = useChainApis(activeChain as SupportedChain);
   const { chains } = useChainsStore();
 
   const getStorageLayer = useGetStorageLayer();
@@ -119,14 +119,12 @@ export function useAddCustomChannel({ sourceChain, targetChain }: { sourceChain?
         // check if channel exists
         const [channelResponse, clientStateResponse] = await Promise.all([
           ibcChannelQuery<ChannelResponse>({
-            getUrl: () => {
-              return `${lcdUrl}/ibc/core/channel/v1/channels/${channelId}/ports/transfer`;
-            },
+            baseURL: lcdUrl ?? '',
+            url: `/ibc/core/channel/v1/channels/${channelId}/ports/transfer`,
           }),
           ibcChannelQuery<Record<string, any>>({
-            getUrl: () => {
-              return `${lcdUrl}/ibc/core/channel/v1/channels/${channelId}/ports/transfer/client_state`;
-            },
+            baseURL: lcdUrl ?? '',
+            url: `/ibc/core/channel/v1/channels/${channelId}/ports/transfer/client_state`,
           }),
         ]);
 
@@ -155,9 +153,8 @@ export function useAddCustomChannel({ sourceChain, targetChain }: { sourceChain?
         counterPartyChannelId = channelResponse.data.channel.counterparty.channel_id;
 
         const clientStatusResponse = await ibcChannelQuery({
-          getUrl: () => {
-            return `${lcdUrl}/ibc/core/client/v1/client_status/${clientStateResponse.data.identified_client_state.client_id}`;
-          },
+          baseURL: lcdUrl ?? '',
+          url: `/ibc/core/client/v1/client_status/${clientStateResponse.data.identified_client_state.client_id}`,
           notFoundError: 'IBC client does not exist',
         });
 

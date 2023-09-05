@@ -1,7 +1,6 @@
-import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { axiosWrapper, ChainInfos, getRestUrl, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { OnboardCard as Card } from '@leapwallet/leap-ui'
 import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
 import bech32 from 'bech32'
 import Tooltip from 'components/better-tooltip'
 import Text from 'components/text'
@@ -23,10 +22,11 @@ const getBalance = async ({
   lcdUrl: string
   chain: string
 }) => {
-  const controller = new AbortController()
   try {
-    const result = await axios.get(`${lcdUrl}/cosmos/bank/v1beta1/balances/${address}`, {
-      timeout: 3500,
+    const result = await axiosWrapper({
+      baseURL: lcdUrl,
+      method: 'get',
+      url: `/cosmos/bank/v1beta1/balances/${address}`,
     })
 
     return { balances: result.data.balances ?? [], chain }
@@ -68,12 +68,14 @@ function WalletInfoCard({
         .filter((c) => !c.beta)
         .map((chainInfo) => {
           const accountAddress = bech32.encode(chainInfo.addressPrefix, words)
-          if (!chainInfo.apis.rest) {
+          const lcdUrl = getRestUrl(chainInfos, chainInfo.key, false)
+
+          if (!lcdUrl) {
             return Promise.reject(new Error('No rest endpoint'))
           }
           return getBalance({
             address: accountAddress,
-            lcdUrl: chainInfo.apis.rest,
+            lcdUrl,
             chain: chainInfo.key,
           })
         })

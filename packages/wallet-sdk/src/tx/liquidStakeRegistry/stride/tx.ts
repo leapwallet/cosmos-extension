@@ -7,15 +7,15 @@ import { ICAAccountType, ICAAccountTypeSDKType } from './ica_account';
 export interface MsgLiquidStake {
   creator: string;
   amount: string;
-  /** TODO(TEST-86): Update Denom -> HostDenom */
 
+  /** TODO(TEST-86):- Update Denom -> HostDenom */
   hostDenom: string;
 }
 export interface MsgLiquidStakeSDKType {
   creator: string;
   amount: string;
-  /** TODO(TEST-86): Update Denom -> HostDenom */
 
+  /** TODO(TEST-86):- Update Denom -> HostDenom */
   host_denom: string;
 }
 export interface MsgLiquidStakeResponse {}
@@ -71,13 +71,13 @@ export interface MsgRegisterHostZoneSDKType {
   unbonding_frequency: Long;
 }
 /**
- * TODO(TEST-53): Remove this pre-launch (no need for clients to create /
+ * TODO(TEST-53):- Remove this pre-launch (no need for clients to create /
  * interact with ICAs)
  */
 
 export interface MsgRegisterHostZoneResponse {}
 /**
- * TODO(TEST-53): Remove this pre-launch (no need for clients to create /
+ * TODO(TEST-53):- Remove this pre-launch (no need for clients to create /
  * interact with ICAs)
  */
 

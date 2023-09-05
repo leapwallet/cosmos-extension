@@ -12,6 +12,8 @@ export type Key = {
   walletType: WALLETTYPE;
   id: string;
   colorIndex: number;
+  avatar?: string;
+  avatarIndex?: string;
 };
 
 type ActiveWallet = {

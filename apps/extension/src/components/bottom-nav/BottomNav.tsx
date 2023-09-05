@@ -1,6 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { useChainsStore, useSelectedNetwork } from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import React, { useMemo, useState } from 'react'
@@ -21,21 +20,13 @@ type BottomNavProps = {
   disabled?: boolean
 }
 
-const nftSupport: SupportedChain[] = [
-  'stargaze',
-  'sei',
-  'mars',
-  'seiTestnet2',
-  'archway',
-  'injective',
-]
-
 export default function BottomNav({ label, disabled }: BottomNavProps) {
   const [selected, setSelected] = useState(label)
   const navigate = useNavigate()
   const activeChain = useActiveChain()
   const { chains } = useChainsStore()
   const activeChainInfo = chains[activeChain]
+  const selectedNetwork = useSelectedNetwork()
 
   const bottomNavItems = useMemo(
     () => [
@@ -46,16 +37,16 @@ export default function BottomNav({ label, disabled }: BottomNavProps) {
         show: true,
       },
       {
-        label: BottomNavLabel.NFTs,
-        icon: 'sell',
-        path: '/nfts',
-        show: nftSupport.includes(activeChain),
-      },
-      {
         label: BottomNavLabel.Governance,
         icon: 'insert_chart',
         path: '/gov',
         show: !isCompassWallet(),
+      },
+      {
+        label: BottomNavLabel.NFTs,
+        icon: 'sell',
+        path: '/nfts',
+        show: isCompassWallet(),
       },
       {
         label: BottomNavLabel.Stake,
@@ -67,7 +58,7 @@ export default function BottomNav({ label, disabled }: BottomNavProps) {
         label: BottomNavLabel.Earn,
         icon: 'attach_money',
         path: '/earn',
-        show: !isCompassWallet(),
+        show: !isCompassWallet() && selectedNetwork !== 'testnet',
       },
       {
         label: BottomNavLabel.Activity,
@@ -76,7 +67,7 @@ export default function BottomNav({ label, disabled }: BottomNavProps) {
         show: true,
       },
     ],
-    [activeChain, activeChainInfo?.disableStaking],
+    [activeChainInfo?.disableStaking, selectedNetwork],
   )
 
   return (

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__NAME__",
   "description": "__DESCRIPTION__",
-  "version": "0.7.6",
+  "version": "0.8.0",
   "options_page": "index.html",
   "web_accessible_resources": [
     {
@@ -26,7 +26,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["https://*/*", "http://*/*"],
       "js": ["contentScripts.js"],
       "run_at": "document_start",
       "all_frames": true
@@ -40,11 +40,6 @@
     }
   },
   "permissions": ["storage"],
-  "host_permissions": [
-    "https://*.stargaze-apis.com/*",
-    "https://nft-api.stargaze-apis.com/*",
-    "https://api-stargaze-ia.notional.ventures/*"
-  ],
   "content_security_policy": {
     "extension_pages": "object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; img-src * 'self' data: https:; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com  data: 'unsafe-inline'; connect-src * data: blob: filesystem:; media-src * data: blob: filesystem:; form-action 'self'; frame-ancestors 'none';frame-src https://newassets.hcaptcha.com ; base-uri 'self'; default-src 'none'"
   }

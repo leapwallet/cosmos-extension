@@ -11,7 +11,7 @@ type SelectedNetworkState = {
 
 const useSelectedNetworkStore = create<SelectedNetworkState>((set) => {
   return {
-    selectedNetwork: process.env.APP === 'compass' ? 'testnet' : 'mainnet',
+    selectedNetwork: 'mainnet',
     setSelectedNetwork: (network: 'mainnet' | 'testnet') => set(() => ({ selectedNetwork: network })),
   };
 });
@@ -38,7 +38,7 @@ export const useInitSelectedNetwork = () => {
       const selectedNetworkStore = useSelectedNetworkStore.getState();
       const storage = getStorageLayer();
       const selectedNetwork = await storage.get('selected-network');
-      const defaultSelectedNetwork = process.env.APP === 'compass' ? 'testnet' : 'mainnet';
+      const defaultSelectedNetwork = 'mainnet';
       selectedNetworkStore.setSelectedNetwork(selectedNetwork ?? defaultSelectedNetwork);
     };
     fn();

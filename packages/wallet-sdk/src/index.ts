@@ -1,5 +1,6 @@
 export * from './chains';
 export * from './constants';
+export * from './healthy-nodes';
 export * from './key';
 export * from './ledger';
 export * from './secret';

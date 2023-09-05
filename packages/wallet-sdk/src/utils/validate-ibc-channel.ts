@@ -1,11 +1,16 @@
-import axios from 'axios';
-
 import { ChainInfos, SupportedChain } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
 import { ClientStateData } from '../types/ibc';
+import { getRestUrl } from './getRestURL';
 
 export async function getClientState(lcd: string, channelId: string, port: string, timeout = 3_000) {
-  const url = `${lcd}/ibc/core/channel/v1/channels/${channelId}/ports/${port}/client_state`;
-  const channelIdData = await axios.get<ClientStateData>(url, { timeout });
+  const channelIdData = await axiosWrapper<ClientStateData>({
+    baseURL: lcd,
+    method: 'get',
+    url: `/ibc/core/channel/v1/channels/${channelId}/ports/${port}/client_state`,
+    timeout,
+  });
+
   return channelIdData;
 }
 
@@ -21,7 +26,7 @@ export default async function isValidChannelId(
   port = 'transfer',
   timeout = 3_000,
 ) {
-  const lcd = ChainInfos[sourceChain].apis.rest ?? '';
+  const lcd = getRestUrl(ChainInfos, sourceChain, false);
 
   try {
     const channelIdData = await getClientState(lcd, channelId, port, timeout);

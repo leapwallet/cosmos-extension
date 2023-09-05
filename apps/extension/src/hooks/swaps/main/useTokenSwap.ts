@@ -17,7 +17,6 @@ import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import useActiveWallet from '../../settings/useActiveWallet'
-import { Wallet } from '../../wallet/useWallet'
 import { useQueryMatchingPoolForSwap } from '../useQueryMatchingPoolForSwap'
 import { useTokenInfo } from '../useTokenInfo'
 import { convertDenomToMicroDenom } from '../utils/conversionUtils'
@@ -135,6 +134,8 @@ export const useTokenSwap = ({
           promise,
         })
         navigate('/activity')
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         if (e.message === transactionDeclinedError.message) {
           navigate('/home?txDeclined=true')
@@ -200,6 +201,8 @@ export const useTokenSwap = ({
           promise,
         })
         navigate('/activity')
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         if (e.message === transactionDeclinedError.message) {
           navigate('/home?txDeclined=true')
@@ -210,6 +213,8 @@ export const useTokenSwap = ({
         setLoading(false)
       }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { handleSwap, loading, error, showLedgerPopup }

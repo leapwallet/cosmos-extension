@@ -8,3 +8,7 @@ export function toSmall(quantity: string, decimals: number = defaultDecimals): s
 export function fromSmall(quantity: string, decimals: number = defaultDecimals): string {
   return new BN(quantity).div(Math.pow(10, decimals)).dp(18).toFixed().toString();
 }
+
+export function fromSmallBN(quantity: string, decimals: number = defaultDecimals): BN {
+  return new BN(quantity).div(Math.pow(10, decimals));
+}

@@ -106,7 +106,7 @@ const UserTokensSheet: React.FC<propTypes> = ({ isOpen, onClose }) => {
   const showTokens = nativeTokensStatus === 'success' || ibcTokensStatus === 'success'
 
   return (
-    <BottomModal isOpen={isOpen} onClose={onClose} title='Swap from'>
+    <BottomModal isOpen={isOpen} onClose={onClose} title='Swap from' closeOnBackdropClick={true}>
       <div className='flex flex-col items-center h-full'>
         <div className='mx-auto w-[344px] mb-4 flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
           <input

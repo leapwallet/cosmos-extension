@@ -21,10 +21,11 @@ type PrivateKeyViewProps = {
 }
 
 function PrivateKeyView({ password, goBack }: PrivateKeyViewProps): ReactElement {
-  const chainInfos = useChainInfos()
-  const { activeWallet } = useActiveWallet()
   const [privateKey, setPrivateKey] = useState('')
+
+  const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
+  const { activeWallet } = useActiveWallet()
 
   useEffect(() => {
     const fn = async () => {
@@ -70,7 +71,7 @@ function PrivateKeyView({ password, goBack }: PrivateKeyViewProps): ReactElement
         <CanvasTextBox text={privateKey} noSpace={true} size={'md'} />
         <Buttons.CopyToClipboard
           data-testing-id='copy-private-key'
-          color={Colors.cosmosPrimary}
+          color={Colors.getChainColor(activeChain)}
           onCopy={() => {
             UserClipboard.copyText(privateKey)
           }}

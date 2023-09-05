@@ -5,7 +5,6 @@ export * from './bank';
 export * from './banner';
 export * from './config';
 export * from './connectors';
-export { enableLeapNode } from './falooda/falooda';
 export * from './faucet';
 export * from './fees';
 export * from './gov';

@@ -2,7 +2,7 @@ import classNames from 'classnames'
 import React, { PropsWithChildren, ReactNode } from 'react'
 
 export type TextProps = {
-  readonly size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'jumbo'
+  readonly size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'jumbo'
   readonly children?: ReactNode
   readonly className?: string
   readonly color?: string

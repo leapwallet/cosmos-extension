@@ -187,12 +187,14 @@ export default function Login() {
     return () => {
       window.removeEventListener('beforeunload', handleCancel)
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const signIn = useCallback(() => {
+  const signIn = useCallback(async () => {
     if (passwordInput) {
       try {
-        ;(auth as AuthContextType).signin(passwordInput, () => {
+        await (auth as AuthContextType).signin(passwordInput, () => {
           setLastActiveTime()
           const searchParams = new URLSearchParams(location.search)
           if (searchParams.has('close-on-login')) {
@@ -214,6 +216,8 @@ export default function Login() {
         setError(true)
       }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, location.state, navigate, passwordInput, setLastActiveTime])
 
   const handleSubmit = useCallback(

@@ -13,7 +13,7 @@ export function useCreateQueryPermit() {
   const getWallet = useSecretWallet()
   const password = usePassword()
 
-  const { setQueryPermits, setViewingKeys } = useScrtKeysStore()
+  const { setQueryPermits } = useScrtKeysStore()
   const { lcdUrl = '' } = useChainApis()
   const chainId = useChainId()
 

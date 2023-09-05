@@ -189,7 +189,7 @@ function DepositAmountCard({
           color='dark:text-gray-200 text-gray-600'
           className='font-bold mb-3 py-1 px-4'
         >
-          Your Deposited amount
+          Your deposited amount
         </Text>
       )}
       {!isLoading && (
@@ -541,6 +541,10 @@ export default function Stake() {
                 setShowSideNav(true)
               },
               type: HeaderActionType.NAVIGATION,
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              className:
+                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={
@@ -555,10 +559,20 @@ export default function Stake() {
           />
         }
       >
+        {isCompassWallet() && isTestnet && (
+          <AlertStrip
+            message='You are on Sei Testnet'
+            bgColor={Colors.getChainColor(activeChain)}
+            alwaysShow={isTestnet}
+          />
+        )}
+
         {showSelectedChainAlert && !isCompassWallet() && (
           <AlertStrip
-            message={`You are on ${activeChainInfo.chainName}${isTestnet ? ' Testnet' : ''}`}
-            bgColor={activeChainInfo.theme.primaryColor}
+            message={`You are on ${activeChainInfo.chainName}${
+              isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
+            }`}
+            bgColor={Colors.getChainColor(activeChain)}
             alwaysShow={isTestnet}
             onHide={() => {
               setShowSelectedChainAlert(false)

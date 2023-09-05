@@ -1,4 +1,4 @@
-import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import {
   CardDivider,
   NavCard,
@@ -11,7 +11,6 @@ import classnames from 'classnames'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import Text from 'components/text'
 import { useAuth } from 'context/auth-context'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
 import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'

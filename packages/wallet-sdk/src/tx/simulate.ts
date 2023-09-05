@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Coin, StdFee } from '@cosmjs/stargate';
-import axios from 'axios';
 import { MsgRevoke } from 'cosmjs-types/cosmos/authz/v1beta1/tx';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
@@ -12,6 +12,7 @@ import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 
 import { fetchAccountDetails } from '../accounts';
+import { axiosWrapper } from '../healthy-nodes';
 import {
   buildGrantMsg,
   getDelegateMsg,
@@ -209,13 +210,22 @@ export async function simulateTx(
     signatures: [new Uint8Array(64)],
   }).finish();
 
-  const result = await axios.post(
-    `${lcd}/cosmos/tx/v1beta1/simulate`,
-    {
+  const result = await axiosWrapper({
+    baseURL: lcd,
+    method: 'post',
+    url: '/cosmos/tx/v1beta1/simulate',
+    timeout: 20_000,
+    data: {
       tx_bytes: Buffer.from(unsignedTx).toString('base64'),
     },
-    { timeout: 20_000 },
-  );
+  });
+
+  // @ts-ignore
+  if (result && result.code === 'ERR_BAD_RESPONSE' && result.response && result.response.data) {
+    // @ts-ignore
+    throw new Error(result.response.data.message);
+  }
+
   if (result.data.error) {
     throw new Error(result.data.error);
   }

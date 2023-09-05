@@ -10,7 +10,7 @@ export const TimerLockPeriod: Record<string, number> = {
   '15 min': 15,
   '60 min': 60,
   '24 hrs': 1440,
-  'Nerver auto-lock': 1440 * 10,
+  'Never auto-lock': 14400,
 }
 
 export const TimerLockPeriodRev: Record<number, string> = {
@@ -62,7 +62,7 @@ export function storeLockTimer(time: number): void {
 export function useLockTimer() {
   const lockTime = useRecoilValue(autoLockTimeAtom)
   const setLockTime = useSetRecoilState(autoLockTimeAtom)
-  const [shouldAutoLock, setshouldAutoLock] = useState<boolean>()
+  const [shouldAutoLock] = useState<boolean>()
 
   const setTimer = (time: string) => {
     setLockTime(TimerLockPeriod[time])

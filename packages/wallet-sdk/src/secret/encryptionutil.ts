@@ -33,7 +33,7 @@ export class EncryptionUtilsImpl implements EncryptionUtils {
 
     if (chainId && mainnetChainIds.has(chainId)) {
       // Major speedup
-      // TODO: not sure if this is the best approach for detecting mainnet
+      // TODO:- not sure if this is the best approach for detecting mainnet
       this.consensusIoPubKey = mainnetConsensusIoPubKey;
     }
   }

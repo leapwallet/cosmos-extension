@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Key as WalletKey } from '@leapwallet/cosmos-wallet-hooks'
 import { sleep, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard } from '@leapwallet/leap-ui'
 import { chainInfosState } from 'atoms/chains'
@@ -10,10 +11,10 @@ import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSetRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
+import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
@@ -69,12 +70,12 @@ export default function SuggestChain() {
     setIsLoading(true)
     const chainName = newChain.chainInfo.chainName
     const updatedKeystore = await updateKeyStore(
-      activeWallet as Wallet.Key,
+      activeWallet as WalletKey,
       chainName as unknown as SupportedChain,
     )
     if (activeWallet) {
       await addToConnections([newChain.chainInfo.chainId], [activeWallet], origin.current ?? '')
-      await setActiveWallet(updatedKeystore[activeWallet.id] as Wallet.Key)
+      await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
     }
 
     await setActiveChain(chainName)
@@ -113,13 +114,16 @@ export default function SuggestChain() {
             </Text>
 
             <GenericCard
-              title={<span className='text-[15px]'>{newChain?.chainInfo?.chainName ?? ''}</span>}
+              title={
+                <span className='text-[15px] truncate'>{newChain?.chainInfo?.chainName ?? ''}</span>
+              }
               subtitle={siteName}
               className='py-8 my-5'
               img={
                 <img
                   src={newChain?.chainInfo?.chainSymbolImageUrl ?? defaultTokenLogo}
                   className='h-10 w-10 mr-3'
+                  onError={imgOnError(defaultTokenLogo)}
                 />
               }
               size='sm'
@@ -148,6 +152,9 @@ export default function SuggestChain() {
                   {Divider}
                   <Key>Address Prefix</Key>
                   <Value>{newChain?.chainInfo?.addressPrefix ?? ''}</Value>
+                  {Divider}
+                  <Key>Chain Registry Path</Key>
+                  <Value>{newChain?.chainInfo?.chainRegistryPath ?? ''}</Value>
                 </>
               )}
               <button

@@ -14,6 +14,7 @@ interface propTypes {
   allAssets: Token[]
   selectedTargetToken: string
   selectedToken: string
+  // eslint-disable-next-line no-unused-vars
   setTagetTokenData: (tokenName: string, tokenIcon: string) => void
 }
 
@@ -36,6 +37,8 @@ const TargetTokenSheet = (props: propTypes) => {
       )
       return balance && balance.amount ? balance.amount : 0
     },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [props.allAssets],
   )
 

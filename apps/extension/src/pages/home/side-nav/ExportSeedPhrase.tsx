@@ -1,7 +1,7 @@
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import CanvasTextBox from 'components/canvas-box/CanvasTextBox'
 import Text from 'components/text'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Images } from 'images'
 import React, { ReactElement, useState } from 'react'
@@ -44,7 +44,7 @@ function SeedPhraseView({
         </div>
         <CanvasTextBox text={mnemonic} noSpace={false} size={'md'} />
         <Buttons.CopyToClipboard
-          color={Colors.cosmosPrimary}
+          color={Colors.getChainColor(activeChain)}
           data-testing-id='copy-seed-phrase'
           onCopy={() => {
             UserClipboard.copyText(mnemonic)

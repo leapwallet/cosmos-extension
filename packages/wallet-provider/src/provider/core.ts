@@ -124,14 +124,21 @@ export class Leap implements ILeap {
 
     return returnValue;
   }
-  async signArbitrary(chainId: string, signer: string, data: string | Uint8Array): Promise<StdSignature> {
+  async signArbitrary(
+    chainId: string,
+    signer: string,
+    data: string | Uint8Array,
+    signOptions?: { enableExtraEntropy?: boolean },
+  ): Promise<StdSignature> {
     let isADR36WithString = false;
     [data, isADR36WithString] = this.getDataForADR36(data);
     const signDoc = this.getADR36SignDoc(signer, data);
 
     const msg = new RequestSignAminoMsg(chainId, signer, signDoc, {
       isADR36WithString,
+      enableExtraEntropy: signOptions?.enableExtraEntropy,
     });
+
     return (await requester.signAmino(msg)).signature;
   }
 
@@ -226,6 +233,7 @@ export class Leap implements ILeap {
 
   getEnigmaUtils(chainId: string): LeapEnigmaUtils {
     if (this.enigmaUtils.has(chainId)) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return this.enigmaUtils.get(chainId)!;
     }
 

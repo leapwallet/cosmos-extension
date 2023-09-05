@@ -11,6 +11,7 @@ const RangeInput = ({
   activeColor = '#FF958C',
 }: {
   initialValue: number
+  // eslint-disable-next-line no-unused-vars
   onChangeHandler: (value: number) => void
   activeColor?: string
 }) => {
@@ -29,11 +30,14 @@ const RangeInput = ({
         }}
         renderTrack={({ props, children }) => (
           <div
+            // eslint-disable-next-line react/prop-types
             onMouseDown={props.onMouseDown}
+            // eslint-disable-next-line react/prop-types
             onTouchStart={props.onTouchStart}
             className='h-9 w-full'
           >
             <div
+              // eslint-disable-next-line react/prop-types
               ref={props.ref}
               style={{
                 background: getTrackBackground({

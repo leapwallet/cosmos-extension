@@ -1,9 +1,8 @@
 import { sliceWord, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
+import Text from 'components/text'
 import React from 'react'
 import { Colors } from 'theme/colors'
-
-import Text from '../../../components/text'
 
 export function CopyViewingKey(props: {
   generatedViewingKey: string

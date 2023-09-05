@@ -66,7 +66,7 @@ Sentry.init(
     dsn: process.env.SENTRY_DSN,
     environment: `${process.env.NODE_ENV}`,
     ignoreErrors: ['AxiosError: Network Error', 'AxiosError: Request aborted'],
-    release: `v${browser.runtime.getManifest().version}`,
+    release: `${browser.runtime.getManifest().version}`,
     integrations: [
       new BrowserTracing({
         routingInstrumentation: Sentry.reactRouterV6Instrumentation(

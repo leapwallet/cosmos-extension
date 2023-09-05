@@ -21,5 +21,7 @@ export function useCWTxHandler() {
     const _tx = new CWTx(`${rpcUrl}/`, wallet)
     await _tx.initClient()
     return _tx
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChain, getWallet, selectedNetwork, activeWallet])
 }

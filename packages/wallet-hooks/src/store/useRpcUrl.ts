@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { getTopNode, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useGetChains, useSelectedNetwork } from '../store';
@@ -46,15 +46,26 @@ export function useGetChainApis(
           ? chains[activeChain].apis.alternateRpcTest
           : chains[activeChain].apis.rpcTest;
 
+      const fallbackRpcURL =
+        selectedNetwork === 'testnet' && chains[activeChain].apis.rpcTest
+          ? removeTrailingSlash(testnetRpcUrl)
+          : removeTrailingSlash(mainnetRpcUrl);
+      const fallbackRestURL =
+        selectedNetwork === 'testnet' && chains[activeChain].apis.restTest
+          ? removeTrailingSlash(testnetLcdUrl)
+          : removeTrailingSlash(mainnetLcdUrl);
+
+      const activeChainId =
+        (selectedNetwork === 'testnet' ? chains[activeChain].testnetChainId : chains[activeChain].chainId) ?? '';
+      const restNode = getTopNode('rest', activeChainId);
+      const { nodeUrl: rest } = restNode ?? {};
+
+      const rpcNode = getTopNode('rpc', activeChainId);
+      const { nodeUrl: rpc } = rpcNode ?? {};
+
       return {
-        rpcUrl:
-          selectedNetwork === 'testnet' && chains[activeChain].apis.rpcTest
-            ? removeTrailingSlash(testnetRpcUrl)
-            : removeTrailingSlash(mainnetRpcUrl),
-        lcdUrl:
-          selectedNetwork === 'testnet' && chains[activeChain].apis.restTest
-            ? removeTrailingSlash(testnetLcdUrl)
-            : removeTrailingSlash(mainnetLcdUrl),
+        rpcUrl: rpc && rpc.length ? rpc : fallbackRpcURL,
+        lcdUrl: rest && rest.length ? rest : fallbackRestURL,
         grpcUrl:
           selectedNetwork === 'testnet' && chains[activeChain].apis.grpcTest
             ? removeTrailingSlash(chains[activeChain].apis.grpcTest)

@@ -21,7 +21,6 @@ import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { getChainImage } from 'images/logos'
 import SelectChain from 'pages/home/SelectChain'
 import React, { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -42,6 +41,7 @@ import {
 import { Colors } from 'theme/colors'
 import { Token } from 'types/bank'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize, formatTokenAmount, trim } from 'utils/strings'
 
 export default function AssetDetails() {
@@ -87,6 +87,8 @@ export default function AssetDetails() {
     tokenChain: tokenChain as unknown as SupportedChain,
   })
 
+  const activeChainInfo = chainInfos[activeChain]
+
   const { price, details, priceChange, marketCap } = info ?? {
     price: undefined,
     details: undefined,
@@ -107,10 +109,14 @@ export default function AssetDetails() {
               },
               type: HeaderActionType.BACK,
             }}
-            imgSrc={getChainImage(activeChain) ?? defaultTokenLogo}
-            onImgClick={function noRefCheck() {
-              setShowChainSelector(true)
-            }}
+            imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
+            onImgClick={
+              isCompassWallet()
+                ? undefined
+                : function noRefCheck() {
+                    setShowChainSelector(true)
+                  }
+            }
             title={<Text size='lg'>Asset details</Text>}
             topColor={Colors.getChainColor(activeChain)}
           />
@@ -386,7 +392,7 @@ export default function AssetDetails() {
                   className='py-[4px] font-bold '
                   color='text-gray-600 dark:text-gray-200'
                 >
-                  About {capitalize(denomInfo?.chain)}
+                  About {denomInfo?.name ?? capitalize(denomInfo?.chain)}
                 </Text>
                 <div className='flex flex-col pt-[4px]'>
                   <ReadMoreText

@@ -9,6 +9,7 @@ type TooltipProps = {
 
 const Tooltip: React.FC<TooltipProps> = ({ children, content, className }) => {
   const [showContent, setShowContent] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const timer = useRef<any>(null)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
 

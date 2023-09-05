@@ -17,6 +17,7 @@ export async function logDirectTx(
   chain: SupportedChain,
   address: string,
   txPostToDb: LogCosmosDappTx,
+  chainId: string,
 ) {
   if (origin.trim().toLowerCase().includes('cosmos.leapwallet.io')) {
     return
@@ -35,12 +36,13 @@ export async function logDirectTx(
     txHash,
     txType: CosmosTxType.Dapp,
     metadata: {
-      source: origin,
+      dapp_url: origin,
       tx_message: tx.toJSON(),
     },
     feeQuantity: fee?.amount[0]?.amount,
     feeDenomination: fee?.amount[0]?.denom,
     chain,
+    chainId,
     address,
   })
 }

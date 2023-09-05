@@ -1,4 +1,10 @@
-import { useStakeTx, useStaking, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  sliceWord,
+  useActiveChain,
+  useStakeTx,
+  useStaking,
+  useValidatorImage,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk'
 import BottomModal from 'components/bottom-modal'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
@@ -11,7 +17,6 @@ import BigNumber from 'bignumber.js'
 import { ErrorCard } from 'components/ErrorCard'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -64,19 +69,23 @@ export function ReviewClaimRewardsTx({
   }, [reward?.reward, rewards?.total])
 
   const titleText = useMemo(() => {
-    if (!rewardTokens) return
+    if (!rewardTokens || rewardTokens.length === 0) return
 
     if ((rewardTokens.length ?? 1) > 2) {
-      return `${rewardTokens[0].tokenInfo?.coinDenom} | ${
-        rewardTokens[1].tokenInfo?.coinDenom
+      return `${rewardTokens[0].tokenInfo?.coinDenom ?? sliceWord(rewardTokens[0].denom, 4, 3)} | ${
+        rewardTokens[1].tokenInfo?.coinDenom ?? sliceWord(rewardTokens[1].denom, 4, 3)
       } | +${(rewardTokens.length ?? 3) - 2} more`
     }
 
     if ((rewardTokens.length ?? 1) === 2) {
-      return `${rewardTokens[0].tokenInfo?.coinDenom} | ${rewardTokens[1].tokenInfo?.coinDenom}`
+      return `${rewardTokens[0].tokenInfo?.coinDenom ?? sliceWord(rewardTokens[0].denom, 4, 3)} | ${
+        rewardTokens[1].tokenInfo?.coinDenom ?? sliceWord(rewardTokens[1].denom, 4, 3)
+      }`
     }
 
-    return `${rewardTokens[0]?.tokenInfo?.coinDenom ?? ''}`
+    return `${
+      rewardTokens[0]?.tokenInfo?.coinDenom ?? sliceWord(rewardTokens[0].denom, 4, 3) ?? ''
+    }`
   }, [rewardTokens])
 
   const _totalRewards = useMemo(() => {

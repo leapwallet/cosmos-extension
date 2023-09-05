@@ -1,5 +1,4 @@
-import { ClientStateData, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import axios from 'axios';
+import { axiosWrapper, ClientStateData, getRestUrl, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback } from 'react';
 
 import { useChainsStore } from '../store';
@@ -18,20 +17,26 @@ export interface ChannelResponse {
 }
 
 export const ibcChannelQuery = async <T = any>({
-  getUrl,
+  baseURL,
+  url,
   notFoundError,
   timeout,
   retry = 5,
 }: {
-  getUrl: () => string;
+  baseURL: string;
+  url: string;
   notFoundError?: string;
   timeout?: number;
   retry?: number;
 }): Promise<{ success: false; message: string } | { success: true; data: T }> => {
   try {
-    const response = await axios.get<T>(getUrl(), {
+    const response = await axiosWrapper({
+      baseURL,
+      method: 'get',
+      url,
       timeout,
     });
+
     return {
       success: true,
       data: response.data,
@@ -47,7 +52,8 @@ export const ibcChannelQuery = async <T = any>({
     if (e.code === 'ECONNABORTED') {
       if (retry > 0) {
         return ibcChannelQuery({
-          getUrl,
+          baseURL,
+          url,
           notFoundError,
           timeout,
           retry: retry - 1,
@@ -77,22 +83,18 @@ export function useValidateIbcChannelId() {
       destChainKey: SupportedChain,
       port = 'transfer',
     ): Promise<{ success: false; message: string } | { success: true }> => {
-      const sourceChain = chains[sourceChainKey];
       const destChain = chains[destChainKey];
-
-      const sourceChainLcd = sourceChain.apis.rest ?? '';
+      const sourceChainLcd = getRestUrl(chains, sourceChainKey, false);
 
       const [channelResponse, clientStateResponse] = await Promise.all([
         ibcChannelQuery<ChannelResponse>({
-          getUrl: () => {
-            return `${sourceChainLcd}/ibc/core/channel/v1/channels/${channelId}/ports/${port}`;
-          },
+          baseURL: sourceChainLcd,
+          url: `/ibc/core/channel/v1/channels/${channelId}/ports/${port}`,
           timeout: 5_000,
         }),
         ibcChannelQuery<ClientStateData>({
-          getUrl: () => {
-            return `${sourceChainLcd}/ibc/core/channel/v1/channels/${channelId}/ports/${port}/client_state`;
-          },
+          baseURL: sourceChainLcd,
+          url: `/ibc/core/channel/v1/channels/${channelId}/ports/${port}/client_state`,
           timeout: 5_000,
         }),
       ]);

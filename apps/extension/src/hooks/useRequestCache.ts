@@ -15,7 +15,10 @@ export function useRequestCache() {
     return () => {
       browser.storage.local.set({ [REQUEST_CACHE]: requestCache })
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
   const getCachedData = useCallback(
     <T = unknown>(cache_key: string) => {
       return requestCache[cache_key] as T
@@ -30,6 +33,8 @@ export function useRequestCache() {
       // await browser.storage.local.set({ [REQUEST_CACHE]: updatedCache })
       setRequestCache(updatedCache)
     },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [requestCache],
   )
 
@@ -43,5 +48,7 @@ export function useInitRequestCache() {
       const requestCache = storage[REQUEST_CACHE]
       setRequestCache(requestCache ?? {})
     })
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

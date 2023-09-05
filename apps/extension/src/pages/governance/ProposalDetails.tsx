@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react/no-children-prop */
-import { useChainsStore, useGetProposal } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, CoinType } from '@leapwallet/cosmos-wallet-sdk'
+import { useChainApis, useChainsStore, useGetProposal } from '@leapwallet/cosmos-wallet-hooks'
+import { axiosWrapper, ChainInfo, CoinType } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider, Header, HeaderActionType, LineDivider } from '@leapwallet/leap-ui'
 import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
 import classNames from 'classnames'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import PopupLayout from 'components/layout/popup-layout'
+import { ProposalDescription } from 'components/proposal-description'
 import Text from 'components/text'
 import dayjs from 'dayjs'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -16,9 +16,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
 import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import ReactMarkdown from 'react-markdown'
 import { PieChart } from 'react-minimal-pie-chart'
-import gfm from 'remark-gfm'
 import { Colors } from 'theme/colors'
 import { voteRatio } from 'utils/gov/voteRatio'
 import { imgOnError } from 'utils/imgOnError'
@@ -294,44 +292,6 @@ function VoteDetails({
   return <></>
 }
 
-const Description = ({ description }: { description: string }) => {
-  const [showAll, setShowAll] = useState(false)
-  const formattedDescription = useMemo(() => {
-    return description.replace(/\/n/g, '\n').split(/\\n/).join('\n')
-  }, [description])
-
-  return (
-    <div>
-      <div className='text-sm text-gray-400 font-bold mb-1'>Description</div>
-      <div
-        className={classNames(
-          'text-black-100 dark:text-white-100 break-words overflow-hidden line-clamp-4',
-          {
-            'line-clamp-4': formattedDescription.length > 300,
-            reset: showAll,
-          },
-        )}
-      >
-        <ReactMarkdown
-          remarkPlugins={[gfm]}
-          className='text-sm [&>h1]:font-bold [&>h1]:text-base [&>h2]:my-1 [&>h2]:text-gray-300 markdown'
-          children={formattedDescription}
-        />
-      </div>
-
-      {formattedDescription.length > 300 && (
-        <button
-          className='text-xs font-bold text-gray-400 h-6 w-full text-right'
-          style={{ color: '#726FDC' }}
-          onClick={() => setShowAll(!showAll)}
-        >
-          {showAll ? 'Read less' : 'Read more'}
-        </button>
-      )}
-    </div>
-  )
-}
-
 type ITally = {
   label: string
   value: number
@@ -400,6 +360,7 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
   const address = useAddress()
 
   const chain = chains[activeChain]
+  const { lcdUrl } = useChainApis()
 
   const [showCastVoteSheet, setShowCastVoteSheet] = useState<boolean>(false)
 
@@ -418,9 +379,13 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
     ['currVote', activeChain, address, selectedProp],
     async (): Promise<string | undefined> => {
       if (activeChain) {
-        const url = `${chain?.apis.rest}/cosmos/gov/v1beta1/proposals/${selectedProp}/votes/${address}`
         try {
-          const data = await axios.get(`${url}`)
+          const data = await axiosWrapper({
+            baseURL: lcdUrl ?? '',
+            method: 'get',
+            url: `/cosmos/gov/v1beta1/proposals/${selectedProp}/votes/${address}`,
+          })
+
           const voteOption = data.data.vote.options[0].option
           return voteOption.replace('VOTE_OPTION_', '')
         } catch (e: any) {
@@ -584,7 +549,11 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
             <LineDivider size='sm' />
           </div>
           {proposal.content.description && (
-            <Description description={proposal.content.description} />
+            <ProposalDescription
+              description={proposal.content.description}
+              title='Description'
+              btnColor={Colors.getChainColor(activeChain, chain)}
+            />
           )}
         </div>
         <CastVote

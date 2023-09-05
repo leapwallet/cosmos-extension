@@ -1,4 +1,4 @@
-import { VoteOptions } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, VoteOptions } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Memo } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
@@ -6,7 +6,6 @@ import { ErrorCard } from 'components/ErrorCard'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import React from 'react'
 import { Colors } from 'theme/colors'
 
@@ -27,6 +26,7 @@ export type ReviewVoteCastProps = {
   proposalId: string
   refetchCurrVote: () => void
   showLedgerPopup?: boolean
+  ledgerError?: string
 }
 
 function ReviewVoteCast({
@@ -42,6 +42,7 @@ function ReviewVoteCast({
   proposalId,
   refetchCurrVote,
   showLedgerPopup,
+  ledgerError,
 }: ReviewVoteCastProps): React.ReactElement {
   const activeChain = useActiveChain()
 
@@ -80,7 +81,7 @@ function ReviewVoteCast({
         <Text size='sm' className='text-gray-400 dark:text-gray-600 justify-center'>
           {feeText}
         </Text>
-        {error && <ErrorCard text={error} />}
+        {(error ?? ledgerError) && <ErrorCard text={error ?? ledgerError} />}
         <Buttons.Generic
           color={Colors.getChainColor(activeChain)}
           size='normal'

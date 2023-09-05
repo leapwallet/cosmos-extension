@@ -51,9 +51,10 @@ export const CastVote: React.FC<CastVoteProps> = ({
   const [simulating, setSimulating] = useState(true)
 
   const simulateVote = useSimulateVote()
-  const { loading, vote, error, memo, setMemo, feeText, showLedgerPopup, clearError } = useGov({
-    proposalId,
-  })
+  const { loading, vote, error, memo, setMemo, feeText, showLedgerPopup, clearError, ledgerError } =
+    useGov({
+      proposalId,
+    })
   const nativeFeeDenom = useNativeFeeDenom()
   const gasAdjustment = useGasAdjustment()
 
@@ -86,18 +87,22 @@ export const CastVote: React.FC<CastVoteProps> = ({
 
   const submitVote = useCallback(
     async (option: VoteOptions) => {
-      const wallet = await getWallet()
-      const result = await vote({
-        wallet,
-        callback: txCallback,
-        voteOption: option,
-        customFee: {
-          stdFee: customFee,
-          feeDenom,
-        },
-        isSimulation: false,
-      })
-      return !!result
+      try {
+        const wallet = await getWallet()
+        const result = await vote({
+          wallet,
+          callback: txCallback,
+          voteOption: option,
+          customFee: {
+            stdFee: customFee,
+            feeDenom,
+          },
+          isSimulation: false,
+        })
+        return !!result
+      } catch (e) {
+        return false
+      }
     },
     [customFee, feeDenom, getWallet, txCallback, vote],
   )
@@ -160,7 +165,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
         setError={setGasError}
       >
         <CastVoteSheet
-          isOpen={showCastVoteSheet}
+          isOpen={showCastVoteSheet && !showLedgerPopup}
           feeDenom={feeDenom}
           gasLimit={gasLimit}
           gasPrice={gasPriceOption.gasPrice}
@@ -178,6 +183,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
           isOpen={selectedVoteOption !== undefined}
           proposalId={proposalId}
           error={error}
+          ledgerError={ledgerError}
           loading={loading}
           feeText={feeText}
           memo={memo}

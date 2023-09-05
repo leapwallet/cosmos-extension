@@ -2,6 +2,7 @@ import { addressPrefixes, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import bech32, { fromWords } from 'bech32'
 
 export class Bech32Address {
+  // eslint-disable-next-line no-unused-vars
   constructor(public readonly address: Uint8Array) {}
 
   static shortenAddress(bech32: string, maxCharacters: number): string {

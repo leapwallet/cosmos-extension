@@ -22,7 +22,11 @@ export const InvestmentProductItem: React.FC<InvestmentProductItemProps> = ({
         className='flex justify-start items-center py-3 gap-2 border-b border-b-gray-100 dark:border-b-gray-800 group-last-of-type/item:border-b-0'
         target='_blank'
         rel='noopener noreferrer'
-        href={product.productWebsite}
+        href={
+          product.dappCategory === 'liquidStaking'
+            ? 'https://cosmos.leapwallet.io/staking/liquid'
+            : product.productWebsite
+        }
       >
         <div
           className='flex items-center flex-[6] flex-grow-0 gap-2'

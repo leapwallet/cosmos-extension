@@ -1,3 +1,4 @@
+import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { chainInfosState } from 'atoms/chains'
@@ -17,7 +18,6 @@ import {
   useToggleChainState,
   useUpdatePreferenceOrder,
 } from 'hooks/settings/useManageChains'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { ReactElement } from 'react'
 import { DropResult } from 'react-beautiful-dnd'
@@ -56,11 +56,11 @@ const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
         return _newChains
       })
       const updatedKeystore = await updateKeyStore(
-        activeWallet as Wallet.Key,
+        activeWallet as Key,
         chain?.chainName as unknown as SupportedChain,
         'DELETE',
       )
-      await setActiveWallet(updatedKeystore[activeWallet?.id as string] as Wallet.Key)
+      await setActiveWallet(updatedKeystore[activeWallet?.id as string] as Key)
       setActiveChain(defaultChain)
       setDeleteChain(null)
     })
