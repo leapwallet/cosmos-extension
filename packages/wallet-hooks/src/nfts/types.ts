@@ -40,20 +40,48 @@ export type NFTDetailedInformation = {
 
 export type TokenUriModifierFn = (_: string) => string;
 
+export type OwnedCollectionTokenInfo = {
+  image: string;
+  name: string;
+  tokenUri: string;
+  tokenId: string;
+  description?: string;
+  extension: Dict | null;
+  collection: {
+    name: string;
+    contractAddress: string;
+    address?: string;
+  };
+  domain?: string;
+  media_type?: string;
+  attributes?: NftAttribute[];
+};
+
 export type OwnedCollectionInfo = {
   collection: {
     image: string;
     name: string;
   };
-  tokens: {
-    image: string;
+  tokens: OwnedCollectionTokenInfo[];
+};
+
+export type NftAttribute = {
+  trait_type: string;
+  value: string;
+};
+
+export type OmniflixNft = {
+  extension: Dict | null;
+  collection: {
     name: string;
-    tokenUri: string;
-    tokenId: string;
-    extension: Dict | null;
-    collection: {
-      name: string;
-      contractAddress: string;
-    };
-  }[];
+    address: string;
+    image: string;
+  };
+  description: string;
+  name: string;
+  image: string;
+  tokenId: string;
+  tokenUri: string;
+  attributes?: NftAttribute[];
+  media_type?: string;
 };

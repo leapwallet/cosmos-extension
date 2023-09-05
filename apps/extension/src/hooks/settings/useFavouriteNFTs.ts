@@ -1,20 +1,28 @@
+import { useActiveWallet } from '@leapwallet/cosmos-wallet-hooks'
+import { FAVOURITE_NFTS } from 'config/storage-keys'
 import { useEffect } from 'react'
 import { atom, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import Browser from 'webextension-polyfill'
 
 const favouriteNFTsStorage = atom<string[] | undefined>({
-  key: 'fav-nft',
+  key: FAVOURITE_NFTS,
   default: [],
 })
 
 export function useInitFavouriteNFTs() {
-  const getFavNFTs = useSetRecoilState(favouriteNFTsStorage)
+  const setFavNFTs = useSetRecoilState(favouriteNFTsStorage)
+  const activeWallet = useActiveWallet()
+
   useEffect(() => {
-    Browser.storage.local.get(['fav-nft']).then((storage) => {
-      const temp = storage['fav-nft'] ?? []
-      getFavNFTs(temp)
+    Browser.storage.local.get([FAVOURITE_NFTS]).then((storage) => {
+      if (storage[FAVOURITE_NFTS]) {
+        const favNFTS = JSON.parse(storage[FAVOURITE_NFTS])
+        setFavNFTs(favNFTS[activeWallet?.id ?? ''] ?? [])
+      } else {
+        setFavNFTs([])
+      }
     })
-  }, [getFavNFTs])
+  }, [activeWallet, setFavNFTs])
 }
 
 export function useFavNFTs(): string[] {
@@ -23,15 +31,33 @@ export function useFavNFTs(): string[] {
 
 export function useModifyFavNFTs() {
   const [favNFTs, setFavNFTs] = useRecoilState(favouriteNFTsStorage)
+  const activeWallet = useActiveWallet()
+
   const addFavNFT = async (nft: string) => {
-    const temp = [...(favNFTs as string[]), nft]
-    setFavNFTs(temp)
-    await Browser.storage.local.set({ 'fav-nft': temp })
+    const _favNFTs = [...(favNFTs as string[]), nft]
+    setFavNFTs(_favNFTs)
+
+    const storage = await Browser.storage.local.get([FAVOURITE_NFTS])
+    await Browser.storage.local.set({
+      [FAVOURITE_NFTS]: JSON.stringify({
+        ...JSON.parse(storage[FAVOURITE_NFTS] ?? '{}'),
+        [activeWallet?.id ?? '']: _favNFTs,
+      }),
+    })
   }
+
   const removeFavNFT = async (nft: string) => {
-    const temp = favNFTs?.filter((f) => f !== nft)
-    setFavNFTs(temp)
-    await Browser.storage.local.set({ 'fav-nft': temp })
+    const _favNFTs = favNFTs?.filter((f) => f !== nft)
+    setFavNFTs(_favNFTs)
+
+    const storage = await Browser.storage.local.get([FAVOURITE_NFTS])
+    await Browser.storage.local.set({
+      [FAVOURITE_NFTS]: JSON.stringify({
+        ...JSON.parse(storage[FAVOURITE_NFTS] ?? '{}'),
+        [activeWallet?.id ?? '']: _favNFTs,
+      }),
+    })
   }
+
   return { favNFTs, addFavNFT, removeFavNFT }
 }

@@ -7,22 +7,18 @@ import * as bip39 from 'bip39'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import browser from 'webextension-polyfill'
 
-import { ACTIVE_WALLET } from '../../../config/storage-keys'
+import { ACTIVE_WALLET, V80_KEYSTORE_MIGRATION_COMPLETE } from '../../../config/storage-keys'
 import useActiveWallet from '../../settings/useActiveWallet'
 
 export namespace SeedPhrase {
-  // store {seed: string, lastIndex: number}
-  const KEY = 'active-wallet'
   // store encrypted mnemonic string
   const MNEMONIC_KEY = 'stored-encrypted-mnemonic'
-  // encoding used from buffer to string and vice versa;
-  const ENCODING = 'hex'
 
   export function validateSeedPhrase(mnemonic: string): boolean {
     return bip39.validateMnemonic(mnemonic)
   }
 
-  export function useTestPassword(): (password: string, message?: string) => void {
+  export function useTestPassword(): (password: string, message?: string) => Promise<void> {
     const secret = useRef()
 
     useEffect(() => {
@@ -37,9 +33,11 @@ export namespace SeedPhrase {
     }, [])
 
     const testPassword = useCallback(
-      (password: string, encryptedMessage?: string) => {
+      async (password: string, encryptedMessage?: string) => {
         try {
-          const decrypted = decrypt(encryptedMessage ?? secret.current ?? '', password)
+          const storage = await browser.storage.local.get([V80_KEYSTORE_MIGRATION_COMPLETE])
+          const iterations = storage[V80_KEYSTORE_MIGRATION_COMPLETE] ? 10_000 : 100
+          const decrypted = decrypt(encryptedMessage ?? secret.current ?? '', password, iterations)
           if (decrypted === '') {
             throw new Error('Wrong Password')
           }
@@ -72,6 +70,8 @@ export namespace SeedPhrase {
           .then((mnemonic) => {
             setMnemonic(mnemonic)
           })
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [password])
 
     return mnemonic

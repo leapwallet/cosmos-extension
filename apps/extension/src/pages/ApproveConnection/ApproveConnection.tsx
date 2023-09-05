@@ -1,3 +1,4 @@
+import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import { Header } from 'components/Header'
@@ -7,7 +8,6 @@ import Text from 'components/text'
 import { ACTIVE_WALLET, BG_RESPONSE, CONNECTIONS } from 'config/storage-keys'
 import { checkChainConnections, decodeChainIdToChain } from 'extension-scripts/utils'
 import { useWindowSize } from 'hooks/utility/useWindowSize'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -26,10 +26,9 @@ type HeadingProps = {
 const Heading = ({ name }: HeadingProps) => {
   return (
     <div className='flex flex-col align-middle justify-center m-auto'>
-      <Text size='lg' className='font-bold mt-3 mx-2 justify-center align-middle'>
+      <Text size='lg' className='font-bold mt-3 mx-2 justify-center align-middle truncate'>
         {name}
       </Text>
-
       <Text size='md' className='justify-center align-middle mb-2' color='text-gray-200'>
         wants to connect to your wallet
       </Text>
@@ -58,6 +57,7 @@ function closeWindow() {
   }, 50)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function sendMessage(message: { type: string; payload: any }) {
   try {
     await browser.runtime.sendMessage(message)
@@ -67,13 +67,14 @@ async function sendMessage(message: { type: string; payload: any }) {
 }
 
 const ApproveConnection = () => {
-  const [selectedWallets, setSelectedWallets] = useState<[Wallet.Key] | [] | Wallet.Key[]>([])
+  const [selectedWallets, setSelectedWallets] = useState<[Key] | [] | Key[]>([])
 
   const { width } = useWindowSize()
 
   const [requestedChains, setRequestedChains] = useState<SupportedChain[]>([])
 
   const [showApprovalUi, setShowApprovalUi] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [approvalRequests, setApprovalRequests] = useState<Array<any>>([])
 
   const handleCancel = useCallback(async () => {
@@ -104,12 +105,17 @@ const ApproveConnection = () => {
     return () => {
       window.removeEventListener('beforeunload', handleCancel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function enableAccessEventHandler(message: {
-    type: string
-    payload: { origin: string; chainId?: string; validChainIds?: string[]; payloadId: string }
-  }) {
+  async function enableAccessEventHandler(
+    message: {
+      type: string
+      payload: { origin: string; chainId?: string; validChainIds?: string[]; payloadId: string }
+    },
+    sender: any,
+  ) {
+    if (sender.id !== browser.runtime.id) return
     if (message.type === 'enable-access') {
       const storage = await browser.storage.local.get([CONNECTIONS, ACTIVE_WALLET])
       const connections = storage[CONNECTIONS] || []

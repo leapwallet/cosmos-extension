@@ -10,8 +10,9 @@ import {
   useAddress,
   useChainApis,
   useChainId,
+  useDenoms,
+  useDenomsStore,
   useScrtKeysStore,
-  useSecretTokenStore,
   useSelectedNetwork,
   useSnipDenomsStore,
 } from '../store';
@@ -24,6 +25,8 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
   const activeChain = useActiveChain();
   const { denoms: secretTokens } = useSnipDenomsStore();
   const selectedNetwork = useSelectedNetwork();
+  const denoms = useDenoms();
+  const { setDenoms } = useDenomsStore();
 
   const viewingKeyList = Object.entries(viewingKeys[address] ?? {});
   const permit = queryPermits[address];
@@ -41,6 +44,20 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
 
       async function getBalance(contract: any, balance: any) {
         const denom = secretTokens[contract];
+
+        if (denom && !denoms[contract]) {
+          setDenoms({
+            ...denoms,
+            [contract]: {
+              coinDecimals: denom.decimals ?? 6,
+              coinMinimalDenom: contract,
+              coinDenom: denom.symbol,
+              chain: denom.chain ?? 'secret',
+              coinGeckoId: denom.coingeckoId ?? '',
+              icon: denom.icon ?? '',
+            },
+          });
+        }
 
         // some of the tokens that are added from dapps using wallet methods are not available in secretTokens
         // so check either denom or balance is available if not return default value

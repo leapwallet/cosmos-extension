@@ -25,6 +25,7 @@ type PendingTx = {
   promise: Promise<DeliverTxResponse | ExecuteResult>;
   feeDenomination?: string;
   feeQuantity?: string;
+  toAddress?: string;
 };
 
 export type PendingTxState = {

@@ -1,6 +1,7 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, coin, GasPrice, StdFee } from '@cosmjs/stargate';
 import {
+  axiosWrapper,
   ChainInfos,
   DefaultGasEstimates,
   fromSmall,
@@ -12,7 +13,6 @@ import {
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useState } from 'react';
 
@@ -87,11 +87,14 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
   const { data: strideData, status: strideDataStatus } = useQuery(
     [lcdUrl, selectedDenom?.coinMinimalDenom, supportedDenoms],
     async (): Promise<any> => {
-      const res = await axios.get(
-        `${lcdUrl}/Stride-Labs/stride/stakeibc/host_zone/${
+      const res = await axiosWrapper({
+        baseURL: lcdUrl,
+        method: 'get',
+        url: `/Stride-Labs/stride/stakeibc/host_zone/${
           ChainInfos[supportedDenoms?.[selectedDenom?.coinMinimalDenom ?? 'uatom'] ?? 'cosmos'].chainId
         }`,
-      );
+      });
+
       const data = res.data;
       return data.host_zone;
     },

@@ -1,12 +1,11 @@
+import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { CONNECTIONS } from 'config/storage-keys'
 import browser from 'webextension-polyfill'
 
-import { Wallet } from '../../hooks/wallet/useWallet'
-
 export const addToConnections = async (
   chainIds: string[],
-  wallets: [Wallet.Key] | Wallet.Key[] | [],
+  wallets: [Key] | Key[] | [],
   origin: string,
 ) => {
   let { connections = {} } = await browser.storage.local.get(CONNECTIONS)
@@ -14,7 +13,7 @@ export const addToConnections = async (
     connections = {}
   }
   chainIds.forEach((chainId: string) => {
-    wallets.forEach((wallet: Wallet.Key) => {
+    wallets.forEach((wallet: Key) => {
       const sites: [string] = connections?.[wallet.id]?.[chainId] || []
       if (!sites.includes(origin)) {
         sites.push(origin)

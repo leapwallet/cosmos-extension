@@ -2,6 +2,7 @@ import classNames from 'classnames'
 import React from 'react'
 
 type SecondaryActionButtonProps = {
+  // eslint-disable-next-line no-unused-vars
   onClick: (e: React.MouseEvent) => void
   leftIcon?: string
   className?: string

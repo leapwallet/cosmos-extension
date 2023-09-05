@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { usePrimaryWalletAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, usePrimaryWalletAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Key, WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Buttons, Header, HeaderActionType, Input, QrCode } from '@leapwallet/leap-ui'
@@ -7,7 +7,6 @@ import { captureException } from '@sentry/react'
 import CountDownTimer from 'components/countdown-timer'
 import Resize from 'components/resize'
 import Text from 'components/text'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { Dispatch, ReactElement, SetStateAction, useState } from 'react'
@@ -56,11 +55,8 @@ function EnterPasswordView({
   goBack,
 }: EnterPasswordViewProps): ReactElement {
   const activeChain = useActiveChain()
-
   const primaryWalletAddress = usePrimaryWalletAddress()
-
   const testPassword = SeedPhrase.useTestPassword()
-
   const [walletError, setWalletError] = useState('')
 
   const {
@@ -73,7 +69,7 @@ function EnterPasswordView({
   const onSubmit = (e?: React.BaseSyntheticEvent) => {
     handleSubmit(async (values) => {
       try {
-        testPassword(values.password)
+        await testPassword(values.password)
 
         const wallets = await Wallet.getAllWallets()
         const walletObjects = Object.values(wallets).filter(Boolean)

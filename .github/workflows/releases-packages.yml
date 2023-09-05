@@ -3,7 +3,7 @@ name: 📦 Release Packages
 on:
   push:
     branches:
-      - release
+      - release/packages
     paths:
       - 'packages/**'
 

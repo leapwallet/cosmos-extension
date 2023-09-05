@@ -1,5 +1,4 @@
-import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { Buttons, Header, HeaderActionType, Input, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
@@ -14,11 +13,10 @@ import { UserClipboard } from 'utils/clipboard'
 import { sliceAddress } from 'utils/strings'
 
 import BottomSheet from '../../components/bottom-sheet/BottomSheet'
-import { Wallet } from '../../hooks/wallet/useWallet'
 import { RemoveWallet } from './RemoveWallet'
 
 type EditWalletFormProps = {
-  wallet: Wallet.Key
+  wallet: Key
   isVisible: boolean
   // eslint-disable-next-line no-unused-vars
   onClose: (closeParent: boolean) => void
@@ -29,8 +27,7 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
   const [error, setError] = useState<string>('')
   const [isShowRemoveWallet, setShowRemoveWallet] = useState<boolean>(false)
   const { activeWallet, setActiveWallet } = useActiveWallet()
-  const activeChain = useActiveChain() as SupportedChain
-  // const createNewWallet = useCreateNewWallet()
+  const activeChain = useActiveChain()
   const [colorIndex, setColorIndex] = useState<number>(wallet?.colorIndex ?? 0)
   const isDark = useTheme().theme === ThemeName.DARK
 

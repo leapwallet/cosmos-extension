@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import browser from 'webextension-polyfill'
 
 import { KEYSTORE, PRIMARY_WALLET_ADDRESS } from '../../config/storage-keys'

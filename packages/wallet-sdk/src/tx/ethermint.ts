@@ -10,6 +10,7 @@ import dayjs from 'dayjs';
 import { proto, transactions } from 'evmosjs';
 
 import { fetchAccountDetails } from '../accounts';
+import { axiosWrapper } from '../healthy-nodes';
 import { getClientState } from '../utils';
 import { sleep } from '../utils/sleep';
 
@@ -73,12 +74,12 @@ export class EthermintTxHandler {
       denom: transferAmount.denom,
       receiver: toAddress,
       revisionHeight:
-        parseInt(clientState?.data?.identified_client_state.client_state.latest_height.revision_height ?? '0') + 100,
+        parseInt(clientState?.data?.identified_client_state.client_state.latest_height.revision_height ?? '0') + 10_000,
       revisionNumber: parseInt(
         clientState?.data?.identified_client_state.client_state.latest_height.revision_number ?? '0',
       ),
       timeoutTimestamp: timeoutTimestamp
-        ? ((timeoutTimestamp + 1000) * 1_000_000_000).toString()
+        ? ((timeoutTimestamp + 100_000) * 1_000_000_000).toString()
         : (Date.now() * 1_000_000).toString(),
     });
 
@@ -173,8 +174,8 @@ export class EthermintTxHandler {
 
   async reDelegate(
     delegatorAddress: string,
-    validatorSrcAddress: string,
     validatorDstAddress: string,
+    validatorSrcAddress: string,
     amount: Coin,
     fee: StdFee,
     memo?: string,
@@ -229,14 +230,17 @@ export class EthermintTxHandler {
   }
 
   async broadcastTx(signedTx: any): Promise<string> {
-    const body = `{ "tx_bytes": [${signedTx.message.serializeBinary().toString()}], "mode": "BROADCAST_MODE_ASYNC" }`;
-
     const baseURL = this.restUrl;
-    const response = await fetch(`${baseURL}/cosmos/tx/v1beta1/txs`, {
-      method: 'POST',
-      body,
+    const { data: result } = await axiosWrapper({
+      baseURL,
+      method: 'post',
+      url: '/cosmos/tx/v1beta1/txs',
+      data: JSON.stringify({
+        tx_bytes: Object.values(signedTx.message.serializeBinary()),
+        mode: 'BROADCAST_MODE_ASYNC',
+      }),
     });
-    const result = await response.json();
+
     const txResponse = result.tx_response;
     if (txResponse?.code) {
       throw new Error(txResponse.raw_log);
@@ -257,8 +261,7 @@ export class EthermintTxHandler {
     }
     const baseURL = this.restUrl;
     await sleep(2000);
-    const response = await fetch(`${baseURL}/cosmos/tx/v1beta1/txs/${txHash}`);
-    const result = await response.json();
+    const { data: result } = await axiosWrapper({ baseURL, method: 'get', url: `/cosmos/tx/v1beta1/txs/${txHash}` });
     const txResponse = result.tx_response;
     if (txResponse.code) {
       return this.pollForTx(txHash, timeout, pollcount + 1);

@@ -26,7 +26,6 @@ export const FeesSettingsSheet: React.FC<FeesSettingsSheetProps> = ({
       closeOnBackdropClick={true}
       title='Transaction Fees'
       onClose={onClose}
-      disableClose={gasError !== null}
     >
       <div>
         <h3 className='text-gray-700 dark:text-gray-400 font-bold text-sm'>

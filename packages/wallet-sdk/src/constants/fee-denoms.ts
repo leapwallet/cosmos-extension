@@ -53,7 +53,7 @@ export const feeDenoms: FeeDenoms = {
     passage: denoms.upasg,
     terra: denoms.uluna,
     quasar: denoms['ibc/0471F1C4E7AFD3F07702BEF6DC365268D64570F7C1FDC98EA6098DD6DE59817B'],
-    neutron: denoms['ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9'],
+    neutron: denoms.untrn,
     coreum: denoms.utestcore,
     mainCoreum: denoms.ucore,
     quicksilver: denoms.uqck,
@@ -74,6 +74,7 @@ export const feeDenoms: FeeDenoms = {
     mayachain: denoms.cacao,
     empowerchain: denoms.umpwr,
     dydx: denoms.dv4tnt,
+    celestiatestnet3: denoms.utia,
   },
   testnet: {
     akash: denoms.uakt,
@@ -141,5 +142,6 @@ export const feeDenoms: FeeDenoms = {
     mayachain: denoms.cacao,
     empowerchain: denoms.umpwr,
     dydx: denoms.dv4tnt,
+    celestiatestnet3: denoms.utia,
   },
 };

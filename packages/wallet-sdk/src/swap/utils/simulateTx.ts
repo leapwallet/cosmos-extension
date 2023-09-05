@@ -4,11 +4,7 @@ import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 
 import { simulateTx } from '../../tx';
 import { DirectTokenSwapArgs, PassThroughTokenSwapArgs } from '../../types/swap';
-import {
-  createExecuteMessage,
-  getDirectTokenSwapMessage,
-  getPassthroughSwapMessage,
-} from './messages/createExecuteMessage';
+import { getDirectTokenSwapMessage, getPassthroughSwapMessage } from './messages/createExecuteMessage';
 
 export async function simulateDirectTokenSwap(
   lcd: string,

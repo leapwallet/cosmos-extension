@@ -59,10 +59,11 @@ const queryPercentageChanges = async (ids: string, currency: Currency = Currency
 
 export class LeapApi {
   constructor(private readonly apiBaseUrl: string = '') {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getMarketDescription({ platform, token }: MarketDescriptionRequest): Promise<string | null> {
     return null;
   }
-  async getMarketCaps({ platform, tokens, currency = Currency.Usd }: MarketCapsRequest): Promise<MarketCapsResponse> {
+  async getMarketCaps({ tokens, currency = Currency.Usd }: MarketCapsRequest): Promise<MarketCapsResponse> {
     const marketCaps: MarketCaps = {};
     for (let page = 1; ; ++page) {
       const params = new URLSearchParams({
@@ -111,6 +112,7 @@ export class LeapApi {
       let smoothedPrice: number;
       if (outputIndex === 0) smoothedPrice = price;
       else {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const { smoothedPrice: previousPrice } = outputPrices[outputIndex - 1]!;
         smoothedPrice = previousPrice * 0.5 + price * 0.5;
       }
@@ -144,6 +146,7 @@ export class LeapApi {
       return prices;
     }, {} as Prices);
     const networkTokenPriceMapping = Object.entries(prices).reduce((tokenPriceMapping, [id, price]) => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const token = idTokenMapping[id]!;
       tokenPriceMapping[token] = price;
       return tokenPriceMapping;
@@ -152,7 +155,6 @@ export class LeapApi {
   }
   async getMarketPercentageChanges({
     tokens,
-    platform,
     currency = Currency.Usd,
   }: MarketPercentageChangesRequest): Promise<MarketPercentageChangesResponse> {
     if (tokens.length === 0) return {};
@@ -167,15 +169,14 @@ export class LeapApi {
 
   async getV2MarketPercentageChanges({
     platformTokenAddresses,
-    currency = Currency.Usd,
   }: V2MarketPercentageChangesRequest): Promise<V2MarketPercentageChangesResponse> {
     const platforms = Array<string>();
     const promises = Array<Promise<Prices>>();
     const body: APIPercentageChanges = {};
-    for (const { platform, tokenAddresses } of platformTokenAddresses) {
+    for (const { platform } of platformTokenAddresses) {
       if (validateCgPlatform(platform)) {
         platforms.push(platform);
-        const parsed = parseAssetPlatform(platform)!;
+        // const parsed = parseAssetPlatform(platform)!;
         //   promises.push(this.getMarketPercentageChanges(parsed, tokenAddresses, params.currency));
       } else {
         body[platform] = {};
@@ -183,7 +184,9 @@ export class LeapApi {
     }
     const awaited = await Promise.allSettled(promises);
     for (let index = 0; index < awaited.length; ++index) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const prices = awaited[index]!;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       body[platforms[index]!] = prices.status === 'fulfilled' ? prices.value : {};
     }
     return body;
@@ -208,7 +211,9 @@ export class LeapApi {
     }
     const awaited = await Promise.allSettled(promises);
     for (let index = 0; index < awaited.length; ++index) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const prices = awaited[index]!;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       body[platforms[index]!] = prices.status === 'fulfilled' ? prices.value : {};
     }
     return body;

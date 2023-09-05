@@ -11,6 +11,7 @@ import {
   getChainInfo,
   getUnbondingTime,
   InjectiveTx,
+  LedgerError,
   Reward,
   RewardsResponse,
   SeiTxHandler,
@@ -24,12 +25,11 @@ import {
   UnbondingDelegation,
   Validator,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { GasPrice, SupportedChain, transactionDeclinedError } from '@leapwallet/cosmos-wallet-sdk';
+import { GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import CosmosDirectory from '@leapwallet/cosmos-wallet-sdk/dist/chains/cosmosDirectory';
-import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
+import { DEFAULT_GAS_REDELEGATE, NativeDenom } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
 import Network, { NetworkChainData } from '@leapwallet/cosmos-wallet-sdk/dist/stake/network';
 import StakeQueryClient from '@leapwallet/cosmos-wallet-sdk/dist/stake/queryClient';
-import { ParsedTransaction } from '@leapwallet/parser-parfait';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import currency from 'currency.js';
@@ -90,15 +90,17 @@ export function useStaking() {
   const activeChain = useActiveChain();
   const isTestnet = useSelectedNetwork() === 'testnet';
 
+  const activeChainInfo = chainInfos[activeChain];
+
   const { allAssets } = useGetTokenBalances();
-  const token = allAssets?.find((e) => e.symbol === chainInfos[activeChain].denom);
+  const token = allAssets?.find((e) => e.symbol === activeChainInfo.denom);
   const { lcdUrl } = useChainApis();
   const denoms = useDenoms();
 
   const { status: chainRegistryStatus, getChainInfoById } = useChainsRegistry();
   const getIbcDenomInfo = useGetIbcDenomInfo();
   const address = useAddress();
-  const denom = Object.values(chainInfos[activeChain].nativeDenoms)[0];
+  const denom = denoms[Object.keys(activeChainInfo.nativeDenoms)[0]];
 
   const { data: denomFiatValue, status: fiatValueStatus } = useQuery(
     ['input-fiat-value', token, currency],
@@ -128,7 +130,10 @@ export function useStaking() {
       currencyAmountReward: string;
       totalRewardsDollarAmt: string;
     }> => {
-      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', denoms);
+      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', {
+        ...denoms,
+        ...activeChainInfo.nativeDenoms,
+      });
       const { rewards, result } = await client.getRewards(address, {}, getIbcDenomInfo, getChainInfoById);
 
       const resultTotal = await Promise.all(
@@ -218,9 +223,9 @@ export function useStaking() {
         currencyAmountReward = new BigNumber(totalRewards).multipliedBy(denomFiatValue ?? '0').toString();
       }
 
-      let formattedTotalRewards = formatTokenAmount(totalRewards, chainInfos[activeChain].denom, 4);
+      let formattedTotalRewards = formatTokenAmount(totalRewards, activeChainInfo.denom, 4);
       if (formattedTotalRewards === 'NaN') {
-        formattedTotalRewards = '0 ' + chainInfos[activeChain].denom;
+        formattedTotalRewards = '0 ' + activeChainInfo.denom;
       }
 
       return {
@@ -246,24 +251,23 @@ export function useStaking() {
       currencyAmountDelegation: string;
       delegations: Record<string, Delegation>;
     }> => {
-      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', denoms);
+      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', {
+        ...denoms,
+        ...activeChainInfo.nativeDenoms,
+      });
       const rawDelegations: Record<string, Delegation> = await client.getDelegations(address);
       const delegations = Object.entries(rawDelegations)
         .filter(([, d]) => new BigNumber(d.balance.amount).gt(0))
         .reduce((formattedDelegations, [validator, d]) => {
           d.balance.currenyAmount = new BigNumber(d.balance.amount).multipliedBy(denomFiatValue ?? '0').toString();
-          d.balance.formatted_amount = formatTokenAmount(d.balance.amount, chainInfos[activeChain].denom, 6);
+          d.balance.formatted_amount = formatTokenAmount(d.balance.amount, activeChainInfo.denom, 6);
           return { [validator]: d, ...formattedDelegations };
         }, {});
 
       const tda = Object.values(rawDelegations)
-        .reduce(
-          (a, v) => a + +v.balance.amount,
-
-          0,
-        )
+        .reduce((acc, v) => acc.plus(v.balance.amount), new BigNumber(0))
         .toString();
-      const totalDelegationAmount = formatTokenAmount(tda, chainInfos[activeChain].denom);
+      const totalDelegationAmount = formatTokenAmount(tda, activeChainInfo.denom);
       const currencyAmountDelegation = new BigNumber(tda).multipliedBy(denomFiatValue ?? '0').toString();
       return { delegations, totalDelegationAmount, currencyAmountDelegation };
     },
@@ -277,10 +281,13 @@ export function useStaking() {
   } = useQuery(
     [stakeQueryIds.unboundingDelegations, address, activeChain, isTestnet],
     async (): Promise<Record<string, UnbondingDelegation>> => {
-      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', denoms);
+      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', {
+        ...denoms,
+        ...activeChainInfo.nativeDenoms,
+      });
 
-      const denom = Object.values(chainInfos[activeChain].nativeDenoms).filter(
-        (denom) => denom.coinDenom === chainInfos[activeChain].denom,
+      const denom = Object.values(activeChainInfo.nativeDenoms).filter(
+        (denom) => denom.coinDenom === activeChainInfo.denom,
       )[0].coinMinimalDenom;
 
       const uDelegations: Record<string, UnbondingDelegation> = await client.getUnbondingDelegations(
@@ -289,7 +296,7 @@ export function useStaking() {
       );
       Object.values(uDelegations).map(async (r) => {
         r.entries.map((e) => {
-          e.formattedBalance = formatTokenAmount(e.balance, chainInfos[activeChain].denom, 6);
+          e.formattedBalance = formatTokenAmount(e.balance, activeChainInfo.denom, 6);
         });
       });
       return uDelegations;
@@ -307,14 +314,14 @@ export function useStaking() {
       chainData: NetworkChainData;
       validators: Validator[];
     }> => {
-      const chainId = chainInfos[activeChain].key;
+      const chainId = activeChainInfo.key;
 
-      const _chainData = chainInfos[activeChain].beta
+      const _chainData = activeChainInfo.beta
         ? { params: { calculated_apr: 0, estimated_apr: 0 } }
         : ((await getChainInfo(chainId, isTestnet)) as ChainData);
 
-      const denom = Object.values(chainInfos[activeChain].nativeDenoms).find(
-        (denom) => denom.coinDenom === chainInfos[activeChain].denom,
+      const denom = Object.values(activeChainInfo.nativeDenoms).find(
+        (denom) => denom.coinDenom === activeChainInfo.denom,
       );
 
       const validators = (await CosmosDirectory(isTestnet).getValidators(
@@ -477,11 +484,16 @@ export function useStakeTx(
   const [amount, setAmount] = useState<string>('');
   const [fees, setFees] = useState<StdFee>();
   const [currencyFees, setCurrencyFees] = useState<string>();
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>();
+  const [ledgerError, setLedgerErrorMsg] = useState<string>();
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
   const [, setGasPriceFactor] = useState<'low' | 'average' | 'high'>('low');
   const selectedNetwork = useSelectedNetwork();
+  const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
+    if (mode === 'REDELEGATE') return DEFAULT_GAS_REDELEGATE.toString();
+    return defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE.toString() ?? DefaultGasEstimates.DEFAULT_GAS_STAKE;
+  });
 
   const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
   const { lcdUrl } = useChainApis();
@@ -521,8 +533,13 @@ export function useStakeTx(
   };
 
   const clearError = useCallback(() => {
-    setError('');
+    setError(undefined);
   }, []);
+
+  const setLedgerError = (error?: string) => {
+    setLedgerErrorMsg(error);
+    setShowLedgerPopup(false);
+  };
 
   const simulateTx = useCallback(
     (amount: Coin) => {
@@ -621,7 +638,7 @@ export function useStakeTx(
       return;
     }
 
-    setError('');
+    setError(undefined);
 
     if (!amount || new BigNumber(amount).lte(0)) {
       setFees(undefined);
@@ -652,7 +669,7 @@ export function useStakeTx(
         }
 
         const defaultGasStake =
-          defaultGasEstimates[activeChain].DEFAULT_GAS_STAKE || DefaultGasEstimates.DEFAULT_GAS_STAKE;
+          defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE || DefaultGasEstimates.DEFAULT_GAS_STAKE;
         let gasEstimate = defaultGasStake;
 
         if (mode === 'CLAIM_REWARDS' && delegations) {
@@ -662,8 +679,12 @@ export function useStakeTx(
         try {
           const { gasUsed } = await simulateTx(amt);
           gasEstimate = gasUsed;
-        } catch (e) {
-          //
+          setRecommendedGasLimit(gasUsed.toString());
+        } catch (error: any) {
+          if (error.message.includes('redelegation to this validator already in progress')) {
+            setError(error.message);
+            return;
+          }
         }
 
         fee = calculateFee(Math.round((gasEstimate ?? defaultGasStake) * gasAdjustment), gasPrice);
@@ -682,7 +703,8 @@ export function useStakeTx(
         setFees(fee);
       }
 
-      setError('');
+      setError(undefined);
+      setLedgerError(undefined);
 
       if (tx) {
         if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
@@ -734,16 +756,17 @@ export function useStakeTx(
         const txResult = tx.pollForTx(txHash);
 
         if (txResult) onTxSuccess(txResult, callback);
-        setError('');
+        setError(undefined);
       }
     } catch (e: any) {
-      if (e.message === transactionDeclinedError.message) {
-        // navigate('/home?txDeclined=true');
-        callback && callback('txDeclined');
+      if (e instanceof LedgerError) {
+        setLedgerError(e.message.toString());
+      } else {
+        setError(e.message.toString());
       }
-      setError(e.message.toString());
     } finally {
       setLoading(false);
+      setShowLedgerPopup(false);
     }
   };
 
@@ -781,7 +804,7 @@ export function useStakeTx(
           //
         }
       }
-    }, 250);
+    }, 750);
 
     return () => clearTimeout(timeoutID);
   }, [amount]);
@@ -808,5 +831,8 @@ export function useStakeTx(
     showLedgerPopup,
     onSimulateTx,
     setGasPriceFactor,
+    setLedgerError,
+    ledgerError,
+    recommendedGasLimit,
   };
 }

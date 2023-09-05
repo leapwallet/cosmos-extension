@@ -1,17 +1,14 @@
 /* eslint-disable no-unused-vars */
-import { ENCRYPTED_ACTIVE_WALLET, KeyChain } from '@leapwallet/leap-keychain'
-import { decrypt } from '@leapwallet/leap-keychain'
+import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
 import ExtensionPage from 'components/extension-page'
 import Loader, { LoaderAnimation } from 'components/loader/Loader'
-import { ACTIVE_WALLET } from 'config/storage-keys'
+import { ACTIVE_WALLET, V80_KEYSTORE_MIGRATION_COMPLETE } from 'config/storage-keys'
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { ReactElement, ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { useRef } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Colors } from 'theme/colors'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import browser, { extension } from 'webextension-polyfill'
 
 import { useSetPassword } from '../hooks/settings/usePassword'
@@ -35,51 +32,52 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   const testPassword = SeedPhrase.useTestPassword()
 
   useEffect(() => {
-    const el = browser.runtime.onMessage.addListener((message) => {
+    const listener = (message: any, sender: any) => {
+      if (sender.id !== browser.runtime.id) return
       if (message.type === 'auto-lock') {
         setLocked(true)
       }
-    })
-
+    }
+    browser.runtime.onMessage.addListener(listener)
     return () => {
-      browser.runtime.onMessage.removeListener((message) => {
-        if (message.type === 'auto-lock') {
-          setLocked(true)
-        }
-      })
+      browser.runtime.onMessage.removeListener(listener)
     }
   }, [])
 
   const signin = useCallback(
-    (password: string, callback?: VoidFunction) => {
+    async (password: string, callback?: VoidFunction) => {
       if (!password) {
         setNoAccount(true)
       } else {
-        testPassword(password)
-
-        /**
-         * when there is an active wallet, we don't need to decrypt the keychain,
-         * if we do it will overwrite the active wallet and keychain with the encrypted version
-         *
-         * on signout, we encrypt the updated keychain and active wallet.
-         *
-         * for some reason the password authentication failed errors are not propagated to the calling function when using async await
-         */
-        browser.storage.local.get([ACTIVE_WALLET]).then(async (storage) => {
-          browser.runtime.sendMessage({ type: 'unlock', data: { password } })
-          const listener = async (message: { type: string }) => {
-            if (message.type === 'wallet-unlocked') {
-              setLocked(false)
-              setNoAccount(false)
-              setLoading(false)
-              await setPassword(password)
-              callback && callback()
-              browser.runtime.onMessage.removeListener(listener)
+        try {
+          await testPassword(password)
+          /**
+           * when there is an active wallet, we don't need to decrypt the keychain,
+           * if we do it will overwrite the active wallet and keychain with the encrypted version
+           *
+           * on signout, we encrypt the updated keychain and active wallet.
+           *
+           * for some reason the password authentication failed errors are not propagated to the calling function when using async await
+           */
+          browser.storage.local.get([ACTIVE_WALLET]).then(async () => {
+            browser.runtime.sendMessage({ type: 'unlock', data: { password } })
+            const listener = async (message: { type: string }, sender: any) => {
+              if (sender.id !== browser.runtime.id) return
+              if (message.type === 'wallet-unlocked') {
+                setLocked(false)
+                setNoAccount(false)
+                setLoading(false)
+                await setPassword(password)
+                callback && callback()
+                browser.runtime.onMessage.removeListener(listener)
+              }
             }
-          }
 
-          browser.runtime.onMessage.addListener(listener)
-        })
+            browser.runtime.onMessage.addListener(listener)
+          })
+        } catch (e) {
+          throw new Error('Password authentication failed')
+        }
       }
     },
     [setPassword, testPassword],
@@ -104,12 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   )
 
   useEffect(() => {
-    const listener = async (message: any) => {
+    const listener = async (message: any, sender: any) => {
+      if (sender.id !== browser.runtime.id) return
       if (message.type === 'authentication') {
         if (message.data.status === 'success') {
           signin(message.data.password)
         } else {
-          setLoading(false)
+          setLoading(() => false)
         }
       }
     }
@@ -121,6 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         setNoAccount(false)
         browser.runtime.onMessage.addListener(listener)
         browser.runtime.sendMessage({ type: 'popup-open' })
+        setTimeout(() => {
+          if (loading) {
+            setLoading(false)
+            //browser.runtime.onMessage.removeListener(listener)
+          }
+        }, 5000)
       } else {
         setNoAccount(true)
         setLoading(false)
@@ -132,6 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     return () => {
       browser.runtime.onMessage.removeListener(listener)
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signin])
 
   const value = {
@@ -191,7 +198,6 @@ export function RequireAuthOnboarding({ children }: { children: JSX.Element }) {
   const newUser = useRef(false)
 
   useEffect(() => {
-    let mounted = true
     const fn = async () => {
       if (newUser.current) {
         return
@@ -217,9 +223,6 @@ export function RequireAuthOnboarding({ children }: { children: JSX.Element }) {
       }
     }
     fn()
-    return () => {
-      mounted = false
-    }
   }, [auth, walletName])
 
   if (redirectTo === 'onboarding') {

@@ -1,4 +1,3 @@
-import { enableLeapNode } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
 import { Span } from '@sentry/tracing'
 import { QueryStatus } from '@tanstack/react-query'
@@ -22,9 +21,7 @@ export function usePerformanceMonitor({
   const activeChain = useActiveChain()
 
   useEffect(() => {
-    const txName = enableLeapNode
-      ? `${activeChain}-${page}-page-leap-node`
-      : `${activeChain}-${page}-page-public-node`
+    const txName = `${activeChain}-${page}-page-public-node`
     const transaction = Sentry.startTransaction({ name: txName })
     Sentry.getCurrentHub().configureScope((scope) => scope.setSpan(transaction))
   }, [activeChain, page])

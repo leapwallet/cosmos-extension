@@ -25,15 +25,47 @@ const tokensToString = async (tokens: Token[], restUrl: string) => {
   return traces.join(', ')
 }
 
-export const getSimpleType = (type: string | undefined) => {
-  if (!type) {
-    return 'unknown'
-  }
+function getMessageType(type: string) {
   const parts = (type?.startsWith('/') ? type?.split('.') : type?.split('/')) ?? []
   return parts[parts.length - 1] ?? ''
 }
 
-export const getMessageTitle = (message: ParsedMessage): string => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const getSimpleType = (type: string | undefined, additionalInfo?: any) => {
+  if (!type) {
+    return 'unknown'
+  }
+  const simpleType = getMessageType(type)
+
+  if (simpleType.trim() === 'SendAuthorization') {
+    return 'Send'
+  }
+
+  if (simpleType.trim() === 'StakeAuthorization') {
+    switch (additionalInfo) {
+      case 0:
+        return 'Unspecified'
+      case 1:
+        return 'Delegate'
+      case 2:
+        return 'Undelegate'
+      case 3:
+        return 'Redelegate'
+      case 4:
+        return 'Cancel Unbonding Delegation'
+      default:
+        return 'unknown'
+    }
+  }
+
+  if (simpleType.trim() === 'GenericAuthorization') {
+    return getMessageType(additionalInfo)
+  }
+
+  return simpleType
+}
+
+export const getMessageTitle = (message: ParsedMessage) => {
   switch (message.__type) {
     case ParsedMessageType.AuthzExec:
       return 'Execute Authorized Message'
@@ -147,10 +179,7 @@ const formatAllowanceOption = (allowance: parfait.cosmos.feegrant.grantAllowance
   }
 }
 
-export const getMessageDetails = async (
-  message: ParsedMessage,
-  restUrl: string,
-): Promise<string> => {
+export const getMessageDetails = async (message: ParsedMessage, restUrl: string) => {
   switch (message.__type) {
     case ParsedMessageType.AuthzExec:
       return Promise.resolve(
@@ -165,7 +194,8 @@ export const getMessageDetails = async (
     case ParsedMessageType.AuthzGrant:
       return Promise.resolve(
         `Grant authorization for ${sliceAddress(message.grantee)} to execute ${getSimpleType(
-          message.grant.authorization.type,
+          message.grant.authorization['$type_url'] ?? message.grant.authorization['@type'],
+          message.grant.authorization.msg ?? message.grant.authorization.authorization_type,
         )} on behalf of you`,
       )
     case ParsedMessageType.AuthzRevoke:
@@ -244,8 +274,15 @@ export const getMessageDetails = async (
       return Promise.resolve(
         `Submit proposal with deposit of ${await tokensToString(message.initialDeposit, restUrl)}`,
       )
-    case ParsedMessageType.GovVote:
-      return Promise.resolve(`Vote ${message.option} on proposal ${message.proposalId}`)
+    case ParsedMessageType.GovVote: {
+      const proposalId = ['number', 'string'].includes(typeof message.proposalId)
+        ? message.proposalId
+        : // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          message.proposalId?.low ?? JSON.stringify(message.proposalId)
+
+      return Promise.resolve(`Vote ${message.option} on proposal ${proposalId}`)
+    }
     case ParsedMessageType.GovDeposit:
       return Promise.resolve(
         `Deposit ${await tokensToString(message?.amount ?? [], restUrl)} on proposal ${

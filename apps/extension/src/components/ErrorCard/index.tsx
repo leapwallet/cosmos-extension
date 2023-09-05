@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 
 type ErrorCardProps = React.ComponentPropsWithoutRef<'div'> & {
-  text: string
+  text?: string
   'data-testing-id'?: string
 }
 

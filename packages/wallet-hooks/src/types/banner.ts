@@ -1,5 +1,3 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-
 export type BannerADType = 'popup' | 'redirect-interanlly' | 'redirect-external';
 
 export type BannerAD = {

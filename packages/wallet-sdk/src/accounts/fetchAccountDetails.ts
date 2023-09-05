@@ -1,4 +1,5 @@
-import axios from 'axios';
+import { axiosWrapper } from '../healthy-nodes';
+
 export interface AccountRestResponse {
   account: {
     address: string;
@@ -51,7 +52,12 @@ export async function fetchAccountDetails(lcdEndpoint: string, address: string, 
      * cosmos chains when querying the auth account endpoint
      * */
 
-    const { data } = await axios.get(`${lcdEndpoint}/cosmos/auth/v1beta1/accounts/${address}`);
+    const { data } = await axiosWrapper({
+      baseURL: lcdEndpoint,
+      method: 'get',
+      url: `/cosmos/auth/v1beta1/accounts/${address}`,
+    });
+
     const baseAccount = data.account.base_account
       ? (data as InjectiveAccountRestResponse).account.base_account
       : (data as AccountRestResponse).account;

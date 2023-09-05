@@ -130,7 +130,7 @@ const TargetTokenSheet: React.FC<propTypes> = ({ isOpen, onClose }) => {
   }
 
   return (
-    <BottomModal isOpen={isOpen} onClose={onClose} title='Swap to'>
+    <BottomModal isOpen={isOpen} onClose={onClose} title='Swap to' closeOnBackdropClick={true}>
       <div>
         <div className='flex flex-col items-center'>
           <div className='mx-auto w-[344px] mb-4 flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>

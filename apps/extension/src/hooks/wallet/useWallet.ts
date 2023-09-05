@@ -1,6 +1,6 @@
 import { makeCosmoshubPath } from '@cosmjs/amino'
 import { AccountData, DirectSecp256k1HdWallet, OfflineSigner } from '@cosmjs/proto-signing'
-import { useChainsStore, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { Key, useChainsStore, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
   generateWalletFromMnemonic,
@@ -36,17 +36,6 @@ import { SeedPhrase } from './seed-phrase/useSeedPhrase'
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Wallet {
-  export type Key = {
-    addressIndex: number
-    name: string
-    cipher: string
-    addresses: Record<SupportedChain, string>
-    pubKeys?: Record<SupportedChain, string>
-    walletType: WALLETTYPE
-    id: string
-    colorIndex: number
-  }
-
   export type Keystore = Record<string, Key>
 
   export async function storeWallets(newWallets: Record<string, Key>): Promise<void> {
@@ -58,7 +47,7 @@ export namespace Wallet {
     return await browser.storage.local.set({
       [KEYSTORE]: newKeystore,
       [ACTIVE_WALLET]: newWallets[lastEntry],
-      [ACTIVE_CHAIN]: ChainInfos.juno.key,
+      [ACTIVE_CHAIN]: ChainInfos.cosmos.key,
     })
   }
 
@@ -111,7 +100,7 @@ export namespace Wallet {
           delete _storedWallets[keyId]
         })
 
-        // TODO wallet type based updation
+        // TODO: wallet type based updation
         if (Object.keys(_storedWallets ?? {}).length === 0) {
           removeAll()
         } else {
@@ -422,6 +411,8 @@ export namespace Wallet {
 
         return wallets
       },
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [password],
     )
   }

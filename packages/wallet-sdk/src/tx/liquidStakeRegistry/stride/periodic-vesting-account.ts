@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
 import { Any } from 'cosmjs-types/google/protobuf/any';

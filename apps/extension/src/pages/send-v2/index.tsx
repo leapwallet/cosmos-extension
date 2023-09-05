@@ -8,7 +8,8 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
 import React, { useCallback, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { AmountCard } from './components/amount-card'
 import { FeesView } from './components/fees-view'
@@ -18,6 +19,7 @@ import { SendContextProvider } from './context'
 
 const Send = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
 
@@ -30,10 +32,6 @@ const Send = () => {
     [activeChain, chainInfos, defaultTokenLogo],
   )
 
-  const handleImgClick = useCallback(() => {
-    setShowChainSelector(true)
-  }, [])
-
   return (
     <div>
       <motion.div className='relative h-full w-full'>
@@ -45,8 +43,14 @@ const Send = () => {
                 type: HeaderActionType.BACK,
               }}
               imgSrc={chainImage}
-              onImgClick={handleImgClick}
-              title='Send'
+              onImgClick={
+                isCompassWallet()
+                  ? undefined
+                  : function noRefCheck() {
+                      setShowChainSelector(true)
+                    }
+              }
+              title={location.pathname === '/ibc' ? 'IBC' : 'Send'}
               topColor={themeColor}
             />
           }

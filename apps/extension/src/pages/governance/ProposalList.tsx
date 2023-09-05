@@ -171,6 +171,10 @@ function ProposalList({
                 setShowSideNav(true)
               },
               type: HeaderActionType.NAVIGATION,
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              className:
+                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={
@@ -188,7 +192,9 @@ function ProposalList({
         <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
         {showSelectedChainAlert && !isCompassWallet() && (
           <AlertStrip
-            message={`You are on ${activeChainInfo.chainName}${isTestnet ? ' Testnet' : ''}`}
+            message={`You are on ${activeChainInfo.chainName}${
+              isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
+            }`}
             bgColor={themeColor}
             alwaysShow={isTestnet}
             onHide={() => {
@@ -200,7 +206,11 @@ function ProposalList({
           <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>Proposals</div>
           <div className='text-sm text-gray-600 font-bold'>
             List of proposals in{' '}
-            {activeChain.toLowerCase() === 'maincoreum' ? 'COREUM' : activeChain.toUpperCase()}
+            {activeChain.toLowerCase() === 'maincoreum'
+              ? 'COREUM'
+              : activeChain.toLowerCase() === 'seitestnet2'
+              ? 'SEI'
+              : activeChain.toUpperCase()}
           </div>
           <div className='flex items-center justify-between mt-6 mb-4'>
             <div className='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>

@@ -1,18 +1,12 @@
-/* eslint-disablshe @typescript-eslint/ban-ts-comment */
-
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { getChains } from '@leapwallet/cosmos-wallet-hooks'
-import {
-  chainIdToChain,
-  ChainInfo,
-  ChainInfos,
-  decrypt,
-  SupportedChain,
-} from '@leapwallet/cosmos-wallet-sdk'
+import { chainIdToChain, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
 import { BETA_CHAINS } from 'config/storage-keys'
 import CryptoJs from 'crypto-js'
+import { addToConnections } from 'pages/ApproveConnection/utils'
 import { getStorageAdapter } from 'utils/storageAdapter'
 import browser from 'webextension-polyfill'
 
@@ -76,6 +70,7 @@ export async function checkChainConnections(
   msg: any,
   activeWallet: Key,
 ) {
+  const isLeapBoardOrigin = 'https://cosmos.leapwallet.io' === msg.origin
   let isNewChainPresent = !activeWallet
 
   if (activeWallet) {
@@ -91,7 +86,15 @@ export async function checkChainConnections(
   const chainsIds = await validateChains(chainIds)
   const validChainIds = Object.keys(chainsIds).filter((chainId) => !!chainsIds[chainId])
 
-  return { validChainIds, isNewChainPresent }
+  if (validChainIds.length && isLeapBoardOrigin) {
+    isNewChainPresent = false
+    await addToConnections(chainIds, [activeWallet], msg.origin)
+  }
+
+  return {
+    validChainIds,
+    isNewChainPresent,
+  }
 }
 
 const getConnections = async () => {
@@ -256,7 +259,9 @@ export function requestEnableAccess(payload: {
 }) {
   // Store the listener function in a variable so we can remove it later
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const listener = (message: any) => {
+  const listener = (message: any, sender: any) => {
+    if (sender.id !== browser.runtime.id) throw new Error('Invalid sender')
+
     if (message.type === 'approval-popup-open') {
       browser.runtime.sendMessage({ type: 'enable-access', payload })
       // remove this listener after sending the message

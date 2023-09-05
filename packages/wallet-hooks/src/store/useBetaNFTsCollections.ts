@@ -1,10 +1,10 @@
 import create from 'zustand';
 
-export const BETA_NFTS_COLLECTIONS = 'beta-nfts-collections';
+import { useActiveChain } from './useActiveChain';
 
 type BetaNFTsCollections = {
-  betaNFTsCollections: string[] | null;
-  setBetaNFTsCollections: (betaNFTsCollections: string[] | null) => void;
+  betaNFTsCollections: { [key: string]: string[] } | null;
+  setBetaNFTsCollections: (betaNFTsCollections: { [key: string]: string[] } | null) => void;
 };
 
 export const useBetaNFTsCollectionsStore = create<BetaNFTsCollections>((set) => ({
@@ -12,7 +12,8 @@ export const useBetaNFTsCollectionsStore = create<BetaNFTsCollections>((set) => 
   setBetaNFTsCollections: (betaNFTsCollections) => set(() => ({ betaNFTsCollections })),
 }));
 
-export const useBetaNFTsCollections = () => {
+export const useBetaNFTsCollections = (forceChain?: string) => {
+  const activeChain = useActiveChain();
   const { betaNFTsCollections } = useBetaNFTsCollectionsStore();
-  return betaNFTsCollections ?? [];
+  return (betaNFTsCollections ?? {})[forceChain ?? activeChain] ?? [];
 };

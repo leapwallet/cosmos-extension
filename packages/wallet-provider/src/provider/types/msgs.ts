@@ -82,6 +82,7 @@ export class SuggestChainInfoMsg extends Message<void> {
       features: result.features,
       theme: result.theme,
       image: result.image,
+      chainRegistryPath: result.chainRegistryPath ?? result.bech32Config.bech32PrefixAccAddr,
     };
   }
 
@@ -187,6 +188,7 @@ export class RequestSignAminoMsg extends Message<AminoSignResponse> {
     public readonly signOptions: LeapSignOptions & {
       isADR36WithString?: boolean;
       ethSignType?: EthSignType;
+      enableExtraEntropy?: boolean;
     } = {},
   ) {
     super();

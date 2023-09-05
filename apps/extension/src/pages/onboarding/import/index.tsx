@@ -1,24 +1,24 @@
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { Buttons, ProgressBar, TextArea } from '@leapwallet/leap-ui'
-import * as secp256k1 from '@noble/secp256k1'
 import classNames from 'classnames'
 import ChoosePasswordView from 'components/choose-password-view'
 import CssLoader from 'components/css-loader/CssLoader'
 import ExtensionPage from 'components/extension-page'
-import Loader, { LoaderAnimation } from 'components/loader/Loader'
+import { SeedPhraseInput } from 'components/seed-phrase-input'
 import Text from 'components/text'
 import WalletInfoCard from 'components/wallet-info-card'
 import { AuthContextType, useAuth } from 'context/auth-context'
 import { useOnboarding } from 'hooks/onboarding/useOnboarding'
 import { usePassword } from 'hooks/settings/usePassword'
 import useQuery from 'hooks/useQuery'
-import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Images } from 'images'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { validateSeedPhrase } from 'utils/validateSeedPhrase'
+import browser from 'webextension-polyfill'
 
 import { IMPORT_WALLET_DATA } from '../constants'
 import ImportLedgerView from './ImportLedgerView'
@@ -29,6 +29,8 @@ type SeedPhraseViewProps = {
   secret: string
   setSecret: React.Dispatch<React.SetStateAction<string>>
   isPrivateKey: boolean
+  privateKeyError?: string
+  setPrivateKeyError?: React.Dispatch<React.SetStateAction<string>>
 }
 
 function SeedPhraseView({
@@ -37,45 +39,29 @@ function SeedPhraseView({
   secret,
   setSecret,
   isPrivateKey,
+  privateKeyError,
+  setPrivateKeyError,
 }: SeedPhraseViewProps) {
-  const [error, setError] = useState('')
-
-  const onChangeHandler = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setError('')
-    setSecret(e.target.value)
-  }
-
-  /**
-   * @description Function to validate the entered secret
-   * @returns boolean - true/false
-   */
-  const validateSeedPhrase = () => {
-    setError('')
-
-    const correctedSecret = correctMnemonic(secret)
-
-    if (isPrivateKey) {
-      try {
-        const privateKey = correctedSecret.toLowerCase().startsWith('0x')
-          ? correctedSecret.slice(2)
-          : correctedSecret
-        if (!secp256k1.utils.isValidPrivateKey(privateKey)) {
-          throw new Error('Invalid private key.')
-        }
-      } catch (error) {
-        setError('Invalid private key.')
-        return false
-      }
-    } else if (!SeedPhrase.validateSeedPhrase(correctedSecret)) {
-      setError('Invalid secret recovery phrase.')
-      return false
-    }
-
-    setSecret(correctedSecret)
-    return true
-  }
-
+  const [error, setError] = useState(privateKeyError ?? '')
   const isCosmostation = walletName === 'Cosmostation'
+
+  useEffect(() => {
+    if (privateKeyError?.length) {
+      setError(privateKeyError)
+    }
+  }, [privateKeyError])
+
+  const onChangeHandler = (value: string) => {
+    setError('')
+    setPrivateKeyError && setPrivateKeyError('')
+    setSecret(value)
+  }
+
+  const handleImportWalletClick = () => {
+    if (validateSeedPhrase({ phrase: secret, isPrivateKey, setError, setSecret })) {
+      onProceed()
+    }
+  }
 
   return (
     <div className='flex flex-row overflow-scroll gap-x-[20px]'>
@@ -100,47 +86,50 @@ function SeedPhraseView({
           ) : (
             <>
               To import an existing {walletName} wallet, please enter the
-              <br /> recovery seed phrase here:
+              <br /> recovery phrase here:
             </>
           )}
         </Text>
-        <TextArea
-          autoFocus
-          onChange={onChangeHandler}
-          value={secret}
-          isErrorHighlighted={!!error}
-          placeholder={
-            isPrivateKey
-              ? 'Enter or Paste your private key'
-              : 'Enter or Paste your recovery / seed phrase'
-          }
-          data-testing-id='enter-phrase'
-        />
+
+        {isPrivateKey ? (
+          <TextArea
+            autoFocus
+            onChange={(event) => onChangeHandler(event.target.value)}
+            value={secret}
+            isErrorHighlighted={!!error}
+            placeholder='Enter or Paste your private key'
+            data-testing-id='enter-phrase'
+          />
+        ) : (
+          <div className='w-[376px]'>
+            <SeedPhraseInput onChangeHandler={onChangeHandler} isError={!!error} heading='' />
+          </div>
+        )}
+
         {error && (
           <Text size='sm' color='text-red-300 mt-[16px]' data-testing-id='error-text-ele'>
-            {' '}
             {error}
           </Text>
         )}
+
         <div className='w-[376px] h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center px-5 py-3 my-7'>
           <img className='mr-[16px]' src={Images.Misc.Warning} width='40' height='40' />
           <div className='flex flex-col gap-y-[2px]'>
             <Text size='sm' color='text-gray-400 font-medium'>
               Recommended security practice:
             </Text>
-            <Text size='sm' color='text-white-100 font-bold'>
+            <Text size='sm' color='text-gray-400 dark:text-white-100 font-bold'>
               {`It is always safer to type the ${
-                isPrivateKey ? 'private key' : 'seed phrase'
+                isPrivateKey ? 'private key' : 'recovery phrase'
               } rather than pasting it.`}
             </Text>
           </div>
         </div>
+
         <Buttons.Generic
           disabled={!!error || !secret}
           color={Colors.cosmosPrimary}
-          onClick={() => {
-            if (validateSeedPhrase()) onProceed()
-          }}
+          onClick={handleImportWalletClick}
           data-testing-id='btn-import-wallet'
         >
           Import Wallet
@@ -403,6 +392,8 @@ export default function OnboardingImportWallet() {
   const [currentStep, setCurrentStep] = useState(1)
   const navigate = useNavigate()
   const totalSteps = 4
+  const [privateKeyError, setPrivateKeyError] = useState('')
+
   const {
     walletAccounts,
     getAccountDetails,
@@ -430,8 +421,13 @@ export default function OnboardingImportWallet() {
 
       // eslint-disable-next-line no-use-before-define
       if (!savedPassword) {
+        // eslint-disable-next-line no-use-before-define
         await moveToNextStep()
       }
+      if (password) {
+        browser.runtime.sendMessage({ type: 'unlock', data: { password } })
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error.message.trim() === 'Wallet already present') {
@@ -473,7 +469,12 @@ export default function OnboardingImportWallet() {
 
   const importWalletFromSeedPhrase = async () => {
     if (isPrivateKey) {
-      moveToNextStep()
+      try {
+        await moveToNextStep()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        setPrivateKeyError(error.message.trim())
+      }
     } else {
       const correctedSecret = correctMnemonic(secret)
 
@@ -541,6 +542,8 @@ export default function OnboardingImportWallet() {
           walletName={walletName as string}
           onProceed={importWalletFromSeedPhrase}
           isPrivateKey={isPrivateKey as boolean}
+          privateKeyError={privateKeyError}
+          setPrivateKeyError={setPrivateKeyError}
         />
       )}
       {currentStep === 1 && isLedger && <ImportLedgerView retry={importLedger} error={error} />}

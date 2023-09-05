@@ -8,11 +8,7 @@ import {
   useNativeFeeDenom,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
-import {
-  DefaultGasEstimates,
-  DefaultGasEstimatesRecord,
-  SupportedChain,
-} from '@leapwallet/cosmos-wallet-sdk'
+import { fromSmallBN, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import Tooltip from 'components/better-tooltip'
@@ -20,23 +16,11 @@ import { Fee } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { Warning } from 'images/misc'
 import React, { useEffect, useMemo } from 'react'
 
-const generateFeeValues = (
-  fee: Fee,
-  coinDecimals: number,
-  chain: SupportedChain,
-  defaultGasEstimates: DefaultGasEstimatesRecord,
-) => {
-  const { amount, gasLimit } = fee
+const generateFeeValues = (fee: Fee, coinDecimals: number) => {
+  const { amount } = fee
   const x = amount[0]?.amount ?? ''
 
-  const estimatedGasLimit =
-    gasLimit ??
-    defaultGasEstimates[chain]?.DEFAULT_GAS_TRANSFER ??
-    DefaultGasEstimates.DEFAULT_GAS_TRANSFER
-
-  const amountBN = new BigNumber(x)
-    .multipliedBy(estimatedGasLimit.toString())
-    .dividedBy(new BigNumber(10).pow(2 * coinDecimals))
+  const amountBN = fromSmallBN(new BigNumber(x).toString(), coinDecimals)
 
   const formattedAmount = amountBN.toFormat(5, BigNumber.ROUND_DOWN)
   const isVerySmallAmount = amountBN.isLessThan('0.00001')
@@ -80,7 +64,9 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setErro
 
   const feeValues = useMemo(() => {
     if (!fee) return null
-    return generateFeeValues(fee, feeDenom.coinDecimals, activeChain, defaultGasEstimates)
+    return generateFeeValues(fee, feeDenom.coinDecimals)
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChain, defaultGasEstimates, fee, feeDenom.coinDecimals])
 
   const amountString = feeValues?.amount?.toString()

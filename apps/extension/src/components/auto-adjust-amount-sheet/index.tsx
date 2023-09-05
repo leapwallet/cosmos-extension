@@ -3,6 +3,7 @@ import {
   getAutoAdjustAmount,
   Token,
   useActiveChain,
+  useChainInfo,
   useDenoms,
   useShouldShowAutoAdjustSheet,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -19,6 +20,7 @@ type AutoAdjustAmountSheetProps = {
   isOpen: boolean
   tokenAmount: string
   feeAmount: string
+  // eslint-disable-next-line no-unused-vars
   setAmount: (amount: string) => void
   nativeDenom: NativeDenom
 }
@@ -186,23 +188,28 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<AutoAdjustAmountSheetProps> = ({
 
 export const AutoAdjustAmountSheet: React.FC<{
   amount: string
+  // eslint-disable-next-line no-unused-vars
   setAmount: (amount: string) => void
   selectedToken: {
     amount: Token['amount']
     coinMinimalDenom: Token['coinMinimalDenom']
   }
   fee: { amount: string; denom: string }
+  // eslint-disable-next-line no-unused-vars
   setShowReviewSheet: (show: boolean) => void
   closeAdjustmentSheet: () => void
 }> = ({ amount, setAmount, selectedToken, fee, setShowReviewSheet, closeAdjustmentSheet }) => {
+  const chainInfo = useChainInfo()
   const shouldShowAutoAdjustSheet = useShouldShowAutoAdjustSheet()
   const navigate = useNavigate()
   const denoms = useDenoms()
 
-  const nativeDenom = useMemo(
-    () => denoms[selectedToken.coinMinimalDenom],
-    [denoms, selectedToken.coinMinimalDenom],
-  )
+  const nativeDenom = useMemo(() => {
+    if (chainInfo.beta) {
+      return Object.values(chainInfo.nativeDenoms)[0]
+    }
+    return denoms[selectedToken.coinMinimalDenom]
+  }, [chainInfo.beta, chainInfo.nativeDenoms, denoms, selectedToken.coinMinimalDenom])
 
   const allowReview = useCallback(() => {
     closeAdjustmentSheet()

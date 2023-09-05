@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
 import { format } from 'date-fns';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import {
   CosmosBlockchain,
@@ -19,6 +19,7 @@ import { useActiveChain, useAddress, useAddressStore, useChainsStore } from '../
 import { useSelectedNetwork } from '../store/useSelectedNetwork';
 import { APP_NAME, getAppName, getPlatform } from '../utils';
 import { platforms, platformToChain } from './platforms-mapping';
+import { DappTransaction, TransactionMetadata } from './types/txLoggingTypes';
 
 export namespace LeapWalletApi {
   const leapApi = new LeapApi(process.env.LEAP_WALLET_BACKEND_API_URL);
@@ -26,9 +27,10 @@ export namespace LeapWalletApi {
   export type LogInfo = {
     readonly txHash: string;
     readonly txType: CosmosTxType;
-    readonly metadata?: object;
+    readonly metadata?: TransactionMetadata;
     readonly feeDenomination?: string;
     readonly feeQuantity?: string;
+    readonly chainId?: string;
   };
 
   export type OperateCosmosTx = (info: LogInfo) => Promise<void>;
@@ -271,6 +273,24 @@ export namespace LeapWalletApi {
     return blockchains[activeChain];
   }
 
+  export function sanitizeUrl(url: string) {
+    if (url.startsWith('chrome-extension://')) {
+      return url;
+    }
+    const trimmedUrl = url.replace(/^.*:\/\//, '').replace(/^www\./, '');
+    const arr = trimmedUrl.split('/');
+    return arr[0];
+  }
+
+  export function formatMetadata(metadata?: TransactionMetadata) {
+    /**
+     * Sanitize Dapp Tx urls
+     */
+    if ((metadata as DappTransaction)?.dapp_url)
+      (metadata as DappTransaction).dapp_url = sanitizeUrl((metadata as DappTransaction).dapp_url ?? '');
+    return metadata;
+  }
+
   export function useOperateCosmosTx(): OperateCosmosTx {
     const { chains } = useChainsStore();
     const isCompassWallet = getAppName() === APP_NAME.Compass;
@@ -279,18 +299,23 @@ export namespace LeapWalletApi {
     const address = useAddress();
     const selectedNetwork = useSelectedNetwork();
     const { primaryAddress } = useAddressStore();
+    const testnetChainIds = useMemo(() => {
+      return Object.values(chains).map((c) => {
+        if (c.testnetChainId) return c.testnetChainId;
+      });
+    }, [chains]);
 
     return useCallback(
-      async ({ txHash, txType, metadata, feeDenomination, feeQuantity }) => {
+      async ({ txHash, chainId, txType, metadata, feeDenomination, feeQuantity }) => {
         const logReq = {
           app: getPlatform(),
           txHash,
           blockchain: getCosmosNetwork(chains[activeChain].key),
-          isMainnet: selectedNetwork === 'mainnet',
+          isMainnet: chainId ? !testnetChainIds.includes(chainId) : selectedNetwork === 'mainnet',
           wallet: primaryAddress ?? address,
           walletAddress: address,
           type: txType,
-          metadata,
+          metadata: formatMetadata(metadata),
           feeDenomination,
           feeQuantity,
         } as CosmosTxRequest;
@@ -310,24 +335,30 @@ export namespace LeapWalletApi {
   }
 
   export function useLogCosmosDappTx(): LogCosmosDappTx {
+    const { chains } = useChainsStore();
     const { primaryAddress } = useAddressStore();
     const isCompassWallet = getAppName() === APP_NAME.Compass;
     const selectedNetwork = useSelectedNetwork();
+    const testnetChainIds = useMemo(() => {
+      return Object.values(chains).map((c) => {
+        if (c.testnetChainId) return c.testnetChainId;
+      });
+    }, [chains]);
 
     return useCallback(
       async (logInfo: LogInfo & { chain: SupportedChain; address: string }) => {
-        const { chain, address, txHash, metadata, feeDenomination, feeQuantity, txType } = logInfo;
+        const { chain, chainId, address, txHash, metadata, feeDenomination, feeQuantity, txType } = logInfo;
         try {
           const logReq = {
             app: getPlatform(),
             txHash,
             blockchain: getCosmosNetwork(chain),
             // is set to true since we do not support dapp transactions for testnet
-            isMainnet: selectedNetwork === 'mainnet',
+            isMainnet: chainId ? !testnetChainIds.includes(chainId) : selectedNetwork === 'mainnet',
             wallet: primaryAddress ?? address,
             walletAddress: address,
             type: txType,
-            metadata,
+            metadata: formatMetadata(metadata),
             feeDenomination,
             feeQuantity,
           } as CosmosTxRequest;

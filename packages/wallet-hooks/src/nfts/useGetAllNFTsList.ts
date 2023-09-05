@@ -41,16 +41,26 @@ export const useLoadNFTContractsList = (
   > = defaultQueryOptions,
 ) => {
   const isCompassWallet = useIsCompassWallet();
+  const betaNFTsCollections = useBetaNFTsCollections(chain);
+
   return useQuery<
     {
       name: string;
       address: string;
     }[]
   >({
-    queryKey: ['nft-contracts-list', chain],
+    queryKey: ['nft-contracts-list', chain, network, betaNFTsCollections],
     queryFn: async () => {
       const res = await fetch(getNFTContracts(network, chain, isCompassWallet));
-      return res.json();
+      const betaCollections = betaNFTsCollections.map((collection) => ({ address: collection }));
+
+      if (res.status === 403) {
+        return betaCollections;
+      } else {
+        const data = await res.json();
+        const newData = data.filter(({ address }: { address: string }) => !betaNFTsCollections.includes(address));
+        return [...newData, ...betaCollections];
+      }
     },
     ...options,
   });
@@ -77,10 +87,11 @@ export const useGetAllNFTsList = (
   const _walletAddress = useAddress(chain);
   const walletAddress = options?.forceWalletAddress ?? _walletAddress;
 
-  const betaNFTsCollections = useBetaNFTsCollections();
   let disabledNFTsCollections = useDisabledNFTsCollections();
   const { disabledNFTsCollections: storedDisabledNFTsCollections } = useDisabledNFTsCollectionsStore();
   const setDisabledNFTsCollections = useSetDisabledNFTsInStorage();
+  const betaNFTsCollections = useBetaNFTsCollections(options?.forceContractsListChain ?? chain);
+
   const _activeNetwork = useSelectedNetwork();
   const activeNetwork = options?.forceNetwork ?? _activeNetwork;
   const { rpcUrl } = useChainApis(chain, activeNetwork);
@@ -127,29 +138,27 @@ export const useGetAllNFTsList = (
         };
 
         const tokensOwned = await Promise.all(
-          [...nftContractsList, ...betaNFTsCollections.map((collection) => ({ address: collection }))].map(
-            async ({ address: collectionAddress }) => {
-              try {
-                const tokens = await fetchResponse(collectionAddress);
+          nftContractsList.map(async ({ address: collectionAddress }) => {
+            try {
+              const tokens = await fetchResponse(collectionAddress);
 
-                if (haveToFillDisabledNFTs && tokens.length === 0) {
-                  disabledNFTsCollections = [...disabledNFTsCollections, collectionAddress];
-                }
-
-                const aboutContract: { name: string } = await client.queryContractSmart(collectionAddress, {
-                  contract_info: {},
-                });
-                return {
-                  collection: { address: collectionAddress, name: aboutContract.name },
-                  tokens,
-                };
-              } catch (_) {
-                //
+              if (haveToFillDisabledNFTs && tokens.length === 0) {
+                disabledNFTsCollections = [...disabledNFTsCollections, collectionAddress];
               }
 
-              return null;
-            },
-          ),
+              const aboutContract: { name: string } = await client.queryContractSmart(collectionAddress, {
+                contract_info: {},
+              });
+              return {
+                collection: { address: collectionAddress, name: aboutContract.name },
+                tokens,
+              };
+            } catch (_) {
+              //
+            }
+
+            return null;
+          }),
         );
 
         haveToFillDisabledNFTs && (await setDisabledNFTsCollections(disabledNFTsCollections));

@@ -43,11 +43,11 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   const displayAccounts = useMemo(() => {
     if (addresses && !isIbcSupportDataLoading && ibcSupportData) {
       return Object.entries(addresses).filter(([chain]) => {
-        const chainRegistryPath = chainInfos[chain as SupportedChain]?.chainRegistryPath
+        const chainInfo = chainInfos[chain as SupportedChain]
+        const chainRegistryPath = chainInfo?.chainRegistryPath
+
         return (
-          (ibcSupportData[chain] || ibcSupportData[chainRegistryPath]) &&
-          chainInfos[chain as SupportedChain]?.enabled &&
-          chain.includes(trimmedQuery)
+          ibcSupportData[chainRegistryPath] && chainInfo?.enabled && chain.includes(trimmedQuery)
         )
       })
     }

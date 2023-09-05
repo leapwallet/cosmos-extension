@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 
 export enum SwapSheet {

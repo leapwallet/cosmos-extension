@@ -14,9 +14,8 @@ export const useGetIBCSupport = (chain: SupportedChain) => {
     queryFn: async () => {
       const res = await fetch(`https://assets.leapwallet.io/ibc-support-db/chains/${path}.json`);
       const supportedChains: string[] = await res.json();
-      return supportedChains.reduce((acc, cur) => {
-        const key = cur === 'cosmoshub' ? 'cosmos' : cur;
-        return { ...acc, [key]: true };
+      return supportedChains.reduce((acc, curr) => {
+        return { ...acc, [curr]: true };
       }, {});
     },
     retry: 2,

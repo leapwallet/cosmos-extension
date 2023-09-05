@@ -73,6 +73,7 @@ export class Sscrt {
       contract_address: contractAddress,
     });
     const txQuery = await this.client.query.snip20.getSnip20Params({
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       contract: { address: contractAddress, code_hash: code_hash! },
     });
     return txQuery;

@@ -1,4 +1,8 @@
-import { useGetTokenBalances, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useChainInfo,
+  useGetTokenBalances,
+  useValidatorImage,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { Delegation, Reward } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
@@ -23,25 +27,24 @@ import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
-import { getChainImage } from 'images/logos'
 import React, { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { capitalize, sliceWord } from 'utils/strings'
 
-import { StakeRewardCard } from '.'
 import { ChooseValidatorProps } from './chooseValidator'
 import { YourRewardsSheet } from './components'
+import { StakeRewardCard } from './index'
 import InputStakeAmountView, { STAKE_MODE } from './InputStakeAmountView'
 
 function ValidatorHeading({ validator }: { validator: Validator }) {
   const { data: imageUrl } = useValidatorImage(validator)
 
   return (
-    <div className='flex flex-col pb-8'>
-      <div className='flex gap-x-[12px]'>
-        <div className='h-10 w-10 rounded-full overflow-clip border border-gray-400 shrink flex'>
+    <div className='flex flex-col pb-4 gap-2'>
+      <div className='flex items-center gap-3'>
+        <div className='h-9 w-9 rounded-full overflow-clip border border-gray-400 shrink flex items-center justify-center'>
           <Avatar
             size='sm'
             avatarImage={imageUrl ?? validator.image ?? Images.Misc.Validator}
@@ -91,7 +94,7 @@ function DepositAmountCard({
           color='dark:text-gray-200 text-gray-600'
           className='font-bold mb-3 py-1 px-4'
         >
-          Your Deposited amount {`(${validatorName})`}
+          Your deposited amount {`(${validatorName})`}
         </Text>
       )}
       {totalDelegations && (
@@ -154,7 +157,7 @@ function DetailsView({
           percentage={percentChange}
         />
 
-        {totalRewardsTokens && totalRewardsTokens !== 'undefined' && (
+        {totalRewardsTokens && totalRewardsTokens !== 'undefined' && totalRewardsTokens.length && (
           <StakeRewardCard
             isLoading={false}
             onClaim={onClickClaimReward}
@@ -201,7 +204,7 @@ function DetailsView({
       </div>
       <div className='rounded-[16px] my-[16px] items-center'>
         <Text size='sm' className='p-[4px] font-bold ' color='text-gray-600 dark:text-gray-200'>
-          {`About ${validator.moniker ?? validator.name}`}
+          {`About ${validator.moniker ?? validator.name ?? 'Validator'}`}
         </Text>
         <div className='flex flex-col p-[4px]'>
           <ReadMoreText
@@ -253,6 +256,8 @@ export default function ValidatorDetails() {
     }, new BigNumber('0'))
     .toString()
 
+  const activeChainInfo = useChainInfo()
+
   return (
     <div className='relative w-[400px] overflow-clip'>
       <PopupLayout
@@ -266,7 +271,7 @@ export default function ValidatorDetails() {
               },
               type: HeaderActionType.BACK,
             }}
-            imgSrc={getChainImage(activeChain) ?? defaultTokenLogo}
+            imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             title={
               <>
                 <Text size='lg' className='font-bold'>
@@ -304,9 +309,13 @@ export default function ValidatorDetails() {
               activeChain={activeChain}
               delegation={delegation as Delegation}
               totalRewardsDollarAmt={totalRewardsDollarAmt}
-              totalRewardsTokens={`${token?.symbol ?? ''}${
-                (reward?.reward.length ?? 1) > 1 ? ` +${reward?.reward.length - 1} more` : ''
-              }`}
+              totalRewardsTokens={
+                reward?.reward.length
+                  ? `${token?.symbol ?? ''}${
+                      (reward?.reward.length ?? 1) > 1 ? ` +${reward?.reward.length - 1} more` : ''
+                    }`
+                  : ''
+              }
               validator={validators[validatorAddress] ?? {}}
               percentChange={percentChange}
             />

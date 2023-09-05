@@ -1,16 +1,20 @@
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { selectedChainAlertState } from 'atoms/selected-chain-alert'
+import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { useThemeColor } from 'hooks/utility/useThemeColor'
 import { LeapCosmos } from 'images/logos'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
+import { useRecoilState } from 'recoil'
+import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { DisplaySettingsModal } from './display-settings-modal'
@@ -19,19 +23,22 @@ import type { DisplaySettings } from './types'
 
 export default function EarnPage() {
   const [showSideNav, setShowSideNav] = useState(false)
-  const [showDisplaySettings, setShowDisplaySettings] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
-
+  const [showDisplaySettings, setShowDisplaySettings] = useState(false)
   const defaultTokenLogo = useDefaultTokenLogo()
+
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
     sortBy: 'tvl',
   })
+  const isTestnet = useSelectedNetwork() === 'testnet'
+  const [showSelectedChainAlert, setShowSelectedChainAlert] =
+    useRecoilState(selectedChainAlertState)
 
-  const themeColor = useThemeColor()
   const { activeWallet } = useActiveWallet()
   const activeChain = useActiveChain()
   const chainInfos = useChainInfos()
   const activeChainInfo = chainInfos[activeChain]
+  const themeColor = Colors.getChainColor(activeChain, activeChainInfo)
 
   if (!activeWallet) {
     return (
@@ -52,10 +59,15 @@ export default function EarnPage() {
         header={
           <Header
             action={{
-              onClick: () => setShowSideNav(true),
+              onClick: function noRefCheck() {
+                setShowSideNav(true)
+              },
               type: HeaderActionType.NAVIGATION,
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              className:
+                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
-            title='Earn'
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={
               isCompassWallet()
@@ -64,10 +76,24 @@ export default function EarnPage() {
                     setShowChainSelector(true)
                   }
             }
+            title='Earn'
             topColor={themeColor}
           />
         }
       >
+        {showSelectedChainAlert && !isCompassWallet() && (
+          <AlertStrip
+            message={`You are on ${activeChainInfo.chainName}${
+              isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
+            }`}
+            bgColor={Colors.getChainColor(activeChain)}
+            alwaysShow={isTestnet}
+            onHide={() => {
+              setShowSelectedChainAlert(false)
+            }}
+          />
+        )}
+
         <div className='w-full px-7 pt-7 mb-[84px]'>
           <div className='mb-5'>
             <div className='flex justify-between items-baseline'>
@@ -95,8 +121,8 @@ export default function EarnPage() {
           settings={displaySettings}
           onSettingsChange={setDisplaySettings}
         />
-        <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
       </PopupLayout>
+      <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
       <BottomNav label={BottomNavLabel.Earn} />
     </div>
   )

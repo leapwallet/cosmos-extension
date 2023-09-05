@@ -31,6 +31,8 @@ export default function CountDownTimer({
   useEffect(() => {
     const timerId = setInterval(() => tick(), 1000)
     return () => clearInterval(timerId)
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time, setTime])
 
   return (

@@ -3,6 +3,7 @@ import 'react-loading-skeleton/dist/skeleton.css'
 import {
   useGetBannerApi,
   useGetFaucetApi,
+  useInitBetaNFTsCollections,
   useInitCustomChannelsStore,
   useInitDefaultGasEstimates,
   useInitDenoms,
@@ -10,24 +11,27 @@ import {
   useInitDisabledNFTsCollections,
   useInitGasPriceSteps,
   useInitInvestData,
+  useInitNftChains,
   useInitSelectedNetwork,
   useInitSpamProposals,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useInitSnipDenoms } from '@leapwallet/cosmos-wallet-hooks/dist/utils/useInitSnipDenoms'
 import { LeapUiTheme } from '@leapwallet/leap-ui'
-import { useInitIsCompassWallet } from 'hooks/settings'
+import { AppInitLoader } from 'components/loader/AppInitLoader'
+import { useInitFavouriteNFTs, useInitHiddenNFTs, useInitIsCompassWallet } from 'hooks/settings'
 import { useInitiateCurrencyPreference } from 'hooks/settings/useCurrency'
 import { useInitHideAssets } from 'hooks/settings/useHideAssets'
 import { useInitHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useInitChainInfos } from 'hooks/useChainInfos'
+import { useInitNodeUrls } from 'hooks/useInitNodeUrls'
 import React from 'react'
+import { useState } from 'react'
 import { SkeletonTheme } from 'react-loading-skeleton'
 
 import { useInitSecretTokens } from './hooks/secret/useInitSecretTokens'
 import { useInitSecretViewingKeys } from './hooks/secret/useInitSecretViewingKeys'
 import { useInitActiveChain } from './hooks/settings/useActiveChain'
 import { useInitActiveWallet } from './hooks/settings/useActiveWallet'
-import { useInitFavouriteNFTs } from './hooks/settings/useFavouriteNFTs'
 import { useManageChains } from './hooks/settings/useManageChains'
 import { useInitTheme, useThemeState } from './hooks/settings/useTheme'
 import { useInitPrimaryWalletAddress } from './hooks/wallet/useInitPrimaryWalletAddress'
@@ -36,6 +40,7 @@ import { Colors } from './theme/colors'
 
 export default function App() {
   const { theme } = useThemeState()
+  const [nodeUrlsInitialised, setNodeUrlInitialised] = useState(false)
 
   useInitTheme()
   useInitiateCurrencyPreference()
@@ -50,8 +55,10 @@ export default function App() {
 
   // initialize chains and default user preferences
   useManageChains()
+  useInitNftChains()
 
   useInitFavouriteNFTs()
+  useInitHiddenNFTs()
   useInitPrimaryWalletAddress()
 
   useInitSecretTokens()
@@ -61,18 +68,22 @@ export default function App() {
   useGetFaucetApi()
   useGetBannerApi()
   useInitDenoms()
+
   useInitSpamProposals()
   useInitCustomChannelsStore()
   useInitDefaultGasEstimates()
-  useInitGasPriceSteps()
 
+  useInitGasPriceSteps()
   useInitDisabledCW20Tokens()
   useInitDisabledNFTsCollections()
+
+  useInitBetaNFTsCollections()
   useInitInvestData()
   useInitSnipDenoms()
 
   // initialize request cache
   // useInitRequestCache()
+  useInitNodeUrls(setNodeUrlInitialised)
 
   return (
     <LeapUiTheme defaultTheme={theme} forcedTheme={theme}>
@@ -80,7 +91,7 @@ export default function App() {
         baseColor={theme === 'dark' ? Colors.gray800 : Colors.gray300}
         highlightColor={theme === 'dark' ? Colors.gray900 : Colors.gray400}
       >
-        <Routes />
+        {!nodeUrlsInitialised ? <AppInitLoader /> : <Routes />}
       </SkeletonTheme>
     </LeapUiTheme>
   )

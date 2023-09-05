@@ -5,11 +5,12 @@ import React, { useCallback, useState } from 'react'
 import { Wallet } from '../../hooks/wallet/useWallet'
 import useCreateNewWallet = Wallet.useCreateNewWallet
 
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+
 import CreateWalletInput from '../../components/create-wallet-form/CreateWalletInput'
 import SelectWalletColors from '../../components/create-wallet-form/SelectWalletColors'
 import { ErrorCard } from '../../components/ErrorCard'
 import { LoaderAnimation } from '../../components/loader/Loader'
-import { useActiveChain } from '../../hooks/settings/useActiveChain'
 import { Colors } from '../../theme/colors'
 
 type NewWalletFormProps = {

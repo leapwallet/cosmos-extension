@@ -4,6 +4,7 @@ import { calculateFee, DeliverTxResponse } from '@cosmjs/stargate'
 import {
   formatBigNumber,
   useActiveChain,
+  useChainInfo,
   useDenoms,
   useGasAdjustment,
   usePendingTxState,
@@ -59,6 +60,7 @@ const ReviewSheet: React.FC<propTypes> = ({
   const { setPendingTx } = usePendingTxState()
   const [error, setError] = useState<string | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(false)
+  const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
   const denoms = useDenoms()
   const gasAdjustment = useGasAdjustment()
@@ -158,7 +160,7 @@ const ReviewSheet: React.FC<propTypes> = ({
           {/* amount per unit token indicator */}
           <div className='bg-white-100 dark:bg-gray-900 flex flex-row w-[206px] h-[56px] rounded-[8px] px-[12px] py-[8px]'>
             <div className='flex flex-col justify-center'>
-              <img src={getSwapProviderImage(activeChain)} className='h-6 w-6 mr-[10px]' />
+              <img src={getSwapProviderImage(activeChainInfo.key)} className='h-6 w-6 mr-[10px]' />
             </div>
             <div className='flex flex-col justify-center text-[12px]'>
               <p>

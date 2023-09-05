@@ -1,5 +1,4 @@
-import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
-import axios from 'axios';
+import { axiosWrapper, NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
 
 import { getDenomStoreSnapshot } from '../store';
 
@@ -32,9 +31,15 @@ class DenomFetcher {
       }
     }
     try {
-      const tracePromise = axios.get(`${restUrl}/ibc/apps/transfer/v1/denom_traces/${denom.replace('ibc/', '')}`);
+      const tracePromise = axiosWrapper({
+        baseURL: restUrl,
+        method: 'get',
+        url: `/ibc/apps/transfer/v1/denom_traces/${denom.replace('ibc/', '')}`,
+      });
+
       this.activePromises[denom] = tracePromise;
       const trace = await tracePromise;
+
       if (trace.data.denom_trace?.base_denom) {
         const _symbol = denoms[trace.data.denom_trace.base_denom];
         this.denomMatcherCache[denom] = _symbol?.coinMinimalDenom;

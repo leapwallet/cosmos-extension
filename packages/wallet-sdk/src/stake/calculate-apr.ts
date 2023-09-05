@@ -4,6 +4,8 @@ import { isNumber } from 'lodash';
 
 import { getChainInfo } from '../chains';
 import { ChainInfo, ChainInfos, NativeDenom, SupportedChain } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
+import { getRestUrl } from '../utils';
 
 export async function getAprCrescent() {
   const url = 'https://apigw-v3.crescent.network/stake/live';
@@ -28,24 +30,30 @@ export async function getApr(chain: SupportedChain, testnet: boolean, chainInfos
    * new_coins_per_yr = inflation_percent * total_supply * (1 - community_tax)
    * apr = new_coins_per_yr / total_bonded_tokens
    */
-  const lcd = !testnet ? (chainInfos ?? ChainInfos)[chain].apis.rest : (chainInfos ?? ChainInfos)[chain].apis.restTest;
 
+  const lcd = getRestUrl(chainInfos ?? ChainInfos, chain, testnet);
   const denom = Object.values((chainInfos ?? ChainInfos)[chain].nativeDenoms)[0];
   return await getAprFromLcd(lcd, denom);
 }
+
 export async function getAprFromLcd(lcd: string | undefined, denom: NativeDenom) {
   try {
     const apis = {
-      inflation: `${lcd}/cosmos/mint/v1beta1/inflation`,
-      supplyData: `${lcd}/cosmos/bank/v1beta1/supply/${denom.coinMinimalDenom}`,
-      distributionParams: `${lcd}/cosmos/distribution/v1beta1/params`,
-      poolData: `${lcd}/cosmos/staking/v1beta1/pool`,
+      inflation: '/cosmos/mint/v1beta1/inflation',
+      supplyData: `/cosmos/bank/v1beta1/supply/${denom.coinMinimalDenom}`,
+      distributionParams: '/cosmos/distribution/v1beta1/params',
+      poolData: '/cosmos/staking/v1beta1/pool',
     };
 
     const [inflationData, supplyData, distributionParams, poolData] = await Promise.all(
       Object.values(apis).map(async (api) => {
         try {
-          const res = await axios.get(api);
+          const res = await axiosWrapper({
+            baseURL: lcd,
+            method: 'get',
+            url: api,
+          });
+
           return res;
         } catch (e) {
           return { data: {} };

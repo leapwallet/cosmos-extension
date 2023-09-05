@@ -1,4 +1,9 @@
-import { useChainInfo, useformatCurrency, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useActiveChain,
+  useChainInfo,
+  useformatCurrency,
+  useValidatorImage,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Delegation, RewardsResponse } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
@@ -9,7 +14,6 @@ import { ErrorCard } from 'components/ErrorCard'
 import InfoSheet from 'components/Infosheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
@@ -42,7 +46,8 @@ export type RedelegateReviewProps = {
 export type ReviewStakeTransactionProps = {
   memo: string
   amount: string
-  error: string
+  error?: string
+  ledgerError?: string
   gasError?: string | null
   unstakingPeriod: string
 
@@ -83,21 +88,22 @@ export default function ReviewStakeTransaction({
   onSubmit,
   onCloseHandler,
   showLedgerPopup,
+  ledgerError,
 }: ReviewStakeTransactionProps): ReactElement {
   const [formatCurrency] = useformatCurrency()
+  const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
   const [preferredCurrency] = useUserPreferredCurrency()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [currencyValue, setCurrencyValue] = useState<string>('')
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
-  const chainInfo = useChainInfo()
 
   useEffect(() => {
     const fn = async () => {
       if (amount === '') return
       try {
-        const _denom = Object.values(chainInfo.nativeDenoms)[0]
+        const _denom = Object.values(activeChainInfo.nativeDenoms)[0]
         const coinValue = await fetchCurrency(
           amount,
           _denom.coinGeckoId,
@@ -110,9 +116,9 @@ export default function ReviewStakeTransaction({
       }
     }
     fn()
-  }, [amount, activeChain, preferredCurrency, chainInfo])
+  }, [amount, preferredCurrency, activeChainInfo])
 
-  const denom = chainInfo.denom
+  const denom = activeChainInfo.denom
 
   const { buttonText, mainTitle, validators, validatorText } = useMemo(() => {
     switch (type) {
@@ -230,7 +236,7 @@ export default function ReviewStakeTransaction({
               <Card
                 avatar={
                   <Avatar
-                    avatarImage={chainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
+                    avatarImage={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
                     avatarOnError={imgOnError(defaultTokenLogo)}
                     size='sm'
                   />
@@ -300,7 +306,7 @@ export default function ReviewStakeTransaction({
               <p className='text-sm text-red-300 font-medium text-center'>{gasError}</p>
             ) : null}
 
-            {error ? <ErrorCard text={error} /> : null}
+            {error ?? ledgerError ? <ErrorCard text={error ?? ledgerError} /> : null}
 
             <Buttons.Generic
               color={Colors.getChainColor(activeChain)}

@@ -4,6 +4,7 @@ import React from 'react'
 import { Colors } from '../../theme/colors'
 
 type Props = {
+  // eslint-disable-next-line no-unused-vars
   selectColorIndex: (index: number) => void
   colorIndex: number
 }

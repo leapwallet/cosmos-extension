@@ -6,6 +6,7 @@ import React, { useState } from 'react'
 import { imgOnError } from 'utils/imgOnError'
 
 export type NFTProps = {
+  // eslint-disable-next-line no-unused-vars
   onClick?: (NFFTMetadata: object) => void
   imgSrc: string
   textNft?: {

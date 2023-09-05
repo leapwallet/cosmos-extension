@@ -38,7 +38,7 @@ export class OsmosisSwapModule implements SwapModule {
 
   constructor(denoms: DenomsRecord) {
     this.nativeDenomsByTokenSymbol = Object.values(denoms).reduce(
-      (acc, denom: NativeDenom) => ({ ...acc, [denom.coinDenom]: denom }),
+      (acc, denom: NativeDenom) => ({ ...acc, [denom.coinMinimalDenom]: denom }),
       {},
     );
     this.poolsCacheEntries = [];
@@ -61,10 +61,15 @@ export class OsmosisSwapModule implements SwapModule {
         .then((res) => res.json())
         .then((tokens: any) => {
           this.coinsCache = tokens.assets.map(
-            (asset: { symbol: string; denom_units: { denom: string }[]; logo_URIs: { png: string } }) => {
+            (asset: {
+              symbol: string;
+              denom_units: { denom: string; aliases?: string[] }[];
+              logo_URIs: { png: string };
+            }) => {
               return {
                 symbol: asset.symbol,
-                denom: asset.denom_units[0].denom,
+                denom: asset.denom_units[0]?.aliases?.[0] ?? asset.denom_units[0].denom,
+                ibcDenom: asset.denom_units[0]?.aliases?.[0] ? asset.denom_units[0].denom : undefined,
                 image: asset.logo_URIs.png,
               };
             },
@@ -75,7 +80,7 @@ export class OsmosisSwapModule implements SwapModule {
 
   setDenoms = (denoms: DenomsRecord) => {
     this.nativeDenomsByTokenSymbol = Object.values(denoms).reduce(
-      (acc, denom: NativeDenom) => ({ ...acc, [denom.coinDenom]: denom }),
+      (acc, denom: NativeDenom) => ({ ...acc, [denom.coinMinimalDenom]: denom }),
       {},
     );
   };
@@ -207,7 +212,7 @@ export class OsmosisSwapModule implements SwapModule {
 
     const tokenInMinimalDenom = this.coinsCache.find((coin) => coin.symbol === fromTokenSymbol)?.denom;
     if (!tokenInMinimalDenom) throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
-    const tokenInNativeDenom = this.nativeDenomsByTokenSymbol[fromTokenSymbol];
+    const tokenInNativeDenom = this.nativeDenomsByTokenSymbol[tokenInMinimalDenom];
     if (!tokenInNativeDenom) throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
     const tokenInCoinDecimals = tokenInNativeDenom.coinDecimals;
     const tokenInAmountInMinimalDenom = new BigNumber(fromTokenAmount)
@@ -218,7 +223,7 @@ export class OsmosisSwapModule implements SwapModule {
     const tokenOutMinimalDenom = this.coinsCache.find((coin) => coin.symbol === targetTokenSymbol)?.denom;
     if (!tokenOutMinimalDenom)
       throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
-    const tokenOutNativeDenom = this.nativeDenomsByTokenSymbol[targetTokenSymbol];
+    const tokenOutNativeDenom = this.nativeDenomsByTokenSymbol[tokenOutMinimalDenom];
     if (!tokenOutNativeDenom) throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
     const tokenOutCoinDecimals = tokenOutNativeDenom.coinDecimals;
     const tokenOutAmountInMinimalDenom = new BigNumber(targetTokenAmount).multipliedBy(10 ** tokenOutCoinDecimals);
@@ -266,11 +271,11 @@ export class OsmosisSwapModule implements SwapModule {
         dexName: 'osmosis',
         fromToken: {
           amount: tokenInAmountInMinimalDenom.toString(),
-          denom: this.nativeDenomsByTokenSymbol[fromTokenSymbol].coinMinimalDenom,
+          denom: tokenInMinimalDenom,
         },
         toToken: {
           amount: tokenOutAmountInMinimalDenom.toString(),
-          denom: this.nativeDenomsByTokenSymbol[targetTokenSymbol].coinMinimalDenom,
+          denom: tokenOutMinimalDenom,
         },
       },
       pollPromise: client.pollForTx(txHash),

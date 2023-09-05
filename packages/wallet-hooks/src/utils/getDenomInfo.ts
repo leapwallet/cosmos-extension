@@ -36,7 +36,7 @@ export async function getDenomInfo(
         coinDecimals: assetInfo.decimals,
         coinGeckoId: assetInfo.coingecko_id,
         coinMinimalDenom: assetInfo.denom,
-        icon: assetInfo.logo_URIs.png,
+        icon: assetInfo.image ?? assetInfo.logo_URIs.png ?? assetInfo.logo_URIs.svg,
       };
     }
   }

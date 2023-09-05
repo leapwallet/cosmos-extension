@@ -1,6 +1,6 @@
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import NoSearchResults from 'components/no-search-results'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import {
   currencyDetail,
   CurrencyMap,

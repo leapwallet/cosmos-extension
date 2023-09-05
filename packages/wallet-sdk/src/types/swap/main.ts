@@ -1,4 +1,3 @@
-import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { StdFee } from '@cosmjs/stargate';
 
 import { TokenInfo } from './';

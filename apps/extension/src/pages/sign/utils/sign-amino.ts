@@ -1,4 +1,4 @@
-import { EthSignType, GasPrice } from '@leapwallet/cosmos-wallet-sdk'
+import { GasPrice } from '@leapwallet/cosmos-wallet-sdk'
 import BigNumber from 'bignumber.js'
 
 import { getStdFee } from './get-fee'
@@ -9,6 +9,7 @@ export function getAminoSignDoc({
   gasLimit,
   isAdr36,
   memo,
+  isGasOptionSelected,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   signRequestData: Record<string, any>
@@ -16,6 +17,7 @@ export function getAminoSignDoc({
   gasLimit: string
   memo: string
   isAdr36?: boolean
+  isGasOptionSelected: boolean
 }) {
   const signDoc = signRequestData['sign-request'].signDoc
   const signOptions = signRequestData['sign-request'].signOptions
@@ -35,18 +37,25 @@ export function getAminoSignDoc({
   if (!isAdr36) {
     const customGasLimit = new BigNumber(gasLimit)
 
-    const fee = signOptions?.preferNoSetFee
-      ? sortedSignDoc.fee
-      : getStdFee(
-          !customGasLimit.isNaN() && customGasLimit.isGreaterThan(0)
-            ? customGasLimit.toString()
-            : 'gasLimit' in sortedSignDoc.fee
-            ? sortedSignDoc.fee.gasLimit
-            : sortedSignDoc.fee.gas,
-          gasPrice,
-        )
+    const fee =
+      signOptions?.preferNoSetFee && !isGasOptionSelected
+        ? sortedSignDoc.fee
+        : getStdFee(
+            !customGasLimit.isNaN() && customGasLimit.isGreaterThan(0)
+              ? customGasLimit.toString()
+              : 'gasLimit' in sortedSignDoc.fee
+              ? sortedSignDoc.fee.gasLimit
+              : sortedSignDoc.fee.gas,
+            gasPrice,
+          )
 
     sortedSignDoc.fee = fee
+    if (defaultFee.granter) {
+      sortedSignDoc.fee.granter = defaultFee.granter
+    }
+    if (defaultFee.payer) {
+      sortedSignDoc.fee.payer = defaultFee.payer
+    }
   }
 
   if (!defaultMemo) {
