@@ -14,7 +14,11 @@
 ## Developing the extension
 
 1. Run `yarn start:extension` or `yarn start:extension:compass` (for compass wallet) from the root folder to generate the development build of the extension.
-2. Follow steps 3-9 mentioned [here](https://github.com/leapwallet/leap-extension/blob/main/CONTRIBUTING.md#development) to run the extension. Use the `/dist` folder in `apps/extension`.
+2. Open Chrome.
+3. Enter chrome://extensions/ in the address bar.
+4. Enable Developer mode via the top right toggle.
+5. Click on top left Load unpacked button.
+6. Select /apps/extension/dist/
 
 ## Testing
 
@@ -57,12 +61,3 @@ _want to write an e2e test? check [CONTRIBUTING.md](./CONTRIBUTING.md) file_
 ## Contributing
 
 Kindly refer to the [CONTRIBUTING.md](./CONTRIBUTING.md) file. All the contributing guidelines are written over there.
-
-## Important links
-
-- [Cosmos Discord server](https://discord.gg/cosmosnetwork) <br/>
-  To get atom tokens on testnet send a message on the testnet-faucet channel. <br/>
-  e.g. `$request cosmos1uput06d0xac525sdmtf4h5d8dy9d8x3u07smz9 theta`
-- [Juno Discord server](https://discord.gg/hRbJHZKz)<br />
-  To get juno tokens on testnet send a message on faucet channel.
-- [Juno testnet block explorer](https://testnet.juno.explorers.guru/)
