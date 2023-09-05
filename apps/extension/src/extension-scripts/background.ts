@@ -8,7 +8,7 @@
 import './fetch-preserver'
 
 import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provider/messaging/requester'
-import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, getRestUrl } from '@leapwallet/cosmos-wallet-sdk'
 
 import { decrypt, initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import {
@@ -18,9 +18,11 @@ import {
   BG_RESPONSE,
   CONNECTIONS,
   ENCRYPTED_ACTIVE_WALLET,
+  ENCRYPTED_KEY_STORE,
   KEYSTORE,
   REDIRECT_REQUEST,
   SIGN_REQUEST,
+  V80_KEYSTORE_MIGRATION_COMPLETE,
   VIEWING_KEYS,
 } from 'config/storage-keys'
 import PortStream from 'extension-port-stream'
@@ -53,19 +55,14 @@ import {
 } from './utils'
 import { EncryptionUtilsImpl } from '@leapwallet/cosmos-wallet-sdk/dist/secret/encryptionutil'
 import { PasswordManager } from './password-manager'
-import { storageMigrationV74 } from './migrations/v74'
+import { storageMigrationV77 } from './migrations/v77'
 import { getChains } from '@leapwallet/cosmos-wallet-hooks'
+import { storageMigrationV80 } from './migrations/v80'
 const storageAdapter = getStorageAdapter()
 initStorage(storageAdapter)
 initCrypto()
 
 global.window = self
-const password = ''
-
-const getPassword = () => {
-  if (!password) throw new Error('Wallet is locked')
-  return password
-}
 
 const windowIdForPayloadId: { [x: number | string]: { type: string; payloadId: number } } = {}
 
@@ -84,7 +81,9 @@ const connectRemote = (remotePort: any) => {
     portStream.write({ name, payload, id })
   }
 
-  browser.runtime.onMessage.addListener(async (message) => {
+  browser.runtime.onMessage.addListener(async (message, sender) => {
+    if (sender.id !== browser.runtime.id) return
+
     if (message.type === 'chain-enabled') {
       sendResponse(
         `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
@@ -269,13 +268,19 @@ const connectRemote = (remotePort: any) => {
                   [REDIRECT_REQUEST]: { type: type, msg: { ...msg, validChainIds } },
                 })
 
-                if (Object.keys(enableAccessRequests).length === 0) {
+                const browserWindows = await browser.windows.getAll()
+                const hasBrowserWindow = browserWindows.some(
+                  (window) =>
+                    window.type === 'popup' && window.id === enableAccessRequests[queryString],
+                )
+
+                if (Object.keys(enableAccessRequests).length === 0 || !hasBrowserWindow) {
                   delete enableAccessRequests[queryString]
                   enableAccessRequests[queryString] = popupWindowId
                   const window = await openPopup('approveConnection')
                   requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
 
-                  popupWindowId = window.id ?? 0
+                  enableAccessRequests[queryString] = window.id ?? 0
                   windowIdForPayloadId[popupWindowId] = {
                     type: type.toUpperCase(),
                     payloadId: payload.id,
@@ -353,11 +358,11 @@ const connectRemote = (remotePort: any) => {
                   const hasBrowserWindow = browserWindows.some(
                     (window) => window.id === enableAccessRequests[queryString],
                   )
-                  if (Object.keys(enableAccessRequests).length === 0) {
+                  if (Object.keys(enableAccessRequests).length === 0 || !hasBrowserWindow) {
                     delete enableAccessRequests[queryString]
                     enableAccessRequests[queryString] = popupWindowId
                     const window = await openPopup('approveConnection')
-                    popupWindowId = window.id ?? 0
+                    enableAccessRequests[queryString] = window.id ?? 0
                     windowIdForPayloadId[popupWindowId] = {
                       type: type.toUpperCase(),
                       payloadId: payload.id,
@@ -527,27 +532,37 @@ const connectRemote = (remotePort: any) => {
         if (!payload.chainId || !payload.contractAddress) {
           return sendResponse(`on${type.toUpperCase()}`, '', payload.id)
         }
-        browser.storage.local.get([VIEWING_KEYS]).then(async (storage) => {
-          const viewingKeys = storage[VIEWING_KEYS] || {}
-          const address = await getWalletAddress(payload.chainId)
+        const storage = await browser.storage.local.get([VIEWING_KEYS, ACTIVE_WALLET])
+
+        if (!storage[ACTIVE_WALLET]) {
           try {
-            const key = viewingKeys[address][payload.contractAddress]
-            if (!key) {
-              throw Error()
-            }
-            const password = await getPassword()
-            const decryptKey = decrypt(key, password)
-            sendResponse(`on${type.toUpperCase()}`, decryptKey, payload.id)
-          } catch (error) {
-            sendResponse(
-              `on${type.toUpperCase()}`,
-              {
-                error: "key doesn't exists",
-              },
-              payload.id,
-            )
+            await openPopup('login', '?close-on-login=true')
+            await awaitUIResponse('user-logged-in')
+          } catch {
+            sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
+            break
           }
-        })
+        }
+        const viewingKeys = storage[VIEWING_KEYS] || {}
+        const address = await getWalletAddress(payload.chainId)
+        try {
+          const key = viewingKeys[address][payload.contractAddress]
+          if (!key) {
+            throw Error()
+          }
+          const password = passwordManager.getPassword()
+          if (!password) throw new Error('unable to decrypt key')
+          const decryptKey = decrypt(key, password)
+          sendResponse(`on${type.toUpperCase()}`, decryptKey, payload.id)
+        } catch (error) {
+          sendResponse(
+            `on${type.toUpperCase()}`,
+            {
+              error: "key doesn't exists",
+            },
+            payload.id,
+          )
+        }
         break
       }
 
@@ -644,11 +659,9 @@ const connectRemote = (remotePort: any) => {
         }
         getSeed(passwordManager.getPassword() ?? '').then(async (seed) => {
           const ChainInfos = await getChains()
-          const result = new EncryptionUtilsImpl(
-            ChainInfos.secret.apis.rest as string,
-            payload.chainId,
-            seed,
-          )
+          const secretLcdUrl = getRestUrl(ChainInfos, 'secret', false)
+          const result = new EncryptionUtilsImpl(secretLcdUrl, payload.chainId, seed)
+
           if (type === SUPPORTED_METHODS.GET_PUBKEY_MSG) {
             result
               .getPubkey()
@@ -759,7 +772,7 @@ browser.runtime.onInstalled.addListener((details) => {
       'encrypted',
       'timestamp',
     ])
-    .then((storage) => {
+    .then(async (storage) => {
       const activeWallet = storage[ACTIVE_WALLET]
       const encryptedActiveWallet = storage[ENCRYPTED_ACTIVE_WALLET]
 
@@ -768,6 +781,7 @@ browser.runtime.onInstalled.addListener((details) => {
           url: browser.runtime.getURL('index.html'),
           active: true,
         })
+        await browser.storage.local.set({ [V80_KEYSTORE_MIGRATION_COMPLETE]: true })
       } else if (details.reason === 'update' && (activeWallet || encryptedActiveWallet)) {
         //previous version as int (e.g. v 0.1.9 will return 19)
         const previousVersion = details?.previousVersion?.split('.').join('')
@@ -775,6 +789,8 @@ browser.runtime.onInstalled.addListener((details) => {
         if (!previousVersion) return
 
         const prevVersionInt = parseInt(previousVersion, 10)
+        const execV80Migration =
+          [710, 711, 712, 713].includes(prevVersionInt) || prevVersionInt < 80
 
         if (prevVersionInt < 9) {
           storageMigrationV9(storage)
@@ -789,7 +805,10 @@ browser.runtime.onInstalled.addListener((details) => {
           storageMigrationV53(storage)
         }
         if (prevVersionInt < 74) {
-          storageMigrationV74(storage)
+          storageMigrationV77(storage)
+        }
+        if (execV80Migration) {
+          storageMigrationV80(passwordManager)
         }
       }
     })

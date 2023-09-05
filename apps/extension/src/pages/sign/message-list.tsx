@@ -12,7 +12,7 @@ type MessageItemProps = {
   onClick: () => void
 }
 
-const MessageItem: React.FC<MessageItemProps> = ({ message, isLast, onClick, messageNumber }) => {
+const MessageItem: React.FC<MessageItemProps> = ({ message, isLast, onClick }) => {
   const _title = getMessageTitle(message)
 
   const title =
@@ -42,6 +42,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isLast, onClick, mes
 
 type MessageListProps = {
   parsedMessages: ParsedMessage[]
+  // eslint-disable-next-line no-unused-vars
   onMessageSelect: (message: ParsedMessage, index: number) => void
   className?: string
 }

@@ -1,8 +1,6 @@
-import { Wallet } from '../wallet/useWallet'
-import Key = Wallet.Key
 import { rawSecp256k1PubkeyToRawAddress } from '@cosmjs/amino'
 import { fromHex, toBech32 } from '@cosmjs/encoding'
-import { useActiveWalletStore, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { Key, useActiveWalletStore, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfo,
   generateWalletFromMnemonic,
@@ -28,7 +26,7 @@ function useHandleMissingAddressAndPubKeys() {
   return useCallback(
     async (
       chain: SupportedChain,
-      existingWallet: Wallet.Key,
+      existingWallet: Key,
       actionType: ActionType,
       chainInfo?: ChainInfo,
     ): Promise<Key | undefined> => {

@@ -32,5 +32,7 @@ export function useInitSecretViewingKeys() {
     if (password) {
       init()
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [password])
 }

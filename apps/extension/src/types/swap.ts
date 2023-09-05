@@ -27,16 +27,6 @@ export interface fetchedTokenTypes {
   logoURI: string
 }
 
-export type PoolsListQueryResponse = {
-  base_token: TokenInfo
-  pools: Array<PoolEntityType>
-  poolsById: Record<string, PoolEntityType>
-  name: string
-  logoURI: string
-  keywords: Array<string>
-  tags: Record<string, { name: string; description: string }>
-}
-
 export type TokenInfoWithReward = TokenInfo & {
   rewards_address: string
 }
@@ -47,6 +37,16 @@ export type PoolEntityType = {
   swap_address: string
   staking_address: string
   rewards_tokens: Array<TokenInfoWithReward>
+}
+
+export type PoolsListQueryResponse = {
+  base_token: TokenInfo
+  pools: Array<PoolEntityType>
+  poolsById: Record<string, PoolEntityType>
+  name: string
+  logoURI: string
+  keywords: Array<string>
+  tags: Record<string, { name: string; description: string }>
 }
 
 export type PoolMatchForSwap = {

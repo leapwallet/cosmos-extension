@@ -27,7 +27,8 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
   const [formatCurrency] = useFormatCurrency()
   const activeChain = useActiveChain()
   const chainInfos = useChainInfos()
-  const activeDenom = chainInfos[activeChain].denom
+  const activeChainInfo = chainInfos[activeChain]
+  const activeDenom = activeChainInfo.denom
 
   const { formatHideBalance } = useHideAssets()
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -43,33 +44,38 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
   }, [reward?.reward, rewards?.total])
 
   const tokensToShow = useMemo(() => {
-    if (rewardTokens && rewardTokens.length > 3) {
-      let _tokensToShow: Amount[] = []
-      const nativeToken = rewardTokens.find(
-        (token) => token.tokenInfo && token.tokenInfo.coinDenom === activeDenom,
-      )
+    const nativeToken = rewardTokens?.find(
+      (token) => token.tokenInfo && token.tokenInfo.coinDenom === activeDenom,
+    )
+    const sortedRewardTokens = [...(rewardTokens ?? [])].sort(
+      (tokenA, tokenB) => parseFloat(tokenB.amount) - parseFloat(tokenA.amount),
+    )
 
+    let otherTokens = []
+    let _tokensToShow: Amount[] = []
+
+    if (rewardTokens && rewardTokens.length > 3) {
       let count = 0
-      const sortedRewardTokens = [...rewardTokens].sort(
-        (tokenA, tokenB) => parseFloat(tokenB.amount) - parseFloat(tokenA.amount),
-      )
-      const otherTwoTokens = sortedRewardTokens.filter((token) => {
-        if (!token.tokenInfo) return false
-        if (token.tokenInfo.coinDenom === activeDenom) return false
+
+      otherTokens = sortedRewardTokens.filter((token) => {
+        const denom = token.tokenInfo?.coinDenom ?? token.denom
+        if (denom === activeDenom) return false
         if (count === 2) return false
 
-        if (token.tokenInfo.coinDenom) {
+        if (denom) {
           count += 1
           return true
         }
         return false
       })
-
-      if (nativeToken) _tokensToShow = [nativeToken]
-      return [..._tokensToShow, ...otherTwoTokens]
+    } else {
+      otherTokens = sortedRewardTokens.filter(
+        (token) => (token.tokenInfo?.coinDenom ?? token.denom) !== activeDenom,
+      )
     }
 
-    return rewardTokens
+    if (nativeToken) _tokensToShow = [nativeToken]
+    return [..._tokensToShow, ...otherTokens]
   }, [rewardTokens, activeDenom])
 
   const { rewardsAmount, rewardsTokens: cardRewardsTokens } = useMemo(() => {
@@ -82,21 +88,21 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
 
         rewardsAmount = rewardTokens
           .reduce((totalSum, token) => {
-            if (token.tokenInfo) {
-              const isInTokensToShow = tokensToShow.find(
-                (_token) => _token?.tokenInfo.coinDenom === token.tokenInfo.coinDenom,
-              )
-              if (isInTokensToShow) return totalSum
+            const isInTokensToShow = tokensToShow.find(
+              (_token) =>
+                _token?.tokenInfo?.coinDenom === token.tokenInfo?.coinDenom ||
+                _token.denom === token.denom,
+            )
+            if (isInTokensToShow) return totalSum
 
-              if (count === 1) {
-                rewardsTokens += `, ${token.tokenInfo.coinDenom}`
-                count += 1
-              }
+            if (count === 1) {
+              rewardsTokens += `, ${token.tokenInfo?.coinDenom ?? sliceWord(token.denom, 4, 3)}`
+              count += 1
+            }
 
-              if (count === 0) {
-                rewardsTokens += token.tokenInfo.coinDenom
-                count += 1
-              }
+            if (count === 0) {
+              rewardsTokens += token.tokenInfo?.coinDenom ?? sliceWord(token.denom, 4, 3)
+              count += 1
             }
 
             return totalSum.plus(new BigNumber(token.currenyAmount ?? ''))
@@ -122,7 +128,7 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
     <>
       {!showReviewTxSheet && (
         <BottomModal
-          title='Your Rewards'
+          title='Total Rewards'
           isOpen={isOpen}
           closeOnBackdropClick={true}
           onClose={onClose}
@@ -135,9 +141,11 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
               {tokensToShow &&
                 tokensToShow.length &&
                 tokensToShow.map((rewardToken, index, array) => {
-                  const { amount, currenyAmount, tokenInfo } = rewardToken
-                  if (!tokenInfo) return null
+                  const { amount, currenyAmount, tokenInfo, denom } = rewardToken
                   const isLast = index === array.length - 1
+                  const title = tokenInfo?.coinDenom
+                    ? sliceWord(tokenInfo.coinDenom, 4, 3)
+                    : sliceWord(denom, 4, 3)
 
                   return (
                     <React.Fragment key={`${rewardToken.denom}-index`}>
@@ -145,9 +153,7 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
                         <GenericCard
                           title={
                             <h3 className='text-md text-gray-600 dark:text-gray-200 font-medium'>
-                              {formatHideBalance(
-                                formatTokenAmount(amount, sliceWord(tokenInfo.coinDenom, 4, 4), 3),
-                              )}
+                              {formatHideBalance(formatTokenAmount(amount, title, 3))}
                             </h3>
                           }
                           subtitle={
@@ -161,7 +167,7 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
                           }
                           img={
                             <img
-                              src={tokenInfo.icon ?? defaultTokenLogo}
+                              src={tokenInfo?.icon ?? defaultTokenLogo}
                               className='w-[28px] h-[28px] mr-2 border rounded-full dark:border-[#333333] border-[#cccccc]'
                               onError={imgOnError(defaultTokenLogo)}
                             />

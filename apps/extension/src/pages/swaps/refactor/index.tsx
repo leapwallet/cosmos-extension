@@ -161,7 +161,7 @@ export default function SwapScreen(): JSX.Element {
               onClick: () => navigate(-1),
               type: HeaderActionType.BACK,
             }}
-            topColor={Colors.getChainColor(activeChain)}
+            topColor={chainInfo.theme.primaryColor}
           />
         }
       >

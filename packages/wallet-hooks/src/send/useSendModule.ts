@@ -166,10 +166,8 @@ export function useSendModule(): SendModuleType {
     if (!gasPriceOptions) return;
 
     const getFeeValue = (gasPriceOption: GasPrice) => {
-      const gasAdjustmentValue = selectedToken && isCW20Tx(selectedToken) ? 3 : gasAdjustment;
-
+      const gasAdjustmentValue = gasAdjustment * (selectedToken && isCW20Tx(selectedToken) ? 2 : 1);
       const stdFee = calculateFee(Math.ceil(gasEstimate * gasAdjustmentValue), gasPriceOption);
-
       return fromSmall(stdFee.amount[0].amount, feeDenom?.coinDecimals);
     };
 
@@ -186,9 +184,9 @@ export function useSendModule(): SendModuleType {
     const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption];
     if (!_gasPrice) return;
 
-    const gasAdjustmentValue = selectedToken && isCW20Tx(selectedToken) ? 3 : gasAdjustment;
-
+    const gasAdjustmentValue = gasAdjustment * (selectedToken && isCW20Tx(selectedToken) ? 2 : 1);
     return calculateFee(Math.ceil(_gasLimit * gasAdjustmentValue), _gasPrice);
+
     // keep feeDenom in the dependency array to update the fee when the denom changes
   }, [gasPriceOptions, gasOption, gasEstimate, userPreferredGasLimit, userPreferredGasPrice, activeChain]);
 
@@ -227,14 +225,14 @@ export function useSendModule(): SendModuleType {
     new BigNumber(inputAmount.trim() || 0).lte(0);
 
   const confirmSend = useCallback(
-    async (args: Omit<sendTokensParams, 'gasEstimate' | 'ibcChannelId'>, callback: TxCallback) => {
+    async (args: Omit<sendTokensParams, 'gasEstimate'>, callback: TxCallback) => {
       const result = await sendTokens({
         ...args,
-        ibcChannelId: customIbcChannelId ?? ibcChannelId,
+        ibcChannelId: args.ibcChannelId ?? customIbcChannelId ?? ibcChannelId ?? '',
       });
       if (result.success === true) {
         if (result.data) txPostToDB(result.data);
-        setPendingTx(result.pendingTx);
+        setPendingTx({ ...result.pendingTx, toAddress: args?.toAddress });
         callback('success');
       } else {
         if (result.errors.includes('txDeclined')) {
@@ -272,7 +270,8 @@ export function useSendModule(): SendModuleType {
       setGasEstimate(
         isIBCTransfer
           ? defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ?? DefaultGasEstimates.DEFAULT_GAS_IBC
-          : defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
+          : (defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER) *
+              (selectedToken && isCW20Tx(selectedToken) ? 2 : 1),
       );
 
       const channelId = customIbcChannelId ?? ibcChannelId ?? '';

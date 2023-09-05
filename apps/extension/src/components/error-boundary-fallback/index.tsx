@@ -22,8 +22,8 @@ const ErrorBoundaryFallback = () => {
             onImgClick={() => {
               window.open(
                 isCompassWallet()
-                  ? 'https://twitter.com/compass_sei'
-                  : 'http://twitter.com/leap_wallet',
+                  ? 'https://twitter.com/compass_wallet'
+                  : 'https://twitter.com/leap_cosmos',
                 '_blank',
               )
             }}

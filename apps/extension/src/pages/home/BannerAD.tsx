@@ -1,4 +1,4 @@
-import { BannerAD, useChainInfo, useGetBannerData } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainInfo, useGetBannerData } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
@@ -46,8 +46,7 @@ export default function BannerAD() {
   }, [disabledBannerAds, bannerADs])
 
   if (!bannerADs || displayADs.length === 0) return null
-
-  const bannerData = displayADs[0] as BannerAD
+  const bannerData = displayADs[0]
 
   return (
     <>

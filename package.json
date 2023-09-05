@@ -62,16 +62,16 @@
     "eslint-plugin-prettier": "4.2.1",
     "eslint-plugin-react": "7.30.0",
     "eslint-plugin-react-hooks": "4.6.0",
-    "eslint-plugin-simple-import-sort": "7.0.0",
+    "eslint-plugin-simple-import-sort": "10.0.0",
     "flexsearch": "0.7.31",
     "husky": "8.0.2",
-    "lerna": "6.1.0",
-    "markdown-it": "^13.0.1",
-    "npm-run-all": "^4.1.5",
+    "lerna": "7.1.5",
+    "markdown-it": "13.0.1",
+    "npm-run-all": "4.1.5",
     "prettier": "2.7.1",
     "vitepress": "1.0.0-alpha.29",
     "vitepress-plugin-search": "1.0.4-alpha.17",
-    "vue": "3.2.45"
+    "vue": "3.3.4"
   },
   "dependencies": {
     "axios": "1.2.1"

@@ -15,6 +15,7 @@ import { Images } from 'images'
 import React, { useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import Browser from 'webextension-polyfill'
 
 import { ListChains, ListChainsProps } from '../SelectChain'
@@ -24,11 +25,12 @@ type SelectChainSheetProps = ListChainsProps & {
   readonly onClose: VoidFunction
 }
 
-function SelectChainSheet({
+export function SelectChainSheet({
   isVisible,
   onClose,
   onChainSelect,
   selectedChain,
+  onPage,
 }: SelectChainSheetProps) {
   return (
     <BottomSheet
@@ -39,7 +41,7 @@ function SelectChainSheet({
       closeOnClickBackDrop={true}
     >
       <div className='h-[400px]'>
-        <ListChains selectedChain={selectedChain} onChainSelect={onChainSelect} />
+        <ListChains selectedChain={selectedChain} onChainSelect={onChainSelect} onPage={onPage} />
       </div>
     </BottomSheet>
   )
@@ -196,17 +198,20 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
 
   const handleSaveClick = async () => {
     const storage = await Browser.storage.local.get([CUSTOM_ENDPOINTS])
+    const newRpcURL = customEndpoints.rpc !== rpcUrl ? customEndpoints.rpc : undefined
+    const newLcdURL = customEndpoints.lcd !== lcdUrl ? customEndpoints.lcd : undefined
+
     if (storage[CUSTOM_ENDPOINTS]) {
       await Browser.storage.local.set({
         [CUSTOM_ENDPOINTS]: JSON.stringify({
           ...JSON.parse(storage[CUSTOM_ENDPOINTS]),
-          [selectedChain]: customEndpoints,
+          [selectedChain]: { rpc: newRpcURL, lcd: newLcdURL },
         }),
       })
     } else {
       await Browser.storage.local.set({
         [CUSTOM_ENDPOINTS]: JSON.stringify({
-          [selectedChain]: customEndpoints,
+          [selectedChain]: { rpc: newRpcURL, lcd: newLcdURL },
         }),
       })
     }
@@ -253,8 +258,13 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
             }
             isRounded={true}
             title2='Chain'
-            icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
-            onClick={() => setShowSelectChain(true)}
+            icon={
+              isCompassWallet() ? null : (
+                <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
+              )
+            }
+            className={isCompassWallet() ? '!cursor-default' : ''}
+            onClick={isCompassWallet() ? undefined : () => setShowSelectChain(true)}
           />
 
           <CustomEndpointInput

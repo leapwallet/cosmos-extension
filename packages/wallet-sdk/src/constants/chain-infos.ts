@@ -72,7 +72,8 @@ export type SupportedChain =
   | 'nibiru'
   | 'mayachain'
   | 'empowerchain'
-  | 'dydx';
+  | 'dydx'
+  | 'celestiatestnet3';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -138,7 +139,8 @@ export type AddressPrefix =
   | 'nibi'
   | 'maya'
   | 'empower'
-  | 'dydx';
+  | 'dydx'
+  | 'celestia';
 
 export type Denom =
   | 'JUNO'
@@ -204,7 +206,8 @@ export type Denom =
   | 'NIBI'
   | 'CACAO'
   | 'MPWR'
-  | 'DV4TNT';
+  | 'DV4TNT'
+  | 'TIA';
 
 export type CoinType =
   | '118'
@@ -381,7 +384,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   },
   osmosis: {
     chainId: 'osmosis-1',
-    testnetChainId: 'osmo-test-4',
+    testnetChainId: 'osmo-test-5',
     chainName: 'Osmosis',
     chainRegistryPath: 'osmosis',
     key: 'osmosis',
@@ -391,12 +394,16 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/osmosis/txs',
       },
+      testnet: {
+        name: 'Mintscan Testnet',
+        txUrl: 'https://testnet.mintscan.io/osmosis-testnet/txs',
+      },
     },
     apis: {
       rest: 'https://rest.cosmos.directory/osmosis',
-      restTest: 'https://lcd-test.osmosis.zone',
+      restTest: 'https://lcd.osmotest5.osmosis.zone',
       rpc: 'https://rpc.cosmos.directory/osmosis',
-      rpcTest: 'https://rpc-test.osmosis.zone',
+      rpcTest: 'https://rpc.osmotest5.osmosis.zone',
     },
     denom: 'OSMO',
     bip44: {
@@ -415,7 +422,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     nativeDenoms: {
       uosmo: denoms.uosmo,
-      uion: denoms.uion,
     },
 
     theme: {
@@ -426,7 +432,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   },
   secret: {
     chainId: 'secret-4',
-    testnetChainId: 'pulsar-2',
+    testnetChainId: 'pulsar-3',
     chainName: 'Secret Network',
     chainRegistryPath: 'secretnetwork',
     key: 'secret',
@@ -442,11 +448,11 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     apis: {
       rest: 'https://lcd.secret.express',
-      restTest: 'https://api.pulsar.scrttestnet.com',
+      restTest: 'https://api.pulsar3.scrttestnet.com',
       rpc: 'https://rpc.secret.express',
-      rpcTest: 'https://rpc.pulsar.scrttestnet.com',
+      rpcTest: 'https://rpc.pulsar3.scrttestnet.com',
       grpc: 'https://secret-4.api.trivium.network:9091',
-      grpcTest: 'https://grpc.pulsar.scrttestnet.com',
+      grpcTest: 'https://grpc.pulsar3.scrttestnet.com',
     },
     denom: 'SCRT',
     addressPrefix: 'secret',
@@ -1404,7 +1410,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     ibcChannelIds: {},
     nativeDenoms: {
-      evmos: denoms.aevmos,
+      aevmos: denoms.aevmos,
     },
     theme: {
       primaryColor: '#ed4e33',
@@ -1965,6 +1971,41 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  celestiatestnet3: {
+    chainId: 'mocha-3',
+    testnetChainId: 'mocha-3',
+    key: 'celestiatestnet3',
+    chainName: 'Mocha Testnet',
+    chainRegistryPath: 'celestiatestnet3',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/filled-celestia.svg',
+    apis: {
+      restTest: 'https://api-mocha.pops.one',
+      rpcTest: 'https://rpc-mocha.pops.one',
+      alternateRestTest: ' https://rest.cosmos.directory/celestiatestnet3',
+      alternateRpcTest: 'https://rpc.cosmos.directory/celestiatestnet3',
+    },
+    denom: 'TIA',
+    txExplorer: {
+      testnet: {
+        name: 'Mintscan Testnet',
+        txUrl: 'https://testnet.mintscan.io/celestia-testnet/txs',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'celestia',
+    gasPriceStep: defaultGasPriceStep,
+    ibcChannelIds: {},
+    nativeDenoms: {
+      utia: denoms.utia,
+    },
+    theme: {
+      primaryColor: '#7B2BF9',
+      gradient: 'linear-gradient(180deg, rgba(123, 43, 249, 0.32) 0%, rgba(123, 43, 249, 0) 100%)',
+    },
+    enabled: true,
+  },
   neutron: {
     chainId: 'neutron-1',
     testnetChainId: 'pion-1',
@@ -2229,21 +2270,20 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
   },
   passage: {
-    chainId: 'passage-1',
+    chainId: 'passage-2',
     key: 'passage',
-    chainName: 'passage',
+    chainName: 'Passage',
     chainRegistryPath: 'passage',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/pasg.png',
     apis: {
       rpc: 'https://rpc.cosmos.directory/passage',
       rest: 'https://rest.cosmos.directory/passage',
-      alternateRpc: 'https://passage-rpc.panthea.eu',
     },
     denom: 'PASG',
     txExplorer: {
       mainnet: {
-        name: 'mintscan',
-        txUrl: 'https://www.mintscan.io/passage',
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/passage/transactions',
       },
     },
     bip44: {
@@ -2251,9 +2291,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     addressPrefix: 'pasg',
     gasPriceStep: {
-      low: 0,
-      average: 0,
-      high: 0,
+      low: 0.001,
+      average: 0.0025,
+      high: 0.01,
     },
     ibcChannelIds: {},
     nativeDenoms: {
@@ -2263,7 +2303,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#e2447b',
       gradient: 'linear-gradient(180deg, rgba(204, 99, 145) 0%, rgba(204, 99, 145, 0) 100%)',
     },
-    enabled: false,
+    enabled: true,
   },
   persistenceNew: {
     chainId: 'core-1',
@@ -2503,23 +2543,29 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: false,
   },
   seiTestnet2: {
-    chainId: 'atlantic-2',
+    chainId: 'pacific-1',
     testnetChainId: 'atlantic-2',
     key: 'seiTestnet2',
-    chainName: 'Sei (Atlantic 2)',
-    chainRegistryPath: 'seitestnet2',
+    chainName: 'Sei',
+    chainRegistryPath: 'sei',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/sei.png',
     apis: {
-      restTest: 'https://rest.atlantic-2.seinetwork.io',
-      rpcTest: 'https://rpc.atlantic-2.seinetwork.io',
-      alternateRpcTest: 'https://sei-testnet-rpc.polkachu.com/',
-      alternateRestTest: 'https://sei-testnet-api.polkachu.com/',
+      rpc: 'https://rpc.wallet.pacific-1.sei.io',
+      rest: 'https://rest.wallet.pacific-1.sei.io',
+      rpcTest: 'https://rpc.wallet.atlantic-2.sei.io',
+      restTest: 'https://rest.wallet.atlantic-2.sei.io',
+      alternateRpcTest: 'https://sei-testnet-rpc.polkachu.com',
+      alternateRestTest: 'https://sei-testnet-api.polkachu.com',
     },
     denom: 'SEI',
     txExplorer: {
+      mainnet: {
+        name: 'SeiScan',
+        txUrl: 'https://www.seiscan.app/pacific-1/txs',
+      },
       testnet: {
-        name: 'Explorers Guru',
-        txUrl: 'https://sei.explorers.guru/transaction',
+        name: 'SeiScan',
+        txUrl: 'https://www.seiscan.app/atlantic-2/txs',
       },
     },
     bip44: {
@@ -2806,7 +2852,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     txExplorer: {
       mainnet: {
         name: 'Terra Finder',
-        txUrl: 'https://finder.terra.money/mainnet/tx',
+        txUrl: 'https://finder.station.money/mainnet/tx',
       },
       // testnet: {
       //   name: 'Terra Finder',

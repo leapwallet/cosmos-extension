@@ -1,4 +1,4 @@
-import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { Avatar, Card, CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
@@ -20,7 +20,7 @@ type SelectWalletProps = {
   readonly isOpen: boolean
   readonly onClose: () => void
   readonly currentWalletInfo?: {
-    wallets: [Wallet.Key]
+    wallets: [Key]
     chainIds: [string]
     origin: string
   } | null
@@ -115,7 +115,7 @@ export default function SelectWalletSheet({
                     onClick={async () => {
                       await addToConnections(
                         currentWalletInfo?.chainIds as [string],
-                        currentWalletInfo?.wallets as Wallet.Key[],
+                        currentWalletInfo?.wallets as Key[],
                         currentWalletInfo?.origin as string,
                       )
                       setActiveWallet(wallet)

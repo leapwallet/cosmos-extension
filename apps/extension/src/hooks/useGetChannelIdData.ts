@@ -20,6 +20,8 @@ export function useGetChannelIdData() {
       await browser.storage.local.set({ [cacheKey]: chainId })
       return chainId
     },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [lcdUrl],
   )
 }

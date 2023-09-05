@@ -1,7 +1,7 @@
-import axios from 'axios';
-
 import { getChainInfo } from '../chains';
 import { ChainInfo, ChainInfos, SupportedChain } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
+import { getRestUrl } from '../utils';
 
 export const getUnbondingTime = async (
   chain: SupportedChain,
@@ -19,8 +19,13 @@ export const getUnbondingTime = async (
     }
   }
 
-  const lcd = !testnet ? (chainInfos ?? ChainInfos)[chain].apis.rest : (chainInfos ?? ChainInfos)[chain].apis.restTest;
-  const { data } = await axios.get(`${lcdUrl ?? lcd}/cosmos/staking/v1beta1/params`);
+  const lcd = getRestUrl(chainInfos ?? ChainInfos, chain, testnet);
+  const { data } = await axiosWrapper({
+    baseURL: lcd,
+    method: 'get',
+    url: '/cosmos/staking/v1beta1/params',
+  });
+
   const unbonding_time = parseInt(data.params.unbonding_time, 10);
 
   return { unbonding_time };

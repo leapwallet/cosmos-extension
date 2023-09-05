@@ -9,7 +9,6 @@ import {
   Buttons,
   CardDivider,
   GenericCard,
-  Header,
   HeaderActionType,
   ThemeName,
   useTheme,
@@ -40,6 +39,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
 import { useGetStakedTokensBalance } from 'hooks/wallet/useGetStakedTokensBalance'
 import { Images } from 'images'
+import { NftLogo } from 'images/logos'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
@@ -52,6 +52,7 @@ import { sliceAddress, trim } from 'utils/strings'
 import AssetCard from './AssetCard'
 import BannerAD from './BannerAD'
 import { ManageTokens, SecretManageTokens } from './manage-tokens'
+import NftV2Header from './NftV2Header'
 import SelectChain from './SelectChain'
 import SelectWallet from './SelectWallet'
 import SideNav from './side-nav'
@@ -69,6 +70,9 @@ const initialFaucetResp: InitialFaucetResp = {
 export default function Home() {
   const chainInfos = useChainInfos()
   const txDeclined = useQuery().get('txDeclined') ?? undefined
+  const walletAvatarChanged = useQuery().get('walletAvatarChanged') ?? undefined
+  const [showWalletAvatarMsg, setShowWalletAvatarMsg] = useState(!!walletAvatarChanged)
+
   const navigate = useNavigate()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
 
@@ -115,6 +119,18 @@ export default function Home() {
   const { activeWallet } = useActiveWallet()
   const isTestnet = useSelectedNetwork() === 'testnet'
   const { stakeBalance, isLoading } = useGetStakedTokensBalance()
+
+  const walletAvatar = useMemo(() => {
+    if (activeWallet?.avatar) {
+      return activeWallet.avatar
+    }
+
+    if (isCompassWallet()) {
+      return Images.Logos.CompassCircle
+    }
+
+    return
+  }, [activeWallet?.avatar])
 
   const queryStatus = useMemo(() => {
     let status =
@@ -211,7 +227,6 @@ export default function Home() {
     ibcTokensStatus === 'loading'
 
   const activeChainInfo = chainInfos[activeChain]
-
   if (!activeChainInfo) {
     return null
   }
@@ -221,11 +236,20 @@ export default function Home() {
       <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
       <PopupLayout
         header={
-          <Header
+          <NftV2Header
             action={{
               onClick: () => setShowSideNav(true),
               type: HeaderActionType.NAVIGATION,
               'data-testing-id': 'home-sidenav-hamburger-btn',
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              className: isCompassWallet()
+                ? 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full'
+                : '',
+            }}
+            nftAction={{
+              onClick: () => navigate('/nfts'),
+              imgSrc: NftLogo,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={
@@ -238,8 +262,8 @@ export default function Home() {
             title={
               <Buttons.Wallet
                 brandLogo={
-                  isCompassWallet() ? (
-                    <img className='w-[24px] h-[24px] mr-1' src={Images.Logos.CompassCircle} />
+                  walletAvatar ? (
+                    <img className='w-[24px] h-[24px] mr-2 rounded-full' src={walletAvatar} />
                   ) : undefined
                 }
                 onClick={function noRefCheck() {
@@ -255,6 +279,14 @@ export default function Home() {
         }
       >
         <div className='w-full flex flex-col justify-center items-center mb-20'>
+          {isCompassWallet() && isTestnet && (
+            <AlertStrip
+              message='You are on Sei Testnet'
+              bgColor={Colors.getChainColor(activeChain)}
+              alwaysShow={isTestnet}
+            />
+          )}
+
           {showSelectedChainAlert && !showErrorMessage && !isCompassWallet() && (
             <AlertStrip
               message={`You are on ${chain?.chainName}${
@@ -268,6 +300,7 @@ export default function Home() {
               data-testing-id='home-alertstrip-chainname'
             />
           )}
+
           {showErrorMessage && (
             <AlertStrip
               message={'Transaction declined'}
@@ -276,6 +309,7 @@ export default function Home() {
               onHide={() => setShowErrorMessage(false)}
             />
           )}
+
           {showFaucetResp.msg && (
             <AlertStrip
               message={showFaucetResp.msg}
@@ -286,6 +320,18 @@ export default function Home() {
               timeOut={6000}
             />
           )}
+
+          {showWalletAvatarMsg && (
+            <AlertStrip
+              message='Profile picture changed successfully'
+              bgColor={Colors.green600}
+              alwaysShow={false}
+              onHide={() => setShowWalletAvatarMsg(false)}
+              className='absolute top-[80px] rounded-2xl w-80 h-auto p-2'
+              timeOut={1000}
+            />
+          )}
+
           <div
             className='w-full flex-col items-center justify-center px-7 pt-7'
             style={{
@@ -338,10 +384,13 @@ export default function Home() {
               </div>
             )}
 
-            {chainsWithSwapSupport.includes(activeChain) ? (
+            {!isTestnet ? (
               <div className='flex flex-row justify-evenly mb-6'>
                 <ClickableIcon
-                  image={{ src: 'download', alt: 'Receive' }}
+                  image={{
+                    src: 'download',
+                    alt: ON_RAMP_SUPPORT_CHAINS.includes(activeChain) ? 'Deposit' : 'Receive',
+                  }}
                   onClick={() => setShowReceiveSheet(true)}
                 />
                 <ClickableIcon
@@ -349,13 +398,18 @@ export default function Home() {
                   onClick={() => navigate('/send')}
                 />
                 <ClickableIcon
+                  image={{ src: Images.Misc.IbcUnion, alt: 'IBC' }}
+                  onClick={() => navigate('/ibc')}
+                />
+                <ClickableIcon
                   image={{ src: 'swap_horiz', alt: 'Swap' }}
                   onClick={() => {
                     if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
                       navigate('/swap')
+                    } else {
+                      window.open('https://cosmos.leapwallet.io/ibcswaps', '_blank')
                     }
                   }}
-                  disabled={!chainsWithSwapSupport.includes(activeChain) || isTestnet}
                 />
               </div>
             ) : (

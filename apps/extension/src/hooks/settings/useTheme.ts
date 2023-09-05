@@ -11,12 +11,14 @@ const themeState = atom<ThemeName | undefined>({
 })
 
 export function useInitTheme() {
-  const [_, setState] = useRecoilState(themeState)
+  const [, setState] = useRecoilState(themeState)
 
   useEffect(() => {
     browser.storage.local.get(storageKey).then((storage) => {
       setState(storage[storageKey] ?? ThemeName.DARK)
     })
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }
 

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OfflineAminoSigner, StdSignDoc } from '@cosmjs/amino'
+import { OfflineAminoSigner, StdSignature, StdSignDoc } from '@cosmjs/amino'
 import { DirectSignResponse, OfflineDirectSigner } from '@cosmjs/proto-signing'
 import {
   convertObjectCasingFromCamelToSnake,
@@ -22,6 +22,7 @@ import {
   ChainInfos,
   ethSign,
   GasPrice,
+  LedgerError,
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -34,14 +35,17 @@ import {
   ParsedMessageType,
 } from '@leapwallet/parser-parfait'
 import { captureException } from '@sentry/react'
+import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
 import { ErrorCard } from 'components/ErrorCard'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
+import { useGasPriceContext } from 'components/gas-price-options/context'
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
 import SelectWalletSheet from 'components/select-wallet-sheet'
 import { Tabs } from 'components/tabs'
+import Text from 'components/text'
 import { walletLabels } from 'config/constants'
 import { BG_RESPONSE, SIGN_REQUEST } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
@@ -52,7 +56,7 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
 import { DEBUG } from 'utils/debug'
@@ -66,6 +70,7 @@ import MessageDetailsSheet from './message-details-sheet'
 import MessageList from './message-list'
 import StaticFeeDisplay from './static-fee-display'
 import TransactionDetails from './transaction-details'
+import { isGenericOrSendAuthzGrant } from './utils/is-generic-or-send-authz-grant'
 import { getAminoSignDoc } from './utils/sign-amino'
 import { getDirectSignDoc } from './utils/sign-direct'
 import { logDirectTx } from './utils/tx-logger'
@@ -74,13 +79,17 @@ const useGetWallet = Wallet.useGetWallet
 
 const messageParser = new MessageParser()
 
+type SignTransactionProps = {
+  data: Record<string, any>
+  chainId: string
+  isSignArbitrary: boolean
+}
+
 const SignTransaction = ({
   data: txnSigningRequest,
   chainId,
-}: {
-  data: Record<string, any>
-  chainId: string
-}) => {
+  isSignArbitrary,
+}: SignTransactionProps) => {
   const [showWalletSelector, setShowWalletSelector] = useState(false)
   const [showMessageDetailsSheet, setShowMessageDetailsSheet] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState<{
@@ -89,11 +98,13 @@ const SignTransaction = ({
     raw: null
   } | null>(null)
   const [showLedgerPopup, setShowLedgerPopup] = useState(false)
+  const [ledgerError, setLedgerError] = useState<string>()
   const [signingError, setSigningError] = useState<string | null>(null)
   const [gasPriceError, setGasPriceError] = useState<string | null>(null)
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<string>('')
   const [userMemo, setUserMemo] = useState<string>('')
 
+  const [checkedGrantAuthBox, setCheckedGrantAuthBox] = useState(false)
   const chainInfo = useChainInfo()
   const chainInfos = useChainInfos()
   const activeWallet = useActiveWallet()
@@ -102,6 +113,7 @@ const SignTransaction = ({
   const activeChain = useActiveChain()
   const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
   const defaultGasEstimates = useDefaultGasEstimates()
+  const selectedGasOptionRef = useRef(false)
 
   const [gasPriceOption, setGasPriceOption] = useState<{
     option: GasOptions
@@ -166,10 +178,13 @@ const SignTransaction = ({
         gasLimit: userPreferredGasLimit,
         isAdr36: !!isAdr36,
         memo: userMemo,
+        isGasOptionSelected: selectedGasOptionRef.current,
       })
       let parsedMessages
 
-      if (ethSignType) {
+      if (isSignArbitrary) {
+        parsedMessages = Buffer.from(result.signDoc.msgs[0].value.data, 'base64').toString('utf-8')
+      } else if (ethSignType) {
         parsedMessages = [
           {
             raw: result.signDoc.msgs,
@@ -221,6 +236,7 @@ const SignTransaction = ({
         gasPrice: gasPriceOption.gasPrice,
         gasLimit: userPreferredGasLimit,
         memo: userMemo,
+        isGasOptionSelected: selectedGasOptionRef.current,
       })
 
       const docDecoder = new DirectSignDocDecoder({
@@ -272,12 +288,13 @@ const SignTransaction = ({
       ]
     }
   }, [
-    gasPriceOption.gasPrice,
-    isAdr36,
     isAmino,
     txnSigningRequest,
-    userMemo,
+    gasPriceOption.gasPrice,
     userPreferredGasLimit,
+    isAdr36,
+    userMemo,
+    isSignArbitrary,
     ethSignType,
   ])
 
@@ -349,6 +366,7 @@ const SignTransaction = ({
           activeChain,
           activeWallet?.addresses[activeChain] as string,
           txPostToDb,
+          txnDoc.chain_id,
         ).catch((e) => {
           DEBUG('logDirectTx error', e)
         })
@@ -367,11 +385,19 @@ const SignTransaction = ({
         }
       }
     } else {
-      setSigningError('')
+      setSigningError(null)
       try {
-        const wallet = (await getWallet(activeChain)) as OfflineAminoSigner
+        const wallet = (await getWallet(activeChain)) as OfflineAminoSigner & {
+          signAmino: (
+            // eslint-disable-next-line no-unused-vars
+            address: string,
+            // eslint-disable-next-line no-unused-vars
+            signDoc: StdSignDoc,
+            // eslint-disable-next-line no-unused-vars
+            options?: { extraEntropy?: boolean },
+          ) => Promise<StdSignature>
+        }
         setShowLedgerPopup(true)
-
         const data = await (async () => {
           try {
             if (ethSignType) {
@@ -382,7 +408,11 @@ const SignTransaction = ({
                 ethSignType,
               )
             }
-            return wallet.signAmino(activeAddress, signDoc as StdSignDoc)
+            return wallet.signAmino(activeAddress, signDoc as StdSignDoc, {
+              extraEntropy: !signOptions?.enableExtraEntropy
+                ? false
+                : signOptions?.enableExtraEntropy,
+            })
           } catch (e) {
             captureException(e)
             return null
@@ -407,21 +437,21 @@ const SignTransaction = ({
         }, 10)
       } catch (e) {
         if (e instanceof Error) {
-          if (e.message.includes('screensaver')) {
-            setSigningError(e.message)
-            setTimeout(() => {
-              setSigningError(null)
-            }, 3000)
-          } else if (e.message === transactionDeclinedError.message) {
-            handleCancel()
+          if (e instanceof LedgerError) {
+            setLedgerError(e.message)
+            e.message === transactionDeclinedError.message && handleCancel()
           } else {
-            setSigningError(e.message)
+            e.message === transactionDeclinedError.message
+              ? handleCancel()
+              : setSigningError(e.message)
           }
         }
       } finally {
         setShowLedgerPopup(false)
       }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeWallet.addresses,
     activeChain,
@@ -443,7 +473,49 @@ const SignTransaction = ({
     }
   }, [handleCancel])
 
-  const isApproveBtnDisabled = !!signingError || !!gasPriceError
+  const hasToShowCheckbox = useMemo(() => {
+    if (isSignArbitrary) {
+      return false
+    }
+
+    return Array.isArray(messages)
+      ? isGenericOrSendAuthzGrant(messages?.map((msg) => msg.parsed) ?? null)
+      : false
+  }, [isSignArbitrary, messages])
+
+  const isApproveBtnDisabled =
+    !!signingError ||
+    !!gasPriceError ||
+    (hasToShowCheckbox === true && checkedGrantAuthBox === false)
+
+  const NotAllowSignTxGasOptions = () => {
+    const { viewAdditionalOptions } = useGasPriceContext()
+    return viewAdditionalOptions ? (
+      <div className='rounded-2xl p-4 mt-3 dark:bg-[#141414] bg-white-100'>
+        <div className='flex items-center'>
+          <p className='text-gray-500 dark:text-gray-100 text-sm font-medium tracking-wide'>
+            Gas Fees <span className='capitalize'>({gasPriceOption.option})</span>
+          </p>
+          <Tooltip
+            content={
+              <p className='text-gray-500 dark:text-gray-100 text-sm'>
+                You can choose higher gas fees for faster transaction processing.
+              </p>
+            }
+          >
+            <div className='relative ml-2'>
+              <img src={Images.Misc.InfoCircle} alt='Hint' />
+            </div>
+          </Tooltip>
+        </div>
+        <GasPriceOptions.Selector className='mt-2' preSelected={false} />
+        <GasPriceOptions.AdditionalSettings className='mt-5 p-0' showGasLimitWarning={true} />
+        {gasPriceError ? (
+          <p className='text-red-300 text-sm font-medium mt-2 px-1'>{gasPriceError}</p>
+        ) : null}
+      </div>
+    ) : null
+  }
 
   return (
     <div className='w-[400px] h-full relative self-center justify-self-center flex justify-center items-center mt-2'>
@@ -460,8 +532,8 @@ const SignTransaction = ({
                         <img className='w-[24px] h-[24px] mr-1' src={Images.Logos.CompassCircle} />
                       ) : undefined
                     }
-                    onClick={() => setShowWalletSelector(true)}
                     title={trim(walletName, 10)}
+                    className='pr-4 cursor-default'
                   />
                 }
                 topColor={Colors.getChainColor(activeChain, chainInfos[activeChain])}
@@ -472,7 +544,7 @@ const SignTransaction = ({
           <div
             className='px-7 py-3 overflow-y-auto relative'
             style={{
-              height: 'calc(100% - 72px - 72px)',
+              height: `calc(100% - 72px - ${hasToShowCheckbox ? '110px' : '72px'})`,
             }}
           >
             <h2 className='text-center text-lg font-bold dark:text-white-100 text-gray-900 w-full'>
@@ -494,18 +566,26 @@ const SignTransaction = ({
                 </p>
               </div>
             </div>
-            {!ethSignType && (
+
+            {!ethSignType && !isSignArbitrary && (
               <TransactionDetails parsedMessages={messages?.map((msg) => msg.parsed) ?? null} />
             )}
 
-            {!ethSignType ? (
+            {!ethSignType && !isSignArbitrary ? (
               <GasPriceOptions
                 initialFeeDenom={dappFeeDenom}
                 gasLimit={userPreferredGasLimit || recommendedGasLimit}
                 setGasLimit={(value) => setUserPreferredGasLimit(value.toString())}
                 recommendedGasLimit={recommendedGasLimit}
-                gasPriceOption={gasPriceOption}
-                onGasPriceOptionChange={setGasPriceOption}
+                gasPriceOption={
+                  selectedGasOptionRef.current || allowSetFee
+                    ? gasPriceOption
+                    : { ...gasPriceOption, option: '' as GasOptions }
+                }
+                onGasPriceOptionChange={(value) => {
+                  selectedGasOptionRef.current = true
+                  setGasPriceOption(value)
+                }}
                 error={gasPriceError}
                 setError={setGasPriceError}
                 considerGasAdjustment={false}
@@ -524,50 +604,54 @@ const SignTransaction = ({
                     { id: 'data', label: 'Data' },
                   ]}
                   tabsContent={{
-                    fees: (
+                    fees: allowSetFee ? (
                       <div className='rounded-2xl p-4 mt-3 dark:bg-gray-900 bg-white-100'>
-                        {allowSetFee ? (
-                          <>
-                            <div className='flex items-center'>
-                              <p className='text-gray-500 dark:text-gray-100 text-sm font-medium tracking-wide'>
-                                Gas Fees{' '}
-                                <span className='capitalize'>({gasPriceOption.option})</span>
+                        <div className='flex items-center'>
+                          <p className='text-gray-500 dark:text-gray-100 text-sm font-medium tracking-wide'>
+                            Gas Fees <span className='capitalize'>({gasPriceOption.option})</span>
+                          </p>
+                          <Tooltip
+                            content={
+                              <p className='text-gray-500 dark:text-gray-100 text-sm'>
+                                You can choose higher gas fees for faster transaction processing.
                               </p>
-                              <Tooltip
-                                content={
-                                  <p className='text-gray-500 dark:text-gray-100 text-sm'>
-                                    You can choose higher gas fees for faster transaction
-                                    processing.
-                                  </p>
-                                }
-                              >
-                                <div className='relative ml-2'>
-                                  <img src={Images.Misc.InfoCircle} alt='Hint' />
-                                </div>
-                              </Tooltip>
+                            }
+                          >
+                            <div className='relative ml-2'>
+                              <img src={Images.Misc.InfoCircle} alt='Hint' />
                             </div>
-                            <GasPriceOptions.Selector className='mt-2' />
-                            <div className='flex items-center justify-end'>
-                              <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
-                            </div>
-                            <GasPriceOptions.AdditionalSettings
-                              className='mt-2'
-                              showGasLimitWarning={true}
-                            />
-                            {gasPriceError ? (
-                              <p className='text-red-300 text-sm font-medium mt-2 px-1'>
-                                {gasPriceError}
-                              </p>
-                            ) : null}
-                          </>
-                        ) : (
+                          </Tooltip>
+                        </div>
+
+                        <GasPriceOptions.Selector className='mt-2' />
+                        <div className='flex items-center justify-end'>
+                          <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
+                        </div>
+                        <GasPriceOptions.AdditionalSettings
+                          className='mt-2'
+                          showGasLimitWarning={true}
+                        />
+
+                        {gasPriceError ? (
+                          <p className='text-red-300 text-sm font-medium mt-2 px-1'>
+                            {gasPriceError}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <>
+                        <div className='rounded-2xl p-4 mt-3 dark:bg-gray-900 bg-white-100'>
                           <StaticFeeDisplay
                             fee={fee}
                             error={gasPriceError}
                             setError={setGasPriceError}
                           />
-                        )}
-                      </div>
+                          <div className='flex items-center justify-end'>
+                            <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
+                          </div>
+                          <NotAllowSignTxGasOptions />
+                        </div>
+                      </>
                     ),
                     memo: (
                       <div className='mt-3'>
@@ -612,16 +696,23 @@ const SignTransaction = ({
                 />
               </GasPriceOptions>
             ) : (
-              <pre className='text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl'>
-                {
-                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                  //@ts-ignore
-                  JSON.stringify(JSON.parse(messages?.[0].parsed.message), null, 2)
-                }
+              <pre
+                className={classNames(
+                  'text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl',
+                  {
+                    'whitespace-normal break-words': isSignArbitrary,
+                  },
+                )}
+              >
+                {isSignArbitrary
+                  ? (messages as unknown as string)
+                  : // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                    //@ts-ignore
+                    JSON.stringify(JSON.parse(messages?.[0].parsed.message), null, 2)}
               </pre>
             )}
 
-            {signingError ? <ErrorCard text={signingError} /> : null}
+            {signingError ?? ledgerError ? <ErrorCard text={signingError ?? ledgerError} /> : null}
             <LedgerConfirmationModal
               showLedgerPopup={showLedgerPopup}
               onClose={() => {
@@ -641,18 +732,35 @@ const SignTransaction = ({
               message={selectedMessage}
             />
           </div>
-          <div className='flex items-center justify-center w-full space-x-3 absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50'>
-            <Buttons.Generic color={Colors.gray900} onClick={handleCancel}>
-              Reject
-            </Buttons.Generic>
-            <Buttons.Generic
-              color={isCompassWallet() ? Colors.compassPrimary : chainInfo.theme.primaryColor}
-              onClick={approveTransaction}
-              disabled={isApproveBtnDisabled}
-              className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
-            >
-              Approve
-            </Buttons.Generic>
+
+          <div className='absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full'>
+            {hasToShowCheckbox && (
+              <div className='flex flex-row items-center mb-3'>
+                <input
+                  type='checkbox'
+                  className='cursor-pointer mr-2 h-4 w-4 bg-black-50'
+                  checked={checkedGrantAuthBox}
+                  onChange={(e) => setCheckedGrantAuthBox(e.target.checked)}
+                />
+                <Text color='text-gray-400 text-[15px]'>
+                  I&apos;ve verified the wallet I&apos;m giving permissions to
+                </Text>
+              </div>
+            )}
+
+            <div className='flex items-center justify-center w-full space-x-3'>
+              <Buttons.Generic color={Colors.gray900} onClick={handleCancel}>
+                Reject
+              </Buttons.Generic>
+              <Buttons.Generic
+                color={Colors.getChainColor(activeChain)}
+                onClick={approveTransaction}
+                disabled={isApproveBtnDisabled}
+                className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+              >
+                Approve
+              </Buttons.Generic>
+            </div>
           </div>
         </PopupLayout>
       </div>
@@ -667,6 +775,8 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
   const Wrapped = () => {
     const [chain, setChain] = useState<SupportedChain>()
     const [_chainIdToChain, setChainIdToChain] = useState(chainIdToChain)
+    const [isSignArbitrary, setIsSignArbitrary] = useState(false)
+
     const [txnData, setTxnData] = useState<any | null>(null)
     const [chainId, setChainId] = useState<string>()
     const [error, setError] = useState<{
@@ -695,11 +805,14 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
       getTxnData()
         .then((txnData: Record<string, any>) => {
           const chainId = txnData.chainId ? txnData.chainId : txnData.signDoc?.chainId
-
           const chain = chainId ? (_chainIdToChain[chainId] as SupportedChain) : undefined
+
+          if (txnData.signOptions.isADR36WithString) {
+            setIsSignArbitrary(true)
+          }
+
           setChain(chain)
           setChainId(chainId)
-
           setTxnData(txnData)
         })
         .catch((e) => {
@@ -732,7 +845,7 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
     }, [activeChain, chain, setActiveChain, selectedNetwork, setSelectedNetwork, chainId])
 
     if (chain === activeChain && txnData && chainId) {
-      return <Component data={txnData} chainId={chainId} />
+      return <Component data={txnData} chainId={chainId} isSignArbitrary={isSignArbitrary} />
     }
 
     if (error) {

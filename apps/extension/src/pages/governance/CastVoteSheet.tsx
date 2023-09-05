@@ -1,14 +1,13 @@
 /* eslint-disable no-unused-vars */
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
+import { LoaderAnimation } from 'components/loader/Loader'
 import React, { useState } from 'react'
 import { Colors } from 'theme/colors'
-
-import Loader, { LoaderAnimation } from '../../components/loader/Loader'
 
 export enum VoteOptions {
   YES = 'Yes',
@@ -59,7 +58,6 @@ function CastVoteSheet({
   loadingFees,
 }: CastVoteSheetProps): React.ReactElement {
   const [selectedOption, setSelectedOption] = useState<VoteOptions | undefined>(undefined)
-
   const activeChain = useActiveChain()
 
   return (

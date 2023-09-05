@@ -1,3 +1,10 @@
+export type IbcChainInfo = {
+  pretty_name: string
+  icon: string
+  name: string
+  channelId: string
+}
+
 export type Token = {
   symbol: string
   coinMinimalDenom: string
@@ -9,11 +16,4 @@ export type Token = {
   ibcChainInfo?: IbcChainInfo
   usdPrice?: string
   coinDecimals?: number
-}
-
-export type IbcChainInfo = {
-  pretty_name: string
-  icon: string
-  name: string
-  channelId: string
 }

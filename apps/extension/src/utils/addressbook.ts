@@ -28,6 +28,7 @@ export namespace AddressBook {
     [address: string]: SavedAddress
   }
 
+  // eslint-disable-next-line no-unused-vars
   export function subscribe(cb: (s: SavedAddresses) => void) {
     extension.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === 'local' && changes[STORAGE_ID]) {
@@ -36,6 +37,7 @@ export namespace AddressBook {
     })
   }
 
+  // eslint-disable-next-line no-unused-vars
   export function unsubscribe(cb: (s: SavedAddresses) => void) {
     extension.storage.onChanged.removeListener((changes, areaName) => {
       if (areaName === 'local' && changes[STORAGE_ID]) {

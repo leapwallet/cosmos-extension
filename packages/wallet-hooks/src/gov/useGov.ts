@@ -1,7 +1,6 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, StdFee } from '@cosmjs/stargate';
-import { fromSmall, NativeDenom, simulateVote, toSmall } from '@leapwallet/cosmos-wallet-sdk';
-import { transactionDeclinedError } from '@leapwallet/cosmos-wallet-sdk';
+import { fromSmall, LedgerError, NativeDenom, simulateVote, toSmall } from '@leapwallet/cosmos-wallet-sdk';
 import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/constants/default-gasprice-step';
 import { BigNumber } from 'bignumber.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
@@ -61,7 +60,8 @@ export function useSimulateVote() {
 export function useGov({ proposalId }: { proposalId: string }) {
   const chainInfos = useGetChains();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>();
+  const [ledgerError, setLedgerErrorMsg] = useState<string>();
   const [fees, setFees] = useState<StdFee>();
   const [memo, setMemo] = useState<string>('');
   const [feeUsdValue, setFeeUsdValue] = useState<string>();
@@ -87,8 +87,13 @@ export function useGov({ proposalId }: { proposalId: string }) {
   const gasAdjustment = useGasAdjustment();
 
   const clearError = useCallback(() => {
-    setError('');
+    setError(undefined);
   }, []);
+
+  const setLedgerError = (error?: string) => {
+    setLedgerErrorMsg(error);
+    setShowLedgerPopup(false);
+  };
 
   const vote = useCallback(
     async ({
@@ -112,7 +117,8 @@ export function useGov({ proposalId }: { proposalId: string }) {
       if (voteOption === undefined) return;
       if (proposalId && activeChain && allAssets) {
         setLoading(true);
-        setError('');
+        setError(undefined);
+        setLedgerError(undefined);
 
         try {
           const _tx = !isSimulation ? await getTxHandler(wallet) : undefined;
@@ -228,12 +234,12 @@ export function useGov({ proposalId }: { proposalId: string }) {
               promise,
             });
             callback('success');
-            setError('');
+            setError(undefined);
             return true;
           }
         } catch (e: any) {
-          if (e.message === transactionDeclinedError.message) {
-            callback('txDeclined');
+          if (e instanceof LedgerError) {
+            setLedgerError(e.message);
           } else {
             setLoading(false);
             setError(e.message.toString());
@@ -241,6 +247,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
           return false;
         } finally {
           setLoading(false);
+          setShowLedgerPopup(false);
         }
       }
     },
@@ -278,5 +285,6 @@ export function useGov({ proposalId }: { proposalId: string }) {
     memo,
     setMemo,
     showLedgerPopup,
+    ledgerError,
   };
 }

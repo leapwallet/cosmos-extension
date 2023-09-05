@@ -7,6 +7,7 @@ interface propTypes {
   isVisible: boolean
   onCloseHandler: () => void
   slippagePercentage: number
+  // eslint-disable-next-line no-unused-vars
   setSlippagePercentage: (slippagePercentage: number) => void
   toggleReviewSheet: () => void
 }

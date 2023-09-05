@@ -39,8 +39,9 @@ const ForgotPassword = () => {
       correctedMnemonic,
       5,
       ChainInfos[fetchChainInfosOf].bip44.coinType,
-      ChainInfos[fetchChainInfosOf].key,
+      ChainInfos[fetchChainInfosOf].addressPrefix,
     )
+
     setWalletAccounts(walletAccounts)
   }, [])
 

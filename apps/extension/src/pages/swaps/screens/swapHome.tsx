@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import SwapInput from 'components/swap-input'
 import React from 'react'
 

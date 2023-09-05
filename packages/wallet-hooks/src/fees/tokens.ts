@@ -1,14 +1,12 @@
-import { DenomsRecord, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper, DenomsRecord, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { BigNumber } from 'bignumber.js';
 import { useMemo } from 'react';
 
+import { useGetTokenBalances } from '../bank';
 import { useChainApis, useDenoms } from '../store';
+import { Token } from '../types';
 import { GasPriceStep, useGasPriceStepForChain, useNativeFeeDenom } from '../utils';
-import { denomFetcher } from '../utils/DenomFetcher';
-
-const one = new BigNumber(1);
 
 export type FeeTokenData = {
   denom: NativeDenom;
@@ -21,20 +19,14 @@ type getFeeTokenFnArgs = {
   denoms: DenomsRecord;
 };
 
-const convertOsmosisGasPriceStep = (priceStep: GasPriceStep, priceRatio: BigNumber): GasPriceStep => {
-  return {
-    low: priceRatio.multipliedBy(priceStep.low).multipliedBy(1.05).toNumber(),
-    medium: priceRatio.multipliedBy(priceStep.medium).multipliedBy(1.05).toNumber(),
-    high: priceRatio.multipliedBy(priceStep.high).multipliedBy(1.05).toNumber(),
-  };
-};
-
 export const getOsmosisFeeTokens = async ({
   baseGasPriceStep,
   denoms,
   restUrl,
+  allAssets,
 }: getFeeTokenFnArgs & {
   restUrl: string;
+  allAssets: Token[];
 }): Promise<FeeTokenData[]> => {
   const nativeFeeToken = {
     denom: denoms['uosmo'],
@@ -42,22 +34,30 @@ export const getOsmosisFeeTokens = async ({
     gasPriceStep: baseGasPriceStep,
   };
   try {
-    const feeTokens = await axios.get(`${restUrl}/osmosis/txfees/v1beta1/fee_tokens`);
-    const feeTokensData = feeTokens.data.fee_tokens as { denom: string; poolID: string }[];
-    const feeTokensWithDenom = await Promise.all(
-      feeTokensData.map(async (token) => {
-        const [denom, priceInfo] = await Promise.all([
-          denomFetcher.fetchDenomTrace(token.denom, restUrl),
-          axios.get(`${restUrl}/osmosis/txfees/v1beta1/spot_price_by_denom?denom=${encodeURIComponent(token.denom)}`),
-        ]);
-        const priceRatio = one.dividedBy(priceInfo.data.spot_price);
-        return {
-          denom,
-          ibcDenom: token.denom,
-          gasPriceStep: convertOsmosisGasPriceStep(baseGasPriceStep, priceRatio),
-        };
-      }),
-    );
+    const feeTokens = await axiosWrapper({
+      baseURL: restUrl,
+      method: 'get',
+      url: '/osmosis/txfees/v1beta1/fee_tokens',
+    });
+
+    const feeTokensData = allAssets.filter((token) => {
+      return (feeTokens.data.fee_tokens as { denom: string; poolID: string }[])?.find((feeToken) => {
+        // is token ibc?
+        if (token.ibcDenom) {
+          return feeToken.denom === token.ibcDenom;
+        }
+        return feeToken.denom === token.coinMinimalDenom;
+      });
+    });
+
+    const feeTokensWithDenom = feeTokensData.reduce((acc: { ibcDenom: string; denom: NativeDenom }[], curr: Token) => {
+      const feeToken = {
+        ibcDenom: curr.ibcDenom ? curr.ibcDenom : curr.coinMinimalDenom,
+        denom: denoms[curr.coinMinimalDenom],
+      };
+
+      return [...acc, feeToken];
+    }, []);
 
     return [nativeFeeToken, ...feeTokensWithDenom].filter((token) => !!token.denom) as FeeTokenData[];
   } catch (e) {
@@ -124,12 +124,14 @@ export const getFeeTokens = ({
   baseGasPriceStep,
   denoms,
   restUrl,
+  allAssets,
 }: {
   chain: SupportedChain;
   nativeDenom: NativeDenom;
   baseGasPriceStep: GasPriceStep;
   denoms: DenomsRecord;
   restUrl: string;
+  allAssets: Token[];
 }): Promise<FeeTokenData[]> => {
   switch (chain) {
     case 'osmosis':
@@ -137,6 +139,7 @@ export const getFeeTokens = ({
         baseGasPriceStep,
         denoms,
         restUrl,
+        allAssets,
       });
     default:
       return getChainFeeTokens({
@@ -157,6 +160,7 @@ export const useFeeTokens = (chain: SupportedChain) => {
   const _baseDenom = useNativeFeeDenom(chain);
   // hardcoded
   const gasPriceStep = useGasPriceStepForChain(chain);
+  const { allAssets } = useGetTokenBalances();
 
   // fetched ?? hardcoded
   const baseDenom = useMemo(() => denoms[_baseDenom.coinMinimalDenom] ?? _baseDenom, [_baseDenom, denoms]);
@@ -170,6 +174,7 @@ export const useFeeTokens = (chain: SupportedChain) => {
         baseGasPriceStep: gasPriceStep,
         denoms,
         restUrl: lcdUrl ?? '',
+        allAssets,
       }),
     initialData: [
       {

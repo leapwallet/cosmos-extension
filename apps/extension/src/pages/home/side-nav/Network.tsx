@@ -17,10 +17,11 @@ export default function NetworkDropUp({
   onCloseHandler: () => void
 }) {
   const chainInfos = useChainInfos()
+  const activeChain = useActiveChain()
+
   const navigate = useNavigate()
   const adjustedSetCurrentChainName = useSetNetwork()
   const currentChainName = useSelectedNetwork()
-  const activeChain = useActiveChain()
 
   const chains = useMemo(
     () => [

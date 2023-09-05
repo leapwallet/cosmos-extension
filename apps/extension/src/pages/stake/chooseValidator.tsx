@@ -1,4 +1,9 @@
-import { Token, useGetTokenBalances, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  Token,
+  useChainInfo,
+  useGetTokenBalances,
+  useValidatorImage,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
@@ -14,7 +19,6 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
-import { getChainImage } from 'images/logos'
 import SideNav from 'pages/home/side-nav'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -370,29 +374,31 @@ export default function ChooseValidator() {
   const state = useLocation().state
   const navigate = useNavigate()
   const chainInfos = useChainInfos()
-  const { validators, apy, mode, fromValidator, fromDelegation, unstakingPeriod } =
-    state as ChooseValidatorProps
-
   const activeChain = useActiveChain()
   const { allAssets } = useGetTokenBalances()
 
+  const activeChainInfo = chainInfos[activeChain]
+
+  const { validators, apy, mode, fromValidator, fromDelegation, unstakingPeriod } =
+    state as ChooseValidatorProps
+
   const token = useMemo(() => {
-    let _token = allAssets?.find((e) => e.symbol === chainInfos[activeChain].denom)
+    let _token = allAssets?.find((e) => e.symbol === activeChainInfo.denom)
 
     if (!_token) {
-      const denom = Object.values(chainInfos[activeChain].nativeDenoms)[0]
+      const denom = Object.values(activeChainInfo.nativeDenoms)[0]
 
       _token = {
         amount: '0',
         symbol: denom.coinDenom,
         usdValue: '0',
         coinMinimalDenom: denom.coinMinimalDenom,
-        img: chainInfos[activeChain].chainSymbolImageUrl ?? '',
+        img: activeChainInfo.chainSymbolImageUrl ?? '',
       }
     }
 
     return _token
-  }, [activeChain, allAssets, chainInfos])
+  }, [activeChainInfo, allAssets])
 
   const [showSideNav, setShowSideNav] = useState(false)
   const [sortBy, setSortBy] = useState<STAKE_SORT_BY>('Random')
@@ -456,6 +462,8 @@ export default function ChooseValidator() {
     }
   })
 
+  const chainInfo = useChainInfo()
+
   return (
     <div className='relative w-[400px] overflow-clip'>
       <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
@@ -470,13 +478,11 @@ export default function ChooseValidator() {
               },
               type: HeaderActionType.BACK,
             }}
-            imgSrc={getChainImage(activeChain) ?? defaultTokenLogo}
+            imgSrc={chainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             title={
               <>
                 <Text size='lg' className='font-bold'>
-                  {mode === 'REDELEGATE'
-                    ? 'Switch Validator'
-                    : `Stake ${chainInfos[activeChain].denom}`}
+                  {mode === 'REDELEGATE' ? 'Switch Validator' : `Stake ${activeChainInfo.denom}`}
                 </Text>
               </>
             }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import browser from 'webextension-polyfill'
 
 import { ACTIVE_WALLET, KEYSTORE } from '../../config/storage-keys'

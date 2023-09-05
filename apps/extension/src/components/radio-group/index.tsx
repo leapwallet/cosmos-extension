@@ -4,6 +4,7 @@ import React, { CSSProperties, useCallback } from 'react'
 type RadioGroupProps = {
   options: { title: string; subTitle?: string; value: string }[]
   selectedOption: string
+  // eslint-disable-next-line no-unused-vars
   onChange: (value: string) => void
   className?: string
   themeColor?: CSSProperties['color']

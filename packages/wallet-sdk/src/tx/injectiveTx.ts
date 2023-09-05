@@ -36,7 +36,7 @@ import { keccak256 } from 'ethereumjs-util';
 
 import { AccountDetails, fetchAccountDetails, InjectiveAccountRestResponse } from '../accounts';
 import { ChainInfos } from '../constants';
-import { getClientState } from '../utils';
+import { getClientState, getRestUrl } from '../utils';
 import { sleep } from '../utils';
 import { buildGrantMsg, buildRevokeMsg } from './msgs/cosmos';
 enum MsgTypes {
@@ -59,11 +59,10 @@ export class InjectiveTx {
   options?: {
     gasPrice: GasPrice;
   };
-  constructor(private testnet: boolean, private wallet: EthWallet, restEndpoint?: string) {
-    this.restEndpoint =
-      restEndpoint ?? (testnet ? ChainInfos.injective.apis.restTest : ChainInfos.injective.apis.rest) ?? '';
-    this.chainRestAuthApi = new ChainRestAuthApi(this.restEndpoint);
 
+  constructor(private testnet: boolean, private wallet: EthWallet, restEndpoint?: string) {
+    this.restEndpoint = restEndpoint ?? getRestUrl(ChainInfos, 'injective', testnet);
+    this.chainRestAuthApi = new ChainRestAuthApi(this.restEndpoint);
     this.txRestClient = new TxRestClient(this.restEndpoint);
   }
 
@@ -486,7 +485,6 @@ export class InjectiveTx {
     }
   }
 
-  //TODO: specify exact type
   private async broadcastTx(txRaw: any, retry = 3): Promise<string> {
     try {
       const txResponse: any = await this.txRestClient.broadcast(txRaw);
@@ -504,9 +502,6 @@ export class InjectiveTx {
     try {
       const usedFee = await this.getFees(signerAddress, msgs, fee);
       const { txRaw, signBytes, signDoc } = await this.createTx(signerAddress, msgs, usedFee, memo);
-      //TODO: remove ts-ignore when types are updated in keychain library
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //@ts-ignore
 
       if (!(this.wallet instanceof EthWallet)) {
         const _signDoc = createCosmosSignDocFromTransaction({

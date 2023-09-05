@@ -242,6 +242,8 @@ export const useSimpleSend = () => {
 
         const srcChainRegistryPath = chains[srcChainKey]?.chainRegistryPath;
         const destChainRegistryPath = chains[destChainKey]?.chainRegistryPath;
+        const srcChainName = chains[srcChainKey].chainName;
+        const destChainName = chains[destChainKey].chainName;
 
         if (!destChainRegistryPath) {
           return {
@@ -275,7 +277,7 @@ export const useSimpleSend = () => {
           if (!ibcChannelId) {
             return {
               success: false,
-              errors: [`No active IBC channels from ${srcChainRegistryPath} to ${destChainRegistryPath}`],
+              errors: [`No active IBC channels from ${srcChainName} to ${destChainName}`],
             };
           }
           const response = await validateIbcChannelId(ibcChannelId, srcChainKey, destChainKey);
@@ -393,7 +395,18 @@ export const useSimpleSend = () => {
       }
 
       let result: sendTokensReturnType;
-      const nativeDenom = denoms[selectedToken.coinMinimalDenom as keyof typeof denoms];
+      const selectedDenomData =
+        denoms[selectedToken.coinMinimalDenom as keyof typeof denoms] ??
+        Object.values(chainInfo.nativeDenoms).find(
+          (denom) => denom.coinMinimalDenom === selectedToken.coinMinimalDenom,
+        );
+
+      if (!selectedDenomData) {
+        return {
+          success: false,
+          errors: ['We do not support transferring this token yet'],
+        };
+      }
 
       const isSnip20Tx = isValidAddressWithPrefix(selectedToken.coinMinimalDenom ?? '', 'secret');
       const isCW20Tx = checkIsCW20Tx(selectedToken);
@@ -405,7 +418,7 @@ export const useSimpleSend = () => {
           toAddress,
           selectedDenom: {
             ibcDenom: selectedToken.ibcDenom,
-            ...nativeDenom,
+            ...selectedDenomData,
           },
           memo,
           fees,
@@ -417,7 +430,7 @@ export const useSimpleSend = () => {
           amount: amount,
           selectedDenom: {
             ibcDenom: selectedToken.ibcDenom,
-            ...nativeDenom,
+            ...selectedDenomData,
           },
           toAddress,
           wallet: (await getWallet()) as Wallet,
@@ -430,7 +443,7 @@ export const useSimpleSend = () => {
           wallet: (await getWallet()) as OfflineSigner,
           selectedDenom: {
             ibcDenom: selectedToken.ibcDenom,
-            ...nativeDenom,
+            ...selectedDenomData,
           },
           toAddress,
           ibcChannelId,
@@ -445,7 +458,7 @@ export const useSimpleSend = () => {
 
       return result;
     },
-    [denoms, activeWallet, activeChain],
+    [denoms, activeWallet, activeChain, chainInfo, send, sendCW20, sendSnip20],
   );
 
   return {

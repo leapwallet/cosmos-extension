@@ -1,5 +1,5 @@
 import { AminoSignResponse, StdSignDoc } from '@cosmjs/amino';
-import { arrayify, concat, splitSignature } from '@ethersproject/bytes';
+import { arrayify, concat } from '@ethersproject/bytes';
 import { _TypedDataEncoder } from '@ethersproject/hash';
 import { serialize } from '@ethersproject/transactions';
 import { encodeSecp256k1Pubkey, EthWallet } from '@leapwallet/leap-keychain';

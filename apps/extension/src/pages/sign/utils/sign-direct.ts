@@ -5,6 +5,7 @@ import Long from 'long'
 
 import { getFee } from './get-fee'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getProtoSignDocDecoder(signRequestData: Record<string, any>) {
   const signDoc = {
     bodyBytes: new Uint8Array(Object.values(signRequestData['sign-request'].signDoc.bodyBytes)),
@@ -22,11 +23,14 @@ export function getDirectSignDoc({
   gasPrice,
   gasLimit,
   memo,
+  isGasOptionSelected,
 }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   signRequestData: Record<string, any>
   gasPrice: GasPrice
   gasLimit: string
   memo: string
+  isGasOptionSelected: boolean
 }) {
   const signOptions = signRequestData['sign-request'].signOptions
 
@@ -37,11 +41,9 @@ export function getDirectSignDoc({
   let fee: typeof _fee
 
   if (_fee) {
-    if (signOptions && signOptions.preferNoSetFee) {
+    if (signOptions && signOptions.preferNoSetFee && !isGasOptionSelected) {
       fee = _fee
     } else {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //@ts-ignore
       fee = getFee(_fee, gasPrice, gasLimit)
     }
   }

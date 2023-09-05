@@ -354,6 +354,10 @@ export const networkData: NetworkData[] = [
     enabled: true,
     name: 'empowerchain',
   },
+  {
+    enabled: true,
+    name: 'celestiatestnet3',
+  },
 ];
 
 export default networkData;

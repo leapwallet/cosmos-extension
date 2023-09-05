@@ -20,6 +20,7 @@ export * from './useGasPriceSteps';
 export * from './useInvestData';
 export * from './useIsCompassWallet';
 export * from './useLSStrideEnabledDenoms';
+export * from './useNftChains';
 export * from './usePreferredCurrencyStore';
 export * from './useRpcUrl';
 export * from './useScrtKeysStore';

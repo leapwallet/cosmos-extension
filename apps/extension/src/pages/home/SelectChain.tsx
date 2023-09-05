@@ -8,6 +8,7 @@ import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import React, { Fragment, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
 import { sliceSearchWord } from 'utils/strings'
 import extension from 'webextension-polyfill'
@@ -21,9 +22,10 @@ export type ListChainsProps = {
   // eslint-disable-next-line no-unused-vars
   onChainSelect: (chainName: SupportedChain) => void
   selectedChain: SupportedChain
+  onPage?: 'AddCollection'
 }
 
-export function ListChains({ onChainSelect, selectedChain }: ListChainsProps) {
+export function ListChains({ onChainSelect, selectedChain, onPage }: ListChainsProps) {
   const [chains] = useManageChainData()
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -31,10 +33,14 @@ export function ListChains({ onChainSelect, selectedChain }: ListChainsProps) {
 
   const filteredChains = useMemo(() => {
     return chains.filter(function (chain) {
+      if (onPage === 'AddCollection' && ['omniflix', 'stargaze'].includes(chain.chainName)) {
+        return false
+      }
+
       const chainName = chain.chainName === 'impacthub' ? 'ixo' : chain.chainName
       return chainName.toLowerCase().includes(searchedChain.toLowerCase())
     })
-  }, [chains, searchedChain])
+  }, [chains, onPage, searchedChain])
 
   return (
     <>
@@ -91,7 +97,7 @@ export function ListChains({ onChainSelect, selectedChain }: ListChainsProps) {
                         className='font-bold'
                         data-testing-id={`switch-chain-${chainName.toLowerCase()}-ele`}
                       >
-                        {chainName}
+                        {onPage === 'AddCollection' ? getChainName(chainName) : chainName}
                       </Text>
                     </div>
                     <div className='ml-auto flex items-center'>

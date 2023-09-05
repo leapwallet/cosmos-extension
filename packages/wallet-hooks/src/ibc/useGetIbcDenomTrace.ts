@@ -1,5 +1,4 @@
-import { IQueryDenomTraceResponse } from '@leapwallet/cosmos-wallet-sdk';
-import axios from 'axios';
+import { axiosWrapper, IQueryDenomTraceResponse } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback } from 'react';
 
 import { useActiveChain, useChainApis } from '../store';
@@ -21,7 +20,11 @@ export function useGetIbcDenomTrace(): (hash: string) => Promise<IQueryDenomTrac
           : storedObj;
       }
 
-      const denomTrace = await axios.get(`${lcdUrl}/ibc/apps/transfer/v1/denom_traces/${hash}`);
+      const denomTrace = await axiosWrapper({
+        baseURL: lcdUrl,
+        method: 'get',
+        url: `/ibc/apps/transfer/v1/denom_traces/${hash}`,
+      });
 
       await storage.set(storageKey, JSON.stringify(denomTrace.data.denom_trace));
       return denomTrace.data.denom_trace;

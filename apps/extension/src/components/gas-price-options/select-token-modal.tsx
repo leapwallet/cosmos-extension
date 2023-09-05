@@ -3,7 +3,6 @@ import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
 import { TokenCard } from 'components/token-card/TokenCard'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useCallback, useMemo, useState } from 'react'
 
@@ -24,8 +23,6 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = ({
   onTokenSelect,
 }) => {
   const activeChain = useActiveChain()
-  const defaultTokenLogo = useDefaultTokenLogo()
-
   const [searchQuery, setSearchQuery] = useState('')
   const input = useMemo(() => searchQuery.trim(), [searchQuery])
 

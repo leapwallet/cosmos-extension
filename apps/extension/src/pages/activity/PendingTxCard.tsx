@@ -9,6 +9,8 @@ import {
   usePendingTxState,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { CosmosTxType } from '@leapwallet/cosmos-wallet-hooks'
+import { getMetaDataForSendTx } from '@leapwallet/cosmos-wallet-hooks/dist/send/get-metadata'
+import BigNumber from 'bignumber.js'
 import classnames from 'classnames'
 import React, { useEffect } from 'react'
 import { atom } from 'recoil'
@@ -53,6 +55,8 @@ export default function PendingTxCard() {
             } else {
               setPendingTx({ ...pendingTx, txStatus: 'failed' })
             }
+          } else if (pendingTx.txType === 'cw20TokenTransfer') {
+            setPendingTx({ ...pendingTx, txStatus: 'success' })
           }
 
           if (pendingTx.txType === 'secretTokenTransfer') {
@@ -77,10 +81,13 @@ export default function PendingTxCard() {
           if (pendingTx.txType === 'cw20TokenTransfer') {
             txPostToDB({
               txHash: result.transactionHash,
-              txType: 'CW20_TOKEN_TRANSACTION' as CosmosTxType,
-              metadata: {
-                contract: pendingTx.sentTokenInfo?.coinMinimalDenom,
-              },
+              txType: CosmosTxType.Send,
+              metadata: getMetaDataForSendTx(pendingTx?.toAddress ?? '', {
+                amount: new BigNumber(pendingTx.sentAmount ?? '')
+                  .times(10 ** (pendingTx.sentTokenInfo?.coinDecimals ?? 6))
+                  .toString(),
+                denom: pendingTx.sentTokenInfo?.coinMinimalDenom ?? '',
+              }),
               feeQuantity: pendingTx.feeQuantity,
               feeDenomination: pendingTx.feeDenomination,
             })
@@ -92,6 +99,10 @@ export default function PendingTxCard() {
           }, 2000)
         })
         .catch(() => {
+          if (pendingTx.txType === 'cw20TokenTransfer') {
+            setPendingTx({ ...pendingTx, txStatus: 'failed' })
+          }
+
           setTimeout(() => {
             invalidateQueries()
             setPendingTx(null)

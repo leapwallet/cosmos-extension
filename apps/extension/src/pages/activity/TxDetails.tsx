@@ -1,7 +1,7 @@
 import { ActivityCardContent } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, Buttons, Card, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import { type ParsedTransaction, parfait, ParsedMessageType } from '@leapwallet/parser-parfait'
+import { parfait, ParsedMessageType, type ParsedTransaction } from '@leapwallet/parser-parfait'
 import PopupLayout from 'components/layout/popup-layout'
 import dayjs from 'dayjs'
 import { useActiveChain } from 'hooks/settings/useActiveChain'

@@ -35,5 +35,7 @@ export function useInitPrimaryWalletAddress() {
         })
       }
     })
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

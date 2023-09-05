@@ -15,6 +15,7 @@ type DisplaySettingsModalProps = {
   isOpen: boolean
   onClose: () => void
   settings: DisplaySettings
+  // eslint-disable-next-line no-unused-vars
   onSettingsChange: (_: DisplaySettings) => void
 }
 
@@ -28,7 +29,7 @@ export const DisplaySettingsModal: React.FC<DisplaySettingsModalProps> = ({
   const activeChain = useActiveChain()
 
   return (
-    <BottomModal isOpen={isOpen} onClose={onClose} title={'Sort by'}>
+    <BottomModal isOpen={isOpen} onClose={onClose} title={'Sort by'} closeOnBackdropClick={true}>
       <div className='rounded-2xl flex flex-col items-center w-full justify-center dark:bg-gray-900 bg-white-100'>
         {options.map(([key, label], index) => (
           <React.Fragment key={key}>
@@ -53,25 +54,5 @@ export const DisplaySettingsModal: React.FC<DisplaySettingsModalProps> = ({
         ))}
       </div>
     </BottomModal>
-    // <BottomModal isOpen={isOpen} title='Sort By' onClose={onClose}>
-    //   <div className='rounded-2xl dark:bg-gray-900 bg-white-100 p-4'>
-    //     <Text size='sm' className='text-gray-900 dark:text-gray-50 capitalize'>
-    //       Sort By
-    //     </Text>
-
-    //     <RadioGroup
-    //       className='mt-2'
-    //       themeColor={Colors.Indigo300}
-    //       options={Object.entries(SortBy).map(([option, label]) => ({
-    //         value: option,
-    //         title: label,
-    //       }))}
-    //       onChange={(option) => {
-    //         onSettingsChange({ ...settings, sortBy: option as infoField })
-    //       }}
-    //       selectedOption={settings.sortBy}
-    //     />
-    //   </div>
-    // </BottomModal>
   )
 }

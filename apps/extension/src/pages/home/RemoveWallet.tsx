@@ -1,5 +1,5 @@
+import { Key, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import React from 'react'
 import { Colors } from 'theme/colors'
 
@@ -8,7 +8,7 @@ import Text from '../../components/text'
 import { Wallet } from '../../hooks/wallet/useWallet'
 
 type EditWalletFormProps = {
-  wallet: Wallet.Key
+  wallet: Key
   isVisible: boolean
   // eslint-disable-next-line no-unused-vars
   onClose: (closeParent: boolean) => void
@@ -57,7 +57,7 @@ export function RemoveWallet({ isVisible, wallet, onClose }: EditWalletFormProps
               onClose(false)
             }}
           >
-            {"Don't Remove"}
+            Don&apos;t Remove
           </Buttons.Generic>
         </div>
       </div>

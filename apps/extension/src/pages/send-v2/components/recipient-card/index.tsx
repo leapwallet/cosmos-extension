@@ -17,11 +17,11 @@ import { motion } from 'framer-motion'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
 import { Images } from 'images'
-import { getChainImage } from 'images/logos'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
 
 import { IBCSettings } from '../ibc-banner'
@@ -145,10 +145,16 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     return undefined
   }, [recipientInputValue])
 
-  const showNameServiceResults = useMemo(
-    () => nameServiceMatcher.test(recipientInputValue),
-    [recipientInputValue],
-  )
+  const showNameServiceResults = useMemo(() => {
+    const allowedTopLevelDomains = [
+      ...Object.keys(addressPrefixes), // for ibcdomains, icns, stargazenames
+      'arch', // for archId
+    ]
+    // ex: leap.arch --> name = leap, domain = arch
+    const [, domain] = recipientInputValue.split('.')
+    const isValidDomain = allowedTopLevelDomains.indexOf(domain) !== -1
+    return nameServiceMatcher.test(recipientInputValue) && isValidDomain
+  }, [recipientInputValue, addressPrefixes])
 
   const preview = useMemo(() => {
     if (selectedAddress) {
@@ -201,18 +207,24 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     !existingContactMatch &&
     !selectedAddress &&
     !showNameServiceResults &&
-    activeNetwork === 'mainnet'
+    activeNetwork === 'mainnet' &&
+    !isCompassWallet()
+
   const showSecondaryActions = showContactsButton || showMyWalletButton || showAddToContacts
 
   useEffect(() => {
     if (currentWalletAddress === recipientInputValue) {
       setAddressError('Cannot send to self')
-    } else if (recipientInputValue && !isValidAddress(recipientInputValue)) {
+    } else if (
+      recipientInputValue &&
+      !isValidAddress(recipientInputValue) &&
+      !showNameServiceResults
+    ) {
       setAddressError('Invalid address')
     } else {
       setAddressError(undefined)
     }
-  }, [currentWalletAddress, recipientInputValue, setAddressError])
+  }, [currentWalletAddress, recipientInputValue, setAddressError, showNameServiceResults])
 
   useEffect(() => {
     if (recipientInputValue === selectedAddress?.address) {
@@ -225,8 +237,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     }
     try {
       const { prefix } = bech32.decode(cleanInputValue)
-      const _chain = addressPrefixes[prefix]
-      const img = getChainImage((_chain === 'cosmoshub' ? 'cosmos' : _chain) as SupportedChain)
+      const _chain = addressPrefixes[prefix] as SupportedChain
+      const img = chains[_chain].chainSymbolImageUrl
 
       setSelectedAddress({
         address: cleanInputValue,
@@ -242,6 +254,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     }
   }, [
     addressPrefixes,
+    chains,
     currentWalletAddress,
     recipientInputValue,
     selectedAddress,
@@ -257,7 +270,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         existingContactMatch.blockchain !== selectedAddress?.chainName
 
       if (shouldUpdate) {
-        const img = getChainImage(existingContactMatch.blockchain as SupportedChain)
+        const img = chains[existingContactMatch.blockchain].chainSymbolImageUrl
         setSelectedAddress({
           address: existingContactMatch.address,
           name: existingContactMatch.name,
@@ -270,7 +283,14 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         setMemo(existingContactMatch.memo ?? '')
       }
     }
-  }, [existingContactMatch, recipientInputValue, selectedAddress, setMemo, setSelectedAddress])
+  }, [
+    chains,
+    existingContactMatch,
+    recipientInputValue,
+    selectedAddress,
+    setMemo,
+    setSelectedAddress,
+  ])
 
   const destChainInfo = useMemo(() => {
     if (!selectedAddress?.address) {
@@ -316,6 +336,13 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       return
     }
 
+    if (isIBC && destinationChain && isCompassWallet() && activeChain === 'seiTestnet2') {
+      setAddressError(
+        `IBC not supported between ${chains[destinationChain as SupportedChain].chainName} and Sei`,
+      )
+      return
+    }
+
     // check if destination chain is supported
     if (destinationChain && ibcSupportData !== undefined) {
       const destChainRegistryPath = chains[destinationChain as SupportedChain].chainRegistryPath
@@ -327,7 +354,11 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       ) {
         setAddressError(undefined)
       } else {
-        setAddressError(`IBC not supported between ${destinationChain} and ${activeChain}`)
+        setAddressError(
+          `IBC not supported between ${chains[destinationChain as SupportedChain].chainName} and ${
+            chains[activeChain].chainName
+          }`,
+        )
       }
     }
   }, [
@@ -355,7 +386,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
   return (
     <div>
-      <motion.div className={`card-container ${isIBCTransfer ? '!rounded-b-none' : ''}`}>
+      <motion.div
+        className={`card-container ${isIBCTransfer && !isCompassWallet() ? '!rounded-b-none' : ''}`}
+      >
         <Text
           size='sm'
           className='text-gray-600 dark:text-gray-200 font-bold mb-3'
@@ -461,7 +494,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         />
       </motion.div>
 
-      {isIBCTransfer && activeNetwork === 'mainnet' && destChainInfo ? (
+      {isIBCTransfer && !isCompassWallet() && activeNetwork === 'mainnet' && destChainInfo ? (
         <IBCSettings
           className='rounded-b-2xl'
           targetChain={destChainInfo.key}

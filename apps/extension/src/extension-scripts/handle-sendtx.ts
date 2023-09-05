@@ -1,6 +1,6 @@
 // eslint-disable-next-line simple-import-sort/imports
 import { originalFetch } from './fetch-preserver'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { getRestUrl, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { BroadcastMode } from 'cosmjs-types/cosmos/tx/v1beta1/service'
 
 import { decodeChainIdToChain, getExperimentalChains } from './utils'
@@ -11,7 +11,7 @@ export async function handleSendTx(data: any) {
   const tx = data?.tx
   const mode = data?.mode
   const _chainIdToChain = await decodeChainIdToChain()
-  const chain = _chainIdToChain[data?.chainId as unknown as string]
+  const chain = _chainIdToChain[data.chainId]
   const isProtoTx = !tx.msg
   const formattedTx = isProtoTx ? new Uint8Array(Object.values(tx)) : tx
   const ChainInfos = await getChains()
@@ -38,13 +38,15 @@ export async function handleSendTx(data: any) {
       }
 
   let baseURL
-  if (!ChainInfos[chain as unknown as SupportedChain]) {
+  if (!ChainInfos[chain as SupportedChain]) {
     const experimentalChains = await getExperimentalChains()
     baseURL = experimentalChains?.[chain].apis.rest
   } else {
-    baseURL =
-      ChainInfos[chain as unknown as SupportedChain].apis.rest ??
-      ChainInfos[chain as unknown as SupportedChain].apis.restTest
+    baseURL = getRestUrl(
+      ChainInfos,
+      chain as SupportedChain,
+      ChainInfos[chain as SupportedChain].testnetChainId === data.chainId,
+    )
   }
 
   const url = isProtoTx ? `${baseURL}/cosmos/tx/v1beta1/txs` : `${baseURL}/txs`

@@ -1,16 +1,10 @@
-import {
-  nameServices,
-  SelectedAddress,
-  sliceAddress,
-  useNameServiceResolver,
-  useSelectedNetwork,
-} from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { SelectedAddress, sliceAddress, useSelectedNetwork } from '@leapwallet/cosmos-wallet-hooks'
 import { Avatar } from '@leapwallet/leap-ui'
 import Text from 'components/text'
+import { nameServices, useNameServiceResolver } from 'hooks/nameService/useNameService'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
-import { GenericLight, getChainImage } from 'images/logos'
+import { GenericLight } from 'images/logos'
 import React, { useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { AddressBook } from 'utils/addressbook'
@@ -18,11 +12,19 @@ import { Bech32Address } from 'utils/bech32'
 
 const NameServiceItemSkeleton = () => {
   return (
-    <div className='flex'>
-      <Skeleton className='rounded-full h-10 w-10 bg-gray-50 dark:bg-gray-800' />
-      <div className='ml-2'>
-        <Skeleton className='h-4 w-32 bg-gray-50 dark:bg-gray-800' />
-        <Skeleton className='h-2 w-20 bg-gray-100 dark:bg-gray-800' />
+    <div className='flex px-2 py-2 min-w-[344px] z-0'>
+      <div className='w-10 '>
+        <Skeleton
+          circle
+          className='w-10 h-10'
+          style={{
+            zIndex: 0,
+          }}
+        />
+      </div>
+      <div className='w-[250px] z-0 ml-2'>
+        <Skeleton count={1} className='z-0' />
+        <Skeleton count={1} className='z-0' />
       </div>
     </div>
   )
@@ -30,6 +32,7 @@ const NameServiceItemSkeleton = () => {
 
 type ContactsMatchListProps = {
   contacts: AddressBook.SavedAddress[]
+  // eslint-disable-next-line no-unused-vars
   handleContactSelect: (contact: SelectedAddress) => void
 }
 
@@ -46,7 +49,7 @@ export const ContactsMatchList: React.FC<ContactsMatchListProps> = ({
       </Text>
       <ul className='list-none space-y-2 mt-2 max-h-[180px] overflow-y-auto'>
         {contacts.map((contact) => {
-          const chainImage = Images.Logos.getChainImage(contact.blockchain)
+          const chainImage = chainInfos[contact.blockchain].chainSymbolImageUrl
 
           return (
             <li
@@ -54,6 +57,7 @@ export const ContactsMatchList: React.FC<ContactsMatchListProps> = ({
               className='flex items-center ml-0 py-1 cursor-pointer'
               onClick={() => {
                 handleContactSelect({
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                   //@ts-ignore
                   avatarIcon: undefined,
                   chainIcon: chainImage ?? GenericLight,
@@ -89,6 +93,7 @@ export const ContactsMatchList: React.FC<ContactsMatchListProps> = ({
 
 type NameServiceMatchListProps = {
   address: string
+  // eslint-disable-next-line no-unused-vars
   handleContactSelect: (contact: SelectedAddress) => void
 }
 
@@ -99,20 +104,12 @@ export const NameServiceMatchList: React.FC<NameServiceMatchListProps> = ({
   const network = useSelectedNetwork()
   const chainInfos = useChainInfos()
 
-  const nameServiceResults = useNameServiceResolver(address, network)
+  const [isLoading, nameServiceResults] = useNameServiceResolver(address, network)
 
   const resultsList = useMemo(() => {
     const entries = Object.entries(nameServiceResults)
-    if (entries.some(([, result]) => result.status === 'loading')) {
-      return {
-        status: 'loading',
-      }
-    }
 
-    return {
-      status: 'done',
-      data: entries.filter(([, result]) => result.status === 'success' && result.data),
-    }
+    return entries.filter(([, result]) => result)
   }, [nameServiceResults])
 
   return (
@@ -120,31 +117,30 @@ export const NameServiceMatchList: React.FC<NameServiceMatchListProps> = ({
       <Text size='sm' className='text-gray-600 dark:text-gray-200'>
         &quot;{address}&quot; from different name services
       </Text>
-      {resultsList.status === 'done' ? (
+      {!isLoading ? (
         <>
-          {resultsList.data && resultsList.data.length > 0 ? (
+          {resultsList && resultsList.length > 0 ? (
             <ul className='list-none space-y-2 mt-2 max-h-[180px] overflow-y-auto'>
-              {resultsList.data.map(([nameService, result]) => {
+              {resultsList.map(([nameService, result]) => {
                 const nameServiceImg = Images.Logos.getNameServiceLogo(nameService)
-                const chain = Bech32Address.getChainKey(result?.data)
+                const chain = Bech32Address.getChainKey(result as string)
 
                 return (
                   <li
                     key={nameService}
                     className={`flex items-center ml-0 py-1 ${
-                      result.status === 'success' && result?.data
-                        ? 'cursor-pointer'
-                        : 'cursor-not-allowed'
+                      result ? 'cursor-pointer' : 'cursor-not-allowed'
                     }`}
                     onClick={() => {
-                      if (result.status === 'success' && result?.data) {
+                      if (result) {
                         handleContactSelect({
                           avatarIcon: nameServiceImg,
-                          chainIcon: chain ? getChainImage(chain) : GenericLight,
-                          chainName: chainInfos[chain as SupportedChain].chainName,
+                          chainIcon: chain
+                            ? chainInfos[chain].chainSymbolImageUrl ?? GenericLight
+                            : GenericLight,
+                          chainName: chain ? chainInfos[chain].chainName : 'Chain',
                           name: address,
-                          address: result.data,
-                          //@ts-ignore
+                          address: result as string,
                           emoji: undefined,
                           selectionType: 'nameService',
                           information: {
@@ -164,11 +160,7 @@ export const NameServiceMatchList: React.FC<NameServiceMatchListProps> = ({
                         {nameServices[nameService]}
                       </Text>
                       <Text size='sm' color='text-gray-600 dark:text-gray-400'>
-                        {result.status === 'loading'
-                          ? 'Loading...'
-                          : result?.data
-                          ? sliceAddress(result.data)
-                          : 'Not Found'}
+                        {result ? sliceAddress(result as string) : 'Not Found'}
                       </Text>
                     </div>
                   </li>

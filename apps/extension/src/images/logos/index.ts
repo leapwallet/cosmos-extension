@@ -1,6 +1,7 @@
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 
+import ArchId from './archId.svg'
 import CompassCircle from './compass-circle.svg'
 import CosmoStation from './cosmo-station.svg'
 import GenericDark from './generic-dark.svg'
@@ -15,6 +16,7 @@ import LeapLightMode from './leap-custom-light-mode.svg'
 import LeapLogo from './leap-logo.svg'
 import LeapLogo28 from './leap-logo-28.svg'
 import Metamask from './metamask.svg'
+import NftLogo from './nft-logo.svg'
 import Osmosis from './osmosis.svg'
 import StargazeNames from './stargaze-names.svg'
 import TerraStation from './terra-station.svg'
@@ -81,6 +83,7 @@ const ChainLogos: Record<string, string | undefined> = {
   mayachain: ChainInfos.mayachain.chainSymbolImageUrl,
   empowerchain: ChainInfos.empowerchain.chainSymbolImageUrl,
   dydx: ChainInfos.dydx.chainSymbolImageUrl,
+  celestiatestnet3: ChainInfos.celestiatestnet3.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {
@@ -113,12 +116,15 @@ export const getNameServiceLogo = (name: string) => {
       return IBCDomains
     case 'stargazeNames':
       return StargazeNames
+    case 'archIds':
+      return ArchId
     default:
       return GenericLight
   }
 }
 
 export {
+  ArchId,
   ChainLogos,
   CompassCircle,
   CosmoStation,
@@ -134,6 +140,7 @@ export {
   LeapLogo,
   LeapLogo28,
   Metamask,
+  NftLogo,
   StargazeNames,
   TerraStation,
 }

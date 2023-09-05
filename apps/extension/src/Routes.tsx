@@ -1,6 +1,6 @@
 import { useFetchCW20Tokens, useFetchERC20Tokens } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
-import { useFillBetaCW20Tokens, useFillBetaNFTsCollections } from 'hooks/settings'
+import { useFillBetaCW20Tokens } from 'hooks/settings'
 import Activity from 'pages/activity/Activity'
 import ApproveConnection from 'pages/ApproveConnection/ApproveConnection'
 import AssetDetails from 'pages/asset-details'
@@ -10,7 +10,7 @@ import ForgotPassword from 'pages/forgot-password'
 import Proposals from 'pages/governance/Proposals'
 import Home from 'pages/home/Home'
 import ManageChain from 'pages/manageChain'
-import NFTs from 'pages/nfts'
+import { NFTs } from 'pages/nfts-v2'
 import Onboarding from 'pages/onboarding'
 import OnboardingCreateWallet from 'pages/onboarding/create'
 import OnboardingImportWallet from 'pages/onboarding/import'
@@ -39,7 +39,6 @@ export default function AppRoutes(): JSX.Element {
   const showLedgerPopup = useRecoilValue(ledgerPopupState)
   useFetchCW20Tokens()
   useFillBetaCW20Tokens()
-  useFillBetaNFTsCollections()
   useFetchERC20Tokens()
 
   return (
@@ -117,6 +116,14 @@ export default function AppRoutes(): JSX.Element {
           />
           <Route
             path='send'
+            element={
+              <RequireAuth>
+                <Send />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path='ibc'
             element={
               <RequireAuth>
                 <Send />

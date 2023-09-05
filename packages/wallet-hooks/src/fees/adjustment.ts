@@ -106,7 +106,7 @@ export const useShouldShowAutoAdjustSheet = (): ((args: shouldShowAutoAdjustArgs
       const isFeeDenomNativeDenom = feeDenom === coinMinimalDenom;
       const isTokenDenomNativeDenom = tokenDenom === coinMinimalDenom;
 
-      // TODO: handle non-native fee denom in v2
+      // TODO:- handle non-native fee denom in v2
       if (!isFeeDenomNativeDenom || !isTokenDenomNativeDenom) {
         return AdjustmentType.NONE;
       }

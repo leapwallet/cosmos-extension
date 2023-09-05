@@ -71,6 +71,7 @@ export const useSwapModule = ({
     queryKey: ['swap-route', selectedToken?.symbol, selectedTargetToken?.symbol],
     queryFn: () => {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         return swapper.getDefaultGasAmount(selectedToken!.symbol, selectedTargetToken!.symbol);
       } catch {
         return 150_000;

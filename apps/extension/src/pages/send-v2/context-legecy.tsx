@@ -9,7 +9,6 @@ import {
   Token,
   useAddress,
   useChainApis,
-  useChainsStore,
   useDefaultGasEstimates,
   useDenoms,
   useGasRateQuery,
@@ -23,7 +22,6 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   DefaultGasEstimates,
-  feeDenoms,
   fromSmall,
   NativeDenom,
   simulateIbcTransfer,
@@ -110,7 +108,6 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({
   const fromAddress = useAddress()
   const getIbcChannelId = useGetIbcChannelId()
   const chainInfos = useChainInfos()
-  const { chains } = useChainsStore()
   const denoms = useDenoms()
 
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()

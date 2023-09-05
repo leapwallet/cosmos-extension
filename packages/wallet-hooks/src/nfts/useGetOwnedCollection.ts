@@ -5,8 +5,7 @@ import { QueryStatus, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { useActiveChain, useChainApis } from '../store';
-import { defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
-import { useCosmWasmClient } from '../utils/useCosmWasmClient';
+import { CosmWasmClientHandler, defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
 import {
   NFTDisplayInformation,
   NFTInfo,
@@ -42,11 +41,10 @@ export const useGetOwnedCollection = (
     throw new Error(`Invalid rpc URL for chain ${chain}`);
   }
 
-  const { client, status: clientStatus } = useCosmWasmClient(rpcUrl);
-
   const queryData = useQuery<OwnedCollectionInfo>({
-    queryKey: ['get-owned-collection', tokensListByCollection, fetchTillIndex],
+    queryKey: ['get-owned-collection', rpcUrl, tokensListByCollection, fetchTillIndex],
     queryFn: async () => {
+      const client = await CosmWasmClientHandler.getClient(rpcUrl);
       if (!client || !tokensListByCollection.collection.address) {
         throw new Error('useGetAllNFTsList: Invalid state');
       }
@@ -107,7 +105,7 @@ export const useGetOwnedCollection = (
             //
           }
           // For domain name nfts
-          if (extension.name && extension.domain) {
+          if (extension && extension.name && extension.domain) {
             return {
               name: extension.name,
               domain: extension.domain,
@@ -127,7 +125,7 @@ export const useGetOwnedCollection = (
         tokens: resolvedInfo,
       };
     },
-    enabled: clientStatus === 'success' && customQueryOptions.enabled !== false && !!tokensListByCollection,
+    enabled: customQueryOptions.enabled !== false && !!tokensListByCollection,
     ...customQueryOptions,
   });
 

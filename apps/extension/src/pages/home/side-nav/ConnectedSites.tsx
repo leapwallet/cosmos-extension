@@ -94,7 +94,19 @@ const ConnectedSites = ({ setPage }: Props) => {
     if (!searchQuery) {
       return sites
     }
-    return sitesFuse.search(clearSearchQuery).map((site) => site.item)
+
+    return sitesFuse
+      .search(clearSearchQuery)
+      .map((site) => site.item)
+      .filter((site) => {
+        // filtering Invalid URLs
+        try {
+          new URL(site) // throws TypeError incase of an Invalid URL
+          return true
+        } catch (_) {
+          return false
+        }
+      })
   }, [searchQuery, sites, sitesFuse])
 
   const activeChainId = useMemo(() => {

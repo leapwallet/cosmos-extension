@@ -7,16 +7,16 @@ import extension from 'webextension-polyfill'
 
 import BottomSheet from '../../components/bottom-sheet/BottomSheet'
 import Text from '../../components/text'
-import { useActiveChain } from '../../hooks/settings/useActiveChain'
 import useActiveWallet from '../../hooks/settings/useActiveWallet'
 import { Wallet } from '../../hooks/wallet/useWallet'
 import { sliceAddress } from '../../utils/strings'
 import { NewWalletForm } from './CreateNewWallet'
 import { EditWalletForm } from './EditWallet'
-import ImportWalletForm from './ImportWallet'
+import { ImportPrivateKey } from './ImportPrivateKey'
+import { ImportSeedPhrase } from './ImportSeedPhrase'
 import useWallets = Wallet.useWallets
 
-import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { Key, useActiveChain, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Colors } from 'theme/colors'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
@@ -29,7 +29,7 @@ type SelectWalletProps = {
   readonly title: string
   readonly hideCreateNewWallet?: boolean
   readonly currentWalletInfo?: {
-    wallets: [Wallet.Key]
+    wallets: [Key]
     chainIds: [string]
     origin: string
   } | null
@@ -43,13 +43,16 @@ export default function SelectWallet({
   hideCreateNewWallet,
 }: SelectWalletProps) {
   const [isNewWalletFormVisible, setIsNewWalletFormVisible] = useState(false)
-  const [isImportWalletVisible, setIsImportWalletVisible] = useState(false)
   const [isEditWalletVisible, setIsEditWalletVisible] = useState(false)
   const wallets = useWallets()
+  const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
   const { activeWallet, setActiveWallet } = useActiveWallet()
-  const [editWallet, setEditWallet] = useState<Wallet.Key>()
+  const [editWallet, setEditWallet] = useState<Key>()
   const navigate = useNavigate()
+
+  const [showImportPrivateKey, setShowImportPrivateKey] = useState(false)
+  const [showImportSeedPhrase, setShowImportSeedPhrase] = useState(false)
 
   const walletsList = useMemo(() => {
     return wallets
@@ -62,7 +65,7 @@ export default function SelectWallet({
   const handleConnectWalletClick = async () => {
     await addToConnections(
       currentWalletInfo?.chainIds as [string],
-      currentWalletInfo?.wallets as Wallet.Key[],
+      currentWalletInfo?.wallets as Key[],
       currentWalletInfo?.origin as string,
     )
     onClose()
@@ -127,7 +130,8 @@ export default function SelectWallet({
               </div>
             </div>
           )}
-          <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 max-h-[250px] overflow-y-auto mx-7 mt-7 mb-4 py-1'>
+
+          <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 max-h-[200px] overflow-y-auto mx-7 mt-7 mb-4 py-1'>
             {walletsList.map((wallet, index, array) => {
               const isLast = index === array.length - 1
               if (wallet.id === currentWalletInfo?.wallets?.[0]?.id) return null
@@ -164,7 +168,8 @@ export default function SelectWallet({
                     icon={
                       <div
                         className='flex h-[56px] w-[56px] hover:cursor-pointer justify-center text-gray-400 items-center bg-white-100 dark:bg-gray-900 material-icons-round'
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setEditWallet(wallet)
                           setIsEditWalletVisible(true)
                         }}
@@ -173,10 +178,11 @@ export default function SelectWallet({
                         more_horiz
                       </div>
                     }
-                    //juno1...a9d6 · Imported
-                    subtitle={`${sliceAddress(wallet.addresses[activeChain])}${walletLabel}`}
+                    subtitle={`${sliceAddress(
+                      wallet.addresses[activeChainInfo.key],
+                    )}${walletLabel}`}
                     isSelected={activeWallet?.id === wallet.id}
-                    imgSrc={Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
+                    imgSrc={wallet?.avatar ?? Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
                     color={Colors.getChainColor(activeChain)}
                     isRounded={true}
                   />
@@ -185,6 +191,7 @@ export default function SelectWallet({
               )
             })}
           </div>
+
           {!hideCreateNewWallet ? (
             <>
               <div className='bg-white-100 dark:bg-gray-900 rounded-2xl py-4 mx-7 mb-4'>
@@ -198,19 +205,30 @@ export default function SelectWallet({
                     Create new wallet
                   </Text>
                 </div>
+
                 <CardDivider />
                 <div
-                  onClick={() => {
-                    setIsImportWalletVisible(true)
-                  }}
-                  className='flex items-center px-4 pt-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+                  onClick={() => setShowImportSeedPhrase(true)}
+                  className='flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
                 >
                   <span className='material-icons-round text-gray-400 mr-4'>download</span>
                   <Text size='md' className='font-bold'>
-                    Import an existing wallet
+                    Import using seed phrase
+                  </Text>
+                </div>
+
+                <CardDivider />
+                <div
+                  onClick={() => setShowImportPrivateKey(true)}
+                  className='flex items-center px-4 pt-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+                >
+                  <img src={Images.Misc.FilledKey} alt='filled-key' className='mr-4' />
+                  <Text size='md' className='font-bold'>
+                    Import using private key
                   </Text>
                 </div>
               </div>
+
               <div
                 onClick={() => {
                   const views = extension.extension.getViews({ type: 'popup' })
@@ -231,13 +249,15 @@ export default function SelectWallet({
           ) : null}
         </div>
       </BottomSheet>
+
       <EditWalletForm
-        wallet={editWallet as Wallet.Key}
+        wallet={editWallet as Key}
         isVisible={isEditWalletVisible}
         onClose={() => {
           setIsEditWalletVisible(false)
         }}
       />
+
       <NewWalletForm
         isVisible={isNewWalletFormVisible}
         onClose={(closeSelectWallet: boolean) => {
@@ -247,13 +267,20 @@ export default function SelectWallet({
           setIsNewWalletFormVisible(false)
         }}
       />
-      <ImportWalletForm
-        isVisible={isImportWalletVisible}
+
+      <ImportSeedPhrase
+        isVisible={showImportSeedPhrase}
         onClose={(closeSelectWallet: boolean) => {
-          if (closeSelectWallet) {
-            onClose()
-          }
-          setIsImportWalletVisible(false)
+          if (closeSelectWallet) onClose()
+          setShowImportSeedPhrase(false)
+        }}
+      />
+
+      <ImportPrivateKey
+        isVisible={showImportPrivateKey}
+        onClose={(closeSelectWallet: boolean) => {
+          if (closeSelectWallet) onClose()
+          setShowImportPrivateKey(false)
         }}
       />
     </>

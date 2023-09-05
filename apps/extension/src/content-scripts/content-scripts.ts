@@ -11,7 +11,8 @@ let extensionPort: any
 let extensionStream: any
 let pageStream: any
 
-browser.runtime.onMessage.addListener((data) => {
+browser.runtime.onMessage.addListener((data, sender) => {
+  if (sender.id !== browser.runtime.id) return
   if (data?.event === 'leap_keystorechange') {
     const customEvent = new CustomEvent('leap_keystorechange', { detail: {} })
     window.dispatchEvent(customEvent)
@@ -65,7 +66,18 @@ function doctypeCheck() {
  * @returns {boolean} - whether or not the extension of the current document is prohibited
  */
 function suffixCheck() {
-  const prohibitedTypes = [/\.xml$/, /\.pdf$/]
+  const prohibitedTypes = [
+    /\.xml$/,
+    /\.pdf$/,
+    /\.asp$/,
+    /\.jsp$/,
+    /\.php$/,
+    /\.md$/,
+    /\.svg$/,
+    /\.docx$/,
+    /\.odt$/,
+    /\.eml$/,
+  ]
   const currentUrl = window.location.pathname
   for (let i = 0; i < prohibitedTypes.length; i += 1) {
     if (prohibitedTypes[i].test(currentUrl)) {

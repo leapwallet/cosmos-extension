@@ -13,11 +13,26 @@ export function useInitChainInfos() {
 
   useEffect(() => {
     function getBetaChains() {
-      browser.storage.local.get([BETA_CHAINS, CUSTOM_ENDPOINTS]).then((resp) => {
-        const _chains = {
-          ...ChainInfos,
-          ...JSON.parse(resp[BETA_CHAINS] ?? '{}'),
+      browser.storage.local.get([BETA_CHAINS, CUSTOM_ENDPOINTS]).then(async (resp) => {
+        const betaChains = JSON.parse(resp[BETA_CHAINS] ?? '{}')
+
+        for (const chainName in betaChains) {
+          if (
+            Object.values(ChainInfos).some((chainInfo) =>
+              [chainInfo.chainId, chainInfo.testnetChainId].includes(betaChains[chainName].chainId),
+            )
+          ) {
+            delete betaChains[chainName]
+          }
         }
+
+        await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
+
+        const _chains = {
+          ...betaChains,
+          ...ChainInfos,
+        }
+
         const customEndpoints = JSON.parse(resp[CUSTOM_ENDPOINTS] ?? '{}')
 
         for (const chain in customEndpoints) {
@@ -26,9 +41,21 @@ export function useInitChainInfos() {
           let _chain = _chains[chain]
 
           if (isChainHaveTestnetOnly) {
-            _chain = { ..._chain, apis: { ..._chain.apis, restTest: lcd, rpcTest: rpc } }
+            if (rpc) {
+              _chain = { ..._chain, apis: { ..._chain.apis, rpcTest: rpc } }
+            }
+
+            if (lcd) {
+              _chain = { ..._chain, apis: { ..._chain.apis, restTest: lcd } }
+            }
           } else {
-            _chain = { ..._chain, apis: { ..._chain.apis, rest: lcd, rpc } }
+            if (rpc) {
+              _chain = { ..._chain, apis: { ..._chain.apis, rpc } }
+            }
+
+            if (lcd) {
+              _chain = { ..._chain, apis: { ..._chain.apis, rest: lcd } }
+            }
           }
 
           _chains[chain] = _chain

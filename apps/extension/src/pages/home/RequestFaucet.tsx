@@ -101,12 +101,13 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
     },
   )
 
-  // TODO: handle the case where there are more properties on faucetDetails.payloadSchema.schema
-  // TODO: in future when we have configuration for multiple faucets, add a responseSchema to the faucet config
+  // TODO:- handle the case where there are more properties on faucetDetails.payloadSchema.schema
+  // TODO:- in future when we have configuration for multiple faucets, add a responseSchema to the faucet config
   const handleSubmit = async () => {
     try {
       if (getBlockChainFromAddress(address) === 'sei') {
         window.open('https://app.sei.io/faucet', '_blank')
+        return
       }
 
       const res = await hCaptchaRef.current?.execute({ async: true })

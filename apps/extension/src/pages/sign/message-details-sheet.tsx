@@ -9,11 +9,13 @@ import { getSimpleType, useMessageDetails } from './message-details'
 
 const MessageDetailsSheet: React.FC<{
   isOpen: boolean
+  // eslint-disable-next-line no-unused-vars
   setIsOpen: (isOpen: boolean) => void
   onClose: () => void
   message: {
     index: number
     parsed: ParsedMessage
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     raw: any
   } | null
 }> = ({ isOpen, setIsOpen, message, onClose }) => {

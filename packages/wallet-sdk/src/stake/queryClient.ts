@@ -1,7 +1,7 @@
-import axios from 'axios';
 import { DenomsRecord } from 'types';
 
 import { SupportedDenoms } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
 import {
   Delegation,
   DelegationResponse,
@@ -12,16 +12,16 @@ import {
 } from '../types/staking';
 import { fromSmall } from '../utils';
 
-const stakeClient = axios.create({
-  timeout: 5000,
-});
-
 export const getDelegations = async (
   address: string,
   restUrl: string,
   denoms: DenomsRecord,
 ): Promise<Record<string, Delegation>> => {
-  const res = await stakeClient.get(restUrl + '/cosmos/staking/v1beta1/delegations/' + address);
+  const res = await axiosWrapper({
+    baseURL: restUrl,
+    method: 'get',
+    url: '/cosmos/staking/v1beta1/delegations/' + address,
+  });
   const result = res.data as DelegationResponse;
 
   result.delegation_responses.map(
@@ -41,7 +41,13 @@ export const getRewards = async (
   getIbcDenomInfo?: any,
   getChainInfoById?: any,
 ) => {
-  const res = await stakeClient.get(`${restUrl}/cosmos/distribution/v1beta1/delegators/${address}/rewards`, opts);
+  const res = await axiosWrapper({
+    baseURL: restUrl,
+    method: 'get',
+    url: `/cosmos/distribution/v1beta1/delegators/${address}/rewards`,
+    ...opts,
+  });
+
   const result = res.data as RewardsResponse;
 
   const resultRewards = await Promise.all(
@@ -90,9 +96,12 @@ const StakeQueryClient = async (chainId: string, restUrls: string, denoms: Denom
   const restUrl = restUrls;
 
   const getUnbondingDelegations = async (address: string, denom: SupportedDenoms) => {
-    const res = await stakeClient.get(
-      restUrl + '/cosmos/staking/v1beta1/delegators/' + address + '/unbonding_delegations',
-    );
+    const res = await axiosWrapper({
+      baseURL: restUrl,
+      method: 'get',
+      url: '/cosmos/staking/v1beta1/delegators/' + address + '/unbonding_delegations',
+    });
+
     const result = res.data as UnbondingDelegationResponse;
 
     result.unbonding_responses.map((r) => {

@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-hooks",
-  "version": "0.4.27",
+  "version": "0.4.41",
   "description": "Wallet hooks for cosmos mobile app and extension.",
   "main": "dist/index.js",
   "scripts": {
@@ -11,11 +11,11 @@
     "eslint:fix": "eslint --fix ./src",
     "prettier:check": "prettier -c ./src",
     "prettier:write": "prettier -w ./src",
-    "prepublish": "yarn build",
-    "preinstall": "node -r dotenv/config ./scripts/prepareApp.js dotenv_config_path=.env"
+    "prepublish": "yarn build"
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "scripts/**/*"
   ],
   "repository": {
     "url": "git@github.com:leapwallet/leap-cosmos.git"
@@ -24,20 +24,20 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@leapwallet/cosmos-wallet-sdk": "0.4.27",
-    "@leapwallet/fallback-falooda": "0.3.0",
+    "@leapwallet/cosmos-wallet-sdk": "0.4.41",
     "@leapwallet/parser-parfait": "0.6.1",
     "@tanstack/react-query": "4.2.3",
     "@tanstack/react-query-devtools": "4.2.3",
+    "dotenv": "16.3.1",
     "zustand": "4.1.1",
-    "@leapwallet/wallet-api": "*"
+    "@leapwallet/leap-api-js": "0.21.0"
   },
   "devDependencies": {
     "@babel/preset-env": "7.18.0",
     "@babel/preset-typescript": "7.17.12",
     "@types/jest": "27.5.1",
     "@types/lodash": "4.14.182",
-    "babel-plugin-transform-import-meta": "2.1.1",
+    "babel-plugin-transform-import-meta": "2.2.1",
     "eslint-plugin-jsdoc": "39.3.0",
     "jest": "28.1.0",
     "typescript": "4.6.4"

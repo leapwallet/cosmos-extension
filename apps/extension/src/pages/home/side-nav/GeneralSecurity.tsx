@@ -1,5 +1,5 @@
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType, NavCard, ToggleCard } from '@leapwallet/leap-ui'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
 import { TimerLockPeriodRev, useLockTimer } from 'hooks/settings/usePassword'
 import { Images } from 'images'

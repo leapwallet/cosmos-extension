@@ -4,20 +4,13 @@ import {
   formatTokenAmount,
   GasOptions,
   useChainInfo,
-  useDefaultGasEstimates,
   useGasAdjustment,
   useGetTokenBalances,
   useNativeFeeDenom,
-  useSimulateStakeTx,
   useStakeTx,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import {
-  DEFAULT_GAS_REDELEGATE,
-  DefaultGasEstimates,
-  NativeDenom,
-  SupportedChain,
-} from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import { Avatar, Buttons, GenericCard, StakeInput } from '@leapwallet/leap-ui'
@@ -31,7 +24,6 @@ import Text from 'components/text'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { Colors } from 'theme/colors'
 import { Token } from 'types/bank'
 import { imgOnError } from 'utils/imgOnError'
 import { capitalize } from 'utils/strings'
@@ -46,6 +38,7 @@ import ReviewStakeTransaction, {
 
 import useGetWallet = Wallet.useGetWallet
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
+import { Colors } from 'theme/colors'
 
 export type STAKE_MODE = 'DELEGATE' | 'UNDELEGATE' | 'REDELEGATE' | 'CLAIM_REWARDS'
 
@@ -66,25 +59,16 @@ export default function InputStakeAmountView({
   unstakingPeriod: string
   mode: STAKE_MODE
 }) {
-  const chainInfo = useChainInfo()
+  const activeChainInfo = useChainInfo()
   const getWallet = useGetWallet()
   const txCallback = useTxCallBack()
   const defaultGasPrice = useDefaultGasPrice()
-  const defaultGasEstimates = useDefaultGasEstimates()
   const nativeFeeDenom = useNativeFeeDenom()
 
   const { allAssets } = useGetTokenBalances()
 
   const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
   const [feeDenom, setFeeDenom] = useState<NativeDenom>(nativeFeeDenom)
-  const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
-    if (mode === 'REDELEGATE') return DEFAULT_GAS_REDELEGATE.toString()
-    return (
-      defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE.toString() ??
-      DefaultGasEstimates.DEFAULT_GAS_STAKE
-    )
-  })
-  const [gasLimit, setGasLimit] = useState<string>(recommendedGasLimit)
   const [showReviewTransactionSheet, setReviewTransactionSheet] = useState<boolean>(false)
   const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
     gasPrice: defaultGasPrice.gasPrice,
@@ -96,11 +80,8 @@ export default function InputStakeAmountView({
   const [displayFeeValue, setDisplayFeeValue] = useState<any>(null)
   const { data: toKeybaseImageUrl } = useValidatorImage(toValidator)
 
-  const simulateTx = useSimulateStakeTx(mode, toValidator, fromValidator, [
-    delegation as Delegation,
-  ])
-
   const {
+    recommendedGasLimit,
     amount,
     error,
     clearError,
@@ -110,12 +91,16 @@ export default function InputStakeAmountView({
     setAmount,
     showLedgerPopup,
     isLoading,
+    setLedgerError,
+    ledgerError,
   } = useStakeTx(mode, toValidator, fromValidator, [delegation as Delegation])
+  const [gasLimit, setGasLimit] = useState<string>(recommendedGasLimit)
+
   const gasAdjustment = useGasAdjustment()
 
   const selectedToken = useMemo(() => {
-    return allAssets.find((asset) => asset.symbol === chainInfo.denom)
-  }, [allAssets, chainInfo.denom])
+    return allAssets.find((asset) => asset.symbol === activeChainInfo.denom)
+  }, [allAssets, activeChainInfo.denom])
 
   const customFee = useMemo(() => {
     const gasEstimate = Math.ceil(Number(gasLimit) * gasAdjustment)
@@ -135,33 +120,22 @@ export default function InputStakeAmountView({
   )
 
   const onSubmit = useCallback(async () => {
-    const wallet = await getWallet()
-    await onReviewTransaction(wallet, txCallback, false, {
-      stdFee: customFee,
-      feeDenom: feeDenom,
-    })
-  }, [customFee, feeDenom, getWallet, onReviewTransaction, txCallback])
-
-  useEffect(() => {
-    if (showReviewTransactionSheet) {
-      return
-    }
-    const amountBN = new BigNumber(amount)
-    const simulateAmount =
-      !amountBN.isNaN() && amountBN.isGreaterThan(0)
-        ? amount
-        : new BigNumber(delegation?.balance?.amount ?? 0).dividedBy(10).toString()
-
-    const timeout = setTimeout(() => {
-      simulateTx(simulateAmount).then(({ gasUsed }) => {
-        setRecommendedGasLimit(gasUsed.toString())
+    try {
+      const wallet = await getWallet()
+      await onReviewTransaction(wallet, txCallback, false, {
+        stdFee: customFee,
+        feeDenom: feeDenom,
       })
-    }, 250)
-
-    return () => {
-      clearTimeout(timeout)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      setLedgerError(e.message)
+      setTimeout(() => {
+        setLedgerError('')
+      }, 6000)
     }
-  }, [amount, delegation, showReviewTransactionSheet, simulateTx])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customFee, feeDenom, getWallet, onReviewTransaction, txCallback])
 
   const showAdjustmentSheet = useCallback(() => {
     setCheckForAutoAdjust(true)
@@ -197,12 +171,7 @@ export default function InputStakeAmountView({
   const balance = (mode === 'DELEGATE' ? token?.amount : delegation?.balance?.amount) ?? '0'
 
   const disableReview =
-    !!inputAmountError ||
-    !!gasError ||
-    !amount ||
-    +amount === 0 ||
-    +balance === 0 ||
-    +amount > +balance
+    !!inputAmountError || !amount || +amount === 0 || +balance === 0 || +amount > +balance
 
   return (
     <GasPriceOptions
@@ -232,7 +201,7 @@ export default function InputStakeAmountView({
             stakeAllText={capitalize(mode.toLowerCase())}
             setAmount={setAmount}
             balance={formatTokenAmount(token.amount)}
-            icon={token.img}
+            icon={activeChainInfo.chainSymbolImageUrl}
             onStakeAllClick={() => {
               setAmount(token.amount)
             }}
@@ -240,12 +209,12 @@ export default function InputStakeAmountView({
         )}
         {delegation && mode !== 'DELEGATE' && (
           <StakeInput
-            name={chainInfo.denom}
+            name={activeChainInfo.denom}
             amount={amount}
             setAmount={setAmount}
             stakeAllText={capitalize(mode.toLowerCase())}
             balance={delegation.balance?.amount ?? 0}
-            icon={chainInfo.chainSymbolImageUrl}
+            icon={activeChainInfo.chainSymbolImageUrl}
             onStakeAllClick={() => setAmount(delegation.balance.amount)}
           />
         )}
@@ -277,7 +246,7 @@ export default function InputStakeAmountView({
           setDisplayFeeValue={setDisplayFeeValue}
           setShowFeesSettingSheet={setShowFeesSettingSheet}
         />
-        {error && <ErrorCard text={error} />}
+        {(error ?? ledgerError) && <ErrorCard text={error ?? ledgerError} />}
         <Buttons.Generic
           color={Colors.getChainColor(activeChain)}
           size='normal'
@@ -313,6 +282,7 @@ export default function InputStakeAmountView({
       <ReviewStakeTransaction
         gasError={gasError}
         error={error}
+        ledgerError={ledgerError}
         feeDenom={feeDenom}
         displayFee={displayFeeValue}
         amount={amount}
@@ -335,7 +305,7 @@ export default function InputStakeAmountView({
           clearError()
           setReviewTransactionSheet(false)
         }}
-        showLedgerPopup={showLedgerPopup}
+        showLedgerPopup={!ledgerError && showLedgerPopup}
       />
     </GasPriceOptions>
   )

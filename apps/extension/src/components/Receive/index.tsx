@@ -1,3 +1,4 @@
+import { useActiveChain, useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Buttons,
@@ -9,7 +10,6 @@ import {
 } from '@leapwallet/leap-ui'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import kadoDarkLogo from 'images/logos/Kado-dark.svg'
@@ -32,8 +32,10 @@ export default function ReceiveToken({
   onCloseHandler,
 }: ReceiveTokenProps): ReactElement {
   const wallet = useActiveWallet().activeWallet
+  const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
-  const address = wallet?.addresses[activeChain]
+
+  const address = wallet?.addresses[activeChainInfo.key]
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
 
@@ -74,7 +76,7 @@ export default function ReceiveToken({
               UserClipboard.copyText(address)
             }}
           />
-          {ON_RAMP_SUPPORT_CHAINS.includes(activeChain) && (
+          {ON_RAMP_SUPPORT_CHAINS.includes(activeChainInfo.key) && (
             <div
               className='mt-2'
               onClick={() => {
@@ -87,7 +89,9 @@ export default function ReceiveToken({
                 isFilled
                 isRounded
                 size='lg'
-                title={`Buy ${activeChain === 'osmosis' ? 'AxlUSDC' : 'Crypto'} with Kado Ramp`}
+                title={`Buy ${
+                  activeChainInfo.key === 'osmosis' ? 'AxlUSDC' : 'Crypto'
+                } with Kado Ramp`}
               />
             </div>
           )}

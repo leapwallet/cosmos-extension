@@ -1,6 +1,7 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, StdFee } from '@cosmjs/stargate';
 import {
+  axiosWrapper,
   ChainInfos,
   DefaultGasEstimates,
   EthermintTxHandler,
@@ -98,9 +99,12 @@ export function useRestake() {
   } = useQuery(
     ['grants', restakeData?.address, activeChain, address],
     async () => {
-      const res = await axios.get(
-        `${lcdUrl}/cosmos/authz/v1beta1/grants?grantee=${restakeData?.address}&granter=${address}`,
-      );
+      const res = await axiosWrapper({
+        baseURL: lcdUrl,
+        method: 'get',
+        url: `/cosmos/authz/v1beta1/grants?grantee=${restakeData?.address}&granter=${address}`,
+      });
+
       const data = res.data;
       return (
         data.grants.find(
