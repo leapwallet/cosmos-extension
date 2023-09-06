@@ -15,6 +15,7 @@ export function getIbcTransferMsg(
   toAddress: string,
   transferAmount: Coin,
   timeoutHeight: Height | undefined,
+  memo = '',
 ) {
   const timeoutTimestampNanoseconds = timeoutTimestamp
     ? Long.fromNumber(timeoutTimestamp).multiply(1_000_000_000)
@@ -29,6 +30,7 @@ export function getIbcTransferMsg(
       token: transferAmount,
       timeoutHeight: timeoutHeight,
       timeoutTimestamp: timeoutTimestampNanoseconds,
+      memo,
     },
   };
   return transferMsg;

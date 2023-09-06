@@ -46,7 +46,7 @@ const queryPercentageChanges = async (ids: string, currency: Currency = Currency
       page: page.toString(),
     }).toString();
     const response = await fetch(`${process.env.COIN_GECKO_BASE_URL}/coins/markets?${params}`);
-    if (response?.status !== 200) continue;
+    if (response?.status !== 200) break;
     const json: PercentageChangesApiResponse = await response.json();
     if (json.length === 0) break;
     json.reduce((changes, { id, price_change_percentage_24h: change }) => {
