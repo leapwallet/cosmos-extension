@@ -3014,15 +3014,6 @@
     protobufjs "7.2.3"
     stridejs "0.6.2"
 
-"@leapwallet/leap-api-js@0.21.0":
-  version "0.21.0"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-api-js/0.21.0/7d180d4ccab76a412dc75271d8895c96988487e4#7d180d4ccab76a412dc75271d8895c96988487e4"
-  integrity sha512-5nR7Uem6vHxDqdNSnikTRmtFXTYSP5NkyGJAypFyDSjsrHjiRW+Sx6GIORIfxhO9RyhoNmFtR/nkrndHGFY6dg==
-  dependencies:
-    cross-fetch "3.1.5"
-    crypto-js "4.1.1"
-    typedi "0.10.0"
-
 "@leapwallet/leap-js@0.1.1":
   version "0.1.1"
   resolved "https://npm.pkg.github.com/download/@leapwallet/leap-js/0.1.1/5da78dcf7f29ae9e3be40e9086265fa0e5710d50#5da78dcf7f29ae9e3be40e9086265fa0e5710d50"
