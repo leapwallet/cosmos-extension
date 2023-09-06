@@ -3061,10 +3061,10 @@
     typedi "0.10.0"
     uuid "9.0.0"
 
-"@leapwallet/leap-ui@0.1.21":
-  version "0.1.21"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-ui/0.1.21/5adb77942242a0c551c69df5ea3c65142c145e68#5adb77942242a0c551c69df5ea3c65142c145e68"
-  integrity sha512-kNUcPRDBGreJZuwnPIhZhyQeXTJT+aJSbW6tz1UlQI2uOW4Ft4gBGZQr7uHbiDWm188jGM3sZ7iIpnUXYu1s7g==
+"@leapwallet/leap-ui@0.1.31":
+  version "0.1.31"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-ui/0.1.31/325aad29c5ee9cdf25151b0e8531723b94595b6c#325aad29c5ee9cdf25151b0e8531723b94595b6c"
+  integrity sha512-lfxUuIFVPz/moBvaPrfcJfyS9syiEPjWUqwQVumB4vHgaTYrzgGFlySjMlQq3ng8J6DbpXwD8eNP6KXHFmAwNg==
   dependencies:
     classnames "2.3.1"
     qr-code-styling "1.6.0-rc.1"
