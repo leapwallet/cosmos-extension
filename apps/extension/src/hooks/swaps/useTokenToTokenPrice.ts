@@ -27,9 +27,6 @@ export const useTokenToTokenPriceQuery = ({
     tokenB: tokenB as TokenInfo,
   })
 
-  // console.log("matchingPools", matchingPools)
-  // console.log("tokenAmount", tokenAmount)
-
   return useQuery({
     queryKey: [`tokenToTokenPrice/${tokenBSymbol}/${tokenASymbol}/${tokenAmount}`, tokenAmount],
     async queryFn() {

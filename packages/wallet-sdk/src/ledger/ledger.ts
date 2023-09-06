@@ -114,60 +114,6 @@ export class LeapLedgerSigner extends LedgerSigner {
   }
 }
 
-// TODO:- enable it when implementing ledger for evm chains
-
-/**
- * 
- * export class LeapLedgerSignerEth {
-  private readonly ledger: EthereumApp;
-  private readonly options: {
-    hdPaths: [string];
-    prefix: string;
-  };
-
-  constructor(transport: Transport, options: { hdPaths: [string]; prefix: string }) {
-    this.ledger = new EthereumApp(transport);
-    this.options = options;
-  }
-
-  private static domainHash(message: any) {
-    return TypedDataUtils.hashStruct('EIP712Domain', message, message.types, true);
-  }
-
-  private static messageHash(message: any) {
-    return TypedDataUtils.hashStruct(message.primaryType, message.message, message.types, true);
-  }
-
-  async getAccounts(): Promise<readonly AccountData[]> {
-    const hdPath = this.options.hdPaths?.toString();
-    const defaultHdPath = "m/44'/60'/0'/0/0";
-    const { address, publicKey } = await this.ledger.getAddress(hdPath ?? defaultHdPath);
-    const addressBuffer = EthereumUtilsAddress.fromString(address).toBuffer();
-    const bech32Address = bech32.encode(this.options.prefix ?? 'inj', bech32.toWords(addressBuffer));
-
-    return [
-      {
-        address: bech32Address,
-        algo: 'secp256k1',
-        pubkey: Buffer.from(publicKey),
-      },
-    ];
-  }
-
-  async signEpi712(message: EIP712Message) {
-    const hdPath = this.options.hdPaths?.toString();
-    const defaultHdPath = "m/44'/60'/0'/0/0";
-    const result = await this.ledger.signEIP712HashedMessage(
-      hdPath ?? defaultHdPath,
-      bufferToHex(LeapLedgerSignerEth.domainHash(message)),
-      bufferToHex(LeapLedgerSignerEth.messageHash(message)),
-    );
-    const combined = `${result.r}${result.s}${result.v.toString(16)}`;
-    return combined.startsWith('0x') ? combined : `0x${combined}`;
-  }
-}
-*/
-
 export async function importLedgerAccount(indexes?: Array<number>, primaryChain?: SupportedChain) {
   try {
     const addressIndexes = indexes ?? [0, 1, 2, 3];

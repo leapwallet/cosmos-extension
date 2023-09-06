@@ -51,14 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       } else {
         try {
           await testPassword(password)
-          /**
-           * when there is an active wallet, we don't need to decrypt the keychain,
-           * if we do it will overwrite the active wallet and keychain with the encrypted version
-           *
-           * on signout, we encrypt the updated keychain and active wallet.
-           *
-           * for some reason the password authentication failed errors are not propagated to the calling function when using async await
-           */
           browser.storage.local.get([ACTIVE_WALLET]).then(async () => {
             browser.runtime.sendMessage({ type: 'unlock', data: { password } })
             const listener = async (message: { type: string }, sender: any) => {
@@ -123,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         setTimeout(() => {
           if (loading) {
             setLoading(false)
-            //browser.runtime.onMessage.removeListener(listener)
           }
         }, 5000)
       } else {

@@ -13,7 +13,6 @@ export const useTokenToTokenPrice = async () => {
   const [tokenToTokenPrice, setTokenToTokenPrice] = useState<{ [key: string]: number }>({})
   useEffect(() => {
     getTokenForTokenPrice({}).then((res) => {
-      // console.log("Here is the res: ", res)
       setTokenToTokenPrice(res)
     })
   })
