@@ -59,6 +59,7 @@ export function getDirectSignDoc({
         memo: defaultMemo || memo,
       }).finish(),
       authInfoBytes: AuthInfo.encode({
+        //@ts-ignore
         signerInfos: protoSignDocDecoder.authInfo.signerInfos.map((signerInfo) => {
           return {
             ...signerInfo,

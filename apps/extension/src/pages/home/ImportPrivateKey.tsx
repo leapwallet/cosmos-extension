@@ -28,6 +28,11 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
   const importWallet = useImportWallet()
   const password = usePassword()
 
+  const onChangeHandler = (value: string) => {
+    setError('')
+    setPrivateKey(value)
+  }
+
   const handleImportWallet = async () => {
     setError('')
     setIsLoading(true)
@@ -70,7 +75,7 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
           Enter the private key below. This will import an existing wallet.
         </Text>
         <TextArea
-          onChange={(e) => setPrivateKey(e.target.value)}
+          onChange={(e) => onChangeHandler(e.target.value)}
           className={classNames(
             'border-solid border-2 bg-white-100 dark:bg-gray-900 text text-black-100 dark:text-white-100 p-4 text-center items-center justify-center rounded-lg w-[344px] h-[176px] resize-none focus:outline-none',
             {
