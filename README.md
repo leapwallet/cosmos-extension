@@ -1,4 +1,15 @@
-# Leap-Cosmos-Wallet
+![Leap_banner](https://github.com/leapwallet/cosmos-extension/assets/110881421/7477ee93-2c5e-40bc-af67-3b2084046269)
+
+
+## Leap🐸
+> The Super Wallet for the Interchain
+
+Available as [Chrome/Brave Extension](https://chrome.google.com/webstore/detail/leap-cosmos-wallet/fcfcfllfndlomdhbehjjcoimbgofdncg/?utm_source=website&utm_medium=permanent-website&utm_campaign=permanent)
+
+
+Available for iOS on the [App Store](https://apps.apple.com/in/app/leap-cosmos/id1642465549/?utm_source=website&utm_medium=permanent-website&utm_campaign=permanent)
+
+Available for Android on the [Google Play Store](https://play.google.com/store/apps/details?id=io.leapwallet.cosmos&utm_source=website&utm_medium=permanent-website&utm_campaign=permanent)
 
 ## Repo structure
 
