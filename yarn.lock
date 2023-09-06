@@ -3003,12 +3003,14 @@
     axios "^0.27.2"
     long "^4.0.0"
 
-"@leapwallet/buffer-boba@0.1.4":
-  version "0.1.4"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.4/c6b57b58391a761b4e9aa9e798f911940c01f224#c6b57b58391a761b4e9aa9e798f911940c01f224"
-  integrity sha512-fFSuynCDtOG2hcU9LHFpWS5K2eBJTbhWqIhV4GWvGWjgoo/78+tPzSqHymQf1Sgf2CYDogTwI5EEfa7uYNMPBw==
+"@leapwallet/buffer-boba@0.1.5":
+  version "0.1.5"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.5/b6c0f7ed79d16b9a7e6a165b75327a5c18dc6e72#b6c0f7ed79d16b9a7e6a165b75327a5c18dc6e72"
+  integrity sha512-8cvyGLUJpufu/7Q+Ug0wmIBf9M1bov0sCdpf8ufKto6lpweQfiq4cyPpjTc4ajuKqB+wuswz8q7heBtxhe53yg==
   dependencies:
     "@cosmjs/proto-signing" "0.30.1"
+    base64js "1.0.1"
+    cosmjs-types "0.8.0"
     long "5.2.0"
     osmojs "15.2.1"
     protobufjs "7.2.3"
@@ -3050,10 +3052,10 @@
     typedi "0.10.0"
     uuid "9.0.0"
 
-"@leapwallet/leap-ui@0.1.21":
-  version "0.1.21"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-ui/0.1.21/5adb77942242a0c551c69df5ea3c65142c145e68#5adb77942242a0c551c69df5ea3c65142c145e68"
-  integrity sha512-kNUcPRDBGreJZuwnPIhZhyQeXTJT+aJSbW6tz1UlQI2uOW4Ft4gBGZQr7uHbiDWm188jGM3sZ7iIpnUXYu1s7g==
+"@leapwallet/leap-ui@0.1.31":
+  version "0.1.31"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-ui/0.1.31/325aad29c5ee9cdf25151b0e8531723b94595b6c#325aad29c5ee9cdf25151b0e8531723b94595b6c"
+  integrity sha512-lfxUuIFVPz/moBvaPrfcJfyS9syiEPjWUqwQVumB4vHgaTYrzgGFlySjMlQq3ng8J6DbpXwD8eNP6KXHFmAwNg==
   dependencies:
     classnames "2.3.1"
     qr-code-styling "1.6.0-rc.1"
@@ -6059,6 +6061,11 @@ base64-js@1.5.1, base64-js@^1.3.0, base64-js@^1.3.1, base64-js@^1.5.1:
   resolved "https://registry.yarnpkg.com/base64-js/-/base64-js-1.5.1.tgz#1b1b440160a5bf7ad40b650f095963481903930a"
   integrity sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==
 
+base64js@1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/base64js/-/base64js-1.0.1.tgz#1093cea0dc68731fff6bd247641048b95e20dff6"
+  integrity sha512-jxGN7DS7e+HHO5u+UT9NzK2BMKJByQPmmdXyvad7TN0mPKGC4kRMTnnV7g7HqhLlW51AFmtbRM4IDGxysBYuVg==
+
 basic-ftp@^5.0.2:
   version "5.0.3"
   resolved "https://registry.yarnpkg.com/basic-ftp/-/basic-ftp-5.0.3.tgz#b14c0fe8111ce001ec913686434fe0c2fb461228"
@@ -7109,14 +7116,6 @@ cosmiconfig@^8.2.0:
     parse-json "^5.0.0"
     path-type "^4.0.0"
 
-cosmjs-types@0.5.0:
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.5.0.tgz#2497a2c5ddf62a8e8dea03e0725b8cd763d4ab4f"
-  integrity sha512-Qy2yxDp5HasBUnBV5OL9EOuTJw94LAbCWfiRb5QcW1sqh93KSSY5PpNMB3rTsxwuPcf/k3CNRY02DeQMjrsJuA==
-  dependencies:
-    long "^4.0.0"
-    protobufjs "~6.11.2"
-
 cosmjs-types@0.5.1:
   version "0.5.1"
   resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.5.1.tgz#f9bc35e78c32b687fb6018dc573eb454b3ae2587"
@@ -7129,6 +7128,14 @@ cosmjs-types@0.6.1:
   version "0.6.1"
   resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.6.1.tgz#4944e83d0fa87880243a11813bdff0e313d39a68"
   integrity sha512-fRz6yzElHHBULDyLArF/G1UkkTWW4r3RondBUGnmSsZWYI5NpfDn32MVa5aRmpaaf4tJI2cbnXHs9fykwU7Ttg==
+  dependencies:
+    long "^4.0.0"
+    protobufjs "~6.11.2"
+
+cosmjs-types@0.8.0:
+  version "0.8.0"
+  resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.8.0.tgz#2ed78f3e990f770229726f95f3ef5bf9e2b6859b"
+  integrity sha512-Q2Mj95Fl0PYMWEhA2LuGEIhipF7mQwd9gTQ85DdP9jjjopeoGaDxvmPa5nakNzsq7FnO1DMTatXTAx6bxMH7Lg==
   dependencies:
     long "^4.0.0"
     protobufjs "~6.11.2"

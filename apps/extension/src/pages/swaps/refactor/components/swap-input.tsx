@@ -129,6 +129,10 @@ export default function SwapInput({
   const autoAdjustSheetPreCondition =
     selectedToken && selectedNativeDenom && amountValue && customFee
 
+  const fromTokenDecimalValue =
+    Number(selectedTokenBalanceBN.toFixed(fromTokenDecimalPlaces)).toString().split('.')[1]
+      ?.length ?? fromTokenDecimalPlaces
+
   return (
     <div className='relative w-[400px] h-full'>
       <div className='flex flex-row justify-center pt-7'>
@@ -165,7 +169,7 @@ export default function SwapInput({
             </div>
             <div className='flex mt-2 w-full justify-between items-start'>
               <p
-                className={classNames('font-bold', getLabelSize(fromTokenDecimalPlaces), {
+                className={classNames('font-bold', getLabelSize(fromTokenDecimalValue), {
                   'text-red-300': amountExceedsBalance,
                   'text-gray-400': !amountExceedsBalance,
                 })}
@@ -173,7 +177,7 @@ export default function SwapInput({
                 {`${amountExceedsBalance ? 'Insufficient Funds' : 'Balance'}: ${
                   selectedTokenBalanceBN.isEqualTo(0)
                     ? '0'
-                    : selectedTokenBalanceBN.toFixed(fromTokenDecimalPlaces).toString()
+                    : Number(selectedTokenBalanceBN.toFixed(fromTokenDecimalPlaces))
                 } ${selectedToken?.symbol ?? ''}`}
               </p>
               <div className='flex flex-col self-end'>

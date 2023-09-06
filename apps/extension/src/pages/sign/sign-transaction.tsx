@@ -72,7 +72,7 @@ import StaticFeeDisplay from './static-fee-display'
 import TransactionDetails from './transaction-details'
 import { isGenericOrSendAuthzGrant } from './utils/is-generic-or-send-authz-grant'
 import { getAminoSignDoc } from './utils/sign-amino'
-import { getDirectSignDoc } from './utils/sign-direct'
+import { getDirectSignDoc, getProtoSignDocDecoder } from './utils/sign-direct'
 import { logDirectTx } from './utils/tx-logger'
 
 const useGetWallet = Wallet.useGetWallet
@@ -190,7 +190,7 @@ const SignTransaction = ({
             raw: result.signDoc.msgs,
             parsed: {
               __type: 'sign/MsgSignData',
-              message: Buffer.from(result.signDoc.msgs[0].value.data, 'base64').toString(),
+              message: result.signDoc.msgs[0].value.data,
             },
           },
         ]
@@ -239,9 +239,8 @@ const SignTransaction = ({
         isGasOptionSelected: selectedGasOptionRef.current,
       })
 
-      const docDecoder = new DirectSignDocDecoder({
-        ...result.signDoc,
-        accountNumber: result.signDoc.accountNumber,
+      const docDecoder = getProtoSignDocDecoder({
+        'sign-request': txnSigningRequest,
       })
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
