@@ -1,4 +1,5 @@
-![Leap_banner](https://github.com/leapwallet/cosmos-extension/assets/110881421/7477ee93-2c5e-40bc-af67-3b2084046269)
+
+![Leap_banner](https://github.com/leapwallet/cosmos-extension/assets/110881421/94f43d03-5c9d-4f3b-ba4d-0830e629317e)
 
 
 ## Leap🐸
