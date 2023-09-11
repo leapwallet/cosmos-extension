@@ -109,6 +109,7 @@ export const chainIdToChain: Record<string, string> = {
   'imversed-test-1': 'imversed',
   'uni-3': 'juno',
   'uni-5': 'juno',
+  'uni-6': 'juno',
   'kichain-t-4': 'kichain',
   korellia: 'korellia',
   'osmo-test-4': 'osmosis',
@@ -146,5 +147,5 @@ export const chainIdToChain: Record<string, string> = {
   'mayachain-mainnet-v1': 'mayachain',
   'empowerchain-1': 'empowerchain',
   'dydx-testnet-1': 'dydx',
-  'mocha-3': 'celestiatestnet3',
+  'mocha-4': 'celestiatestnet3',
 };

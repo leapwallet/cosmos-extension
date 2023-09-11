@@ -9,6 +9,7 @@ import {
   fromSmall,
   getApr,
   getChainInfo,
+  getSimulationFee,
   getUnbondingTime,
   InjectiveTx,
   LedgerError,
@@ -429,8 +430,9 @@ export function useSimulateStakeTx(
   );
 
   const simulateTx = useCallback(
-    async (_amount: string) => {
+    async (_amount: string, feeDenom: string) => {
       const amount = getAmount(_amount);
+      const fee = getSimulationFee(feeDenom);
       switch (mode) {
         case 'REDELEGATE':
           return await simulateRedelegate(
@@ -439,17 +441,18 @@ export function useSimulateStakeTx(
             toValidator?.address ?? '',
             fromValidator?.address ?? '',
             amount,
+            fee,
           );
         case 'DELEGATE':
-          return await simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return await simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
         case 'CLAIM_REWARDS': {
           const validators =
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
-          return await simulateWithdrawRewards(lcdUrl ?? '', address, validators);
+          return await simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
         }
         case 'UNDELEGATE':
-          return await simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return await simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
       }
     },
     [address, toValidator, fromValidator, mode, delegations],
@@ -542,7 +545,8 @@ export function useStakeTx(
   };
 
   const simulateTx = useCallback(
-    (amount: Coin) => {
+    (amount: Coin, feeDenom: string) => {
+      const fee = getSimulationFee(feeDenom);
       switch (mode) {
         case 'REDELEGATE':
           return simulateRedelegate(
@@ -551,17 +555,18 @@ export function useStakeTx(
             toValidator?.address ?? '',
             fromValidator?.address ?? '',
             amount,
+            fee,
           );
         case 'DELEGATE':
-          return simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
         case 'CLAIM_REWARDS': {
           const validators =
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
-          return simulateWithdrawRewards(lcdUrl ?? '', address, validators);
+          return simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
         }
         case 'UNDELEGATE':
-          return simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
       }
     },
     [address, toValidator, fromValidator, memo, mode, delegations],
@@ -677,7 +682,7 @@ export function useStakeTx(
         }
 
         try {
-          const { gasUsed } = await simulateTx(amt);
+          const { gasUsed } = await simulateTx(amt, gasPrice.denom);
           gasEstimate = gasUsed;
           setRecommendedGasLimit(gasUsed.toString());
         } catch (error: any) {

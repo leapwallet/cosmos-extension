@@ -205,12 +205,7 @@ function ProposalList({
         <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
           <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>Proposals</div>
           <div className='text-sm text-gray-600 font-bold'>
-            List of proposals in{' '}
-            {activeChain.toLowerCase() === 'maincoreum'
-              ? 'COREUM'
-              : activeChain.toLowerCase() === 'seitestnet2'
-              ? 'SEI'
-              : activeChain.toUpperCase()}
+            List of proposals in {activeChainInfo.chainName}
           </div>
           <div className='flex items-center justify-between mt-6 mb-4'>
             <div className='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>

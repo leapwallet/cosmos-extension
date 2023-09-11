@@ -87,7 +87,7 @@ export function useChainApis(forceChain?: SupportedChain, forceNetwork?: 'mainne
   const _activeChain = useActiveChain();
   const activeChain = forceChain ?? _activeChain;
   const isTestnetRpcAvailable = useApiAvailability(
-    selectedNetwork === 'testnet' ? chains[activeChain].apis.rpcTest ?? '' : '',
+    selectedNetwork === 'testnet' ? chains[activeChain]?.apis?.rpcTest ?? '' : '',
   );
 
   const getChainApis = useGetChainApis(activeChain, selectedNetwork, chains);

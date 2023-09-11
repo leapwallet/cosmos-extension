@@ -62,15 +62,15 @@ export function useGetStargazeNFTs(stargazeAddress: string, selectedNetwork: str
             const nft: OmniflixNft = {
               extension: null,
               collection: {
-                name: nftEntry.collection.name,
-                address: nftEntry.collection.contractAddress,
-                image: nftEntry.collection.media.url,
+                name: nftEntry.collection.name ?? '',
+                address: nftEntry.collection.contractAddress ?? '',
+                image: nftEntry.collection.media.url ?? '',
               },
-              description: nftEntry.description,
-              name: nftEntry.name,
-              image: nftEntry.media.url,
-              tokenId: nftEntry.tokenId,
-              tokenUri: `https://www.stargaze.zone/marketplace/${nftEntry.id}`,
+              description: nftEntry.description ?? '',
+              name: nftEntry.name ?? '',
+              image: nftEntry.media.url ?? '',
+              tokenId: nftEntry.tokenId ?? '',
+              tokenUri: `https://www.stargaze.zone/marketplace/${nftEntry.id ?? ''}`,
             };
 
             if (nftEntry.traits) {

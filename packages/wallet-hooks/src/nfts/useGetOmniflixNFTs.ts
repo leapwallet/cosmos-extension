@@ -30,16 +30,16 @@ export function useGetOmniflixNFTs(
           const nft: OmniflixNft = {
             extension: null,
             collection: {
-              name: nftEntry.denom.name,
-              address: nftEntry.denom.id,
-              image: nftEntry.denom.preview_uri,
+              name: nftEntry.denom.name ?? '',
+              address: nftEntry.denom.id ?? '',
+              image: nftEntry.denom.preview_uri ?? '',
             },
-            description: nftEntry.description,
-            name: nftEntry.name,
-            image: nftEntry.media_uri,
-            tokenId: nftEntry.id,
-            tokenUri: `https://omniflix.market/nft/${nftEntry.id}`,
-            media_type: nftEntry.media_type ?? nftEntry.denom.media_type,
+            description: nftEntry.description ?? '',
+            name: nftEntry.name ?? '',
+            image: nftEntry.media_uri ?? '',
+            tokenId: nftEntry.id ?? '',
+            tokenUri: `https://omniflix.market/nft/${nftEntry.id ?? ''}`,
+            media_type: nftEntry.media_type ?? nftEntry.denom.media_type ?? '',
           };
 
           if (nftEntry.data) {

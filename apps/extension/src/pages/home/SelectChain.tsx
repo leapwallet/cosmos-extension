@@ -37,10 +37,10 @@ export function ListChains({ onChainSelect, selectedChain, onPage }: ListChainsP
         return false
       }
 
-      const chainName = chain.chainName === 'impacthub' ? 'ixo' : chain.chainName
+      const chainName = chainInfos[chain.chainName as unknown as SupportedChain].chainName
       return chainName.toLowerCase().includes(searchedChain.toLowerCase())
     })
-  }, [chains, onPage, searchedChain])
+  }, [chainInfos, chains, onPage, searchedChain])
 
   return (
     <>

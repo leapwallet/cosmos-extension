@@ -47,15 +47,16 @@ export namespace LeapWalletApi {
     priceChange: number;
     marketCap: number;
   }> {
-    if (!platforms[chain]) {
-      throw new Error();
+    let platform = platforms[chain];
+    if (!platform) {
+      platform = 'DEFAULT' as Platform;
     }
 
     let details;
 
     try {
       details = await leapApi.getMarketDescription({
-        platform: platforms[chain],
+        platform,
         token: token,
       });
     } catch (_) {
@@ -65,7 +66,7 @@ export namespace LeapWalletApi {
     const priceRes: MarketPricesResponse = await operateMarketPrices([token], chain, preferredCurrency);
     const priceChangeRes: MarketPercentageChangesResponse = await operateMarketPercentChanges([token], chain);
     const marketCapRes: MarketCapsResponse = await leapApi.getMarketCaps({
-      platform: platforms[chain],
+      platform,
       tokens: [token],
       currency: preferredCurrency,
     });
@@ -88,11 +89,13 @@ export namespace LeapWalletApi {
     days: number,
     currency: Currency,
   ): Promise<{ data: MarketChartPrice[]; minMax: MarketChartPrice[] }> {
-    if (!platforms[chain]) {
-      throw new Error();
+    let platform = platforms[chain];
+    if (!platform) {
+      platform = 'DEFAULT' as Platform;
     }
+
     const data = await leapApi.getMarketChart({
-      platform: platforms[chain],
+      platform,
       token: token,
       days: days,
       currency: currency,
@@ -125,11 +128,13 @@ export namespace LeapWalletApi {
     currencySelected?: Currency,
   ): Promise<MarketPricesResponse> {
     try {
-      if (!platforms[chain]) {
-        throw new Error();
+      let platform = platforms[chain];
+      if (!platform) {
+        platform = 'DEFAULT' as Platform;
       }
+
       return await leapApi.getMarketPrices({
-        platform: platforms[chain],
+        platform,
         tokens: tokens,
         currency: currencySelected,
       });
@@ -162,9 +167,14 @@ export namespace LeapWalletApi {
   function formatPlatforms(tokens: { platform: SupportedChain; tokenAddresses: string[] }[]) {
     return tokens
       .map((token) => {
+        let platform = platforms[token.platform];
+        if (!platform) {
+          platform = 'DEFAULT' as Platform;
+        }
+
         return {
           ...token,
-          platform: platforms[token.platform],
+          platform,
         };
       })
       .filter((token) => !!token.platform);
@@ -172,11 +182,12 @@ export namespace LeapWalletApi {
 
   export async function operateMarketPercentChanges(tokens: string[], chain: SupportedChain) {
     try {
-      if (platforms[chain]) {
-        return await leapApi.getMarketPercentageChanges({ platform: platforms[chain], tokens });
-      } else {
-        return {};
+      let platform = platforms[chain];
+      if (!platform) {
+        platform = 'DEFAULT' as Platform;
       }
+
+      return await leapApi.getMarketPercentageChanges({ platform, tokens });
     } catch (_) {
       return {};
     }

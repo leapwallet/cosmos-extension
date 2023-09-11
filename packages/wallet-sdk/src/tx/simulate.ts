@@ -24,13 +24,19 @@ import {
   getWithDrawRewardsMsg,
 } from './msgs/cosmos';
 
-export async function simulateSend(lcdEndpoint: string, fromAddress: string, toAddress: string, amount: Coin[]) {
+export async function simulateSend(
+  lcdEndpoint: string,
+  fromAddress: string,
+  toAddress: string,
+  amount: Coin[],
+  fee: Coin[],
+) {
   const msg = getSendTokensMsg(fromAddress, toAddress, amount);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgSend.encode(msg.value).finish(),
   };
-  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
+  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
 export async function simulateIbcTransfer(
@@ -42,13 +48,14 @@ export async function simulateIbcTransfer(
   port: string,
   timeoutTimestamp: number,
   timeoutHeight: Height | undefined,
+  fee: Coin[],
 ) {
   const msg = getIbcTransferMsg(timeoutTimestamp, port, channel, fromAddress, toAddress, amount, timeoutHeight);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgTransfer.encode(msg.value).finish(),
   };
-  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
+  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
 export async function simulateDelegate(
@@ -56,13 +63,14 @@ export async function simulateDelegate(
   fromAddress: string,
   validatorAddress: string,
   amount: Coin,
+  fee: Coin[],
 ) {
   const msg = getDelegateMsg(fromAddress, validatorAddress, amount);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgDelegate.encode(msg.value).finish(),
   };
-  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
+  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
 export async function simulateUndelegate(
@@ -70,13 +78,14 @@ export async function simulateUndelegate(
   fromAddress: string,
   validatorAddress: string,
   amount: Coin,
+  fee: Coin[],
 ) {
   const msg = getUnDelegateMsg(fromAddress, validatorAddress, amount);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgUndelegate.encode(msg.value).finish(),
   };
-  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
+  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
 export async function simulateRedelegate(
@@ -85,13 +94,14 @@ export async function simulateRedelegate(
   validatorDstAddress: string,
   validatorSrcAddress: string,
   amount: Coin,
+  fee: Coin[],
 ) {
   const msg = getRedelegateMsg(fromAddress, validatorDstAddress, validatorSrcAddress, amount);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgBeginRedelegate.encode(msg.value).finish(),
   };
-  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
+  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
 export async function simulateGrantRestake(
@@ -148,7 +158,12 @@ export async function simulateRevokeRestake(lcdEndpoint: string, fromAddress: st
   return await simulateTx(lcdEndpoint, fromAddress, messages);
 }
 
-export async function simulateWithdrawRewards(lcdEndpoint: string, fromAddress: string, validatorAddresses: string[]) {
+export async function simulateWithdrawRewards(
+  lcdEndpoint: string,
+  fromAddress: string,
+  validatorAddresses: string[],
+  fee: Coin[],
+) {
   const msgs = getWithDrawRewardsMsg(validatorAddresses, fromAddress);
   const encodedMsgs = msgs.map((msg) => {
     return {
@@ -156,10 +171,16 @@ export async function simulateWithdrawRewards(lcdEndpoint: string, fromAddress: 
       value: MsgUndelegate.encode(msg.value).finish(),
     };
   });
-  return await simulateTx(lcdEndpoint, fromAddress, encodedMsgs);
+  return await simulateTx(lcdEndpoint, fromAddress, encodedMsgs, { amount: fee });
 }
 
-export async function simulateVote(lcdEndpoint: string, fromAddress: string, proposalId: string, option: VoteOption) {
+export async function simulateVote(
+  lcdEndpoint: string,
+  fromAddress: string,
+  proposalId: string,
+  option: VoteOption,
+  fee: Coin[],
+) {
   const msg = getVoteMsg(option, proposalId, fromAddress);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
@@ -167,7 +188,7 @@ export async function simulateVote(lcdEndpoint: string, fromAddress: string, pro
     //@ts-ignore
     value: MsgVote.encode(msg.value).finish(),
   };
-  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
+  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
 export async function simulateTx(
@@ -195,7 +216,7 @@ export async function simulateTx(
             },
             multi: undefined,
           },
-          sequence: account.sequence,
+          sequence: `${account.sequence}`,
         }),
       ],
       fee: Fee.fromPartial({

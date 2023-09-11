@@ -23,6 +23,7 @@ import {
 import {
   DefaultGasEstimates,
   fromSmall,
+  getSimulationFee,
   NativeDenom,
   simulateIbcTransfer,
   simulateSend,
@@ -247,6 +248,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({
       const ibcChannelIds = [ibcChannelId] ?? (await getIbcChannelId(selectedAddress.address ?? ''))
 
       try {
+        const fee = getSimulationFee(feeDenom.coinMinimalDenom)
         const { gasUsed, gasWanted } = isIBCTransfer
           ? await simulateIbcTransfer(
               lcdUrl ?? '',
@@ -257,10 +259,15 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({
               'transfer',
               Math.floor(Date.now() / 1000) + 60,
               undefined,
+              fee,
             )
-          : await simulateSend(lcdUrl ?? '', fromAddress, selectedAddress.address ?? '', [
-              amountOfCoins,
-            ])
+          : await simulateSend(
+              lcdUrl ?? '',
+              fromAddress,
+              selectedAddress.address ?? '',
+              [amountOfCoins],
+              fee,
+            )
 
         if (activeChain === chainInfos.chihuahua.key) {
           setGasEstimate(gasWanted)
@@ -291,6 +298,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({
     lcdUrl,
     selectedAddress,
     selectedToken,
+    feeDenom,
   ])
 
   const value = useMemo(() => {

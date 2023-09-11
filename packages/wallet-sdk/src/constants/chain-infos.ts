@@ -335,7 +335,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   },
   juno: {
     chainId: 'juno-1',
-    testnetChainId: 'uni-5',
+    testnetChainId: 'uni-6',
     chainName: 'Juno',
     key: 'juno',
     chainRegistryPath: 'juno',
@@ -346,15 +346,15 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
         txUrl: 'https://www.mintscan.io/juno/txs',
       },
       testnet: {
-        name: 'NG Explorer',
-        txUrl: 'https://testnet.juno.explorers.guru/transaction',
+        name: 'Mintscan',
+        txUrl: 'https://testnet.mintscan.io/juno-testnet/txs',
       },
     },
     apis: {
       rest: 'https://rest.cosmos.directory/juno',
-      restTest: 'https://api.uni.kingnodes.com',
+      restTest: 'https://api.uni.junonetwork.io',
       rpc: 'https://rpc.cosmos.directory/juno',
-      rpcTest: 'https://rpc.uni.kingnodes.com',
+      rpcTest: 'https://rpc.uni.junonetwork.io',
       alternateRpc: 'https://juno-rpc.stakely.io',
     },
     denom: 'JUNO',
@@ -381,6 +381,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgb(255, 123, 124, 0.32) 0%, rgba(255, 123, 124, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   osmosis: {
     chainId: 'osmosis-1',
@@ -652,8 +653,10 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     apis: {
       rest: 'https://rest.cosmos.directory/axelar',
       rpc: 'https://rpc.cosmos.directory/axelar',
-      rpcTest: 'https://axelar-lisbon-rpc.allthatnode.com:26657',
-      restTest: 'https://axelar-lisbon-rpc.allthatnode.com:1317',
+      rpcTest: 'https://axelartest-rpc.quickapi.com',
+      restTest: 'https://axelartest-lcd.quickapi.com',
+      alternateRpcTest: 'https://rpc-axelar-testnet.imperator.co:443',
+      alternateRestTest: 'https://lcd-axelar-testnet.imperator.co:443',
     },
     denom: 'AXL',
     txExplorer: {
@@ -1972,23 +1975,23 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
   },
   celestiatestnet3: {
-    chainId: 'mocha-3',
-    testnetChainId: 'mocha-3',
+    chainId: 'mocha-4',
+    testnetChainId: 'mocha-4',
     key: 'celestiatestnet3',
     chainName: 'Mocha Testnet',
     chainRegistryPath: 'celestiatestnet3',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/filled-celestia.svg',
     apis: {
-      restTest: 'https://api-mocha.pops.one',
-      rpcTest: 'https://rpc-mocha.pops.one',
-      alternateRestTest: ' https://rest.cosmos.directory/celestiatestnet3',
-      alternateRpcTest: 'https://rpc.cosmos.directory/celestiatestnet3',
+      restTest: 'https://api-mocha-4.consensus.celestia-mocha.com',
+      rpcTest: 'https://rpc-mocha-4.consensus.celestia-mocha.com',
+      alternateRestTest: ' https://api-2-mocha-4.consensus.celestia-mocha.com',
+      alternateRpcTest: 'https://rpc-2-mocha-4.consensus.celestia-mocha.com',
     },
     denom: 'TIA',
     txExplorer: {
       testnet: {
-        name: 'Mintscan Testnet',
-        txUrl: 'https://testnet.mintscan.io/celestia-testnet/txs',
+        name: 'Celestia Explorer',
+        txUrl: 'https://celestia.explorers.guru/transaction',
       },
     },
     bip44: {

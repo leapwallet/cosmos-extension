@@ -150,7 +150,7 @@ export const useGetAllNFTsList = (
                 contract_info: {},
               });
               return {
-                collection: { address: collectionAddress, name: aboutContract.name },
+                collection: { address: collectionAddress, name: aboutContract.name ?? '' },
                 tokens,
               };
             } catch (_) {
