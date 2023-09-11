@@ -67,6 +67,8 @@ const initialFaucetResp: InitialFaucetResp = {
   status: null,
 }
 
+const hideSwap = true
+
 export default function Home() {
   const chainInfos = useChainInfos()
   const txDeclined = useQuery().get('txDeclined') ?? undefined
@@ -401,16 +403,18 @@ export default function Home() {
                   image={{ src: Images.Misc.IbcUnion, alt: 'IBC' }}
                   onClick={() => navigate('/ibc')}
                 />
-                <ClickableIcon
-                  image={{ src: 'swap_horiz', alt: 'Swap' }}
-                  onClick={() => {
-                    if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
-                      navigate('/swap')
-                    } else {
-                      window.open('https://cosmos.leapwallet.io/ibcswaps', '_blank')
-                    }
-                  }}
-                />
+                {!hideSwap ? (
+                  <ClickableIcon
+                    image={{ src: 'swap_horiz', alt: 'Swap' }}
+                    onClick={() => {
+                      if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
+                        navigate('/swap')
+                      } else {
+                        window.open('https://cosmos.leapwallet.io/ibcswaps', '_blank')
+                      }
+                    }}
+                  />
+                ) : null}
               </div>
             ) : (
               <div className='flex justify-between mb-6'>

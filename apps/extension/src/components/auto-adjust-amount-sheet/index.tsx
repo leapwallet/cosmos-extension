@@ -222,8 +222,8 @@ export const AutoAdjustAmountSheet: React.FC<{
   }, [closeAdjustmentSheet, navigate])
 
   const tokenBalance = useMemo(
-    () => toSmall(selectedToken.amount, nativeDenom.coinDecimals),
-    [nativeDenom.coinDecimals, selectedToken.amount],
+    () => toSmall(selectedToken?.amount ?? '0', nativeDenom?.coinDecimals ?? 6),
+    [nativeDenom?.coinDecimals, selectedToken?.amount],
   )
 
   const tokenAmount = useMemo(

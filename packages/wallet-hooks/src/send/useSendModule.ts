@@ -5,6 +5,7 @@ import {
   DefaultGasEstimates,
   Dict,
   fromSmall,
+  getSimulationFee,
   isEthAddress,
   NativeDenom,
   simulateIbcTransfer,
@@ -58,7 +59,7 @@ export type SendModuleType = Readonly<{
   selectedToken: Token | null;
   setSelectedToken: React.Dispatch<React.SetStateAction<Token | null>>;
   feeDenom: NativeDenom;
-  setFeeDenom: React.Dispatch<React.SetStateAction<NativeDenom>>;
+  setFeeDenom: React.Dispatch<React.SetStateAction<NativeDenom & { ibcDenom?: string }>>;
   gasEstimate: number;
   fee: StdFee | undefined;
   gasOption: GasOptions;
@@ -130,7 +131,7 @@ export function useSendModule(): SendModuleType {
 
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
-  const [feeDenom, setFeeDenom] = useState<NativeDenom>(nativeFeeDenom);
+  const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
 
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
@@ -277,6 +278,8 @@ export function useSendModule(): SendModuleType {
       const channelId = customIbcChannelId ?? ibcChannelId ?? '';
 
       try {
+        const fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom);
+
         const { gasUsed } = isIBCTransfer
           ? await simulateIbcTransfer(
               lcdUrl ?? '',
@@ -287,8 +290,9 @@ export function useSendModule(): SendModuleType {
               'transfer',
               Math.floor(Date.now() / 1000) + 60,
               undefined,
+              fee,
             )
-          : await simulateSend(lcdUrl ?? '', fromAddress, selectedAddress.address ?? '', [amountOfCoins]);
+          : await simulateSend(lcdUrl ?? '', fromAddress, selectedAddress.address ?? '', [amountOfCoins], fee);
 
         setGasEstimate(gasUsed);
       } catch (err) {
@@ -308,6 +312,7 @@ export function useSendModule(): SendModuleType {
     lcdUrl,
     selectedAddress,
     selectedToken,
+    feeDenom,
   ]);
 
   return {

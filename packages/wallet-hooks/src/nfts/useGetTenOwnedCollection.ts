@@ -55,9 +55,9 @@ export const useGetTenOwnedCollection = (
               nft_info: { token_id: tokenId },
             });
             return {
-              tokenUri: nftInfo.token_uri,
+              tokenUri: nftInfo.token_uri ?? '',
               extension: nftInfo.extension as Dict,
-              tokenId,
+              tokenId: tokenId ?? '',
             };
           } catch (_) {
             //
@@ -66,8 +66,8 @@ export const useGetTenOwnedCollection = (
       );
 
       const collection = {
-        name: tokensListByCollection.collection.name,
-        contractAddress: tokensListByCollection.collection.address,
+        name: tokensListByCollection.collection.name ?? '',
+        contractAddress: tokensListByCollection.collection.address ?? '',
       };
 
       let resolvedInfo = await Promise.all(
@@ -88,7 +88,7 @@ export const useGetTenOwnedCollection = (
             // for Zen on Injective, we get NFT Image in media property
             if ([nftDisplayInfo.name, nftDisplayInfo.image].includes(undefined) && nftDisplayInfo?.media) {
               nftDisplayInfo = {
-                image: nftDisplayInfo.media,
+                image: nftDisplayInfo.media ?? '',
                 name: nftDisplayInfo.title ?? nftDisplayInfo.name ?? '',
               };
             }
@@ -106,8 +106,8 @@ export const useGetTenOwnedCollection = (
           // For domain name nfts
           if (extension && extension.name && extension.domain) {
             return {
-              name: extension.name,
-              domain: extension.domain,
+              name: extension.name ?? '',
+              domain: extension.domain ?? '',
               collection,
               extension,
             };
@@ -118,8 +118,8 @@ export const useGetTenOwnedCollection = (
       resolvedInfo = resolvedInfo.filter((info) => info);
       return {
         collection: {
-          name: tokensListByCollection.collection.name,
-          image: resolvedInfo[0]?.image,
+          name: tokensListByCollection.collection.name ?? '',
+          image: resolvedInfo[0]?.image ?? '',
         },
         tokens: resolvedInfo,
       };

@@ -3003,10 +3003,10 @@
     axios "^0.27.2"
     long "^4.0.0"
 
-"@leapwallet/buffer-boba@0.1.5":
-  version "0.1.5"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.5/b6c0f7ed79d16b9a7e6a165b75327a5c18dc6e72#b6c0f7ed79d16b9a7e6a165b75327a5c18dc6e72"
-  integrity sha512-8cvyGLUJpufu/7Q+Ug0wmIBf9M1bov0sCdpf8ufKto6lpweQfiq4cyPpjTc4ajuKqB+wuswz8q7heBtxhe53yg==
+"@leapwallet/buffer-boba@0.1.6":
+  version "0.1.6"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.6/9558ca8a8c2c89ac17430a418f536cf31ddb5491#9558ca8a8c2c89ac17430a418f536cf31ddb5491"
+  integrity sha512-kflZL5tS1bF8OI6D1jTQy5PHy0v9ex6MTsNGTNOvx5i9jH3ZpJldIEGvcGxo3dcavJi+vjCbf+Jf2EGrZeilng==
   dependencies:
     "@cosmjs/proto-signing" "0.30.1"
     base64js "1.0.1"
