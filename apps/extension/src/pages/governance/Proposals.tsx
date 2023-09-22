@@ -1,4 +1,4 @@
-import { Proposal, useGetProposals } from '@leapwallet/cosmos-wallet-hooks'
+import { Proposal, useGovProposals } from '@leapwallet/cosmos-wallet-hooks'
 import { QueryStatus } from '@tanstack/react-query'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import React, { useEffect, useState } from 'react'
@@ -9,7 +9,7 @@ import ProposalList from './ProposalList'
 function Proposals() {
   const [selectedProposal, setSelectedProposal] = useState<string | undefined>()
   const [allProposalsList, setAllProposalsList] = useState<Proposal[]>([])
-  const { data: proposalsList, status, fetchMore } = useGetProposals()
+  const { data: proposalsList, status, fetchMore } = useGovProposals()
 
   usePerformanceMonitor({
     page: 'governance',

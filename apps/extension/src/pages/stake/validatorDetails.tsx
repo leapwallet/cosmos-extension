@@ -19,7 +19,6 @@ import { BigNumber } from 'bignumber.js'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import PopupLayout from 'components/layout/popup-layout'
 import ReadMoreText from 'components/read-more-text'
-import showOrHideBalances from 'components/show-or-hide-balances'
 import Text from 'components/text'
 import currency from 'currency.js'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -74,13 +73,11 @@ function DepositAmountCard({
   totalDelegations,
   currencyAmountDelegation,
   validatorName,
-  percentage,
   formatHideBalance,
 }: {
   validatorName: string
   totalDelegations: string
   currencyAmountDelegation: string
-  percentage: number
   // eslint-disable-next-line no-unused-vars
   formatHideBalance: (s: string) => React.ReactNode
 }) {
@@ -105,8 +102,6 @@ function DepositAmountCard({
             </Text>
             <Text size='xs' className='font-semibold'>
               {formatHideBalance(totalDelegations)}
-              <span className='mx-2'>|</span>
-              {showOrHideBalances(false, percentage)}
             </Text>
           </div>
         </div>
@@ -121,7 +116,6 @@ function DetailsView({
   totalRewardsDollarAmt,
   totalRewardsTokens,
   activeChain,
-  percentChange,
   onClickClaimReward,
   onClickStake,
   onClickSwitchValidator,
@@ -132,7 +126,6 @@ function DetailsView({
   totalRewardsDollarAmt: string
   totalRewardsTokens: string
   activeChain: SupportedChain
-  percentChange: number
   onClickStake: () => void
   onClickUnstake: () => void
   onClickSwitchValidator: () => void
@@ -154,7 +147,6 @@ function DetailsView({
           )}
           totalDelegations={delegation.balance?.formatted_amount ?? ''}
           validatorName={sliceWord(validator.moniker ?? validator.name ?? '', 18, 3)}
-          percentage={percentChange}
         />
 
         {totalRewardsTokens && totalRewardsTokens !== 'undefined' && totalRewardsTokens.length && (
@@ -234,7 +226,6 @@ export default function ValidatorDetails() {
   const navigate = useNavigate()
 
   const {
-    percentChange,
     validators = {},
     validatorAddress = '',
     apy = {},
@@ -317,7 +308,6 @@ export default function ValidatorDetails() {
                   : ''
               }
               validator={validators[validatorAddress] ?? {}}
-              percentChange={percentChange}
             />
           )}
           {showInputAmount && token ? (

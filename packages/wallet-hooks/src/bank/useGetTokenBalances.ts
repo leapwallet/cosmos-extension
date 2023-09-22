@@ -14,10 +14,11 @@ import { useCallback, useMemo } from 'react';
 import { Token } from 'types/bank';
 
 import { LeapWalletApi } from '../apis';
-import { Currency, MarketPercentageChangesResponse } from '../connectors';
-import { useGetIbcDenomTrace } from '../ibc';
-import { currencyDetail, useChainsRegistry, useUserPreferredCurrency } from '../settings';
+import { Currency } from '../connectors';
+import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
+  fetchIbcTrace,
+  getCoingeckoPricesStoreSnapshot,
   useActiveChain,
   useAddress,
   useBetaCW20Tokens,
@@ -29,17 +30,10 @@ import {
   useDisabledCW20TokensStore,
   useERC20Tokens,
   useGetChains,
+  useIbcTraceStore,
   useSelectedNetwork,
 } from '../store';
-import {
-  fetchCurrency,
-  getCoreumHybridTokenInfo,
-  getDenomInfo,
-  isTerraClassic,
-  sortTokenBalances,
-  useGetChannelIdData,
-  useSetDisabledCW20InStorage,
-} from '../utils';
+import { fetchCurrency, getCoreumHybridTokenInfo, sortTokenBalances, useSetDisabledCW20InStorage } from '../utils';
 import { bankQueryIds } from './queryIds';
 
 export function useInvalidateTokenBalances() {
@@ -79,21 +73,15 @@ function getQueryFn(
 
           const amount = fromSmall(new BigNumber(balance.amount).toString(), denom?.coinDecimals);
 
-          const [usdValue, percentChange] =
+          const usdValue =
             parseFloat(amount) > 0 && denom?.coinGeckoId
-              ? await Promise.all([
-                  await fetchCurrency(
-                    amount,
-                    isCW20Balances ? denom?.coinMinimalDenom : denom.coinGeckoId,
-                    denom?.chain as unknown as SupportedChain,
-                    currencyPreferred,
-                  ),
-                  await LeapWalletApi.operateMarketPercentChanges(
-                    [denom.coinGeckoId],
-                    denom?.chain as unknown as SupportedChain,
-                  ),
-                ])
-              : [undefined, {}];
+              ? await fetchCurrency(
+                  amount,
+                  denom.coinGeckoId,
+                  denom?.chain as unknown as SupportedChain,
+                  currencyPreferred,
+                )
+              : undefined;
 
           const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
 
@@ -101,7 +89,6 @@ function getQueryFn(
             name: denom?.name,
             amount,
             symbol: denom?.coinDenom,
-            percentChange: (percentChange as MarketPercentageChangesResponse)[denom?.coinGeckoId],
             usdValue: usdValue ?? '',
             coinMinimalDenom: denom?.coinMinimalDenom,
             img: denom?.icon,
@@ -168,33 +155,22 @@ export function useGetNativeTokensBalances(
   const { lcdUrl } = useChainApis();
 
   const { data: _denoms, status: denomsStatus } = useQuery(
-    ['denoms', activeChain, selectedNetwork, balances, lcdUrl, Object.keys(denoms).length],
+    ['fetch-missing-denoms', activeChain, selectedNetwork, balances, lcdUrl, Object.keys(denoms).length],
     async () => {
       const _denoms = denoms;
 
       for (const { denom } of balances) {
         try {
-          if (!denoms[denom]) {
-            const denomInfo = await getDenomInfo(
-              denom,
-              chainInfos[activeChain]?.chainRegistryPath,
-              denoms,
-              selectedNetwork === 'testnet',
-            );
-
-            if (denomInfo) {
-              _denoms[denom] = denomInfo;
-            } else if (!denomInfo && activeChain === 'mainCoreum') {
-              const { symbol, precision } = await getCoreumHybridTokenInfo(lcdUrl ?? '', denom);
-              _denoms[denom] = {
-                coinDenom: symbol,
-                coinMinimalDenom: denom,
-                coinDecimals: precision,
-                chain: activeChain,
-                icon: '',
-                coinGeckoId: '',
-              };
-            }
+          if (activeChain === 'mainCoreum' && !denoms[denom]) {
+            const { symbol, precision } = await getCoreumHybridTokenInfo(lcdUrl ?? '', denom);
+            _denoms[denom] = {
+              coinDenom: symbol,
+              coinMinimalDenom: denom,
+              coinDecimals: precision,
+              chain: activeChain,
+              icon: '',
+              coinGeckoId: '',
+            };
           }
         } catch (_) {
           //
@@ -326,36 +302,35 @@ function useIbcTokensBalances(
   currencyPreferred: Currency,
 ) {
   const activeChain = useActiveChain();
-  const selectedNetwork = useSelectedNetwork();
   const address = useAddress();
-  const { getChainInfoById, status: chainRegistryStatus } = useChainsRegistry();
-  const getChainId = useGetChannelIdData();
-  const getIbcDenomTrace = useGetIbcDenomTrace();
   const denoms = useDenoms();
+  const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
+  const { lcdUrl } = useChainApis();
+  const { chains } = useChainsStore();
 
   return useQuery(
     [bankQueryIds.ibcTokensBalance, activeChain, address, balances, currencyPreferred],
     async () => {
       const formattedBalances: Promise<FormattedBalance>[] = balances.map(async ({ denom, amount }) => {
-        const denomTrace: any = await getIbcDenomTrace(denom.replace('ibc/', ''));
-
-        const lastChannelId = denomTrace?.path?.split('/')[1];
-        const baseDenom = denomTrace?.base_denom ?? denomTrace?.baseDenom;
-
-        const chainId = await getChainId(lastChannelId ?? '');
-        const chainInfo = getChainInfoById(chainId);
+        let trace = ibcTraceData[denom];
+        if (!trace) {
+          trace = await fetchIbcTrace(denom, lcdUrl ?? '', chains[activeChain].chainId);
+          if (trace) addIbcTraceData({ [denom]: trace });
+        }
+        const baseDenom = trace.baseDenom;
 
         const ibcChainInfo = {
-          pretty_name: chainInfo?.pretty_name ?? '',
-          icon: chainInfo?.image ?? '',
-          name: chainInfo?.name ?? '',
-          channelId: lastChannelId ?? '',
+          pretty_name: trace?.originChainId,
+          icon: '',
+          name: trace?.originChainId,
+          channelId: trace.channelId,
         };
 
-        const denomChain = isTerraClassic(chainId) ? 'terra-classic' : chainInfo?.path ?? '';
+        //const denomChain = isTerraClassic(trace?.originChainId) ? 'terra-classic' : chainInfo?.path ?? '';
         const _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
+        const denomInfo = denoms[baseDenom];
 
-        const denomInfo = await getDenomInfo(_baseDenom, denomChain, denoms, selectedNetwork === 'testnet');
+        //const denomInfo = await getDenomInfo(_baseDenom, denomChain, denoms, selectedNetwork === 'testnet');
         const qty = fromSmall(new BigNumber(amount).toString(), denomInfo?.coinDecimals);
 
         return {
@@ -375,6 +350,7 @@ function useIbcTokensBalances(
       const _assets = await Promise.allSettled(formattedBalances);
       //
       const assets = await Promise.all(_assets.map((asset) => (asset.status === 'fulfilled' ? asset.value : null)));
+      const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
 
       if (assets.length > 0) {
         const platformTokenAddressesMap = assets.reduce((acc: Record<string, string[]>, asset) => {
@@ -382,10 +358,22 @@ function useIbcTokensBalances(
           const { chain, coinGeckoId } = asset;
 
           if (!chain || !coinGeckoId) return acc;
+
+          if (coingeckoPrices[coinGeckoId]) {
+            const usdValue = coingeckoPrices[coinGeckoId];
+
+            // if we don't have a price, set the usd value to empty string so it doesn't show up as $0 on the UI
+            asset.usdValue = usdValue ? String(Number(usdValue) * Number(asset.amount)) : '';
+            asset.usdPrice = asset.amount ? String(usdValue) ?? '0' : '0';
+
+            return acc;
+          }
+
           if (acc[chain]) {
             acc[chain].push(coinGeckoId);
             return acc;
           }
+
           return { ...acc, [chain]: [coinGeckoId] };
         }, {});
 
@@ -397,7 +385,8 @@ function useIbcTokensBalances(
         try {
           const marketPrices = await LeapWalletApi.operateMarketPricesV2(platformTokenAddresses, currencyPreferred);
           assets.forEach((asset) => {
-            if (!asset) return;
+            if (!asset || Number(asset.usdValue)) return;
+
             const marketPrice = Object.entries(marketPrices).find(([platform, marketPrice]) => {
               return platform === asset.chain && marketPrice[asset.coinGeckoId];
             });
@@ -407,27 +396,6 @@ function useIbcTokensBalances(
             // if we don't have a price, set the usd value to empty string so it doesn't show up as $0 on the UI
             asset.usdValue = usdValue ? String(Number(usdValue) * Number(asset.amount)) : '';
             asset.usdPrice = asset.amount ? usdValue ?? '0' : '0';
-          });
-        } catch (e) {
-          //
-        }
-
-        try {
-          const marketPercentages = await LeapWalletApi.operateMarketPercentagesV2(
-            platformTokenAddresses,
-            currencyPreferred,
-          );
-
-          assets.forEach((asset) => {
-            if (!asset) return;
-
-            const marketPercentage = Object.entries(marketPercentages).find(
-              ([platform, marketPrice]) => platform === asset.chain && marketPrice[asset.coinGeckoId],
-            );
-
-            // if we don't have a price, set the usd value to empty string so it doesn't show up as $0 on the UI
-
-            asset.percentChange = marketPercentage?.[1][asset.coinGeckoId] ?? 0;
           });
         } catch (e) {
           //
@@ -448,7 +416,7 @@ function useIbcTokensBalances(
         return acc;
       }, []);
     },
-    { enabled: enabled && chainRegistryStatus === 'success', staleTime: 60 * 1000, retry: 3, retryDelay: 1000 },
+    { enabled: enabled, staleTime: 60 * 1000, retry: 3, retryDelay: 1000 },
   );
 }
 

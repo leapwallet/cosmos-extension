@@ -20,6 +20,7 @@ export * from './useGetIbcDenomInfo';
 export * from './useInitAirdropsData';
 export * from './useInitAstroportPoolsChains';
 export * from './useInitBetaNFTsCollections';
+export * from './useInitCoingeckoPrices';
 export * from './useInitCustomChannelsStore';
 export * from './useInitDefaultGasEstimates';
 export * from './useInitDenoms';

@@ -246,6 +246,7 @@ module.exports = (env, argv) => {
             token: envConfig.SENTRY_AUTH_TOKEN,
             release: manifestObj.version,
             deleteAfterCompile: true,
+            url: envConfig.SENTRY_HOST,
           }),
           new DeleteSourceMapsPlugin(),
         ],

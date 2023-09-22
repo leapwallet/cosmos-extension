@@ -34,13 +34,7 @@ export const getDelegations = async (
   return delegations;
 };
 
-export const getRewards = async (
-  address: string,
-  restUrl: string,
-  opts: any,
-  getIbcDenomInfo?: any,
-  getChainInfoById?: any,
-) => {
+export const getRewards = async (address: string, restUrl: string, opts: any, getIbcDenomInfo?: any) => {
   const res = await axiosWrapper({
     baseURL: restUrl,
     method: 'get',
@@ -54,7 +48,7 @@ export const getRewards = async (
     result?.rewards.map(async (r) => {
       const reward = await Promise.all(
         r?.reward.map(async (c) => {
-          const denomInfo = await getIbcDenomInfo(c.denom, getChainInfoById);
+          const denomInfo = await getIbcDenomInfo(c.denom);
           const amount = fromSmall(c?.amount, denomInfo?.coinDecimals ?? 6);
 
           return {
@@ -73,7 +67,7 @@ export const getRewards = async (
 
   const resultTotal = await Promise.all(
     result?.total.map(async (c) => {
-      const denomInfo = await getIbcDenomInfo(c.denom, getChainInfoById);
+      const denomInfo = await getIbcDenomInfo(c.denom);
       const amount = fromSmall(c?.amount, denomInfo?.coinDecimals ?? 6);
 
       return {
@@ -125,8 +119,8 @@ const StakeQueryClient = async (chainId: string, restUrls: string, denoms: Denom
     restUrl,
     getUnbondingDelegations,
     getDelegations: (address: string) => getDelegations(address, restUrl, denoms),
-    getRewards: (address: string, opts: any, getIbcDenomInfo?: any, getChainInfoById?: any) =>
-      getRewards(address, restUrl, opts, getIbcDenomInfo, getChainInfoById),
+    getRewards: (address: string, opts: any, getIbcDenomInfo?: any) =>
+      getRewards(address, restUrl, opts, getIbcDenomInfo),
   };
 };
 

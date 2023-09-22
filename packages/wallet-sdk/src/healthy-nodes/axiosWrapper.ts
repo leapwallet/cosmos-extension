@@ -9,7 +9,11 @@ const removeTrailingSlash = (url: string | undefined) => {
 const RETRY_COUNT = 4;
 const TIMEOUT_MILLI_SECONDS = 3000;
 
-export async function axiosWrapper<T = any>(options: AxiosRequestConfig, retryCount = 1): Promise<AxiosResponse<T>> {
+export async function axiosWrapper<T = any>(
+  options: AxiosRequestConfig,
+  retryCount = 1,
+  callFor?: string,
+): Promise<AxiosResponse<T>> {
   /**
    * To pass "options" properly, can refer to this doc - https://axios-http.com/docs/req_config
    */
@@ -18,7 +22,6 @@ export async function axiosWrapper<T = any>(options: AxiosRequestConfig, retryCo
     ...options,
     headers: {
       ...options.headers,
-      'x-requested-with': 'leap-client',
     },
   };
 
@@ -26,8 +29,15 @@ export async function axiosWrapper<T = any>(options: AxiosRequestConfig, retryCo
     const response = await axios({ ..._options, timeout: options.timeout ?? TIMEOUT_MILLI_SECONDS });
     return response;
   } catch (error: any) {
+    if (
+      callFor === 'proposals-votes' &&
+      (error.response.data.code === 3 || error.response.data.error?.code === -32700)
+    ) {
+      throw error;
+    }
+
     if (retryCount > RETRY_COUNT) {
-      return error;
+      throw error;
     }
 
     if (

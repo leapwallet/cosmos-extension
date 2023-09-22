@@ -120,7 +120,7 @@ export function useRestake() {
   const hasGrant = useMemo(() => !!grantData, [grantData]);
 
   // FUNCTIONS
-  const onTxSuccess = async (mode: 'grant' | 'revoke', promise: any, callback?: TxCallback) => {
+  const onTxSuccess = async (mode: 'grant' | 'revoke', promise: any, txHash: string, callback?: TxCallback) => {
     setPendingTx({
       img: chainInfos[activeChain].chainSymbolImageUrl,
       sentUsdValue: '',
@@ -129,6 +129,7 @@ export function useRestake() {
       txStatus: 'loading',
       txType: mode,
       promise,
+      txHash,
     });
     showLedgerPopup && setShowLedgerPopup(false);
     callback && callback('success');
@@ -275,7 +276,7 @@ export function useRestake() {
         });
         const txResult = tx.pollForTx(txHash);
 
-        if (txResult) onTxSuccess(mode, txResult, callback);
+        if (txResult) onTxSuccess(mode, txResult, txHash, callback);
         setError('');
       }
     } catch (e: any) {

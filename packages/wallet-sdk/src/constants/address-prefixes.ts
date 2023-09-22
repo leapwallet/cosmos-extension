@@ -99,4 +99,5 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   empower: 'empowerchain',
   dydx: 'dydx',
   celestia: 'celestiatestnet3',
+  sge: 'sge',
 };

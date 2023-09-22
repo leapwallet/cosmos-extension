@@ -6,6 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { getDelegations } from '@leapwallet/cosmos-wallet-sdk'
+import { captureException } from '@sentry/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BigNumber } from 'bignumber.js'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -25,7 +26,7 @@ export function useGetStakedTokensBalance() {
   const chainInfos = useChainInfos()
   const denoms = useDenoms()
 
-  const { data, status } = useQuery(
+  const { data, status, error } = useQuery(
     ['delegations', activeChain, address, lcdUrl, denoms],
     async () => {
       if (lcdUrl) {
@@ -43,6 +44,7 @@ export function useGetStakedTokensBalance() {
     },
   )
 
+  status === 'error' && error && captureException(error)
   const { delegations = {}, denom } = data || {}
 
   const { data: usdValue, status: usdValueStatus } = useQuery(

@@ -3,7 +3,6 @@ import { Sscrt } from '@leapwallet/cosmos-wallet-sdk/dist/secret/sscrt';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 
-import { LeapWalletApi } from '../apis';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
   useActiveChain,
@@ -65,7 +64,6 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
           return {
             amount: '0',
             symbol: denom?.symbol,
-            percentChange: 0,
             usdValue: '',
             coinMinimalDenom: contract,
             img: denom?.icon,
@@ -78,7 +76,7 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
 
         const amount = fromSmall(new BigNumber(balance.balance.amount).toString(), denom.decimals);
         let fiatValue = '';
-        let percentChange = 0;
+
         if (denom.chain && denom.coingeckoId) {
           const _fiatValue = await fetchCurrency(
             amount,
@@ -91,15 +89,6 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
           }
         }
 
-        if (denom.coingeckoId && denom.chain) {
-          const _percentChange = await LeapWalletApi.operateMarketPercentChanges(
-            [denom?.coingeckoId ?? ''],
-            denom?.chain as unknown as SupportedChain,
-          );
-
-          percentChange = _percentChange[denom.coingeckoId];
-        }
-
         const usdValue = fiatValue;
 
         const usdPrice = amount ? (Number(usdValue ?? '0') / Number(amount)).toString() : '0';
@@ -107,7 +96,6 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
         return {
           amount,
           symbol: denom?.symbol,
-          percentChange,
           usdValue: usdValue,
           coinMinimalDenom: contract,
           img: denom?.icon,

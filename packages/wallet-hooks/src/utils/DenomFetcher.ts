@@ -1,5 +1,6 @@
 import { axiosWrapper, NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
 
+import { LeapWalletApi } from '../apis/LeapWalletApi';
 import { getDenomStoreSnapshot } from '../store';
 
 class DenomFetcher {
@@ -9,7 +10,7 @@ class DenomFetcher {
   // wouldn't need this if had queryClient from tanstack, but not possible with current sdk
   private activePromises: Record<string, Promise<any>> = {};
 
-  public async fetchDenomTrace(denom: string, restUrl: string): Promise<NativeDenom | undefined> {
+  public async fetchDenomTrace(denom: string, restUrl: string, chainId: string): Promise<NativeDenom | undefined> {
     const denoms = await getDenomStoreSnapshot();
 
     const basicMatch = denoms[denom];
@@ -22,8 +23,8 @@ class DenomFetcher {
     }
     if (this.activePromises[denom] !== undefined) {
       const trace = await this.activePromises[denom];
-      if (trace.data.denom_trace?.base_denom) {
-        const _symbol = denoms[trace.data.denom_trace.base_denom];
+      if (trace.baseDenom) {
+        const _symbol = denoms[trace.baseDenom];
         this.denomMatcherCache[denom] = _symbol?.coinMinimalDenom;
         return _symbol;
       } else {
@@ -31,17 +32,13 @@ class DenomFetcher {
       }
     }
     try {
-      const tracePromise = axiosWrapper({
-        baseURL: restUrl,
-        method: 'get',
-        url: `/ibc/apps/transfer/v1/denom_traces/${denom.replace('ibc/', '')}`,
-      });
+      const tracePromise = LeapWalletApi.getIbcDenomData(denom, restUrl, chainId);
 
       this.activePromises[denom] = tracePromise;
       const trace = await tracePromise;
 
-      if (trace.data.denom_trace?.base_denom) {
-        const _symbol = denoms[trace.data.denom_trace.base_denom];
+      if (trace.baseDenom) {
+        const _symbol = denoms[trace.baseDenom];
         this.denomMatcherCache[denom] = _symbol?.coinMinimalDenom;
         return _symbol;
       } else {

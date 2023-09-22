@@ -142,7 +142,6 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
                     {`${inputAmount} ${selectedToken.symbol}`}
                   </p>
                   <Badge
-                    image={selectedToken.ibcChainInfo.icon}
                     text={`${selectedToken.ibcChainInfo.pretty_name} / ${selectedToken.ibcChainInfo.channelId}`}
                   />
                 </div>

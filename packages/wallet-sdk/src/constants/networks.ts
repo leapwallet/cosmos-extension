@@ -323,41 +323,18 @@ export const networkData: NetworkData[] = [
     name: 'quicksilver',
     gasPrice: '0.0001uqck',
   },
-  {
-    enabled: true,
-    name: 'migaloo',
-  },
-  {
-    enabled: true,
-    name: 'seiTestnet2',
-  },
+  { enabled: true, name: 'migaloo' },
+  { enabled: true, name: 'seiTestnet2' },
   { enabled: true, name: 'onomy' },
   { enabled: true, name: 'kyve' },
   { enabled: true, name: 'kyvenetwork', testnet: true },
-  {
-    enabled: true,
-    name: 'noble',
-  },
-  {
-    enabled: true,
-    name: 'planq',
-  },
-  {
-    enabled: true,
-    name: 'nibiru',
-  },
-  {
-    enabled: true,
-    name: 'mayachain',
-  },
-  {
-    enabled: true,
-    name: 'empowerchain',
-  },
-  {
-    enabled: true,
-    name: 'celestiatestnet3',
-  },
+  { enabled: true, name: 'noble' },
+  { enabled: true, name: 'planq' },
+  { enabled: true, name: 'nibiru' },
+  { enabled: true, name: 'mayachain' },
+  { enabled: true, name: 'empowerchain' },
+  { enabled: true, name: 'celestiatestnet3' },
+  { enabled: true, name: 'sge' },
 ];
 
 export default networkData;

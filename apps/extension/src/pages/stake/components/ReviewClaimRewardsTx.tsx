@@ -19,6 +19,7 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
+import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { imgOnError } from 'utils/imgOnError'
@@ -100,6 +101,7 @@ export function ReviewClaimRewardsTx({
     return totalRewards
   }, [reward?.reward, totalRewards])
 
+  useCaptureTxError(error)
   useEffect(() => {
     setAmount(_totalRewards ?? '')
 

@@ -1,5 +1,6 @@
 import { axiosWrapper, ChainInfos, getRestUrl, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { OnboardCard as Card } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import bech32 from 'bech32'
 import Tooltip from 'components/better-tooltip'
@@ -31,6 +32,7 @@ const getBalance = async ({
 
     return { balances: result.data.balances ?? [], chain }
   } catch (error) {
+    captureException(error)
     return { balances: [], chain }
   }
 }
@@ -109,6 +111,7 @@ function WalletInfoCard({
   }, [])
 
   const imgSrc = useMemo(() => getWalletIconAtIndex(id), [id])
+  error && captureException(error)
 
   return (
     <div className={`rounded-xl w-[376px] shrink-0 ${hidden ? 'hidden' : ''}`}>

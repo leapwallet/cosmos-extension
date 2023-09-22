@@ -6,7 +6,7 @@ export const useTxCallBack = () => {
   return useMemo(() => {
     return (status: 'success' | 'txDeclined') => {
       if (status === 'success') {
-        navigate('/activity', { state: { fromTx: true } })
+        navigate('/pending-tx')
       } else {
         navigate('/home?txDeclined=true')
       }

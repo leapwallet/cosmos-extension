@@ -1,27 +1,24 @@
-import { ActivityCardContent, TxResponse } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  ActivityCardContent,
+  removeTrailingSlash,
+  TxResponse,
+  useActiveChain,
+  useAddress,
+  useGetChains,
+  useSelectedNetwork,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import type { ParsedTransaction } from '@leapwallet/parser-parfait'
 import { EmptyCard } from 'components/empty-card'
 import dayjs from 'dayjs'
 import { Images } from 'images'
-import loadingImage from 'images/misc/loading.json'
-import Lottie from 'lottie-react'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { Colors } from 'theme/colors'
 import { sliceSearchWord } from 'utils/strings'
 
 import TokenCardSkeleton from '../../components/Skeletons/TokenCardSkeleton'
 import { SelectedTx } from './Activity'
 import { ActivityCard } from './ActivityCard'
-import PendingTxCard from './PendingTxCard'
-
-const defaultOptions = {
-  loop: true,
-  autoplay: true,
-  animationData: loadingImage,
-  rendererSettings: {
-    preserveAspectRatio: 'xMidYMid slice',
-  },
-}
 
 export type ActivityListProps = {
   txResponse: TxResponse
@@ -29,37 +26,20 @@ export type ActivityListProps = {
 }
 
 export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
+  const chains = useGetChains()
+  const selectedNetwork = useSelectedNetwork()
+  const activeChain = useActiveChain()
+  const activeAddress = useAddress()
+
+  const { activity } = txResponse
   const [assetFilter, setAssetFilter] = useState<string>('')
+  const explorerAccountLink = `${removeTrailingSlash(
+    chains[activeChain].txExplorer?.[selectedNetwork]?.accountUrl ?? '',
+  )}/${activeAddress}`
+
   const handleFilterChange = (event: React.FormEvent<HTMLInputElement>) => {
     setAssetFilter(event.currentTarget.value.toLowerCase())
   }
-
-  const { activity, done, more, next } = txResponse
-  const [observer, setObserver] = useState<IntersectionObserver>()
-  const loader = useRef(null)
-
-  useEffect(() => {
-    const options = {
-      root: document.getElementById('root'),
-      threshold: 0.5,
-    }
-    const handleObserver = (entities: IntersectionObserverEntry[]) => {
-      const target = entities[0]
-      if (target?.isIntersecting) {
-        if (!done && more) more()
-      }
-    }
-
-    // initialize IntersectionObserver
-    // and attaching to Load More div
-    if (more) {
-      if (observer) observer.disconnect()
-      const newObserver = new IntersectionObserver(handleObserver, options)
-      if (loader.current) newObserver.observe(loader.current)
-      setObserver(newObserver)
-    }
-    // eslint-disable-next-line
-  }, [next])
 
   const sections = useMemo(() => {
     const txsByDate = activity
@@ -88,21 +68,40 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
 
   if (activity?.length === 0 && !txResponse.loading) {
     return (
-      <div className='flex flex-col justify-center h-[350px]'>
-        <PendingTxCard />
+      <div className='flex flex-col h-[350px]'>
         <EmptyCard
           src={Images.Activity.ActivityIcon}
           heading='No activity'
           subHeading='Your activity will appear here'
         />
+
+        <a
+          href={explorerAccountLink}
+          target='_blank'
+          className='font-semibold text-base mt-4 text-center'
+          style={{ color: Colors.getChainColor(activeChain) }}
+          rel='noreferrer'
+        >
+          Check on Explorer
+        </a>
       </div>
     )
   }
 
   if (txResponse.error) {
     return (
-      <div className='flex flex-col justify-center h-[350px]'>
+      <div className='flex flex-col h-[350px]'>
         <EmptyCard src={Images.Activity.ActivityIcon} heading='Unable to fetch activity' />
+
+        <a
+          href={explorerAccountLink}
+          target='_blank'
+          className='font-semibold text-base mt-4 text-center'
+          style={{ color: Colors.getChainColor(activeChain) }}
+          rel='noreferrer'
+        >
+          Check on Explorer
+        </a>
       </div>
     )
   }
@@ -116,16 +115,17 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
           onChange={handleFilterChange}
           disabled={txResponse.loading}
         />
-        <img src={Images.Misc.SearchIcon} onClick={more} />
+        <img src={Images.Misc.SearchIcon} />
       </div>
+
       <div className='pb-24'>
-        <PendingTxCard />
         {txResponse.loading && (
           <div className='rounded-2xl dark:bg-gray-900 bg-white-100'>
             <TokenCardSkeleton />
             <TokenCardSkeleton />
           </div>
         )}
+
         {!txResponse.loading && sections.length === 0 && (
           <EmptyCard
             isRounded
@@ -134,6 +134,7 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
             src={Images.Misc.FlashOn}
           />
         )}
+
         {!txResponse.loading &&
           sections.map(({ data, title }, index) => {
             return (
@@ -156,10 +157,17 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
               </div>
             )
           })}
-        {activity.length > 0 && !done && (
-          <div ref={loader} className='flex justify-center'>
-            <Lottie {...defaultOptions} style={{ height: '48px', width: '48px' }} />
-          </div>
+
+        {!txResponse.loading && (
+          <a
+            href={explorerAccountLink}
+            target='_blank'
+            className='font-semibold text-base mt-4 text-center block'
+            style={{ color: Colors.getChainColor(activeChain) }}
+            rel='noreferrer'
+          >
+            Check more on Explorer
+          </a>
         )}
       </div>
     </div>

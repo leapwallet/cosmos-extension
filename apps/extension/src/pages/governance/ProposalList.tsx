@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Proposal, useGetProposal } from '@leapwallet/cosmos-wallet-hooks'
+import { Proposal } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomModal from 'components/bottom-modal'
@@ -15,7 +15,6 @@ import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import Skeleton from 'react-loading-skeleton'
 import { useRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -33,54 +32,12 @@ export type ProposalListProps = {
   fetchMore: () => void
 }
 
-const getPercentage = (a: number, b: number) => {
-  return `${Math.ceil((a / b) * 100)}%`
-}
-
 const filters = [
   { key: 'all', label: 'All Proposals' },
   { key: ProposalStatus.PROPOSAL_STATUS_VOTING_PERIOD, label: 'Voting in Progress' },
   { key: ProposalStatus.PROPOSAL_STATUS_PASSED, label: 'Passed' },
   { key: ProposalStatus.PROPOSAL_STATUS_REJECTED, label: 'Rejected' },
 ]
-
-const VoterCount = ({ vote }: { vote: any }) => {
-  const { isLoading, data } = useGetProposal(vote.proposal_id, true)
-  const { yes, no, abstain, no_with_veto } = data || ({} as any)
-  const totalVotes = +yes + +no + +abstain + +no_with_veto
-  const votePercentages = [
-    { value: yes, label: getPercentage(+yes, totalVotes), color: '#29A874' },
-    { value: no, label: getPercentage(+no, totalVotes), color: '#FF707E' },
-    {
-      value: no_with_veto,
-      label: getPercentage(+no_with_veto, totalVotes),
-      color: '#8583EC',
-    },
-    {
-      value: abstain,
-      label: getPercentage(+abstain, totalVotes),
-      color: '#D1A700',
-    },
-  ]
-  return isLoading && !totalVotes ? (
-    <Skeleton count={1} width='100%' className='mt-3' height='8px' />
-  ) : totalVotes ? (
-    <div className='relative h-2 w-full rounded-[20px] mt-3 overflow-hidden'>
-      <div className='absolute top-0 left-0 right-0 w-full h-full flex items-center'>
-        {votePercentages.map((_vote) => (
-          <div
-            className='h-full'
-            style={{
-              width: _vote.label,
-              backgroundColor: _vote.color,
-            }}
-            key={_vote.color}
-          />
-        ))}
-      </div>
-    </div>
-  ) : null
-}
 
 function ProposalList({
   onClick,
@@ -205,12 +162,7 @@ function ProposalList({
         <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
           <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>Proposals</div>
           <div className='text-sm text-gray-600 font-bold'>
-            List of proposals in{' '}
-            {activeChain.toLowerCase() === 'maincoreum'
-              ? 'COREUM'
-              : activeChain.toLowerCase() === 'seitestnet2'
-              ? 'SEI'
-              : activeChain.toUpperCase()}
+            List of proposals in {activeChainInfo.chainName}
           </div>
           <div className='flex items-center justify-between mt-6 mb-4'>
             <div className='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
@@ -264,9 +216,6 @@ function ProposalList({
                         </div>
                         <img className='ml-5' src={Images.Misc.RightArrow} />
                       </div>
-                      {ProposalStatus.PROPOSAL_STATUS_VOTING_PERIOD === prop.status ? (
-                        <VoterCount vote={prop} />
-                      ) : null}
                     </div>
                     {index < filteredProposalList.length - 1 ? <CardDivider /> : null}
                   </div>
@@ -274,7 +223,9 @@ function ProposalList({
               })
             )}
           </div>
+
           <div id='bottom' className='my-1' />
+
           {proposalListStatus === 'fetching-more' ? (
             <div className='px-7 flex items-center justify-center'>
               <LoaderAnimation color='white' />
@@ -282,8 +233,11 @@ function ProposalList({
           ) : null}
         </div>
       </PopupLayout>
+
       <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
+
       <BottomNav label={BottomNavLabel.Governance} />
+
       <BottomModal isOpen={showFilter} onClose={() => setShowFilter(false)} title={'Filter by'}>
         <div className='rounded-2xl flex flex-col items-center w-full justify-center dark:bg-gray-900 bg-white-100'>
           {filters.map((_filter, index) => (

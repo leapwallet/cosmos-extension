@@ -5,20 +5,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import qs from 'qs';
 import { useCallback, useEffect, useState } from 'react';
 
+import { LeapWalletApi } from '../apis';
 import { useActiveChain, useAddress, useChainsStore, useDenoms } from '../store';
 import { useSelectedNetwork } from '../store';
 import { useChainApis } from '../store';
 import { Activity, ActivityCardContent, getActivityContentProps, TxResponse } from '../types';
 import { denomFetcher, sliceAddress } from '../utils';
 import { convertVoteOptionToString } from './../utils/vote-option';
-import { activityQueryIds } from './queryIds';
 
 export type Validators = Record<string, string>;
 
 export const useInvalidateActivity = () => {
   const queryClient = useQueryClient();
   return useCallback(() => {
-    queryClient.invalidateQueries([activityQueryIds.datasend]);
+    queryClient.invalidateQueries(['fetch-activity']);
   }, [queryClient]);
 };
 
@@ -27,6 +27,7 @@ async function getActivityCardContent({
   address,
   denoms,
   restUrl,
+  chainId,
 }: getActivityContentProps): Promise<ActivityCardContent> {
   if (!parsedTx) {
     return {
@@ -113,19 +114,28 @@ async function getActivityCardContent({
       content.subtitle1 = `Sold ${msg.shares} shares`;
       break;
     }
-    case ParsedMessageType.GammSwapExact: {
+    case ParsedMessageType.GammSwapExact:
+    case ParsedMessageType.PMSwapExactIn:
+    case ParsedMessageType.PMSplitSwapExactIn: {
       content.txType = 'swap';
-      const lastRoute = msg.routes[msg.routes.length - 1];
-      const tokenGained = {
-        denomination: lastRoute.tokenOutDenomination,
-        quantity: msg.tokenOutAmount,
-      };
+      const lastRoute: any = msg.routes[msg.routes.length - 1];
+
       const tokenGiven = {
         denomination: msg.tokenIn.denomination,
         quantity: msg.tokenIn.quantity,
       };
-      const fromToken = tokenGiven ? await denomFetcher.fetchDenomTrace(tokenGiven.denomination, restUrl) : undefined;
-      const toToken = tokenGained ? await denomFetcher.fetchDenomTrace(tokenGained.denomination, restUrl) : undefined;
+      const tokenGained = {
+        denomination: lastRoute.tokenOutDenomination,
+        quantity: msg.tokenOutAmount,
+      };
+      const fromToken =
+        tokenGiven && chainId
+          ? await denomFetcher.fetchDenomTrace(tokenGiven.denomination, restUrl, chainId)
+          : undefined;
+      const toToken =
+        tokenGained && chainId
+          ? await denomFetcher.fetchDenomTrace(tokenGained.denomination, restUrl, chainId)
+          : undefined;
 
       if (fromToken && toToken) {
         content.title1 = `${fromToken.coinDenom} 👉🏻 ${toToken.coinDenom}`;
@@ -146,248 +156,177 @@ async function getActivityCardContent({
       } else {
         content.title1 = 'Swap';
       }
+      break;
     }
   }
   return content;
 }
 
-function unionOfTxs(_txs1: Activity[], _txs2: Activity[]): Activity[] {
+function unionOfTxs(_txs1: ParsedTransaction[], _txs2: ParsedTransaction[]): ParsedTransaction[] {
   if (!_txs1 || _txs1.length === 0) return _txs2;
   if (!_txs2 || _txs2.length === 0) return _txs1;
-  const txs = new Map();
-  _txs1.forEach((tx) => txs.set(tx.parsedTx.txHash, tx));
 
-  _txs2.forEach((tx) => txs.set(tx.parsedTx.txHash, tx));
-  return Array.from(txs.values()).sort(
-    (a, b) => new Date(b.parsedTx.timestamp).getTime() - new Date(a.parsedTx.timestamp).getTime(),
-  );
+  const txs = new Map();
+
+  _txs1.forEach((tx) => txs.set(tx.txHash, tx));
+  _txs2.forEach((tx) => txs.set(tx.txHash, tx));
+
+  return Array.from(txs.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
 
 const txnParser = new TransactionParser();
 
 export function useActivity(forceChain?: SupportedChain): {
   txResponse: TxResponse;
-  resetActivity: () => void;
-  refetchActivity: () => Promise<void>;
 } {
+  const address = useAddress();
   const activeChain = forceChain ?? useActiveChain();
   const selectedNetwork = useSelectedNetwork();
-
-  const [activitySend, setActivitySend] = useState<Activity[]>([]);
-  const [activityRecv, setActivityRecv] = useState<Activity[]>([]);
-
-  const address = useAddress();
-
-  const [nextSend, setNextSend] = useState<number>();
-  const [offsetSend, setOffsetSend] = useState<number>(0);
-  const [doneSend, setDoneSend] = useState(false);
-
-  const [nextRecv, setNextRecv] = useState<number>();
-  const [offsetRecv, setOffsetRecv] = useState<number>(0);
-  const [doneRecv, setDoneRecv] = useState(false);
 
   const { lcdUrl: restUrl = '' } = useChainApis(activeChain);
   const { chains } = useChainsStore();
   const denoms = useDenoms();
 
-  const resetActivity = () => {
-    setActivitySend([]);
-    setActivityRecv([]);
-    setOffsetSend(0);
-    setOffsetRecv(0);
-    setNextRecv(undefined);
-    setNextSend(undefined);
-  };
+  const [activity, setActivity] = useState<Activity[]>([]);
+  const resetActivity = () => setActivity([]);
 
   useEffect(() => {
     resetActivity();
   }, [activeChain, address, selectedNetwork]);
 
-  const {
-    data: dataSend = { parsedData: [], paginationTotal: 0, sendActivity: [] },
-    status: dataSendStatus,
-    refetch: refetchDataSend,
-  } = useQuery(
-    [activityQueryIds.datasend, address, activeChain, offsetSend, selectedNetwork, restUrl],
-    async (): Promise<
-      { parsedData: ParsedTransaction[]; paginationTotal: number; sendActivity: Activity[] } | undefined
-    > => {
+  const { status, data } = useQuery(
+    ['fetch-activity', address, activeChain, selectedNetwork, chains],
+    async function () {
       if (address) {
-        const params = {
-          'pagination.limit': 100,
-          'pagination.offset': offsetSend,
-          'pagination.reverse': true,
-          events: `transfer.sender='${address}'`,
-        };
-        const query = qs.stringify(params);
-
         try {
-          const data = await axiosWrapper({
-            baseURL: restUrl,
-            method: 'get',
-            url: `/cosmos/tx/v1beta1/txs?${query}`,
-          });
+          let parsedData: ParsedTransaction[] = [];
 
-          const parsedData: ParsedTransaction[] = data.data?.tx_responses
-            ?.map((tx: any) => {
-              const res = txnParser.parse(tx);
-              if (res.success) {
-                return res.data;
-              }
-              return null;
-            })
-            .filter(Boolean);
+          try {
+            const chainId =
+              selectedNetwork === 'testnet' ? chains[activeChain].testnetChainId : chains[activeChain].chainId;
+            const { data } = await LeapWalletApi.getActivity(address, 0, chainId ?? '');
+            parsedData = data;
+          } catch (_) {
+            let sendParsedData: ParsedTransaction[] = [];
+            try {
+              const sendParams = {
+                'pagination.limit': 20,
+                'pagination.reverse': true,
+                events: `transfer.sender='${address}'`,
+              };
 
-          const sendActivity = await Promise.all(
-            parsedData?.map(async (parsedTx) => {
-              const txnFee = parsedTx.fee.amount[0];
-              let feeTokenInfo = txnFee ? denoms[txnFee.denom as SupportedDenoms] : undefined;
-              if (chains[activeChain].beta && chains[activeChain].nativeDenoms) {
-                feeTokenInfo = Object.values(chains[activeChain].nativeDenoms)[0];
-              }
-              const feeAmount = txnFee ? fromSmall(txnFee.amount.toString(), feeTokenInfo?.coinDecimals) : undefined;
+              const sendQuery = qs.stringify(sendParams);
 
-              const content = await getActivityCardContent({
-                parsedTx,
-                address,
-                denoms,
-                restUrl,
+              const sendData = await axiosWrapper({
+                baseURL: restUrl,
+                method: 'get',
+                url: `/cosmos/tx/v1beta1/txs?${sendQuery}`,
               });
-              content.feeAmount = feeAmount && feeTokenInfo ? `${feeAmount}${feeTokenInfo?.coinDenom ?? ''}` : '';
 
-              return { parsedTx, content };
-            }),
-          );
+              sendParsedData = sendData.data?.tx_responses
+                ?.map((tx: any) => {
+                  try {
+                    const res = txnParser.parse(tx);
+                    if (res.success) {
+                      return res.data;
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                })
+                .filter(Boolean);
+            } catch (_) {
+              //
+            }
 
-          return { parsedData, paginationTotal: data.data.pagination?.total ?? data.data.total, sendActivity };
-        } catch (e) {
-          console.log('Tx Parsing Error', e);
-          return { parsedData: [], paginationTotal: 0, sendActivity: [] };
-        }
-      } else {
-        return { parsedData: [], paginationTotal: 0, sendActivity: [] };
-      }
-    },
-    { retry: 3, staleTime: 60 * 1000, refetchOnWindowFocus: true },
-  );
+            let receiveParsedData: ParsedTransaction[] = [];
+            try {
+              const receiveParams = {
+                'pagination.limit': 20,
+                'pagination.reverse': true,
+                events: `transfer.sender='${address}'`,
+              };
 
-  const {
-    data: dataRecv = { parsedData: [], paginationTotal: 0, receiveActivity: [] },
-    status: dataRecvStatus,
-    refetch: refetchDataRecv,
-  } = useQuery(
-    [activityQueryIds.datarecv, address, activeChain, offsetRecv, selectedNetwork, restUrl],
-    async (): Promise<
-      { parsedData: ParsedTransaction[]; paginationTotal: number; receiveActivity: Activity[] } | undefined
-    > => {
-      if (address) {
-        const params = {
-          'pagination.limit': 100,
-          'pagination.offset': offsetRecv,
-          'pagination.reverse': true,
-          events: `transfer.recipient='${address}'`,
-        };
-        const query = qs.stringify(params);
+              const receiveQuery = qs.stringify(receiveParams);
 
-        try {
-          const data = await axiosWrapper({
-            baseURL: restUrl,
-            method: 'get',
-            url: `/cosmos/tx/v1beta1/txs?${query}`,
-          });
+              const receiveData = await axiosWrapper({
+                baseURL: restUrl,
+                method: 'get',
+                url: `/cosmos/tx/v1beta1/txs?${receiveQuery}`,
+              });
 
-          const parsedData: ParsedTransaction[] = data.data?.tx_responses
-            ?.map((tx: any) => {
+              receiveParsedData = receiveData.data?.tx_responses
+                ?.map((tx: any) => {
+                  try {
+                    const res = txnParser.parse(tx);
+                    if (res.success) {
+                      return res.data;
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                })
+                .filter(Boolean);
+            } catch (_) {
+              //
+            }
+
+            parsedData = unionOfTxs(sendParsedData, receiveParsedData);
+          }
+
+          const activity = await Promise.all(
+            parsedData?.map(async (parsedTx) => {
               try {
-                const res = txnParser.parse(tx);
-                if (res.success) {
-                  return res.data;
+                const txnFee = parsedTx.fee.amount[0];
+                let feeTokenInfo = txnFee ? denoms[txnFee.denom as SupportedDenoms] : undefined;
+                if (chains[activeChain].beta && chains[activeChain].nativeDenoms) {
+                  feeTokenInfo = Object.values(chains[activeChain].nativeDenoms)[0];
                 }
-                return null;
-              } catch {
+                const feeAmount = txnFee ? fromSmall(txnFee.amount.toString(), feeTokenInfo?.coinDecimals) : undefined;
+
+                const content = await getActivityCardContent({
+                  parsedTx,
+                  address,
+                  denoms,
+                  restUrl,
+                  chainId: chains[activeChain].chainId,
+                });
+                content.feeAmount = feeAmount && feeTokenInfo ? `${feeAmount}${feeTokenInfo?.coinDenom ?? ''}` : '';
+
+                return { parsedTx, content };
+              } catch (_) {
                 return null;
               }
-            })
-            .filter(Boolean);
-          const receiveActivity = await Promise.all(
-            parsedData?.map(async (parsedTx) => {
-              const txnFee = parsedTx.fee.amount[0];
-              let feeTokenInfo = txnFee ? denoms[txnFee.denom as SupportedDenoms] : undefined;
-              if (chains[activeChain].beta && chains[activeChain].nativeDenoms) {
-                feeTokenInfo = Object.values(chains[activeChain].nativeDenoms)[0];
-              }
-              const feeAmount = txnFee ? fromSmall(txnFee.amount.toString(), feeTokenInfo?.coinDecimals) : undefined;
-
-              const content = await getActivityCardContent({
-                parsedTx,
-                address,
-                denoms,
-                restUrl,
-              });
-              content.feeAmount = feeAmount && feeTokenInfo ? `${feeAmount}${feeTokenInfo?.coinDenom ?? ''}` : '';
-
-              return { parsedTx, content };
             }),
           );
-          return { parsedData, paginationTotal: data.data.pagination?.total ?? data.data.total, receiveActivity };
-        } catch (e) {
-          console.log('Tx Parsing Error', e);
-          return { parsedData: [], paginationTotal: 0, receiveActivity: [] };
+
+          return activity.filter((tx) => tx) as { parsedTx: ParsedTransaction; content: ActivityCardContent }[];
+        } catch (error) {
+          console.log('Tx Parsing Error', error);
+          return [];
         }
-      } else {
-        return { parsedData: [], paginationTotal: 0, receiveActivity: [] };
       }
     },
-    { retry: 3, staleTime: 60 * 1000, refetchOnWindowFocus: true },
+    {
+      retry: 3,
+      staleTime: 60 * 1000,
+      refetchOnWindowFocus: true,
+    },
   );
 
   useEffect(() => {
-    if (dataRecv?.receiveActivity?.length) {
-      setActivityRecv((txs) => [...txs, ...(dataRecv?.receiveActivity ?? [])]);
-      if (offsetRecv !== undefined) {
-        setNextRecv(offsetRecv + 100);
-      }
+    if (data && data.length) {
+      setActivity(data);
     }
-  }, [dataRecv?.receiveActivity, offsetRecv]);
-
-  useEffect(() => {
-    if (dataSend?.sendActivity?.length) {
-      setActivitySend((txs) => [...txs, ...(dataSend?.sendActivity ?? [])]);
-      if (offsetSend !== undefined) {
-        setNextSend(offsetSend + 100);
-      }
-    }
-  }, [dataSend?.sendActivity, offsetSend]);
-
-  useEffect(() => {
-    setDoneSend(activitySend?.length === Number(dataSend?.paginationTotal ?? 0));
-  }, [activitySend, dataSend]);
-
-  useEffect(() => {
-    setDoneRecv(activityRecv?.length === Number(dataRecv?.paginationTotal ?? 0));
-  }, [activityRecv, dataRecv]);
-
-  const done = doneRecv || doneSend;
-
-  const more = useCallback(() => {
-    activitySend?.length && !doneSend && setOffsetSend(nextSend ?? 0);
-    activityRecv?.length && !doneRecv && setOffsetRecv(nextRecv ?? 0);
-  }, [activitySend, activityRecv, doneSend, doneRecv, nextSend, nextRecv]);
-
-  const refetchActivity = async () => {
-    await Promise.all([refetchDataRecv(), refetchDataSend()]);
-  };
+  }, [data]);
 
   return {
     txResponse: {
-      activity: unionOfTxs(activitySend, activityRecv),
-      done,
-      more,
-      next: nextSend === undefined && nextRecv === undefined ? undefined : (nextRecv ?? 0) + (nextSend ?? 0),
-      loading: dataRecvStatus === 'loading' || dataSendStatus === 'loading',
-      error: dataRecvStatus === 'error' && dataSendStatus === 'error',
+      activity,
+      loading: status === 'loading',
+      error: status === 'error',
     },
-    refetchActivity,
-    resetActivity,
   };
 }

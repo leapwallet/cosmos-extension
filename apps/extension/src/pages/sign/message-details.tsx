@@ -1,11 +1,17 @@
-import { denomFetcher, formatBigNumber, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  denomFetcher,
+  formatBigNumber,
+  sliceAddress,
+  useActiveChain,
+  useChainsStore,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { parfait, ParsedMessage, ParsedMessageType, Token } from '@leapwallet/parser-parfait'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 
-const tokenToString = async (token: Token, restUrl: string) => {
+const tokenToString = async (token: Token, restUrl: string, chainId: string) => {
   try {
-    const trace = await denomFetcher.fetchDenomTrace(token.denomination, restUrl)
+    const trace = await denomFetcher.fetchDenomTrace(token.denomination, restUrl, chainId)
     if (!trace) {
       throw new Error('No')
     }
@@ -20,8 +26,8 @@ const tokenToString = async (token: Token, restUrl: string) => {
   }
 }
 
-const tokensToString = async (tokens: Token[], restUrl: string) => {
-  const traces = await Promise.all(tokens.map((t) => tokenToString(t, restUrl)))
+const tokensToString = async (tokens: Token[], restUrl: string, chainId: string) => {
+  const traces = await Promise.all(tokens.map((t) => tokenToString(t, restUrl, chainId)))
   return traces.join(', ')
 }
 
@@ -179,7 +185,11 @@ const formatAllowanceOption = (allowance: parfait.cosmos.feegrant.grantAllowance
   }
 }
 
-export const getMessageDetails = async (message: ParsedMessage, restUrl: string) => {
+export const getMessageDetails = async (
+  message: ParsedMessage,
+  restUrl: string,
+  chainId: string,
+) => {
   switch (message.__type) {
     case ParsedMessageType.AuthzExec:
       return Promise.resolve(
@@ -209,7 +219,7 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
         `Send ${message.inputs.length} coins to ${message.outputs.length} recipients`,
       )
     case ParsedMessageType.BankSend: {
-      return `Send ${await tokensToString(message.tokens, restUrl)} to ${sliceAddress(
+      return `Send ${await tokensToString(message.tokens, restUrl, chainId)} to ${sliceAddress(
         message.toAddress,
       )}`
     }
@@ -228,34 +238,41 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
     case ParsedMessageType.FeeGrantRevokeAllowance:
       return Promise.resolve(`Revoke allowance from ${sliceAddress(message.grantee)}`)
     case ParsedMessageType.GammCreatePool:
-      return `Create a Balancer pool with ${await tokensToString(message.tokens, restUrl)} assets`
+      return `Create a Balancer pool with ${await tokensToString(
+        message.tokens,
+        restUrl,
+        chainId,
+      )} assets`
     case ParsedMessageType.GammJoinPool:
       return `Join pool ${message.poolId} with ${await tokensToString(
         message.tokens,
         restUrl,
+        chainId,
       )} assets in return for ${message.shares} shares`
     case ParsedMessageType.GammExitPool:
       return `Exit pool ${message.poolId} with ${
         message.shares
-      } shares in return for ${await tokensToString(message.tokens, restUrl)} assets`
+      } shares in return for ${await tokensToString(message.tokens, restUrl, chainId)} assets`
     case ParsedMessageType.GammSwapExact: {
       const tokenOut = {
         quantity: message.tokenOutAmount,
         denomination: message.routes[message.routes.length - 1].tokenOutDenomination,
       }
-      return `Swap ${await tokenToString(message.tokenIn, restUrl)} for ${await tokenToString(
-        tokenOut,
+      return `Swap ${await tokenToString(
+        message.tokenIn,
         restUrl,
-      )}`
+        chainId,
+      )} for ${await tokenToString(tokenOut, restUrl, chainId)}`
     }
     case ParsedMessageType.GammSwapMax: {
       const tokenIn = {
         quantity: message.tokenInAmount,
         denomination: message.routes[0].tokenInDenomination,
       }
-      return `Swap ${await tokenToString(tokenIn, restUrl)} for ${await tokenToString(
+      return `Swap ${await tokenToString(tokenIn, restUrl, chainId)} for ${await tokenToString(
         message.tokenOut,
         restUrl,
+        chainId,
       )}`
     }
     case ParsedMessageType.GammSwapExactAndExit:
@@ -263,16 +280,22 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
       return `Sell ${message.shares} shares for ${await tokenToString(
         message.tokenOut,
         restUrl,
+        chainId,
       )} and exit pool ${message.poolId}`
     case ParsedMessageType.GammSwapExactAndJoin:
     case ParsedMessageType.GammSwapMaxAndJoin:
       return `Buy ${message.shares} shares for ${await tokenToString(
         message.tokenIn,
         restUrl,
+        chainId,
       )} and join pool ${message.poolId}`
     case ParsedMessageType.GovSubmitProposal:
       return Promise.resolve(
-        `Submit proposal with deposit of ${await tokensToString(message.initialDeposit, restUrl)}`,
+        `Submit proposal with deposit of ${await tokensToString(
+          message.initialDeposit,
+          restUrl,
+          chainId,
+        )}`,
       )
     case ParsedMessageType.GovVote: {
       const proposalId = ['number', 'string'].includes(typeof message.proposalId)
@@ -285,20 +308,22 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
     }
     case ParsedMessageType.GovDeposit:
       return Promise.resolve(
-        `Deposit ${await tokensToString(message?.amount ?? [], restUrl)} on proposal ${
+        `Deposit ${await tokensToString(message?.amount ?? [], restUrl, chainId)} on proposal ${
           message.proposalId
         }`,
       )
     case ParsedMessageType.IbcSend:
-      return `Send ${await tokenToString(message.token, restUrl)} to ${sliceAddress(
+      return `Send ${await tokenToString(message.token, restUrl, chainId)} to ${sliceAddress(
         message.toAddress,
       )} via IBC`
     case ParsedMessageType.IbcReceive:
-      return `Receive ${await tokenToString(message.token, restUrl)} from ${sliceAddress(
+      return `Receive ${await tokenToString(message.token, restUrl, chainId)} from ${sliceAddress(
         message.fromAddress,
       )} via IBC`
     case ParsedMessageType.LockupLock:
-      return `Lock ${await tokensToString(message.tokens, restUrl)} for ${message.duration} seconds`
+      return `Lock ${await tokensToString(message.tokens, restUrl, chainId)} for ${
+        message.duration
+      } seconds`
     case ParsedMessageType.LockupUnlock:
       return Promise.resolve(`Unlock token from lock ${message.id}`)
     case ParsedMessageType.LockupUnlockAll:
@@ -318,6 +343,7 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
           denomination: message.denomination,
         },
         restUrl,
+        chainId,
       )} to ${sliceAddress(message.validatorAddress)}`
     case ParsedMessageType.StakingUndelegate:
       return `Undelegate ${await tokenToString(
@@ -326,6 +352,7 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
           denomination: message.denomination,
         },
         restUrl,
+        chainId,
       )} from ${sliceAddress(message.validatorAddress)}`
     case ParsedMessageType.StakingBeginRedelegate:
       return `Redelegate ${await tokenToString(
@@ -334,6 +361,7 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
           denomination: message.denomination,
         },
         restUrl,
+        chainId,
       )} from ${sliceAddress(message.sourceValidatorAddress)} to ${sliceAddress(
         message.destinationValidatorAddress,
       )}`
@@ -345,12 +373,15 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
             denomination: message.denomination,
           },
           restUrl,
+          chainId,
         )} from ${sliceAddress(message.validatorAddress)}`,
       )
     case ParsedMessageType.SuperfluidLockAndDelegate:
-      return `Lock ${await tokensToString(message.tokens, restUrl)} and delegate to ${sliceAddress(
-        message.validatorAddress,
-      )}`
+      return `Lock ${await tokensToString(
+        message.tokens,
+        restUrl,
+        chainId,
+      )} and delegate to ${sliceAddress(message.validatorAddress)}`
     case ParsedMessageType.SuperfluidUnlockAndUndelegate:
       return Promise.resolve(`Remove lock ${message.lockId} and undelegate`)
     case ParsedMessageType.SuperfluidDelegate:
@@ -372,6 +403,7 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
           quantity: message.quantity,
         },
         restUrl,
+        chainId,
       )}`
     case ParsedMessageType.StakeIBCClearBalance:
       return Promise.resolve(`Clear liquid staking balance of ${message.quantity}`)
@@ -416,11 +448,14 @@ export const getMessageDetails = async (message: ParsedMessage, restUrl: string)
 }
 
 export const useMessageDetails = (message: ParsedMessage | undefined, restUrl: string) => {
+  const activeChain = useActiveChain()
+  const { chains } = useChainsStore()
+
   const { data, isLoading } = useQuery({
     queryKey: ['message-details', message],
     queryFn: () => {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return getMessageDetails(message!, restUrl)
+      return getMessageDetails(message!, restUrl, chains[activeChain].chainId)
     },
     enabled: !!message,
   })

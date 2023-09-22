@@ -5,6 +5,7 @@ import { isNumber } from 'lodash';
 import { getChainInfo } from '../chains';
 import { ChainInfo, ChainInfos, NativeDenom, SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
+import { ChainData } from '../types';
 import { getRestUrl } from '../utils';
 
 export async function getAprCrescent() {
@@ -14,12 +15,22 @@ export async function getAprCrescent() {
   return parseFloat(aprResponse.data.data.apr) / 100;
 }
 
-export async function getApr(chain: SupportedChain, testnet: boolean, chainInfos?: Record<SupportedChain, ChainInfo>) {
-  const chainData = await getChainInfo(chain, testnet);
+export async function getApr(
+  chain: SupportedChain,
+  testnet: boolean,
+  chainInfos?: Record<SupportedChain, ChainInfo>,
+  chainData?: ChainData,
+) {
+  if (!chainData) {
+    chainData = await getChainInfo(chain, testnet);
+  }
+
   if (!chainData) {
     return 0;
   }
+
   if (chain === 'crescent') return getAprCrescent();
+
   if (isNumber(chainData.params?.calculated_apr)) {
     return chainData.params?.calculated_apr ?? 0;
   }

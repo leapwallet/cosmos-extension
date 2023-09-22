@@ -2,44 +2,33 @@ import { Coin } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, coin, StdFee } from '@cosmjs/stargate';
 import {
-  ChainData,
   DefaultGasEstimates,
   Delegation,
   EthermintTxHandler,
   fromSmall,
-  getApr,
-  getChainInfo,
-  getUnbondingTime,
+  getSimulationFee,
   InjectiveTx,
   LedgerError,
-  Reward,
-  RewardsResponse,
   SeiTxHandler,
   simulateDelegate,
   simulateRedelegate,
   simulateUndelegate,
   simulateWithdrawRewards,
-  SupportedDenoms,
   toSmall,
   Tx,
-  UnbondingDelegation,
   Validator,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import CosmosDirectory from '@leapwallet/cosmos-wallet-sdk/dist/chains/cosmosDirectory';
 import { DEFAULT_GAS_REDELEGATE, NativeDenom } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
-import Network, { NetworkChainData } from '@leapwallet/cosmos-wallet-sdk/dist/stake/network';
-import StakeQueryClient from '@leapwallet/cosmos-wallet-sdk/dist/stake/queryClient';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Network from '@leapwallet/cosmos-wallet-sdk/dist/stake/network';
 import { BigNumber } from 'bignumber.js';
-import currency from 'currency.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
 import { useGetTokenBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
 import { useGasAdjustment } from '../fees';
-import { currencyDetail, useChainsRegistry, useformatCurrency, useUserPreferredCurrency } from '../settings';
+import { currencyDetail, useformatCurrency, useUserPreferredCurrency } from '../settings';
 import {
   useActiveChain,
   useActiveWalletStore,
@@ -52,16 +41,19 @@ import {
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
+  useStakeClaimRewards,
+  useStakeDelegations,
+  useStakeUndelegations,
+  useStakeValidators,
   useTxMetadata,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
 import { STAKE_MODE } from '../types';
-import { useGetGasPrice, useGetIbcDenomInfo } from '../utils';
+import { useGetGasPrice } from '../utils';
 import { fetchCurrency } from '../utils/findUSDValue';
 import { getNativeDenom } from '../utils/getNativeDenom';
 import { capitalize, formatTokenAmount } from '../utils/strings';
-import { stakeQueryIds } from './queryIds';
 
 function getStakeTxType(mode: STAKE_MODE): CosmosTxType {
   switch (mode) {
@@ -77,281 +69,28 @@ function getStakeTxType(mode: STAKE_MODE): CosmosTxType {
 }
 
 export function useInvalidateDelegations() {
-  const queryClient = useQueryClient();
+  const { refetchDelegations, refetchUnboundingDelegations } = useStaking();
+
   return useCallback(() => {
-    queryClient.invalidateQueries([stakeQueryIds.delegations]);
-    queryClient.invalidateQueries([stakeQueryIds.unboundingDelegations]);
-  }, [queryClient]);
+    refetchDelegations();
+    refetchUnboundingDelegations();
+  }, []);
 }
 
 export function useStaking() {
   const chainInfos = useGetChains();
-  const [preferredCurrency] = useUserPreferredCurrency();
   const activeChain = useActiveChain();
+  const { allAssets } = useGetTokenBalances();
   const isTestnet = useSelectedNetwork() === 'testnet';
 
+  const { rewards, loadingRewardsStatus, isFetchingRewards, refetchDelegatorRewards } = useStakeClaimRewards();
+  const { delegationInfo, loadingDelegations, refetchDelegations } = useStakeDelegations();
+  const { unboundingDelegationsInfo, loadingUnboundingDegStatus, refetchUnboundingDelegations } =
+    useStakeUndelegations();
+  const { validatorData, validatorDataStatus, refetchNetwork } = useStakeValidators();
+
   const activeChainInfo = chainInfos[activeChain];
-
-  const { allAssets } = useGetTokenBalances();
   const token = allAssets?.find((e) => e.symbol === activeChainInfo.denom);
-  const { lcdUrl } = useChainApis();
-  const denoms = useDenoms();
-
-  const { status: chainRegistryStatus, getChainInfoById } = useChainsRegistry();
-  const getIbcDenomInfo = useGetIbcDenomInfo();
-  const address = useAddress();
-  const denom = denoms[Object.keys(activeChainInfo.nativeDenoms)[0]];
-
-  const { data: denomFiatValue, status: fiatValueStatus } = useQuery(
-    ['input-fiat-value', token, currency],
-    async () => {
-      return await fetchCurrency(
-        '1',
-        denom.coinGeckoId,
-        denom.chain as SupportedChain,
-        currencyDetail[preferredCurrency].currencyPointer,
-      );
-    },
-    { enabled: !!token, retry: 5, staleTime: 5 * 60 * 1000, retryDelay: 10 },
-  );
-
-  const {
-    data: rewards,
-    status: loadingRewardsStatus,
-    refetch: refetchDelegatorRewards,
-    isFetching: isFetchingRewards,
-  } = useQuery(
-    [stakeQueryIds.delegatorRewards, address, activeChain, currency, isTestnet],
-    async (): Promise<{
-      rewardMap: Record<string, Reward>;
-      result: RewardsResponse;
-      totalRewards: string;
-      formattedTotalRewards: string;
-      currencyAmountReward: string;
-      totalRewardsDollarAmt: string;
-    }> => {
-      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', {
-        ...denoms,
-        ...activeChainInfo.nativeDenoms,
-      });
-      const { rewards, result } = await client.getRewards(address, {}, getIbcDenomInfo, getChainInfoById);
-
-      const resultTotal = await Promise.all(
-        result.total.map(async (c) => {
-          const denomInfo = (await getIbcDenomInfo(c.denom, getChainInfoById)) as NativeDenom;
-
-          let denomFiatValue = '0';
-          if (denomInfo?.coinGeckoId) {
-            denomFiatValue =
-              (await fetchCurrency(
-                '1',
-                denomInfo.coinGeckoId,
-                denomInfo.chain as SupportedChain,
-                currencyDetail[preferredCurrency].currencyPointer,
-              )) ?? '0';
-          }
-
-          const currenyAmount = new BigNumber(c.amount).multipliedBy(denomFiatValue).toString();
-
-          let formatted_amount = '';
-          if (denomInfo) {
-            formatted_amount = formatTokenAmount(c.amount, denomInfo.coinDenom, denomInfo.coinDecimals);
-
-            if (c.formatted_amount === 'NaN') {
-              formatted_amount = '0 ' + denomInfo.coinDenom;
-            }
-          }
-
-          return {
-            ...c,
-            currenyAmount,
-            formatted_amount,
-            tokenInfo: denomInfo,
-            denomFiatValue,
-          };
-        }),
-      );
-
-      const resultRewards = await Promise.all(
-        result.rewards.map(async (r) => {
-          const reward = await Promise.all(
-            r.reward.map(async (c) => {
-              const denomInfo = resultTotal.find((token) => token.denom === c.denom);
-              const denomFiatValue = denomInfo?.denomFiatValue ?? '0';
-              const currenyAmount = new BigNumber(c.amount).multipliedBy(denomFiatValue).toString();
-
-              let formatted_amount = '';
-              if (denomInfo && denomInfo.tokenInfo) {
-                const tokenInfo = denomInfo.tokenInfo;
-                formatted_amount = formatTokenAmount(c.amount, tokenInfo.coinDenom, tokenInfo.coinDecimals);
-
-                if (c.formatted_amount === 'NaN') {
-                  formatted_amount = '0 ' + tokenInfo.coinDenom;
-                }
-              }
-
-              return {
-                ...c,
-                currenyAmount,
-                formatted_amount,
-                tokenInfo: denomInfo?.tokenInfo,
-              };
-            }),
-          );
-
-          return { ...r, reward };
-        }),
-      );
-
-      const totalRewards = resultTotal
-        .reduce((a, v) => {
-          return a + +v.amount;
-        }, 0)
-        .toString();
-
-      let totalRewardsDollarAmt = '0';
-      if (resultTotal[0]) {
-        totalRewardsDollarAmt = resultTotal
-          .reduce((totalSum, token) => {
-            return totalSum.plus(new BigNumber(token.currenyAmount ?? ''));
-          }, new BigNumber('0'))
-          .toString();
-      }
-
-      let currencyAmountReward = '0';
-      if (result?.total[0]) {
-        currencyAmountReward = new BigNumber(totalRewards).multipliedBy(denomFiatValue ?? '0').toString();
-      }
-
-      let formattedTotalRewards = formatTokenAmount(totalRewards, activeChainInfo.denom, 4);
-      if (formattedTotalRewards === 'NaN') {
-        formattedTotalRewards = '0 ' + activeChainInfo.denom;
-      }
-
-      return {
-        rewardMap: rewards,
-        result: { ...result, total: resultTotal, rewards: resultRewards },
-        totalRewards,
-        formattedTotalRewards,
-        currencyAmountReward,
-        totalRewardsDollarAmt,
-      };
-    },
-    { enabled: !!address && chainRegistryStatus === 'success', staleTime: 60 * 1000, refetchOnWindowFocus: true },
-  );
-
-  const {
-    data: delegationInfo,
-    isLoading: loadingDelegations,
-    refetch: refetchDelegations,
-  } = useQuery(
-    [stakeQueryIds.delegations, address, activeChain, denomFiatValue, isTestnet],
-    async (): Promise<{
-      totalDelegationAmount: string;
-      currencyAmountDelegation: string;
-      delegations: Record<string, Delegation>;
-    }> => {
-      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', {
-        ...denoms,
-        ...activeChainInfo.nativeDenoms,
-      });
-      const rawDelegations: Record<string, Delegation> = await client.getDelegations(address);
-      const delegations = Object.entries(rawDelegations)
-        .filter(([, d]) => new BigNumber(d.balance.amount).gt(0))
-        .reduce((formattedDelegations, [validator, d]) => {
-          d.balance.currenyAmount = new BigNumber(d.balance.amount).multipliedBy(denomFiatValue ?? '0').toString();
-          d.balance.formatted_amount = formatTokenAmount(d.balance.amount, activeChainInfo.denom, 6);
-          return { [validator]: d, ...formattedDelegations };
-        }, {});
-
-      const tda = Object.values(rawDelegations)
-        .reduce((acc, v) => acc.plus(v.balance.amount), new BigNumber(0))
-        .toString();
-      const totalDelegationAmount = formatTokenAmount(tda, activeChainInfo.denom);
-      const currencyAmountDelegation = new BigNumber(tda).multipliedBy(denomFiatValue ?? '0').toString();
-      return { delegations, totalDelegationAmount, currencyAmountDelegation };
-    },
-    { enabled: !!address, staleTime: 60 * 1000, refetchOnWindowFocus: true },
-  );
-
-  const {
-    data: unboundingDelegationsInfo,
-    status: loadingUnboundingDegStatus,
-    refetch: refetchUnboundingDelegations,
-  } = useQuery(
-    [stakeQueryIds.unboundingDelegations, address, activeChain, isTestnet],
-    async (): Promise<Record<string, UnbondingDelegation>> => {
-      const client = await StakeQueryClient(activeChain, lcdUrl ?? '', {
-        ...denoms,
-        ...activeChainInfo.nativeDenoms,
-      });
-
-      const denom = Object.values(activeChainInfo.nativeDenoms).filter(
-        (denom) => denom.coinDenom === activeChainInfo.denom,
-      )[0].coinMinimalDenom;
-
-      const uDelegations: Record<string, UnbondingDelegation> = await client.getUnbondingDelegations(
-        address,
-        denom as SupportedDenoms,
-      );
-      Object.values(uDelegations).map(async (r) => {
-        r.entries.map((e) => {
-          e.formattedBalance = formatTokenAmount(e.balance, activeChainInfo.denom, 6);
-        });
-      });
-      return uDelegations;
-    },
-    { enabled: !!address, staleTime: 60 * 1000 },
-  );
-
-  const {
-    data: validatorData,
-    status: validatorDataStatus,
-    refetch: refetchNetwork,
-  } = useQuery(
-    ['stakeValidators', activeChain, isTestnet],
-    async (): Promise<{
-      chainData: NetworkChainData;
-      validators: Validator[];
-    }> => {
-      const chainId = activeChainInfo.key;
-
-      const _chainData = activeChainInfo.beta
-        ? { params: { calculated_apr: 0, estimated_apr: 0 } }
-        : ((await getChainInfo(chainId, isTestnet)) as ChainData);
-
-      const denom = Object.values(activeChainInfo.nativeDenoms).find(
-        (denom) => denom.coinDenom === activeChainInfo.denom,
-      );
-
-      const validators = (await CosmosDirectory(isTestnet).getValidators(
-        (chainId === 'terra' ? 'terra2' : chainId) as SupportedChain,
-        lcdUrl,
-        denom,
-        chainInfos,
-      )) as Validator[];
-
-      // validators = await fillValidatorsImage(validators);
-
-      const { unbonding_time = 0 } = await getUnbondingTime(chainId, isTestnet, lcdUrl, chainInfos);
-      const calculatedApr = await getApr(activeChain, isTestnet, chainInfos);
-
-      return {
-        chainData: {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          params: { ...(_chainData?.params ?? {}), calculated_apr: calculatedApr, unbonding_time },
-        },
-        validators,
-      };
-    },
-    {
-      staleTime: 5 * 60 * 1000,
-      retry: (failureCount) => {
-        return failureCount < 3;
-      },
-    },
-  );
 
   const networkData = useMemo(() => {
     if (validatorData?.chainData && validatorData?.validators)
@@ -361,7 +100,6 @@ export function useStaking() {
 
   const loadingUnboundingDelegations =
     loadingUnboundingDegStatus !== 'success' && loadingUnboundingDegStatus !== 'error';
-  const loadingFiatValue = fiatValueStatus !== 'success' && fiatValueStatus !== 'error';
   const loadingRewards = loadingRewardsStatus !== 'success' && loadingRewardsStatus !== 'error';
   const loadingNetwork = validatorDataStatus !== 'success' && validatorDataStatus !== 'error';
 
@@ -378,7 +116,6 @@ export function useStaking() {
     totalRewardsDollarAmt: rewards?.totalRewardsDollarAmt,
     formattedTotalRewardAmount: rewards?.formattedTotalRewards,
     totalRewards: rewards?.totalRewards,
-    currencyAmountReward: rewards?.currencyAmountReward,
     network: networkData,
     minMaxApy: networkData?.minMaxApy,
     delegations: delegationInfo?.delegations,
@@ -386,7 +123,6 @@ export function useStaking() {
     totalDelegationAmount: delegationInfo?.totalDelegationAmount,
     currencyAmountDelegation: delegationInfo?.currencyAmountDelegation,
     unboundingDelegationsInfo,
-    loadingFiatValue,
     loadingUnboundingDelegations,
     loadingRewards: loadingRewards,
     isFetchingRewards,
@@ -429,8 +165,9 @@ export function useSimulateStakeTx(
   );
 
   const simulateTx = useCallback(
-    async (_amount: string) => {
+    async (_amount: string, feeDenom: string) => {
       const amount = getAmount(_amount);
+      const fee = getSimulationFee(feeDenom);
       switch (mode) {
         case 'REDELEGATE':
           return await simulateRedelegate(
@@ -439,17 +176,18 @@ export function useSimulateStakeTx(
             toValidator?.address ?? '',
             fromValidator?.address ?? '',
             amount,
+            fee,
           );
         case 'DELEGATE':
-          return await simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return await simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
         case 'CLAIM_REWARDS': {
           const validators =
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
-          return await simulateWithdrawRewards(lcdUrl ?? '', address, validators);
+          return await simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
         }
         case 'UNDELEGATE':
-          return await simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return await simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
       }
     },
     [address, toValidator, fromValidator, mode, delegations],
@@ -501,7 +239,7 @@ export function useStakeTx(
   const gasAdjustment = useGasAdjustment();
 
   // FUNCTIONS
-  const onTxSuccess = async (promise: any, callback?: TxCallback) => {
+  const onTxSuccess = async (promise: any, txHash: string, callback?: TxCallback) => {
     const amtKey = mode === 'UNDELEGATE' || mode === 'CLAIM_REWARDS' ? 'receivedAmount' : 'sentAmount';
     const title = mode === 'CLAIM_REWARDS' ? 'claim rewards' : mode.toLowerCase();
 
@@ -525,6 +263,7 @@ export function useStakeTx(
       txStatus: 'loading',
       txType: mode === 'DELEGATE' || mode === 'REDELEGATE' ? 'delegate' : 'undelegate',
       promise,
+      txHash,
     });
     if (showLedgerPopup) {
       setShowLedgerPopup(false);
@@ -542,7 +281,8 @@ export function useStakeTx(
   };
 
   const simulateTx = useCallback(
-    (amount: Coin) => {
+    (amount: Coin, feeDenom: string) => {
+      const fee = getSimulationFee(feeDenom);
       switch (mode) {
         case 'REDELEGATE':
           return simulateRedelegate(
@@ -551,17 +291,18 @@ export function useStakeTx(
             toValidator?.address ?? '',
             fromValidator?.address ?? '',
             amount,
+            fee,
           );
         case 'DELEGATE':
-          return simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
         case 'CLAIM_REWARDS': {
           const validators =
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
-          return simulateWithdrawRewards(lcdUrl ?? '', address, validators);
+          return simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
         }
         case 'UNDELEGATE':
-          return simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount);
+          return simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
       }
     },
     [address, toValidator, fromValidator, memo, mode, delegations],
@@ -677,7 +418,7 @@ export function useStakeTx(
         }
 
         try {
-          const { gasUsed } = await simulateTx(amt);
+          const { gasUsed } = await simulateTx(amt, gasPrice.denom);
           gasEstimate = gasUsed;
           setRecommendedGasLimit(gasUsed.toString());
         } catch (error: any) {
@@ -755,7 +496,7 @@ export function useStakeTx(
         });
         const txResult = tx.pollForTx(txHash);
 
-        if (txResult) onTxSuccess(txResult, callback);
+        if (txResult) onTxSuccess(txResult, txHash, callback);
         setError(undefined);
       }
     } catch (e: any) {

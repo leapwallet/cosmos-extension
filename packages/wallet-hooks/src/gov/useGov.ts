@@ -1,6 +1,13 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
-import { calculateFee, StdFee } from '@cosmjs/stargate';
-import { fromSmall, LedgerError, NativeDenom, simulateVote, toSmall } from '@leapwallet/cosmos-wallet-sdk';
+import { calculateFee, Coin, StdFee } from '@cosmjs/stargate';
+import {
+  fromSmall,
+  getSimulationFee,
+  LedgerError,
+  NativeDenom,
+  simulateVote,
+  toSmall,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/constants/default-gasprice-step';
 import { BigNumber } from 'bignumber.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
@@ -47,9 +54,9 @@ export function useSimulateVote() {
   const address = useAddress();
 
   return useCallback(
-    ({ proposalId, voteOption }: { proposalId: string; voteOption: VoteOptions }) => {
+    ({ proposalId, voteOption, fee }: { proposalId: string; voteOption: VoteOptions; fee: Coin[] }) => {
       if (proposalId) {
-        return simulateVote(lcdUrl ?? '', address, proposalId, getVoteNum(voteOption));
+        return simulateVote(lcdUrl ?? '', address, proposalId, getVoteNum(voteOption), fee);
       }
       return Promise.resolve(null);
     },
@@ -119,7 +126,6 @@ export function useGov({ proposalId }: { proposalId: string }) {
         setLoading(true);
         setError(undefined);
         setLedgerError(undefined);
-
         try {
           const _tx = !isSimulation ? await getTxHandler(wallet) : undefined;
 
@@ -143,8 +149,8 @@ export function useGov({ proposalId }: { proposalId: string }) {
             let gasEstimate =
               defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? defaultGasEstimates.cosmos.DEFAULT_GAS_TRANSFER;
             try {
-              const { gasUsed } = await simulateVote(lcdUrl ?? '', address, proposalId, voteOption);
-
+              const fee = getSimulationFee(gasPrice.denom);
+              const { gasUsed } = await simulateVote(lcdUrl ?? '', address, proposalId, voteOption, fee);
               gasEstimate = gasUsed;
             } catch (e) {
               //
@@ -232,6 +238,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
               txStatus: 'loading',
               txType: 'vote',
               promise,
+              txHash,
             });
             callback('success');
             setError(undefined);

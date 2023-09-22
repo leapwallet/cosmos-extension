@@ -14,7 +14,11 @@ export function useInitBetaNFTsCollections() {
       const storedBetaNFTsCollections = await storage.get(BETA_NFTS_COLLECTIONS);
 
       if (storedBetaNFTsCollections) {
-        const betaNFTsCollections = JSON.parse(storedBetaNFTsCollections);
+        const storedObj =
+          typeof storedBetaNFTsCollections === 'string'
+            ? storedBetaNFTsCollections
+            : JSON.stringify(storedBetaNFTsCollections);
+        const betaNFTsCollections = JSON.parse(storedObj);
 
         setBetaNFTsCollections(betaNFTsCollections);
       } else {
