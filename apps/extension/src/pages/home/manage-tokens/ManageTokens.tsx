@@ -5,10 +5,8 @@ import {
   Token,
   useChainApis,
   useDisabledCW20Tokens,
-  useSelectedNetwork,
   useSetDisabledCW20InStorage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { getChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider, HeaderActionType, ToggleCard } from '@leapwallet/leap-ui'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import { EmptyCard } from 'components/empty-card'
@@ -35,7 +33,6 @@ export function ManageTokens({ isVisible, onClose, tokens: _tokens }: ManageToke
   const setDisabledCW20Tokens = useSetDisabledCW20InStorage()
   const [tokens, setTokens] = useState(_tokens ?? [])
   const activeChain = useActiveChain()
-  const selectedNetwork = useSelectedNetwork()
   const [fetchedTokens, setFetchedTokens] = useState<string[]>([])
 
   const navigate = useNavigate()
@@ -48,54 +45,10 @@ export function ManageTokens({ isVisible, onClose, tokens: _tokens }: ManageToke
   useEffect(() => {
     if (_tokens) {
       ;(async () => {
-        try {
-          // fill cw20 tokens from cosmos registry
-          const chain = await getChainInfo(activeChain, selectedNetwork === 'testnet')
-
-          if (chain && chain.assets) {
-            const cw20Assets = chain.assets.reduce(
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              (_cw20Assets, asset) => {
-                if (!asset.denom) {
-                  return _cw20Assets
-                }
-
-                if (asset.denom.includes('cw20:')) {
-                  const denom = asset.denom.slice(5)
-
-                  if (_tokens.find((token) => token.coinMinimalDenom === denom)) {
-                    return _cw20Assets
-                  }
-
-                  const { name, symbol, image, decimals, coingecko_id } = asset
-                  return [
-                    ..._cw20Assets,
-                    {
-                      coinMinimalDenom: denom,
-                      symbol,
-                      name,
-                      img: image ?? '',
-                      coinDecimals: decimals,
-                      coinGeckoId: coingecko_id ?? '',
-                    },
-                  ]
-                }
-
-                return _cw20Assets
-              },
-              [],
-            ) as unknown as Token[]
-
-            setFetchedTokens([...cw20Assets.map((asset) => asset.coinMinimalDenom)])
-            setTokens([...(_tokens ?? []), ...cw20Assets])
-          }
-        } catch (_) {
-          //
-        }
+        setTokens([...(_tokens ?? [])])
       })()
     }
-  }, [_tokens, activeChain, selectedNetwork])
+  }, [_tokens])
 
   useEffect(() => {
     setFetchedTokens((prevValue) => {

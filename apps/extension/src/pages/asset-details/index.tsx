@@ -62,12 +62,7 @@ export default function AssetDetails() {
   const [showReceiveSheet, setShowReceiveSheet] = useState(false)
 
   const isDark = useTheme().theme === ThemeName.DARK
-
   const portfolio: Token = state as Token
-  const portfolioPercentChange = portfolio.percentChange
-    ? `${portfolio.percentChange.toFixed(2)}%`
-    : ''
-
   const formatter = Intl.NumberFormat('en', { notation: 'compact' })
 
   const {
@@ -145,7 +140,6 @@ export default function AssetDetails() {
                         |
                       </div>
                       <Badge
-                        image={portfolio.ibcChainInfo.icon}
                         text={`${portfolio.ibcChainInfo.pretty_name} / ${portfolio.ibcChainInfo.channelId}`}
                       />
                     </>
@@ -367,18 +361,6 @@ export default function AssetDetails() {
                   <Text size='sm' color='text-gray-400 font-bold'>
                     {formatHideBalance(formatTokenAmount(portfolio.amount, portfolio.symbol))}
                   </Text>
-                  {portfolioPercentChange && (
-                    <Text
-                      size='sm'
-                      color='font-bold'
-                      className={classNames({
-                        'text-green-600': (portfolio.percentChange as number) >= 0,
-                        'text-red-300': (portfolio.percentChange as number) < 0,
-                      })}
-                    >
-                      {' | '} {formatHideBalance(portfolioPercentChange)}
-                    </Text>
-                  )}
                 </div>
               )}
             </div>

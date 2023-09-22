@@ -2,6 +2,7 @@ import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provider/messaging/requester'
 import { ChainInfo, Sscrt, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import { Divider, Key, Value } from 'components/dapp'
 import { ErrorCard } from 'components/ErrorCard'
@@ -107,6 +108,7 @@ export default function AddSecretToken() {
         } catch (e: any) {
           setIsFetching(false)
           setError(e.message)
+          captureException(e)
         }
       }
     })

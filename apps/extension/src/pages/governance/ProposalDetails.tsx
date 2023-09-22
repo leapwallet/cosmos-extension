@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react/no-children-prop */
 import { useChainApis, useChainsStore, useGetProposal } from '@leapwallet/cosmos-wallet-hooks'
-import { axiosWrapper, ChainInfo, CoinType } from '@leapwallet/cosmos-wallet-sdk'
+import { axiosWrapper, ChainInfo, CoinType, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider, Header, HeaderActionType, LineDivider } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import classNames from 'classnames'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
@@ -124,21 +125,19 @@ const ShowVotes = ({ dataMock, chain }: IShowVotes) => {
 }
 
 function VoteDetails({
-  selectedProp,
-  onVote,
-  proposalList,
   currVote,
+  proposal,
   isLoading,
+  activeChain,
+  onVote,
 }: {
-  selectedProp: string
-  onVote: () => void
-  proposalList: any[]
+  proposal: any
   currVote: string
   isLoading: boolean
+  activeChain: SupportedChain
+  onVote: () => void
 }) {
-  const proposal = proposalList.find((prop) => prop.proposal_id === selectedProp)
   const [timeLeft, setTimeLeft] = useState<string | undefined>()
-  const activeChain = useActiveChain()
 
   useEffect(() => {
     const getTime = () => {
@@ -184,6 +183,7 @@ function VoteDetails({
               {timeLeft && `Ending in ${timeLeft}`}
             </div>
           </div>
+
           {isLoading ? (
             <div className='rounded-2xl mt-4 h-18 w-full p-4 flex bg-white-100 dark:bg-gray-900'>
               <Skeleton count={1} className='rounded-full mt-4 h-10 w-10' />
@@ -193,6 +193,7 @@ function VoteDetails({
               </div>
             </div>
           ) : null}
+
           {currVote && currVote !== 'NO_VOTE' && (
             <div
               className={classNames(
@@ -208,6 +209,7 @@ function VoteDetails({
               </div>
             </div>
           )}
+
           <Buttons.Generic
             color={Colors.getChainColor(activeChain)}
             size='normal'
@@ -221,6 +223,7 @@ function VoteDetails({
           </Buttons.Generic>
         </>
       )
+
     case ProposalStatus.PROPOSAL_STATUS_DEPOSIT_PERIOD:
       return (
         <>
@@ -241,6 +244,7 @@ function VoteDetails({
           </div>
         </>
       )
+
     case ProposalStatus.PROPOSAL_STATUS_PASSED:
     case ProposalStatus.PROPOSAL_STATUS_FAILED:
     case ProposalStatus.PROPOSAL_STATUS_REJECTED:
@@ -253,6 +257,7 @@ function VoteDetails({
               </div>
               <div className='text-gray-600 dark:text-gray-200 text-xs font-bold'></div>
             </div>
+
             <div className='flex flex-col justify-center gap-3 p-4'>
               {voteRatio(proposal.final_tally_result).map((values) => (
                 <div key={values.label} className='flex rounded-2xl relative overflow-clip'>
@@ -315,6 +320,7 @@ const Turnout = ({ tallying }: { tallying: ITally[] }) => {
                   </span>
                 </button>
               </div>
+
               {tally.value ? (
                 <p className='text-sm font-bold text-gray-800 dark:text-white-100'>
                   {`${Number(tally.value).toFixed(2)}%`}
@@ -323,10 +329,12 @@ const Turnout = ({ tallying }: { tallying: ITally[] }) => {
                 <Skeleton count={1} width='50px' />
               )}
             </div>
+
             {index === 0 && <CardDivider />}
           </Fragment>
         ))}
       </div>
+
       <BottomSheet
         isVisible={!!detail}
         onClose={() => showDetail('')}
@@ -380,19 +388,24 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
     async (): Promise<string | undefined> => {
       if (activeChain) {
         try {
-          const data = await axiosWrapper({
-            baseURL: lcdUrl ?? '',
-            method: 'get',
-            url: `/cosmos/gov/v1beta1/proposals/${selectedProp}/votes/${address}`,
-          })
+          const data = await axiosWrapper(
+            {
+              baseURL: lcdUrl ?? '',
+              method: 'get',
+              url: `/cosmos/gov/v1beta1/proposals/${selectedProp}/votes/${address}`,
+            },
+            1,
+            'proposals-votes',
+          )
 
           const voteOption = data.data.vote.options[0].option
           return voteOption.replace('VOTE_OPTION_', '')
-        } catch (e: any) {
-          if (e.response.data.code === 3) {
+        } catch (error: any) {
+          if (error.response.data.code === 3 || error.response.data.error?.code === -32700) {
             return 'NO_VOTE'
           } else {
-            throw new Error(e)
+            captureException(error)
+            throw new Error(error)
           }
         }
       }
@@ -468,16 +481,19 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
           <div className='text-black-100 dark:text-white-100 font-bold text-xl break-words'>
             {proposal.content.title}
           </div>
+
           <VoteDetails
-            selectedProp={proposal.proposal_id}
+            proposal={proposal}
+            activeChain={activeChain}
             onVote={() => setShowCastVoteSheet(true)}
-            proposalList={proposalList}
-            currVote={currVote as string}
+            currVote={currVote ?? ''}
             isLoading={isLoading}
           />
+
           <div className='my-8'>
             <LineDivider size='sm' />
           </div>
+
           {proposal.status !== ProposalStatus.PROPOSAL_STATUS_DEPOSIT_PERIOD && totalVotes && (
             <>
               <div className='w-full h-full flex items-center justify-center mb-8'>
@@ -496,6 +512,7 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
               <Turnout tallying={tallying} />
             </>
           )}
+
           {activeProposalStatusTypes.includes(proposal.status) && (
             <div
               className={`rounded-2xl ${
@@ -517,6 +534,7 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
                     className='rounded-full absolute bottom-0 right-0'
                   />
                 </div>
+
                 <div className='flex flex-col ml-3'>
                   <Text size='md' color='font-bold dark:text-white-100 text-gray-800'>
                     Proposer
@@ -533,6 +551,7 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
                   )}
                 </div>
               </div>
+
               {_proposalVotes?.proposerTxUrl && (
                 <button
                   className='flex items-center justify-center px-1'
@@ -545,9 +564,11 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
               )}
             </div>
           )}
+
           <div className='my-8'>
             <LineDivider size='sm' />
           </div>
+
           {proposal.content.description && (
             <ProposalDescription
               description={proposal.content.description}
@@ -556,6 +577,7 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
             />
           )}
         </div>
+
         <CastVote
           refetchVote={refetch}
           proposalId={proposal.proposal_id}

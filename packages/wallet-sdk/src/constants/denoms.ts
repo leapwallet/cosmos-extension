@@ -16,6 +16,14 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  usge: {
+    coinDenom: 'SGE',
+    coinDecimals: 6,
+    coinMinimalDenom: 'usge',
+    icon: 'https://assets.leapwallet.io/sge.svg',
+    chain: 'sge',
+    coinGeckoId: '',
+  },
   utia: {
     coinDenom: 'TIA',
     coinDecimals: 6,

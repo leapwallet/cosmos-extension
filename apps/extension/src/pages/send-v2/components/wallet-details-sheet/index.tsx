@@ -1,3 +1,5 @@
+import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, AvatarCard, Buttons, Card } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { Images } from 'images'
@@ -22,6 +24,7 @@ export default function WalletDetailsSheet({
   onDelete,
   selectedAddress,
 }: WalletDetailsSheetProps): ReactElement {
+  const chains = useGetChains()
   const [showSaveAddressSheet, setShowSaveAddressSheet] = useState<boolean>(false)
   const contact = AddressBook.useGetContact(selectedAddress.address ?? '')
 
@@ -40,7 +43,10 @@ export default function WalletDetailsSheet({
             chainIcon={selectedAddress.chainIcon}
             emoji={contact?.emoji ?? selectedAddress.emoji}
             size='lg'
-            subtitle={`Chain: ${selectedAddress.chainName}`}
+            subtitle={`Chain: ${
+              chains[selectedAddress.chainName as SupportedChain]?.chainName ??
+              selectedAddress.chainName
+            }`}
             title={contact?.name ?? selectedAddress.name}
           />
           <Buttons.CopyWalletAddress

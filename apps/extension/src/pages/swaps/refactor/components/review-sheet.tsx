@@ -11,6 +11,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import { BigNumber } from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import { ErrorCard } from 'components/ErrorCard'
@@ -86,6 +87,7 @@ const ReviewSheet: React.FC<propTypes> = ({
       const srcCoin = denoms[response?.data.fromToken.denom ?? '']
       const destCoin = denoms[response?.data.toToken.denom ?? '']
       setPendingTx({
+        txHash: response?.txHash,
         img: srcCoin.icon,
         secondaryImg: destCoin.icon,
         subtitle1: '',
@@ -95,8 +97,9 @@ const ReviewSheet: React.FC<propTypes> = ({
         promise: response?.pollPromise as Promise<DeliverTxResponse | ExecuteResult>,
       })
       setIsLoading(false)
-      navigate('/activity')
+      navigate('/pending-tx')
     } catch (e: any) {
+      captureException(e)
       DEBUG('OSMOSIS SWAP', 'Failed to execute token swap', e)
       setIsLoading(false)
       if (e.message.includes('Tx Error Code')) {

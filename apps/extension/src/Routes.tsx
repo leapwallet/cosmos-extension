@@ -2,6 +2,7 @@ import { useFetchCW20Tokens, useFetchERC20Tokens } from '@leapwallet/cosmos-wall
 import * as Sentry from '@sentry/react'
 import { useFillBetaCW20Tokens } from 'hooks/settings'
 import Activity from 'pages/activity/Activity'
+import { PendingTx } from 'pages/activity/PendingTx'
 import ApproveConnection from 'pages/ApproveConnection/ApproveConnection'
 import AssetDetails from 'pages/asset-details'
 import Login from 'pages/auth/login'
@@ -223,6 +224,14 @@ export default function AppRoutes(): JSX.Element {
             element={
               <RequireAuth hideBorder={true}>
                 <AddSecretToken />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path='pending-tx'
+            element={
+              <RequireAuth>
+                <PendingTx />
               </RequireAuth>
             }
           />

@@ -75,6 +75,7 @@ export const feeDenoms: FeeDenoms = {
     empowerchain: denoms.umpwr,
     dydx: denoms.dv4tnt,
     celestiatestnet3: denoms.utia,
+    sge: denoms.usge,
   },
   testnet: {
     akash: denoms.uakt,
@@ -143,5 +144,6 @@ export const feeDenoms: FeeDenoms = {
     empowerchain: denoms.umpwr,
     dydx: denoms.dv4tnt,
     celestiatestnet3: denoms.utia,
+    sge: denoms.usge,
   },
 };

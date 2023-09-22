@@ -72,4 +72,5 @@ export const GAS_PRICE_STEPS = {
   empowerchain: { low: 0.025, average: 0.025, high: 0.03 },
   dydx: { low: 0.01, average: 0.025, high: 0.04 },
   celestiatestnet3: { low: 0.01, average: 0.025, high: 0.04 },
+  sge: { low: 0.01, average: 0.025, high: 0.04 },
 };

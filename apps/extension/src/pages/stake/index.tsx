@@ -24,7 +24,6 @@ import { EmptyCard } from 'components/empty-card'
 import InfoSheet from 'components/Infosheet'
 import PopupLayout from 'components/layout/popup-layout'
 import ReadMoreText from 'components/read-more-text'
-import showOrHideBalances from 'components/show-or-hide-balances'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
 import currency from 'currency.js'
@@ -111,7 +110,7 @@ function UnboundingDelegations({
               const { data: keybaseImageUrl } = useValidatorImage(validator)
 
               return (
-                <React.Fragment key={`validators ${validator.rank} ${idx}`}>
+                <React.Fragment key={`validators ${validator?.rank} ${idx}`}>
                   {index !== 0 && <CardDivider />}
                   {validator && (
                     <div className='relative cursor-default'>
@@ -143,7 +142,7 @@ function UnboundingDelegations({
               )
             }
 
-            return <Component key={`validators ${validator.rank} ${idx}`} />
+            return <Component key={`validators ${validator?.rank} ${idx}`} />
           })
 
           return <React.Fragment key={`validators ${index}`}>{frags}</React.Fragment>
@@ -159,10 +158,8 @@ function DepositAmountCard({
   isLoading,
   unstakingPeriod,
   network,
-  percentageChange,
   formatHideBalance,
 }: {
-  percentageChange: number
   totalDelegations: string
   unstakingPeriod: string
   // eslint-disable-next-line no-unused-vars
@@ -200,12 +197,6 @@ function DepositAmountCard({
             </Text>
             <Text size='xs' className='font-semibold'>
               {formatHideBalance(totalDelegations ?? `0.00 ${activeChainInfo.denom}`)}
-              {totalDelegations && (
-                <>
-                  <span className='mx-2'>|</span>
-                  {showOrHideBalances(false, percentageChange)}
-                </>
-              )}
             </Text>
           </div>
           <div className='flex shrink  h-[48px] w-[121px]'>
@@ -244,7 +235,6 @@ function ValidatorBreakdown({
   unstakingPeriod,
   network,
   rewards,
-  percentChange,
   isLoading,
   formatHideBalance,
 }: {
@@ -252,7 +242,6 @@ function ValidatorBreakdown({
   delegation: Record<string, Delegation>
   network: Network
   rewards: RewardsResponse
-  percentChange: number
   isLoading: boolean
   // eslint-disable-next-line no-unused-vars
   formatHideBalance: (s: string) => React.ReactNode
@@ -301,7 +290,6 @@ function ValidatorBreakdown({
                             reward: reward,
                             validatorAddress: d.delegation.validator_address,
                             validators: validators,
-                            percentChange: percentChange,
                             apy: apy,
                           } as ValidatorDetailsProps,
                         })
@@ -494,7 +482,6 @@ export default function Stake() {
     loadingDelegations,
     currencyAmountDelegation,
     delegations,
-    loadingFiatValue,
     isFetchingRewards,
   } = useStaking()
 
@@ -514,11 +501,7 @@ export default function Stake() {
 
   const isNotSupportedChain = false //isTestnet && (activeChain === 'juno' || activeChain === 'osmosis')
   const isLoadingAll =
-    loadingDelegations ||
-    loadingNetwork ||
-    loadingRewards ||
-    loadingUnboundingDelegations ||
-    loadingFiatValue
+    loadingDelegations || loadingNetwork || loadingRewards || loadingUnboundingDelegations
 
   usePerformanceMonitor({
     page: 'stake',
@@ -614,19 +597,17 @@ export default function Stake() {
                   <DepositAmountCard
                     formatHideBalance={formatHideBalance}
                     unstakingPeriod={unstakingPeriod}
-                    percentageChange={token?.percentChange as number}
                     network={network as Network}
                     activeChain={activeChain}
                     totalDelegations={totalDelegationAmount as string}
                     currencyAmountDelegation={formatCurrency(
                       new BigNumber(currencyAmountDelegation as string),
                     )}
-                    isLoading={loadingDelegations && loadingFiatValue}
+                    isLoading={loadingDelegations}
                   />
                   <ValidatorBreakdown
                     formatHideBalance={formatHideBalance}
                     unstakingPeriod={unstakingPeriod}
-                    percentChange={token?.percentChange as number}
                     rewards={rewards as RewardsResponse}
                     delegation={delegations as Record<string, Delegation>}
                     network={network as Network}

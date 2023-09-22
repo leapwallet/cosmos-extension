@@ -1,10 +1,11 @@
-import { coins } from '@cosmjs/amino';
+import { coin, coins } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, StdFee } from '@cosmjs/stargate';
 import {
   feeDenoms,
   fromSmall,
   getBlockChainFromAddress,
+  getSimulationFee,
   isValidAddressWithPrefix,
   NativeDenom,
   SigningSscrt,
@@ -201,7 +202,7 @@ export function useSend(toAddress: string) {
               'transfer',
               ibcChannelId?.[0] ?? '',
               undefined,
-              Math.floor(Date.now() / 1000) + 60,
+              Math.floor(Date.now() / 1000) + 120,
               fees,
               memo,
             )
@@ -312,6 +313,7 @@ export function useSend(toAddress: string) {
           }
         } else {
           try {
+            const fee = getSimulationFee(feeDenom.coinMinimalDenom);
             const { gasUsed } = isIBCTx
               ? await simulateIbcTransfer(
                   lcdUrl ?? '',
@@ -320,10 +322,11 @@ export function useSend(toAddress: string) {
                   amount[0],
                   ibcChannelId?.[0] ?? '',
                   'transfer',
-                  Math.floor(Date.now() / 1000) + 60,
+                  Math.floor(Date.now() / 1000) + 120,
                   undefined,
+                  fee,
                 )
-              : await simulateSend(lcdUrl ?? '', address, toAddress, amount);
+              : await simulateSend(lcdUrl ?? '', address, toAddress, amount, fee);
             gasEstimate = gasUsed;
           } catch (e) {
             //

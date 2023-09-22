@@ -69,7 +69,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
   const { lcdUrl } = useChainApis('stride');
 
   // FUNCTIONS
-  const onTxSuccess = async (promise: any, mode: ActivityType, callback?: TxCallback) => {
+  const onTxSuccess = async (promise: any, mode: ActivityType, txHash: string, callback?: TxCallback) => {
     setPendingTx({
       img: chainInfos['stride'].chainSymbolImageUrl,
       sentAmount: formatTokenAmount(amount, '', 4),
@@ -79,6 +79,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
       txStatus: 'loading',
       txType: mode,
       promise,
+      txHash,
     });
     showLedgerPopup && setShowLedgerPopup(false);
     callback && callback('success');
@@ -265,7 +266,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
         });
         const txResult = tx.pollForTx(txHash);
 
-        if (txResult) onTxSuccess(txResult, mode, callback);
+        if (txResult) onTxSuccess(txResult, mode, txHash, callback);
         setError('');
       }
     } catch (e: any) {

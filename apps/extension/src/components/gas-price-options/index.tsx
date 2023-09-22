@@ -4,6 +4,8 @@ import {
   fetchCurrency,
   formatBigNumber,
   GasOptions,
+  GasPriceStep,
+  getGasPricesForOsmosisFee,
   useActiveChain,
   useChainApis,
   useChainInfo,
@@ -23,6 +25,7 @@ import {
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -110,6 +113,9 @@ const GasPriceOptions = ({
   const defaultGasEstimates = useDefaultGasEstimates()
   const gasAdjustment = useGasAdjustment()
 
+  const baseGasPriceStep = useGasPriceStepForChain(activeChain)
+  const { lcdUrl } = useChainApis(activeChain)
+
   const { data: feeTokensList, isLoading: isFeeTokensListLoading } = useFeeTokens(activeChain)
 
   const chainNativeFeeTokenData = useMemo(() => feeTokensList[0], [feeTokensList])
@@ -123,10 +129,24 @@ const GasPriceOptions = ({
   })
 
   const [userHasSelectedToken, setUserHasSelectedToken] = useState<boolean>(false)
-  const [feeTokenData, setFeeTokenData] = useState<FeeTokenData>(() => {
-    const dappFeeDenomData = feeTokensList.find((a) => a.ibcDenom === initialFeeDenom)
-    return dappFeeDenomData ?? chainNativeFeeTokenData
-  })
+  const [feeTokenData, setFeeTokenData] = useState<FeeTokenData & { gasPriceStep: GasPriceStep }>()
+
+  useEffect(() => {
+    const fn = async () => {
+      const dappFeeDenomData = feeTokensList.find((a) => a.ibcDenom === initialFeeDenom)
+      const feeTokenData = dappFeeDenomData ?? chainNativeFeeTokenData
+      if (activeChain === 'osmosis' && feeTokenData && feeTokenData.ibcDenom !== 'uosmo') {
+        const gasPriceStep = await getGasPricesForOsmosisFee(
+          lcdUrl ?? '',
+          feeTokenData.ibcDenom,
+          baseGasPriceStep,
+        )
+        setFeeTokenData(() => ({ ...feeTokenData, gasPriceStep }))
+      }
+    }
+
+    fn()
+  }, [feeTokensList])
 
   const { allAssets: allTokens, ibcTokensStatus, nativeTokensStatus } = useGetTokenBalances()
 
@@ -138,14 +158,14 @@ const GasPriceOptions = ({
             (nativeCoinDenom) => nativeCoinDenom.coinMinimalDenom === token.coinMinimalDenom,
           )
         }
-        return token.ibcDenom === feeTokenData.ibcDenom
+        return token.ibcDenom === feeTokenData?.ibcDenom
       } else {
         if (chainInfo?.beta) {
           return Object.values(chainInfo.nativeDenoms).find(
             (nativeCoinDenom) => nativeCoinDenom.coinMinimalDenom === token.coinMinimalDenom,
           )
         }
-        return token.coinMinimalDenom === feeTokenData.denom.coinMinimalDenom
+        return token.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
       }
     })
   }, [allTokens, chainInfo?.beta, chainInfo?.nativeDenoms, feeTokenData])
@@ -168,7 +188,7 @@ const GasPriceOptions = ({
     )
   })
 
-  const isPayingFeeInNonNativeToken = feeTokenData.ibcDenom !== chainNativeFeeTokenData.ibcDenom
+  const isPayingFeeInNonNativeToken = feeTokenData?.ibcDenom !== chainNativeFeeTokenData.ibcDenom
 
   useEffect(() => {
     if (recommendedGasLimit) {
@@ -186,7 +206,7 @@ const GasPriceOptions = ({
 
   useEffect(() => {
     feeIbcDenomTrackerRef.current.previous = feeIbcDenomTrackerRef.current.current
-    feeIbcDenomTrackerRef.current.current = feeTokenData.ibcDenom
+    feeIbcDenomTrackerRef.current.current = feeTokenData?.ibcDenom ?? ''
 
     if (
       feeIbcDenomTrackerRef.current.current !== chainNativeFeeTokenData.ibcDenom &&
@@ -218,7 +238,7 @@ const GasPriceOptions = ({
     }
   }, [
     chainNativeFeeTokenData.ibcDenom,
-    feeTokenData.ibcDenom,
+    feeTokenData?.ibcDenom,
     setGasLimit,
     gasLimit,
     recommendedGasLimit,
@@ -237,21 +257,22 @@ const GasPriceOptions = ({
       return
     }
     if (!feeTokenAsset) {
-      return setError(`You do not have any ${feeTokenData.denom.coinDenom} tokens`)
+      return setError(`You do not have any ${feeTokenData?.denom.coinDenom} tokens`)
     }
     const isIbcDenom = !!feeTokenAsset?.ibcDenom
     const amount = gasPriceBN
       .multipliedBy(gasLimit)
       .multipliedBy(gasAdjustment)
-      .dividedBy(10 ** feeTokenData.denom.coinDecimals)
+      //@ts-ignore
+      .dividedBy(10 ** feeTokenData?.denom?.coinDecimals ?? 8)
 
     if (
-      (isIbcDenom && feeTokenAsset.ibcDenom === feeTokenData.ibcDenom) ||
-      feeTokenAsset.coinMinimalDenom === feeTokenData.denom.coinMinimalDenom
+      (isIbcDenom && feeTokenAsset?.ibcDenom === feeTokenData?.ibcDenom) ||
+      feeTokenAsset.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
     ) {
       if (amount.isGreaterThan(feeTokenAsset.amount ?? 0)) {
         setError(
-          `You don't have enough ${feeTokenData.denom.coinDenom.toUpperCase()} to pay gas fees`,
+          `You don't have enough ${feeTokenData?.denom.coinDenom.toUpperCase()} to pay gas fees`,
         )
       } else {
         setError(null)
@@ -693,28 +714,18 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
       selectedFeeTokenData.ibcDenom !== 'uosmo'
     ) {
       try {
-        const priceInfo = await axiosWrapper({
-          baseURL: lcdUrl,
-          method: 'get',
-          url: `/osmosis/txfees/v1beta1/spot_price_by_denom?denom=${encodeURIComponent(
-            selectedFeeTokenData?.ibcDenom ?? '',
-          )}`,
-        })
-
-        const priceRatio = new BigNumber(1).dividedBy(priceInfo.data.spot_price)
-
-        const gasPriceStep = {
-          low: priceRatio.multipliedBy(baseGasPriceStep.low).multipliedBy(1.05).toNumber(),
-          medium: priceRatio.multipliedBy(baseGasPriceStep.medium).multipliedBy(1.05).toNumber(),
-          high: priceRatio.multipliedBy(baseGasPriceStep.high).multipliedBy(1.05).toNumber(),
-        }
+        const gasPriceStep = await getGasPricesForOsmosisFee(
+          lcdUrl ?? '',
+          selectedFeeTokenData?.ibcDenom ?? '',
+          baseGasPriceStep,
+        )
 
         selectedFeeTokenData = {
           ...selectedFeeTokenData,
           gasPriceStep,
         }
       } catch (error) {
-        //
+        captureException(error)
       }
     }
 

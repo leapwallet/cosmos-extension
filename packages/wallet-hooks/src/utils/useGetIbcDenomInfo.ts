@@ -1,41 +1,34 @@
-import { Chain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback } from 'react';
 
-import { useGetIbcDenomTrace } from '../ibc';
-import { useActiveChain, useDenoms, useSelectedNetwork } from '../store';
-import { getDenomInfo, isTerraClassic, useGetChannelIdData } from './index';
+import { fetchIbcTrace, useActiveChain, useChainApis, useChainsStore, useDenoms, useIbcTraceStore } from '../store';
 
 export function useGetIbcDenomInfo() {
-  const getChainId = useGetChannelIdData();
-  const getIbcDenomTrace = useGetIbcDenomTrace();
+  const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
   const denoms = useDenoms();
-  const selectedNetwork = useSelectedNetwork();
   const activeChain = useActiveChain();
+  const { lcdUrl } = useChainApis();
+  const { chains } = useChainsStore();
 
   return useCallback(
-    async (ibcDenom: string, getChainInfoById: (chainId: string) => Chain | null | undefined) => {
+    async (ibcDenom: string) => {
       try {
         let _baseDenom = ibcDenom;
-        let denomChain = activeChain as string;
 
         if (ibcDenom.includes('ibc/')) {
-          const denomTrace: any = await getIbcDenomTrace(ibcDenom.replace('ibc/', ''));
-          const lastChannelId = denomTrace?.path?.split('/')[1];
-          const baseDenom = denomTrace?.base_denom ?? denomTrace?.baseDenom;
+          let trace = ibcTraceData[_baseDenom];
+          if (!trace) {
+            trace = await fetchIbcTrace(_baseDenom, lcdUrl ?? '', chains[activeChain].chainId);
+            if (trace) addIbcTraceData({ [_baseDenom]: trace });
+          }
 
-          const chainId = await getChainId(lastChannelId ?? '');
-          const chainInfo = getChainInfoById(chainId);
-
-          denomChain = isTerraClassic(chainId) ? 'terra-classic' : chainInfo?.path ?? '';
-          _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
+          _baseDenom = trace.baseDenom.includes('cw20:') ? trace.baseDenom.replace('cw20:', '') : trace.baseDenom;
         }
 
-        const denomInfo = await getDenomInfo(_baseDenom, denomChain, denoms, selectedNetwork === 'testnet');
-        return denomInfo;
+        return denoms[_baseDenom];
       } catch {
         return;
       }
     },
-    [denoms, selectedNetwork],
+    [activeChain, denoms],
   );
 }

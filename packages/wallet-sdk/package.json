@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-sdk",
-  "version": "0.4.41",
+  "version": "0.5.3",
   "description": "TypeScript library to create and manage non-custodial wallets for cosmos blockchains.",
   "main": "dist/index.js",
   "scripts": {
@@ -61,7 +61,7 @@
     "futoin-hkdf": "1.5.1",
     "joi": "17.9.2",
     "long": "5.2.1",
-    "osmojs": "13.0.1",
+    "osmojs": "16.5.1",
     "parse-duration": "1.0.2",
     "secretjs": "1.8.1",
     "secure-random": "1.1.2",

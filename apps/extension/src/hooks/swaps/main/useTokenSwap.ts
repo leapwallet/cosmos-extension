@@ -9,6 +9,7 @@ import {
   TokenInfo,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { captureException } from '@sentry/react'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useCWTxHandler } from 'hooks/tx/useCWTxHandler'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -132,8 +133,9 @@ export const useTokenSwap = ({
           txStatus: 'loading',
           txType: 'fallback',
           promise,
+          txHash,
         })
-        navigate('/activity')
+        navigate('/pending-tx')
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
@@ -199,11 +201,13 @@ export const useTokenSwap = ({
           txStatus: 'loading',
           txType: 'fallback',
           promise,
+          txHash,
         })
-        navigate('/activity')
+        navigate('/pending-tx')
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
+        captureException(e)
         if (e.message === transactionDeclinedError.message) {
           navigate('/home?txDeclined=true')
         } else {

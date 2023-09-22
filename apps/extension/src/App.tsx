@@ -1,15 +1,22 @@
 import 'react-loading-skeleton/dist/skeleton.css'
 
 import {
+  useFetchStakeClaimRewards,
+  useFetchStakeDelegations,
+  useFetchStakeUndelegations,
+  useFetchStakeValidators,
   useGetBannerApi,
   useGetFaucetApi,
   useInitBetaNFTsCollections,
+  useInitCoingeckoPrices,
   useInitCustomChannelsStore,
   useInitDefaultGasEstimates,
   useInitDenoms,
   useInitDisabledCW20Tokens,
   useInitDisabledNFTsCollections,
   useInitGasPriceSteps,
+  useInitGovProposals,
+  useInitIbcTraceStore,
   useInitInvestData,
   useInitNftChains,
   useInitSelectedNetwork,
@@ -44,6 +51,7 @@ export default function App() {
 
   useInitTheme()
   useInitiateCurrencyPreference()
+  useInitCoingeckoPrices()
 
   useInitHideAssets()
   useInitHideSmallBalances()
@@ -80,10 +88,17 @@ export default function App() {
   useInitBetaNFTsCollections()
   useInitInvestData()
   useInitSnipDenoms()
+  useInitIbcTraceStore()
 
   // initialize request cache
   // useInitRequestCache()
   useInitNodeUrls(setNodeUrlInitialised)
+
+  useFetchStakeClaimRewards()
+  useFetchStakeDelegations()
+  useFetchStakeUndelegations()
+  useFetchStakeValidators()
+  useInitGovProposals()
 
   return (
     <LeapUiTheme defaultTheme={theme} forcedTheme={theme}>
