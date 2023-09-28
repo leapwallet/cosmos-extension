@@ -1,4 +1,4 @@
-import { StdSignDoc } from '@cosmjs/amino';
+import { coin, StdSignDoc } from '@cosmjs/amino';
 import { sha256 } from '@cosmjs/crypto';
 import { fromBase64, toHex } from '@cosmjs/encoding';
 import { GeneratedType, Registry } from '@cosmjs/proto-signing';
@@ -186,4 +186,8 @@ export async function pollForPacketAck(
     await sleep(1000);
     return pollForPacketAck(receivingChainLcd, sequence, channelId, intervalCount - 1);
   }
+}
+
+export function getSimulationFee(denom: string, amount = '100') {
+  return [coin(amount, denom)];
 }

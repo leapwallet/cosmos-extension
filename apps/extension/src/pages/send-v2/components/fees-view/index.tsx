@@ -33,7 +33,7 @@ export const FeesView: React.FC = () => {
   const handleGasPriceOptionChange = useCallback(
     (value: GasPriceOptionValue, feeTokenData: FeeTokenData) => {
       setGasPriceOption(value)
-      setFeeDenom(feeTokenData.denom)
+      setFeeDenom({ ...feeTokenData.denom, ibcDenom: feeTokenData.ibcDenom })
     },
     [setFeeDenom],
   )

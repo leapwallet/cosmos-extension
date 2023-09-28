@@ -1,4 +1,9 @@
 /**
+ * Test seed phrases and private keys for running wallet creation flow end-to-end test cases.
+ * There is no harm in keeping them here as they don't really have any values.
+ */
+
+/**
  * A wallet created for testing
  */
 export const TEST_SEED_PHRASE =

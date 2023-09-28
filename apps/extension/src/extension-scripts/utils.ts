@@ -257,7 +257,6 @@ export function requestEnableAccess(payload: {
   validChainIds: string[]
   payloadId: string
 }) {
-  // Store the listener function in a variable so we can remove it later
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const listener = (message: any, sender: any) => {
     if (sender.id !== browser.runtime.id) throw new Error('Invalid sender')

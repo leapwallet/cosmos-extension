@@ -105,8 +105,6 @@ const connectRemote = (remotePort: any) => {
     const { type, ...payload } = data
 
     let popupWindowId = 0
-    // let hasUnApprovedTx = false
-    // this condition exists to prevent infinite extension popups
 
     //check if account exists
     const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
@@ -146,8 +144,6 @@ const connectRemote = (remotePort: any) => {
           return getSupportedChains()
             .then((_chains) => {
               const supportedChains = Object.values(_chains)
-
-              // added temporarily to add coreum chain with 118 cointype on leap
 
               const allowCoreumFromLeap =
                 payload.origin === 'https://suggest-chain-leap.netlify.app' &&
@@ -300,7 +296,7 @@ const connectRemote = (remotePort: any) => {
 
                 try {
                   const response = await awaitEnableChainResponse()
-                  // hasUnApprovedTx = false
+
                   sendResponse(`on${type.toUpperCase()}`, response, payload.id)
                   delete enableAccessRequests[queryString]
                 } catch (error: any) {
@@ -309,8 +305,6 @@ const connectRemote = (remotePort: any) => {
                 }
               } else {
                 sendResponse(`on${type.toUpperCase()}`, { success: 'Chain enabled' }, payload.id)
-                // hasUnApprovedTx = false
-                // sendResponse()
               }
             } else {
               sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
@@ -710,25 +704,6 @@ const connectRemote = (remotePort: any) => {
 
 browser.runtime.onConnect.addListener(connectRemote)
 
-// function setOnTabRemovedListener(
-//  sendResponse: (type: string, payload: any, payloadId: number) => void,
-// ) {
-//   browser.windows.onRemoved.addListener((windowId) => {
-//     const closingWindowId = windowId
-//     const enableAccessEntry = Object.entries(enableAccessRequests).find((entry) => {
-//       return entry[1] === closingWindowId
-//     })
-//     if (enableAccessEntry) {
-//       delete enableAccessRequests[enableAccessEntry[0]]
-//     }
-//     if (windowIdForPayloadId[closingWindowId]) {
-//       const { type, payloadId } = windowIdForPayloadId[closingWindowId]
-//       delete windowIdForPayloadId[closingWindowId]
-//       sendResponse(`on${type}`, { error: 'User closed the popup' }, payloadId)
-//     }
-//   })
-// }
-
 async function getKey(_chain: string) {
   const { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
@@ -879,12 +854,6 @@ function awaitEnableChainResponse(): Promise<any> {
     browser.storage.onChanged.addListener(enableChainListener)
   })
 }
-
-// function fetchChainData(url: string) {
-//   return fetch(url)
-//     .then((res) => res.json())
-//     .catch((err) => err)
-// }
 
 function removeTrailingSlash(url?: string) {
   if (!url) return ''

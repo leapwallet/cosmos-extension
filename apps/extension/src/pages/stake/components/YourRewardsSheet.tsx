@@ -203,12 +203,14 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
         </BottomModal>
       )}
 
-      <ReviewClaimRewardsTx
-        isOpen={showReviewTxSheet}
-        onClose={() => setShowReviewTxSheet(false)}
-        validator={validator}
-        reward={reward}
-      />
+      {isOpen && (
+        <ReviewClaimRewardsTx
+          isOpen={showReviewTxSheet}
+          onClose={() => setShowReviewTxSheet(false)}
+          validator={validator}
+          reward={reward}
+        />
+      )}
     </>
   )
 }

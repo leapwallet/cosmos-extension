@@ -123,8 +123,10 @@ export default function SwapInput({
 
   const fromTokenDecimalPlaces = denoms[selectedToken?.denom ?? '']?.coinDecimals ?? 6
   const selectedTokenBalanceBN = new BigNumber(selectedTokenBalance)
-  const resultingAmount =
-    currentTokenPrice?.multipliedBy(1 - slippagePercentage / 100)?.toFixed(12) ?? ''
+
+  const resultingAmount = currentTokenPrice?.gt(0)
+    ? currentTokenPrice?.multipliedBy(1 - slippagePercentage / 100)?.toFixed(12) ?? ''
+    : ''
 
   const autoAdjustSheetPreCondition =
     selectedToken && selectedNativeDenom && amountValue && customFee

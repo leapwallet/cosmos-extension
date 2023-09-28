@@ -1,3 +1,4 @@
+import { coin } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, Coin, StdFee } from '@cosmjs/stargate';
 import {

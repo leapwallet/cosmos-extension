@@ -65,6 +65,8 @@ const initialFaucetResp: InitialFaucetResp = {
   status: null,
 }
 
+const hideSwap = true
+
 export default function Home() {
   const chainInfos = useChainInfos()
   const txDeclined = useQuery().get('txDeclined') ?? undefined

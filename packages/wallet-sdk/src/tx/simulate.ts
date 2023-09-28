@@ -210,9 +210,6 @@ export async function simulateTx(
     authInfoBytes: AuthInfo.encode({
       signerInfos: [
         SignerInfo.fromPartial({
-          // Pub key is ignored.
-          // It is fine to ignore the pub key when simulating tx.
-          // However, the estimated gas would be slightly smaller because tx size doesn't include pub key.
           modeInfo: {
             single: {
               mode: SignMode.SIGN_MODE_LEGACY_AMINO_JSON,
