@@ -61,8 +61,7 @@ export const feeDenoms: FeeDenoms = {
     kyve: denoms.ukyve,
     seiTestnet2: denoms.usei,
     onomy: denoms.anom,
-    // for noble we are using ibc atom as fee denom
-    noble: denoms['ibc/EF48E6B1A1A19F47ECAEA62F5670C37C0580E86A9E88498B7E393EB6F49F33C0'],
+    noble: denoms.usdc,
     impacthub: denoms.uixo,
     planq: denoms.aplanq,
     nomic: denoms.unom,
@@ -131,7 +130,7 @@ export const feeDenoms: FeeDenoms = {
     kyve: denoms.tkyve,
     seiTestnet2: denoms.usei,
     onomy: denoms.anom,
-    noble: denoms.ustake,
+    noble: denoms.usdc,
     impacthub: denoms.uixo,
     planq: denoms.aplanq,
     nomic: denoms.unom,

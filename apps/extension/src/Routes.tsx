@@ -1,4 +1,12 @@
-import { useFetchCW20Tokens, useFetchERC20Tokens } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useFetchCW20Tokens,
+  useFetchERC20Tokens,
+  useFetchStakeClaimRewards,
+  useFetchStakeDelegations,
+  useFetchStakeUndelegations,
+  useFetchStakeValidators,
+  useInitGovProposals,
+} from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
 import { useFillBetaCW20Tokens } from 'hooks/settings'
 import Activity from 'pages/activity/Activity'
@@ -41,6 +49,12 @@ export default function AppRoutes(): JSX.Element {
   useFetchCW20Tokens()
   useFillBetaCW20Tokens()
   useFetchERC20Tokens()
+
+  useInitGovProposals()
+  useFetchStakeClaimRewards()
+  useFetchStakeDelegations()
+  useFetchStakeUndelegations()
+  useFetchStakeValidators()
 
   return (
     <AuthProvider>

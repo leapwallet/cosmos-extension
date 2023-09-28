@@ -10,10 +10,8 @@ type StakeUndelegationsStore = {
   refetchUnboundingDelegations: () => Promise<void>;
 
   setStakeUndelegationsStatus: (loadingUnboundingDegStatus: Status) => void;
-  setStakeUndelegationsInfo: (
-    unboundingDelegationsInfo: Undelegations,
-    refetchUnboundingDelegations: () => Promise<void>,
-  ) => void;
+  setStakeUndelegationsRefetch: (refetchUnboundingDelegations: () => Promise<void>) => void;
+  setStakeUndelegationsInfo: (unboundingDelegationsInfo: Undelegations) => void;
 };
 
 export const useStakeUndelegationsStore = create<StakeUndelegationsStore>((set) => ({
@@ -24,11 +22,8 @@ export const useStakeUndelegationsStore = create<StakeUndelegationsStore>((set) 
   },
 
   setStakeUndelegationsStatus: (loadingUnboundingDegStatus) => set(() => ({ loadingUnboundingDegStatus })),
-  setStakeUndelegationsInfo: (unboundingDelegationsInfo, refetchUnboundingDelegations) =>
-    set(() => ({
-      unboundingDelegationsInfo,
-      refetchUnboundingDelegations,
-    })),
+  setStakeUndelegationsInfo: (unboundingDelegationsInfo) => set(() => ({ unboundingDelegationsInfo })),
+  setStakeUndelegationsRefetch: (refetchUnboundingDelegations) => set(() => ({ refetchUnboundingDelegations })),
 }));
 
 export const useStakeUndelegations = () => {

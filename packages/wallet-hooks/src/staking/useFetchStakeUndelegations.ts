@@ -27,7 +27,8 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
 
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const address = useAddress();
-  const { setStakeUndelegationsInfo, setStakeUndelegationsStatus } = useStakeUndelegationsStore();
+  const { setStakeUndelegationsInfo, setStakeUndelegationsStatus, setStakeUndelegationsRefetch } =
+    useStakeUndelegationsStore();
 
   const denoms = useDenoms();
   const chainInfos = useGetChains();
@@ -35,7 +36,6 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
 
   const fetchStakeUndelegations = async () => {
     try {
-      setStakeUndelegationsStatus('loading');
       const res = await axiosWrapper({
         baseURL: lcdUrl,
         method: 'get',
@@ -64,23 +64,24 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
         });
       });
 
-      setStakeUndelegationsInfo(uDelegations, async function () {
-        await fetchStakeUndelegations();
-      });
-
+      setStakeUndelegationsInfo(uDelegations);
       setStakeUndelegationsStatus('success');
     } catch (_) {
-      setStakeUndelegationsInfo({}, async function () {
-        await fetchStakeUndelegations();
-      });
-
+      setStakeUndelegationsInfo({});
       setStakeUndelegationsStatus('error');
     }
   };
 
   useEffect(() => {
     if (lcdUrl && address && activeChain && selectedNetwork && Object.keys(denoms).length) {
-      setTimeout(fetchStakeUndelegations, 0);
+      setTimeout(() => {
+        setStakeUndelegationsStatus('loading');
+        setStakeUndelegationsInfo({});
+        setStakeUndelegationsRefetch(async function () {
+          await fetchStakeUndelegations();
+        });
+        fetchStakeUndelegations();
+      }, 0);
     }
   }, [lcdUrl, address, denoms, activeChain, selectedNetwork]);
 }

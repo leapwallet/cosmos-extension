@@ -3,7 +3,6 @@ import { OfflineAminoSigner, StdSignature, StdSignDoc } from '@cosmjs/amino'
 import { DirectSignResponse, OfflineDirectSigner } from '@cosmjs/proto-signing'
 import {
   convertObjectCasingFromCamelToSnake,
-  DirectSignDocDecoder,
   MsgConverter,
   UnknownMessage,
 } from '@leapwallet/buffer-boba'
@@ -62,6 +61,7 @@ import { assert } from 'utils/assert'
 import { DEBUG } from 'utils/debug'
 import { imgOnError } from 'utils/imgOnError'
 import { trim } from 'utils/strings'
+import { uint8ArrayToBase64 } from 'utils/uint8Utils'
 import browser from 'webextension-polyfill'
 
 import { isCompassWallet } from '../../utils/isCompassWallet'
@@ -245,7 +245,7 @@ const SignTransaction = ({
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      const parsedMessages = docDecoder.txMsgs.map((msg) => {
+      const parsedMessages = docDecoder.txMsgs.map((msg: { unpacked: any; typeUrl: string }) => {
         if (msg instanceof UnknownMessage) {
           const raw = msg.toJSON()
           return {
@@ -257,6 +257,17 @@ const SignTransaction = ({
                 body: raw.value,
               },
             } as parfait.unimplemented,
+          }
+        }
+
+        if (msg.unpacked.msg instanceof Uint8Array) {
+          const base64String = uint8ArrayToBase64(msg.unpacked.msg)
+          const decodedString = Buffer.from(base64String, 'base64').toString()
+          try {
+            const decodedJson = JSON.parse(decodedString)
+            msg.unpacked.msg = decodedJson
+          } catch {
+            msg.unpacked.msg = decodedString
           }
         }
 

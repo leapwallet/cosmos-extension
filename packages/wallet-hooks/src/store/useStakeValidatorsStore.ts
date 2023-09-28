@@ -14,10 +14,8 @@ type StakeValidatorsStore = {
   refetchNetwork: () => Promise<void>;
 
   setStakeValidatorStatus: (validatorDataStatus: Status) => void;
-  setStakeValidatorData: (
-    validatorData: ValidatorData | Record<string, never>,
-    refetchNetwork: () => Promise<void>,
-  ) => void;
+  setStakeValidatorRefetch: (refetchNetwork: () => Promise<void>) => void;
+  setStakeValidatorData: (validatorData: ValidatorData | Record<string, never>) => void;
 };
 
 export const useStakeValidatorsStore = create<StakeValidatorsStore>((set) => ({
@@ -27,11 +25,8 @@ export const useStakeValidatorsStore = create<StakeValidatorsStore>((set) => ({
     await Promise.resolve();
   },
 
-  setStakeValidatorData: (validatorData, refetchNetwork) =>
-    set(() => ({
-      validatorData,
-      refetchNetwork,
-    })),
+  setStakeValidatorData: (validatorData) => set(() => ({ validatorData })),
+  setStakeValidatorRefetch: (refetchNetwork) => set(() => ({ refetchNetwork })),
   setStakeValidatorStatus: (validatorDataStatus) => set(() => ({ validatorDataStatus })),
 }));
 
