@@ -244,8 +244,8 @@ export async function simulateTx(
     throw new Error(result.response.data.message);
   }
 
-  if (result.data.error) {
-    throw new Error(result.data.error);
+  if (result.data?.error) {
+    throw new Error(result.data?.error);
   }
 
   const gasUsed = parseInt(result.data.gas_info.gas_used);

@@ -4,12 +4,14 @@ import {
   useGetBannerApi,
   useGetFaucetApi,
   useInitBetaNFTsCollections,
+  useInitCoingeckoPrices,
   useInitCustomChannelsStore,
   useInitDefaultGasEstimates,
   useInitDenoms,
   useInitDisabledCW20Tokens,
   useInitDisabledNFTsCollections,
   useInitGasPriceSteps,
+  useInitIbcTraceStore,
   useInitInvestData,
   useInitNftChains,
   useInitSelectedNetwork,
@@ -44,6 +46,7 @@ export default function App() {
 
   useInitTheme()
   useInitiateCurrencyPreference()
+  useInitCoingeckoPrices()
 
   useInitHideAssets()
   useInitHideSmallBalances()
@@ -80,6 +83,7 @@ export default function App() {
   useInitBetaNFTsCollections()
   useInitInvestData()
   useInitSnipDenoms()
+  useInitIbcTraceStore()
 
   // initialize request cache
   // useInitRequestCache()

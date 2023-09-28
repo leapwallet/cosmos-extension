@@ -95,7 +95,6 @@ const UserTokensSheet = (props: propTypes) => {
                       <div className='absolute flex top-[16px] left-[68px] items-center'>
                         <div className='mr-2 text-md invisible font-bold'>{asset.symbol}</div>
                         <Badge
-                          image={asset.ibcChainInfo.icon}
                           text={`${asset.ibcChainInfo.pretty_name} / ${asset.ibcChainInfo.channelId}`}
                         />
                       </div>

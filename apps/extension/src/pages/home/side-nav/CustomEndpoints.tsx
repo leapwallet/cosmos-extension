@@ -139,7 +139,7 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
     if (name === 'rpc') {
       try {
         const { data } = await axios.get(`${value}/status`)
-        const { node_info: nodeInfo } = data.result
+        const { node_info: nodeInfo } = data.result ?? data
 
         if (nodeInfo.network.trim() !== selectedChainInfo.chainId) {
           error = `RPC endpoint has different chain id (expected: ${selectedChainInfo.chainId}, actual: ${nodeInfo.network})`

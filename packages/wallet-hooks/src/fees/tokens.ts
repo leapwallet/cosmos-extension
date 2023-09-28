@@ -1,6 +1,7 @@
 import { axiosWrapper, DenomsRecord, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import BigNumber from 'bignumber.js';
 import { useMemo } from 'react';
 
 import { useGetTokenBalances } from '../bank';
@@ -64,6 +65,22 @@ export const getOsmosisFeeTokens = async ({
     return [nativeFeeToken];
   }
 };
+
+export async function getGasPricesForOsmosisFee(lcdUrl: string, denom: string, baseGasPriceStep: GasPriceStep) {
+  const priceInfo = await axiosWrapper({
+    baseURL: lcdUrl,
+    method: 'get',
+    url: `/osmosis/txfees/v1beta1/spot_price_by_denom?denom=${encodeURIComponent(denom)}`,
+  });
+
+  const priceRatio = new BigNumber(1).dividedBy(priceInfo.data.spot_price);
+
+  return {
+    low: priceRatio.multipliedBy(baseGasPriceStep.low).multipliedBy(1.05).toNumber(),
+    medium: priceRatio.multipliedBy(baseGasPriceStep.medium).multipliedBy(1.05).toNumber(),
+    high: priceRatio.multipliedBy(baseGasPriceStep.high).multipliedBy(1.05).toNumber(),
+  };
+}
 
 type RemoteFeeTokenData = {
   denom: string;
@@ -166,7 +183,7 @@ export const useFeeTokens = (chain: SupportedChain) => {
   const baseDenom = useMemo(() => denoms[_baseDenom.coinMinimalDenom] ?? _baseDenom, [_baseDenom, denoms]);
 
   return useQuery<FeeTokenData[]>({
-    queryKey: ['fee-tokens', chain, gasPriceStep, baseDenom],
+    queryKey: ['fee-tokens', chain, gasPriceStep, baseDenom, allAssets],
     queryFn: () =>
       getFeeTokens({
         chain,

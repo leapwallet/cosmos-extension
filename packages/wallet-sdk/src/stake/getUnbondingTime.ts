@@ -1,6 +1,7 @@
 import { getChainInfo } from '../chains';
 import { ChainInfo, ChainInfos, SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
+import { ChainData } from '../types';
 import { getRestUrl } from '../utils';
 
 export const getUnbondingTime = async (
@@ -8,12 +9,17 @@ export const getUnbondingTime = async (
   testnet: boolean,
   lcdUrl?: string,
   chainInfos?: Record<SupportedChain, ChainInfo>,
+  chainData?: ChainData,
 ) => {
   if (!lcdUrl) {
-    const chainData = await getChainInfo(chain, testnet);
+    if (!chainData) {
+      chainData = await getChainInfo(chain, testnet);
+    }
+
     if (!chainData) {
       return { unbonding_time: 0 };
     }
+
     if (chainData.params?.unbonding_time) {
       return { unbonding_time: chainData.params?.unbonding_time ?? 0 };
     }

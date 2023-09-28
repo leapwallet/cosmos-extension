@@ -148,4 +148,5 @@ export const chainIdToChain: Record<string, string> = {
   'empowerchain-1': 'empowerchain',
   'dydx-testnet-1': 'dydx',
   'mocha-4': 'celestiatestnet3',
+  'sgenet-1': 'sge',
 };

@@ -56,10 +56,7 @@ export function TokenCard({
       subtitle={
         <div className='flex space-x-2 font-normal text-gray-400'>
           {ibcChainInfo && (
-            <IBCTokenBadge
-              image={ibcChainInfo?.icon}
-              text={`${ibcChainInfo.pretty_name} / ${ibcChainInfo?.channelId}`}
-            />
+            <IBCTokenBadge text={`${ibcChainInfo.pretty_name} / ${ibcChainInfo?.channelId}`} />
           )}
         </div>
       }

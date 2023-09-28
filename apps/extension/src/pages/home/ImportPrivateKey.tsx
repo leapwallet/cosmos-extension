@@ -70,8 +70,8 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
       headerActionType={HeaderActionType.CANCEL}
       closeOnClickBackDrop={true}
     >
-      <div className='flex flex-col p-[28px] gap-y-4 items-center text-center justify-center'>
-        <Text size='sm' color='text-gray-600 dark:text-gray-600'>
+      <div className='flex flex-col p-[28px] gap-y-4 items-cente justify-center'>
+        <Text size='sm' color='text-center text-gray-600 dark:text-gray-600'>
           Enter the private key below. This will import an existing wallet.
         </Text>
         <TextArea

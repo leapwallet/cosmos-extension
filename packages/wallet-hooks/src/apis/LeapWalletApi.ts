@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
+import axios from 'axios';
 import { format } from 'date-fns';
 import { useCallback, useMemo } from 'react';
 
@@ -15,9 +16,9 @@ import {
   MarketPricesResponse,
   Platform,
 } from '../connectors';
-import { useActiveChain, useAddress, useAddressStore, useChainsStore } from '../store';
+import { getCoingeckoPricesStoreSnapshot, useActiveChain, useAddress, useAddressStore, useChainsStore } from '../store';
 import { useSelectedNetwork } from '../store/useSelectedNetwork';
-import { APP_NAME, getAppName, getPlatform } from '../utils';
+import { APP_NAME, getAppName, getLeapapiBaseUrl, getPlatform } from '../utils';
 import { platforms, platformToChain } from './platforms-mapping';
 import { DappTransaction, TransactionMetadata } from './types/txLoggingTypes';
 
@@ -83,6 +84,17 @@ export namespace LeapWalletApi {
     };
   }
 
+  export async function getIbcDenomData(ibcDenom: string, lcdUrl: string, chainId: string) {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const data = await axios.post(`${leapApiBaseUrl}/denom-trace`, {
+      ibcDenom: ibcDenom,
+      lcdUrl: lcdUrl,
+      chainId: chainId,
+    });
+
+    return data.data.ibcDenomData;
+  }
+
   export async function getMarketChart(
     token: string,
     chain: SupportedChain,
@@ -128,19 +140,49 @@ export namespace LeapWalletApi {
     currencySelected?: Currency,
   ): Promise<MarketPricesResponse> {
     try {
-      let platform = platforms[chain];
-      if (!platform) {
-        platform = 'DEFAULT' as Platform;
-      }
+      const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
 
-      return await leapApi.getMarketPrices({
-        platform,
-        tokens: tokens,
-        currency: currencySelected,
-      });
+      if (coingeckoPrices[tokens[0]]) {
+        return { [tokens[0]]: coingeckoPrices[tokens[0]] };
+      } else {
+        if (!platforms[chain]) {
+          throw new Error();
+        }
+
+        return await leapApi.getMarketPrices({
+          platform: platforms[chain],
+          tokens: tokens,
+          currency: currencySelected,
+        });
+      }
     } catch (_) {
       return {};
     }
+  }
+
+  export async function getEcosystemMarketPrices(
+    currency = 'USD',
+    ecosystem = 'cosmos-ecosystem',
+  ): Promise<{ data: { [key: string]: number } }> {
+    try {
+      const leapApiBaseUrl = getLeapapiBaseUrl();
+      const response = await fetch(
+        `${leapApiBaseUrl}/market/prices/ecosystem?currency=${currency}&ecosystem=${ecosystem}`,
+      );
+      const data = await response.json();
+
+      return { data };
+    } catch (_) {
+      return { data: {} };
+    }
+  }
+
+  export async function getActivity(walletAddress: string, limit: number, chainId: string) {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const { data } = await axios.get(
+      `${leapApiBaseUrl}/activity?chain-id=${chainId}&wallet-address=${walletAddress}&use-ecostake-proxy=false&pagination-offset=${limit}`,
+    );
+    return { data: data.txs };
   }
 
   export async function operateMarketPricesV2(
@@ -280,6 +322,8 @@ export namespace LeapWalletApi {
       mayachain: CosmosBlockchain.mayaChain,
       empowerchain: CosmosBlockchain.EmpowerChain,
       dydx: 'DYDX' as CosmosBlockchain,
+      sge: 'SGE' as CosmosBlockchain,
+      celestiatestnet3: 'CELESTIA_TESTNET' as CosmosBlockchain,
     };
     return blockchains[activeChain];
   }

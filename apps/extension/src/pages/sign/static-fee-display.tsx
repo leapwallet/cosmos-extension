@@ -3,6 +3,7 @@ import {
   fetchCurrency,
   useActiveChain,
   useDefaultGasEstimates,
+  useFeeTokens,
   useformatCurrency,
   useGetTokenBalances,
   useNativeFeeDenom,
@@ -12,6 +13,7 @@ import { fromSmallBN, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import Tooltip from 'components/better-tooltip'
+import Loader from 'components/loader/Loader'
 import { Fee } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { Warning } from 'images/misc'
 import React, { useEffect, useMemo } from 'react'
@@ -41,22 +43,31 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setErro
   const defaultGasEstimates = useDefaultGasEstimates()
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
-  const { allAssets } = useGetTokenBalances()
+  const { allAssets, nativeTokensStatus, ibcTokensStatus } = useGetTokenBalances()
   const activeChain = useActiveChain()
 
-  const feeDenom = useNativeFeeDenom()
+  const { data: feeTokensList, isLoading, isFetching } = useFeeTokens(activeChain)
 
   const feeToken = useMemo(() => {
-    return allAssets.find((asset) => asset.coinMinimalDenom === feeDenom.coinMinimalDenom)
-  }, [allAssets, feeDenom.coinMinimalDenom])
+    const feeBaseDenom = fee?.amount[0]?.denom
+    const feeDenomData = feeTokensList?.find((token) => token.ibcDenom === feeBaseDenom)
+    const amount = allAssets.find((asset) => {
+      if (asset.ibcDenom === feeDenomData?.ibcDenom) {
+        return asset.ibcDenom === feeDenomData?.ibcDenom
+      }
+      return asset.coinMinimalDenom === feeDenomData?.ibcDenom
+    })?.amount
+
+    return { ...feeDenomData, amount }
+  }, [allAssets, feeTokensList])
 
   const { data: feeTokenFiatValue } = useQuery(
-    ['fee-token-fiat-value', feeDenom.coinDenom],
+    ['fee-token-fiat-value', feeToken?.denom?.coinDenom],
     async () => {
       return fetchCurrency(
         '1',
-        feeDenom.coinGeckoId,
-        feeDenom.chain as SupportedChain,
+        feeToken?.denom?.coinGeckoId ?? '',
+        feeToken?.denom?.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
       )
     },
@@ -64,22 +75,26 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setErro
 
   const feeValues = useMemo(() => {
     if (!fee) return null
-    return generateFeeValues(fee, feeDenom.coinDecimals)
+    return generateFeeValues(fee, feeToken?.denom?.coinDecimals ?? 0)
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChain, defaultGasEstimates, fee, feeDenom.coinDecimals])
+  }, [activeChain, defaultGasEstimates, fee, feeToken?.denom?.coinDecimals])
 
   const amountString = feeValues?.amount?.toString()
 
   useEffect(() => {
     if (feeToken && amountString) {
       if (new BigNumber(amountString).isGreaterThan(feeToken?.amount ?? 0)) {
-        setError(`You don't have enough ${feeToken.symbol} to pay the gas fee`)
+        setError(`You don't have enough ${feeToken?.denom?.coinDenom} to pay the gas fee`)
       } else {
         setError(null)
       }
     }
   }, [amountString, feeToken, setError])
+
+  if (isFetching || nativeTokensStatus === 'loading' || ibcTokensStatus === 'loading') {
+    return <Loader />
+  }
 
   return feeValues ? (
     <div>
@@ -99,7 +114,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setErro
       </p>
       <p className='text-gray-700 dark:text-white-100 text-sm font-medium tracking-wide mt-2'>
         <span className='mt-[2px] mr-[2px]'>
-          {feeValues.formattedAmount} {feeDenom.coinDenom}
+          {feeValues.formattedAmount} {feeToken?.denom?.coinDenom}
         </span>
         {feeTokenFiatValue ? (
           <span className='mr-[2px]'>

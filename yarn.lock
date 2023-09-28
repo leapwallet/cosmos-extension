@@ -1682,6 +1682,14 @@
   resolved "https://registry.yarnpkg.com/@cosmjs/utils/-/utils-0.30.1.tgz#6d92582341be3c2ec8d82090253cfa4b7f959edb"
   integrity sha512-KvvX58MGMWh7xA+N+deCfunkA/ZNDvFLw4YbOmX3f/XBIkqrVY7qlotfy2aNb1kgp6h4B6Yc8YawJPDTfvWX7g==
 
+"@cosmology/lcd@^0.12.0":
+  version "0.12.0"
+  resolved "https://registry.yarnpkg.com/@cosmology/lcd/-/lcd-0.12.0.tgz#a6594fc00a8c84c7341e90840627e62a7e63fd1b"
+  integrity sha512-f2mcySYO1xdislAhuWtNFmg4q/bzY3Aem2UkDzYzI0ZELVev5i2Pi0bQrYUNTeNg1isAo0Kyrdqj/4YPqEwjGA==
+  dependencies:
+    "@babel/runtime" "^7.21.0"
+    axios "0.27.2"
+
 "@discoveryjs/json-ext@^0.5.0":
   version "0.5.7"
   resolved "https://registry.yarnpkg.com/@discoveryjs/json-ext/-/json-ext-0.5.7.tgz#1d572bfbbe14b7704e0ba0f39b74815b84870d70"
@@ -3072,25 +3080,20 @@
     react "17.0.2"
     react-dom "17.0.2"
 
-"@leapwallet/name-matcha@1.3.1":
-  version "1.3.1"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/name-matcha/1.3.1/63c29d244c099f78799076707571fa26dbb0053f#63c29d244c099f78799076707571fa26dbb0053f"
-  integrity sha512-K4J1m0kng0T0hJ8l1mH+OENDj1E4BmFM+UF6PCMypppwrnbvn8mQ+zslE6PNMvX7m2fYxdvvRP5GXReVRkJ7Jg==
+"@leapwallet/name-matcha@1.5.1":
+  version "1.5.1"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/name-matcha/1.5.1/c3851c867d25700f2afc1833514570d6fb2c110c#c3851c867d25700f2afc1833514570d6fb2c110c"
+  integrity sha512-9wGpP2RWdK5elkrAvJ4wRZimBuuUmfPM+Xj3OS0DNH97cMuDR6wX5J7+n+iwZDftMHQKSmygbcv6PHOL3jY7xg==
   dependencies:
     "@cosmjs/cosmwasm-stargate" "0.30.0"
     bech32 "1.1.4"
+    idna-uts46-hx "5.0.7"
+    js-sha3 "0.8.0"
 
-"@leapwallet/parser-parfait@0.6.1":
-  version "0.6.1"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/parser-parfait/0.6.1/42d90a6431150bc8bc569e3d3875dcac65eb5329#42d90a6431150bc8bc569e3d3875dcac65eb5329"
-  integrity sha512-xnyGi61lRghdnW91ks2rcCiyksNgquzzvtm7gMMorwFjSDH5maf0bYL/mJ2zsyqV+1fWeGZRgtJYyn1pUTrsXw==
-  dependencies:
-    zod "3.20.6"
-
-"@leapwallet/parser-parfait@0.6.3":
-  version "0.6.3"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/parser-parfait/0.6.3/04864af057c9c06a67ba3c888b9e0ada1e63e480#04864af057c9c06a67ba3c888b9e0ada1e63e480"
-  integrity sha512-4XgaVWfazP62rvfk0xLwvYqvZeTURqxy4n6dO9E6L82fVFBP6URqE0tf3nGeS0JakmDtFs81eZgIRLeqwPfGAw==
+"@leapwallet/parser-parfait@0.7.0":
+  version "0.7.0"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/parser-parfait/0.7.0/96cc2fefba19a69203a0e36e0958ac397bf1421a#96cc2fefba19a69203a0e36e0958ac397bf1421a"
+  integrity sha512-QWbIDW29GP2AqrHU4P/eR1OuOCg9WTdCnIyHSmsY1Lj6nSBm2IAd3iJGYEbm3QCh6ps2JxA2n60EkCflniV+lw==
   dependencies:
     zod "3.20.6"
 
@@ -9890,6 +9893,13 @@ icss-utils@^5.0.0, icss-utils@^5.1.0:
   resolved "https://registry.yarnpkg.com/icss-utils/-/icss-utils-5.1.0.tgz#c6be6858abd013d768e98366ae47e25d5887b1ae"
   integrity sha512-soFhflCVWLfRNOPU3iv5Z9VUdT44xFRbzjLsEzSr5AQmgqPMTHdU3PMT1Cf1ssx8fLNJDA1juftYl+PUcv3MqA==
 
+idna-uts46-hx@5.0.7:
+  version "5.0.7"
+  resolved "https://registry.yarnpkg.com/idna-uts46-hx/-/idna-uts46-hx-5.0.7.tgz#e71f91dd928a8fa5b636165f9565b33a3228c3ba"
+  integrity sha512-TLur3xtGnypBEBG9mdkVvW7qlXaXkWde9E88f+Idk3G90nhLgE31PtIfn8ffFEVId0hldDD47LQyvzdxNDClOQ==
+  dependencies:
+    punycode "^2.1.1"
+
 ieee754@^1.1.13, ieee754@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/ieee754/-/ieee754-1.2.1.tgz#8eb7a10a63fff25d15a57b001586d177d1b0d352"
@@ -13299,20 +13309,6 @@ os-tmpdir@~1.0.2:
   resolved "https://registry.yarnpkg.com/os-tmpdir/-/os-tmpdir-1.0.2.tgz#bbe67406c79aa85c5cfec766fe5734555dfa1274"
   integrity sha512-D2FR03Vir7FIu45XBY20mTb+/ZSWB00sjU9jdQXt83gDrI4Ztz5Fs7/yy74g2N5SVQY4xY1qDr4rNddwYRVX0g==
 
-osmojs@13.0.1:
-  version "13.0.1"
-  resolved "https://registry.yarnpkg.com/osmojs/-/osmojs-13.0.1.tgz#827875221a72d267776491db8b6b5bd540a6d77f"
-  integrity sha512-Tg9MHSIhxdm81aq/2GEuZHZSQfhG30AoRkKLj1ekGmknMCO6cknZdvV9aW8DP9886fycOpdUT9LUy4C5EE9qcw==
-  dependencies:
-    "@babel/runtime" "^7.19.0"
-    "@cosmjs/amino" "0.29.3"
-    "@cosmjs/proto-signing" "0.29.3"
-    "@cosmjs/stargate" "0.29.3"
-    "@cosmjs/tendermint-rpc" "^0.29.3"
-    "@osmonauts/lcd" "^0.8.0"
-    long "^5.2.0"
-    protobufjs "^6.11.3"
-
 osmojs@15.2.1:
   version "15.2.1"
   resolved "https://registry.yarnpkg.com/osmojs/-/osmojs-15.2.1.tgz#d9556d47ea77f95b400656d68f7a4ec69912c15a"
@@ -13326,6 +13322,17 @@ osmojs@15.2.1:
     "@osmonauts/lcd" "^0.10.0"
     long "^5.2.0"
     protobufjs "^6.11.3"
+
+osmojs@16.5.1:
+  version "16.5.1"
+  resolved "https://registry.yarnpkg.com/osmojs/-/osmojs-16.5.1.tgz#38f2fe3cd65dbd4e4b415e9f22f387a24b634155"
+  integrity sha512-V2Q2yMt7Paax6i+S5Q1l29Km0As/waXKmSVRe8gtd9he42kcbkpwwk/QUCvgS98XsL7Qz+vas2Tca016uBQHTQ==
+  dependencies:
+    "@cosmjs/amino" "0.29.3"
+    "@cosmjs/proto-signing" "0.29.3"
+    "@cosmjs/stargate" "0.29.3"
+    "@cosmjs/tendermint-rpc" "^0.29.3"
+    "@cosmology/lcd" "^0.12.0"
 
 p-finally@^1.0.0:
   version "1.0.0"
@@ -14085,7 +14092,7 @@ punycode@1.3.2:
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-1.3.2.tgz#9653a036fb7c1ee42342f2325cceefea3926c48d"
   integrity sha512-RofWgt/7fL5wP1Y7fxE7/EmTLzQVnB0ycyibJ0OOHIlJqTNzglYFxVwETOcIoJqJmpDXJ9xImDv+Fq34F/d4Dw==
 
-punycode@^2.1.0:
+punycode@^2.1.0, punycode@^2.1.1:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-2.3.0.tgz#f67fa67c94da8f4d0cfff981aee4118064199b8f"
   integrity sha512-rRV+zQD8tVFys26lAGR9WUuS4iUAngJScM+ZRSKtvl5tKeZ2t5bvdNFdNHBW9FWR4guGHlgmsZ1G7BSm2wTbuA==

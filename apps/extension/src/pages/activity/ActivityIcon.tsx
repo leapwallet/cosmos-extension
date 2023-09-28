@@ -68,7 +68,6 @@ export function ActivityIcon({
   isSuccessful,
 }: ActivityIconProps) {
   const icon = getActivityActionTypeIcon(type, voteOption)
-
   return (
     <div
       className={classnames('relative', {

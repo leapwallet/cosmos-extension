@@ -1,3 +1,4 @@
+import { fromBase64 } from '@cosmjs/encoding'
 import { DirectSignDocDecoder } from '@leapwallet/buffer-boba'
 import { GasPrice } from '@leapwallet/cosmos-wallet-sdk'
 import { AuthInfo, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
@@ -7,15 +8,29 @@ import { getFee } from './get-fee'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getProtoSignDocDecoder(signRequestData: Record<string, any>) {
-  const signDoc = {
-    bodyBytes: new Uint8Array(Object.values(signRequestData['sign-request'].signDoc.bodyBytes)),
-    authInfoBytes: new Uint8Array(
-      Object.values(signRequestData['sign-request'].signDoc.authInfoBytes),
-    ),
-    chainId: signRequestData['sign-request'].signDoc.chainId,
-    accountNumber: signRequestData['sign-request'].signDoc.accountNumber,
+  if (typeof signRequestData['sign-request'].signDoc.bodyBytes === 'string') {
+    const bodyBytes = fromBase64(signRequestData['sign-request'].signDoc.bodyBytes)
+    const authInfoBytes = fromBase64(signRequestData['sign-request'].signDoc.authInfoBytes)
+    const chainId = signRequestData['sign-request'].signDoc.chainId
+    const accountNumber = signRequestData['sign-request'].signDoc.accountNumber
+    const signDoc = {
+      bodyBytes,
+      authInfoBytes,
+      chainId,
+      accountNumber,
+    }
+    return new DirectSignDocDecoder(signDoc)
+  } else {
+    const signDoc = {
+      bodyBytes: new Uint8Array(Object.values(signRequestData['sign-request'].signDoc.bodyBytes)),
+      authInfoBytes: new Uint8Array(
+        Object.values(signRequestData['sign-request'].signDoc.authInfoBytes),
+      ),
+      chainId: signRequestData['sign-request'].signDoc.chainId,
+      accountNumber: signRequestData['sign-request'].signDoc.accountNumber,
+    }
+    return new DirectSignDocDecoder(signDoc)
   }
-  return new DirectSignDocDecoder(signDoc)
 }
 
 export function getDirectSignDoc({

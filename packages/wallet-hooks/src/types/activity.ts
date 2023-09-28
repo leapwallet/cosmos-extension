@@ -46,9 +46,6 @@ export type Activity = {
 
 export type TxResponse = {
   readonly activity: Activity[];
-  readonly done: boolean;
-  readonly more: (() => void) | undefined;
-  readonly next: number | undefined;
   readonly loading: boolean;
   readonly error?: boolean;
 };
@@ -64,4 +61,5 @@ export type getActivityContentProps = {
   address?: string;
   theme?: ThemeName;
   denoms: DenomsRecord;
+  chainId?: string;
 };

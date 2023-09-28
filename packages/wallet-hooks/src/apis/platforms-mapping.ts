@@ -84,6 +84,10 @@ export const platforms: Record<string, Platform> = {
   dydx: 'DYDX',
   // @ts-ignore
   gitopia: 'GITOPIA',
+  // @ts-ignore
+  sge: 'SGE',
+  // @ts-ignore
+  celestiatestnet3: 'CELESTIA_TESTNET',
 };
 
 export const platformToChain: Record<Platform, string> = {
@@ -147,4 +151,6 @@ export const platformToChain: Record<Platform, string> = {
   EMPOWER_CHAIN: 'empowerchain',
   DYDX: 'dydx',
   GITOPIA: 'gitopia',
+  SGE: 'sge',
+  CELESTIA_TESTNET: 'celestiatestnet3',
 };

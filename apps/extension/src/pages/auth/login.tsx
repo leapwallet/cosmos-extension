@@ -173,7 +173,6 @@ export default function Login() {
       }
       setTimeout(() => {
         browser.storage.local.remove(BG_RESPONSE)
-        window.close()
       }, 50)
     }
 
@@ -181,9 +180,9 @@ export default function Login() {
       if (result[REDIRECT_REQUEST]) {
         setIsPopup(true)
         await browser.storage.local.remove(BG_RESPONSE)
-        window.addEventListener('beforeunload', handleCancel)
       }
     })
+    window.addEventListener('beforeunload', handleCancel)
     return () => {
       window.removeEventListener('beforeunload', handleCancel)
     }

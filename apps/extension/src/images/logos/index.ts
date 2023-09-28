@@ -18,6 +18,7 @@ import LeapLogo28 from './leap-logo-28.svg'
 import Metamask from './metamask.svg'
 import NftLogo from './nft-logo.svg'
 import Osmosis from './osmosis.svg'
+import SpaceId from './space-id.svg'
 import StargazeNames from './stargaze-names.svg'
 import TerraStation from './terra-station.svg'
 
@@ -84,6 +85,7 @@ const ChainLogos: Record<string, string | undefined> = {
   empowerchain: ChainInfos.empowerchain.chainSymbolImageUrl,
   dydx: ChainInfos.dydx.chainSymbolImageUrl,
   celestiatestnet3: ChainInfos.celestiatestnet3.chainSymbolImageUrl,
+  sge: ChainInfos.sge.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {
@@ -118,6 +120,8 @@ export const getNameServiceLogo = (name: string) => {
       return StargazeNames
     case 'archIds':
       return ArchId
+    case 'spaceIds':
+      return SpaceId
     default:
       return GenericLight
   }

@@ -71,4 +71,5 @@ export const gasAdjustment: Record<SupportedChain, number> = {
   empowerchain: 1.5,
   dydx: 1.5,
   celestiatestnet3: 1.5,
+  sge: 1.5,
 };

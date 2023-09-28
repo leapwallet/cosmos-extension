@@ -239,6 +239,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
               txStatus: 'loading',
               txType: 'vote',
               promise,
+              txHash,
             });
             callback('success');
             setError(undefined);

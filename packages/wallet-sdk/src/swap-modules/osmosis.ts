@@ -2,7 +2,6 @@ import { Decimal } from '@cosmjs/math';
 import { coin, Registry } from '@cosmjs/proto-signing';
 import { AminoTypes, StdFee } from '@cosmjs/stargate';
 import { BigNumber } from 'bignumber.js';
-import Long from 'long';
 import { FEES, osmosis, osmosisAminoConverters } from 'osmojs';
 import { DenomsRecord } from 'types';
 
@@ -24,7 +23,7 @@ const chainId = ChainInfos.osmosis.chainId;
 
 type PoolAsset = { symbol: string; denom: string; fees: string; liquidity: number; price: number };
 
-type SwapRoute = { poolId: Long; tokenOutDenom: string }[];
+type SwapRoute = { poolId: bigint; tokenOutDenom: string }[];
 
 export class OsmosisSwapModule implements SwapModule {
   chain: SupportedChain = 'osmosis';
@@ -69,7 +68,7 @@ export class OsmosisSwapModule implements SwapModule {
               return {
                 symbol: asset.symbol,
                 denom: asset.denom_units[0]?.aliases?.[0] ?? asset.denom_units[0].denom,
-                ibcDenom: asset.denom_units[0]?.aliases?.[0] ? asset.denom_units[0].denom : undefined,
+                ibcDenom: asset.denom_units[0].denom,
                 image: asset.logo_URIs.png,
               };
             },
@@ -171,7 +170,7 @@ export class OsmosisSwapModule implements SwapModule {
 
       return [
         {
-          poolId: Long.fromString(poolId),
+          poolId: BigInt(poolId),
           tokenOutDenom: targetToken.denom,
         },
       ];
@@ -184,11 +183,11 @@ export class OsmosisSwapModule implements SwapModule {
 
       return [
         {
-          poolId: Long.fromString(poolIdA),
+          poolId: BigInt(poolIdA),
           tokenOutDenom: xToken.denom,
         },
         {
-          poolId: Long.fromString(poolIdB),
+          poolId: BigInt(poolIdB),
           tokenOutDenom: targetToken.denom,
         },
       ];
@@ -200,7 +199,7 @@ export class OsmosisSwapModule implements SwapModule {
     // base gas amount + gas amount per hop
     // this is an optimistic estimate, should be adjusted by chain
     // via gas estimation data
-    return 150_000 + 30_000 * (swapRoute.length - 1);
+    return 180_000 + 60_000 * (swapRoute.length - 1);
   };
 
   swapTokens: SwapModule['swapTokens'] = async ({ swap, fromAddress, signer, rpcEndpoint, lcdEndpoint, customFee }) => {
@@ -211,7 +210,9 @@ export class OsmosisSwapModule implements SwapModule {
     const fee: StdFee = customFee?.stdFee ?? FEES.osmosis.swapExactAmountIn('medium');
 
     const tokenInMinimalDenom = this.coinsCache.find((coin) => coin.symbol === fromTokenSymbol)?.denom;
-    if (!tokenInMinimalDenom) throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
+    const tokenInIBCDenom = this.coinsCache.find((coin) => coin.symbol === fromTokenSymbol)?.ibcDenom;
+    if (!tokenInMinimalDenom || !tokenInIBCDenom)
+      throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
     const tokenInNativeDenom = this.nativeDenomsByTokenSymbol[tokenInMinimalDenom];
     if (!tokenInNativeDenom) throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
     const tokenInCoinDecimals = tokenInNativeDenom.coinDecimals;
@@ -232,19 +233,19 @@ export class OsmosisSwapModule implements SwapModule {
       .decimalPlaces(0)
       .toString();
 
-    const { swapExactAmountIn } = osmosis.gamm.v1beta1.MessageComposer.withTypeUrl;
+    const { swapExactAmountIn } = osmosis.poolmanager.v1beta1.MessageComposer.withTypeUrl;
 
     const swapRoute = await this.getSwapRoute(fromTokenSymbol, targetTokenSymbol);
 
     const msg = swapExactAmountIn({
       sender: fromAddress,
       routes: swapRoute,
-      tokenIn: coin(tokenInAmountInMinimalDenom, tokenInMinimalDenom),
+      tokenIn: coin(tokenInAmountInMinimalDenom, tokenInIBCDenom),
       tokenOutMinAmount,
     });
 
     const client = new BaseSwapTx(rpcEndpoint, signer, {
-      registry: new Registry(osmosis.gamm.v1beta1.registry),
+      registry: new Registry(osmosis.poolmanager.v1beta1.registry),
       aminoTypes: new AminoTypes(osmosisAminoConverters),
       gasPrice: new GasPrice(Decimal.fromUserInput(fee.amount[0].amount, 18), fee.amount[0].denom),
     });

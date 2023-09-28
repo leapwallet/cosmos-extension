@@ -13,50 +13,62 @@ export function useGetStargazeNFTs(stargazeAddress: string, selectedNetwork: str
     async () => {
       try {
         if (selectedNetwork === 'mainnet') {
-          const TOKENS_QUERY = `
-        {
-          tokens(owner: "${stargazeAddress}", limit: 99999) {
-            tokens {
-              id
-              tokenId
-              collection {
-                contractAddress
-                name
-                media {
-                  url
-                  type
+          const fetchTokens = async (start_after = 0, tokens: any[] = []): Promise<any[]> => {
+            const TOKENS_QUERY = `
+              {
+                tokens(owner: "${stargazeAddress}", limit: 100, offset: ${start_after}) {
+                  tokens {
+                    id
+                    tokenId
+                    collection {
+                      contractAddress
+                      name
+                      media {
+                        url
+                        type
+                      }
+                    }
+                    name
+                    media {
+                      type
+                      url
+                      format
+                    }
+                    description
+                    tokenUri
+                    traits {
+                      name
+                      value
+                    }
+                  }
                 }
               }
-              name
-              media {
-                type
-                url
-                format
-              }
-              description
-              tokenUri
-              traits {
-                name
-                value
-              }
-            }
-          }
-        }
-        `;
+              `;
 
-          const {
-            data: {
+            const {
               data: {
-                tokens: { tokens },
+                data: {
+                  tokens: { tokens: _tokens },
+                },
               },
-            },
-          } = await axios({
-            url: 'https://graphql.mainnet.stargaze-apis.com/graphql',
-            method: 'POST',
-            data: {
-              query: TOKENS_QUERY,
-            },
-          });
+            } = await axios({
+              url: 'https://graphql.mainnet.stargaze-apis.com/graphql',
+              method: 'POST',
+              data: {
+                query: TOKENS_QUERY,
+              },
+            });
+
+            tokens = [...tokens, ..._tokens];
+
+            if (_tokens.length === 100) {
+              return fetchTokens(tokens.length, tokens);
+            }
+
+            return tokens;
+          };
+
+          const tokens = await fetchTokens();
 
           return tokens.map((nftEntry: any) => {
             const nft: OmniflixNft = {

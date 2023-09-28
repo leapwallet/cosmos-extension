@@ -288,7 +288,7 @@ export function useSendModule(): SendModuleType {
               amountOfCoins,
               channelId,
               'transfer',
-              Math.floor(Date.now() / 1000) + 60,
+              Math.floor(Date.now() / 1000) + 120,
               undefined,
               fee,
             )

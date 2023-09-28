@@ -247,9 +247,11 @@ const connectRemote = (remotePort: any) => {
         })
 
         const store = await browser.storage.local.get([ACTIVE_WALLET])
+
         if (!store[ACTIVE_WALLET]) {
           try {
             await openPopup('login', '?close-on-login=true')
+            await awaitUIResponse('user-logged-in')
           } catch {
             sendResponse(`on${type.toUpperCase()}`, { error: 'User rejected request' }, payload.id)
             break

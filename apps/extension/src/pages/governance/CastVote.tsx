@@ -19,6 +19,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { captureException } from '@sentry/react'
 import classNames from 'classnames'
+import BottomModal from 'components/bottom-modal'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
@@ -54,12 +55,8 @@ export const CastVote: React.FC<CastVoteProps> = ({
   const activeChainInfo = chains[activeChain]
   const getWallet = useGetWallet()
   const txCallback = useTxCallBack()
-  const firstTime = useRef(true)
   const defaultGasEstimates = useDefaultGasEstimates()
 
-  const [simulating, setSimulating] = useState(true)
-
-  const simulateVote = useSimulateVote()
   const { loading, vote, error, memo, setMemo, feeText, showLedgerPopup, clearError, ledgerError } =
     useGov({
       proposalId,
@@ -80,6 +77,8 @@ export const CastVote: React.FC<CastVoteProps> = ({
     option: GasOptions.LOW,
     gasPrice: defaultGasPrice.gasPrice,
   })
+  const simulateVote = useSimulateVote()
+  const firstTime = useRef(true)
 
   const customFee = useMemo(() => {
     const gasEstimate = Math.ceil(Number(gasLimit) * gasAdjustment)
@@ -110,6 +109,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
         })
         return !!result
       } catch (e) {
+        captureException(e)
         return false
       }
     },
@@ -157,8 +157,6 @@ export const CastVote: React.FC<CastVoteProps> = ({
         }
       } catch (e) {
         //
-      } finally {
-        setSimulating(false)
       }
     }
     simulate().catch(captureException)
@@ -185,21 +183,29 @@ export const CastVote: React.FC<CastVoteProps> = ({
         error={gasError}
         setError={setGasError}
       >
-        <CastVoteSheet
+        <BottomModal
           isOpen={showCastVoteSheet && !showLedgerPopup}
-          feeDenom={feeDenom}
-          gasLimit={gasLimit}
-          gasPrice={gasPriceOption.gasPrice}
-          setShowFeesSettingSheet={setShowFeesSettingSheet}
-          onCloseHandler={() => setShowCastVoteSheet(false)}
-          onSubmitVote={setSelectedVoteOption}
-          loadingFees={simulating}
-        />
+          onClose={() => setShowCastVoteSheet(false)}
+          title='Cast your Vote'
+        >
+          <CastVoteSheet
+            feeDenom={feeDenom}
+            gasLimit={gasLimit}
+            gasPrice={gasPriceOption.gasPrice}
+            setShowFeesSettingSheet={setShowFeesSettingSheet}
+            onSubmitVote={setSelectedVoteOption}
+            setRecommendedGasLimit={setRecommendedGasLimit}
+            proposalId={proposalId}
+            setGasLimit={setGasLimit}
+          />
+        </BottomModal>
+
         <FeesSettingsSheet
           showFeesSettingSheet={showFeesSettingSheet}
           onClose={handleCloseFeeSettingSheet}
           gasError={gasError}
         />
+
         <ReviewVoteCast
           isOpen={selectedVoteOption !== undefined}
           proposalId={proposalId}

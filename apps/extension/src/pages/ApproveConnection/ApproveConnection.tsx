@@ -89,8 +89,7 @@ const ApproveConnection = () => {
     ]
     browser.runtime.sendMessage({
       type: 'chain-approval-rejected',
-      chainsIds,
-      payloadId: currentApprovalRequest.payloadId,
+      payload: { origin, chainsIds, payloadId: currentApprovalRequest.payloadId },
     })
     setApprovalRequests((prev) => prev.slice(1))
     if (approvalRequests.length === 1) {
@@ -106,7 +105,7 @@ const ApproveConnection = () => {
       window.removeEventListener('beforeunload', handleCancel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [approvalRequests])
 
   async function enableAccessEventHandler(
     message: {

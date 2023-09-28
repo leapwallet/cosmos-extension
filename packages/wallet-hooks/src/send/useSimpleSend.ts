@@ -52,6 +52,7 @@ export type sendTokensReturnType =
   | {
       success: true;
       pendingTx: ActivityCardContent & {
+        txHash?: string;
         promise: Promise<any>;
         txStatus: 'loading' | 'success' | 'failed';
         feeDenomination?: string;
@@ -294,7 +295,7 @@ export const useSimpleSend = () => {
             'transfer',
             ibcChannelId,
             undefined,
-            Math.floor(Date.now() / 1000) + 60,
+            Math.floor(Date.now() / 1000) + 120,
             fees,
             memo,
           );
@@ -314,6 +315,7 @@ export const useSimpleSend = () => {
         return {
           success: true,
           pendingTx: {
+            txHash,
             img: chainInfo.chainSymbolImageUrl,
             sentAmount: amount.toString(),
             sentTokenInfo: selectedDenom as unknown as NativeDenom,

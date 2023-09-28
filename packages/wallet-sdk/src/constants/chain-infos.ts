@@ -73,7 +73,8 @@ export type SupportedChain =
   | 'mayachain'
   | 'empowerchain'
   | 'dydx'
-  | 'celestiatestnet3';
+  | 'celestiatestnet3'
+  | 'sge';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -140,7 +141,8 @@ export type AddressPrefix =
   | 'maya'
   | 'empower'
   | 'dydx'
-  | 'celestia';
+  | 'celestia'
+  | 'sge';
 
 export type Denom =
   | 'JUNO'
@@ -207,7 +209,8 @@ export type Denom =
   | 'CACAO'
   | 'MPWR'
   | 'DV4TNT'
-  | 'TIA';
+  | 'TIA'
+  | 'SGE';
 
 export type CoinType =
   | '118'
@@ -256,10 +259,12 @@ export type ChainInfo = {
     mainnet?: {
       readonly name: string;
       readonly txUrl: string;
+      readonly accountUrl: string;
     };
     testnet?: {
       readonly name: string;
       readonly txUrl: string;
+      readonly accountUrl: string;
     };
   };
   readonly bip44: {
@@ -303,10 +308,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/cosmos/txs',
+        accountUrl: 'https://www.mintscan.io/cosmos/accounts',
       },
       testnet: {
         name: 'Big Dipper',
         txUrl: 'https://explorer.theta-testnet.polypore.xyz/transactions',
+        accountUrl: 'https://explorer.theta-testnet.polypore.xyz/accounts',
       },
     },
     bip44: {
@@ -344,10 +351,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/juno/txs',
+        accountUrl: 'https://www.mintscan.io/juno/accounts',
       },
       testnet: {
-        name: 'Mintscan',
-        txUrl: 'https://testnet.mintscan.io/juno-testnet/txs',
+        name: 'NG Explorer',
+        txUrl: 'https://testnet.juno.explorers.guru/transaction',
+        accountUrl: 'https://testnet.juno.explorers.guru/account',
       },
     },
     apis: {
@@ -394,10 +403,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/osmosis/txs',
+        accountUrl: 'https://www.mintscan.io/osmosis/accounts',
       },
       testnet: {
         name: 'Mintscan Testnet',
         txUrl: 'https://testnet.mintscan.io/osmosis-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/osmosis-testnet/account',
       },
     },
     apis: {
@@ -445,6 +456,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/secret/txs',
+        accountUrl: 'https://www.mintscan.io/secret/accounts',
       },
     },
     apis: {
@@ -492,6 +504,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'BigDipper',
         txUrl: 'https://bigdipper.live/agoric/transactions',
+        accountUrl: 'https://bigdipper.live/agoric/accounts',
       },
     },
     bip44: {
@@ -528,6 +541,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/akash/txs',
+        accountUrl: 'https://www.mintscan.io/akash/accounts',
       },
     },
     bip44: {
@@ -573,10 +587,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/archway/txs',
+        accountUrl: 'https://www.mintscan.io/archway/txs',
       },
       testnet: {
-        name: 'Mintscan',
-        txUrl: 'https://testnet.mintscan.io/archway-testnet',
+        name: 'Testnet Mintscan',
+        txUrl: 'https://testnet.mintscan.io/archway-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/archway-testnet/account',
       },
     },
     bip44: {
@@ -616,6 +632,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/asset-mantle/txs',
+        accountUrl: 'https://www.mintscan.io/asset-mantle/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -663,10 +680,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Axelarscan',
         txUrl: 'https://axelarscan.io/tx/',
+        accountUrl: 'https://axelarscan.io/account',
       },
       testnet: {
         name: 'Axelarscan',
         txUrl: 'https://testnet.axelarscan.io/tx/',
+        accountUrl: 'https://testnet.axelarscan.io/account',
       },
     },
     bip44: {
@@ -703,8 +722,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'BTSG',
     txExplorer: {
       mainnet: {
-        name: 'mintscan',
+        name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/bitsong/txs',
+        accountUrl: 'https://www.mintscan.io/bitsong/accounts',
       },
     },
     bip44: {
@@ -740,8 +760,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'BCNA',
     txExplorer: {
       mainnet: {
-        name: 'mintscan',
+        name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/bitcanna/txs',
+        accountUrl: 'https://www.mintscan.io/bitcanna/accounts',
       },
     },
     bip44: {
@@ -779,6 +800,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'ping.pub',
         txUrl: 'https://cosmos-explorers.neobase.one/canto/tx',
+        accountUrl: 'https://cosmos-explorers.neobase.one/canto/account',
       },
     },
     bip44: {
@@ -816,7 +838,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     txExplorer: {
       mainnet: {
         name: 'Carbon scan',
-        txUrl: 'https://scan.carbon.network/transaction?net=main',
+        txUrl: 'https://scan.carbon.network/transaction',
+        accountUrl: 'https://scan.carbon.network/account',
       },
     },
     bip44: {
@@ -856,6 +879,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Explorer C4E',
         txUrl: 'https://explorer.c4e.io/transactions/',
+        accountUrl: 'https://explorer.c4e.io/accounts',
       },
     },
     bip44: {
@@ -892,6 +916,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Big Dipper',
         txUrl: 'https://explorer.cheqd.io/transactions',
+        accountUrl: 'https://bigdipper.live/cheqd/accounts',
       },
     },
     bip44: {
@@ -928,6 +953,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/chihuahua/txs',
+        accountUrl: 'https://www.mintscan.io/chihuahua/accounts',
       },
     },
     bip44: {
@@ -965,6 +991,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/comdex/txs',
+        accountUrl: 'https://www.mintscan.io/comdex/accounts',
       },
     },
     bip44: {
@@ -1010,8 +1037,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     txExplorer: {
       mainnet: {
         name: 'Explorer Coreum',
-        // txUrl: 'https://explorer.coreum.com/coreum/transactions',
         txUrl: 'https://explorer.mainnet-0.coreum.dev/coreum/transactions',
+        accountUrl: 'https://explorer.mainnet-0.coreum.dev/coreum/accounts',
       },
     },
     bip44: {
@@ -1052,6 +1079,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       testnet: {
         name: 'Explorer Coreum',
         txUrl: 'https://explorer.testnet-1.coreum.dev/coreum/transactions',
+        accountUrl: 'https://explorer.testnet-1.coreum.dev/coreum/accounts',
       },
     },
     bip44: {
@@ -1088,6 +1116,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/crescent/txs',
+        accountUrl: 'https://www.mintscan.io/crescent/accounts',
       },
     },
     bip44: {
@@ -1122,6 +1151,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Crypto.org',
         txUrl: 'https://crypto.org/explorer/tx',
+        accountUrl: 'https://crypto.org/explorer/account',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -1170,6 +1200,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Big Dipper',
         txUrl: 'https://explorer.cudos.org/transactions',
+        accountUrl: 'https://explorer.cudos.org/accounts',
       },
     },
     bip44: {
@@ -1208,6 +1239,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Atomscan',
         txUrl: 'https://atomscan.com/decentr/transactions',
+        accountUrl: 'https://atomscan.com/decentr/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -1248,6 +1280,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/desmos/txs',
+        accountUrl: 'https://www.mintscan.io/desmos/accounts',
       },
     },
     bip44: {
@@ -1286,6 +1319,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       testnet: {
         name: 'Mintscan',
         txUrl: 'https://testnet.mintscan.io/dydx-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/dydx-testnet/account',
       },
     },
     bip44: {
@@ -1318,6 +1352,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/emoney/txs/',
+        accountUrl: 'https://www.mintscan.io/emoney/accounts',
       },
     },
     bip44: {
@@ -1362,10 +1397,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'ExploreMe',
         txUrl: 'https://empowerchain.exploreme.pro/transaction',
+        accountUrl: 'https://empowerchain.exploreme.pro/account',
       },
       testnet: {
         name: 'Ping.Pub',
         txUrl: 'https://explorer.stavr.tech/empower/tx',
+        accountUrl: 'https://explorer.stavr.tech/empower/account',
       },
     },
     bip44: {
@@ -1400,6 +1437,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/evmos/txs',
+        accountUrl: 'https://www.mintscan.io/evmos/accounts',
       },
     },
     bip44: {
@@ -1436,6 +1474,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/fetchai/txs',
+        accountUrl: 'https://www.mintscan.io/fetchai/accounts',
       },
     },
     bip44: {
@@ -1472,6 +1511,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/gravity-bridge/txs',
+        accountUrl: 'https://www.mintscan.io/gravity-bridge/accounts',
       },
     },
     bip44: {
@@ -1509,6 +1549,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Ping.Pub',
         txUrl: 'https://ping.pub/gitopia/txs',
+        accountUrl: 'https://ping.pub/gitopia/account',
       },
     },
     bip44: {
@@ -1549,10 +1590,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/injective/txs',
+        accountUrl: 'https://www.mintscan.io/injective/accounts',
       },
       testnet: {
         name: 'Nyancat',
         txUrl: 'https://nyancat.iobscan.io/#/',
+        accountUrl: 'https://nyancat.iobscan.io/#/address',
       },
     },
     bip44: {
@@ -1598,10 +1641,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/iris/txs/',
+        accountUrl: 'https://www.mintscan.io/iris/accounts',
       },
       testnet: {
         name: 'Nyancat',
         txUrl: 'https://nyancat.iobscan.io/#/',
+        accountUrl: 'https://nyancat.iobscan.io/#/address',
       },
     },
     bip44: {
@@ -1646,10 +1691,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/ixo/txs',
+        accountUrl: 'https://www.mintscan.io/ixo/accounts',
       },
       testnet: {
         name: 'Pandora Explorer',
         txUrl: 'https://blockscan-pandora.ixo.earth/transactions',
+        accountUrl: 'https://blockscan-pandora.ixo.earth/account',
       },
     },
     bip44: {
@@ -1686,6 +1733,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Ping.Pub',
         txUrl: 'https://ping.pub/jackal/tx',
+        accountUrl: 'https://ping.pub/jackal/account',
       },
     },
     bip44: {
@@ -1722,6 +1770,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/kava/txs',
+        accountUrl: 'https://www.mintscan.io/kava/accounts',
       },
     },
     bip44: {
@@ -1760,6 +1809,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Kujira',
         txUrl: 'https://finder.kujira.app/kaiyo-1/tx',
+        accountUrl: 'https://finder.kujira.network/kaiyo-1/address',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -1799,10 +1849,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/kyve/txs',
+        accountUrl: 'https://www.mintscan.io/kyve/accounts',
       },
       testnet: {
         name: 'Mintscan',
         txUrl: 'https://testnet.mintscan.io/kyve-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/kyve-testnet/account',
       },
     },
     bip44: {
@@ -1840,6 +1892,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Big Dipper',
         txUrl: 'https://likecoin.bigdipper.live/transactions',
+        accountUrl: 'https://likecoin.bigdipper.live/accounts',
       },
     },
     bip44: {
@@ -1879,10 +1932,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mars Explorer',
         txUrl: 'https://explorer.marsprotocol.io/transactions/',
+        accountUrl: 'https://explorer.marsprotocol.io/accounts',
       },
       testnet: {
         name: 'Mars Explorer',
         txUrl: 'https://testnet-explorer.marsprotocol.io/transactions/',
+        accountUrl: 'https://testnet-explorer.marsprotocol.io/accounts',
       },
     },
     bip44: {
@@ -1917,6 +1972,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Explorer MayaChain',
         txUrl: 'https://www.explorer.mayachain.info/tx',
+        accountUrl: 'https://www.explorer.mayachain.info/address',
       },
     },
     bip44: {
@@ -1936,7 +1992,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   },
   migaloo: {
     chainId: 'migaloo-1',
-    testnetChainId: '',
     key: 'migaloo',
     chainName: 'Migaloo',
     chainRegistryPath: 'migaloo',
@@ -1953,10 +2008,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Explorer Guru',
         txUrl: 'https://migaloo.explorers.guru/transaction',
-      },
-      testnet: {
-        name: '',
-        txUrl: '',
+        accountUrl: 'https://migaloo.explorers.guru/account',
       },
     },
     bip44: {
@@ -1990,8 +2042,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'TIA',
     txExplorer: {
       testnet: {
-        name: 'Celestia Explorer',
-        txUrl: 'https://celestia.explorers.guru/transaction',
+        name: 'Mintscan Testnet',
+        txUrl: 'https://testnet.mintscan.io/celestia-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/celestia-testnet/account',
       },
     },
     bip44: {
@@ -2027,10 +2080,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/neutron/txs',
+        accountUrl: 'https://www.mintscan.io/neutron/accounts',
       },
       testnet: {
         name: 'Mintscan Testnet',
         txUrl: 'https://testnet.mintscan.io/neutron-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/neutron-testnet/account',
       },
     },
     bip44: {
@@ -2043,8 +2098,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       untrn: denoms.untrn,
     },
     theme: {
-      primaryColor: '#20212e',
-      gradient: 'linear-gradient(180deg, rgba(32, 33, 46, 0.32) 0%, rgba(32, 33, 46, 0) 100%)',
+      primaryColor: '#414B7D',
+      gradient: 'linear-gradient(180deg, rgba(65, 75, 125, 0.32) 0%, rgba(65, 75, 125, 0) 100%)',
     },
     enabled: true,
   },
@@ -2064,6 +2119,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Ping.Pub',
         txUrl: 'https://ping.testnet.noble.strange.love/noble/tx',
+        accountUrl: 'https://ping.testnet.noble.strange.love/noble/account',
       },
     },
     bip44: {
@@ -2099,10 +2155,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Ping.Pub',
         txUrl: 'https://ping.testnet.noble.strange.love/noble/tx',
+        accountUrl: 'https://ping.testnet.noble.strange.love/noble/account',
       },
       testnet: {
         name: 'Mintscan Testnet',
         txUrl: 'https://testnet.mintscan.io/noble-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/noble-testnet/account',
       },
     },
     bip44: {
@@ -2113,7 +2171,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     ibcChannelIds: {},
     nativeDenoms: {
       usdc: denoms.usdc,
-      ustake: denoms.ustake,
     },
     theme: {
       primaryColor: '#97b1f9',
@@ -2140,10 +2197,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Explorer',
         txUrl: 'https://explorer.nolus.io/pirin-1/tx',
+        accountUrl: 'https://explorer.nolus.io/pirin-1/account',
       },
       testnet: {
         name: 'Explorer rila',
         txUrl: 'https://explorer-rila.nolus.io/nolus-rila/tx',
+        accountUrl: 'https://explorer-rila.nolus.io/rila-1/account',
       },
     },
     bip44: {
@@ -2184,6 +2243,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Bigdipper',
         txUrl: 'https://bigdipper.live/nomic/transactions/',
+        accountUrl: 'https://bigdipper.live/nomic/accounts',
       },
     },
     bip44: {
@@ -2216,6 +2276,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/omniflix/txs',
+        accountUrl: 'https://www.mintscan.io/omniflix/accounts',
       },
     },
     bip44: {
@@ -2251,6 +2312,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/onomy-protocol/txs',
+        accountUrl: 'https://www.mintscan.io/onomy-protocol/accounts',
       },
       // testnet: {
       //   name: '',
@@ -2287,6 +2349,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/passage/transactions',
+        accountUrl: 'https://www.mintscan.io/passage/accounts',
       },
     },
     bip44: {
@@ -2326,6 +2389,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/persistence/txs',
+        accountUrl: 'https://www.mintscan.io/persistence/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -2372,6 +2436,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/persistence/txs',
+        accountUrl: 'https://www.mintscan.io/persistence/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -2421,6 +2486,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://explorer.planq.network/transactions/',
+        accountUrl: 'https://explorer.planq.network/accounts',
       },
     },
     bip44: {
@@ -2457,10 +2523,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/quasar/txs',
+        accountUrl: 'https://www.mintscan.io/quasar/accounts',
       },
       testnet: {
         name: 'Mintscan Testnet',
         txUrl: 'https://testnet.mintscan.io/quasar-testnet/txs',
+        accountUrl: 'https://testnet.mintscan.io/quasar-testnet/account',
       },
     },
     bip44: {
@@ -2493,6 +2561,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/quicksilver/txs',
+        accountUrl: 'https://www.mintscan.io/quicksilver/accounts',
       },
     },
     bip44: {
@@ -2528,6 +2597,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       testnet: {
         name: 'Explorers Guru',
         txUrl: 'https://sei.explorers.guru/transaction',
+        accountUrl: 'https://sei.explorers.guru/account',
       },
     },
     bip44: {
@@ -2565,10 +2635,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'SeiScan',
         txUrl: 'https://www.seiscan.app/pacific-1/txs',
+        accountUrl: 'https://www.seiscan.app/pacific-1/accounts',
       },
       testnet: {
         name: 'SeiScan',
         txUrl: 'https://www.seiscan.app/atlantic-2/txs',
+        accountUrl: 'https://www.seiscan.app/atlantic-2/accounts',
       },
     },
     bip44: {
@@ -2583,6 +2655,43 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     theme: {
       primaryColor: '#AF3450',
       gradient: 'linear-gradient(180deg, rgba(175, 52, 80, 0.32) 0%, rgba(175, 52, 80, 0) 100%)',
+    },
+    enabled: true,
+  },
+  sge: {
+    chainId: 'sgenet-1',
+    key: 'sge',
+    chainName: 'SGE',
+    chainRegistryPath: 'sge',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/sge.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/sge',
+      rpc: 'https://rpc.cosmos.directory/sge',
+    },
+    denom: 'SGE',
+    txExplorer: {
+      mainnet: {
+        name: 'NodeStake',
+        txUrl: 'https://explorer.nodestake.top/sge/tx',
+        accountUrl: 'https://explorer.nodestake.top/sge/account',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'sge',
+    gasPriceStep: {
+      low: 0.001,
+      average: 0.02,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      usge: denoms.usge,
+    },
+    theme: {
+      primaryColor: '#c9ab67',
+      gradient: 'linear-gradient(180deg, rgba(201, 171, 103, 0.32) 0%, rgba(201, 171, 103, 0) 100%)',
     },
     enabled: true,
   },
@@ -2603,6 +2712,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/sifchain/txs',
+        accountUrl: 'https://www.mintscan.io/sifchain/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -2654,6 +2764,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Atomscan',
         txUrl: 'https://www.atomscan.com/sommelier/transactions',
+        accountUrl: 'https://atomscan.com/sommelier/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -2693,6 +2804,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/stargaze/txs/',
+        accountUrl: 'https://www.mintscan.io/stargaze/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -2737,6 +2849,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/starname/txs',
+        accountUrl: 'https://www.mintscan.io/starname/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',
@@ -2781,6 +2894,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Apollo',
         txUrl: 'https://apollo.chandrastation.com/stride/tx',
+        accountUrl: 'https://apollo.chandrastation.com/stride/account',
       },
     },
     bip44: {
@@ -2817,6 +2931,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Teritori Explorer',
         txUrl: 'https://explorer.teritori.com/teritori/tx',
+        accountUrl: 'https://explorer.teritori.com/teritori/account',
       },
     },
     bip44: {
@@ -2856,6 +2971,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Terra Finder',
         txUrl: 'https://finder.station.money/mainnet/tx',
+        accountUrl: 'https://finder.station.money/mainnet/address',
       },
       // testnet: {
       //   name: 'Terra Finder',
@@ -2899,6 +3015,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/umee/txs',
+        accountUrl: 'https://www.mintscan.io/umee/accounts',
       },
       // testnet: {
       //   name: 'Nyancat',

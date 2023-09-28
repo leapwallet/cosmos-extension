@@ -103,4 +103,5 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   empowerchain: DefaultGasEstimates,
   dydx: DefaultGasEstimates,
   celestiatestnet3: DefaultGasEstimates,
+  sge: DefaultGasEstimates,
 };

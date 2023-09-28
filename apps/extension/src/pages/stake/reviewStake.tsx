@@ -15,6 +15,7 @@ import InfoSheet from 'components/Infosheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
+import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { ReactElement, useEffect, useMemo, useState } from 'react'
@@ -98,6 +99,9 @@ export default function ReviewStakeTransaction({
   const defaultTokenLogo = useDefaultTokenLogo()
   const [currencyValue, setCurrencyValue] = useState<string>('')
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
+
+  useCaptureTxError(gasError ?? undefined)
+  useCaptureTxError(error)
 
   useEffect(() => {
     const fn = async () => {

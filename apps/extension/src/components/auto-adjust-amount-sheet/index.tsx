@@ -51,16 +51,16 @@ const OptionalAutoAdjustAmountSheet: React.FC<
   }, [onAdjust, onCancel, setAmount, updatedAmount])
 
   const displayTokenAmount = useMemo(() => {
-    const displayString = fromSmall(tokenAmount, nativeDenom.coinDecimals)
-    return `${displayString} ${nativeDenom.coinDenom}`
-  }, [nativeDenom.coinDecimals, nativeDenom.coinDenom, tokenAmount])
+    const displayString = fromSmall(tokenAmount, nativeDenom?.coinDecimals ?? 6)
+    return `${displayString} ${nativeDenom?.coinDenom ?? ''}`
+  }, [nativeDenom?.coinDecimals, nativeDenom?.coinDenom, tokenAmount])
 
   const displayUpdatedAmount = useMemo(() => {
     if (updatedAmount) {
-      return `${updatedAmount} ${nativeDenom.coinDenom}`
+      return `${updatedAmount} ${nativeDenom?.coinDenom ?? ''}`
     }
     return null
-  }, [nativeDenom.coinDenom, updatedAmount])
+  }, [nativeDenom?.coinDenom, updatedAmount])
 
   return (
     <BottomModal
@@ -135,16 +135,16 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<AutoAdjustAmountSheetProps> = ({
   }, [onAdjust, onCancel, setAmount, updatedAmount])
 
   const displayTokenAmount = useMemo(() => {
-    const displayString = fromSmall(tokenAmount, nativeDenom.coinDecimals)
-    return `${displayString} ${nativeDenom.coinDenom}`
-  }, [nativeDenom.coinDecimals, nativeDenom.coinDenom, tokenAmount])
+    const displayString = fromSmall(tokenAmount, nativeDenom?.coinDecimals ?? 6)
+    return `${displayString} ${nativeDenom?.coinDenom ?? ''}`
+  }, [nativeDenom?.coinDecimals, nativeDenom?.coinDenom, tokenAmount])
 
   const displayUpdatedAmount = useMemo(() => {
     if (updatedAmount) {
-      return `${updatedAmount} ${nativeDenom.coinDenom}`
+      return `${updatedAmount} ${nativeDenom?.coinDenom ?? ''}`
     }
     return null
-  }, [nativeDenom.coinDenom, updatedAmount])
+  }, [nativeDenom?.coinDenom, updatedAmount])
 
   return (
     <BottomModal
@@ -155,7 +155,7 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<AutoAdjustAmountSheetProps> = ({
       hideActionButton={true}
     >
       <div className='rounded-2xl p-4 dark:bg-gray-900 bg-white-100 dark:text-gray-200 text-gray-800'>
-        <p>Insufficient {nativeDenom.coinDenom} balance to pay transaction fees.</p>
+        <p>Insufficient {nativeDenom?.coinDenom ?? ''} balance to pay transaction fees.</p>
         <p className='mt-2'>
           Should we adjust the amount from{' '}
           <span className='text-green-500 font-medium'>{displayTokenAmount}</span> to{' '}
@@ -227,8 +227,8 @@ export const AutoAdjustAmountSheet: React.FC<{
   )
 
   const tokenAmount = useMemo(
-    () => toSmall(amount, nativeDenom.coinDecimals),
-    [amount, nativeDenom.coinDecimals],
+    () => toSmall(amount, nativeDenom?.coinDecimals ?? 6),
+    [amount, nativeDenom?.coinDecimals],
   )
 
   const adjustmentType = useMemo(() => {

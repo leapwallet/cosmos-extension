@@ -55,15 +55,19 @@ function CosmosDirectory(testnet: boolean) {
     let res;
 
     try {
+      const chainRegistryPath = chainInfos?.[chainName].chainRegistryPath ?? chainName;
+      const testnetChainRegistryPath =
+        chainInfos?.[chainName].testnetChainRegistryPath ?? `${chainInfos?.[chainName].chainRegistryPath}testnet`;
+
       // Fetch validators from CosmosDirectoryUrl
-      res = await axios.get(validatorsUrl + '/chains/' + chainName);
+      res = await axios.get(validatorsUrl + '/chains/' + (testnet ? testnetChainRegistryPath : chainRegistryPath));
     } catch {
       //
     }
 
     const result = new ChainValidator(res?.data);
     result?.validators.forEach((r) => {
-      r.tokens = fromSmall(r?.tokens ?? '0', denom?.coinDecimals);
+      r.tokens = fromSmall(r?.tokens ?? '0', denom?.coinDecimals ?? 6);
     });
 
     // Filter on testnets or on no validator found

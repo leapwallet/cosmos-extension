@@ -3,7 +3,6 @@ import { OfflineAminoSigner, StdSignature, StdSignDoc } from '@cosmjs/amino'
 import { DirectSignResponse, OfflineDirectSigner } from '@cosmjs/proto-signing'
 import {
   convertObjectCasingFromCamelToSnake,
-  DirectSignDocDecoder,
   MsgConverter,
   UnknownMessage,
 } from '@leapwallet/buffer-boba'

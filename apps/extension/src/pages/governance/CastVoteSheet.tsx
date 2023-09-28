@@ -1,12 +1,12 @@
 /* eslint-disable no-unused-vars */
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
-import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
+import { useActiveChain, useSimulateVote } from '@leapwallet/cosmos-wallet-hooks'
+import { GasPrice, getSimulationFee, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { LoaderAnimation } from 'components/loader/Loader'
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 
 export enum VoteOptions {
@@ -14,17 +14,6 @@ export enum VoteOptions {
   NO = 'No',
   NO_WITH_VETO = 'No with Veto',
   ABSTAIN = 'Abstain',
-}
-
-export type CastVoteSheetProps = {
-  isOpen: boolean
-  feeDenom: NativeDenom
-  gasLimit: string
-  gasPrice: GasPrice
-  setShowFeesSettingSheet: React.Dispatch<React.SetStateAction<boolean>>
-  onCloseHandler: () => void
-  onSubmitVote: (option: VoteOptions) => void
-  loadingFees: boolean
 }
 
 const VoteOptionsList = [
@@ -50,18 +39,69 @@ const VoteOptionsList = [
   },
 ]
 
+export type CastVoteSheetProps = {
+  feeDenom: NativeDenom
+  gasLimit: string
+  gasPrice: GasPrice
+  onSubmitVote: (option: VoteOptions) => void
+  setShowFeesSettingSheet: React.Dispatch<React.SetStateAction<boolean>>
+  setRecommendedGasLimit: React.Dispatch<React.SetStateAction<string>>
+  proposalId: string
+  setGasLimit: React.Dispatch<React.SetStateAction<string>>
+}
+
 function CastVoteSheet({
-  isOpen,
-  setShowFeesSettingSheet,
-  onCloseHandler,
   onSubmitVote,
-  loadingFees,
+  setShowFeesSettingSheet,
+  setRecommendedGasLimit,
+  proposalId,
+  setGasLimit,
+  feeDenom,
 }: CastVoteSheetProps): React.ReactElement {
   const [selectedOption, setSelectedOption] = useState<VoteOptions | undefined>(undefined)
   const activeChain = useActiveChain()
+  const simulateVote = useSimulateVote()
+  const firstTime = useRef(true)
+  const [simulating, setSimulating] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const simulate = async () => {
+      try {
+        const fee = getSimulationFee(feeDenom.coinMinimalDenom)
+        const result = await simulateVote({
+          proposalId,
+          voteOption: VoteOptions.YES,
+          fee,
+        })
+
+        if (result !== null && !cancelled) {
+          const _estimate = result.gasUsed.toString()
+          setRecommendedGasLimit(_estimate)
+          if (firstTime.current) {
+            setGasLimit(_estimate)
+            firstTime.current = false
+          }
+        }
+      } catch {
+        //
+      } finally {
+        setSimulating(false)
+      }
+    }
+
+    simulate().catch(captureException)
+
+    return () => {
+      cancelled = true
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposalId, simulateVote])
 
   return (
-    <BottomModal isOpen={isOpen} onClose={onCloseHandler} title='Cast your Vote'>
+    <>
       <div className='flex flex-col items-center gap-4'>
         {VoteOptionsList.map((option) => (
           <button
@@ -78,25 +118,27 @@ function CastVoteSheet({
           </button>
         ))}
       </div>
-      {!loadingFees ? (
+
+      {!simulating ? (
         <DisplayFee className='mt-4' setShowFeesSettingSheet={setShowFeesSettingSheet} />
       ) : (
         <div className='flex justify-center'>
           <LoaderAnimation color={Colors.getChainColor(activeChain)} />
         </div>
       )}
+
       <Buttons.Generic
         color={Colors.getChainColor(activeChain)}
         size='normal'
         className='w-[344px] py-3 mt-4'
-        disabled={!selectedOption || loadingFees}
+        disabled={!selectedOption || simulating}
         onClick={() => onSubmitVote(selectedOption as VoteOptions)}
       >
         <div className={'flex justify-center text-white-100 items-center'}>
           <span>Submit</span>
         </div>
       </Buttons.Generic>
-    </BottomModal>
+    </>
   )
 }
 

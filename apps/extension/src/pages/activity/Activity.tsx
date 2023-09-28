@@ -1,8 +1,4 @@
-import {
-  ActivityCardContent,
-  useActivity,
-  useGetTokenBalances,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { ActivityCardContent, useActivity } from '@leapwallet/cosmos-wallet-hooks'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import type { ParsedTransaction } from '@leapwallet/parser-parfait'
 import { QueryStatus } from '@tanstack/react-query'
@@ -17,13 +13,11 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
-import React, { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import React, { useMemo, useState } from 'react'
 import { useRecoilState } from 'recoil'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
-import { NavStateActivity } from '../../types/route.types'
 import { ActivityList } from './ActivityList'
 import TxDetails from './TxDetails'
 
@@ -44,8 +38,6 @@ function Activity() {
   const isTestnet = useSelectedNetwork() === 'testnet'
   const activeChain = useActiveChain()
   const { txResponse } = useActivity()
-  const { state: locationState } = useLocation()
-  const { refetchBalances } = useGetTokenBalances()
   const themeColor = useThemeColor()
 
   const queryStatus = useMemo(() => {
@@ -61,17 +53,6 @@ function Activity() {
     op: 'activityPageLoad',
     description: 'loading state on activity page',
   })
-
-  useEffect(() => {
-    return () => {
-      const state = locationState as NavStateActivity
-      if (state?.fromTx) {
-        refetchBalances()
-      }
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <div className='relative w-[400px] overflow-clip'>

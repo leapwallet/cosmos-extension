@@ -19,7 +19,6 @@ import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import ClickableIcon from 'components/clickable-icons'
 import { EmptyCard } from 'components/empty-card'
-import { PortfolioDistribution } from 'components/extension-page/PortfolioDistribution'
 import PopupLayout from 'components/layout/popup-layout'
 import ReceiveToken from 'components/Receive'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
@@ -37,7 +36,6 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
-import { useGetStakedTokensBalance } from 'hooks/wallet/useGetStakedTokensBalance'
 import { Images } from 'images'
 import { NftLogo } from 'images/logos'
 import React, { useMemo, useState } from 'react'
@@ -120,7 +118,6 @@ export default function Home() {
   const chain = chainInfos[activeChain]
   const { activeWallet } = useActiveWallet()
   const isTestnet = useSelectedNetwork() === 'testnet'
-  const { stakeBalance, isLoading } = useGetStakedTokensBalance()
 
   const walletAvatar = useMemo(() => {
     if (activeWallet?.avatar) {
@@ -345,9 +342,7 @@ export default function Home() {
             </div>
             <div className='flex justify-center mb-2 text-xxl font-black text-gray-900 dark:text-white-100'>
               {!loading ? (
-                formatHideBalance(
-                  formatCurrency(totalCurrencyInPreferredFiatValue.plus(stakeBalance)),
-                )
+                formatHideBalance(formatCurrency(totalCurrencyInPreferredFiatValue))
               ) : (
                 <Skeleton
                   count={1}
@@ -386,7 +381,7 @@ export default function Home() {
               </div>
             )}
 
-            {!isTestnet ? (
+            {!isTestnet && !isCompassWallet() ? (
               <div className='flex flex-row justify-evenly mb-6'>
                 <ClickableIcon
                   image={{
@@ -403,18 +398,19 @@ export default function Home() {
                   image={{ src: Images.Misc.IbcUnion, alt: 'IBC' }}
                   onClick={() => navigate('/ibc')}
                 />
-                {!hideSwap ? (
-                  <ClickableIcon
-                    image={{ src: 'swap_horiz', alt: 'Swap' }}
-                    onClick={() => {
-                      if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
-                        navigate('/swap')
-                      } else {
-                        window.open('https://cosmos.leapwallet.io/ibcswaps', '_blank')
-                      }
-                    }}
-                  />
-                ) : null}
+                <ClickableIcon
+                  image={{ src: 'swap_horiz', alt: 'Swap' }}
+                  onClick={() => {
+                    if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
+                      navigate('/swap')
+                    } else {
+                      window.open(
+                        `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${chainInfos[activeChain].chainId}`,
+                        '_blank',
+                      )
+                    }
+                  }}
+                />
               </div>
             ) : (
               <div className='flex justify-between mb-6'>
@@ -454,12 +450,6 @@ export default function Home() {
           </div>
 
           {!isCompassWallet() && <BannerAD />}
-
-          <PortfolioDistribution
-            loading={isLoading}
-            walletBalance={totalCurrencyInPreferredFiatValue}
-            stakeBalance={stakeBalance}
-          />
 
           <div className='rounded-2xl dark:bg-gray-900 bg-white-100 mx-7'>
             <Text size='sm' color='dark:text-gray-200 text-gray-600 font-medium px-5 pt-4'>

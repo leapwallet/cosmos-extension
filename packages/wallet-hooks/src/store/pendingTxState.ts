@@ -17,6 +17,7 @@ type PendingTx = {
   secondaryImg?: string;
   sentAmount?: string;
   sentTokenInfo?: NativeDenom;
+  receivedTokenInfo?: NativeDenom;
   receivedAmount?: string;
   sentUsdValue?: string;
   receivedUsdValue?: string;
@@ -26,6 +27,7 @@ type PendingTx = {
   feeDenomination?: string;
   feeQuantity?: string;
   toAddress?: string;
+  txHash?: string;
 };
 
 export type PendingTxState = {
