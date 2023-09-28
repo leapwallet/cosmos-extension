@@ -20,7 +20,7 @@ export function useFetchStakeValidators(forceChain?: SupportedChain, forceNetwor
 
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const isTestnet = useSelectedNetwork() === 'testnet';
-  const { setStakeValidatorData, setStakeValidatorStatus } = useStakeValidatorsStore();
+  const { setStakeValidatorData, setStakeValidatorStatus, setStakeValidatorRefetch } = useStakeValidatorsStore();
 
   const denoms = useDenoms();
   const chainInfos = useGetChains();
@@ -28,7 +28,6 @@ export function useFetchStakeValidators(forceChain?: SupportedChain, forceNetwor
 
   const fetchStakeValidators = async () => {
     try {
-      setStakeValidatorStatus('loading');
       const chainId = activeChainInfo.key;
       const denom = denoms[Object.keys(activeChainInfo.nativeDenoms)[0]];
 
@@ -47,33 +46,31 @@ export function useFetchStakeValidators(forceChain?: SupportedChain, forceNetwor
       const { unbonding_time = 0 } = await getUnbondingTime(chainId, isTestnet, lcdUrl, chainInfos, chainData);
       const calculatedApr = await getApr(activeChain, isTestnet, chainInfos, chainData);
 
-      setStakeValidatorData(
-        {
-          chainData: {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            params: { ...(_chainData?.params ?? {}), calculated_apr: calculatedApr, unbonding_time },
-          },
-          validators,
+      setStakeValidatorData({
+        chainData: {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          params: { ...(_chainData?.params ?? {}), calculated_apr: calculatedApr, unbonding_time },
         },
-        async function () {
-          await fetchStakeValidators();
-        },
-      );
-
+        validators,
+      });
       setStakeValidatorStatus('success');
     } catch (_) {
-      setStakeValidatorData({}, async function () {
-        await fetchStakeValidators();
-      });
-
+      setStakeValidatorData({});
       setStakeValidatorStatus('error');
     }
   };
 
   useEffect(() => {
     if (lcdUrl && activeChain && selectedNetwork && Object.keys(denoms).length) {
-      setTimeout(fetchStakeValidators, 0);
+      setTimeout(() => {
+        setStakeValidatorStatus('loading');
+        setStakeValidatorData({});
+        setStakeValidatorRefetch(async function () {
+          await fetchStakeValidators();
+        });
+        fetchStakeValidators();
+      }, 0);
     }
   }, [lcdUrl, denoms, activeChain, selectedNetwork]);
 }

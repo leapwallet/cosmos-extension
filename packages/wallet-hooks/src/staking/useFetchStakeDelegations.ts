@@ -24,7 +24,7 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const address = useAddress();
   const [preferredCurrency] = useUserPreferredCurrency();
-  const { setStakeDelegationInfo, setStakeDelegationLoading } = useStakeDelegationsStore();
+  const { setStakeDelegationInfo, setStakeDelegationLoading, setStakeDelegationRefetch } = useStakeDelegationsStore();
 
   const denoms = useDenoms();
   const chainInfos = useGetChains();
@@ -32,7 +32,6 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
 
   const fetchStakeDelegations = async () => {
     try {
-      setStakeDelegationLoading(true);
       const res = await axiosWrapper({
         baseURL: lcdUrl,
         method: 'get',
@@ -71,13 +70,9 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
       const totalDelegationAmount = formatTokenAmount(tda, activeChainInfo.denom);
       const currencyAmountDelegation = new BigNumber(tda).multipliedBy(denomFiatValue ?? '0').toString();
 
-      setStakeDelegationInfo({ delegations, totalDelegationAmount, currencyAmountDelegation }, async function () {
-        await fetchStakeDelegations();
-      });
+      setStakeDelegationInfo({ delegations, totalDelegationAmount, currencyAmountDelegation });
     } catch (_) {
-      setStakeDelegationInfo({}, async function () {
-        await fetchStakeDelegations();
-      });
+      setStakeDelegationInfo({});
     } finally {
       setStakeDelegationLoading(false);
     }
@@ -85,7 +80,14 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
 
   useEffect(() => {
     if (lcdUrl && address && activeChain && selectedNetwork && Object.keys(denoms).length) {
-      setTimeout(fetchStakeDelegations, 0);
+      setTimeout(() => {
+        setStakeDelegationLoading(true);
+        setStakeDelegationInfo({});
+        setStakeDelegationRefetch(async function () {
+          await fetchStakeDelegations();
+        });
+        fetchStakeDelegations();
+      }, 0);
     }
   }, [lcdUrl, address, denoms, activeChain, selectedNetwork]);
 }

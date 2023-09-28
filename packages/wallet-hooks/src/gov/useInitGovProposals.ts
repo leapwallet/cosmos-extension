@@ -28,13 +28,13 @@ export function useInitGovProposals(
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const spamProposals = useSpamProposals();
   const paginationKeyRef = useRef('');
-  const { setGovernanceData, setGovernanceStatus } = useGovProposalsStore();
+  const { setGovernanceData, setGovernanceStatus, setGovernanceFetchMore } = useGovProposalsStore();
 
   const filterSpamProposals = (proposalId: string) => {
     return spamProposals[activeChain] ? !spamProposals[activeChain].includes(Number(proposalId)) : true;
   };
 
-  const fetchGovProposals = async (paginationKey = '') => {
+  const fetchGovProposals = async (paginationKey = '', previousData: Proposal[] = []) => {
     try {
       let url = `/cosmos/gov/v1beta1/proposals`;
 
@@ -88,21 +88,13 @@ export function useInitGovProposals(
         }
       }
 
-      setGovernanceData(
-        proposals.sort((a: any, b: any) => Number(b.proposal_id) - Number(a.proposal_id)),
-        async () => {
-          setGovernanceStatus('fetching-more');
-          await fetchGovProposals(paginationKeyRef.current);
-        },
-      );
-
+      setGovernanceData([
+        ...previousData,
+        ...proposals.sort((a: any, b: any) => Number(b.proposal_id) - Number(a.proposal_id)),
+      ]);
       setGovernanceStatus('success');
     } catch (_) {
-      setGovernanceData([], async () => {
-        setGovernanceStatus('fetching-more');
-        await fetchGovProposals(paginationKeyRef.current);
-      });
-
+      setGovernanceData([]);
       setGovernanceStatus('error');
     }
   };
@@ -111,6 +103,15 @@ export function useInitGovProposals(
     if (lcdUrl && activeChain && selectedNetwork) {
       setTimeout(() => {
         setGovernanceStatus('loading');
+        setGovernanceFetchMore(async () => {
+          setGovernanceStatus('fetching-more');
+          if (paginationKeyRef.current) {
+            await fetchGovProposals(paginationKeyRef.current, useGovProposalsStore.getState().data);
+          } else {
+            setGovernanceStatus('success');
+          }
+        });
+        paginationKeyRef.current = '';
         fetchGovProposals();
       }, 0);
     }

@@ -12,11 +12,11 @@ import {
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { getMetaDataForSendTx } from '@leapwallet/cosmos-wallet-hooks/dist/send/get-metadata'
-import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Buttons, GenericCard, Header } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import classnames from 'classnames'
 import PopupLayout from 'components/layout/popup-layout'
-import { useActivityImage } from 'hooks/activity/useActivityImage'
+import { LoaderAnimation } from 'components/loader/Loader'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
@@ -26,8 +26,6 @@ import { TxResponse } from 'secretjs'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
-
-import { ActivityIcon } from './ActivityIcon'
 
 export function PendingTx() {
   const chainInfos = useChainInfos()
@@ -127,8 +125,6 @@ export function PendingTx() {
     sentAmount,
     receivedAmount,
     sentUsdValue,
-    img: customImage,
-    secondaryImg,
     receivedTokenInfo,
     txStatus,
     txHash: _txHash,
@@ -138,8 +134,6 @@ export function PendingTx() {
     if (_txHash) setTxHash(_txHash)
   }, [_txHash])
 
-  const defaultImage = useActivityImage(txType ?? 'fallback')
-  const img = customImage || defaultImage
   const { formatHideBalance } = useHideAssets()
 
   const sentAmountInfo =
@@ -161,7 +155,7 @@ export function PendingTx() {
   const txStatusStyles = {
     loading: {
       topColor: '#696969',
-      title: 'Pending',
+      title: 'Processing...',
     },
     success: {
       topColor: '#29A874',
@@ -181,23 +175,15 @@ export function PendingTx() {
     <PopupLayout>
       <Header
         topColor={txStatusStyles[txStatus ?? 'loading'].topColor}
-        action={{
-          onClick: handleCloseClick,
-          type: HeaderActionType.BACK,
-        }}
         title={`Transaction ${txStatusStyles[txStatus ?? 'loading'].title}`}
       />
       <div className='flex flex-col h-[500px] items-center p-7'>
         <div className='bg-white-100 dark:bg-gray-900 rounded-2xl w-full flex flex-col items-center p-7'>
-          <ActivityIcon
-            size='lg'
-            img={img}
-            showLoader={txStatus === 'loading'}
-            voteOption={txType === 'vote' ? title1 : ''}
-            secondaryImg={secondaryImg}
-            type={txType ?? 'fallback'}
-            isSuccessful={txStatus === 'success'}
-          />
+          {txStatus === 'loading' && <LoaderAnimation color='#29a874' className='w-16 h-16' />}
+          {txStatus === 'success' && (
+            <img src={Images.Activity.SendDetails} className='h-16 w-16 mb-3' />
+          )}
+          {txStatus === 'failed' && <img src={Images.Activity.Error} className='h-16 w-16 mb-3' />}
 
           <div className='text-xl font-bold text-black-100 dark:text-white-100 text-left mt-4'>
             {title1}

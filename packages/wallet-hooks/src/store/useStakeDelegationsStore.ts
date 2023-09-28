@@ -12,10 +12,8 @@ type StakeDelegationsStore = {
   loadingDelegations: boolean;
   refetchDelegations: () => Promise<void>;
 
-  setStakeDelegationInfo: (
-    delegationInfo: DelegationInfo | Record<string, never>,
-    refetchDelegations: () => Promise<void>,
-  ) => void;
+  setStakeDelegationInfo: (delegationInfo: DelegationInfo | Record<string, never>) => void;
+  setStakeDelegationRefetch: (refetchDelegations: () => Promise<void>) => void;
   setStakeDelegationLoading: (loadingDelegations: boolean) => void;
 };
 
@@ -26,7 +24,8 @@ export const useStakeDelegationsStore = create<StakeDelegationsStore>((set) => (
     await Promise.resolve();
   },
 
-  setStakeDelegationInfo: (delegationInfo, refetchDelegations) => set(() => ({ delegationInfo, refetchDelegations })),
+  setStakeDelegationInfo: (delegationInfo) => set(() => ({ delegationInfo })),
+  setStakeDelegationRefetch: (refetchDelegations) => set(() => ({ refetchDelegations })),
   setStakeDelegationLoading: (loadingDelegations) => set(() => ({ loadingDelegations })),
 }));
 

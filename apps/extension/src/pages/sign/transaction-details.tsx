@@ -1,6 +1,6 @@
-import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
+import { sliceAddress, useChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { ParsedMessage, ParsedMessageType } from '@leapwallet/parser-parfait'
-import React from 'react'
+import React, { useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 
 import { useMessageDetails } from './message-details'
@@ -40,6 +40,30 @@ const TransactionDetails: React.FC<TransactionDetailsProps> = ({ parsedMessages 
     ? true
     : parsedMessages.every((msg) => msg.__type === ParsedMessageType.Unimplemented)
 
+  const claimRewardsMessage = useMemo(() => {
+    if (parsedMessages) {
+      let message = ''
+      let counter = 0
+
+      for (const parsedMessage of parsedMessages) {
+        if (parsedMessage.__type === ParsedMessageType.ClaimReward) {
+          if (counter === 0) {
+            message = `Claim staking reward from ${sliceAddress(parsedMessage.validatorAddress)}`
+          }
+          counter += 1
+        }
+      }
+
+      if (counter > 1) {
+        message += ` and +${counter - 1} more validator${counter - 1 === 1 ? '' : 's'}`
+      }
+
+      return message
+    }
+
+    return ''
+  }, [parsedMessages])
+
   return noMessageIsDecoded ? null : (
     <div
       className='rounded-2xl p-4 mt-3'
@@ -50,9 +74,16 @@ const TransactionDetails: React.FC<TransactionDetailsProps> = ({ parsedMessages 
       <p className='text-gray-500 dark:text-gray-100 text-sm font-medium tracking-wide'>
         Transaction Summary
       </p>
+
       <ul className='mt-2'>
-        {parsedMessages?.map((msg, i) => <DetailItem key={i} message={msg} />) ??
-          'No information available'}
+        {claimRewardsMessage ? (
+          <li className='font-bold dark:text-white-100 text-gray-900 text-sm mt-1 list-none ml-0'>
+            {claimRewardsMessage}
+          </li>
+        ) : (
+          parsedMessages?.map((msg, i) => <DetailItem key={i} message={msg} />) ??
+          'No information available'
+        )}
       </ul>
     </div>
   )

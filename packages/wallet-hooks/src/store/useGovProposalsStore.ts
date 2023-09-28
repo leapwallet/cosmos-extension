@@ -9,7 +9,8 @@ type GovProposalsStore = {
   status: Status;
   fetchMore: () => Promise<void>;
 
-  setGovernanceData: (data: Proposal[], fetchMore: () => Promise<void>) => void;
+  setGovernanceData: (data: Proposal[]) => void;
+  setGovernanceFetchMore: (fetchMore: () => Promise<void>) => void;
   setGovernanceStatus: (status: Status) => void;
 };
 
@@ -20,7 +21,8 @@ export const useGovProposalsStore = create<GovProposalsStore>((set) => ({
     await Promise.resolve();
   },
 
-  setGovernanceData: (data, fetchMore) => set(() => ({ data, fetchMore })),
+  setGovernanceData: (data) => set(() => ({ data })),
+  setGovernanceFetchMore: (fetchMore) => set(() => ({ fetchMore })),
   setGovernanceStatus: (status) => set(() => ({ status })),
 }));
 

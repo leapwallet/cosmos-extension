@@ -164,6 +164,8 @@ export const getMessageTitle = (message: ParsedMessage) => {
       return 'Update Validator Shares Exchange Rate (Liquid Staking)'
     case ParsedMessageType.IbcPacketReceive:
       return 'Receive IBC Packet'
+    case ParsedMessageType.ClaimReward:
+      return `Claim reward from ${sliceAddress(message.validatorAddress)}`
     case ParsedMessageType.Unimplemented:
       return getSimpleType(
         message.message['@type'] ??
@@ -435,6 +437,8 @@ export const getMessageDetails = async (
           message.validatorOperatorAddress,
         )}`,
       )
+    case ParsedMessageType.ClaimReward:
+      return Promise.resolve(`Claim staking reward from ${sliceAddress(message.validatorAddress)}`)
     case ParsedMessageType.Unimplemented:
       return Promise.resolve(
         getSimpleType(

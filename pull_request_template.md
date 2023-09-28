@@ -15,15 +15,38 @@ Please delete options that are not relevant.
 - [ ] New feature (non-breaking change which adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
-## Checklist:
 
-- [ ] I have performed a self-review of my own code
-- [ ] I have used `yarn audit` to make sure that there are no vulnerable dependencies will be added with my changes.
-- [ ] I have commented my code, especially in areas that are difficult to understand.
-- [ ] I have made changes to the documentation if necessary.
-- [ ] My changes generate no new warnings.
-- [ ] I have added tests wherever necessary.
-- [ ] New and existing unit tests pass locally with my changes.
-- [ ] I have attached screenshots/screen-recordings if necessary
-- [ ] I have flagged tech debt with //TODO comments.
+## PR Checklist
+**Code Quality & Maintenance:**
+- [ ]  Performed a self-review of my own code.
+- [ ]  Implemented thorough error handling.
+- [ ]  Reviewed and revised code comments for accuracy and clarity.
+- [ ]  Addressed all outstanding //TODO comments
+- [ ]  Flagged tech debt with //TODO comments.
+- [ ]  I have considered performance optimisation where applicable.
+- [ ]  Ensured this PR solves only one issue.
+
+**Testing:**
+- [ ]  Added comprehensive tests where necessary.
+- [ ]  Ensure new and existing unit tests pass locally with the changes.
+- [ ]  Documented steps for manual testing if required.
+- [ ]  Attached screenshots/screen-recordings if necessary
+
+**Documentation:**
+- [ ]  Updated documentation as needed
+- [ ]  Added comments to code, especially in hard-to-understand areas.
+
+**Dependencies & Security:**
+- [ ]  Used `yarn audit` to check for vulnerable dependencies.
+- [ ]  Ensured no new warnings are generated on build
+- [ ]  Verified there are no unusable or hardcoded variables in my code
+- [ ]  Pinned added dependencies to exact versions.
+
+
+## **Manual testing steps**
+
+1. Step1
+2. Step2
+3. ...
+
 ## Any other information you think reviewers need.

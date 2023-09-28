@@ -25,7 +25,7 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
   const address = useAddress();
   const getIbcDenomInfo = useGetIbcDenomInfo();
   const [preferredCurrency] = useUserPreferredCurrency();
-  const { setClaimRewards, setClaimStatus, setClaimIsFetching } = useStakeClaimRewardsStore();
+  const { setClaimRewards, setClaimStatus, setClaimIsFetching, setClaimRefetch } = useStakeClaimRewardsStore();
 
   const denoms = useDenoms();
   const chainInfos = useGetChains();
@@ -33,7 +33,6 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
 
   const fetchClaimRewards = async () => {
     try {
-      setClaimStatus('loading');
       const res = await axiosWrapper({
         baseURL: lcdUrl,
         method: 'get',
@@ -140,36 +139,32 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
         formattedTotalRewardsAmt = '0 ' + activeChainInfo.denom;
       }
 
-      setClaimRewards(
-        {
-          rewards,
-          result: { rewards: totalRewards, total: claimTotal },
-          totalRewards: totalRewardsAmt,
-          formattedTotalRewards: formattedTotalRewardsAmt,
-          totalRewardsDollarAmt,
-        },
-        async function () {
-          setClaimIsFetching(true);
-          await fetchClaimRewards();
-          setClaimIsFetching(false);
-        },
-      );
-
+      setClaimRewards({
+        rewards,
+        result: { rewards: totalRewards, total: claimTotal },
+        totalRewards: totalRewardsAmt,
+        formattedTotalRewards: formattedTotalRewardsAmt,
+        totalRewardsDollarAmt,
+      });
       setClaimStatus('success');
     } catch (_) {
-      setClaimRewards({}, async function () {
-        setClaimIsFetching(true);
-        await fetchClaimRewards();
-        setClaimIsFetching(false);
-      });
-
+      setClaimRewards({});
       setClaimStatus('error');
     }
   };
 
   useEffect(() => {
     if (lcdUrl && address && activeChain && selectedNetwork && Object.keys(denoms).length) {
-      setTimeout(fetchClaimRewards, 0);
+      setTimeout(() => {
+        setClaimStatus('loading');
+        setClaimRewards({});
+        setClaimRefetch(async function () {
+          setClaimIsFetching(true);
+          await fetchClaimRewards();
+          setClaimIsFetching(false);
+        });
+        fetchClaimRewards();
+      }, 0);
     }
   }, [lcdUrl, address, denoms, activeChain, selectedNetwork]);
 }

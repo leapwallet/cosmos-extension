@@ -2098,8 +2098,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       untrn: denoms.untrn,
     },
     theme: {
-      primaryColor: '#20212e',
-      gradient: 'linear-gradient(180deg, rgba(32, 33, 46, 0.32) 0%, rgba(32, 33, 46, 0) 100%)',
+      primaryColor: '#414B7D',
+      gradient: 'linear-gradient(180deg, rgba(65, 75, 125, 0.32) 0%, rgba(65, 75, 125, 0) 100%)',
     },
     enabled: true,
   },
@@ -2171,7 +2171,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     ibcChannelIds: {},
     nativeDenoms: {
       usdc: denoms.usdc,
-      ustake: denoms.ustake,
     },
     theme: {
       primaryColor: '#97b1f9',

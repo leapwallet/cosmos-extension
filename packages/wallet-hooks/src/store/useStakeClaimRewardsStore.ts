@@ -18,10 +18,8 @@ type ClaimRewardsStore = {
   refetchDelegatorRewards: () => Promise<void>;
 
   setClaimIsFetching: (isFetching: boolean) => void;
-  setClaimRewards: (
-    rewards: ClaimRewards | Record<string, never>,
-    refetchDelegatorRewards: () => Promise<void>,
-  ) => void;
+  setClaimRewards: (rewards: ClaimRewards | Record<string, never>) => void;
+  setClaimRefetch: (refetchDelegatorRewards: () => Promise<void>) => void;
   setClaimStatus: (loadingRewardsStatus: Status) => void;
 };
 
@@ -34,7 +32,8 @@ export const useStakeClaimRewardsStore = create<ClaimRewardsStore>((set) => ({
   isFetchingRewards: false,
 
   setClaimIsFetching: (isFetchingRewards) => set(() => ({ isFetchingRewards })),
-  setClaimRewards: (rewards, refetchDelegatorRewards) => set(() => ({ rewards, refetchDelegatorRewards })),
+  setClaimRewards: (rewards) => set(() => ({ rewards })),
+  setClaimRefetch: (refetchDelegatorRewards) => set(() => ({ refetchDelegatorRewards })),
   setClaimStatus: (loadingRewardsStatus) => set(() => ({ loadingRewardsStatus })),
 }));
 
