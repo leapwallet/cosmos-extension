@@ -3,7 +3,7 @@
 import { Dict, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 
-import { useActiveChain, useChainApis } from '../store';
+import { useActiveChain, useChainApis, useIteratedUriEnabledNftContracts } from '../store';
 import { CosmWasmClientHandler, defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
 import {
   NFTDisplayInformation,
@@ -32,6 +32,7 @@ export const useGetTenOwnedCollection = (
   const _chain = useActiveChain();
   const chain = options?.forceChain ?? _chain;
 
+  const iteratedUriNftContracts = useIteratedUriEnabledNftContracts();
   const { rpcUrl } = useChainApis(chain, options?.forceNetwork);
   if (!rpcUrl) {
     throw new Error(`Invalid rpc URL for chain ${chain}`);
@@ -54,6 +55,15 @@ export const useGetTenOwnedCollection = (
             const nftInfo: NFTInfo = await client.queryContractSmart(tokensListByCollection.collection.address, {
               nft_info: { token_id: tokenId },
             });
+
+            if (iteratedUriNftContracts.includes(tokensListByCollection.collection.address)) {
+              return {
+                tokenUri: `${nftInfo.token_uri ?? ''}/${tokenId}`,
+                extension: nftInfo.extension as Dict,
+                tokenId: tokenId ?? '',
+              };
+            }
+
             return {
               tokenUri: nftInfo.token_uri ?? '',
               extension: nftInfo.extension as Dict,

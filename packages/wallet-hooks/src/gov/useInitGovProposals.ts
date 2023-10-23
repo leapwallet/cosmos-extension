@@ -30,8 +30,14 @@ export function useInitGovProposals(
   const paginationKeyRef = useRef('');
   const { setGovernanceData, setGovernanceStatus, setGovernanceFetchMore } = useGovProposalsStore();
 
-  const filterSpamProposals = (proposalId: string) => {
-    return spamProposals[activeChain] ? !spamProposals[activeChain].includes(Number(proposalId)) : true;
+  const filterSpamProposals = (proposal: any) => {
+    if (spamProposals[activeChain] && spamProposals[activeChain].includes(Number(proposal.proposal_id))) {
+      return false;
+    }
+
+    return !['airdrop', 'air drop', 'a i r d r o p'].some((text) =>
+      (proposal.content.title ?? '').toLowerCase().trim().includes(text),
+    );
   };
 
   const fetchGovProposals = async (paginationKey = '', previousData: Proposal[] = []) => {
@@ -65,16 +71,16 @@ export function useInitGovProposals(
         case CosmosSDK.Version_Point_46: {
           proposals = data.proposals
             .filter((proposal: { metadata: string }) => proposal.metadata)
-            .filter((proposal: Proposal2.Proposal) => filterSpamProposals(proposal.id))
-            .map((proposal: Proposal2.Proposal) => formatProposal(CosmosSDK.Version_Point_46, proposal));
+            .map((proposal: Proposal2.Proposal) => formatProposal(CosmosSDK.Version_Point_46, proposal))
+            .filter((proposal: Proposal2.Proposal) => filterSpamProposals(proposal));
 
           break;
         }
 
         case CosmosSDK.Version_Point_47: {
           proposals = data.proposals
-            .filter((proposal: any) => filterSpamProposals(proposal.id))
-            .map((proposal: any) => formatProposal(CosmosSDK.Version_Point_47, proposal));
+            .map((proposal: any) => formatProposal(CosmosSDK.Version_Point_47, proposal))
+            .filter((proposal: any) => filterSpamProposals(proposal));
 
           break;
         }
@@ -82,7 +88,7 @@ export function useInitGovProposals(
         default: {
           proposals = data.proposals
             .filter((p: { content: Proposal['content'] | undefined | null }) => p.content)
-            .filter((proposal: any) => filterSpamProposals(proposal.proposal_id));
+            .filter((proposal: any) => filterSpamProposals(proposal));
 
           break;
         }

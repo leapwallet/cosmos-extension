@@ -86,6 +86,12 @@ const ChainLogos: Record<string, string | undefined> = {
   dydx: ChainInfos.dydx.chainSymbolImageUrl,
   celestiatestnet3: ChainInfos.celestiatestnet3.chainSymbolImageUrl,
   sge: ChainInfos.sge.chainSymbolImageUrl,
+  xpla: ChainInfos.xpla.chainSymbolImageUrl,
+  provenance: ChainInfos.provenance.chainSymbolImageUrl,
+  aura: ChainInfos.aura.chainSymbolImageUrl,
+  kichain: ChainInfos.kichain.chainSymbolImageUrl,
+  sentinel: ChainInfos.sentinel.chainSymbolImageUrl,
+  bandchain: ChainInfos.bandchain.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {

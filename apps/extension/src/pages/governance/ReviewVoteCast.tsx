@@ -1,4 +1,9 @@
-import { useActiveChain, VoteOptions } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  GasOptions,
+  getErrorMsg,
+  useActiveChain,
+  VoteOptions,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Memo } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
@@ -27,6 +32,7 @@ export type ReviewVoteCastProps = {
   refetchCurrVote: () => void
   showLedgerPopup?: boolean
   ledgerError?: string
+  gasOption: GasOptions
 }
 
 function ReviewVoteCast({
@@ -43,6 +49,7 @@ function ReviewVoteCast({
   refetchCurrVote,
   showLedgerPopup,
   ledgerError,
+  gasOption,
 }: ReviewVoteCastProps): React.ReactElement {
   const activeChain = useActiveChain()
 
@@ -78,10 +85,15 @@ function ReviewVoteCast({
             setMemo(e.target.value)
           }}
         />
+
         <Text size='sm' className='text-gray-400 dark:text-gray-600 justify-center'>
           {feeText}
         </Text>
-        {(error ?? ledgerError) && <ErrorCard text={error ?? ledgerError} />}
+
+        {(error ?? ledgerError) && (
+          <ErrorCard text={getErrorMsg(error ?? ledgerError ?? '', gasOption, 'vote')} />
+        )}
+
         <Buttons.Generic
           color={Colors.getChainColor(activeChain)}
           size='normal'

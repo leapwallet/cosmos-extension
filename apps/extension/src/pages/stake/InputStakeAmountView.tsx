@@ -306,6 +306,7 @@ export default function InputStakeAmountView({
           setReviewTransactionSheet(false)
         }}
         showLedgerPopup={!ledgerError && showLedgerPopup}
+        gasOption={gasPriceOption.option}
       />
     </GasPriceOptions>
   )

@@ -7,7 +7,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { isCompassWallet } from 'utils/isCompassWallet'
 

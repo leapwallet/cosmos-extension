@@ -73,4 +73,10 @@ export const GAS_PRICE_STEPS = {
   dydx: { low: 0.01, average: 0.025, high: 0.04 },
   celestiatestnet3: { low: 0.01, average: 0.025, high: 0.04 },
   sge: { low: 0.01, average: 0.025, high: 0.04 },
+  xpla: { low: 850000000000, average: 1147500000000, high: 1487500000000 },
+  provenance: { low: 1905, average: 1905, high: 2500 },
+  aura: { low: 0.001, average: 0.0025, high: 0.004 },
+  kichain: { low: 0.025, average: 0.03, high: 0.05 },
+  sentinel: { low: 0.1, average: 0.25, high: 0.4 },
+  bandchain: { low: 0.0025, average: 0.003, high: 0.005 },
 };

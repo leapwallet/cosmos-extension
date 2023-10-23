@@ -83,12 +83,13 @@ export enum GasOptions {
 
 export type GasPriceStep = { low: number; medium: number; high: number };
 
-export function useGasPriceStepForChain(chainKey: SupportedChain): GasPriceStep {
+export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?: 'mainnet' | 'testnet'): GasPriceStep {
   const { chains } = useChainsStore();
   const chain = chains[chainKey];
   const { lcdUrl } = useChainApis(chainKey);
   const allChainsGasPriceSteps = useGasPriceSteps();
-  const selectedNetwork = useSelectedNetwork();
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = forceNetwork ?? _selectedNetwork;
 
   const [gasPriceStep, setGasPriceStep] = useState<GasPriceStep>(() => {
     return getGasPriceStep(chain, allChainsGasPriceSteps);
@@ -131,13 +132,16 @@ export type GasRate = Record<GasOptions, GasPrice>;
 
 export function useGasRateQuery(
   chainKey: SupportedChain,
-  activeNetwork: 'mainnet' | 'testnet',
+  activeNetwork?: 'mainnet' | 'testnet',
 ):
   | {
       [key: string]: GasRate;
     }
   | undefined {
-  const nativeFeeDenom = useNativeFeeDenom(chainKey, activeNetwork);
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = activeNetwork ?? _selectedNetwork;
+
+  const nativeFeeDenom = useNativeFeeDenom(chainKey, selectedNetwork);
   const gasPriceStep = useGasPriceStepForChain(chainKey);
 
   if (!gasPriceStep) return undefined;

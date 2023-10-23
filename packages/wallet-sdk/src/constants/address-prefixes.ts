@@ -100,4 +100,6 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   dydx: 'dydx',
   celestia: 'celestiatestnet3',
   sge: 'sge',
+  xpla: 'xpla',
+  aura: 'aura',
 };

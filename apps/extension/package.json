@@ -40,6 +40,7 @@
     "@leapwallet/sentry-config": "3.4.0",
     "@ledgerhq/logs": "6.10.0",
     "@noble/secp256k1": "1.7.1",
+    "@osmosis-labs/proto-codecs": "5.1.0",
     "@sentry/react": "7.28.1",
     "@sentry/tracing": "7.28.1",
     "@tanstack/query-async-storage-persister": "4.12.0",

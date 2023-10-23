@@ -65,6 +65,8 @@ export enum NavPages {
   SelectNetwork,
   // eslint-disable-next-line no-unused-vars
   ChangeEndpoints,
+  // eslint-disable-next-line no-unused-vars
+  ManageAuthz,
 }
 
 export function SideNavSectionHeader({ children }: { children: ReactNode }) {
@@ -171,7 +173,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
       enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER && !isCompassWallet(),
     },
     {
-      title: 'General Security',
+      title: 'Security',
       titleIcon: Images.Nav.LockTimer,
       onClick: () => {
         setShowGSDropUp(true)

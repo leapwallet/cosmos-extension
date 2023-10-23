@@ -193,7 +193,7 @@ export const useSimpleSend = () => {
         } else {
           return {
             success: false,
-            errors: ['Failed to send tokens', e.message?.slice(0, 60)],
+            errors: [e.message?.slice(0, 60)],
           };
         }
       }
@@ -343,7 +343,7 @@ export const useSimpleSend = () => {
         } else {
           return {
             success: false,
-            errors: ['Failed to send tokens', e.message?.slice(0, 200)],
+            errors: [e.message?.slice(0, 200)],
           };
         }
       }

@@ -1,6 +1,7 @@
 export * from './activity';
 export * from './apis';
 export * from './asset-details';
+export * from './authz';
 export * from './bank';
 export * from './banner';
 export * from './config';

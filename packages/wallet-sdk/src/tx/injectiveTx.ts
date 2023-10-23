@@ -100,14 +100,17 @@ export class InjectiveTx {
         expiryDate,
       ),
     ];
-
     return await this.signAndBroadcastTx(fromAddress, messages, fee, memo);
   }
 
   async revokeRestake(fromAddress: string, grantee: string, fee: StdFee, memo: string) {
     const messages = [buildRevokeMsg('/cosmos.staking.v1beta1.MsgDelegate', fromAddress, grantee)];
-
     return await this.signAndBroadcastTx(fromAddress, messages, fee, memo);
+  }
+
+  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: number | StdFee | 'auto', memo = '') {
+    const revokeMsg = [buildRevokeMsg(msgType, fromAddress, grantee)];
+    return await this.signAndBroadcastTx(fromAddress, revokeMsg, fee, memo);
   }
 
   async sendTokens(

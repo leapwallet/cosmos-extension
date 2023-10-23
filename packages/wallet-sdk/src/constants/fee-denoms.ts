@@ -1,3 +1,7 @@
+/**
+ * TODO - Delete this file once all the platforms are using useFeeDenoms hook
+ */
+
 import { SupportedChain } from './chain-infos';
 import { denoms, NativeDenom } from './denoms';
 
@@ -75,6 +79,12 @@ export const feeDenoms: FeeDenoms = {
     dydx: denoms.dv4tnt,
     celestiatestnet3: denoms.utia,
     sge: denoms.usge,
+    xpla: denoms.axpla,
+    provenance: denoms.nhash,
+    aura: denoms.uaura,
+    kichain: denoms.uxki,
+    sentinel: denoms.udvpn,
+    bandchain: denoms.uband,
   },
   testnet: {
     akash: denoms.uakt,
@@ -144,5 +154,11 @@ export const feeDenoms: FeeDenoms = {
     dydx: denoms.dv4tnt,
     celestiatestnet3: denoms.utia,
     sge: denoms.usge,
+    xpla: denoms.axpla,
+    provenance: denoms.nhash,
+    aura: denoms.uaura,
+    kichain: denoms.uxki,
+    sentinel: denoms.udvpn,
+    bandchain: denoms.uband,
   },
 };

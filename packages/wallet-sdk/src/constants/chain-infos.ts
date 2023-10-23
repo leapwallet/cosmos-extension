@@ -74,7 +74,13 @@ export type SupportedChain =
   | 'empowerchain'
   | 'dydx'
   | 'celestiatestnet3'
-  | 'sge';
+  | 'sge'
+  | 'xpla'
+  | 'provenance'
+  | 'aura'
+  | 'kichain'
+  | 'sentinel'
+  | 'bandchain';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -142,7 +148,13 @@ export type AddressPrefix =
   | 'empower'
   | 'dydx'
   | 'celestia'
-  | 'sge';
+  | 'sge'
+  | 'xpla'
+  | 'pb'
+  | 'aura'
+  | 'ki'
+  | 'sent'
+  | 'band';
 
 export type Denom =
   | 'JUNO'
@@ -210,7 +222,13 @@ export type Denom =
   | 'MPWR'
   | 'DV4TNT'
   | 'TIA'
-  | 'SGE';
+  | 'SGE'
+  | 'XPLA'
+  | 'HASH'
+  | 'AURA'
+  | 'XKI'
+  | 'DVPN'
+  | 'BAND';
 
 export type CoinType =
   | '118'
@@ -226,7 +244,9 @@ export type CoinType =
   | '330'
   | '990'
   | '4444'
-  | '931';
+  | '931'
+  | '505'
+  | '494';
 
 export enum CosmosSDK {
   Version_Point_46 = 'v0.46',
@@ -708,6 +728,80 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  aura: {
+    chainId: 'xstaxy-1',
+    key: 'aura',
+    chainName: 'Aura',
+    chainRegistryPath: 'aura',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/aura.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/aura',
+      rpc: 'https://rpc.cosmos.directory/aura',
+    },
+    denom: 'AURA',
+    txExplorer: {
+      mainnet: {
+        name: 'AuraScan',
+        txUrl: 'https://aurascan.io/transaction',
+        accountUrl: 'https://aurascan.io/account',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'aura',
+    gasPriceStep: {
+      low: 0.001,
+      average: 0.0025,
+      high: 0.004,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      uaura: denoms.uaura,
+    },
+    theme: {
+      primaryColor: '#9ac9cf',
+      gradient: 'linear-gradient(180deg, rgba(154, 201, 207, 0.32) 0%, rgba(154, 201, 207, 0) 100%)',
+    },
+    enabled: true,
+  },
+  bandchain: {
+    chainId: 'laozi-mainnet',
+    key: 'bandchain',
+    chainName: 'Band Protocol',
+    chainRegistryPath: 'bandchain',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/band.svg',
+    apis: {
+      rpc: 'https://rpc.cosmos.directory/bandchain',
+      rest: 'https://rest.cosmos.directory/bandchain',
+    },
+    denom: 'BAND',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/band/tx',
+        accountUrl: 'https://www.mintscan.io/band/accounts',
+      },
+    },
+    bip44: {
+      coinType: '494',
+    },
+    addressPrefix: 'band',
+    gasPriceStep: {
+      low: 0.0025,
+      average: 0.003,
+      high: 0.005,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      uband: denoms.uband,
+    },
+    theme: {
+      primaryColor: '#4520e6',
+      gradient: 'linear-gradient(180deg, rgba(69, 32, 230, 0.32) 0%, rgba(69, 32, 230, 0) 100%)',
+    },
+    enabled: true,
+  },
   bitsong: {
     chainId: 'bitsong-2b',
     key: 'bitsong',
@@ -1026,7 +1120,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   mainCoreum: {
     chainId: 'coreum-mainnet-1',
     key: 'mainCoreum',
-    chainName: 'Coreum Mainnet',
+    chainName: 'Coreum',
     chainRegistryPath: 'coreum',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/coreum-logo.png',
     apis: {
@@ -1099,7 +1193,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#26d695',
       gradient: 'linear-gradient(180deg, rgba(38, 214, 149, 0.32) 0%, rgba(38, 214, 149, 0) 100%)',
     },
-    enabled: true,
+    enabled: false,
   },
   crescent: {
     chainId: 'crescent-1',
@@ -1582,8 +1676,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     apis: {
       rest: 'https://injective-rest.publicnode.com',
       rpc: 'https://injective-rpc.publicnode.com',
-      rpcTest: 'https://testnet.tm.injective.dev',
-      restTest: 'https://testnet.lcd.injective.dev',
+      rpcTest: 'https://injective-testnet-rpc.polkachu.com',
+      restTest: 'https://injective-testnet-api.polkachu.com',
     },
     denom: 'INJ',
     txExplorer: {
@@ -1789,6 +1883,43 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     theme: {
       primaryColor: '#ff433e',
       gradient: 'linear-gradient(180deg, rgba(255, 67, 62, 0.32) 0%, rgba(255, 67, 62, 0) 100%)',
+    },
+    enabled: true,
+  },
+  kichain: {
+    chainId: 'kichain-2',
+    key: 'kichain',
+    chainName: 'Ki',
+    chainRegistryPath: 'kichain',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/xki.svg',
+    apis: {
+      rpc: 'https://rpc.cosmos.directory/kichain',
+      rest: 'https://rest.cosmos.directory/kichain',
+    },
+    denom: 'XKI',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/ki-chain/txs',
+        accountUrl: 'https://www.mintscan.io/ki-chain/accounts',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'ki',
+    gasPriceStep: {
+      low: 0.025,
+      average: 0.03,
+      high: 0.05,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      uxki: denoms.uxki,
+    },
+    theme: {
+      primaryColor: '#0000ff',
+      gradient: 'linear-gradient(180deg, rgba(0, 0, 225, 0.32) 0%, rgba(0, 0, 225, 0) 100%)',
     },
     enabled: true,
   },
@@ -2505,6 +2636,44 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  provenance: {
+    chainId: 'pio-mainnet-1',
+    key: 'provenance',
+    chainName: 'Provenance',
+    chainRegistryPath: 'provenance',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/provenance.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/provenance',
+      rpc: 'https://rpc.cosmos.directory/provenance',
+    },
+    denom: 'HASH',
+    gasPriceStep: {
+      low: 1905,
+      average: 1905,
+      high: 2500,
+    },
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/provenance/txs',
+        accountUrl: 'https://www.mintscan.io/provenance/accounts',
+      },
+    },
+    bip44: {
+      coinType: '505',
+    },
+    addressPrefix: 'pb',
+    ibcChannelIds: {},
+    nativeDenoms: {
+      nhash: denoms.nhash,
+    },
+    theme: {
+      primaryColor: '#4e7fdc',
+      gradient: 'linear-gradient(180deg, rgba(78, 127, 220, 0.32) 0%, rgba(78, 127, 220, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_46,
+  },
   quasar: {
     chainId: 'quasar-1',
     testnetChainId: 'qsr-questnet-04',
@@ -2655,6 +2824,43 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     theme: {
       primaryColor: '#AF3450',
       gradient: 'linear-gradient(180deg, rgba(175, 52, 80, 0.32) 0%, rgba(175, 52, 80, 0) 100%)',
+    },
+    enabled: true,
+  },
+  sentinel: {
+    chainId: 'sentinelhub-2',
+    key: 'sentinel',
+    chainName: 'Sentinel',
+    chainRegistryPath: 'sentinel',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/sentinel.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/sentinel',
+      rpc: 'https://rpc.cosmos.directory/sentinel',
+    },
+    denom: 'DVPN',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/sentinel/tx',
+        accountUrl: 'https://www.mintscan.io/sentinel/accounts',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'sent',
+    gasPriceStep: {
+      low: 0.1,
+      average: 0.25,
+      high: 0.4,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      udvpn: denoms.udvpn,
+    },
+    theme: {
+      primaryColor: '#0fa0ec',
+      gradient: 'linear-gradient(180deg, rgba(15, 160, 236, 0.32) 0%, rgba(15, 160, 236, 0) 100%)',
     },
     enabled: true,
   },
@@ -3041,6 +3247,43 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     theme: {
       primaryColor: '#6DECEA',
       gradient: 'linear-gradient(180deg, rgba(109, 236, 234, 0.32) 0%, rgba(109, 236, 234, 0) 100%)',
+    },
+    enabled: true,
+  },
+  xpla: {
+    chainId: 'dimension_37-1',
+    key: 'xpla',
+    chainName: 'XPLA',
+    chainRegistryPath: 'xpla',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/xpla.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/xpla',
+      rpc: 'https://rpc.cosmos.directory/xpla',
+    },
+    denom: 'XPLA',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/xpla/txs',
+        accountUrl: 'https://www.mintscan.io/xpla/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'xpla',
+    gasPriceStep: {
+      low: 850000000000,
+      average: 1147500000000,
+      high: 1487500000000,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      axpla: denoms.axpla,
+    },
+    theme: {
+      primaryColor: '#00b1ff',
+      gradient: 'linear-gradient(180deg, rgba(0, 177, 255, 0.32) 0%, rgba(0, 177, 255, 0) 100%)',
     },
     enabled: true,
   },

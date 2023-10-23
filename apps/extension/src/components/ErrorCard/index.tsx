@@ -1,11 +1,13 @@
+import classNames from 'classnames'
 import React, { useEffect, useRef } from 'react'
 
 type ErrorCardProps = React.ComponentPropsWithoutRef<'div'> & {
   text?: string
+  className?: string
   'data-testing-id'?: string
 }
 
-export function ErrorCard({ text, ...props }: ErrorCardProps) {
+export function ErrorCard({ text, className, ...props }: ErrorCardProps) {
   const ref = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -15,7 +17,10 @@ export function ErrorCard({ text, ...props }: ErrorCardProps) {
   return (
     <div
       ref={ref}
-      className='flex p-4 w-[344px] border justify-start items-center dark:border-red-800 border-red-200 dark:bg-red-900 bg-red-100 overflow-clip rounded-xl '
+      className={classNames(
+        'flex p-4 w-[344px] border justify-start items-center dark:border-red-800 border-red-200 dark:bg-red-900 bg-red-100 overflow-clip rounded-xl',
+        className,
+      )}
     >
       <span className='mr-2 dark:text-red-200 text-red-300 text-lg material-icons-round'>info</span>
       <p

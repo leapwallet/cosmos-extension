@@ -16,6 +16,54 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  axpla: {
+    coinDenom: 'XPLA',
+    coinDecimals: 18,
+    coinMinimalDenom: 'axpla',
+    icon: 'https://assets.leapwallet.io/xpla.svg',
+    chain: 'xpla',
+    coinGeckoId: 'xpla',
+  },
+  nhash: {
+    coinDenom: 'HASH',
+    coinMinimalDenom: 'nhash',
+    coinDecimals: 9,
+    coinGeckoId: '',
+    icon: 'https://assets.leapwallet.io/provenance.svg',
+    chain: 'provenance',
+  },
+  uaura: {
+    coinDenom: 'AURA',
+    coinDecimals: 6,
+    coinMinimalDenom: 'uaura',
+    icon: 'https://assets.leapwallet.io/aura.svg',
+    chain: 'aura',
+    coinGeckoId: 'aura-network',
+  },
+  uxki: {
+    coinDenom: 'XKI',
+    coinMinimalDenom: 'uxki',
+    coinDecimals: 6,
+    coinGeckoId: 'ki',
+    icon: 'https://assets.leapwallet.io/xki.svg',
+    chain: 'kichain',
+  },
+  udvpn: {
+    coinDenom: 'DVPN',
+    coinMinimalDenom: 'udvpn',
+    coinDecimals: 6,
+    coinGeckoId: 'sentinel',
+    icon: 'https://assets.leapwallet.io/sentinel.svg',
+    chain: 'sentinel',
+  },
+  uband: {
+    coinDenom: 'BAND',
+    coinDecimals: 6,
+    coinMinimalDenom: 'uband',
+    icon: 'https://assets.leapwallet.io/band.svg',
+    chain: 'bandchain',
+    coinGeckoId: 'band-protocol',
+  },
   usge: {
     coinDenom: 'SGE',
     coinDecimals: 6,
@@ -297,14 +345,6 @@ export const denoms = {
     coinGeckoId: 'wbtc',
     icon: 'https://assets.leapwallet.io/wbtc.png',
     chain: 'axelar',
-  },
-  uband: {
-    coinDenom: 'BAND',
-    coinMinimalDenom: 'uband',
-    coinDecimals: 6,
-    coinGeckoId: 'band',
-    icon: 'https://assets.leapwallet.io/band.svg',
-    chain: 'bandchain',
   },
   ubcna: {
     coinDenom: 'BCNA',
@@ -602,14 +642,6 @@ export const denoms = {
     icon: 'https://assets.leapwallet.io/swp.svg',
     chain: 'kava',
   },
-  uxki: {
-    coinDenom: 'XKI',
-    coinMinimalDenom: 'uxki',
-    coinDecimals: 6,
-    coinGeckoId: 'xki',
-    icon: 'https://assets.leapwallet.io/xki.svg',
-    chain: 'kichain',
-  },
   udarc: {
     coinDenom: 'DARC',
     coinMinimalDenom: 'udarc',
@@ -746,14 +778,6 @@ export const denoms = {
     icon: 'https://assets.leapwallet.io/xprt.png',
     chain: 'persistence',
   },
-  nhash: {
-    coinDenom: 'HASH',
-    coinMinimalDenom: 'nhash',
-    coinDecimals: 9,
-    coinGeckoId: 'hash',
-    icon: 'https://assets.leapwallet.io/hash.svg',
-    chain: 'provenance',
-  },
   uqstars: {
     coinDenom: 'qSTARS',
     coinMinimalDenom: 'uqstars',
@@ -817,14 +841,6 @@ export const denoms = {
     coinGeckoId: 'scrt',
     icon: 'https://assets.leapwallet.io/scrt.svg',
     chain: 'secret',
-  },
-  udvpn: {
-    coinDenom: 'DVPN',
-    coinMinimalDenom: 'udvpn',
-    coinDecimals: 6,
-    coinGeckoId: 'dvpn',
-    icon: 'https://assets.leapwallet.io/dvpn.png',
-    chain: 'sentinel',
   },
   uctk: {
     coinDenom: 'CTK',

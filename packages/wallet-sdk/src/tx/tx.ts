@@ -34,6 +34,7 @@ import {
   getVoteMsg,
   getWithDrawRewardsMsg,
 } from './msgs/cosmos';
+import { customTypes } from './nft-transfer/omniflix/utils/registry';
 import { getTxData } from './utils';
 
 function uint64FromProto(input: number | Long): Uint64 {
@@ -122,13 +123,16 @@ export class Tx {
         expiryDate,
       ),
     ];
-
     return await this.signAndBroadcastTx(fromAddress, messages, fee, memo);
   }
 
   async revokeRestake(fromAddress: string, grantee: string, fee: number | StdFee | 'auto', memo = '') {
     const revokeMsg = buildRevokeMsg('/cosmos.staking.v1beta1.MsgDelegate', fromAddress, grantee);
+    return await this.signAndBroadcastTx(fromAddress, [revokeMsg], fee, memo);
+  }
 
+  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: number | StdFee | 'auto', memo = '') {
+    const revokeMsg = buildRevokeMsg(msgType, fromAddress, grantee);
     return await this.signAndBroadcastTx(fromAddress, [revokeMsg], fee, memo);
   }
 
@@ -139,7 +143,6 @@ export class Tx {
 
   async sendTokens(fromAddress: string, toAddress: string, amount: Coin[], fee: number | StdFee | 'auto', memo = '') {
     const sendMsg = getSendTokensMsg(fromAddress, toAddress, amount);
-
     return await this.signAndBroadcastTx(fromAddress, [sendMsg], fee, memo);
   }
 
@@ -163,7 +166,6 @@ export class Tx {
       transferAmount,
       timeoutHeight,
     );
-
     return this.signAndBroadcastTx(fromAddress, [transferMsg], fee, memo);
   }
 

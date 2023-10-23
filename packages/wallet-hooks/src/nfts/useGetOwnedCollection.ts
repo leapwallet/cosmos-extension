@@ -4,7 +4,7 @@ import { Dict, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { QueryStatus, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { useActiveChain, useChainApis } from '../store';
+import { useActiveChain, useChainApis, useIteratedUriEnabledNftContracts } from '../store';
 import { CosmWasmClientHandler, defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
 import {
   NFTDisplayInformation,
@@ -35,6 +35,7 @@ export const useGetOwnedCollection = (
   const chain = options?.forceChain ?? _chain;
   const paginationLimit = options?.paginationLimit ?? 30;
   const [fetchTillIndex, setFetchTillIndex] = useState(paginationLimit);
+  const iteratedUriNftContracts = useIteratedUriEnabledNftContracts();
 
   const { rpcUrl } = useChainApis(chain, options?.forceNetwork);
   if (!rpcUrl) {
@@ -55,6 +56,15 @@ export const useGetOwnedCollection = (
             const nftInfo: NFTInfo = await client.queryContractSmart(tokensListByCollection.collection.address, {
               nft_info: { token_id: tokenId },
             });
+
+            if (iteratedUriNftContracts.includes(tokensListByCollection.collection.address)) {
+              return {
+                tokenUri: `${nftInfo.token_uri ?? ''}/${tokenId}`,
+                extension: nftInfo.extension as Dict,
+                tokenId: tokenId ?? '',
+              };
+            }
+
             return {
               tokenUri: nftInfo.token_uri ?? '',
               extension: nftInfo.extension as Dict,
@@ -143,7 +153,7 @@ export const useGetOwnedCollection = (
       return 'success';
     })() as QueryStatus | 'fetching-more',
     fetchMore: function () {
-      if (!queryData.isFetching && fetchTillIndex + paginationLimit < tokensListByCollection.tokens.length) {
+      if (fetchTillIndex + paginationLimit <= tokensListByCollection.tokens.length) {
         setFetchTillIndex((prevValue) => prevValue + paginationLimit);
       }
     },

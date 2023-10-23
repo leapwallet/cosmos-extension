@@ -158,6 +158,29 @@ export async function simulateRevokeRestake(lcdEndpoint: string, fromAddress: st
   return await simulateTx(lcdEndpoint, fromAddress, messages);
 }
 
+export async function simulateRevokeGrant(
+  msgType: string,
+  lcdEndpoint: string,
+  fromAddress: string,
+  grantee: string,
+  fee: Coin[],
+) {
+  const messages = [
+    {
+      typeUrl: '/cosmos.authz.v1beta1.MsgRevoke',
+      value: MsgRevoke.encode(
+        MsgRevoke.fromPartial({
+          grantee: grantee,
+          granter: fromAddress,
+          msgTypeUrl: msgType,
+        }),
+      ).finish(),
+    },
+  ];
+
+  return await simulateTx(lcdEndpoint, fromAddress, messages, { amount: fee });
+}
+
 export async function simulateWithdrawRewards(
   lcdEndpoint: string,
   fromAddress: string,
@@ -210,6 +233,9 @@ export async function simulateTx(
     authInfoBytes: AuthInfo.encode({
       signerInfos: [
         SignerInfo.fromPartial({
+          // Pub key is ignored.
+          // It is fine to ignore the pub key when simulating tx.
+          // However, the estimated gas would be slightly smaller because tx size doesn't include pub key.
           modeInfo: {
             single: {
               mode: SignMode.SIGN_MODE_LEGACY_AMINO_JSON,

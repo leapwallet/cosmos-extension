@@ -32,6 +32,7 @@ const SwapUI: React.FC<{
     feeDenom: NativeDenom,
     gasLimit: string,
     gasPrice: GasPrice,
+    gasOption: GasOptions,
   ) => JSX.Element | null
 }> = ({ children, setActiveSheet }) => {
   const defaultGasPrice = useDefaultGasPrice()
@@ -93,7 +94,13 @@ const SwapUI: React.FC<{
           customFee={customFee}
         />
       </div>
-      {children(displayFeeValue, feeDenom, gasLimit, gasPriceOption.gasPrice)}
+      {children(
+        displayFeeValue,
+        feeDenom,
+        gasLimit,
+        gasPriceOption.gasPrice,
+        gasPriceOption.option,
+      )}
     </GasPriceOptions>
   )
 }
@@ -113,6 +120,7 @@ export default function SwapScreen(): JSX.Element {
       feeDenom: NativeDenom,
       gasLimit: string,
       gasPrice: GasPrice,
+      gasOption: GasOptions,
     ) => {
       const onClose = () => {
         setActiveSheet(SwapSheet.NONE_ACTIVE)
@@ -144,6 +152,7 @@ export default function SwapScreen(): JSX.Element {
             isOpen={activeSheet === SwapSheet.REVIEW_SWAP}
             displayFeeValue={displayFeeValue}
             onDone={onClose}
+            gasOption={gasOption}
           />
         </>
       )

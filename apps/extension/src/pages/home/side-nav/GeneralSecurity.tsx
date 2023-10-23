@@ -8,11 +8,13 @@ import { Colors } from 'theme/colors'
 
 import { SideNavSection } from '.'
 import ConnectedSites from './ConnectedSites'
+import { ManageAuthZ } from './ManageAuthZ'
 import SetLockTimerDropUp from './SetLockTimer'
 
 export const GENERAL_SECURITY_PAGES = {
   DEFAULT: 0,
   CONNECTED_SITES: 1,
+  MANAGE_AUTHZ: 2,
 }
 
 export default function GeneralSecurity({ goBack }: { goBack: () => void }): ReactElement {
@@ -27,11 +29,43 @@ export default function GeneralSecurity({ goBack }: { goBack: () => void }): Rea
     return <ConnectedSites setPage={setPage} />
   }
 
+  if (page === GENERAL_SECURITY_PAGES.MANAGE_AUTHZ) {
+    return <ManageAuthZ goBack={() => setPage(GENERAL_SECURITY_PAGES.DEFAULT)} />
+  }
+
+  const NavOptions = [
+    {
+      imgSrc: Images.Misc.Timer,
+      property: 'Auto-lock timer',
+      value: TimerLockPeriodRev[lockTime],
+      onClick: () => {
+        setShowLockTimeDropUp(true)
+      },
+    },
+    {
+      imgSrc: Images.Misc.Globe,
+      property: 'Connected Sites',
+      value: '',
+      onClick: () => {
+        setPage(GENERAL_SECURITY_PAGES.CONNECTED_SITES)
+      },
+    },
+
+    {
+      imgSrc: Images.Nav.ManageAuthZ,
+      property: 'Manage AuthZ',
+      value: '',
+      onClick: () => {
+        setPage(GENERAL_SECURITY_PAGES.MANAGE_AUTHZ)
+      },
+    },
+  ]
+
   return (
     <div className='h-[600px]'>
       <Header
         topColor={Colors.getChainColor(activeChain)}
-        title='General Security'
+        title='Security'
         action={{ type: HeaderActionType.BACK, onClick: goBack }}
       />
       <div className='flex flex-col items-center p-[28px]'>
@@ -49,27 +83,22 @@ export default function GeneralSecurity({ goBack }: { goBack: () => void }): Rea
               }}
             />
           </div>
-          <CardDivider />
-          <div className='py-1 bg-white-100 dark:bg-gray-900'>
-            <NavCard
-              imgSrc={Images.Misc.Timer}
-              property='Auto-lock timer'
-              value={TimerLockPeriodRev[lockTime]}
-              onClick={() => {
-                setShowLockTimeDropUp(true)
-              }}
-            />
-          </div>
-          <CardDivider />
-          <div className='py-1 bg-white-100 dark:bg-gray-900'>
-            <NavCard
-              imgSrc={Images.Misc.Globe}
-              property='Connected Sites'
-              onClick={() => {
-                setPage(GENERAL_SECURITY_PAGES.CONNECTED_SITES)
-              }}
-            />
-          </div>
+
+          {NavOptions.map((navOption) => {
+            return (
+              <React.Fragment key={navOption.property}>
+                <CardDivider />
+                <div className='py-1 bg-white-100 dark:bg-gray-900'>
+                  <NavCard
+                    imgSrc={navOption.imgSrc}
+                    property={navOption.property}
+                    value={navOption.value}
+                    onClick={navOption.onClick}
+                  />
+                </div>
+              </React.Fragment>
+            )
+          })}
         </SideNavSection>
       </div>
       <SetLockTimerDropUp

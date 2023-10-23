@@ -105,6 +105,8 @@ const connectRemote = (remotePort: any) => {
     const { type, ...payload } = data
 
     let popupWindowId = 0
+    // let hasUnApprovedTx = false
+    // this condition exists to prevent infinite extension popups
 
     //check if account exists
     const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
@@ -144,6 +146,8 @@ const connectRemote = (remotePort: any) => {
           return getSupportedChains()
             .then((_chains) => {
               const supportedChains = Object.values(_chains)
+
+              // added temporarily to add coreum chain with 118 cointype on leap
 
               const allowCoreumFromLeap =
                 payload.origin === 'https://suggest-chain-leap.netlify.app' &&
@@ -266,19 +270,15 @@ const connectRemote = (remotePort: any) => {
                   [REDIRECT_REQUEST]: { type: type, msg: { ...msg, validChainIds } },
                 })
 
-                const browserWindows = await browser.windows.getAll()
-                const hasBrowserWindow = browserWindows.some(
-                  (window) =>
-                    window.type === 'popup' && window.id === enableAccessRequests[queryString],
-                )
+                const shouldOpenPopup =
+                  Object.keys(enableAccessRequests).length === 0 ||
+                  !Object.keys(enableAccessRequests).some((key) => key.includes(msg.origin))
 
-                if (Object.keys(enableAccessRequests).length === 0 || !hasBrowserWindow) {
+                if (shouldOpenPopup) {
                   delete enableAccessRequests[queryString]
                   enableAccessRequests[queryString] = popupWindowId
                   const window = await openPopup('approveConnection')
                   requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
-
-                  enableAccessRequests[queryString] = window.id ?? 0
                   windowIdForPayloadId[popupWindowId] = {
                     type: type.toUpperCase(),
                     payloadId: payload.id,
@@ -296,7 +296,7 @@ const connectRemote = (remotePort: any) => {
 
                 try {
                   const response = await awaitEnableChainResponse()
-
+                  // hasUnApprovedTx = false
                   sendResponse(`on${type.toUpperCase()}`, response, payload.id)
                   delete enableAccessRequests[queryString]
                 } catch (error: any) {
@@ -305,6 +305,8 @@ const connectRemote = (remotePort: any) => {
                 }
               } else {
                 sendResponse(`on${type.toUpperCase()}`, { success: 'Chain enabled' }, payload.id)
+                // hasUnApprovedTx = false
+                // sendResponse()
               }
             } else {
               sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
@@ -350,11 +352,11 @@ const connectRemote = (remotePort: any) => {
                 }
 
                 if (isNewChainPresent) {
-                  const browserWindows = await browser.windows.getAll()
-                  const hasBrowserWindow = browserWindows.some(
-                    (window) => window.id === enableAccessRequests[queryString],
-                  )
-                  if (Object.keys(enableAccessRequests).length === 0 || !hasBrowserWindow) {
+                  const shouldOpenPopup =
+                    Object.keys(enableAccessRequests).length === 0 ||
+                    !Object.keys(enableAccessRequests).some((key) => key.includes(msg.origin))
+
+                  if (shouldOpenPopup) {
                     delete enableAccessRequests[queryString]
                     enableAccessRequests[queryString] = popupWindowId
                     const window = await openPopup('approveConnection')
@@ -530,7 +532,7 @@ const connectRemote = (remotePort: any) => {
         }
         const storage = await browser.storage.local.get([VIEWING_KEYS, ACTIVE_WALLET])
 
-        if (!storage[ACTIVE_WALLET]) {
+        if (!passwordManager.getPassword()) {
           try {
             await openPopup('login', '?close-on-login=true')
             await awaitUIResponse('user-logged-in')
@@ -548,7 +550,10 @@ const connectRemote = (remotePort: any) => {
           }
           const password = passwordManager.getPassword()
           if (!password) throw new Error('unable to decrypt key')
-          const decryptKey = decrypt(key, password)
+          let decryptKey = decrypt(key, password)
+          if (decryptKey === '') {
+            decryptKey = decrypt(key, password, 100)
+          }
           sendResponse(`on${type.toUpperCase()}`, decryptKey, payload.id)
         } catch (error) {
           sendResponse(
@@ -704,6 +709,25 @@ const connectRemote = (remotePort: any) => {
 
 browser.runtime.onConnect.addListener(connectRemote)
 
+// function setOnTabRemovedListener(
+//  sendResponse: (type: string, payload: any, payloadId: number) => void,
+// ) {
+//   browser.windows.onRemoved.addListener((windowId) => {
+//     const closingWindowId = windowId
+//     const enableAccessEntry = Object.entries(enableAccessRequests).find((entry) => {
+//       return entry[1] === closingWindowId
+//     })
+//     if (enableAccessEntry) {
+//       delete enableAccessRequests[enableAccessEntry[0]]
+//     }
+//     if (windowIdForPayloadId[closingWindowId]) {
+//       const { type, payloadId } = windowIdForPayloadId[closingWindowId]
+//       delete windowIdForPayloadId[closingWindowId]
+//       sendResponse(`on${type}`, { error: 'User closed the popup' }, payloadId)
+//     }
+//   })
+// }
+
 async function getKey(_chain: string) {
   const { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
@@ -854,6 +878,12 @@ function awaitEnableChainResponse(): Promise<any> {
     browser.storage.onChanged.addListener(enableChainListener)
   })
 }
+
+// function fetchChainData(url: string) {
+//   return fetch(url)
+//     .then((res) => res.json())
+//     .catch((err) => err)
+// }
 
 function removeTrailingSlash(url?: string) {
   if (!url) return ''
