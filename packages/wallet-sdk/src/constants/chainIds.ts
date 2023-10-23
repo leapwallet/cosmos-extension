@@ -149,4 +149,6 @@ export const chainIdToChain: Record<string, string> = {
   'dydx-testnet-1': 'dydx',
   'mocha-4': 'celestiatestnet3',
   'sgenet-1': 'sge',
+  'dimension_37-1': 'xpla',
+  'xstaxy-1': 'aura',
 };

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OfflineAminoSigner, StdSignature, StdSignDoc } from '@cosmjs/amino'
+import { AminoSignResponse, OfflineAminoSigner, StdSignature, StdSignDoc } from '@cosmjs/amino'
 import { DirectSignResponse, OfflineDirectSigner } from '@cosmjs/proto-signing'
 import {
   convertObjectCasingFromCamelToSnake,
@@ -55,6 +55,7 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
+import { AminoTypes } from 'osmojs/node_modules/@cosmjs/stargate'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
@@ -73,7 +74,7 @@ import TransactionDetails from './transaction-details'
 import { isGenericOrSendAuthzGrant } from './utils/is-generic-or-send-authz-grant'
 import { getAminoSignDoc } from './utils/sign-amino'
 import { getDirectSignDoc, getProtoSignDocDecoder } from './utils/sign-direct'
-import { logDirectTx } from './utils/tx-logger'
+import { logDirectTx, logSignAmino } from './utils/tx-logger'
 
 const useGetWallet = Wallet.useGetWallet
 
@@ -180,6 +181,7 @@ const SignTransaction = ({
         memo: userMemo,
         isGasOptionSelected: selectedGasOptionRef.current,
       })
+
       let parsedMessages
 
       if (isSignArbitrary) {
@@ -429,6 +431,20 @@ const SignTransaction = ({
           }
         })()
 
+        const walletAccounts = await wallet.getAccounts()
+        try {
+          await logSignAmino(
+            data as AminoSignResponse,
+            walletAccounts[0].pubkey,
+            txPostToDb,
+            activeChain,
+            activeAddress,
+            siteOrigin ?? origin,
+          )
+        } catch {
+          //
+        }
+
         if (!data) {
           throw new Error('Could not sign transaction')
         }
@@ -655,6 +671,7 @@ const SignTransaction = ({
                             fee={fee}
                             error={gasPriceError}
                             setError={setGasPriceError}
+                            disableBalanceCheck={fee.granter || signOptions.disableBalanceCheck}
                           />
                           <div className='flex items-center justify-end'>
                             <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />

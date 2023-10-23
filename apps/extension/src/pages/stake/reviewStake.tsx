@@ -1,4 +1,7 @@
 import {
+  ErrorTxType,
+  GasOptions,
+  getErrorMsg,
   useActiveChain,
   useChainInfo,
   useformatCurrency,
@@ -70,6 +73,7 @@ export type ReviewStakeTransactionProps = {
   onSubmit: () => void
   onCloseHandler: () => void
   showLedgerPopup?: boolean
+  gasOption: GasOptions
 }
 
 export default function ReviewStakeTransaction({
@@ -90,6 +94,7 @@ export default function ReviewStakeTransaction({
   onCloseHandler,
   showLedgerPopup,
   ledgerError,
+  gasOption,
 }: ReviewStakeTransactionProps): ReactElement {
   const [formatCurrency] = useformatCurrency()
   const activeChainInfo = useChainInfo()
@@ -307,10 +312,20 @@ export default function ReviewStakeTransaction({
             ) : null}
 
             {gasError ? (
-              <p className='text-sm text-red-300 font-medium text-center'>{gasError}</p>
+              <p className='text-sm text-red-300 font-medium text-center'>
+                {getErrorMsg(gasError, gasOption, type.toLowerCase() as ErrorTxType)}
+              </p>
             ) : null}
 
-            {error ?? ledgerError ? <ErrorCard text={error ?? ledgerError} /> : null}
+            {error ?? ledgerError ? (
+              <ErrorCard
+                text={getErrorMsg(
+                  error ?? ledgerError ?? '',
+                  gasOption,
+                  type.toLowerCase() as ErrorTxType,
+                )}
+              />
+            ) : null}
 
             <Buttons.Generic
               color={Colors.getChainColor(activeChain)}

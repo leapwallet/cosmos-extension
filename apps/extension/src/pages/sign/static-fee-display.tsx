@@ -37,9 +37,15 @@ type StaticFeeDisplayProps = {
   fee: Fee | null
   error: string | null
   setError: React.Dispatch<React.SetStateAction<string | null>>
+  disableBalanceCheck?: boolean
 }
 
-const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setError }) => {
+const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
+  fee,
+  error,
+  setError,
+  disableBalanceCheck,
+}) => {
   const defaultGasEstimates = useDefaultGasEstimates()
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
@@ -83,14 +89,14 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setErro
   const amountString = feeValues?.amount?.toString()
 
   useEffect(() => {
-    if (feeToken && amountString) {
+    if (!disableBalanceCheck && feeToken && amountString) {
       if (new BigNumber(amountString).isGreaterThan(feeToken?.amount ?? 0)) {
         setError(`You don't have enough ${feeToken?.denom?.coinDenom} to pay the gas fee`)
       } else {
         setError(null)
       }
     }
-  }, [amountString, feeToken, setError])
+  }, [amountString, feeToken, setError, fee])
 
   if (isFetching || nativeTokensStatus === 'loading' || ibcTokensStatus === 'loading') {
     return <Loader />

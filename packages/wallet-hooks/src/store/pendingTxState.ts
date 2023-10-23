@@ -7,7 +7,7 @@ import { ActivityType } from '../types';
 
 type TxStatus = 'loading' | 'success' | 'failed';
 
-type PendingTx = {
+export type PendingTx = {
   txType: ActivityType;
   title1: string;
   subtitle1: string;

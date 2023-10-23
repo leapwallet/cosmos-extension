@@ -80,12 +80,29 @@ function LoadNftDetails({ tokensListByCollection, nftChain, index }: LoadNftDeta
           )
         }
 
+        // Final filter for checking tokens in collection
+        const finalCollections = [...collections, { ...newCollection }]
+
+        // to filter new state of nfts after NFT transfer
+        const finalNFTs = (
+          [...(nfts[forceContractsListChain] ?? []), ...tokens] as OwnedCollectionTokenInfo[]
+        ).filter((nft) => {
+          // find the matching collection fot the nft
+          const coll = finalCollections.find(
+            (c) => c.address === nft.collection.contractAddress ?? nft.collection.address,
+          )
+          // if not found, i.e its other collection
+          if (!coll) return true
+          // if found match all tokenIds
+          return coll.tokensListByCollection?.tokens.includes(nft.tokenId)
+        })
+
         return {
           ...prevValue,
-          collections: [...collections, { ...newCollection }],
+          collections: finalCollections,
           nfts: {
             ...nfts,
-            [forceContractsListChain]: [...(nfts[forceContractsListChain] ?? []), ...tokens],
+            [forceContractsListChain]: finalNFTs,
           },
         }
       })

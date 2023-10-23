@@ -150,6 +150,18 @@ export class EthermintTxHandler {
     return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
   }
 
+  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: StdFee, memo = '') {
+    const walletAccount = await this.wallet.getAccounts();
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const txFee = EthermintTxHandler.getFeeObject(fee);
+    const tx = transactions.createTxMsgGenericRevoke(this.chain, sender, txFee, memo ?? '', {
+      botAddress: grantee,
+      typeUrl: msgType,
+    });
+
+    return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
+  }
+
   async unDelegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee, memo?: string) {
     const walletAccount = await this.wallet.getAccounts();
     const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));

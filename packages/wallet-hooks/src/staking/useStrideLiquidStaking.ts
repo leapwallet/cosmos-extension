@@ -32,7 +32,7 @@ import {
 } from '../store';
 import { useTxHandler } from '../tx';
 import { ActivityType, TxCallback, WALLETTYPE } from '../types';
-import { fetchCurrency, formatTokenAmount } from '../utils';
+import { fetchCurrency, formatTokenAmount, useNativeFeeDenom } from '../utils';
 
 type txMode = 'delegate' | 'undelegate';
 
@@ -53,7 +53,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
   const { setPendingTx } = usePendingTxState();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
-  const denom = Object.values(ChainInfos['stride'].nativeDenoms)[0];
+  const denom = useNativeFeeDenom('stride');
 
   // STATES
   const [memo, setMemo] = useState<string>('');

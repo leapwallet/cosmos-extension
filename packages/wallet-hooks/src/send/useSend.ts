@@ -1,8 +1,7 @@
-import { coin, coins } from '@cosmjs/amino';
+import { coins } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, StdFee } from '@cosmjs/stargate';
 import {
-  feeDenoms,
   fromSmall,
   getBlockChainFromAddress,
   getSimulationFee,
@@ -46,18 +45,17 @@ import {
 import { usePendingTxState } from '../store';
 import { useScrtTxHandler, useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
-import { fetchCurrency, useGetGasPrice } from '../utils';
+import { fetchCurrency, useGetGasPrice, useNativeFeeDenom } from '../utils';
 import { sliceAddress } from '../utils';
 import { getMetaDataForIbcTx, getMetaDataForSendTx } from './get-metadata';
 
 export function useSend(toAddress: string) {
   const chainsInfos = useGetChains();
   const denoms = useDenoms();
+  let feeDenom = useNativeFeeDenom();
 
   const [inputAmount, setInputAmount] = useState<string>('');
-
   const [memo, setMemo] = useState<string>('');
-
   const [selectedDenom, setSelectedDenom] = useState<Token>();
 
   const [error, setError] = useState<string>('');
@@ -105,7 +103,6 @@ export function useSend(toAddress: string) {
   );
 
   const { data: feeDenomFiatValue } = useQuery(['fee-fiat-value'], async () => {
-    const feeDenom = feeDenoms[selectedNetwork][activeChain];
     return await fetchCurrency(
       fromSmall('1', feeDenom.coinDecimals),
       feeDenom.coinGeckoId,
@@ -284,7 +281,6 @@ export function useSend(toAddress: string) {
           return;
         }
 
-        let feeDenom = feeDenoms[selectedNetwork]?.[activeChain];
         if (!feeDenom) {
           feeDenom = Object.values(chainInfo.nativeDenoms)[0];
         }

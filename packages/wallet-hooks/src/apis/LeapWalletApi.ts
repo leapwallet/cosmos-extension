@@ -321,9 +321,15 @@ export namespace LeapWalletApi {
       nibiru: CosmosBlockchain.Nibiru,
       mayachain: CosmosBlockchain.mayaChain,
       empowerchain: CosmosBlockchain.EmpowerChain,
+      provenance: CosmosBlockchain.Provenance,
+      kichain: CosmosBlockchain.Ki,
+      sentinel: CosmosBlockchain.Sentinel,
+      bandchain: CosmosBlockchain.Band,
       dydx: 'DYDX' as CosmosBlockchain,
       sge: 'SGE' as CosmosBlockchain,
       celestiatestnet3: 'CELESTIA_TESTNET' as CosmosBlockchain,
+      xpla: 'XPLA' as CosmosBlockchain,
+      aura: 'AURA' as CosmosBlockchain,
     };
     return blockchains[activeChain];
   }

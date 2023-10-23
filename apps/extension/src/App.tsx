@@ -10,9 +10,11 @@ import {
   useInitDenoms,
   useInitDisabledCW20Tokens,
   useInitDisabledNFTsCollections,
+  useInitFeeDenoms,
   useInitGasPriceSteps,
   useInitIbcTraceStore,
   useInitInvestData,
+  useInitIteratedUriNftContracts,
   useInitNftChains,
   useInitSelectedNetwork,
   useInitSpamProposals,
@@ -55,6 +57,7 @@ export default function App() {
   useInitActiveChain()
   useInitActiveWallet()
   useInitSelectedNetwork()
+  useInitIteratedUriNftContracts()
 
   // initialize chains and default user preferences
   useManageChains()
@@ -77,6 +80,7 @@ export default function App() {
   useInitDefaultGasEstimates()
 
   useInitGasPriceSteps()
+  useInitFeeDenoms()
   useInitDisabledCW20Tokens()
   useInitDisabledNFTsCollections()
 
