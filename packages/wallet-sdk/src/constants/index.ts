@@ -6,5 +6,6 @@ export * from './denoms';
 export * from './fee-denoms';
 export * from './gas-adjustment';
 export * from './gas-price-steps';
+export * from './native-fee-denoms';
 export * from './networks';
 export * from './snip20-denoms';

@@ -8,3 +8,4 @@ export * from './useGetOmniflixNFTs';
 export * from './useGetOwnedCollection';
 export * from './useGetStargazeNFTs';
 export * from './useGetTenOwnedCollection';
+export * from './useTransferNFTs';

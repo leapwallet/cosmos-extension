@@ -188,7 +188,9 @@ export function PendingTx() {
           <div className='text-xl font-bold text-black-100 dark:text-white-100 text-left mt-4'>
             {title1}
           </div>
-          <div className='text-base text-gray-600 dark:text-gray-400'>{subtitle1}</div>
+          <div className='text-base text-gray-600 dark:text-gray-400 text-center break-all'>
+            {subtitle1}
+          </div>
 
           <div className='flex mt-2 space-x-2 text-sm items-center'>
             {txType === 'swap' ? (

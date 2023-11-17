@@ -18,6 +18,7 @@ export type FeeTokenData = {
 type getFeeTokenFnArgs = {
   baseGasPriceStep: GasPriceStep;
   denoms: DenomsRecord;
+  nativeDenom: NativeDenom;
 };
 
 export const getOsmosisFeeTokens = async ({
@@ -25,15 +26,17 @@ export const getOsmosisFeeTokens = async ({
   denoms,
   restUrl,
   allAssets,
+  nativeDenom,
 }: getFeeTokenFnArgs & {
   restUrl: string;
   allAssets: Token[];
 }): Promise<FeeTokenData[]> => {
   const nativeFeeToken = {
-    denom: denoms['uosmo'],
-    ibcDenom: 'uosmo',
+    denom: nativeDenom,
+    ibcDenom: nativeDenom.coinMinimalDenom,
     gasPriceStep: baseGasPriceStep,
   };
+
   try {
     const feeTokens = await axiosWrapper({
       baseURL: restUrl,
@@ -101,7 +104,6 @@ type RemoteFeeTokenData = {
 
 type getChainFeeTokensFnArgs = getFeeTokenFnArgs & {
   chain: string;
-  nativeDenom: NativeDenom;
 };
 
 export const getChainFeeTokens = async ({
@@ -157,6 +159,7 @@ export const getFeeTokens = ({
         denoms,
         restUrl,
         allAssets,
+        nativeDenom,
       });
     default:
       return getChainFeeTokens({
@@ -168,16 +171,16 @@ export const getFeeTokens = ({
   }
 };
 
-export const useFeeTokens = (chain: SupportedChain) => {
+export const useFeeTokens = (chain: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') => {
   // fetched from s3
   const denoms = useDenoms();
-  const { lcdUrl } = useChainApis(chain);
+  const { lcdUrl } = useChainApis(chain, forceNetwork);
 
   // hardcoded
-  const _baseDenom = useNativeFeeDenom(chain);
+  const _baseDenom = useNativeFeeDenom(chain, forceNetwork);
   // hardcoded
-  const gasPriceStep = useGasPriceStepForChain(chain);
-  const { allAssets } = useGetTokenBalances();
+  const gasPriceStep = useGasPriceStepForChain(chain, forceNetwork);
+  const { allAssets } = useGetTokenBalances(chain, forceNetwork);
 
   // fetched ?? hardcoded
   const baseDenom = useMemo(() => denoms[_baseDenom.coinMinimalDenom] ?? _baseDenom, [_baseDenom, denoms]);

@@ -70,6 +70,8 @@ const chainDecimals: Record<CoinType, number> = {
   '990': 6,
   '931': 6,
   '4444': 6,
+  '505': 9,
+  '494': 6,
 }
 
 const ShowVotes = ({ dataMock, chain }: IShowVotes) => {

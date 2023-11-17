@@ -30,7 +30,7 @@ import {
   useSelectedNetwork,
 } from '../store';
 import { Token, TxCallback } from '../types';
-import { fetchCurrency, GasOptions, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import { fetchCurrency, GasOptions, getErrorMsg, useGasRateQuery, useNativeFeeDenom } from '../utils';
 import { useIsCW20Tx } from './useIsCW20Tx';
 import { sendTokensParams, useSimpleSend } from './useSimpleSend';
 
@@ -239,7 +239,7 @@ export function useSendModule(): SendModuleType {
         if (result.errors.includes('txDeclined')) {
           callback('txDeclined');
         }
-        setTxError(result.errors.join(',\n'));
+        setTxError(getErrorMsg(result.errors.join(',\n'), gasOption, 'send'));
       }
     },
     [activeChain, gasEstimate, sendTokens, setPendingTx, txPostToDB, ibcChannelId, customIbcChannelId],
