@@ -4,6 +4,7 @@ import {
   APP_NAME,
   setAppName,
   setLeapapiBaseUrl,
+  setNumiaBannerBearer,
   setStorageLayer,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
@@ -14,6 +15,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { QueryClientProvider } from '@tanstack/react-query'
 import axios from 'axios'
 import ErrorBoundaryFallback from 'components/error-boundary-fallback'
+import mixpanel from 'mixpanel-browser'
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import {
@@ -31,8 +33,10 @@ import { queryClient } from './query-client'
 import { getStorageAdapter } from './utils/storageAdapter'
 
 axios.defaults.headers.common['x-requested-with'] = 'leap-client'
+axios.defaults.timeout = 5000
 
 setLeapapiBaseUrl(process.env.LEAP_WALLET_BACKEND_API_URL as string)
+setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
 
 // setAppName is for tx logging
 setAppName(process.env.APP === 'compass' ? APP_NAME.Compass : APP_NAME.Cosmos)
@@ -68,6 +72,11 @@ Sentry.init(
   createSentryConfig({
     dsn: process.env.SENTRY_DSN,
     environment: `${process.env.NODE_ENV}`,
+    ignoreErrors: [
+      'AxiosError: Network Error',
+      'AxiosError: Request aborted',
+      'AbortError: Aborted',
+    ],
     release: `${browser.runtime.getManifest().version}`,
     integrations: [
       new BrowserTracing({
@@ -85,6 +94,13 @@ Sentry.init(
     enabled: process.env.NODE_ENV === 'production',
   }),
 )
+
+mixpanel.init(process.env.MIXPANEL_TOKEN as string, {
+  ip: false,
+  debug: process.env.NODE_ENV === 'development',
+  ignore_dnt: process.env.NODE_ENV === 'development',
+  batch_requests: window.location.href.includes('sign') ? false : true,
+})
 
 if (process.env.NODE_ENV === 'development') {
   import('./dev-watcher-client')

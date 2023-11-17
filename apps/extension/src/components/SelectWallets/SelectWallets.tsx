@@ -12,6 +12,8 @@ import useWallets = Wallet.useWallets
 
 import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
+import { formatWalletName } from 'utils/formatWalletName'
 
 import { walletLabels } from '../../config/constants'
 
@@ -119,14 +121,19 @@ export const SelectWallets = ({
               wallet.walletType === WALLETTYPE.LEDGER ? ` · /0'/0/${wallet.addressIndex}` : ''
 
             const walletName =
-              wallet.walletType == WALLETTYPE.LEDGER
+              wallet.walletType == WALLETTYPE.LEDGER &&
+              !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(wallet.name)
                 ? `${walletLabels[wallet.walletType]} Wallet ${wallet.addressIndex + 1}`
-                : wallet.name
+                : formatWalletName(wallet.name)
             return (
               <>
                 <SelectWalletsWalletCard
                   key={wallet.name}
-                  subtitle={`${sliceAddress(wallet.addresses[chain])}${walletLabel}`}
+                  subtitle={
+                    wallet.addresses[chain]
+                      ? `${sliceAddress(wallet.addresses[chain])}${walletLabel}`
+                      : ''
+                  }
                   title={`Connecting to ${walletName}`}
                   imgSrc={Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
                   onClick={() => handleCardClick(wallet)}

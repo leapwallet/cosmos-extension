@@ -33,7 +33,13 @@ import {
   useIbcTraceStore,
   useSelectedNetwork,
 } from '../store';
-import { fetchCurrency, getCoreumHybridTokenInfo, sortTokenBalances, useSetDisabledCW20InStorage } from '../utils';
+import {
+  fetchCurrency,
+  getCoreumHybridTokenInfo,
+  isTerraClassic,
+  sortTokenBalances,
+  useSetDisabledCW20InStorage,
+} from '../utils';
 import { bankQueryIds } from './queryIds';
 
 export function useInvalidateTokenBalances() {
@@ -146,13 +152,19 @@ export function useGetNativeTokensBalances(
   balances: Array<{ denom: string; amount: BigNumber }>,
   enabled: boolean,
   currencyPreferred: Currency,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
 ) {
-  const activeChain = useActiveChain();
-  const address = useAddress();
-  const chainInfos = useGetChains();
   const denoms = useDenoms();
-  const selectedNetwork = useSelectedNetwork();
-  const { lcdUrl } = useChainApis();
+  const chainInfos = useGetChains();
+  const _activeChain = useActiveChain();
+  const _selectedNetwork = useSelectedNetwork();
+
+  const activeChain = forceChain ?? _activeChain;
+  const selectedNetwork = forceNetwork ?? _selectedNetwork;
+
+  const address = useAddress(activeChain);
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
 
   const { data: _denoms, status: denomsStatus } = useQuery(
     ['fetch-missing-denoms', activeChain, selectedNetwork, balances, lcdUrl, Object.keys(denoms).length],
@@ -300,13 +312,20 @@ function useIbcTokensBalances(
   balances: Array<{ denom: string; amount: BigNumber }>,
   enabled: boolean,
   currencyPreferred: Currency,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
 ) {
-  const activeChain = useActiveChain();
-  const address = useAddress();
   const denoms = useDenoms();
-  const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
-  const { lcdUrl } = useChainApis();
+  const _activeChain = useActiveChain();
+  const _selectedNetwork = useSelectedNetwork();
   const { chains } = useChainsStore();
+
+  const activeChain = forceChain ?? _activeChain;
+  const selectedNetwork = forceNetwork ?? _selectedNetwork;
+
+  const address = useAddress(activeChain);
+  const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
 
   return useQuery(
     [bankQueryIds.ibcTokensBalance, activeChain, address, balances, currencyPreferred],
@@ -326,9 +345,9 @@ function useIbcTokensBalances(
           channelId: trace.channelId,
         };
 
-        //const denomChain = isTerraClassic(trace?.originChainId) ? 'terra-classic' : chainInfo?.path ?? '';
-        const _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
-        const denomInfo = denoms[baseDenom];
+        let _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
+        _baseDenom = isTerraClassic(trace?.originChainId) ? 'lunc' : baseDenom;
+        const denomInfo = denoms[_baseDenom];
 
         //const denomInfo = await getDenomInfo(_baseDenom, denomChain, denoms, selectedNetwork === 'testnet');
         const qty = fromSmall(new BigNumber(amount).toString(), denomInfo?.coinDecimals);
@@ -337,7 +356,7 @@ function useIbcTokensBalances(
           name: denomInfo?.name,
           amount: qty,
           symbol: denomInfo?.coinDenom ?? _baseDenom ?? '',
-          coinMinimalDenom: denomInfo?.coinMinimalDenom ?? '',
+          coinMinimalDenom: denomInfo?.coinMinimalDenom ?? _baseDenom ?? '',
           img: denomInfo?.icon ?? '',
           ibcDenom: denom,
           ibcChainInfo,
@@ -420,10 +439,17 @@ function useIbcTokensBalances(
   );
 }
 
-function useGetRawBalances() {
-  const address = useAddress();
-  const { lcdUrl, rpcUrl } = useChainApis();
+function useGetRawBalances(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const _activeChain = useActiveChain();
+  const _selectedNetwork = useSelectedNetwork();
+
+  const activeChain = forceChain ?? _activeChain;
+  const selectedNetwork = forceNetwork ?? _selectedNetwork;
+
+  const address = useAddress(activeChain);
+  const { lcdUrl, rpcUrl } = useChainApis(activeChain, selectedNetwork);
   const queryClient = useQueryClient();
+
   const { data, status, refetch } = useQuery(
     [bankQueryIds.rawBalances, address, lcdUrl],
     async () => {
@@ -437,10 +463,14 @@ function useGetRawBalances() {
   return { data, status, refetch };
 }
 
-export function useGetTokenBalances() {
+export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const [preferredCurrency] = useUserPreferredCurrency();
 
-  const { data: rawBalancesData, status: rawBalancesStatus, refetch: refetchRawBalances } = useGetRawBalances();
+  const {
+    data: rawBalancesData,
+    status: rawBalancesStatus,
+    refetch: refetchRawBalances,
+  } = useGetRawBalances(forceChain, forceNetwork);
 
   const {
     data: nativeTokensBalance,
@@ -450,6 +480,8 @@ export function useGetTokenBalances() {
     rawBalancesData?.filter(({ denom }) => !denom.startsWith('ibc/')) ?? [],
     rawBalancesStatus === 'success',
     currencyDetail[preferredCurrency].currencyPointer,
+    forceChain,
+    forceNetwork,
   );
 
   const {
@@ -460,6 +492,8 @@ export function useGetTokenBalances() {
     rawBalancesData?.filter(({ denom }) => denom.startsWith('ibc/')) ?? [],
     rawBalancesStatus === 'success',
     currencyDetail[preferredCurrency].currencyPointer,
+    forceChain,
+    forceNetwork,
   );
 
   const {

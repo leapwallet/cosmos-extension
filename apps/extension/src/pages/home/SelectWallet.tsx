@@ -17,8 +17,10 @@ import { ImportSeedPhrase } from './ImportSeedPhrase'
 import useWallets = Wallet.useWallets
 
 import { Key, useActiveChain, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Colors } from 'theme/colors'
+import { formatWalletName } from 'utils/formatWalletName'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 
 import { walletLabels } from '../../config/constants'
@@ -149,13 +151,24 @@ export default function SelectWallet({
               }
 
               const walletName =
-                wallet.walletType == WALLETTYPE.LEDGER
+                wallet.walletType == WALLETTYPE.LEDGER &&
+                !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(wallet.name)
                   ? `${walletLabels[wallet.walletType]} Wallet ${wallet.addressIndex + 1}`
-                  : wallet.name
+                  : formatWalletName(wallet.name)
               const walletNameLength = walletName.length
               const shortenedWalletName =
-                walletNameLength > 16 ? walletName.slice(0, 16) + '...' : walletName
+                walletNameLength > 10 ? walletName.slice(0, 10) + '...' : walletName
 
+              let addressText = `${sliceAddress(
+                wallet.addresses[activeChainInfo.key],
+              )}${walletLabel}`
+
+              if (
+                wallet.walletType === WALLETTYPE.LEDGER &&
+                activeChainInfo.bip44.coinType === '60'
+              ) {
+                addressText = `Ledger not supported on ${activeChainInfo.chainName}`
+              }
               return (
                 <div className='relative min-h-[56px]' key={wallet.id}>
                   <WalletCard
@@ -163,8 +176,21 @@ export default function SelectWallet({
                       setActiveWallet(wallet)
                       onClose()
                     }}
-                    key={wallet.name}
-                    title={shortenedWalletName}
+                    key={formatWalletName(wallet.name)}
+                    title={
+                      <div className='flex flex-row items-center'>
+                        {shortenedWalletName}
+                        {wallet.walletType === WALLETTYPE.LEDGER && (
+                          <Text
+                            className='bg-gray-950 font-normal rounded-2xl justify-center items-center px-2 ml-1 h-[18px]'
+                            color='text-gray-400'
+                            size='xs'
+                          >
+                            Ledger
+                          </Text>
+                        )}
+                      </div>
+                    }
                     icon={
                       <div
                         className='flex h-[56px] w-[56px] hover:cursor-pointer justify-center text-gray-400 items-center bg-white-100 dark:bg-gray-900 material-icons-round'
@@ -178,9 +204,7 @@ export default function SelectWallet({
                         more_horiz
                       </div>
                     }
-                    subtitle={`${sliceAddress(
-                      wallet.addresses[activeChainInfo.key],
-                    )}${walletLabel}`}
+                    subtitle={addressText}
                     isSelected={activeWallet?.id === wallet.id}
                     imgSrc={wallet?.avatar ?? Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
                     color={Colors.getChainColor(activeChain)}

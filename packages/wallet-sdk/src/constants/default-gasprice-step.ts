@@ -102,6 +102,12 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   mayachain: DefaultGasEstimates,
   empowerchain: DefaultGasEstimates,
   dydx: DefaultGasEstimates,
-  celestiatestnet3: DefaultGasEstimates,
+  celestia: DefaultGasEstimates,
   sge: DefaultGasEstimates,
+  xpla: DefaultGasEstimates,
+  provenance: DefaultGasEstimates,
+  aura: DefaultGasEstimates,
+  kichain: DefaultGasEstimates,
+  sentinel: DefaultGasEstimates,
+  bandchain: DefaultGasEstimates,
 };

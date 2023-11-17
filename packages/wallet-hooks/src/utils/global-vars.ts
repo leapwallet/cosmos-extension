@@ -7,6 +7,7 @@ export enum APP_NAME {
 let leapapiBaseUrl = '';
 let platform: App = App.ChromeExtension;
 let appName = APP_NAME.Cosmos;
+let numiaBannerBearer = '';
 
 export type storage = {
   set: (key: string, value: string) => Promise<void>;
@@ -56,4 +57,12 @@ export const getAppName = () => {
 
 export const setAppName = (name: APP_NAME) => {
   appName = name;
+};
+
+export const getNumiaBannerBearer = () => {
+  return numiaBannerBearer;
+};
+
+export const setNumiaBannerBearer = (bearer: string) => {
+  numiaBannerBearer = bearer;
 };

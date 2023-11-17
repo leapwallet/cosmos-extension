@@ -84,6 +84,42 @@ export function getUnDelegateMsg(delegatorAddress: string, validatorAddress: str
   return undelegateMsg;
 }
 
+export function getCancelUnDelegationMsg(
+  delegatorAddress: string,
+  validatorAddress: string,
+  amount: Coin,
+  creationHeight: string,
+) {
+  const cancelUndelegationMsg = {
+    typeUrl: '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
+    value: {
+      amount: amount,
+      creationHeight: longify(creationHeight),
+      delegatorAddress: delegatorAddress,
+      validatorAddress: validatorAddress,
+    },
+  };
+  return cancelUndelegationMsg;
+}
+
+export function getAminoCancelUnDelegationMsg(
+  delegatorAddress: string,
+  validatorAddress: string,
+  amount: Coin,
+  creationHeight: string,
+) {
+  const cancelUndelegationMsg = {
+    typeUrl: 'cosmos-sdk/MsgCancelUnbondingDelegation',
+    value: {
+      amount: amount,
+      creation_height: creationHeight,
+      delegator_address: delegatorAddress,
+      validator_address: validatorAddress,
+    },
+  };
+  return cancelUndelegationMsg;
+}
+
 export function getRedelegateMsg(
   delegatorAddress: string,
   validatorDstAddress: string,

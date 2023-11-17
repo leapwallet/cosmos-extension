@@ -12,7 +12,9 @@ import React, { useMemo } from 'react'
 import { sliceAddress } from 'utils/strings'
 
 import useWallets = Wallet.useWallets
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
+import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
 
 type SelectWalletProps = {
@@ -102,9 +104,10 @@ export default function SelectWalletSheet({
               }
 
               const walletName =
-                wallet.walletType == WALLETTYPE.LEDGER
+                wallet.walletType == WALLETTYPE.LEDGER &&
+                !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(wallet.name)
                   ? `${walletLabels[wallet.walletType]} Wallet ${wallet.addressIndex + 1}`
-                  : wallet.name
+                  : formatWalletName(wallet.name)
               const walletNameLength = walletName.length
               const shortenedWalletName =
                 walletNameLength > 16 ? walletName.slice(0, 16) + '...' : walletName

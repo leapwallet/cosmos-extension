@@ -7,7 +7,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQueryClient } from '@tanstack/react-query'
-import { ACTIVE_CHAIN } from 'config/storage-keys'
+import { ACTIVE_CHAIN, KEYSTORE } from 'config/storage-keys'
 import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useEffect } from 'react'
@@ -36,17 +36,25 @@ export function useSetActiveChain() {
   const queryClient = useQueryClient()
 
   return async (chain: SupportedChain, chainInfo?: ChainInfo) => {
-    if (activeWallet && (!activeWallet.addresses[chain] || !activeWallet.pubKeys?.[chain])) {
-      const updatedKeystore = await updateKeyStore(activeWallet, chain)
-      await setActiveWallet(updatedKeystore[activeWallet.id] as Key)
+    const storage = await browser.storage.local.get(['networkMap', KEYSTORE])
+    const keystore = storage[KEYSTORE]
+    if (keystore) {
+      const shouldUpdateKeystore = Object.keys(keystore).some((key) => {
+        const wallet = keystore[key]
+        return wallet && (!wallet.addresses[chain] || !wallet.pubKeys?.[chain])
+      })
+      if (activeWallet && shouldUpdateKeystore) {
+        const updatedKeystore = await updateKeyStore(activeWallet, chain)
+        await setActiveWallet(updatedKeystore[activeWallet.id] as Key)
+      }
     }
+
     await queryClient.cancelQueries()
     setActiveChain(chain)
     setSelectedChainAlert(true)
     browser.storage.local.set({ [ACTIVE_CHAIN]: chain })
     setPendingTx(null)
 
-    const storage = await browser.storage.local.get('networkMap')
     const networkMap = JSON.parse(storage.networkMap ?? '{}')
 
     if (networkMap[chain]) {
@@ -67,7 +75,10 @@ export function useInitActiveChain() {
   const setActiveChain = useSetActiveChainWalletHooks()
   useEffect(() => {
     browser.storage.local.get(ACTIVE_CHAIN).then((storage) => {
-      let activeChain = storage[ACTIVE_CHAIN] ?? chainInfos.cosmos.key
+      let activeChain: SupportedChain = storage[ACTIVE_CHAIN] ?? chainInfos.cosmos.key
+      if (!chainInfos[activeChain]) {
+        activeChain = chainInfos.cosmos.key
+      }
       if (isCompassWallet()) {
         activeChain = chainInfos.seiTestnet2.key
       }
@@ -75,5 +86,5 @@ export function useInitActiveChain() {
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [chainInfos])
 }

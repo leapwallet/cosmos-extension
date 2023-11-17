@@ -2,12 +2,14 @@ import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import PopupLayout from 'components/layout/popup-layout'
+import { PageName } from 'config/analytics'
 import { motion } from 'framer-motion'
+import { usePageView } from 'hooks/analytics/usePageView'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -18,6 +20,8 @@ import { ReviewTransfer } from './components/reivew-transfer'
 import { SendContextProvider } from './context'
 
 const Send = () => {
+  usePageView(PageName.Send)
+
   const navigate = useNavigate()
   const location = useLocation()
   const chainInfos = useChainInfos()

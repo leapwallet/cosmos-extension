@@ -11,4 +11,4 @@ export enum SwapSheet {
 
 export type SwapProviderProps = {
   chain: SupportedChain
-} & React.PropsWithChildren
+} & React.PropsWithChildren<any>

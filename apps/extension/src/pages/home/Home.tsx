@@ -23,8 +23,10 @@ import PopupLayout from 'components/layout/popup-layout'
 import ReceiveToken from 'components/Receive'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
-import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
+import { ButtonName, EventName, PageName } from 'config/analytics'
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX, ON_RAMP_SUPPORT_CHAINS } from 'config/config'
 import { chainsWithSwapSupport, walletLabels } from 'config/constants'
+import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -38,17 +40,20 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
 import { Images } from 'images'
 import { NftLogo } from 'images/logos'
+import mixpanel from 'mixpanel-browser'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
 import { useRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
+import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress, trim } from 'utils/strings'
 
 import AssetCard from './AssetCard'
-import BannerAD from './BannerAD'
+import { BitcoinDeposit, DepositBTCBanner } from './DepositBTCBanner'
+import GlobalBannersAD from './GlobalBannersAD'
 import { ManageTokens, SecretManageTokens } from './manage-tokens'
 import NftV2Header from './NftV2Header'
 import SelectChain from './SelectChain'
@@ -65,9 +70,9 @@ const initialFaucetResp: InitialFaucetResp = {
   status: null,
 }
 
-const hideSwap = true
-
 export default function Home() {
+  usePageView(PageName.Home)
+
   const chainInfos = useChainInfos()
   const txDeclined = useQuery().get('txDeclined') ?? undefined
   const walletAvatarChanged = useQuery().get('walletAvatarChanged') ?? undefined
@@ -103,6 +108,7 @@ export default function Home() {
   const setBalancesVisibility = useSetHideAssets()
   const [showSelectedChainAlert, setShowSelectedChainAlert] =
     useRecoilState(selectedChainAlertState)
+  const [showBitcoinDepositSheet, setShowBitcoinDepositSheet] = useState(false)
 
   const {
     allAssets,
@@ -114,7 +120,7 @@ export default function Home() {
     erc20TokensStatus,
   } = useGetTokenBalances()
   const activeChain = useActiveChain()
-
+  const isNomicChain = activeChain === 'nomic'
   const chain = chainInfos[activeChain]
   const { activeWallet } = useActiveWallet()
   const isTestnet = useSelectedNetwork() === 'testnet'
@@ -215,9 +221,10 @@ export default function Home() {
   const disabled = activeWallet.walletType === WALLETTYPE.LEDGER && chain?.bip44.coinType === '60'
 
   const walletName =
-    activeWallet.walletType === WALLETTYPE.LEDGER
+    activeWallet.walletType === WALLETTYPE.LEDGER &&
+    !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(activeWallet.name)
       ? `${walletLabels[activeWallet.walletType]} Wallet ${activeWallet.addressIndex + 1}`
-      : activeWallet.name
+      : formatWalletName(activeWallet.name)
 
   const atLeastOneTokenIsLoading =
     erc20TokensStatus === 'loading' ||
@@ -226,6 +233,7 @@ export default function Home() {
     ibcTokensStatus === 'loading'
 
   const activeChainInfo = chainInfos[activeChain]
+
   if (!activeChainInfo) {
     return null
   }
@@ -332,7 +340,7 @@ export default function Home() {
           )}
 
           <div
-            className='w-full flex-col items-center justify-center px-7 pt-7'
+            className='w-full flex flex-col items-center justify-center px-7 pt-7'
             style={{
               background: isCompassWallet() ? Colors.compassGradient : chain?.theme?.gradient,
             }}
@@ -381,42 +389,59 @@ export default function Home() {
               </div>
             )}
 
+            {!isCompassWallet() && (
+              <DepositBTCBanner handleClick={() => setShowBitcoinDepositSheet(true)} />
+            )}
+
             {!isTestnet && !isCompassWallet() ? (
-              <div className='flex flex-row justify-evenly mb-6'>
+              <div className='flex flex-row justify-evenly mb-6 w-full'>
                 <ClickableIcon
                   image={{
                     src: 'download',
                     alt: ON_RAMP_SUPPORT_CHAINS.includes(activeChain) ? 'Deposit' : 'Receive',
                   }}
                   onClick={() => setShowReceiveSheet(true)}
+                  disabled={isNomicChain}
                 />
                 <ClickableIcon
                   image={{ src: 'file_upload', alt: 'Send' }}
                   onClick={() => navigate('/send')}
+                  disabled={isNomicChain}
                 />
                 <ClickableIcon
                   image={{ src: Images.Misc.IbcUnion, alt: 'IBC' }}
                   onClick={() => navigate('/ibc')}
+                  disabled={isNomicChain}
                 />
                 <ClickableIcon
                   image={{ src: 'swap_horiz', alt: 'Swap' }}
+                  disabled={isNomicChain}
                   onClick={() => {
                     if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
                       navigate('/swap')
                     } else {
-                      window.open(
-                        `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${chainInfos[activeChain].chainId}`,
-                        '_blank',
-                      )
+                      const chain = chainInfos[activeChain]
+                      const redirectUrl = `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${chain.chainId}`
+                      try {
+                        mixpanel.track(EventName.ButtonClick, {
+                          buttonName: ButtonName.IBC_SWAP,
+                          redirectUrl,
+                          chainId: chain.chainId,
+                          chainName: chain.chainName,
+                        })
+                      } catch (e) {
+                        // ignore
+                      }
+                      window.open(redirectUrl, '_blank')
                     }
                   }}
                 />
               </div>
             ) : (
-              <div className='flex justify-between mb-6'>
+              <div className='flex justify-between mb-6 w-full'>
                 <Buttons.Generic
                   size='sm'
-                  disabled={disabled}
+                  disabled={disabled || isNomicChain}
                   color={darkTheme ? undefined : Colors.white100}
                   onClick={() => {
                     setShowReceiveSheet(true)
@@ -433,7 +458,7 @@ export default function Home() {
                 </Buttons.Generic>
                 <Buttons.Generic
                   size='sm'
-                  disabled={disabled}
+                  disabled={disabled || isNomicChain}
                   color={darkTheme ? undefined : Colors.white100}
                   onClick={() => {
                     navigate('/send')
@@ -449,7 +474,7 @@ export default function Home() {
             )}
           </div>
 
-          {!isCompassWallet() && <BannerAD />}
+          {!isCompassWallet() && <GlobalBannersAD />}
 
           <div className='rounded-2xl dark:bg-gray-900 bg-white-100 mx-7'>
             <Text size='sm' color='dark:text-gray-200 text-gray-600 font-medium px-5 pt-4'>
@@ -559,6 +584,12 @@ export default function Home() {
         isVisible={showReceiveSheet}
         onCloseHandler={() => {
           setShowReceiveSheet(false)
+        }}
+      />
+      <BitcoinDeposit
+        isVisible={showBitcoinDepositSheet}
+        onCloseHandler={() => {
+          setShowBitcoinDepositSheet(false)
         }}
       />
       <BottomNav label={BottomNavLabel.Home} disabled={disabled} />

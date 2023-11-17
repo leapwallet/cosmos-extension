@@ -10,6 +10,7 @@ import {
   InjectiveTx,
   LedgerError,
   SeiTxHandler,
+  simulateCancelUndelegation,
   simulateDelegate,
   simulateRedelegate,
   simulateUndelegate,
@@ -21,6 +22,7 @@ import {
 import { GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { DEFAULT_GAS_REDELEGATE, NativeDenom } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
 import Network from '@leapwallet/cosmos-wallet-sdk/dist/stake/network';
+import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -63,6 +65,8 @@ function getStakeTxType(mode: STAKE_MODE): CosmosTxType {
       return CosmosTxType.StakeUndelegate;
     case 'REDELEGATE':
       return CosmosTxType.StakeRedelgate;
+    case 'CANCEL_UNDELEGATION':
+      return CosmosTxType.StakeCancelUndelegate;
     default:
       return CosmosTxType.StakeClaim;
   }
@@ -157,6 +161,8 @@ export function useSimulateStakeTx(
         case 'DELEGATE':
         case 'UNDELEGATE':
           return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
+        case 'CANCEL_UNDELEGATION':
+          return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
         default:
           return coin(toSmall('0'), denom.coinMinimalDenom);
       }
@@ -165,7 +171,7 @@ export function useSimulateStakeTx(
   );
 
   const simulateTx = useCallback(
-    async (_amount: string, feeDenom: string) => {
+    async (_amount: string, feeDenom: string, creationHeight?: string) => {
       const amount = getAmount(_amount);
       const fee = getSimulationFee(feeDenom);
       switch (mode) {
@@ -185,6 +191,16 @@ export function useSimulateStakeTx(
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
           return await simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
+        }
+        case 'CANCEL_UNDELEGATION': {
+          return await simulateCancelUndelegation(
+            lcdUrl ?? '',
+            address,
+            toValidator?.address ?? '',
+            amount,
+            creationHeight ?? '',
+            fee,
+          );
         }
         case 'UNDELEGATE':
           return await simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
@@ -220,9 +236,11 @@ export function useStakeTx(
   // STATES
   const [memo, setMemo] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
+  const [creationHeight, setCreationHeight] = useState<string>('');
   const [fees, setFees] = useState<StdFee>();
   const [currencyFees, setCurrencyFees] = useState<string>();
   const [error, setError] = useState<string>();
+  const [simulationError, setSimulationError] = useState<string>();
   const [ledgerError, setLedgerErrorMsg] = useState<string>();
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
@@ -239,9 +257,29 @@ export function useStakeTx(
   const gasAdjustment = useGasAdjustment();
 
   // FUNCTIONS
+  const handleSimulationError = (errorMsg: string) => {
+    if (errorMsg.includes('currently jailed')) {
+      setSimulationError('This validator is currently jailed');
+    } else if (errorMsg.includes('tx parse error')) {
+      setSimulationError('Not Supported');
+    } else {
+      setSimulationError(errorMsg);
+    }
+  };
   const onTxSuccess = async (promise: any, txHash: string, callback?: TxCallback) => {
     const amtKey = mode === 'UNDELEGATE' || mode === 'CLAIM_REWARDS' ? 'receivedAmount' : 'sentAmount';
-    const title = mode === 'CLAIM_REWARDS' ? 'claim rewards' : mode.toLowerCase();
+    let title = mode === 'CLAIM_REWARDS' ? 'claim rewards' : mode.toLowerCase();
+    switch (mode) {
+      case 'CLAIM_REWARDS':
+        title = 'claim rewards';
+        break;
+      case 'CANCEL_UNDELEGATION':
+        title = 'Unstaking Cancelled';
+        break;
+      default:
+        title = mode.toLowerCase();
+        break;
+    }
 
     let subtitle1: string;
     if (mode === 'CLAIM_REWARDS') {
@@ -281,7 +319,7 @@ export function useStakeTx(
   };
 
   const simulateTx = useCallback(
-    (amount: Coin, feeDenom: string) => {
+    (amount: Coin, feeDenom: string, creationHeight?: string) => {
       const fee = getSimulationFee(feeDenom);
       switch (mode) {
         case 'REDELEGATE':
@@ -301,6 +339,15 @@ export function useStakeTx(
             [];
           return simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
         }
+        case 'CANCEL_UNDELEGATION':
+          return simulateCancelUndelegation(
+            lcdUrl ?? '',
+            address,
+            toValidator.address ?? '',
+            amount,
+            creationHeight ?? '',
+            fee,
+          );
         case 'UNDELEGATE':
           return simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
       }
@@ -309,7 +356,12 @@ export function useStakeTx(
   );
 
   const executeTx = useCallback(
-    async (amount: Coin, fee: StdFee, txHandler: Tx | InjectiveTx | EthermintTxHandler | SeiTxHandler) => {
+    async (
+      amount: Coin,
+      fee: StdFee,
+      txHandler: Tx | InjectiveTx | EthermintTxHandler | SeiTxHandler,
+      creationHeight?: string,
+    ) => {
       switch (mode) {
         case 'UNDELEGATE':
           return await txHandler.unDelegate(address, toValidator?.address ?? '', amount, fee, memo);
@@ -321,6 +373,15 @@ export function useStakeTx(
         }
         case 'DELEGATE':
           return await txHandler.delegate(address, toValidator?.address ?? '', amount, fee, memo);
+        case 'CANCEL_UNDELEGATION':
+          return await (txHandler as Tx | SeiTxHandler).cancelUnDelegation(
+            address,
+            toValidator?.address ?? '',
+            amount,
+            creationHeight ?? '',
+            fee,
+            memo,
+          );
         case 'REDELEGATE':
           return await txHandler.reDelegate(
             address,
@@ -343,6 +404,8 @@ export function useStakeTx(
           return coin(toSmall(amount, denom?.coinDecimals), delegations?.[0].balance.denom ?? '');
         case 'DELEGATE':
         case 'UNDELEGATE':
+          return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
+        case 'CANCEL_UNDELEGATION':
           return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
         default:
           return coin(toSmall('0'), denom.coinMinimalDenom);
@@ -418,13 +481,15 @@ export function useStakeTx(
         }
 
         try {
-          const { gasUsed } = await simulateTx(amt, gasPrice.denom);
+          const { gasUsed } = await simulateTx(amt, gasPrice.denom, creationHeight);
           gasEstimate = gasUsed;
           setRecommendedGasLimit(gasUsed.toString());
         } catch (error: any) {
           if (error.message.includes('redelegation to this validator already in progress')) {
             setError(error.message);
             return;
+          } else if (mode === 'CANCEL_UNDELEGATION') {
+            handleSimulationError(error.message);
           }
         }
 
@@ -451,7 +516,7 @@ export function useStakeTx(
         if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
           setShowLedgerPopup(true);
         }
-        const txHash = await executeTx(amt, fee, tx);
+        const txHash = await executeTx(amt, fee, tx, creationHeight);
         const txType = getStakeTxType(mode);
         let metadata = {};
         if (mode === 'REDELEGATE') {
@@ -464,7 +529,7 @@ export function useStakeTx(
               denom: amt.denom,
             },
           };
-        } else if (mode === 'DELEGATE' || mode === 'UNDELEGATE') {
+        } else if (mode === 'DELEGATE' || mode === 'UNDELEGATE' || mode === 'CANCEL_UNDELEGATION') {
           metadata = {
             ...txMetadata,
             validatorAddress: toValidator?.address,
@@ -522,7 +587,7 @@ export function useStakeTx(
   ) => {
     try {
       executeDelegateTx({ wallet, callback, isSimulation, customFee });
-    } catch {
+    } catch (e) {
       //
     }
   };
@@ -530,8 +595,9 @@ export function useStakeTx(
   const onSimulateTx = () => {
     try {
       executeDelegateTx({ isSimulation: true });
-    } catch {
-      //
+    } catch (e: any) {
+      const errorMessage: string = e.message.toString();
+      handleSimulationError(errorMessage);
     }
   };
 
@@ -561,6 +627,9 @@ export function useStakeTx(
     error,
     clearError,
     isLoading,
+    setCreationHeight,
+    creationHeight,
+    simulationError,
     memo,
     fees: fromSmall(fees?.amount[0]?.amount ?? '0', denom?.coinDecimals),
     currencyFees,
@@ -576,4 +645,49 @@ export function useStakeTx(
     ledgerError,
     recommendedGasLimit,
   };
+}
+
+export function useIsCancleUnstakeSupported() {
+  const address = useAddress();
+  const selectedNetwork = useSelectedNetwork();
+  const activeChain = useActiveChain();
+  const { chains } = useChainsStore();
+  const { lcdUrl } = useChainApis();
+
+  const checkIsCancelUnstakeSupported = useCallback(async () => {
+    try {
+      const denom = getNativeDenom(chains, activeChain, selectedNetwork);
+      const amount = coin(toSmall('1', denom?.coinDecimals), denom.coinMinimalDenom);
+      await simulateCancelUndelegation(
+        lcdUrl ?? '',
+        address,
+        'cosmosvaloper13n6wqhq8la352je00nwq847ktp47pgknseu6kk',
+        amount,
+        '500',
+        [amount],
+      );
+      return true;
+    } catch (e: any) {
+      const errorMessage: string = e.message.toString();
+      if (errorMessage.includes('tx parse error') || errorMessage.includes(`reading 'gas_info'`)) {
+        return false;
+      } else {
+        return true;
+      }
+    }
+  }, [activeChain, selectedNetwork]);
+
+  const { data: isCancleUnstakeSupported } = useQuery(
+    [['@cancelUnstakingSupport', activeChain, selectedNetwork]],
+    async () => {
+      if (chains[activeChain].bip44.coinType === '60' || activeChain === 'injective') return false;
+      return await checkIsCancelUnstakeSupported();
+    },
+    {
+      cacheTime: 1000 * 60 * 60 * 24 * 3, //3days
+      staleTime: 1000 * 60 * 60 * 5, // 5 hour
+    },
+  );
+
+  return { isCancleUnstakeSupported: isCancleUnstakeSupported ?? false };
 }

@@ -36,6 +36,10 @@ export async function axiosWrapper<T = any>(
       throw error;
     }
 
+    if (callFor === 'cancel-undelegation') {
+      return error;
+    }
+
     if (retryCount > RETRY_COUNT) {
       throw error;
     }

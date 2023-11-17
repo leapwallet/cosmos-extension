@@ -12,6 +12,8 @@ import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import { DisplayFeeValue, GasPriceOptionValue } from 'components/gas-price-options/context'
 import PopupLayout from 'components/layout/popup-layout'
+import { PageName } from 'config/analytics'
+import { usePageView } from 'hooks/analytics/usePageView'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -32,6 +34,7 @@ const SwapUI: React.FC<{
     feeDenom: NativeDenom,
     gasLimit: string,
     gasPrice: GasPrice,
+    gasOption: GasOptions,
   ) => JSX.Element | null
 }> = ({ children, setActiveSheet }) => {
   const defaultGasPrice = useDefaultGasPrice()
@@ -77,7 +80,7 @@ const SwapUI: React.FC<{
     <GasPriceOptions
       recommendedGasLimit={defaultGasAmount.toString()}
       gasLimit={gasLimit}
-      setGasLimit={(value) => setGasLimit(value.toString())}
+      setGasLimit={(value: number) => setGasLimit(value.toString())}
       gasPriceOption={gasPriceOption}
       onGasPriceOptionChange={onGasPriceOptionChange}
       error={gasError}
@@ -93,7 +96,13 @@ const SwapUI: React.FC<{
           customFee={customFee}
         />
       </div>
-      {children(displayFeeValue, feeDenom, gasLimit, gasPriceOption.gasPrice)}
+      {children(
+        displayFeeValue,
+        feeDenom,
+        gasLimit,
+        gasPriceOption.gasPrice,
+        gasPriceOption.option,
+      )}
     </GasPriceOptions>
   )
 }
@@ -102,6 +111,8 @@ const SwapUI: React.FC<{
  * This component renders the Swap UI.
  */
 export default function SwapScreen(): JSX.Element {
+  usePageView(PageName.Swap)
+
   const activeChain = useActiveChain()
   const navigate = useNavigate()
   const [activeSheet, setActiveSheet] = useState<SwapSheet>(SwapSheet.NONE_ACTIVE)
@@ -113,6 +124,7 @@ export default function SwapScreen(): JSX.Element {
       feeDenom: NativeDenom,
       gasLimit: string,
       gasPrice: GasPrice,
+      gasOption: GasOptions,
     ) => {
       const onClose = () => {
         setActiveSheet(SwapSheet.NONE_ACTIVE)
@@ -144,6 +156,7 @@ export default function SwapScreen(): JSX.Element {
             isOpen={activeSheet === SwapSheet.REVIEW_SWAP}
             displayFeeValue={displayFeeValue}
             onDone={onClose}
+            gasOption={gasOption}
           />
         </>
       )

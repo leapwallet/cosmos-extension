@@ -18,6 +18,7 @@ import rightArrow from 'images/misc/right-arrow.svg'
 import React, { ReactElement } from 'react'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
+import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
 
@@ -34,17 +35,14 @@ export default function ReceiveToken({
   const wallet = useActiveWallet().activeWallet
   const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
-
   const address = wallet?.addresses[activeChainInfo.key]
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
-
   const QrCodeProps = {
     height: 250,
     width: 250,
     data: address ?? '',
   }
-
   if (isCompassWallet()) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -65,7 +63,7 @@ export default function ReceiveToken({
             <QrCode {...QrCodeProps} />
           </div>
           <div className='inline-block mt-[16px] mb-[12px] text-black-100 dark:text-white-100 font-Satoshi24px text-[28px] leading-[36px] font-black'>
-            {wallet.name}
+            {formatWalletName(wallet.name)}
           </div>
           <Buttons.CopyWalletAddress
             color={Colors.getChainColor(activeChain)}

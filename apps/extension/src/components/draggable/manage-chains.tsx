@@ -25,7 +25,7 @@ interface PropTypes {
 const BetaCard = ({ chain }: { chain: ManageChainSettings }) => {
   const setDeleteChain = useSetRecoilState(deleteChain)
   const chainInfos = useChainInfos()
-  const img = chainInfos[chain.chainName].chainSymbolImageUrl
+  const img = chainInfos[chain.chainName]?.chainSymbolImageUrl
 
   return (
     <>

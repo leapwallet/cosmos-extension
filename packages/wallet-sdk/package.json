@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-sdk",
-  "version": "0.5.5",
+  "version": "0.6.5",
   "description": "TypeScript library to create and manage non-custodial wallets for cosmos blockchains.",
   "main": "dist/index.js",
   "scripts": {
@@ -40,7 +40,7 @@
     "@injectivelabs/networks": "1.0.105",
     "@injectivelabs/sdk-ts": "1.0.498",
     "@leapwallet/leap-js": "0.1.1",
-    "@leapwallet/leap-keychain": "0.2.0",
+    "@leapwallet/leap-keychain": "0.2.2",
     "@ledgerhq/hw-app-cosmos": "6.28.1",
     "@ledgerhq/hw-transport-webhid": "6.27.15",
     "@ledgerhq/hw-transport-webusb": "6.27.15",
@@ -51,7 +51,7 @@
     "bip32": "2.0.6",
     "bip39": "3.0.4",
     "cosmjs-types": "0.8.0",
-    "crypto-js": "4.0.0",
+    "crypto-js": "4.2.0",
     "dayjs": "1.11.5",
     "deepmerge": "4.2.2",
     "elliptic": "6.5.4",
@@ -63,7 +63,7 @@
     "long": "5.2.1",
     "osmojs": "16.5.1",
     "parse-duration": "1.0.2",
-    "secretjs": "1.8.1",
+    "secretjs": "1.12.0",
     "secure-random": "1.1.2",
     "tslib": "2.4.0"
   },

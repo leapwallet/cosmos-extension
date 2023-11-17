@@ -36,13 +36,17 @@ export default function SuggestChain() {
   const setActiveChain = useSetActiveChain()
   const defaultTokenLogo = useDefaultTokenLogo()
 
-  const handleCancel = async () => {
-    await browser.storage.local.set({ [BG_RESPONSE]: { error: 'Rejected by the user.' } })
+  const handleError = async (error: string) => {
+    await browser.storage.local.set({ [BG_RESPONSE]: { error } })
     setTimeout(async () => {
       await browser.storage.local.remove([NEW_CHAIN_REQUEST])
       await browser.storage.local.remove(BG_RESPONSE)
       window.close()
     }, 10)
+  }
+
+  const handleCancel = async () => {
+    await handleError('Rejected by the user.')
   }
 
   useEffect(() => {
@@ -69,26 +73,31 @@ export default function SuggestChain() {
     await sleep(200)
     setIsLoading(true)
     const chainName = newChain.chainInfo.chainName
-    const updatedKeystore = await updateKeyStore(
-      activeWallet as WalletKey,
-      chainName as unknown as SupportedChain,
-    )
-    if (activeWallet) {
-      await addToConnections([newChain.chainInfo.chainId], [activeWallet], origin.current ?? '')
-      await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
-    }
+    try {
+      const updatedKeystore = await updateKeyStore(
+        activeWallet as WalletKey,
+        chainName as unknown as SupportedChain,
+      )
+      if (activeWallet) {
+        await addToConnections([newChain.chainInfo.chainId], [activeWallet], origin.current ?? '')
+        await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
+      }
 
-    await setActiveChain(chainName)
+      await setActiveChain(chainName)
 
-    window.removeEventListener('beforeunload', handleCancel)
-    await browser.storage.local.set({
-      [BG_RESPONSE]: { data: 'Approved', success: 'Chain enabled' },
-    })
-    setTimeout(async () => {
-      await browser.storage.local.remove(BG_RESPONSE)
+      window.removeEventListener('beforeunload', handleCancel)
+      await browser.storage.local.set({
+        [BG_RESPONSE]: { data: 'Approved', success: 'Chain enabled' },
+      })
+      setTimeout(async () => {
+        await browser.storage.local.remove(BG_RESPONSE)
+        setIsLoading(false)
+        window.close()
+      }, 100)
+    } catch (e) {
+      handleError('Something went wrong. Please try again.')
       setIsLoading(false)
-      window.close()
-    }, 100)
+    }
   }
 
   return (

@@ -1,5 +1,6 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import { CardDivider, HeaderActionType } from '@leapwallet/leap-ui'
+import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { HeaderAction } from '@leapwallet/leap-ui/dist/components/header'
 import { EmptyCard } from 'components/empty-card'
 import { ManageChainSettings, useManageChainData } from 'hooks/settings/useManageChains'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -19,13 +20,23 @@ import { useActiveChain, useSetActiveChain } from '../../hooks/settings/useActiv
 import { Colors } from '../../theme/colors'
 
 export type ListChainsProps = {
+  headerAction?: HeaderAction
+  headerTitle?: string
   // eslint-disable-next-line no-unused-vars
   onChainSelect: (chainName: SupportedChain) => void
   selectedChain: SupportedChain
   onPage?: 'AddCollection'
+  chainsToShow?: string[]
 }
 
-export function ListChains({ onChainSelect, selectedChain, onPage }: ListChainsProps) {
+export function ListChains({
+  onChainSelect,
+  selectedChain,
+  onPage,
+  headerAction,
+  headerTitle,
+  chainsToShow,
+}: ListChainsProps) {
   const [chains] = useManageChainData()
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -33,29 +44,40 @@ export function ListChains({ onChainSelect, selectedChain, onPage }: ListChainsP
 
   const filteredChains = useMemo(() => {
     return chains.filter(function (chain) {
+      if (
+        chainsToShow &&
+        chainsToShow.length &&
+        !chainsToShow.includes(chainInfos[chain.chainName].chainRegistryPath)
+      ) {
+        return false
+      }
+
       if (onPage === 'AddCollection' && ['omniflix', 'stargaze'].includes(chain.chainName)) {
         return false
       }
 
-      const chainName = chainInfos[chain.chainName as unknown as SupportedChain].chainName
+      const chainName = chainInfos[chain.chainName].chainName
       return chainName.toLowerCase().includes(searchedChain.toLowerCase())
     })
-  }, [chainInfos, chains, onPage, searchedChain])
+  }, [chainInfos, chains, chainsToShow, onPage, searchedChain])
 
   return (
     <>
-      <div className='flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px] mb-4 mt-5 w-[344px] mx-auto'>
-        <input
-          placeholder='Search'
-          className='flex flex-grow text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
-          value={searchedChain}
-          onChange={(event) => setSearchedChain(event.target.value)}
-          data-testing-id='switch-chain-input-search'
-        />
-        <img src={Images.Misc.SearchIcon} />
+      <div className='sticky top-0 bg-gray-50 dark:bg-black-100 pb-4 '>
+        <Header title={headerTitle} action={headerAction} />
+        <div className='flex h-10 mt-5 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]  w-[344px] mx-auto'>
+          <input
+            placeholder='Search'
+            className='flex flex-grow text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
+            value={searchedChain}
+            onChange={(event) => setSearchedChain(event.target.value)}
+            data-testing-id='switch-chain-input-search'
+          />
+          <img src={Images.Misc.SearchIcon} />
+        </div>
       </div>
 
-      <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 mx-7 mb-4 mt-4'>
+      <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 mx-7 mb-4'>
         {filteredChains.length === 0 ? (
           <EmptyCard
             isRounded
@@ -155,12 +177,21 @@ export default function SelectChain({ isVisible, onClose }: ChainSelectorProps) 
     <BottomSheet
       isVisible={isVisible}
       onClose={onClose}
-      headerTitle='Switch Chains'
-      headerActionType={HeaderActionType.CANCEL}
       closeOnClickBackDrop={true}
+      customHeader={() => {
+        return <div />
+      }}
     >
-      <Fragment>
-        <ListChains onChainSelect={onChainSelect} selectedChain={selectedChain} />
+      <>
+        <ListChains
+          onChainSelect={onChainSelect}
+          headerTitle='Switch Chains'
+          headerAction={{
+            type: HeaderActionType.CANCEL,
+            onClick: onClose,
+          }}
+          selectedChain={selectedChain}
+        />
 
         <div className='w-[344px] mt-4 mb-4 mx-auto rounded-2xl overflow-hidden'>
           <button
@@ -182,7 +213,7 @@ export default function SelectChain({ isVisible, onClose }: ChainSelectorProps) 
             </Text>
           </button>
         </div>
-      </Fragment>
+      </>
     </BottomSheet>
   )
 }

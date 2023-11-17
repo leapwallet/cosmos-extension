@@ -5,11 +5,19 @@ import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 
 import { sleep } from '../utils/sleep';
-import { getDelegateMsg, getRedelegateMsg, getUnDelegateMsg, getVoteMsg, getWithDrawRewardsMsg } from './msgs/cosmos';
+import {
+  buildRevokeMsg,
+  getCancelUnDelegationMsg,
+  getDelegateMsg,
+  getRedelegateMsg,
+  getUnDelegateMsg,
+  getVoteMsg,
+  getWithDrawRewardsMsg,
+} from './msgs/cosmos';
 import { getTxData } from './utils';
 
 export class SeiTxHandler {
-  private client: SigningStargateClient | null;
+  protected client: SigningStargateClient | null;
 
   constructor(private lcdEndpoint: string | undefined, private rpcEndPoint: string, private wallet: OfflineSigner) {
     this.client = null;
@@ -125,6 +133,19 @@ export class SeiTxHandler {
     return result?.transactionHash ?? '';
   }
 
+  async cancelUnDelegation(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    creationHeight: string,
+    fee: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    const cancleUndelegateMsg = getCancelUnDelegationMsg(delegatorAddress, validatorAddress, amount, creationHeight);
+    const result = await this.client?.signAndBroadcast(delegatorAddress, [cancleUndelegateMsg], fee, memo);
+    return result?.transactionHash ?? '';
+  }
+
   async reDelegate(
     delegatorAddress: string,
     validatorDstAddress: string,
@@ -146,6 +167,12 @@ export class SeiTxHandler {
   ) {
     const msg = getWithDrawRewardsMsg(validatorAddresses, delegatorAddress);
     const result = await this.client?.signAndBroadcast(delegatorAddress, msg, fees, memo);
+    return result?.transactionHash ?? '';
+  }
+
+  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: number | StdFee | 'auto', memo = '') {
+    const revokeMsg = buildRevokeMsg(msgType, fromAddress, grantee);
+    const result = await this.client?.signAndBroadcast(fromAddress, [revokeMsg], fee, memo);
     return result?.transactionHash ?? '';
   }
 }

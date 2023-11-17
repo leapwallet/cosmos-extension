@@ -1,4 +1,8 @@
-import { useStaking, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useIsCancleUnstakeSupported,
+  useStaking,
+  useValidatorImage,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import Network from '@leapwallet/cosmos-wallet-sdk/dist/stake/network'
 import {
@@ -20,14 +24,17 @@ import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
+import { ComingSoon } from 'components/coming-soon'
 import { EmptyCard } from 'components/empty-card'
 import InfoSheet from 'components/Infosheet'
 import PopupLayout from 'components/layout/popup-layout'
 import ReadMoreText from 'components/read-more-text'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
+import { PageName } from 'config/analytics'
 import currency from 'currency.js'
 import { addSeconds } from 'date-fns'
+import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
@@ -50,6 +57,7 @@ import { sliceWord } from 'utils/strings'
 import { timeLeft } from 'utils/timeLeft'
 
 import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
+import { CancleUndelegationProps } from './cancelUndelegation'
 import { ChooseValidatorProps } from './chooseValidator'
 import { YourRewardsSheet } from './components'
 import { NoStake } from './NoStake'
@@ -61,6 +69,7 @@ function UnboundingDelegations({
   isLoading,
   onWhyPending,
   formatHideBalance,
+  isCancleUnstakeSupported,
 }: {
   isLoading: boolean
   onWhyPending: () => void
@@ -68,7 +77,10 @@ function UnboundingDelegations({
   unboundingDelegations: Record<string, UnbondingDelegation>
   // eslint-disable-next-line no-unused-vars
   formatHideBalance: (s: string) => React.ReactNode
+  isCancleUnstakeSupported: boolean
 }) {
+  const navigate = useNavigate()
+
   if (!isLoading && (Object.values(unboundingDelegations ?? {}).length === 0 || !validators)) {
     return <></>
   }
@@ -114,7 +126,9 @@ function UnboundingDelegations({
                   {index !== 0 && <CardDivider />}
                   {validator && (
                     <div className='relative cursor-default'>
-                      <div className='absolute h-[72px] w-[344px] cursor-default ' />
+                      {!isCancleUnstakeSupported && (
+                        <div className='absolute h-[72px] w-[344px] cursor-default ' />
+                      )}
                       <GenericCard
                         img={
                           <img
@@ -122,6 +136,27 @@ function UnboundingDelegations({
                             onError={imgOnError(Images.Misc.Validator)}
                             className={'rounded-full  overflow-clip w-6 h-6'}
                           />
+                        }
+                        icon={
+                          isCancleUnstakeSupported ? (
+                            <span className='material-icons-round text-gray-400'>
+                              keyboard_arrow_right
+                            </span>
+                          ) : undefined
+                        }
+                        onClick={
+                          isCancleUnstakeSupported
+                            ? () => {
+                                navigate('/stakeCancelUndelegation', {
+                                  state: {
+                                    unBoundingdelegation: ud,
+                                    unBoundingdelegationEntry: d,
+                                    validatorAddress: ud.validator_address,
+                                    validators: validators,
+                                  } as CancleUndelegationProps,
+                                })
+                              }
+                            : undefined
                         }
                         isRounded
                         title={
@@ -454,6 +489,8 @@ function StakeHeading({
 }
 
 export default function Stake() {
+  usePageView(PageName.Stake)
+
   const chainInfos = useChainInfos()
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showSideNav, setShowSideNav] = useState(false)
@@ -484,6 +521,8 @@ export default function Stake() {
     delegations,
     isFetchingRewards,
   } = useStaking()
+
+  const { isCancleUnstakeSupported } = useIsCancleUnstakeSupported()
 
   const { formatHideBalance } = useHideAssets()
 
@@ -542,116 +581,121 @@ export default function Stake() {
           />
         }
       >
-        {isCompassWallet() && isTestnet && (
-          <AlertStrip
-            message='You are on Sei Testnet'
-            bgColor={Colors.getChainColor(activeChain)}
-            alwaysShow={isTestnet}
-          />
-        )}
-
-        {showSelectedChainAlert && !isCompassWallet() && (
-          <AlertStrip
-            message={`You are on ${activeChainInfo.chainName}${
-              isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
-            }`}
-            bgColor={Colors.getChainColor(activeChain)}
-            alwaysShow={isTestnet}
-            onHide={() => {
-              setShowSelectedChainAlert(false)
-            }}
-          />
-        )}
-
-        {['neutron', 'noble'].includes(activeChain) ? (
-          <NoStake />
+        {activeChain === 'nomic' ? (
+          <ComingSoon />
         ) : (
-          <div
-            className={classNames('flex flex-col p-7 mb-10 overflow-scroll', {
-              'h-[452px]': isLoadingAll || showChainSelector,
-              'h-[483px]': !isLoadingAll,
-            })}
-          >
-            <StakeHeading
-              minApy={minMaxApy?.[0]}
-              maxApy={minMaxApy?.[1]}
-              chainName={activeChain}
-              isLoading={loadingNetwork}
-              network={network as Network}
-            />
-            <div className='flex flex-col gap-y-4'>
-              {!isNotSupportedChain && (
-                <>
-                  {(rewards?.total[0] || loadingRewards) && (
-                    <StakeRewardCard
-                      isLoading={loadingRewards || isFetchingRewards}
-                      onClaim={() => setShowYourRewardsSheet(true)}
-                      rewardsAmount={totalRewardsDollarAmt ?? '0'}
-                      rewardsTokens={`${token?.symbol ?? ''}${
-                        (rewards?.total.length ?? 1) > 1
-                          ? ` +${(rewards?.total.length ?? 2) - 1} more`
-                          : ''
-                      }`}
+          <>
+            {isCompassWallet() && isTestnet && (
+              <AlertStrip
+                message='You are on Sei Testnet'
+                bgColor={Colors.getChainColor(activeChain)}
+                alwaysShow={isTestnet}
+              />
+            )}
+
+            {showSelectedChainAlert && !isCompassWallet() && (
+              <AlertStrip
+                message={`You are on ${activeChainInfo.chainName}${
+                  isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
+                }`}
+                bgColor={Colors.getChainColor(activeChain)}
+                alwaysShow={isTestnet}
+                onHide={() => {
+                  setShowSelectedChainAlert(false)
+                }}
+              />
+            )}
+
+            {['neutron', 'noble'].includes(activeChain) ? (
+              <NoStake />
+            ) : (
+              <div
+                className={classNames('flex flex-col p-7 mb-10 overflow-scroll', {
+                  'h-[452px]': isLoadingAll || showChainSelector,
+                  'h-[483px]': !isLoadingAll,
+                })}
+              >
+                <StakeHeading
+                  minApy={minMaxApy?.[0]}
+                  maxApy={minMaxApy?.[1]}
+                  chainName={activeChain}
+                  isLoading={loadingNetwork}
+                  network={network as Network}
+                />
+                <div className='flex flex-col gap-y-4'>
+                  {!isNotSupportedChain && (
+                    <>
+                      {(rewards?.total[0] || loadingRewards) && (
+                        <StakeRewardCard
+                          isLoading={loadingRewards || isFetchingRewards}
+                          onClaim={() => setShowYourRewardsSheet(true)}
+                          rewardsAmount={totalRewardsDollarAmt ?? '0'}
+                          rewardsTokens={`${token?.symbol ?? ''}${
+                            (rewards?.total.length ?? 1) > 1
+                              ? ` +${(rewards?.total.length ?? 2) - 1} more`
+                              : ''
+                          }`}
+                        />
+                      )}
+                      <DepositAmountCard
+                        formatHideBalance={formatHideBalance}
+                        unstakingPeriod={unstakingPeriod}
+                        network={network as Network}
+                        activeChain={activeChain}
+                        totalDelegations={totalDelegationAmount as string}
+                        currencyAmountDelegation={formatCurrency(
+                          new BigNumber(currencyAmountDelegation as string),
+                        )}
+                        isLoading={loadingDelegations}
+                      />
+                      <ValidatorBreakdown
+                        formatHideBalance={formatHideBalance}
+                        unstakingPeriod={unstakingPeriod}
+                        rewards={rewards as RewardsResponse}
+                        delegation={delegations as Record<string, Delegation>}
+                        network={network as Network}
+                        isLoading={loadingNetwork || loadingDelegations}
+                      />
+                      <UnboundingDelegations
+                        formatHideBalance={formatHideBalance}
+                        isLoading={loadingUnboundingDelegations}
+                        unboundingDelegations={
+                          unboundingDelegationsInfo as Record<string, UnbondingDelegation>
+                        }
+                        validators={network?.getValidators({}) as Record<string, Validator>}
+                        onWhyPending={() => {
+                          setViewInfoSheet(true)
+                        }}
+                        isCancleUnstakeSupported={isCancleUnstakeSupported}
+                      />
+                    </>
+                  )}
+
+                  {isNotSupportedChain && (
+                    <EmptyCard
+                      src={Images.Misc.CrossFilled}
+                      isRounded
+                      heading='Not supported'
+                      subHeading={`Staking not supported for ${activeChain} testnet`}
                     />
                   )}
-                  <DepositAmountCard
-                    formatHideBalance={formatHideBalance}
-                    unstakingPeriod={unstakingPeriod}
-                    network={network as Network}
-                    activeChain={activeChain}
-                    totalDelegations={totalDelegationAmount as string}
-                    currencyAmountDelegation={formatCurrency(
-                      new BigNumber(currencyAmountDelegation as string),
-                    )}
-                    isLoading={loadingDelegations}
-                  />
-                  <ValidatorBreakdown
-                    formatHideBalance={formatHideBalance}
-                    unstakingPeriod={unstakingPeriod}
-                    rewards={rewards as RewardsResponse}
-                    delegation={delegations as Record<string, Delegation>}
-                    network={network as Network}
-                    isLoading={loadingNetwork || loadingDelegations}
-                  />
-                  <UnboundingDelegations
-                    formatHideBalance={formatHideBalance}
-                    isLoading={loadingUnboundingDelegations}
-                    unboundingDelegations={
-                      unboundingDelegationsInfo as Record<string, UnbondingDelegation>
-                    }
-                    validators={network?.getValidators({}) as Record<string, Validator>}
-                    onWhyPending={() => {
-                      setViewInfoSheet(true)
-                    }}
-                  />
-                </>
-              )}
 
-              {isNotSupportedChain && (
-                <EmptyCard
-                  src={Images.Misc.CrossFilled}
-                  isRounded
-                  heading='Not supported'
-                  subHeading={`Staking not supported for ${activeChain} testnet`}
-                />
-              )}
-
-              <div className='mt-0' />
-              <LineDivider size='sm' />
-              <div className='rounded-[16px] items-center'>
-                <Text
-                  size='sm'
-                  className='p-[4px] font-bold '
-                  color='text-gray-600 dark:text-gray-400'
-                >
-                  {`About Staking ${activeChainInfo.denom}`}
-                </Text>
-                <div className='flex flex-col px-[4px] pt-[4px]'>
-                  <ReadMoreText
-                    textProps={{ size: 'md', className: 'font-medium  flex flex-column' }}
-                    readMoreColor={themeColor}
-                  >
-                    {`Staking is the process of locking up a digital asset non custodially (${activeChainInfo.denom} in the case of the ${activeChainInfo.chainName} Network) to provide economic security.
+                  <div className='mt-0' />
+                  <LineDivider size='sm' />
+                  <div className='rounded-[16px] items-center'>
+                    <Text
+                      size='sm'
+                      className='p-[4px] font-bold '
+                      color='text-gray-600 dark:text-gray-400'
+                    >
+                      {`About Staking ${activeChainInfo.denom}`}
+                    </Text>
+                    <div className='flex flex-col px-[4px] pt-[4px]'>
+                      <ReadMoreText
+                        textProps={{ size: 'md', className: 'font-medium  flex flex-column' }}
+                        readMoreColor={themeColor}
+                      >
+                        {`Staking is the process of locking up a digital asset non custodially (${activeChainInfo.denom} in the case of the ${activeChainInfo.chainName} Network) to provide economic security.
                    When the staking transaction is complete, rewards will start to be generated immediately. At any time, stakers can send a transaction to claim their accumulated rewards, using a wallet.
                    Staking rewards are generated and distributed to staked ${activeChainInfo.denom} holders in two ways: Transaction fees collected on the ${activeChainInfo.chainName} are distributed to staked ${activeChainInfo.denom} holders. and secondly
                    from newly created ${activeChainInfo.denom}. The total supply of ${activeChainInfo.denom} is inflated to reward stakers. ${activeChainInfo.denom} holders that do not stake do not receive rewards, meaning their ${activeChainInfo.denom} get diluted over time.
@@ -659,11 +703,13 @@ export default function Stake() {
                    Staking ${activeChainInfo.denom} is not risk-free. If a validator has downtime or underperforms, a percentage of ${activeChainInfo.denom} delegated to them may be forfeited. To mitigate these risks, it is recommended that ${activeChainInfo.denom} holders delegate to multiple validators.
                    Upon unstaking, tokens are locked for a period of ${unstakingPeriod} post which you will automatically get them back in your wallet.
                    `}
-                  </ReadMoreText>
+                      </ReadMoreText>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </PopupLayout>
 

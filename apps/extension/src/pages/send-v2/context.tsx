@@ -24,7 +24,7 @@ export const SendContext = createContext<SendContextType | null>(null)
 
 type SendContextProviderProps = {
   activeChain: SupportedChain
-} & React.PropsWithChildren
+} & React.PropsWithChildren<any>
 
 export const SendContextProvider: React.FC<SendContextProviderProps> = ({ children }) => {
   const { tokenFiatValue, feeTokenFiatValue, confirmSend, selectedToken, ...rest } = useSendModule()

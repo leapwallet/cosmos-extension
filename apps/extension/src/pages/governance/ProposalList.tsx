@@ -4,6 +4,7 @@ import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomModal from 'components/bottom-modal'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
+import { ComingSoon } from 'components/coming-soon'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
@@ -147,91 +148,109 @@ function ProposalList({
         }
       >
         <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-        {showSelectedChainAlert && !isCompassWallet() && (
-          <AlertStrip
-            message={`You are on ${activeChainInfo.chainName}${
-              isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
-            }`}
-            bgColor={themeColor}
-            alwaysShow={isTestnet}
-            onHide={() => {
-              setShowSelectedChainAlert(false)
-            }}
-          />
-        )}
-        <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
-          <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>Proposals</div>
-          <div className='text-sm text-gray-600 font-bold'>
-            List of proposals in {activeChainInfo.chainName}
-          </div>
-          <div className='flex items-center justify-between mt-6 mb-4'>
-            <div className='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
-              <input
-                placeholder='search proposals...'
-                className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
-                onChange={handleFilterChange}
+
+        {activeChain === 'nomic' ? (
+          <ComingSoon />
+        ) : (
+          <>
+            {showSelectedChainAlert && !isCompassWallet() && (
+              <AlertStrip
+                message={`You are on ${activeChainInfo.chainName}${
+                  isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
+                }`}
+                bgColor={themeColor}
+                alwaysShow={isTestnet}
+                onHide={() => {
+                  setShowSelectedChainAlert(false)
+                }}
               />
-              <img src={Images.Misc.SearchIcon} />
+            )}
+
+            <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
+              <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>
+                Proposals
+              </div>
+              <div className='text-sm text-gray-600 font-bold'>
+                List of proposals in {activeChainInfo.chainName}
+              </div>
+
+              <div className='flex items-center justify-between mt-6 mb-4'>
+                <div className='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
+                  <input
+                    placeholder='search proposals...'
+                    className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
+                    onChange={handleFilterChange}
+                  />
+                  <img src={Images.Misc.SearchIcon} />
+                </div>
+
+                <button
+                  className='flex items-center justify-center h-10 bg-white-100 dark:bg-gray-900 rounded-full w-10 m-w-10 ml-3'
+                  style={{ minWidth: 40 }}
+                  onClick={() => setShowFilter(true)}
+                >
+                  <span className='material-icons-round dark:text-white-100 text-gray-800'>
+                    sort
+                  </span>
+                </button>
+              </div>
             </div>
-            <button
-              className='flex items-center justify-center h-10 bg-white-100 dark:bg-gray-900 rounded-full w-10 m-w-10 ml-3'
-              style={{ minWidth: 40 }}
-              onClick={() => setShowFilter(true)}
-            >
-              <span className='material-icons-round dark:text-white-100 text-gray-800'>sort</span>
-            </button>
-          </div>
-        </div>
-        <div id='governance-list' className='pb-20'>
-          <div className='rounded-2xl flex flex-col items-center w-[344px] m-auto justify-center dark:bg-gray-900 bg-white-100'>
-            {loading ? (
-              <GovCardSkeleton />
-            ) : (filteredProposalList?.length ?? 0) === 0 ? (
-              <EmptyCard
-                isRounded
-                subHeading={propFilter ? 'Please try again with something else' : ''}
-                heading={
-                  propFilter
-                    ? 'No results for “' + sliceSearchWord(propFilter) + '”'
-                    : 'No Proposals'
-                }
-                src={Images.Misc.Explore}
-              />
-            ) : (
-              filteredProposalList?.map((prop: any, index) => {
-                return (
-                  <div key={prop.proposal_id} className='w-full'>
-                    <div className='p-4 cursor-pointer' onClick={() => onClick(prop.proposal_id)}>
-                      <div className='flex items-center justify-between'>
-                        <div className='w-[272px]'>
-                          <div className='flex flex-col'>
-                            <div className='text-black-100 dark:text-white-100 font-bold text-base break-words'>
-                              {prop.content.title}
+
+            <div id='governance-list' className='pb-20'>
+              <div className='rounded-2xl flex flex-col items-center w-[344px] m-auto justify-center dark:bg-gray-900 bg-white-100'>
+                {loading ? (
+                  <GovCardSkeleton />
+                ) : (filteredProposalList?.length ?? 0) === 0 ? (
+                  <EmptyCard
+                    isRounded
+                    subHeading={propFilter ? 'Please try again with something else' : ''}
+                    heading={
+                      propFilter
+                        ? 'No results for “' + sliceSearchWord(propFilter) + '”'
+                        : 'No Proposals'
+                    }
+                    src={Images.Misc.Explore}
+                  />
+                ) : (
+                  filteredProposalList?.map((prop: any, index) => {
+                    return (
+                      <div key={prop.proposal_id} className='w-full'>
+                        <div
+                          className='p-4 cursor-pointer'
+                          onClick={() => onClick(prop.proposal_id)}
+                        >
+                          <div className='flex items-center justify-between'>
+                            <div className='w-[272px]'>
+                              <div className='flex flex-col'>
+                                <div className='text-black-100 dark:text-white-100 font-bold text-base break-words'>
+                                  {prop.content.title}
+                                </div>
+                                <div className='text-gray-600 dark:text-gray-200 text-xs'>
+                                  #{prop.proposal_id} ·{' '}
+                                  <Status status={prop.status as unknown as ProposalStatus} />
+                                </div>
+                              </div>
                             </div>
-                            <div className='text-gray-600 dark:text-gray-200 text-xs'>
-                              #{prop.proposal_id} ·{' '}
-                              <Status status={prop.status as unknown as ProposalStatus} />
-                            </div>
+                            <img className='ml-5' src={Images.Misc.RightArrow} />
                           </div>
                         </div>
-                        <img className='ml-5' src={Images.Misc.RightArrow} />
+                        {index < filteredProposalList.length - 1 ? <CardDivider /> : null}
                       </div>
-                    </div>
-                    {index < filteredProposalList.length - 1 ? <CardDivider /> : null}
-                  </div>
-                )
-              })
-            )}
-          </div>
+                    )
+                  })
+                )}
+              </div>
 
-          <div id='bottom' className='my-1' />
+              <div id='bottom' className='my-1' />
 
-          {proposalListStatus === 'fetching-more' ? (
-            <div className='px-7 flex items-center justify-center'>
-              <LoaderAnimation color='white' />
+              {proposalListStatus === 'fetching-more' ? (
+                <div className='px-7 flex items-center justify-center'>
+                  <LoaderAnimation color='white' />
+                </div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </>
+        )}
       </PopupLayout>
 
       <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />

@@ -16,6 +16,7 @@ import Text from 'components/text'
 import { motion } from 'framer-motion'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
+import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -69,6 +70,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const contactsToShow = useContactsSearch(recipientInputValue)
   const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
   const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
+  const defaultTokenLogo = useDefaultTokenLogo()
 
   const handleOnChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,7 +240,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     try {
       const { prefix } = bech32.decode(cleanInputValue)
       const _chain = addressPrefixes[prefix] as SupportedChain
-      const img = chains[_chain].chainSymbolImageUrl
+      const img = chains[_chain]?.chainSymbolImageUrl ?? defaultTokenLogo
 
       setSelectedAddress({
         address: cleanInputValue,
@@ -252,6 +254,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     } catch (err) {
       //
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     addressPrefixes,
     chains,
@@ -270,7 +274,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         existingContactMatch.blockchain !== selectedAddress?.chainName
 
       if (shouldUpdate) {
-        const img = chains[existingContactMatch.blockchain].chainSymbolImageUrl
+        const img = chains[existingContactMatch.blockchain]?.chainSymbolImageUrl ?? defaultTokenLogo
         setSelectedAddress({
           address: existingContactMatch.address,
           name: existingContactMatch.name,
@@ -283,6 +287,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         setMemo(existingContactMatch.memo ?? '')
       }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     chains,
     existingContactMatch,
