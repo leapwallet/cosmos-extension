@@ -178,7 +178,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
       <GasPriceOptions
         recommendedGasLimit={recommendedGasLimit}
         gasLimit={gasLimit}
-        setGasLimit={(value) => setGasLimit(value.toString())}
+        setGasLimit={(value: number) => setGasLimit(value.toString())}
         gasPriceOption={gasPriceOption}
         onGasPriceOptionChange={handleGasPriceOptionChange}
         error={gasError}

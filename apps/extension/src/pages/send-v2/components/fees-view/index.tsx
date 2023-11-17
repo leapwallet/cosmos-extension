@@ -58,7 +58,7 @@ export const FeesView: React.FC = () => {
       <GasPriceOptions
         recommendedGasLimit={gasEstimate.toString()}
         gasLimit={userPreferredGasLimit?.toString() ?? gasEstimate.toString()}
-        setGasLimit={(value) => setUserPreferredGasLimit(Number(value.toString()))}
+        setGasLimit={(value: number) => setUserPreferredGasLimit(Number(value.toString()))}
         gasPriceOption={gasPriceOption}
         onGasPriceOptionChange={handleGasPriceOptionChange}
         error={gasError}

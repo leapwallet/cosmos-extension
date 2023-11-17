@@ -26,6 +26,8 @@ type ReviewNFTTransactionSheetProps = {
   fee?: StdFee
   showLedgerPopup: boolean
   loading: boolean
+  memo: string
+  setMemo: (s: string) => void
 }
 
 export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = ({
@@ -38,10 +40,11 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
   showLedgerPopup,
   onConfirm,
   loading,
+  memo,
+  setMemo,
 }) => {
   const defaultTokenLogo = useDefaultTokenLogo()
   const [txError, setTxError] = useState('')
-  const [memo, setMemo] = useState('')
 
   if (showLedgerPopup && txError) {
     return <LedgerConfirmationPopup showLedgerPopup />

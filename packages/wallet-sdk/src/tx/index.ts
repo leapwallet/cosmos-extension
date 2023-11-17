@@ -1,6 +1,7 @@
 export * from './ethermint';
 export * from './fee';
 export * from './injectiveTx';
+export * from './msgs';
 export * from './nft-transfer';
 export * from './seiTx';
 export * from './simulate';

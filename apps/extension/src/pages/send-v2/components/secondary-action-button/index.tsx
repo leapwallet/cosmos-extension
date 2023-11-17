@@ -7,7 +7,7 @@ type SecondaryActionButtonProps = {
   leftIcon?: string
   className?: string
   actionLabel: string
-} & React.PropsWithChildren
+} & React.PropsWithChildren<any>
 
 export const SecondaryActionButton: React.FC<SecondaryActionButtonProps> = ({
   actionLabel,

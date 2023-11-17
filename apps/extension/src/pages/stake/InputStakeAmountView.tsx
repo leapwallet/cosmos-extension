@@ -40,7 +40,12 @@ import useGetWallet = Wallet.useGetWallet
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import { Colors } from 'theme/colors'
 
-export type STAKE_MODE = 'DELEGATE' | 'UNDELEGATE' | 'REDELEGATE' | 'CLAIM_REWARDS'
+export type STAKE_MODE =
+  | 'DELEGATE'
+  | 'UNDELEGATE'
+  | 'REDELEGATE'
+  | 'CLAIM_REWARDS'
+  | 'CANCEL_UNDELEGATION'
 
 export default function InputStakeAmountView({
   toValidator,
@@ -177,7 +182,7 @@ export default function InputStakeAmountView({
     <GasPriceOptions
       recommendedGasLimit={recommendedGasLimit}
       gasLimit={gasLimit}
-      setGasLimit={(value) => setGasLimit(value.toString())}
+      setGasLimit={(value: number) => setGasLimit(value.toString())}
       gasPriceOption={gasPriceOption}
       onGasPriceOptionChange={onGasPriceOptionChange}
       error={gasError}

@@ -15,16 +15,16 @@ import { getClientState } from '../utils';
 import { sleep } from '../utils/sleep';
 
 export class EthermintTxHandler {
-  private chain: transactions.Chain;
+  protected chain: transactions.Chain;
 
-  constructor(private restUrl: string, private wallet: EthWallet, private chainId?: string) {
+  constructor(private restUrl: string, protected wallet: EthWallet, private chainId?: string) {
     this.chain = {
       chainId: 123,
       cosmosChainId: chainId ? chainId : 'evmos_9001-2',
     };
   }
 
-  private static getFeeObject(fee: StdFee): transactions.Fee {
+  protected static getFeeObject(fee: StdFee): transactions.Fee {
     return {
       amount: fee.amount[0].amount,
       denom: fee.amount[0].denom,
@@ -289,7 +289,7 @@ export class EthermintTxHandler {
     };
   }
 
-  private async getSender(address: string, pubkey: string): Promise<transactions.Sender> {
+  protected async getSender(address: string, pubkey: string): Promise<transactions.Sender> {
     const account = await fetchAccountDetails(this.restUrl ?? '', address);
 
     return {

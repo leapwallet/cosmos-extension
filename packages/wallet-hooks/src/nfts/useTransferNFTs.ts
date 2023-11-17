@@ -7,7 +7,6 @@ import {
   Dict,
   EthermintTxHandler,
   fromSmall,
-  getSourceChainChannelId,
   InjectiveTx,
   NativeDenom,
   SigningSscrt,
@@ -17,11 +16,13 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/tx/nft-transfer/contract';
 import { Coin } from '@leapwallet/parser-parfait';
+import { NFTSendTransaction, TransactionMetadata } from 'apis/types/txLoggingTypes';
 import { BigNumber } from 'bignumber.js';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
 
+import { LeapWalletApi } from '../apis';
 import { CosmosTxType } from '../connectors';
 import { useGasAdjustment } from '../fees';
 import {
@@ -77,15 +78,6 @@ export type sendNFTTokensReturnType =
       };
     };
 
-const getSourceChannelIdUnsafe = async (srcChain: string, destChain: string): Promise<string | undefined> => {
-  try {
-    const id = await getSourceChainChannelId(srcChain, destChain);
-    return id;
-  } catch (e) {
-    return undefined;
-  }
-};
-
 export const useSendNft = (forceChain?: SupportedChain) => {
   const [showLedgerPopup, setShowLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -93,6 +85,7 @@ export const useSendNft = (forceChain?: SupportedChain) => {
   const { setPendingTx } = usePendingTxState();
   const activeChain = useActiveChain();
   const selectedNetwork = useSelectedNetwork();
+  const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
   const defaultGasEstimates = useDefaultGasEstimates();
 
@@ -159,7 +152,7 @@ export const useSendNft = (forceChain?: SupportedChain) => {
     collectionId: string;
     memo: string;
   }) => {
-    if (!rpcUrl || !lcdUrl) return;
+    if (!rpcUrl || !lcdUrl || !toAddress || !fromAddress) return;
     const tx = {
       msg: {
         transfer_nft: {
@@ -257,13 +250,20 @@ export const useSendNft = (forceChain?: SupportedChain) => {
               } as PendingTx,
               data: {
                 txHash,
-                txType: 'send',
-                metadata: {},
+                txType: CosmosTxType.NFTSend,
+                metadata: {
+                  toAddress: toAddress,
+                  token: {
+                    tokenId: tokenId,
+                    collectionId: collectionId,
+                  },
+                } as NFTSendTransaction,
                 feeDenomination: fees.amount[0].denom,
                 feeQuantity: fees.amount[0].amount,
               },
             };
 
+            txPostToDB(_result.data);
             setPendingTx({ ..._result.pendingTx, toAddress: toAddress });
             return _result;
           }

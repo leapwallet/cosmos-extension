@@ -17,6 +17,7 @@ import LeapLogo from './leap-logo.svg'
 import LeapLogo28 from './leap-logo-28.svg'
 import Metamask from './metamask.svg'
 import NftLogo from './nft-logo.svg'
+import NomicFullnameLogo from './nomic-fullname-logo.svg'
 import Osmosis from './osmosis.svg'
 import SpaceId from './space-id.svg'
 import StargazeNames from './stargaze-names.svg'
@@ -70,7 +71,6 @@ const ChainLogos: Record<string, string | undefined> = {
   terra: ChainInfos.terra.chainSymbolImageUrl,
   quasar: ChainInfos.quasar.chainSymbolImageUrl,
   neutron: ChainInfos.neutron.chainSymbolImageUrl,
-  coreum: ChainInfos.coreum.chainSymbolImageUrl,
   mainCoreum: ChainInfos.mainCoreum.chainSymbolImageUrl,
   quicksilver: ChainInfos.quicksilver.chainSymbolImageUrl,
   migaloo: ChainInfos.migaloo.chainSymbolImageUrl,
@@ -84,8 +84,9 @@ const ChainLogos: Record<string, string | undefined> = {
   mayachain: ChainInfos.mayachain.chainSymbolImageUrl,
   empowerchain: ChainInfos.empowerchain.chainSymbolImageUrl,
   dydx: ChainInfos.dydx.chainSymbolImageUrl,
-  celestiatestnet3: ChainInfos.celestiatestnet3.chainSymbolImageUrl,
+  celestia: ChainInfos.celestia.chainSymbolImageUrl,
   sge: ChainInfos.sge.chainSymbolImageUrl,
+  nomic: ChainInfos.nomic.chainSymbolImageUrl,
   xpla: ChainInfos.xpla.chainSymbolImageUrl,
   provenance: ChainInfos.provenance.chainSymbolImageUrl,
   aura: ChainInfos.aura.chainSymbolImageUrl,
@@ -151,6 +152,7 @@ export {
   LeapLogo28,
   Metamask,
   NftLogo,
+  NomicFullnameLogo,
   StargazeNames,
   TerraStation,
 }

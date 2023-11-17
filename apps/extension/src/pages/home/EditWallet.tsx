@@ -4,12 +4,14 @@ import { Buttons, Header, HeaderActionType, Input, ThemeName, useTheme } from '@
 import classNames from 'classnames'
 import { ErrorCard } from 'components/ErrorCard'
 import IconButton from 'components/icon-button'
+import { LEDGER_NAME_EDITED_SUFFIX, LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import React, { ChangeEventHandler, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
+import { formatWalletName } from 'utils/formatWalletName'
 import { sliceAddress } from 'utils/strings'
 
 import BottomSheet from '../../components/bottom-sheet/BottomSheet'
@@ -45,14 +47,18 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
   const handleSaveChanges = async () => {
     if (name) {
       try {
+        const walletName =
+          wallet.walletType === WALLETTYPE.LEDGER
+            ? `${name.trim()}${LEDGER_NAME_EDITED_SUFFIX}`
+            : name.trim()
         await KeyChain.EditWallet({
           walletId: wallet.id,
-          name: name.trim(),
+          name: walletName,
           colorIndex: colorIndex,
         })
 
         if (wallet.id === activeWallet?.id) {
-          setActiveWallet({ ...activeWallet, name, colorIndex })
+          setActiveWallet({ ...activeWallet, name: walletName, colorIndex })
         }
 
         onClose(false)
@@ -120,12 +126,12 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
                 }}
               />
             )}
-            {wallet && wallet.walletType !== WALLETTYPE.LEDGER ? (
+            {wallet ? (
               <div className='flex relative justify-center shrink w-[312px]'>
                 <Input
                   placeholder='Enter wallet Name'
                   maxLength={24}
-                  value={name}
+                  value={name.replace(LEDGER_NAME_EDITED_SUFFIX_REGEX, '')}
                   onChange={handleInputChange}
                 />
                 <div className='absolute right-[16px] top-[14px] text-gray-400 text-sm font-medium'>{`${name.length}/24`}</div>

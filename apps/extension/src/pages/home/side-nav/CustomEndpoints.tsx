@@ -31,18 +31,28 @@ export function SelectChainSheet({
   onChainSelect,
   selectedChain,
   onPage,
+  chainsToShow,
 }: SelectChainSheetProps) {
   return (
     <BottomSheet
       isVisible={isVisible}
       onClose={onClose}
-      headerTitle='Select Chain'
-      headerActionType={HeaderActionType.CANCEL}
       closeOnClickBackDrop={true}
+      customHeader={() => {
+        return <div />
+      }}
     >
-      <div className='h-[400px]'>
-        <ListChains selectedChain={selectedChain} onChainSelect={onChainSelect} onPage={onPage} />
-      </div>
+      <ListChains
+        selectedChain={selectedChain}
+        onChainSelect={onChainSelect}
+        onPage={onPage}
+        headerTitle='Select Chain'
+        headerAction={{
+          type: HeaderActionType.CANCEL,
+          onClick: onClose,
+        }}
+        chainsToShow={chainsToShow}
+      />
     </BottomSheet>
   )
 }

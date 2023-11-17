@@ -22,6 +22,8 @@ import {
 import { useInitSnipDenoms } from '@leapwallet/cosmos-wallet-hooks/dist/utils/useInitSnipDenoms'
 import { LeapUiTheme } from '@leapwallet/leap-ui'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
+import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
+import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import { useInitFavouriteNFTs, useInitHiddenNFTs, useInitIsCompassWallet } from 'hooks/settings'
 import { useInitiateCurrencyPreference } from 'hooks/settings/useCurrency'
 import { useInitHideAssets } from 'hooks/settings/useHideAssets'
@@ -49,6 +51,8 @@ export default function App() {
   useInitTheme()
   useInitiateCurrencyPreference()
   useInitCoingeckoPrices()
+
+  useInitAnalytics()
 
   useInitHideAssets()
   useInitHideSmallBalances()
@@ -92,6 +96,7 @@ export default function App() {
   // initialize request cache
   // useInitRequestCache()
   useInitNodeUrls(setNodeUrlInitialised)
+  useNomicBTCDepositConstants()
 
   return (
     <LeapUiTheme defaultTheme={theme} forcedTheme={theme}>

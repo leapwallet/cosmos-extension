@@ -58,7 +58,7 @@ const base_config = {
         exclude: /node_modules/,
         options: {
           loader: 'jsx',
-          target: 'es2015',
+          target: 'es2020',
         },
       },
       {
@@ -67,7 +67,7 @@ const base_config = {
         exclude: /node_modules/,
         options: {
           loader: 'tsx',
-          target: 'es2015',
+          target: 'es2020',
         },
       },
       {
@@ -195,7 +195,7 @@ module.exports = (env, argv) => {
         usedExports: true,
         minimizer: [
           new ESBuildMinifyPlugin({
-            target: 'es2015',
+            target: 'es2020',
           }),
         ],
       },
@@ -254,7 +254,7 @@ module.exports = (env, argv) => {
           usedExports: true,
           minimizer: [
             new ESBuildMinifyPlugin({
-              target: 'es2015',
+              target: 'es2020',
             }),
           ],
         },

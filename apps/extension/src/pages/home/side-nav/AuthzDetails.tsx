@@ -10,6 +10,7 @@ import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
+import { formatAuthzDate } from 'utils/formatAuthzDate'
 
 import { useAuthZContext } from './ManageAuthZ'
 
@@ -77,7 +78,7 @@ function FeesView() {
       <GasPriceOptions
         recommendedGasLimit={gasEstimate.toString()}
         gasLimit={userPreferredGasLimit?.toString() ?? gasEstimate.toString()}
-        setGasLimit={(value) => setUserPreferredGasLimit(Number(value.toString()))}
+        setGasLimit={(value: number) => setUserPreferredGasLimit(Number(value.toString()))}
         gasPriceOption={gasPriceOption}
         onGasPriceOptionChange={handleGasPriceOptionChange}
         error={gasError}
@@ -108,24 +109,8 @@ export function AuthzDetails({ goBack, grant }: { goBack: () => void; grant: Gra
 
   const date = useMemo(() => {
     let _date = ''
-
     if (grant.expiration) {
-      const dateNtime = new Date(grant.expiration)
-      const todayDate = new Date()
-
-      if (todayDate > dateNtime) {
-        _date = 'Expired'
-      } else {
-        _date = `Expiration Date: ${dateNtime.toLocaleDateString('en-US', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        })}, ${
-          dateNtime.getHours() === 0
-            ? 24
-            : (dateNtime.getHours() < 10 ? '0' : '') + dateNtime.getHours()
-        }:${(dateNtime.getMinutes() < 10 ? '0' : '') + dateNtime.getMinutes()}`
-      }
+      _date = formatAuthzDate(grant.expiration)
     }
 
     return _date

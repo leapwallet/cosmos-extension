@@ -1,4 +1,4 @@
-import { AminoSignResponse, encodeSecp256k1Pubkey, StdSignDoc } from '@cosmjs/amino'
+import { AminoSignResponse, encodeSecp256k1Pubkey } from '@cosmjs/amino'
 import { fromBase64 } from '@cosmjs/encoding'
 import { Int53 } from '@cosmjs/math'
 import {
@@ -141,6 +141,16 @@ const registry = new Registry([
 
 import LogCosmosDappTx = LeapWalletApi.LogCosmosDappTx
 
+export function getTxHashFromDirectSignResponse(data: DirectSignResponse): string {
+  const txHash = getTxHashFromSignedTx({
+    authInfoBytes: data.signed.authInfoBytes,
+    bodyBytes: data.signed.bodyBytes,
+    signatures: [fromBase64(data.signature.signature)],
+  })
+
+  return txHash
+}
+
 export async function logDirectTx(
   data: DirectSignResponse,
   signDoc: SignDoc,
@@ -156,11 +166,8 @@ export async function logDirectTx(
     return
   }
 
-  const txHash = getTxHashFromSignedTx({
-    authInfoBytes: data.signed.authInfoBytes,
-    bodyBytes: data.signed.bodyBytes,
-    signatures: [fromBase64(data.signature.signature)],
-  })
+  const txHash = getTxHashFromDirectSignResponse(data)
+
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   //@ts-ignore
   const tx = new DirectSignDocDecoder(signDoc)
@@ -180,14 +187,14 @@ export async function logDirectTx(
   })
 }
 
-export async function logSignAmino(
+/**
+ * Converts amino JSON data into direct signed data and signs the bytes. Returns the tx hash.
+ * This will throw an error if the message type is not in the registry.
+ */
+export function getTxHashFromAminoSignResponse(
   data: AminoSignResponse,
   pubkey: Uint8Array,
-  txPostToDb: LogCosmosDappTx,
-  chain: SupportedChain,
-  address: string,
-  origin: string,
-) {
+): string {
   const signedTxBody = {
     messages: data.signed.msgs.map((msg) => aminoTypes.fromAmino(msg)),
     memo: data.signed.memo,
@@ -217,6 +224,19 @@ export async function logSignAmino(
     bodyBytes: signedTxBodyBytes,
     signatures: [fromBase64(data.signature.signature)],
   })
+
+  return txHash
+}
+
+export async function logSignAmino(
+  data: AminoSignResponse,
+  pubkey: Uint8Array,
+  txPostToDb: LogCosmosDappTx,
+  chain: SupportedChain,
+  address: string,
+  origin: string,
+) {
+  const txHash = getTxHashFromAminoSignResponse(data, pubkey)
 
   await txPostToDb({
     txHash,

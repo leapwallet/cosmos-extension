@@ -62,7 +62,7 @@ export const useDefaultGasPrice = (options?: {
   return defaultPrice
 }
 
-export type GasPriceOptionsProps = React.PropsWithChildren & {
+export type GasPriceOptionsProps = React.PropsWithChildren<any> & {
   className?: string
   recommendedGasLimit?: BigNumber | string
   gasLimit: BigNumber | string
@@ -112,7 +112,7 @@ const GasPriceOptions = ({
   }, [activeChain])
 
   const { chains } = useChainsStore()
-  const chainInfo = chains[activeChain]
+  const chainInfo = chains[activeChain as SupportedChain]
   const defaultGasEstimates = useDefaultGasEstimates()
   const gasAdjustment = useGasAdjustment()
 
@@ -195,7 +195,7 @@ const GasPriceOptions = ({
   const [finalRecommendedGasLimit, setFinalRecommendedGasLimit] = useState(() => {
     return (
       recommendedGasLimit?.toString() ??
-      defaultGasEstimates[activeChain].DEFAULT_GAS_TRANSFER.toString() ??
+      defaultGasEstimates[activeChain as SupportedChain].DEFAULT_GAS_TRANSFER.toString() ??
       DefaultGasEstimates.DEFAULT_GAS_TRANSFER.toString()
     )
   })
@@ -271,7 +271,7 @@ const GasPriceOptions = ({
       setError(null)
       return
     }
-    if (!feeTokenAsset) {
+    if (!feeTokenAsset && feeTokenData?.denom.coinDenom) {
       return setError(`You do not have any ${feeTokenData?.denom.coinDenom} tokens`)
     }
     const isIbcDenom = !!feeTokenAsset?.ibcDenom
@@ -284,9 +284,9 @@ const GasPriceOptions = ({
 
     if (
       (isIbcDenom && feeTokenAsset?.ibcDenom === feeTokenData?.ibcDenom) ||
-      feeTokenAsset.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
+      feeTokenAsset?.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
     ) {
-      if (amount.isGreaterThan(feeTokenAsset.amount ?? 0)) {
+      if (amount.isGreaterThan(feeTokenAsset?.amount ?? 0)) {
         setError(
           `You don't have enough ${feeTokenData?.denom.coinDenom.toUpperCase()} to pay gas fees`,
         )

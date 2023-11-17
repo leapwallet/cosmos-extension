@@ -33,7 +33,13 @@ import {
   useIbcTraceStore,
   useSelectedNetwork,
 } from '../store';
-import { fetchCurrency, getCoreumHybridTokenInfo, sortTokenBalances, useSetDisabledCW20InStorage } from '../utils';
+import {
+  fetchCurrency,
+  getCoreumHybridTokenInfo,
+  isTerraClassic,
+  sortTokenBalances,
+  useSetDisabledCW20InStorage,
+} from '../utils';
 import { bankQueryIds } from './queryIds';
 
 export function useInvalidateTokenBalances() {
@@ -339,8 +345,8 @@ function useIbcTokensBalances(
           channelId: trace.channelId,
         };
 
-        //const denomChain = isTerraClassic(trace?.originChainId) ? 'terra-classic' : chainInfo?.path ?? '';
-        const _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
+        let _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
+        _baseDenom = isTerraClassic(trace?.originChainId) ? 'lunc' : baseDenom;
         const denomInfo = denoms[_baseDenom];
 
         //const denomInfo = await getDenomInfo(_baseDenom, denomChain, denoms, selectedNetwork === 'testnet');
@@ -350,7 +356,7 @@ function useIbcTokensBalances(
           name: denomInfo?.name,
           amount: qty,
           symbol: denomInfo?.coinDenom ?? _baseDenom ?? '',
-          coinMinimalDenom: denomInfo?.coinMinimalDenom ?? '',
+          coinMinimalDenom: denomInfo?.coinMinimalDenom ?? _baseDenom ?? '',
           img: denomInfo?.icon ?? '',
           ibcDenom: denom,
           ibcChainInfo,

@@ -1,3 +1,4 @@
+export * from './cached-remote-data';
 export * from './convertScrtToDenom';
 export * from './DenomFetcher';
 export * from './findUSDValue';

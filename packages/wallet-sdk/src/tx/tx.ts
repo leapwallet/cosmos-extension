@@ -18,6 +18,7 @@ import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import { MsgGrant, MsgRevoke } from 'cosmjs-types/cosmos/authz/v1beta1/tx.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { StakeAuthorization } from 'cosmjs-types/cosmos/staking/v1beta1/authz';
+import { MsgCancelUnbondingDelegation } from 'cosmjs-types/cosmos/staking/v1beta1/tx.js';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 
@@ -26,6 +27,7 @@ import { StridePeriodicVestingAccount } from './liquidStakeRegistry/stride/perio
 import {
   buildGrantMsg,
   buildRevokeMsg,
+  getCancelUnDelegationMsg,
   getDelegateMsg,
   getIbcTransferMsg,
   getRedelegateMsg,
@@ -87,6 +89,7 @@ export class Tx {
     });
     this.client.registry.register('/cosmos.authz.v1beta1.MsgGrant', MsgGrant);
     this.client.registry.register('/cosmos.authz.v1beta1.MsgRevoke', MsgRevoke);
+    this.client.registry.register('/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation', MsgCancelUnbondingDelegation);
   }
 
   async grantRestake(
@@ -251,6 +254,18 @@ export class Tx {
     return await this.signAndBroadcastTx(delegatorAddress, [undelegateMsg], fee, memo);
   }
 
+  async cancelUnDelegation(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    creationHeight: string,
+    fee: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    const cancleUndelegateMsg = getCancelUnDelegationMsg(delegatorAddress, validatorAddress, amount, creationHeight);
+    return await this.signAndBroadcastTx(delegatorAddress, [cancleUndelegateMsg], fee, memo);
+  }
+
   async simulateUnDelegate(delegatorAddress: string, validatorAddress: string, amount: Coin, memo?: string) {
     const msg = getUnDelegateMsg(delegatorAddress, validatorAddress, amount);
     const result = await this.client?.simulate(delegatorAddress, [msg], memo);
@@ -328,7 +343,7 @@ export class Tx {
     }
   }
 
-  private async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = '') {
+  async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = '') {
     let usedFee: StdFee;
     if (fee === 'auto' || typeof fee === 'number') {
       if (!this.options?.gasPrice) {

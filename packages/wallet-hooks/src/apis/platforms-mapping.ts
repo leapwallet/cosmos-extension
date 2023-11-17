@@ -91,7 +91,7 @@ export const platforms: Record<string, Platform> = {
   // @ts-ignore
   sge: 'SGE',
   // @ts-ignore
-  celestiatestnet3: 'CELESTIA_TESTNET',
+  celestia: 'CELESTIA',
   // @ts-ignore
   xpla: 'XPLA',
 };
@@ -163,6 +163,6 @@ export const platformToChain: Record<Platform, string> = {
   DYDX: 'dydx',
   GITOPIA: 'gitopia',
   SGE: 'sge',
-  CELESTIA_TESTNET: 'celestiatestnet3',
+  CELESTIA: 'celestia',
   XPLA: 'xpla',
 };

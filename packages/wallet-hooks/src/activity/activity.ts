@@ -182,6 +182,7 @@ export function useActivity(
   forceNetwork?: 'mainnet' | 'testnet',
 ): {
   txResponse: TxResponse;
+  activityData: Activity[];
 } {
   const userAddress = useAddress();
   const chain = useActiveChain();
@@ -335,5 +336,6 @@ export function useActivity(
       loading: status === 'loading',
       error: status === 'error',
     },
+    activityData: data as Activity[],
   };
 }

@@ -4,6 +4,8 @@ import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
+import { PageName } from 'config/analytics'
+import { usePageView } from 'hooks/analytics/usePageView'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
@@ -22,6 +24,8 @@ import InvestViewContainer from './invest-view'
 import type { DisplaySettings } from './types'
 
 export default function EarnPage() {
+  usePageView(PageName.Earn)
+
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showDisplaySettings, setShowDisplaySettings] = useState(false)

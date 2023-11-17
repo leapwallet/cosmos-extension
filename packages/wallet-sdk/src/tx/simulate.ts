@@ -5,7 +5,12 @@ import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { MsgVote } from 'cosmjs-types/cosmos/gov/v1beta1/tx';
 import { StakeAuthorization } from 'cosmjs-types/cosmos/staking/v1beta1/authz';
-import { MsgBeginRedelegate, MsgDelegate, MsgUndelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
+import {
+  MsgBeginRedelegate,
+  MsgCancelUnbondingDelegation,
+  MsgDelegate,
+  MsgUndelegate,
+} from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
 import { AuthInfo, Fee, SignerInfo, TxBody, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
@@ -15,6 +20,7 @@ import { fetchAccountDetails } from '../accounts';
 import { axiosWrapper } from '../healthy-nodes';
 import {
   buildGrantMsg,
+  getCancelUnDelegationMsg,
   getDelegateMsg,
   getIbcTransferMsg,
   getRedelegateMsg,
@@ -86,6 +92,23 @@ export async function simulateUndelegate(
     value: MsgUndelegate.encode(msg.value).finish(),
   };
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
+}
+
+export async function simulateCancelUndelegation(
+  lcdEndpoint: string,
+  fromAddress: string,
+  validatorAddress: string,
+  amount: Coin,
+  creationHeight: string,
+  fee: Coin[],
+) {
+  const msg = getCancelUnDelegationMsg(fromAddress, validatorAddress, amount, creationHeight);
+  const encodedMsg = {
+    typeUrl: msg.typeUrl,
+    value: MsgCancelUnbondingDelegation.encode(msg.value).finish(),
+  };
+  // retryCount=5 to get error on first fail
+  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee }, '', 5, 'cancel-undelegation');
 }
 
 export async function simulateRedelegate(
@@ -220,6 +243,8 @@ export async function simulateTx(
   msgs: any[],
   fee: Omit<StdFee, 'gas'> = { amount: [] },
   memo = '',
+  retryCount?: number,
+  callFor?: string,
 ) {
   const account = await fetchAccountDetails(lcd, signerAddress);
 
@@ -254,18 +279,29 @@ export async function simulateTx(
     signatures: [new Uint8Array(64)],
   }).finish();
 
-  const result = await axiosWrapper({
-    baseURL: lcd,
-    method: 'post',
-    url: '/cosmos/tx/v1beta1/simulate',
-    timeout: 20_000,
-    data: {
-      tx_bytes: Buffer.from(unsignedTx).toString('base64'),
+  const result = await axiosWrapper(
+    {
+      baseURL: lcd,
+      method: 'post',
+      url: '/cosmos/tx/v1beta1/simulate',
+      timeout: 20_000,
+      data: {
+        tx_bytes: Buffer.from(unsignedTx).toString('base64'),
+      },
     },
-  });
+    retryCount,
+    callFor,
+  );
 
-  // @ts-ignore
-  if (result && result.code === 'ERR_BAD_RESPONSE' && result.response && result.response.data) {
+  if (
+    result &&
+    // @ts-ignore
+    (result.code === 'ERR_BAD_RESPONSE' || result.code === 'ERR_BAD_REQUEST') &&
+    // @ts-ignore
+    result.response &&
+    // @ts-ignore
+    result.response.data
+  ) {
     // @ts-ignore
     throw new Error(result.response.data.message);
   }

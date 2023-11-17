@@ -16,6 +16,14 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  adydx: {
+    coinDenom: 'DYDX',
+    coinDecimals: 18,
+    coinMinimalDenom: 'adydx',
+    icon: 'https://assets.leapwallet.io/dydx.png',
+    chain: 'dydx',
+    coinGeckoId: 'dydx',
+  },
   axpla: {
     coinDenom: 'XPLA',
     coinDecimals: 18,
@@ -77,7 +85,7 @@ export const denoms = {
     coinDecimals: 6,
     coinMinimalDenom: 'utia',
     icon: 'https://assets.leapwallet.io/filled-celestia.svg',
-    chain: 'celestiatestnet3',
+    chain: 'celestia',
     coinGeckoId: '',
   },
   dv4tnt: {
@@ -1350,7 +1358,7 @@ export const denoms = {
     coinDenom: 'NOM',
     coinMinimalDenom: 'unom',
     coinDecimals: 6,
-    icon: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/nomic/images/nomic.svg',
+    icon: 'https://assets.leapwallet.io/nomic-logo.svg',
     chain: 'nomic',
     coinGeckoId: '',
   },

@@ -318,7 +318,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
       )}
       {showNavPage !== undefined && getPage()}
       {showFaucetResp.msg && (
-        <center>
+        <div className='text-center'>
           <AlertStrip
             message={showFaucetResp.msg}
             bgColor={showFaucetResp.status === 'success' ? Colors.green600 : Colors.red300}
@@ -329,7 +329,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
             className='absolute bottom-[80px] right-7 left-7 rounded-xl w-80 h-auto p-2 z-50'
             timeOut={6000}
           />
-        </center>
+        </div>
       )}
       {showNavPage === undefined && !showGSDropUp && (
         <div className='flex flex-col h-full'>

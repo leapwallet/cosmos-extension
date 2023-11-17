@@ -27,6 +27,7 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
 
   const { isSending, transferNFTContract, fee, simulateTransferNFTContract } = useSendNft()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [memo, setMemo] = useState('')
 
   const showLedgerPopup = false
 
@@ -49,11 +50,12 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
       fromAddress: address,
       toAddress: selectedAddress?.address,
       tokenId: nftDetails?.tokenId,
-      memo: '',
+      memo: memo,
     })
   }
 
   useEffect(() => {
+    if (isSending || isProcessing) return
     simulate()
   }, [selectedAddress])
 
@@ -76,7 +78,7 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
       fromAddress: address,
       toAddress: selectedAddress?.address,
       tokenId: nftDetails?.tokenId,
-      memo: '',
+      memo: memo,
       fees: fee,
     })
     await queryClient.invalidateQueries([
@@ -128,6 +130,8 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
 
       {selectedAddress && isCompassWallet() && (
         <ReviewNFTTransferSheet
+          memo={memo}
+          setMemo={setMemo}
           nftDetails={nftDetails}
           selectedAddress={selectedAddress}
           themeColor={themeColor}

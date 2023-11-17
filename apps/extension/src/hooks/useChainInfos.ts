@@ -18,8 +18,11 @@ export function useInitChainInfos() {
 
         for (const chainName in betaChains) {
           if (
-            Object.values(ChainInfos).some((chainInfo) =>
-              [chainInfo.chainId, chainInfo.testnetChainId].includes(betaChains[chainName].chainId),
+            Object.values(ChainInfos).some(
+              (chainInfo) =>
+                [chainInfo.chainId, chainInfo.testnetChainId].includes(
+                  betaChains[chainName].chainId,
+                ) && chainInfo.enabled,
             )
           ) {
             delete betaChains[chainName]
@@ -27,10 +30,15 @@ export function useInitChainInfos() {
         }
 
         await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
+        const enabledChains = Object.entries(ChainInfos).reduce((chainInfos, chain) => {
+          if (!chain[1].enabled) {
+            return chainInfos
+          } else return { ...chainInfos, [chain[0]]: chain[1] }
+        }, {})
 
         const _chains = {
           ...betaChains,
-          ...ChainInfos,
+          ...enabledChains,
         }
 
         const customEndpoints = JSON.parse(resp[CUSTOM_ENDPOINTS] ?? '{}')

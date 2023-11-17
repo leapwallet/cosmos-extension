@@ -70,7 +70,7 @@ export const gasAdjustment: Record<SupportedChain, number> = {
   mayachain: 1.5,
   empowerchain: 1.5,
   dydx: 1.5,
-  celestiatestnet3: 1.5,
+  celestia: 1.5,
   sge: 1.5,
   xpla: 1.5,
   provenance: 1.5,

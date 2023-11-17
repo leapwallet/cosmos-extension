@@ -3,9 +3,19 @@ export type Token = {
   denom?: string;
 };
 
+export type NFTToken = {
+  collectionId: number | string;
+  tokenId: string | number;
+};
+
 export type SendTransaction = {
   toAddress?: string;
   token?: Token;
+};
+
+export type NFTSendTransaction = {
+  toAddress: string;
+  token: NFTToken;
 };
 
 export type IBCSendTransaction = {
@@ -28,6 +38,11 @@ export type GovVoteTransaction = {
 };
 
 export type StakeDelegateTransaction = {
+  validatorAddress?: string;
+  token?: Token;
+};
+
+export type StakeCancelUndelegateTransaction = {
   validatorAddress?: string;
   token?: Token;
 };
@@ -142,4 +157,5 @@ export type TransactionMetadata =
   | AuthzRevokeTransaction
   | AuthzGrantTransaction
   | LsStakeTransaction
-  | LsUnstakeTransaction;
+  | LsUnstakeTransaction
+  | NFTSendTransaction;

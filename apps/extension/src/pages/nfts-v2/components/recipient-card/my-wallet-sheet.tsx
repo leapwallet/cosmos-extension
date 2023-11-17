@@ -10,6 +10,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
+import { formatWalletName } from 'utils/formatWalletName'
 import { capitalize } from 'utils/strings'
 
 type MyWalletSheetProps = {
@@ -85,7 +86,7 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                       className='p-1 font-bold'
                       color='text-gray-600 dark:text-gray-200'
                     >
-                      Other chains in current wallet: {name}
+                      Other chains in current wallet: {formatWalletName(name)}
                     </Text>
                   </div>
                   <div className='mt-2'>

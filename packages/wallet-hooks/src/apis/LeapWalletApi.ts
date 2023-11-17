@@ -327,7 +327,8 @@ export namespace LeapWalletApi {
       bandchain: CosmosBlockchain.Band,
       dydx: 'DYDX' as CosmosBlockchain,
       sge: 'SGE' as CosmosBlockchain,
-      celestiatestnet3: 'CELESTIA_TESTNET' as CosmosBlockchain,
+      celestia: 'CELESTIA' as CosmosBlockchain,
+      gitopia: 'GITOPIA' as CosmosBlockchain,
       xpla: 'XPLA' as CosmosBlockchain,
       aura: 'AURA' as CosmosBlockchain,
     };

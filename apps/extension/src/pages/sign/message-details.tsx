@@ -95,10 +95,16 @@ export const getMessageTitle = (message: ParsedMessage) => {
       return 'Exit Pool'
     case ParsedMessageType.GammSwapExact:
     case ParsedMessageType.GammSwapMax:
+    case ParsedMessageType.PMSwapExactIn:
+    case ParsedMessageType.PMSwapExactOut:
+    case ParsedMessageType.PMSplitSwapExactIn:
+    case ParsedMessageType.PMSplitSwapExactOut:
       return 'Swap Tokens'
     case ParsedMessageType.GammSwapExactAndExit:
     case ParsedMessageType.GammSwapMaxAndExit:
       return 'Swap Tokens and Exit Pool'
+    case ParsedMessageType.PMSetDenomPairTakerFee:
+      return 'Set Denom Pair Taker Fee'
     case ParsedMessageType.GammSwapExactAndJoin:
     case ParsedMessageType.GammSwapMaxAndJoin:
       return 'Swap Tokens and Join Pool'
@@ -140,6 +146,10 @@ export const getMessageTitle = (message: ParsedMessage) => {
       return 'Unlock and Undelegate Tokens (Superfluid)'
     case ParsedMessageType.SuperfluidUndelegate:
       return 'Undelegate Tokens (Superfluid)'
+    case ParsedMessageType.LiquidStakingDelegate:
+      return 'Delegate Tokens (Liquid Staking)'
+    case ParsedMessageType.PStakeLiquidStake:
+      return 'Liquid Stake (P Stake)'
     case ParsedMessageType.StakeIBCAddValidators:
       return 'Add Validators (Liquid Staking)'
     case ParsedMessageType.StakeIBCChangeValidatorWeight:
@@ -166,6 +176,8 @@ export const getMessageTitle = (message: ParsedMessage) => {
       return 'Receive IBC Packet'
     case ParsedMessageType.ClaimReward:
       return `Claim reward from ${sliceAddress(message.validatorAddress)}`
+    case ParsedMessageType.WasmxExecuteContractCompat:
+      return 'Execute Contract'
     case ParsedMessageType.Unimplemented:
       return getSimpleType(
         message.message['@type'] ??
@@ -255,7 +267,8 @@ export const getMessageDetails = async (
       return `Exit pool ${message.poolId} with ${
         message.shares
       } shares in return for ${await tokensToString(message.tokens, restUrl, chainId)} assets`
-    case ParsedMessageType.GammSwapExact: {
+    case ParsedMessageType.GammSwapExact:
+    case ParsedMessageType.PMSwapExactIn: {
       const tokenOut = {
         quantity: message.tokenOutAmount,
         denomination: message.routes[message.routes.length - 1].tokenOutDenomination,
@@ -266,10 +279,37 @@ export const getMessageDetails = async (
         chainId,
       )} for ${await tokenToString(tokenOut, restUrl, chainId)}`
     }
-    case ParsedMessageType.GammSwapMax: {
+    case ParsedMessageType.PMSplitSwapExactIn: {
+      const pools = message.routes[message.routes.length - 1].pools
+      const tokenOutDenomination = pools[pools.length - 1].tokenOutDenomination
+      const tokenOut = {
+        quantity: message.tokenOutAmount,
+        denomination: tokenOutDenomination,
+      }
+      return `Swap ${await tokenToString(
+        message.tokenIn,
+        restUrl,
+        chainId,
+      )} for ${await tokenToString(tokenOut, restUrl, chainId)}`
+    }
+    case ParsedMessageType.GammSwapMax:
+    case ParsedMessageType.PMSwapExactOut: {
       const tokenIn = {
         quantity: message.tokenInAmount,
         denomination: message.routes[0].tokenInDenomination,
+      }
+      return `Swap ${await tokenToString(tokenIn, restUrl, chainId)} for ${await tokenToString(
+        message.tokenOut,
+        restUrl,
+        chainId,
+      )}`
+    }
+    case ParsedMessageType.PMSplitSwapExactOut: {
+      const pools = message.routes[message.routes.length - 1].pools
+      const tokenInDenomination = pools[0].tokenInDenomination
+      const tokenIn = {
+        quantity: message.tokenInAmount,
+        denomination: tokenInDenomination,
       }
       return `Swap ${await tokenToString(tokenIn, restUrl, chainId)} for ${await tokenToString(
         message.tokenOut,

@@ -8,11 +8,11 @@ import {
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { Coin } from '@leapwallet/parser-parfait';
 import { useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
+import { CosmosTxType } from '../connectors';
 import { useGasAdjustment } from '../fees';
 import { useActiveChain, useAddress, useChainApis, useGetChains, usePendingTxState, useTxMetadata } from '../store';
 import { useTxHandler } from '../tx';

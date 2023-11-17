@@ -8,7 +8,7 @@
 import './fetch-preserver'
 
 import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provider/messaging/requester'
-import { ChainInfo, getRestUrl } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, ChainInfos, SupportedChain, getRestUrl } from '@leapwallet/cosmos-wallet-sdk'
 
 import { decrypt, initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import {
@@ -18,7 +18,6 @@ import {
   BG_RESPONSE,
   CONNECTIONS,
   ENCRYPTED_ACTIVE_WALLET,
-  ENCRYPTED_KEY_STORE,
   KEYSTORE,
   REDIRECT_REQUEST,
   SIGN_REQUEST,
@@ -56,8 +55,11 @@ import {
 import { EncryptionUtilsImpl } from '@leapwallet/cosmos-wallet-sdk/dist/secret/encryptionutil'
 import { PasswordManager } from './password-manager'
 import { storageMigrationV77 } from './migrations/v77'
-import { getChains } from '@leapwallet/cosmos-wallet-hooks'
+import { getChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { storageMigrationV80 } from './migrations/v80'
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
+import { formatWalletName } from 'utils/formatWalletName'
+import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
 const storageAdapter = getStorageAdapter()
 initStorage(storageAdapter)
 initCrypto()
@@ -188,6 +190,7 @@ const connectRemote = (remotePort: any) => {
                             try {
                               const newChainName = payload.chainInfo.chainName
                               let betaChains = resp?.[BETA_CHAINS]
+
                               betaChains =
                                 typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
                               betaChains[newChainName] = newChain[newChainName]
@@ -333,7 +336,8 @@ const connectRemote = (remotePort: any) => {
           })
 
           const store = await browser.storage.local.get([ACTIVE_WALLET])
-          if (!store[ACTIVE_WALLET]) {
+          const password = passwordManager.getPassword()
+          if (!password) {
             try {
               await openPopup('login', '?close-on-login=true')
               await awaitUIResponse('user-logged-in')
@@ -729,17 +733,39 @@ browser.runtime.onConnect.addListener(connectRemote)
 // }
 
 async function getKey(_chain: string) {
-  const { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
+  let { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
   let chain = _chainIdToChain[_chain]
 
   chain = chain === 'cosmoshub' ? 'cosmos' : chain
+  const password = passwordManager.getPassword()
+  if (!activeWallet.addresses[chain] && !ChainInfos[chain as SupportedChain].enabled) {
+    throw new Error('Invalid chain id')
+  }
+
+  if (!activeWallet.addresses[chain] && ChainInfos[chain as SupportedChain].enabled && password) {
+    if (
+      activeWallet.walletType === WALLETTYPE.LEDGER &&
+      ChainInfos[chain as SupportedChain].bip44.coinType === '60'
+    ) {
+      throw new Error('Ledger wallet is not supported for this chain')
+    }
+    const updatedKeyStore = await getUpdatedKeyStore(
+      ChainInfos,
+      password,
+      chain as SupportedChain,
+      activeWallet,
+      'UPDATE',
+    )
+    activeWallet = updatedKeyStore
+  }
+
   return {
     address: Bech32Address.fromBech32(activeWallet.addresses[chain] ?? '').address,
     algo: 'secp256k1',
     bech32Address: activeWallet.addresses[chain],
     isNanoLedger: activeWallet.walletType === 3,
-    name: activeWallet.name,
+    name: formatWalletName(activeWallet.name),
     pubKey: toUint8Array(activeWallet.pubKeys?.[chain] ?? ''),
   }
 }
@@ -756,7 +782,7 @@ async function getKeys(chainIds: string[]) {
         algo: 'secp256k1',
         bech32Address: activeWallet.addresses[chain],
         isNanoLedger: activeWallet.walletType === 3,
-        name: activeWallet.name,
+        name: formatWalletName(activeWallet.name.replace),
         pubKey: toUint8Array(activeWallet.pubKeys?.[chain] ?? ''),
       }
     })
@@ -790,6 +816,7 @@ browser.runtime.onInstalled.addListener((details) => {
         if (!previousVersion) return
 
         const prevVersionInt = parseInt(previousVersion, 10)
+
         const execV80Migration =
           [710, 711, 712, 713].includes(prevVersionInt) || prevVersionInt < 80
 

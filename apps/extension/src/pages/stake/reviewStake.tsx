@@ -42,6 +42,11 @@ export type DelegateUndelegateReviewProps = {
   toValidator: Validator
 }
 
+export type CancelUndelegationReviewProps = {
+  toValidator: Validator
+  creationHeight: string
+}
+
 export type RedelegateReviewProps = {
   toValidator: Validator
   fromValidator: Validator
@@ -63,7 +68,11 @@ export type ReviewStakeTransactionProps = {
   }
 
   type: STAKE_MODE
-  data: ClaimRewardReviewProps | DelegateUndelegateReviewProps | RedelegateReviewProps
+  data:
+    | ClaimRewardReviewProps
+    | DelegateUndelegateReviewProps
+    | RedelegateReviewProps
+    | CancelUndelegationReviewProps
 
   isLoading: boolean
   isVisible: boolean
@@ -152,6 +161,13 @@ export default function ReviewStakeTransaction({
           validatorText: 'Validators',
           validators: (data as ClaimRewardReviewProps).validators,
         }
+      case 'CANCEL_UNDELEGATION':
+        return {
+          buttonText: `Cancel Undelegation`,
+          mainTitle: 'Cancel Undelegation',
+          validatorText: 'Validator',
+          validators: [(data as CancelUndelegationReviewProps).toValidator],
+        }
       case 'REDELEGATE':
         return {
           buttonText: `Switch Validator`,
@@ -184,7 +200,7 @@ export default function ReviewStakeTransaction({
       <BottomModal isOpen={isVisible} onClose={onCloseHandler} title='Review Transaction'>
         <div>
           <div className='flex flex-col items-center w-full gap-y-4'>
-            {(type === 'UNDELEGATE' || type === 'DELEGATE') && (
+            {['DELEGATE', 'UNDELEGATE'].includes(type) && (
               <div className='flex align-middle justify-between w-full'>
                 <Text size='sm'>
                   Note:

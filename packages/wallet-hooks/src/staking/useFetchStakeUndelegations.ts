@@ -5,8 +5,10 @@ import {
   UnbondingDelegation,
   UnbondingDelegationResponse,
 } from '@leapwallet/cosmos-wallet-sdk';
+import BigNumber from 'bignumber.js';
 import { useEffect } from 'react';
 
+import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
   useActiveChain,
   useAddress,
@@ -16,7 +18,7 @@ import {
   useSelectedNetwork,
   useStakeUndelegationsStore,
 } from '../store';
-import { formatTokenAmount } from '../utils';
+import { fetchCurrency, formatTokenAmount } from '../utils';
 
 export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const _activeChain = useActiveChain();
@@ -27,6 +29,7 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
 
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const address = useAddress();
+  const [preferredCurrency] = useUserPreferredCurrency();
   const { setStakeUndelegationsInfo, setStakeUndelegationsStatus, setStakeUndelegationsRefetch } =
     useStakeUndelegationsStore();
 
@@ -42,6 +45,13 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
         url: '/cosmos/staking/v1beta1/delegators/' + address + '/unbonding_delegations',
       });
       const denom = denoms[Object.keys(activeChainInfo.nativeDenoms)[0]];
+
+      const denomFiatValue = await fetchCurrency(
+        '1',
+        denom.coinGeckoId,
+        denom.chain as SupportedChain,
+        currencyDetail[preferredCurrency].currencyPointer,
+      );
 
       const { unbonding_responses } = res.data as UnbondingDelegationResponse;
       unbonding_responses.map((r) => {
@@ -61,6 +71,7 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
       Object.values(uDelegations).map(async (r) => {
         r.entries.map((e) => {
           e.formattedBalance = formatTokenAmount(e.balance, activeChainInfo.denom, 6);
+          e.currencyBalance = new BigNumber(e.balance).multipliedBy(denomFiatValue ?? '0').toString();
         });
       });
 

@@ -334,13 +334,16 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'mayachain' },
   { enabled: true, name: 'empowerchain' },
   { enabled: true, name: 'celestiatestnet3' },
+  { enabled: true, name: 'celestia' },
   { enabled: true, name: 'sge' },
+  { enabled: true, name: 'nomic' },
   { enabled: true, name: 'xpla' },
   { enabled: true, name: 'provenance' },
   { enabled: true, name: 'aura' },
   { enabled: true, name: 'kichain' },
   { enabled: true, name: 'sentinel' },
   { enabled: true, name: 'bandchain' },
+  { enabled: true, name: 'dydx' },
 ];
 
 export default networkData;

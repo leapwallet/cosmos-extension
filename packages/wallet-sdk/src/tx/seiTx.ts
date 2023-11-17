@@ -7,6 +7,7 @@ import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 import { sleep } from '../utils/sleep';
 import {
   buildRevokeMsg,
+  getCancelUnDelegationMsg,
   getDelegateMsg,
   getRedelegateMsg,
   getUnDelegateMsg,
@@ -16,7 +17,7 @@ import {
 import { getTxData } from './utils';
 
 export class SeiTxHandler {
-  private client: SigningStargateClient | null;
+  protected client: SigningStargateClient | null;
 
   constructor(private lcdEndpoint: string | undefined, private rpcEndPoint: string, private wallet: OfflineSigner) {
     this.client = null;
@@ -129,6 +130,19 @@ export class SeiTxHandler {
   ) {
     const undelegateMsg = getUnDelegateMsg(delegatorAddress, validatorAddress, amount);
     const result = await this.client?.signAndBroadcast(delegatorAddress, [undelegateMsg], fee, memo);
+    return result?.transactionHash ?? '';
+  }
+
+  async cancelUnDelegation(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    creationHeight: string,
+    fee: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    const cancleUndelegateMsg = getCancelUnDelegationMsg(delegatorAddress, validatorAddress, amount, creationHeight);
+    const result = await this.client?.signAndBroadcast(delegatorAddress, [cancleUndelegateMsg], fee, memo);
     return result?.transactionHash ?? '';
   }
 

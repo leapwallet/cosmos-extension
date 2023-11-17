@@ -22,6 +22,7 @@ import React, { createContext, ReactNode, useContext, useMemo, useState } from '
 import Skeleton from 'react-loading-skeleton'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
+import { formatAuthzDate } from 'utils/formatAuthzDate'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { useTxCallBack } from 'utils/txCallback'
@@ -233,23 +234,10 @@ function _ManageAuthZ({ goBack }: { goBack: () => void }) {
                           let date = ''
 
                           if (grant.expiration) {
-                            const dateNtime = new Date(grant.expiration)
-                            const todayDate = new Date()
+                            date = formatAuthzDate(grant.expiration)
 
-                            if (todayDate > dateNtime) {
-                              date = 'Expired'
-                            } else {
-                              date = `Expiration Date: ${dateNtime.toLocaleDateString('en-US', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                              })}, ${
-                                dateNtime.getHours() === 0
-                                  ? 24
-                                  : (dateNtime.getHours() < 10 ? '0' : '') + dateNtime.getHours()
-                              }:${
-                                (dateNtime.getMinutes() < 10 ? '0' : '') + dateNtime.getMinutes()
-                              }`
+                            if (date !== 'Expired') {
+                              date = `Expiration Date: ${date}`
                             }
                           }
 

@@ -1122,6 +1122,8 @@ export enum CosmosTxType {
   StakeUndelegate = 'STAKE_UNDELEGATE',
   StakeRedelgate = 'STAKE_REDELEGATE',
   StakeClaim = 'STAKE_CLAIM',
+  StakeCancelUndelegate = 'STAKE_CANCEL_UNDELEGATE',
+  NFTSend = 'NFT_SEND',
   Dapp = 'DAPP',
   SecretTokenTransaction = 'SECRET_TOKEN_TRANSACTION',
   AuthZRevoke = 'AUTHZ_REVOKE',
