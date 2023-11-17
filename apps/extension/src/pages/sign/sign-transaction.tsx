@@ -528,20 +528,6 @@ const SignTransaction = ({
           }
         })()
 
-        const walletAccounts = await wallet.getAccounts()
-        try {
-          await logSignAmino(
-            data as AminoSignResponse,
-            walletAccounts[0].pubkey,
-            txPostToDb,
-            activeChain,
-            activeAddress,
-            siteOrigin ?? origin,
-          )
-        } catch {
-          //
-        }
-
         if (!data) {
           throw new Error('Could not sign transaction')
         }

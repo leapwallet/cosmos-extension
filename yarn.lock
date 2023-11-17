@@ -3135,10 +3135,10 @@
     axios "^0.27.2"
     long "^4.0.0"
 
-"@leapwallet/buffer-boba@0.1.7":
-  version "0.1.7"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.7/3b4f21dee7f551bde062b2ba6436ada77c71d33b#3b4f21dee7f551bde062b2ba6436ada77c71d33b"
-  integrity sha512-+oBbIADNYDoaf+tqqksM3fteMVLQsgVJ/myqD6SrulvJmr71nknHgt1AUMpn/tECRbKJcJZB9uMpQCG6GfpioA==
+"@leapwallet/buffer-boba@0.1.8":
+  version "0.1.8"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.8/6c7ac83ffdb8804c011b4f9752df4e9024415e95#6c7ac83ffdb8804c011b4f9752df4e9024415e95"
+  integrity sha512-Q4HlsJSVuuLaGoCwbnfwHyVHFIO02gP/BEQN8VEE1tYsIOLevRojbplKsYvRijjSL3PDiOSAf4BYooCMPPhhnA==
   dependencies:
     "@cosmjs/proto-signing" "0.31.3"
     base64js "1.0.1"
@@ -3147,15 +3147,6 @@
     osmojs "16.5.1"
     protobufjs "7.2.5"
     stridejs "0.6.2"
-
-"@leapwallet/leap-api-js@0.21.3":
-  version "0.21.3"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-api-js/0.21.3/c33280e3d7de62b9835ccaa73391b0a11d48397a#c33280e3d7de62b9835ccaa73391b0a11d48397a"
-  integrity sha512-tEp+/vuyZc95qCy0UgK0jGRhgxGIPOSrvk8G2QoqUzxpgTBfsxglElCVxErlAsuAL5+xf6ZBmd9p0/BUYX1SRA==
-  dependencies:
-    cross-fetch "3.1.5"
-    crypto-js "4.1.1"
-    typedi "0.10.0"
 
 "@leapwallet/leap-js@0.1.1":
   version "0.1.1"
