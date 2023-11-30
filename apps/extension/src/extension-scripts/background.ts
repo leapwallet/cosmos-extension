@@ -8,7 +8,7 @@
 import './fetch-preserver'
 
 import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provider/messaging/requester'
-import { ChainInfo, getRestUrl } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, ChainInfos, SupportedChain, getRestUrl } from '@leapwallet/cosmos-wallet-sdk'
 
 import { decrypt, initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import {
@@ -18,7 +18,6 @@ import {
   BG_RESPONSE,
   CONNECTIONS,
   ENCRYPTED_ACTIVE_WALLET,
-  ENCRYPTED_KEY_STORE,
   KEYSTORE,
   REDIRECT_REQUEST,
   SIGN_REQUEST,
@@ -56,8 +55,11 @@ import {
 import { EncryptionUtilsImpl } from '@leapwallet/cosmos-wallet-sdk/dist/secret/encryptionutil'
 import { PasswordManager } from './password-manager'
 import { storageMigrationV77 } from './migrations/v77'
-import { getChains } from '@leapwallet/cosmos-wallet-hooks'
+import { getChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { storageMigrationV80 } from './migrations/v80'
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
+import { formatWalletName } from 'utils/formatWalletName'
+import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
 const storageAdapter = getStorageAdapter()
 initStorage(storageAdapter)
 initCrypto()
@@ -105,6 +107,8 @@ const connectRemote = (remotePort: any) => {
     const { type, ...payload } = data
 
     let popupWindowId = 0
+    // let hasUnApprovedTx = false
+    // this condition exists to prevent infinite extension popups
 
     //check if account exists
     const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
@@ -184,6 +188,7 @@ const connectRemote = (remotePort: any) => {
                             try {
                               const newChainName = payload.chainInfo.chainName
                               let betaChains = resp?.[BETA_CHAINS]
+
                               betaChains =
                                 typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
                               betaChains[newChainName] = newChain[newChainName]
@@ -266,19 +271,15 @@ const connectRemote = (remotePort: any) => {
                   [REDIRECT_REQUEST]: { type: type, msg: { ...msg, validChainIds } },
                 })
 
-                const browserWindows = await browser.windows.getAll()
-                const hasBrowserWindow = browserWindows.some(
-                  (window) =>
-                    window.type === 'popup' && window.id === enableAccessRequests[queryString],
-                )
+                const shouldOpenPopup =
+                  Object.keys(enableAccessRequests).length === 0 ||
+                  !Object.keys(enableAccessRequests).some((key) => key.includes(msg.origin))
 
-                if (Object.keys(enableAccessRequests).length === 0 || !hasBrowserWindow) {
+                if (shouldOpenPopup) {
                   delete enableAccessRequests[queryString]
                   enableAccessRequests[queryString] = popupWindowId
                   const window = await openPopup('approveConnection')
                   requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
-
-                  enableAccessRequests[queryString] = window.id ?? 0
                   windowIdForPayloadId[popupWindowId] = {
                     type: type.toUpperCase(),
                     payloadId: payload.id,
@@ -296,7 +297,7 @@ const connectRemote = (remotePort: any) => {
 
                 try {
                   const response = await awaitEnableChainResponse()
-
+                  // hasUnApprovedTx = false
                   sendResponse(`on${type.toUpperCase()}`, response, payload.id)
                   delete enableAccessRequests[queryString]
                 } catch (error: any) {
@@ -305,6 +306,8 @@ const connectRemote = (remotePort: any) => {
                 }
               } else {
                 sendResponse(`on${type.toUpperCase()}`, { success: 'Chain enabled' }, payload.id)
+                // hasUnApprovedTx = false
+                // sendResponse()
               }
             } else {
               sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
@@ -331,7 +334,8 @@ const connectRemote = (remotePort: any) => {
           })
 
           const store = await browser.storage.local.get([ACTIVE_WALLET])
-          if (!store[ACTIVE_WALLET]) {
+          const password = passwordManager.getPassword()
+          if (!password) {
             try {
               await openPopup('login', '?close-on-login=true')
               await awaitUIResponse('user-logged-in')
@@ -350,11 +354,11 @@ const connectRemote = (remotePort: any) => {
                 }
 
                 if (isNewChainPresent) {
-                  const browserWindows = await browser.windows.getAll()
-                  const hasBrowserWindow = browserWindows.some(
-                    (window) => window.id === enableAccessRequests[queryString],
-                  )
-                  if (Object.keys(enableAccessRequests).length === 0 || !hasBrowserWindow) {
+                  const shouldOpenPopup =
+                    Object.keys(enableAccessRequests).length === 0 ||
+                    !Object.keys(enableAccessRequests).some((key) => key.includes(msg.origin))
+
+                  if (shouldOpenPopup) {
                     delete enableAccessRequests[queryString]
                     enableAccessRequests[queryString] = popupWindowId
                     const window = await openPopup('approveConnection')
@@ -469,7 +473,8 @@ const connectRemote = (remotePort: any) => {
               signer: msg.signer,
               origin: msg.origin,
               isAmino: true,
-              isAdr36: msg.signOptions.isADR36WithString,
+              isAdr36: msg.signOptions.isSignArbitrary,
+              isADR36WithString: msg.signOptions.isAdr36WithString,
               ethSignType: msg.signOptions.ethSignType,
               signOptions: msg.signOptions,
             },
@@ -530,7 +535,7 @@ const connectRemote = (remotePort: any) => {
         }
         const storage = await browser.storage.local.get([VIEWING_KEYS, ACTIVE_WALLET])
 
-        if (!storage[ACTIVE_WALLET]) {
+        if (!passwordManager.getPassword()) {
           try {
             await openPopup('login', '?close-on-login=true')
             await awaitUIResponse('user-logged-in')
@@ -548,7 +553,10 @@ const connectRemote = (remotePort: any) => {
           }
           const password = passwordManager.getPassword()
           if (!password) throw new Error('unable to decrypt key')
-          const decryptKey = decrypt(key, password)
+          let decryptKey = decrypt(key, password)
+          if (decryptKey === '') {
+            decryptKey = decrypt(key, password, 100)
+          }
           sendResponse(`on${type.toUpperCase()}`, decryptKey, payload.id)
         } catch (error) {
           sendResponse(
@@ -705,17 +713,39 @@ const connectRemote = (remotePort: any) => {
 browser.runtime.onConnect.addListener(connectRemote)
 
 async function getKey(_chain: string) {
-  const { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
+  let { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
   let chain = _chainIdToChain[_chain]
 
   chain = chain === 'cosmoshub' ? 'cosmos' : chain
+  const password = passwordManager.getPassword()
+  if (!activeWallet.addresses[chain] && !ChainInfos[chain as SupportedChain].enabled) {
+    throw new Error('Invalid chain id')
+  }
+
+  if (!activeWallet.addresses[chain] && ChainInfos[chain as SupportedChain].enabled && password) {
+    if (
+      activeWallet.walletType === WALLETTYPE.LEDGER &&
+      ChainInfos[chain as SupportedChain].bip44.coinType === '60'
+    ) {
+      throw new Error('Ledger wallet is not supported for this chain')
+    }
+    const updatedKeyStore = await getUpdatedKeyStore(
+      ChainInfos,
+      password,
+      chain as SupportedChain,
+      activeWallet,
+      'UPDATE',
+    )
+    activeWallet = updatedKeyStore
+  }
+
   return {
     address: Bech32Address.fromBech32(activeWallet.addresses[chain] ?? '').address,
     algo: 'secp256k1',
     bech32Address: activeWallet.addresses[chain],
     isNanoLedger: activeWallet.walletType === 3,
-    name: activeWallet.name,
+    name: formatWalletName(activeWallet.name),
     pubKey: toUint8Array(activeWallet.pubKeys?.[chain] ?? ''),
   }
 }
@@ -732,7 +762,7 @@ async function getKeys(chainIds: string[]) {
         algo: 'secp256k1',
         bech32Address: activeWallet.addresses[chain],
         isNanoLedger: activeWallet.walletType === 3,
-        name: activeWallet.name,
+        name: formatWalletName(activeWallet.name.replace),
         pubKey: toUint8Array(activeWallet.pubKeys?.[chain] ?? ''),
       }
     })
@@ -766,6 +796,7 @@ browser.runtime.onInstalled.addListener((details) => {
         if (!previousVersion) return
 
         const prevVersionInt = parseInt(previousVersion, 10)
+
         const execV80Migration =
           [710, 711, 712, 713].includes(prevVersionInt) || prevVersionInt < 80
 
@@ -854,6 +885,12 @@ function awaitEnableChainResponse(): Promise<any> {
     browser.storage.onChanged.addListener(enableChainListener)
   })
 }
+
+// function fetchChainData(url: string) {
+//   return fetch(url)
+//     .then((res) => res.json())
+//     .catch((err) => err)
+// }
 
 function removeTrailingSlash(url?: string) {
   if (!url) return ''

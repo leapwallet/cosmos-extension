@@ -10,26 +10,49 @@ import {
 } from '@leapwallet/leap-ui'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
+import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import kadoDarkLogo from 'images/logos/Kado-dark.svg'
 import kadoLightLogo from 'images/logos/Kado-light.svg'
+import { nBtcSymbol } from 'images/misc'
 import rightArrow from 'images/misc/right-arrow.svg'
 import React, { ReactElement } from 'react'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
+import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
+
+function BtcButton({ handleBtcBannerClick }: { handleBtcBannerClick?: () => void }) {
+  const { data: nomicBtcDeposit } = useNomicBTCDepositConstants()
+  const activeChainInfo = useChainInfo()
+
+  return nomicBtcDeposit && nomicBtcDeposit.ibcChains.includes(activeChainInfo.key) ? (
+    <div className='mt-2' onClick={handleBtcBannerClick}>
+      <OnboardCard
+        imgSrc={nBtcSymbol}
+        iconSrc={rightArrow}
+        isFilled
+        isRounded
+        size='lg'
+        title='Depost BTC to get nBTC'
+      />
+    </div>
+  ) : null
+}
 
 export type ReceiveTokenProps = {
   isVisible: boolean
   chain?: SupportedChain
   onCloseHandler?: () => void
+  handleBtcBannerClick?: () => void
 }
 
 export default function ReceiveToken({
   isVisible,
   onCloseHandler,
+  handleBtcBannerClick,
 }: ReceiveTokenProps): ReactElement {
   const wallet = useActiveWallet().activeWallet
   const activeChainInfo = useChainInfo()
@@ -38,7 +61,6 @@ export default function ReceiveToken({
   const address = wallet?.addresses[activeChainInfo.key]
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
-
   const QrCodeProps = {
     height: 250,
     width: 250,
@@ -65,7 +87,7 @@ export default function ReceiveToken({
             <QrCode {...QrCodeProps} />
           </div>
           <div className='inline-block mt-[16px] mb-[12px] text-black-100 dark:text-white-100 font-Satoshi24px text-[28px] leading-[36px] font-black'>
-            {wallet.name}
+            {formatWalletName(wallet.name)}
           </div>
           <Buttons.CopyWalletAddress
             color={Colors.getChainColor(activeChain)}
@@ -76,6 +98,7 @@ export default function ReceiveToken({
               UserClipboard.copyText(address)
             }}
           />
+
           {ON_RAMP_SUPPORT_CHAINS.includes(activeChainInfo.key) && (
             <div
               className='mt-2'
@@ -95,6 +118,8 @@ export default function ReceiveToken({
               />
             </div>
           )}
+
+          {handleBtcBannerClick ? <BtcButton handleBtcBannerClick={handleBtcBannerClick} /> : null}
         </div>
       ) : (
         <></>

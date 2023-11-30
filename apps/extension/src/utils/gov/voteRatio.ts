@@ -34,7 +34,7 @@ const backgroundCSS = {
 export function voteRatio(tally: TallyResult): VoteSectionValues[] {
   const yes = Number(tally.yes)
   const no = Number(tally.no)
-  const noWithVeto = Number(tally.no_with_veto)
+  const noWithVeto = Number(tally.no_with_veto ?? 0)
   const abstain = Number(tally.abstain)
 
   const total = Math.max(yes + no + abstain + noWithVeto, 1)

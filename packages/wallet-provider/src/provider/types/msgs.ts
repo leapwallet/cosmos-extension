@@ -189,6 +189,7 @@ export class RequestSignAminoMsg extends Message<AminoSignResponse> {
       isADR36WithString?: boolean;
       ethSignType?: EthSignType;
       enableExtraEntropy?: boolean;
+      isSignArbitrary?: boolean;
     } = {},
   ) {
     super();

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OfflineAminoSigner, StdSignature, StdSignDoc } from '@cosmjs/amino'
+import { AminoSignResponse, OfflineAminoSigner, StdSignature, StdSignDoc } from '@cosmjs/amino'
 import { DirectSignResponse, OfflineDirectSigner } from '@cosmjs/proto-signing'
 import {
   convertObjectCasingFromCamelToSnake,
@@ -22,6 +22,7 @@ import {
   ethSign,
   GasPrice,
   LedgerError,
+  sleep,
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -55,15 +56,18 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
+import mixpanel, { type RequestOptions } from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
 import { DEBUG } from 'utils/debug'
+import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
 import { trim } from 'utils/strings'
 import { uint8ArrayToBase64 } from 'utils/uint8Utils'
 import browser from 'webextension-polyfill'
 
+import { EventName } from '../../config/analytics'
 import { isCompassWallet } from '../../utils/isCompassWallet'
 import { MemoInput } from './memo-input'
 import MessageDetailsSheet from './message-details-sheet'
@@ -73,7 +77,30 @@ import TransactionDetails from './transaction-details'
 import { isGenericOrSendAuthzGrant } from './utils/is-generic-or-send-authz-grant'
 import { getAminoSignDoc } from './utils/sign-amino'
 import { getDirectSignDoc, getProtoSignDocDecoder } from './utils/sign-direct'
-import { logDirectTx } from './utils/tx-logger'
+import {
+  getTxHashFromAminoSignResponse,
+  getTxHashFromDirectSignResponse,
+  logDirectTx,
+  logSignAmino,
+} from './utils/tx-logger'
+
+const mixpanelTrackOptions: RequestOptions = {
+  send_immediately: true,
+  transport: 'sendBeacon',
+}
+
+const mapWalletTypeToMixpanelWalletType = (
+  walletType: WALLETTYPE,
+): 'seed-phrase' | 'private-key' | 'ledger' => {
+  switch (walletType) {
+    case WALLETTYPE.LEDGER:
+      return 'ledger'
+    case WALLETTYPE.PRIVATE_KEY:
+      return 'private-key'
+    default:
+      return 'seed-phrase'
+  }
+}
 
 const useGetWallet = Wallet.useGetWallet
 
@@ -90,6 +117,10 @@ const SignTransaction = ({
   chainId,
   isSignArbitrary,
 }: SignTransactionProps) => {
+  const isDappTxnInitEventLogged = useRef(false)
+  const isRejectedRef = useRef(false)
+  const isApprovedRef = useRef(false)
+
   const [showWalletSelector, setShowWalletSelector] = useState(false)
   const [showMessageDetailsSheet, setShowMessageDetailsSheet] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState<{
@@ -125,19 +156,8 @@ const SignTransaction = ({
   const walletName = useMemo(() => {
     return activeWallet.walletType === WALLETTYPE.LEDGER
       ? `${walletLabels[activeWallet.walletType]} Wallet ${activeWallet.addressIndex + 1}`
-      : activeWallet.name
+      : formatWalletName(activeWallet.name)
   }, [activeWallet.addressIndex, activeWallet.name, activeWallet.walletType])
-
-  const handleCancel = useCallback(async () => {
-    await browser.storage.local.set({
-      [BG_RESPONSE]: { error: 'Transaction cancelled by the user.' },
-    })
-    setTimeout(async () => {
-      await browser.storage.local.remove(SIGN_REQUEST)
-      await browser.storage.local.remove(BG_RESPONSE)
-      window.close()
-    }, 10)
-  }, [])
 
   useEffect(() => {
     setGasPriceOption({
@@ -180,10 +200,13 @@ const SignTransaction = ({
         memo: userMemo,
         isGasOptionSelected: selectedGasOptionRef.current,
       })
+
       let parsedMessages
 
       if (isSignArbitrary) {
-        parsedMessages = Buffer.from(result.signDoc.msgs[0].value.data, 'base64').toString('utf-8')
+        parsedMessages = txnSigningRequest?.signOptions?.isADR36WithString
+          ? Buffer.from(result.signDoc.msgs[0].value.data, 'base64').toString('utf-8')
+          : result.signDoc.msgs[0].value.data
       } else if (ethSignType) {
         parsedMessages = [
           {
@@ -312,6 +335,53 @@ const SignTransaction = ({
   const siteName = siteOrigin?.split('//')?.at(-1)?.split('.')?.at(-2)
   const siteLogo = useSiteLogo(siteOrigin)
 
+  const transactionTypes = useMemo(() => {
+    if (Array.isArray(messages)) {
+      return messages.map((msg) => msg.raw['@type'] ?? msg.raw['type']).filter(Boolean)
+    }
+    return undefined
+  }, [messages])
+
+  const handleCancel = useCallback(async () => {
+    if (isRejectedRef.current || isApprovedRef.current) return
+    isRejectedRef.current = true
+    try {
+      mixpanel.track(
+        EventName.DappTxnRejected,
+        {
+          dAppURL: siteOrigin,
+          transactionTypes,
+          signMode: isAmino ? 'sign-amino' : 'sign-direct',
+          walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+          chainId: chainInfo.chainId,
+          chainName: chainInfo.chainName,
+          productVersion: browser.runtime.getManifest().version,
+        },
+        mixpanelTrackOptions,
+      )
+    } catch (_) {
+      //
+    }
+
+    await browser.storage.local.set({
+      [BG_RESPONSE]: { error: 'Transaction cancelled by the user.' },
+    })
+    await sleep(100)
+
+    setTimeout(async () => {
+      await browser.storage.local.remove(SIGN_REQUEST)
+      await browser.storage.local.remove(BG_RESPONSE)
+      window.close()
+    }, 10)
+  }, [
+    siteOrigin,
+    transactionTypes,
+    isAmino,
+    activeWallet.walletType,
+    chainInfo.chainId,
+    chainInfo.chainName,
+  ])
+
   const currentWalletInfo = useMemo(() => {
     if (!activeWallet || !chainId || !siteOrigin) return undefined
     return {
@@ -349,7 +419,11 @@ const SignTransaction = ({
         const wallet = (await getWallet(activeChain)) as OfflineDirectSigner
         const data = await (async () => {
           try {
-            return wallet.signDirect(activeAddress, SignDoc.fromPartial(signDoc as any))
+            if (typeof wallet.signDirect === 'function') {
+              return wallet.signDirect(activeAddress, SignDoc.fromPartial(signDoc as any))
+            }
+
+            return null
           } catch (e) {
             captureException(e)
             return null
@@ -362,6 +436,31 @@ const SignTransaction = ({
 
         const bgResponse = JSON.stringify(data)
 
+        isApprovedRef.current = true
+
+        try {
+          const txHash = getTxHashFromDirectSignResponse(data)
+          mixpanel.track(
+            EventName.DappTxnApproved,
+            {
+              dAppURL: siteOrigin,
+              transactionTypes:
+                messages?.map((msg) => msg.raw['@type'] ?? msg.raw['type']).filter(Boolean) ?? [],
+              signMode: 'sign-direct',
+              walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+              txHash,
+              chainId: chainInfo.chainId,
+              chainName: chainInfo.chainName,
+              productVersion: browser.runtime.getManifest().version,
+            },
+            mixpanelTrackOptions,
+          )
+        } catch (_) {
+          //
+        }
+
+        await sleep(100)
+
         try {
           await browser.storage.local.set({ [BG_RESPONSE]: bgResponse })
         } catch {
@@ -370,7 +469,7 @@ const SignTransaction = ({
 
         logDirectTx(
           data as DirectSignResponse,
-          signDoc as SignDoc,
+          messages ?? [],
           siteOrigin ?? origin,
           fee,
           activeChain,
@@ -407,7 +506,9 @@ const SignTransaction = ({
             options?: { extraEntropy?: boolean },
           ) => Promise<StdSignature>
         }
-        setShowLedgerPopup(true)
+        if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+          setShowLedgerPopup(true)
+        }
         const data = await (async () => {
           try {
             if (ethSignType) {
@@ -433,7 +534,51 @@ const SignTransaction = ({
           throw new Error('Could not sign transaction')
         }
 
+        const walletAccounts = await wallet.getAccounts()
+
+        const publicKey = walletAccounts[0].pubkey
+
+        try {
+          await logSignAmino(
+            data as AminoSignResponse,
+            publicKey,
+            txPostToDb,
+            activeChain,
+            activeAddress,
+            siteOrigin ?? origin,
+          )
+        } catch {
+          //
+        }
+
+        try {
+          const trackingData: Record<string, unknown> = {
+            dAppURL: siteOrigin,
+            transactionTypes: messages?.map((msg) => msg.raw['type']).filter(Boolean) ?? [],
+            signMode: 'sign-amino',
+            walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+            chainId: chainInfo.chainId,
+            chainName: chainInfo.chainName,
+            productVersion: browser.runtime.getManifest().version,
+          }
+
+          try {
+            const txHash = getTxHashFromAminoSignResponse(data as AminoSignResponse, publicKey)
+            trackingData.txHash = txHash
+          } catch (_) {
+            //
+          }
+
+          mixpanel.track(EventName.DappTxnApproved, trackingData, mixpanelTrackOptions)
+        } catch (_) {
+          //
+        }
+
         const bgResponse = JSON.stringify(data)
+
+        isApprovedRef.current = true
+
+        await sleep(100)
 
         try {
           await browser.storage.local.set({ [BG_RESPONSE]: bgResponse })
@@ -482,6 +627,38 @@ const SignTransaction = ({
       window.removeEventListener('beforeunload', handleCancel)
     }
   }, [handleCancel])
+
+  useEffect(() => {
+    if (!siteOrigin || !transactionTypes) return
+
+    if (isDappTxnInitEventLogged.current) return
+
+    try {
+      mixpanel.track(
+        EventName.DappTxnInit,
+        {
+          dAppURL: siteOrigin,
+          transactionTypes,
+          signMode: isAmino ? 'sign-amino' : 'sign-direct',
+          walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+          chainId: chainInfo.chainId,
+          chainName: chainInfo.chainName,
+          productVersion: browser.runtime.getManifest().version,
+        },
+        mixpanelTrackOptions,
+      )
+      isDappTxnInitEventLogged.current = true
+    } catch (_) {
+      //
+    }
+  }, [
+    activeWallet.walletType,
+    chainInfo.chainId,
+    chainInfo.chainName,
+    isAmino,
+    siteOrigin,
+    transactionTypes,
+  ])
 
   const hasToShowCheckbox = useMemo(() => {
     if (isSignArbitrary) {
@@ -585,14 +762,14 @@ const SignTransaction = ({
               <GasPriceOptions
                 initialFeeDenom={dappFeeDenom}
                 gasLimit={userPreferredGasLimit || recommendedGasLimit}
-                setGasLimit={(value) => setUserPreferredGasLimit(value.toString())}
+                setGasLimit={(value: string) => setUserPreferredGasLimit(value.toString())}
                 recommendedGasLimit={recommendedGasLimit}
                 gasPriceOption={
                   selectedGasOptionRef.current || allowSetFee
                     ? gasPriceOption
                     : { ...gasPriceOption, option: '' as GasOptions }
                 }
-                onGasPriceOptionChange={(value) => {
+                onGasPriceOptionChange={(value: any) => {
                   selectedGasOptionRef.current = true
                   setGasPriceOption(value)
                 }}
@@ -655,6 +832,7 @@ const SignTransaction = ({
                             fee={fee}
                             error={gasPriceError}
                             setError={setGasPriceError}
+                            disableBalanceCheck={fee.granter || signOptions.disableBalanceCheck}
                           />
                           <div className='flex items-center justify-end'>
                             <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
@@ -699,7 +877,11 @@ const SignTransaction = ({
                     ),
                     data: (
                       <pre className='text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl'>
-                        {JSON.stringify(txnDoc, null, 2)}
+                        {JSON.stringify(
+                          txnDoc,
+                          (_, value) => (typeof value === 'bigint' ? value.toString() : value),
+                          2,
+                        )}
                       </pre>
                     ),
                   }}
@@ -817,7 +999,7 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
           const chainId = txnData.chainId ? txnData.chainId : txnData.signDoc?.chainId
           const chain = chainId ? (_chainIdToChain[chainId] as SupportedChain) : undefined
 
-          if (txnData.signOptions.isADR36WithString) {
+          if (txnData.signOptions.isSignArbitrary) {
             setIsSignArbitrary(true)
           }
 

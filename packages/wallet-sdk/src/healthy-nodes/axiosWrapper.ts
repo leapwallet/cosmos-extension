@@ -36,13 +36,20 @@ export async function axiosWrapper<T = any>(
       throw error;
     }
 
+    if (callFor === 'cancel-undelegation') {
+      return error;
+    }
+
     if (retryCount > RETRY_COUNT) {
       throw error;
     }
 
     if (
-      error.response &&
-      (error.response.status >= 500 || error.response.status === 429 || error.response.status === 403)
+      (error.response || error.message) &&
+      (error.response?.status >= 500 ||
+        error.response?.status === 429 ||
+        error.response?.status === 403 ||
+        error.message?.includes('timeout of 3000ms'))
     ) {
       let isRestURL = false;
       let prevTopNodeChainId = '';

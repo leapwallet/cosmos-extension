@@ -1,4 +1,3 @@
-import { coin } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, Coin, StdFee } from '@cosmjs/stargate';
 import {
@@ -35,7 +34,7 @@ import { TxCallback, VoteOptions, WALLETTYPE } from '../types';
 import { fetchCurrency, formatTokenAmount, useGetGasPrice, useNativeFeeDenom } from '../utils';
 import { getNativeDenom } from '../utils/getNativeDenom';
 
-const getVoteNum = (voteOptions: VoteOptions): VoteOption => {
+export const getVoteNum = (voteOptions: VoteOptions): VoteOption => {
   switch (voteOptions) {
     case VoteOptions.YES:
       return 1;

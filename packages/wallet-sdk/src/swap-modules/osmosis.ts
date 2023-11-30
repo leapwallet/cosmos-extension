@@ -49,11 +49,17 @@ export class OsmosisSwapModule implements SwapModule {
         .then((pools: any) => {
           this.poolsCacheEntries = Object.entries(pools);
           this.tokenPriceCache = this.poolsCacheEntries.reduce((acc, [, [assetA, assetB]]) => {
-            return {
-              ...acc,
-              [assetA.symbol]: new BigNumber(assetA.price),
-              [assetB.symbol]: new BigNumber(assetB.price),
-            };
+            const _acc = { ...acc };
+
+            if (assetA) {
+              _acc[assetA.symbol] = new BigNumber(assetA.price);
+            }
+
+            if (assetB) {
+              _acc[assetB.symbol] = new BigNumber(assetB.price);
+            }
+
+            return _acc;
           }, {} as Record<string, BigNumber>);
         }),
       fetch('https://assets.leapwallet.io/active-objects/v1/osmosis-1.assetlist.json')
@@ -98,10 +104,10 @@ export class OsmosisSwapModule implements SwapModule {
     const coins: Record<string, boolean> = {};
     this.poolsCacheEntries.forEach(([, assetPair]) => {
       const [assetA, assetB] = assetPair;
-      if (assetA.symbol === oneOfPair || assetA.symbol === 'OSMO') {
+      if (assetA && (assetA.symbol === oneOfPair || assetA.symbol === 'OSMO')) {
         coins[assetB.symbol] = true;
       }
-      if (assetB.symbol === oneOfPair || assetB.symbol === 'OSMO') {
+      if (assetB && (assetB.symbol === oneOfPair || assetB.symbol === 'OSMO')) {
         coins[assetA.symbol] = true;
       }
     });
@@ -119,8 +125,8 @@ export class OsmosisSwapModule implements SwapModule {
 
     const poolMatch = this.poolsCacheEntries.find(([, assetPair]) => {
       const [assetA, assetB] = assetPair;
-      const _assetA = assetA.symbol.toLowerCase();
-      const _assetB = assetB.symbol.toLowerCase();
+      const _assetA = assetA ? assetA.symbol.toLowerCase() : '';
+      const _assetB = assetB ? assetB.symbol.toLowerCase() : '';
 
       return (_assetA === _from && _assetB === _target) || (_assetA === _target && _assetB === _from);
     });

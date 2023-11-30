@@ -1,5 +1,5 @@
 import { useScrtKeysStore } from '@leapwallet/cosmos-wallet-hooks'
-import { decrypt } from '@leapwallet/cosmos-wallet-sdk'
+import { decrypt } from '@leapwallet/leap-keychain'
 import { useEffect } from 'react'
 import browser from 'webextension-polyfill'
 
@@ -18,6 +18,10 @@ export function useInitSecretViewingKeys() {
 
       for (const address of Object.keys(keys)) {
         for (const contract of Object.keys(keys[address])) {
+          let viewingKey = decrypt(keys[address][contract], password as string)
+          if (viewingKey === '') {
+            viewingKey = decrypt(keys[address][contract], password as string, 100)
+          }
           keys[address][contract] = decrypt(keys[address][contract], password as string)
         }
       }

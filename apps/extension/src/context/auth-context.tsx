@@ -1,16 +1,29 @@
 /* eslint-disable no-unused-vars */
+import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
 import ExtensionPage from 'components/extension-page'
-import Loader, { LoaderAnimation } from 'components/loader/Loader'
-import { ACTIVE_WALLET, V80_KEYSTORE_MIGRATION_COMPLETE } from 'config/storage-keys'
+import { SearchModal } from 'components/search-modal'
+import { EventName } from 'config/analytics'
+import { QUICK_SEARCH_DISABLED_PAGES } from 'config/config'
+import { ACTIVE_WALLET } from 'config/storage-keys'
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
+import mixpanel from 'mixpanel-browser'
+import SideNav from 'pages/home/side-nav'
 import React, { ReactElement, ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { useRef } from 'react'
+import KeyboardEventHandler from 'react-keyboard-event-handler'
 import { Navigate, useLocation } from 'react-router-dom'
+import { useRecoilState, useSetRecoilState } from 'recoil'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import browser, { extension } from 'webextension-polyfill'
 
+import {
+  searchModalActiveOptionState,
+  searchModalEnteredOptionState,
+  searchModalState,
+  showSideNavFromSearchModalState,
+} from '../atoms/search-modal'
 import { useSetPassword } from '../hooks/settings/usePassword'
 import { SeedPhrase } from '../hooks/wallet/seed-phrase/useSeedPhrase'
 
@@ -32,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   const testPassword = SeedPhrase.useTestPassword()
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const listener = (message: any, sender: any) => {
       if (sender.id !== browser.runtime.id) return
       if (message.type === 'auto-lock') {
@@ -51,8 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       } else {
         try {
           await testPassword(password)
+          /**
+           * when there is an active wallet, we don't need to decrypt the keychain,
+           * if we do it will overwrite the active wallet and keychain with the encrypted version
+           *
+           * on signout, we encrypt the updated keychain and active wallet.
+           *
+           * for some reason the password authentication failed errors are not propagated to the calling function when using async await
+           */
           browser.storage.local.get([ACTIVE_WALLET]).then(async () => {
             browser.runtime.sendMessage({ type: 'unlock', data: { password } })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const listener = async (message: { type: string }, sender: any) => {
               if (sender.id !== browser.runtime.id) return
               if (message.type === 'wallet-unlocked') {
@@ -94,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   )
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const listener = async (message: any, sender: any) => {
       if (sender.id !== browser.runtime.id) return
       if (message.type === 'authentication') {
@@ -115,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         setTimeout(() => {
           if (loading) {
             setLoading(false)
+            //browser.runtime.onMessage.removeListener(listener)
           }
         }, 5000)
       } else {
@@ -156,6 +181,13 @@ export function RequireAuth({
 }) {
   const auth = useAuth()
   const location = useLocation()
+  const [showModal, setShowSearchModal] = useRecoilState(searchModalState)
+  const [searchModalActiveOption, setSearchModalActiveOption] = useRecoilState(
+    searchModalActiveOptionState,
+  )
+  const setSearchModalEnteredOption = useSetRecoilState(searchModalEnteredOptionState)
+  const [showSideNav, setShowSideNav] = useRecoilState(showSideNavFromSearchModalState)
+  const chain = useChainInfo()
 
   if (auth?.locked) {
     return <Navigate to='/' state={{ from: location }} replace />
@@ -163,10 +195,81 @@ export function RequireAuth({
 
   const views = extension.getViews({ type: 'popup' })
 
+  const Children = QUICK_SEARCH_DISABLED_PAGES.includes(location.pathname) ? (
+    children
+  ) : (
+    <>
+      <KeyboardEventHandler
+        handleKeys={['meta+k', 'ctrl+k', 'up', 'down', 'enter']}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onKeyEvent={(key: string, event: any) => {
+          event.stopPropagation()
+          event.preventDefault()
+
+          if (['down', 'up'].includes(key)) {
+            if (showModal) {
+              const newActive =
+                key === 'down'
+                  ? searchModalActiveOption.active + 1
+                  : searchModalActiveOption.active - 1
+
+              if (
+                newActive >= searchModalActiveOption.lowLimit &&
+                newActive < searchModalActiveOption.highLimit
+              ) {
+                setSearchModalActiveOption({ ...searchModalActiveOption, active: newActive })
+                document
+                  .querySelector(
+                    `[data-search-active-option-id=search-active-option-id-${newActive}]`,
+                  )
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+              }
+
+              setSearchModalEnteredOption(null)
+            }
+          } else if (key === 'enter') {
+            showModal && setSearchModalEnteredOption(searchModalActiveOption.active)
+          } else {
+            if (!showModal) {
+              try {
+                mixpanel.track(EventName.QuickSearchOpen, {
+                  chainId: chain.chainId,
+                  chainName: chain.chainName,
+                  openMode: 'Shortcut',
+                })
+              } catch (e) {
+                //
+              }
+            } else {
+              try {
+                mixpanel.track(EventName.QuickSearchClose, {
+                  chainId: chain.chainId,
+                  chainName: chain.chainName,
+                })
+              } catch {
+                //
+              }
+            }
+
+            setShowSearchModal(!showModal)
+            setSearchModalEnteredOption(null)
+          }
+        }}
+        handleFocusableElements={true}
+      />
+      {children}
+      <SearchModal />
+      {showSideNav ? <SideNav isShown={showSideNav} toggler={() => setShowSideNav(false)} /> : null}
+    </>
+  )
+
   if (hideBorder) {
     return (
-      <div className='relative flex flex-col w-screen h-screen p-[20px] z-0 dark:bg-black-100 overflow-y-scroll pt-0'>
-        {children}
+      <div
+        id='search-modal-container'
+        className='relative flex flex-col w-screen h-screen p-[20px] z-0 dark:bg-black-100 overflow-y-scroll pt-0'
+      >
+        {Children}
       </div>
     )
   }
@@ -174,11 +277,18 @@ export function RequireAuth({
   return views.length === 0 ? (
     <ExtensionPage>
       <div className='absolute top-0 rounded-2xl flex bottom-0 w-1/2 z-5 justify-center items-center'>
-        <div className='dark:shadow-sm shadow-xl dark:shadow-gray-700'>{children}</div>
+        <div
+          id='search-modal-container'
+          className='dark:shadow-sm shadow-xl dark:shadow-gray-700 relative'
+        >
+          {Children}
+        </div>
       </div>
     </ExtensionPage>
   ) : (
-    children
+    <div id='search-modal-container' className='relative w-full'>
+      {Children}
+    </div>
   )
 }
 

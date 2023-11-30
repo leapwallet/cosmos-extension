@@ -24,7 +24,11 @@ const bolosErrorMessage = 'Please close BOLOS and open the Cosmos Ledger app on 
 const ledgerDisconnectMessage =
   "Ledger Native Error: DisconnectedDeviceDuringOperation: Failed to execute 'transferOut' on 'USBDevice': The device was disconnected.";
 
+//error thrown by ledger
 export const transactionDeclinedError = new LedgerError('Transaction signing request was rejected by the user');
+
+//error shown to user
+export const txDeclinedErrorUser = new LedgerError('Transaction rejected on Ledger.');
 
 export const bolosError = new LedgerError('Please open the Cosmos Ledger app on your Ledger device.');
 
@@ -37,6 +41,8 @@ export const ledgerConnectedOnDifferentTabError = new LedgerError(
 export const deviceDisconnectedError = new LedgerError(
   'Ledger device disconnected. Please connect and unlock your device and open the cosmos app on it.',
 );
+
+const ledgerLockedError = 'Ledger Native Error: LockedDeviceError: Ledger device: Locked device (0x5515)';
 
 const isWindows = () => navigator.platform.indexOf('Win') > -1;
 
@@ -65,7 +71,7 @@ export async function getLedgerTransport() {
       transport = await TransportWebUsb.create();
     } catch (e) {
       throw new LedgerError(
-        'Unable to connect to Ledger device. Please check if your ledger is connected and try again.',
+        'Unable to connect to Ledger device. Please check if your Ledger is connected and try again.',
       );
     }
   }
@@ -84,6 +90,8 @@ export class LeapLedgerSigner extends LedgerSigner {
       return bolosError;
     } else if (e.message.includes(ledgerDisconnectMessage)) {
       return deviceDisconnectedError;
+    } else if (e.message.includes(ledgerLockedError)) {
+      throw deviceLockedError;
     } else {
       return new LedgerError(e.message.toString());
     }
@@ -113,6 +121,60 @@ export class LeapLedgerSigner extends LedgerSigner {
     }
   }
 }
+
+// TODO:- enable it when implementing ledger for evm chains
+
+/**
+ * 
+ * export class LeapLedgerSignerEth {
+  private readonly ledger: EthereumApp;
+  private readonly options: {
+    hdPaths: [string];
+    prefix: string;
+  };
+
+  constructor(transport: Transport, options: { hdPaths: [string]; prefix: string }) {
+    this.ledger = new EthereumApp(transport);
+    this.options = options;
+  }
+
+  private static domainHash(message: any) {
+    return TypedDataUtils.hashStruct('EIP712Domain', message, message.types, true);
+  }
+
+  private static messageHash(message: any) {
+    return TypedDataUtils.hashStruct(message.primaryType, message.message, message.types, true);
+  }
+
+  async getAccounts(): Promise<readonly AccountData[]> {
+    const hdPath = this.options.hdPaths?.toString();
+    const defaultHdPath = "m/44'/60'/0'/0/0";
+    const { address, publicKey } = await this.ledger.getAddress(hdPath ?? defaultHdPath);
+    const addressBuffer = EthereumUtilsAddress.fromString(address).toBuffer();
+    const bech32Address = bech32.encode(this.options.prefix ?? 'inj', bech32.toWords(addressBuffer));
+
+    return [
+      {
+        address: bech32Address,
+        algo: 'secp256k1',
+        pubkey: Buffer.from(publicKey),
+      },
+    ];
+  }
+
+  async signEpi712(message: EIP712Message) {
+    const hdPath = this.options.hdPaths?.toString();
+    const defaultHdPath = "m/44'/60'/0'/0/0";
+    const result = await this.ledger.signEIP712HashedMessage(
+      hdPath ?? defaultHdPath,
+      bufferToHex(LeapLedgerSignerEth.domainHash(message)),
+      bufferToHex(LeapLedgerSignerEth.messageHash(message)),
+    );
+    const combined = `${result.r}${result.s}${result.v.toString(16)}`;
+    return combined.startsWith('0x') ? combined : `0x${combined}`;
+  }
+}
+*/
 
 export async function importLedgerAccount(indexes?: Array<number>, primaryChain?: SupportedChain) {
   try {
@@ -151,6 +213,9 @@ export async function importLedgerAccount(indexes?: Array<number>, primaryChain?
     }
     if (e.message.includes(ledgerDisconnectMessage)) {
       throw deviceDisconnectedError;
+    }
+    if (e.message.includes(ledgerLockedError)) {
+      throw deviceLockedError;
     }
 
     throw new LedgerError(e.message);

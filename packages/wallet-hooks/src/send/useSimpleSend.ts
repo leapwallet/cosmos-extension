@@ -8,12 +8,14 @@ import {
   isEthAddress,
   isValidAddress,
   isValidAddressWithPrefix,
+  MayaTx,
   NativeDenom,
   SigningSscrt,
   SupportedChain,
   toSmall,
   transactionDeclinedError,
   Tx,
+  txDeclinedErrorUser,
 } from '@leapwallet/cosmos-wallet-sdk';
 import * as bech32 from 'bech32';
 import { BigNumber } from 'bignumber.js';
@@ -188,14 +190,81 @@ export const useSimpleSend = () => {
         if (e.message === transactionDeclinedError.message) {
           return {
             success: false,
-            errors: ['Transaction declined'],
+            errors: [txDeclinedErrorUser.message],
           };
         } else {
           return {
             success: false,
-            errors: ['Failed to send tokens', e.message?.slice(0, 60)],
+            errors: [e.message?.slice(0, 60)],
           };
         }
+      }
+    },
+    [],
+  );
+
+  const sendMaya = useCallback(
+    async ({
+      wallet,
+      fromAddress,
+      toAddress,
+      selectedDenom,
+      amount,
+      memo,
+      fees,
+    }: {
+      wallet: OfflineSigner;
+      fromAddress: string;
+      toAddress: string;
+      selectedDenom: _TokenDenom;
+      amount: BigNumber;
+      memo: string;
+      fees: StdFee;
+    }): Promise<sendTokensReturnType> => {
+      try {
+        const mayaClient = new MayaTx(wallet);
+        const { txHash, amount: _amount } = await mayaClient.sendTokens(
+          fromAddress,
+          toAddress,
+          {
+            amount: amount.toNumber(),
+            decimals: selectedDenom.coinDecimals ?? 10,
+            denom: selectedDenom.coinMinimalDenom,
+          },
+          0,
+          memo,
+        );
+
+        return {
+          success: true,
+          pendingTx: {
+            txHash,
+            img: chainInfo.chainSymbolImageUrl,
+            sentAmount: amount.toString(),
+            sentTokenInfo: selectedDenom as unknown as NativeDenom,
+            sentUsdValue: '',
+            subtitle1: `to ${sliceAddress(toAddress)}`,
+            title1: `Sent ${selectedDenom.coinDenom}`,
+            txStatus: 'loading',
+            txType: 'send',
+            promise: Promise.resolve({ code: 0 }),
+          },
+          data: {
+            txHash,
+            txType: CosmosTxType.Send,
+            metadata: getMetaDataForSendTx(
+              toAddress,
+              coin(_amount.amount().toString(), selectedDenom.coinMinimalDenom),
+            ),
+            feeDenomination: fees.amount[0].denom,
+            feeQuantity: fees.amount[0].amount,
+          },
+        };
+      } catch (e: any) {
+        return {
+          success: false,
+          errors: ['Failed to send tokens', e.message?.slice(0, 200)],
+        };
       }
     },
     [],
@@ -338,12 +407,12 @@ export const useSimpleSend = () => {
         if (e.message === transactionDeclinedError.message) {
           return {
             success: false,
-            errors: ['Transaction declined'],
+            errors: [txDeclinedErrorUser.message],
           };
         } else {
           return {
             success: false,
-            errors: ['Failed to send tokens', e.message?.slice(0, 200)],
+            errors: [e.message?.slice(0, 200)],
           };
         }
       }
@@ -437,6 +506,19 @@ export const useSimpleSend = () => {
           toAddress,
           wallet: (await getWallet()) as Wallet,
           txHandler: txHandler as SigningSscrt,
+        });
+      } else if (activeChain === 'mayachain') {
+        result = await sendMaya({
+          fromAddress: activeWallet.addresses[activeChain],
+          wallet: (await getWallet()) as OfflineSigner,
+          toAddress,
+          amount,
+          selectedDenom: {
+            ibcDenom: selectedToken.ibcDenom,
+            ...selectedDenomData,
+          },
+          memo,
+          fees,
         });
       } else {
         result = await send({

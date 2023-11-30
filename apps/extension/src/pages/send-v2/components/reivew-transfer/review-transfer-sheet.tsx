@@ -1,6 +1,7 @@
 import {
   sliceAddress,
   Token,
+  useActiveChain,
   useformatCurrency,
   useGasAdjustment,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -20,6 +21,7 @@ import React, { useCallback, useMemo } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
+import { MayaFee } from '../fees-view/MayaFee'
 import { IBCBanner } from '../ibc-banner'
 
 type ReviewTransactionSheetProps = {
@@ -35,6 +37,7 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
 }) => {
   const [formatCurrency] = useformatCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const activeChain = useActiveChain()
 
   const {
     memo,
@@ -197,15 +200,19 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
             }}
           />
 
-          <div className='flex items-center justify-center text-gray-600 dark:text-gray-200'>
-            <p className='font-semibold text-center text-sm'>Transaction fee: </p>
-            <p className='font-semibold text-center text-sm ml-1'>
-              <strong data-testing-id='send-review-sheet-fee-ele'>
-                {displayFee.formattedAmount} {feeDenom.coinDenom}
-              </strong>{' '}
-              {displayFee.fiatValue ? `(${displayFee.fiatValue})` : null}
-            </p>
-          </div>
+          {activeChain === 'mayachain' ? (
+            <MayaFee />
+          ) : (
+            <div className='flex items-center justify-center text-gray-600 dark:text-gray-200'>
+              <p className='font-semibold text-center text-sm'>Transaction fee: </p>
+              <p className='font-semibold text-center text-sm ml-1'>
+                <strong data-testing-id='send-review-sheet-fee-ele'>
+                  {displayFee.formattedAmount} {feeDenom.coinDenom}
+                </strong>{' '}
+                {displayFee.fiatValue ? `(${displayFee.fiatValue})` : null}
+              </p>
+            </div>
+          )}
 
           <Buttons.Generic
             color={themeColor}

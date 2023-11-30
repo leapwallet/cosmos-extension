@@ -72,6 +72,7 @@ import LockFilled from './lock-fill.svg'
 import LockGreen from './lock-green.svg'
 import Menu from './menu.svg'
 import Messages from './messages.svg'
+import nBtcSymbol from './nbtc-symbol.svg'
 import NFTFallBackImage from './nft-fallback-image.svg'
 import NFTImageLoading from './nft-image-loading.svg'
 import NftProfile from './nft-profile.svg'
@@ -90,6 +91,7 @@ import RightArrow from './right-arrow.svg'
 import RightArrowCollapsed from './right-arrow-collapsed.svg'
 import Search from './search.svg'
 import SearchIcon from './search-gray-400-icon.svg'
+import SearchModalGlass from './search-modal-glass.svg'
 import Sell from './sell.svg'
 import Settings from './settings.svg'
 import SideNavIcon from './side-nav-icon.svg'
@@ -213,6 +215,7 @@ export {
   LockGreen,
   Menu,
   Messages,
+  nBtcSymbol,
   NFTFallBackImage,
   NFTImageLoading,
   NftProfile,
@@ -231,6 +234,7 @@ export {
   RightArrowCollapsed,
   Search,
   SearchIcon,
+  SearchModalGlass,
   Sell,
   Settings,
   SideNavIcon,
