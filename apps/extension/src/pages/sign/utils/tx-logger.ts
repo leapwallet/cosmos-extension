@@ -140,17 +140,6 @@ const registry = new Registry([
 ])
 
 import LogCosmosDappTx = LeapWalletApi.LogCosmosDappTx
-import { uint8ArrayToBase64 } from 'utils/uint8Utils'
-
-export function getTxHashFromDirectSignResponse(data: DirectSignResponse): string {
-  const txHash = getTxHashFromSignedTx({
-    authInfoBytes: data.signed.authInfoBytes,
-    bodyBytes: data.signed.bodyBytes,
-    signatures: [fromBase64(data.signature.signature)],
-  })
-
-  return txHash
-}
 
 export function getTxHashFromDirectSignResponse(data: DirectSignResponse): string {
   const txHash = getTxHashFromSignedTx({
