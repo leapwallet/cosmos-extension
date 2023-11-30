@@ -10,6 +10,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
+import { formatWalletName } from 'utils/formatWalletName'
 import { capitalize } from 'utils/strings'
 
 import { SendContextType, useSendContext } from '../../context'
@@ -29,10 +30,11 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const trimmedQuery = searchQuery.trim()
 
-  const { ibcSupportData, isIbcSupportDataLoading } = useSendContext() as SendContextType
+  const { displayAccounts: _displayAccounts, isIbcSupportDataLoading } =
+    useSendContext() as SendContextType
 
   const {
-    activeWallet: { addresses, name, colorIndex },
+    activeWallet: { name, colorIndex },
   } = useActiveWallet() as {
     activeWallet: Key
   }
@@ -40,19 +42,10 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
 
-  const displayAccounts = useMemo(() => {
-    if (addresses && !isIbcSupportDataLoading && ibcSupportData) {
-      return Object.entries(addresses).filter(([chain]) => {
-        const chainInfo = chainInfos[chain as SupportedChain]
-        const chainRegistryPath = chainInfo?.chainRegistryPath
-
-        return (
-          ibcSupportData[chainRegistryPath] && chainInfo?.enabled && chain.includes(trimmedQuery)
-        )
-      })
-    }
-    return []
-  }, [addresses, chainInfos, ibcSupportData, isIbcSupportDataLoading, trimmedQuery])
+  const displayAccounts = useMemo(
+    () => _displayAccounts.filter(([chain]) => chain.includes(trimmedQuery)),
+    [_displayAccounts, trimmedQuery],
+  )
 
   return (
     <BottomModal
@@ -86,7 +79,7 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                       className='p-1 font-bold'
                       color='text-gray-600 dark:text-gray-200'
                     >
-                      Other chains in current wallet: {name}
+                      Other chains in current wallet: {formatWalletName(name)}
                     </Text>
                   </div>
                   <div className='mt-2'>

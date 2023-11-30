@@ -3,6 +3,7 @@ import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provi
 import { ChainInfo, Sscrt, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
+import { AxiosError } from 'axios'
 import classNames from 'classnames'
 import { Divider, Key, Value } from 'components/dapp'
 import { ErrorCard } from 'components/ErrorCard'
@@ -107,7 +108,13 @@ export default function AddSecretToken() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
           setIsFetching(false)
-          setError(e.message)
+
+          if (e instanceof AxiosError) {
+            setError(e.response?.data?.message ?? e.message)
+          } else {
+            setError(e.message)
+          }
+
           captureException(e)
         }
       }
@@ -307,8 +314,8 @@ export default function AddSecretToken() {
                     className='ml-3 bg-gray-800'
                     onClick={approveNewToken}
                     disabled={
-                      error.length !== 0 ||
-                      (isCustomKeyError && customKey.length > 0) ||
+                      error?.length !== 0 ||
+                      (isCustomKeyError && customKey?.length > 0) ||
                       !contractInfo.name
                     }
                   >

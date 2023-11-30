@@ -321,11 +321,20 @@ export namespace LeapWalletApi {
       nibiru: CosmosBlockchain.Nibiru,
       mayachain: CosmosBlockchain.mayaChain,
       empowerchain: CosmosBlockchain.EmpowerChain,
+      provenance: CosmosBlockchain.Provenance,
+      kichain: CosmosBlockchain.Ki,
+      sentinel: CosmosBlockchain.Sentinel,
+      bandchain: CosmosBlockchain.Band,
       dydx: 'DYDX' as CosmosBlockchain,
       sge: 'SGE' as CosmosBlockchain,
-      celestiatestnet3: 'CELESTIA_TESTNET' as CosmosBlockchain,
+      celestia: 'CELESTIA' as CosmosBlockchain,
+      gitopia: 'GITOPIA' as CosmosBlockchain,
+      xpla: 'XPLA' as CosmosBlockchain,
+      aura: 'AURA' as CosmosBlockchain,
+      chain4energy: 'CHAIN4ENERGY' as CosmosBlockchain,
+      nolus: 'NOLUS' as CosmosBlockchain,
     };
-    return blockchains[activeChain];
+    return blockchains[activeChain] ?? activeChain.toUpperCase();
   }
 
   export function sanitizeUrl(url: string) {

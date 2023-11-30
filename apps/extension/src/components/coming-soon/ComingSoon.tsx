@@ -1,0 +1,83 @@
+import { useActiveChain, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { Header, HeaderActionType } from '@leapwallet/leap-ui'
+import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
+import PopupLayout from 'components/layout/popup-layout'
+import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import SelectChain from 'pages/home/SelectChain'
+import SideNav from 'pages/home/side-nav'
+import React, { useState } from 'react'
+import { Colors } from 'theme/colors'
+import { isCompassWallet } from 'utils/isCompassWallet'
+
+type ComingSoonProps = {
+  title: string
+  bottomNavLabel: BottomNavLabel
+}
+
+export function ComingSoon({ title, bottomNavLabel }: ComingSoonProps) {
+  const [showSideNav, setShowSideNav] = useState(false)
+  const [showChainSelector, setShowChainSelector] = useState(false)
+
+  const activeChain = useActiveChain()
+  const chains = useGetChains()
+  const defaultTokenLogo = useDefaultTokenLogo()
+
+  const activeChainInfo = chains[activeChain]
+  const themeColor = Colors.getChainColor(activeChain, activeChainInfo)
+
+  return (
+    <div className='relative w-[400px] overflow-clip'>
+      <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
+      <PopupLayout
+        header={
+          <Header
+            action={{
+              onClick: function noRefCheck() {
+                setShowSideNav(true)
+              },
+              type: HeaderActionType.NAVIGATION,
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              className:
+                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
+            }}
+            imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
+            onImgClick={
+              isCompassWallet()
+                ? undefined
+                : function noRefCheck() {
+                    setShowChainSelector(true)
+                  }
+            }
+            title={title}
+            topColor={themeColor}
+          />
+        }
+      >
+        <div className='h-[475px] px-4 flex flex-col items-center justify-center text-center gap-[4px]'>
+          <div className='relative'>
+            <span
+              className='absolute w-[200px] h-[100px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ml-[0.3rem]'
+              style={{ boxShadow: '2px -2px 4.5rem 1.5rem #28ba5b', borderRadius: '100% 100% 0 0' }}
+            ></span>
+
+            <img
+              className='z-[1] relative'
+              src='https://assets.leapwallet.io/frog-coming-soon.png'
+              alt='frog-coming-soon'
+            />
+          </div>
+
+          <h3 className='dark:text-white-100 font-bold text-[24px]'>Coming soon</h3>
+          <p className='text-gray-400 text-[16px] font-medium'>
+            We&apos;re working on it. Or perhaps the chain is...
+            <br />
+            Either way, this page is coming soon!
+          </p>
+        </div>
+      </PopupLayout>
+      <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
+      <BottomNav label={bottomNavLabel} />
+    </div>
+  )
+}

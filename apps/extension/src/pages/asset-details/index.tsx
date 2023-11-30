@@ -22,7 +22,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import SelectChain from 'pages/home/SelectChain'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import {
   ChartTooltip,
@@ -48,8 +48,15 @@ export default function AssetDetails() {
   const chainInfos = useChainInfos()
   const [formatCurrency] = useformatCurrency()
   const [preferenceCurrency] = useUserPreferredCurrency()
-  const assetName = useQuery().get('assetName') ?? undefined
-  const tokenChain = useQuery().get('tokenChain') ?? undefined
+  const assetName =
+    useQuery().get('assetName') ?? sessionStorage.getItem('asset-details-asset-name') ?? undefined
+  const tokenChain =
+    useQuery().get('tokenChain') ?? sessionStorage.getItem('asset-details-token-chain') ?? undefined
+
+  useEffect(() => {
+    assetName && sessionStorage.setItem('asset-details-asset-name', assetName)
+    tokenChain && sessionStorage.setItem('asset-details-token-chain', tokenChain)
+  }, [assetName, tokenChain])
 
   const navigate = useNavigate()
   const state = useLocation().state

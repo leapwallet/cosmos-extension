@@ -5,6 +5,7 @@ import {
   useFetchStakeDelegations,
   useFetchStakeUndelegations,
   useFetchStakeValidators,
+  useGetNtrnProposals,
   useInitGovProposals,
 } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
@@ -29,10 +30,11 @@ import { AddToken } from 'pages/secret/AddToken'
 import Send from 'pages/send-v2'
 import Sign from 'pages/sign/sign-transaction'
 import Stake from 'pages/stake'
+import CancelUndelegationPage from 'pages/stake/cancelUndelegation'
 import ChooseValidator from 'pages/stake/chooseValidator'
 import ValidatorDetails from 'pages/stake/validatorDetails'
-import SuggestChain from 'pages/suggestChain'
 import AddChain from 'pages/suggestChain/addChain'
+import SuggestChain from 'pages/suggestChain/suggestChain'
 import Swap from 'pages/swaps'
 import React from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
@@ -51,6 +53,7 @@ export default function AppRoutes(): JSX.Element {
   useFetchERC20Tokens()
 
   useInitGovProposals()
+  useGetNtrnProposals()
   useFetchStakeClaimRewards()
   useFetchStakeDelegations()
   useFetchStakeUndelegations()
@@ -102,6 +105,14 @@ export default function AppRoutes(): JSX.Element {
             element={
               <RequireAuth>
                 <ValidatorDetails />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path='stakeCancelUndelegation'
+            element={
+              <RequireAuth>
+                <CancelUndelegationPage />
               </RequireAuth>
             }
           />

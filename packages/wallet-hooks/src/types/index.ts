@@ -5,6 +5,7 @@ export * from './banner';
 export * from './currencies';
 export * from './faucet';
 export * from './gov';
+export * from './quick-search';
 export * from './secretTokens';
 export * from './staking';
 export * from './staking';

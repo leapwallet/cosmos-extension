@@ -1,6 +1,7 @@
 export * from './activity';
 export * from './apis';
 export * from './asset-details';
+export * from './authz';
 export * from './bank';
 export * from './banner';
 export * from './config';
@@ -12,6 +13,7 @@ export * from './gov';
 export * from './ibc';
 export * from './nameservice';
 export * from './nfts';
+export * from './quick-search';
 export * from './send';
 export * from './settings';
 export * from './staking';

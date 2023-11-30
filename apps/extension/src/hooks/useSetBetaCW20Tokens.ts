@@ -1,5 +1,6 @@
 import {
   BETA_CW20_TOKENS,
+  BETA_NATIVE_TOKENS,
   useDenoms,
   useDenomsStore,
   useSnipDenomsStore,
@@ -46,6 +47,19 @@ export function useSetBetaCW20Tokens() {
       [coinMinimalDenom]: tokenInfo,
     })
     await setBetaTokens<NativeDenom>(coinMinimalDenom, tokenInfo, chain, BETA_CW20_TOKENS)
+  }
+}
+
+export function useSetBetaNativeTokens() {
+  const denoms = useDenoms()
+  const { setDenoms } = useDenomsStore()
+
+  return async (coinMinimalDenom: string, tokenInfo: NativeDenom, chain: string) => {
+    setDenoms({
+      ...denoms,
+      [coinMinimalDenom]: tokenInfo,
+    })
+    await setBetaTokens<NativeDenom>(coinMinimalDenom, tokenInfo, chain, BETA_NATIVE_TOKENS)
   }
 }
 

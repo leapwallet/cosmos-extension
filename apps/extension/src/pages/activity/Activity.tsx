@@ -4,7 +4,10 @@ import type { ParsedTransaction } from '@leapwallet/parser-parfait'
 import { QueryStatus } from '@tanstack/react-query'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
+import { ComingSoon } from 'components/coming-soon'
 import PopupLayout from 'components/layout/popup-layout'
+import { PageName } from 'config/analytics'
+import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
@@ -27,6 +30,8 @@ export type SelectedTx = {
 }
 
 function Activity() {
+  usePageView(PageName.Activity)
+
   const chainInfos = useChainInfos()
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -92,31 +97,38 @@ function Activity() {
           >
             <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
 
-            {isCompassWallet() && isTestnet && (
-              <AlertStrip
-                message='You are on Sei Testnet'
-                bgColor={themeColor}
-                alwaysShow={isTestnet}
-              />
-            )}
+            {activeChain === 'nomic' ? (
+              <ComingSoon title={'Activity'} bottomNavLabel={BottomNavLabel.Activity} />
+            ) : (
+              <>
+                {isCompassWallet() && isTestnet && (
+                  <AlertStrip
+                    message='You are on Sei Testnet'
+                    bgColor={themeColor}
+                    alwaysShow={isTestnet}
+                  />
+                )}
 
-            {showSelectedChainAlert && !isCompassWallet() && (
-              <AlertStrip
-                message={`You are on ${chainInfos[activeChain].chainName}${
-                  isTestnet && !chainInfos[activeChain]?.chainName.includes('Testnet')
-                    ? ' Testnet'
-                    : ''
-                }`}
-                bgColor={themeColor}
-                alwaysShow={isTestnet}
-                onHide={() => {
-                  setShowSelectedChainAlert(false)
-                }}
-              />
+                {showSelectedChainAlert && !isCompassWallet() && (
+                  <AlertStrip
+                    message={`You are on ${chainInfos[activeChain].chainName}${
+                      isTestnet && !chainInfos[activeChain]?.chainName.includes('Testnet')
+                        ? ' Testnet'
+                        : ''
+                    }`}
+                    bgColor={themeColor}
+                    alwaysShow={isTestnet}
+                    onHide={() => {
+                      setShowSelectedChainAlert(false)
+                    }}
+                  />
+                )}
+
+                <div className='w-full flex flex-col justify-center pt-[28px] items-center mb-20 px-7'>
+                  <ActivityList setSelectedTx={setSelectedTx} txResponse={txResponse} />
+                </div>
+              </>
             )}
-            <div className='w-full flex flex-col justify-center pt-[28px] items-center mb-20 px-7'>
-              <ActivityList setSelectedTx={setSelectedTx} txResponse={txResponse} />
-            </div>
           </PopupLayout>
           <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
           <BottomNav label={BottomNavLabel.Activity} />

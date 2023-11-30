@@ -13,6 +13,7 @@ const BASE_DENOMS_LAST_UPDATED_AT_URL =
   'https://assets.leapwallet.io/cosmos-registry/v1/denoms/base-last-updated-at.json';
 
 export const BETA_CW20_TOKENS = 'beta-cw20-tokens';
+export const BETA_NATIVE_TOKENS = 'beta-native-tokens';
 
 export function useInitDenoms() {
   const storage = useGetStorageLayer();
@@ -20,6 +21,8 @@ export function useInitDenoms() {
 
   const setResource = useCallback(async (resouce: any) => {
     const betaCW20Tokens = await storage.get(BETA_CW20_TOKENS);
+    const betaNativeTokens = await storage.get(BETA_NATIVE_TOKENS);
+
     if (betaCW20Tokens) {
       let allBetaCW20Tokens = {};
       for (const chain in betaCW20Tokens) {
@@ -27,9 +30,20 @@ export function useInitDenoms() {
       }
 
       setDenoms({ ...resouce, ...allBetaCW20Tokens });
-    } else {
-      setDenoms(resouce);
+      return;
     }
+
+    if (betaNativeTokens) {
+      let allBetaNativeTokens = {};
+      for (const chain in betaNativeTokens) {
+        allBetaNativeTokens = { ...allBetaNativeTokens, ...betaNativeTokens[chain] };
+      }
+
+      setDenoms({ ...resouce, ...allBetaNativeTokens });
+      return;
+    }
+
+    setDenoms(resouce);
   }, []);
 
   useEffect(() => {

@@ -203,13 +203,17 @@ export async function getSeed(password: string) {
   const storage = await chrome.storage.local.get([key])
   const cachedKey = storage[key]
   if (cachedKey) {
-    return Buffer.from(cachedKey, 'hex')
+    const cachedKeyBytes = Buffer.from(cachedKey, 'hex')
+    if (cachedKeyBytes.length === 32) {
+      return cachedKeyBytes
+    }
   }
 
   const address = await getWalletAddress('secret-4')
   const storageAdapter = getStorageAdapter()
   initStorage(storageAdapter)
   const signer = await KeyChain.getSigner(activeWallet.id, password, 'secret', '529')
+
   const seed = CryptoJs.SHA256(
     //@ts-ignore
     await signer.signAmino(
@@ -229,7 +233,7 @@ export async function getSeed(password: string) {
   )
 
   await chrome.storage.local.set({
-    [`seed-phrase/${activeWallet.id}`]: Buffer.from(seed.toString()).toString('hex'),
+    [`seed-phrase/${activeWallet.id}`]: seed.toString(),
   })
   return Buffer.from(seed.toString())
 }
@@ -257,6 +261,7 @@ export function requestEnableAccess(payload: {
   validChainIds: string[]
   payloadId: string
 }) {
+  // Store the listener function in a variable so we can remove it later
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const listener = (message: any, sender: any) => {
     if (sender.id !== browser.runtime.id) throw new Error('Invalid sender')
