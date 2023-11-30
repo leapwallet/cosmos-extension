@@ -1,4 +1,3 @@
-import { coin } from '@cosmjs/amino'
 import { calculateFee } from '@cosmjs/stargate'
 import {
   FeeTokenData,
@@ -163,6 +162,8 @@ export const CastVote: React.FC<CastVoteProps> = ({
     return () => {
       cancelled = true
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChainInfo.cosmosSDK, proposalId, simulateVote])
 
   useEffect(() => {
@@ -177,7 +178,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
       <GasPriceOptions
         recommendedGasLimit={recommendedGasLimit}
         gasLimit={gasLimit}
-        setGasLimit={(value) => setGasLimit(value.toString())}
+        setGasLimit={(value: number) => setGasLimit(value.toString())}
         gasPriceOption={gasPriceOption}
         onGasPriceOptionChange={handleGasPriceOptionChange}
         error={gasError}
@@ -220,6 +221,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
           refetchCurrVote={refetchVote}
           onCloseHandler={handleCloseReviewVoteCastSheet}
           showLedgerPopup={showLedgerPopup}
+          gasOption={gasPriceOption.option}
         />
       </GasPriceOptions>
     </div>

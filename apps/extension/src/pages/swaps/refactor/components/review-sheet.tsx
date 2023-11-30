@@ -3,6 +3,8 @@ import { ExecuteResult } from '@cosmjs/cosmwasm-stargate'
 import { calculateFee, DeliverTxResponse } from '@cosmjs/stargate'
 import {
   formatBigNumber,
+  GasOptions,
+  getErrorMsg,
   useActiveChain,
   useChainInfo,
   useDenoms,
@@ -22,7 +24,6 @@ import { getSwapProviderImage } from 'images/logos'
 import React, { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
-import { DEBUG } from 'utils/debug'
 
 import { useSwapContext } from '../swap-context'
 
@@ -32,6 +33,7 @@ interface propTypes {
   feeDenom: NativeDenom
   customFee?: { gasLimit: string; gasPrice: GasPrice }
   displayFeeValue: DisplayFeeValue
+  gasOption: GasOptions
 }
 
 const ReviewSheet: React.FC<propTypes> = ({
@@ -40,6 +42,7 @@ const ReviewSheet: React.FC<propTypes> = ({
   displayFeeValue,
   feeDenom,
   customFee,
+  gasOption,
 }) => {
   const [
     {
@@ -100,12 +103,11 @@ const ReviewSheet: React.FC<propTypes> = ({
       navigate('/pending-tx')
     } catch (e: any) {
       captureException(e)
-      DEBUG('OSMOSIS SWAP', 'Failed to execute token swap', e)
       setIsLoading(false)
       if (e.message.includes('Tx Error Code')) {
         navigate('/home?txDeclined=true')
       } else if (e instanceof Error) {
-        setError(`Failed to execute token swap.\nError: ${e.message}`)
+        setError('Token swap failed. Please try again in a while.')
       } else {
         setError(`Failed to execute token swap.\n${e.toString()}`)
       }
@@ -196,7 +198,7 @@ const ReviewSheet: React.FC<propTypes> = ({
 
         {error ? (
           <div className='my-4'>
-            <ErrorCard text={error} />
+            <ErrorCard text={getErrorMsg(error, gasOption, 'swap')} />
           </div>
         ) : null}
 

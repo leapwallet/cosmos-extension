@@ -11,6 +11,7 @@ import {
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { chainInfosState } from 'atoms/chains'
 import axios from 'axios'
+import { ErrorCard } from 'components/ErrorCard'
 import { InputComponent } from 'components/input-component/InputComponent'
 import PopupLayout from 'components/layout/popup-layout'
 import Loader from 'components/loader/Loader'
@@ -194,21 +195,23 @@ const AddChainForm = ({
 
     browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {
       try {
-        let betaChains = resp?.[BETA_CHAINS]
-
-        betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
-        betaChains[chainName] = data
-        await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
         const updatedKeystore = await updateKeyStore(
           activeWallet,
           chainName as unknown as SupportedChain,
           'UPDATE',
           data,
         )
+        let betaChains = resp?.[BETA_CHAINS]
+
+        betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
+        betaChains[chainName] = data
+        await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
+
         await setActiveWallet(updatedKeystore[activeWallet.id])
         await setActiveChain(chainName as unknown as SupportedChain, data)
         navigate('/')
       } catch (error) {
+        setErrors((s) => ({ ...s, submit: 'Unable to add chain' }))
         // do nothing
       } finally {
         setLoading(false)
@@ -299,6 +302,7 @@ const AddChainForm = ({
         onChange={handleChange}
         error={errors.explorerUrl}
       />
+      {errors.submit ? <ErrorCard text={errors.submit} /> : null}
 
       <div className='flex gap-x-4 mt-3'>
         <Buttons.Generic

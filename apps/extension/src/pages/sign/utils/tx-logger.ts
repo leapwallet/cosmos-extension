@@ -152,6 +152,16 @@ export function getTxHashFromDirectSignResponse(data: DirectSignResponse): strin
   return txHash
 }
 
+export function getTxHashFromDirectSignResponse(data: DirectSignResponse): string {
+  const txHash = getTxHashFromSignedTx({
+    authInfoBytes: data.signed.authInfoBytes,
+    bodyBytes: data.signed.bodyBytes,
+    signatures: [fromBase64(data.signature.signature)],
+  })
+
+  return txHash
+}
+
 export async function logDirectTx(
   data: DirectSignResponse,
   messages: any[],

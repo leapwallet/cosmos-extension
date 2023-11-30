@@ -16,7 +16,7 @@ export interface Currency {
 /**
  * The currency that is supported on the cosmwasm.
  * This should be the CW-20 that confirms the standard.
- * And, in this case, `coinMinimalDenom` must start with the type and contract address of currency such as "cw20:coral1vv6hruqu...3sfhwh:ukeplr".
+ * And, in this case, `coinMinimalDenom` must start with the type and contract address of currency such as "cw20:coral1vv6hruqu...3sfhwh".
  */
 export interface CW20Currency extends Currency {
   readonly type: 'cw20';
@@ -47,9 +47,6 @@ export interface IBCCurrency extends Currency {
   readonly originCurrency: Currency | CW20Currency | Secret20Currency | undefined;
 }
 
-/**
- * Any type of currency that Kepler applications can support.
- */
 export type AppCurrency = Currency | CW20Currency | Secret20Currency | IBCCurrency;
 
 export interface FiatCurrency {

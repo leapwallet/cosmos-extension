@@ -5,8 +5,9 @@ import {
   useChainApis,
   useDefaultGasEstimates,
   useGasPriceSteps,
+  useNativeFeeDenom,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, feeDenoms, fromSmall } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, fromSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/secret/sscrt'
 import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
@@ -20,6 +21,7 @@ export function useViewingKeyFee(contractAddr: string | undefined) {
   const getWallet = useSecretWallet()
   const gasPriceSteps = useGasPriceSteps()
   const defaultGasEstimates = useDefaultGasEstimates()
+  const nativeFeeDenom = useNativeFeeDenom('secret', 'mainnet')
 
   const simulate = async (signerAddress: string, contractAddress: string) => {
     try {
@@ -29,12 +31,12 @@ export function useViewingKeyFee(contractAddr: string | undefined) {
 
       return calculateFee(
         parseInt(gasUsed),
-        `${gasPriceSteps.secret.low}${feeDenoms.mainnet.secret.coinMinimalDenom}`,
+        `${gasPriceSteps.secret.low}${nativeFeeDenom.coinMinimalDenom}`,
       )
     } catch (e) {
       return calculateFee(
         defaultGasEstimates.secret.DEFAULT_GAS_TRANSFER,
-        `${gasPriceSteps.secret.low}${feeDenoms.mainnet.secret.coinMinimalDenom}`,
+        `${gasPriceSteps.secret.low}${nativeFeeDenom.coinMinimalDenom}`,
       )
     }
   }
@@ -49,11 +51,11 @@ export function useViewingKeyFee(contractAddr: string | undefined) {
     if (fee) {
       return formatTokenAmount(
         fromSmall((fee as StdFee).amount[0].amount, 6),
-        feeDenoms.mainnet.secret.coinDenom,
+        nativeFeeDenom.coinDenom,
       )
     }
     return ''
-  }, [fee])
+  }, [fee, nativeFeeDenom.coinDenom])
 
   return { fee, feeText, loadingFees: feeStatus !== 'success' }
 }

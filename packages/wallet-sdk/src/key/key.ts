@@ -2,7 +2,7 @@ import { Secp256k1Wallet } from '@cosmjs/amino';
 import { Slip10, Slip10Curve, stringToPath } from '@cosmjs/crypto';
 import { fromHex, toHex } from '@cosmjs/encoding';
 import { DirectSecp256k1HdWallet, DirectSecp256k1Wallet, OfflineDirectSigner } from '@cosmjs/proto-signing';
-import { EthWallet, generateWallet } from '@leapwallet/leap-keychain';
+import { EthWallet, Wallet } from '@leapwallet/leap-keychain';
 import * as bip39 from 'bip39';
 
 import getHDPath from '../utils/get-hdpath';
@@ -71,7 +71,9 @@ export async function generateWalletFromMnemonic(
   }
 
   return new Promise((resolve) =>
-    resolve(generateWallet(mnemonic, { paths: [hdPath], addressPrefix: prefix }) as unknown as OfflineDirectSigner),
+    resolve(
+      Wallet.generateWallet(mnemonic, { paths: [hdPath], addressPrefix: prefix }) as unknown as OfflineDirectSigner,
+    ),
   );
 }
 
@@ -82,9 +84,14 @@ export async function generateWalletFromMnemonic(
  * @param isAmino
  * @returns {Promise<DirectSecp256k1HdWallet>}
  */
-export async function generateWalletFromPrivateKey(key: string, prefix = 'cosmos', isAmino?: boolean) {
+export async function generateWalletFromPrivateKey(
+  key: string,
+  prefix = 'cosmos',
+  coinType: string,
+  isAmino?: boolean,
+) {
   const privateKey = key.startsWith('0x') || key.startsWith('0X') ? key.slice(2) : key;
-  if (prefix === 'inj' || prefix === 'evmos') {
+  if (coinType === '60') {
     // hd path is passed here for completeness but is not used
     return new DirectEthSecp256k1HdWallet('', key, 'pvtKey', { hdPaths: [getHDPath('60', '1')], prefix });
   }

@@ -18,7 +18,8 @@ type DisplayFeeProps = {
   className?: string
   // eslint-disable-next-line no-unused-vars
   setDisplayFeeValue?: (value: DisplayFeeValue) => void
-  setShowFeesSettingSheet: React.Dispatch<React.SetStateAction<boolean>>
+  setShowFeesSettingSheet?: React.Dispatch<React.SetStateAction<boolean>>
+  forceChain?: SupportedChain
 }
 
 export const DisplayFee: React.FC<DisplayFeeProps> = ({
@@ -29,8 +30,8 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
   const [formatCurrency] = useformatCurrency()
   const [preferredCurrency] = useUserPreferredCurrency()
 
-  const { gasLimit, value, feeTokenData } = useGasPriceContext()
-  const chainGasAdjustment = useGasAdjustment()
+  const { gasLimit, value, feeTokenData, activeChain } = useGasPriceContext()
+  const chainGasAdjustment = useGasAdjustment(activeChain)
 
   const { data: feeTokenFiatValue } = useQuery(
     ['fee-token-fiat-value', feeTokenData.denom.coinGeckoId],
@@ -43,7 +44,6 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
       )
     },
   )
-
   const displayFee = useMemo(() => {
     const { amount, formattedAmount, isVerySmallAmount } = calculateFeeAmount({
       gasLimit,
@@ -80,7 +80,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
       <p className='font-semibold text-center text-sm'>Transaction fee: </p>
       <button
         className='flex items-center ml-1'
-        onClick={() => setShowFeesSettingSheet(true)}
+        onClick={() => (setShowFeesSettingSheet ? setShowFeesSettingSheet(true) : undefined)}
         data-testing-id='send-tx-fee-text'
       >
         <p className='font-semibold text-center text-sm'>
@@ -89,7 +89,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
           </strong>{' '}
           {displayFee.fiatValue ? `(${displayFee.fiatValue})` : null}
         </p>
-        <img src={Images.Misc.ArrowDown} className='ml-1' />
+        {setShowFeesSettingSheet && <img src={Images.Misc.ArrowDown} className='ml-1' />}
       </button>
     </div>
   )

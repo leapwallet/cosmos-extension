@@ -62,7 +62,7 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
           {contacts.length > 0 ? (
             contacts.map((contact) => {
               const chainImage =
-                chainInfos[contact.blockchain].chainSymbolImageUrl ?? defaultTokenLogo
+                chainInfos[contact.blockchain]?.chainSymbolImageUrl ?? defaultTokenLogo
 
               return (
                 <AvatarCard

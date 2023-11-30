@@ -17,8 +17,8 @@ export function useTxHandler({
   const chain = forceChain ?? activeChain;
   const network = forceNetwork ?? selectedNetwork;
 
-  const { rpcUrl, lcdUrl } = useChainApis(forceChain, forceNetwork);
-  const chainInfo = useChainInfo(forceChain);
+  const { rpcUrl, lcdUrl } = useChainApis(chain, network);
+  const chainInfo = useChainInfo(chain);
   const chainInfos = useGetChains();
 
   return useCallback(

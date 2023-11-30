@@ -1885,6 +1885,43 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  kichain: {
+    chainId: 'kichain-2',
+    key: 'kichain',
+    chainName: 'Ki',
+    chainRegistryPath: 'kichain',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/xki.svg',
+    apis: {
+      rpc: 'https://rpc.cosmos.directory/kichain',
+      rest: 'https://rest.cosmos.directory/kichain',
+    },
+    denom: 'XKI',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/ki-chain/txs',
+        accountUrl: 'https://www.mintscan.io/ki-chain/accounts',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'ki',
+    gasPriceStep: {
+      low: 0.025,
+      average: 0.03,
+      high: 0.05,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      uxki: denoms.uxki,
+    },
+    theme: {
+      primaryColor: '#0000ff',
+      gradient: 'linear-gradient(180deg, rgba(0, 0, 225, 0.32) 0%, rgba(0, 0, 225, 0) 100%)',
+    },
+    enabled: true,
+  },
   kujira: {
     chainId: 'kaiyo-1',
     key: 'kujira',

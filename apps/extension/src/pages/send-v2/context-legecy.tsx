@@ -78,7 +78,7 @@ export const SendContext = createContext<SendContextType | null>(null)
 
 type SendContextProviderProps = {
   activeChain: SupportedChain
-} & React.PropsWithChildren
+} & React.PropsWithChildren<any>
 
 export const SendContextProvider: React.FC<SendContextProviderProps> = ({
   children,
@@ -95,7 +95,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({
 
   const defaultGasEstimates = useDefaultGasEstimates()
   const [gasEstimate, setGasEstimate] = useState<number>(
-    defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ??
+    defaultGasEstimates[activeChain as SupportedChain]?.DEFAULT_GAS_TRANSFER ??
       DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
   )
 
@@ -277,9 +277,9 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({
       } catch (err) {
         setGasEstimate(
           isIBCTransfer
-            ? defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ??
+            ? defaultGasEstimates[activeChain as SupportedChain]?.DEFAULT_GAS_IBC ??
                 DefaultGasEstimates.DEFAULT_GAS_IBC
-            : defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ??
+            : defaultGasEstimates[activeChain as SupportedChain]?.DEFAULT_GAS_TRANSFER ??
                 DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
         )
       }
