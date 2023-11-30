@@ -1,9 +1,22 @@
 import { CosmosSDK } from '@leapwallet/cosmos-wallet-sdk';
+import { normalizeImageSrc } from 'utils/normalizeImageSrc';
 
-export function formatProposal(version: CosmosSDK, proposal: any) {
+export async function formatProposal(version: CosmosSDK, proposal: any) {
   switch (version) {
     case CosmosSDK.Version_Point_46: {
-      const content = JSON.parse(proposal.metadata);
+      let content;
+
+      try {
+        if (proposal.metadata.startsWith('ipfs://')) {
+          const res = await fetch(normalizeImageSrc(proposal.metadata));
+          const data = await res.json();
+          content = { title: data.title, description: data.summary };
+        } else {
+          content = JSON.parse(proposal.metadata);
+        }
+      } catch (_) {
+        content = {};
+      }
 
       return {
         proposal_id: proposal.id,

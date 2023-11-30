@@ -153,7 +153,7 @@ export function getTxHashFromDirectSignResponse(data: DirectSignResponse): strin
 
 export async function logDirectTx(
   data: DirectSignResponse,
-  signDoc: SignDoc,
+  messages: any[],
   origin: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fee: any,
@@ -168,16 +168,14 @@ export async function logDirectTx(
 
   const txHash = getTxHashFromDirectSignResponse(data)
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  //@ts-ignore
-  const tx = new DirectSignDocDecoder(signDoc)
-
   await txPostToDb({
     txHash,
     txType: CosmosTxType.Dapp,
     metadata: {
       dapp_url: origin,
-      tx_message: tx.toJSON(),
+      tx_message: messages.map((message) => {
+        return message?.parsed ?? message
+      }),
     },
     feeQuantity: fee?.amount[0]?.amount,
     feeDenomination: fee?.amount[0]?.denom,

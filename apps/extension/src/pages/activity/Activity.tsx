@@ -98,7 +98,7 @@ function Activity() {
             <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
 
             {activeChain === 'nomic' ? (
-              <ComingSoon />
+              <ComingSoon title={'Activity'} bottomNavLabel={BottomNavLabel.Activity} />
             ) : (
               <>
                 {isCompassWallet() && isTestnet && (

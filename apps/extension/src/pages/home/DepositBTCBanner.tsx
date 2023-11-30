@@ -189,9 +189,13 @@ export function BitcoinDeposit({
 
   useEffect(() => {
     if (data && data.ibcChains.length) {
-      setSelectedChain(data.ibcChains[0] as SupportedChain)
+      if (data.ibcChains.includes(activeChain)) {
+        setSelectedChain(activeChain)
+      } else {
+        setSelectedChain(data.ibcChains[0] as SupportedChain)
+      }
     }
-  }, [data])
+  }, [activeChain, data])
 
   return (
     <BottomSheet

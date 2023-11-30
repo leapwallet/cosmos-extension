@@ -32,6 +32,7 @@ import {
 import { Token, TxCallback } from '../types';
 import { fetchCurrency, GasOptions, getErrorMsg, useGasRateQuery, useNativeFeeDenom } from '../utils';
 import { useIsCW20Tx } from './useIsCW20Tx';
+import { useSendIbcChains } from './useSendIbcChains';
 import { sendTokensParams, useSimpleSend } from './useSimpleSend';
 
 export type SelectedAddress = {
@@ -46,6 +47,7 @@ export type SelectedAddress = {
 };
 
 export type SendModuleType = Readonly<{
+  displayAccounts: [string, string][];
   selectedAddress: SelectedAddress | null;
   setSelectedAddress: React.Dispatch<React.SetStateAction<SelectedAddress | null>>;
   memo: string;
@@ -135,6 +137,7 @@ export function useSendModule(): SendModuleType {
 
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
+  const displayAccounts = useSendIbcChains();
 
   /**
    * Ibc Related tx
@@ -253,7 +256,13 @@ export function useSendModule(): SendModuleType {
     const fn = async () => {
       const inputAmountNumber = new BigNumber(inputAmount);
 
-      if (!selectedAddress || !selectedToken || inputAmountNumber.isNaN() || inputAmountNumber.lte(0)) {
+      if (
+        !selectedAddress ||
+        !selectedToken ||
+        inputAmountNumber.isNaN() ||
+        inputAmountNumber.lte(0) ||
+        activeChain === 'mayachain'
+      ) {
         return;
       }
 
@@ -316,6 +325,7 @@ export function useSendModule(): SendModuleType {
   ]);
 
   return {
+    displayAccounts,
     selectedAddress,
     setSelectedAddress,
     memo,

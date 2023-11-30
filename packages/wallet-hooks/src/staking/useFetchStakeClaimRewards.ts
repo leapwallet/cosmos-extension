@@ -154,6 +154,15 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
   };
 
   useEffect(() => {
+    if (
+      activeChainInfo?.comingSoonFeatures?.includes('stake') ||
+      activeChainInfo?.notSupportedFeatures?.includes('stake')
+    ) {
+      setClaimStatus('success');
+      setClaimRewards({});
+      return;
+    }
+
     if (lcdUrl && address && activeChain && selectedNetwork && Object.keys(denoms).length) {
       setTimeout(() => {
         setClaimStatus('loading');
@@ -166,5 +175,5 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
         fetchClaimRewards();
       }, 0);
     }
-  }, [lcdUrl, address, denoms, activeChain, selectedNetwork]);
+  }, [lcdUrl, address, denoms, activeChain, selectedNetwork, activeChainInfo]);
 }

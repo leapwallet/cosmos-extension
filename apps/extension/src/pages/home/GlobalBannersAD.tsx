@@ -45,6 +45,7 @@ function BannerAdCard({
   index,
   onClick,
   onClose,
+  handleBtcBannerClick,
 }: {
   bannerData: BannerADData
   chain: ChainInfo
@@ -53,10 +54,18 @@ function BannerAdCard({
   onClick: (bannerId: string, index: number) => void
   // eslint-disable-next-line no-unused-vars
   onClose: (bannerId: string, index: number) => void
+  handleBtcBannerClick: () => void
 }) {
   const handleClick = useCallback(() => {
-    window.open(bannerData.redirect_url)
+    if (bannerData.id.trim().toLowerCase().includes('nbtc-banner')) {
+      handleBtcBannerClick()
+    } else {
+      window.open(bannerData.redirect_url)
+    }
+
     onClick(bannerData.id, index)
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bannerData, index, onClick])
 
   return (
@@ -105,7 +114,11 @@ function BannerAdCard({
   )
 }
 
-export default function GlobalBannersAD() {
+export default function GlobalBannersAD({
+  handleBtcBannerClick,
+}: {
+  handleBtcBannerClick: () => void
+}) {
   const chain = useChainInfo()
   const [disabledBannerAds, setDisableBannerAds] = useState<string[]>([])
   const scrollableContainerRef = useRef<HTMLDivElement>(null)
@@ -431,7 +444,7 @@ export default function GlobalBannersAD() {
   if (!bannerAds || bannerAds.length === 0 || displayADs.length === 0) return null
 
   return (
-    <div className='relative mb-6'>
+    <div className='relative mb-4'>
       <div
         ref={scrollableContainerRef}
         className='w-[400px] whitespace-nowrap overflow-x-auto overflow-y-hidden text-center pl-4 h-[100px] hide-scrollbar snap-x snap-mandatory'
@@ -448,6 +461,7 @@ export default function GlobalBannersAD() {
               chain={chain}
               onClick={handleBannerClick}
               onClose={handleBannerClose}
+              handleBtcBannerClick={handleBtcBannerClick}
             />
           )
         })}

@@ -62,6 +62,15 @@ export function useFetchStakeValidators(forceChain?: SupportedChain, forceNetwor
   };
 
   useEffect(() => {
+    if (
+      activeChainInfo?.comingSoonFeatures?.includes('stake') ||
+      activeChainInfo?.notSupportedFeatures?.includes('stake')
+    ) {
+      setStakeValidatorStatus('success');
+      setStakeValidatorData({});
+      return;
+    }
+
     if (lcdUrl && activeChain && selectedNetwork && Object.keys(denoms).length) {
       setTimeout(() => {
         setStakeValidatorStatus('loading');
@@ -72,5 +81,5 @@ export function useFetchStakeValidators(forceChain?: SupportedChain, forceNetwor
         fetchStakeValidators();
       }, 0);
     }
-  }, [lcdUrl, denoms, activeChain, selectedNetwork]);
+  }, [lcdUrl, denoms, activeChain, selectedNetwork, activeChainInfo]);
 }

@@ -13,7 +13,7 @@ import React, { useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
-import { StakeRewardCard } from '../index'
+import { StakeRewardCard } from '../Stake'
 import { ReviewClaimRewardsTx } from './index'
 
 export type YourRewardsSheetProps = {

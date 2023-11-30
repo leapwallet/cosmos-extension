@@ -204,7 +204,9 @@ const SignTransaction = ({
       let parsedMessages
 
       if (isSignArbitrary) {
-        parsedMessages = Buffer.from(result.signDoc.msgs[0].value.data, 'base64').toString('utf-8')
+        parsedMessages = txnSigningRequest?.signOptions?.isADR36WithString
+          ? Buffer.from(result.signDoc.msgs[0].value.data, 'base64').toString('utf-8')
+          : result.signDoc.msgs[0].value.data
       } else if (ethSignType) {
         parsedMessages = [
           {
@@ -467,7 +469,7 @@ const SignTransaction = ({
 
         logDirectTx(
           data as DirectSignResponse,
-          signDoc as SignDoc,
+          messages ?? [],
           siteOrigin ?? origin,
           fee,
           activeChain,
@@ -875,7 +877,11 @@ const SignTransaction = ({
                     ),
                     data: (
                       <pre className='text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl'>
-                        {JSON.stringify(txnDoc, null, 2)}
+                        {JSON.stringify(
+                          txnDoc,
+                          (_, value) => (typeof value === 'bigint' ? value.toString() : value),
+                          2,
+                        )}
                       </pre>
                     ),
                   }}
@@ -993,7 +999,7 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
           const chainId = txnData.chainId ? txnData.chainId : txnData.signDoc?.chainId
           const chain = chainId ? (_chainIdToChain[chainId] as SupportedChain) : undefined
 
-          if (txnData.signOptions.isADR36WithString) {
+          if (txnData.signOptions.isSignArbitrary) {
             setIsSignArbitrary(true)
           }
 

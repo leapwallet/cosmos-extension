@@ -69,19 +69,23 @@ export function useInitGovProposals(
 
       switch (activeChainInfo.cosmosSDK) {
         case CosmosSDK.Version_Point_46: {
-          proposals = data.proposals
-            .filter((proposal: { metadata: string }) => proposal.metadata)
-            .map((proposal: Proposal2.Proposal) => formatProposal(CosmosSDK.Version_Point_46, proposal))
-            .filter((proposal: Proposal2.Proposal) => filterSpamProposals(proposal));
+          const proposalsWithMetadata = data.proposals.filter((proposal: { metadata: string }) => proposal.metadata);
+          const formattedProposals = await Promise.all(
+            proposalsWithMetadata.map(
+              async (proposal: Proposal2.Proposal) => await formatProposal(CosmosSDK.Version_Point_46, proposal),
+            ),
+          );
 
+          proposals = formattedProposals.filter((proposal: Proposal2.Proposal) => filterSpamProposals(proposal));
           break;
         }
 
         case CosmosSDK.Version_Point_47: {
-          proposals = data.proposals
-            .map((proposal: any) => formatProposal(CosmosSDK.Version_Point_47, proposal))
-            .filter((proposal: any) => filterSpamProposals(proposal));
+          const formattedProposals = await Promise.all(
+            data.proposals.map(async (proposal: any) => await formatProposal(CosmosSDK.Version_Point_47, proposal)),
+          );
 
+          proposals = formattedProposals.filter((proposal: any) => filterSpamProposals(proposal));
           break;
         }
 
@@ -106,6 +110,15 @@ export function useInitGovProposals(
   };
 
   useEffect(() => {
+    if (
+      activeChainInfo?.comingSoonFeatures?.includes('governance') ||
+      activeChainInfo?.notSupportedFeatures?.includes('governance')
+    ) {
+      setGovernanceStatus('success');
+      setGovernanceData([]);
+      return;
+    }
+
     if (lcdUrl && activeChain && selectedNetwork) {
       setTimeout(() => {
         setGovernanceStatus('loading');
@@ -121,5 +134,5 @@ export function useInitGovProposals(
         fetchGovProposals();
       }, 0);
     }
-  }, [activeChain, lcdUrl, selectedNetwork]);
+  }, [activeChain, lcdUrl, selectedNetwork, activeChainInfo]);
 }

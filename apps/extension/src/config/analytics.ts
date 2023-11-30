@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 export enum EventName {
   PageView = 'Page View',
   BannerView = 'Banner View',
@@ -7,6 +8,9 @@ export enum EventName {
   DappTxnInit = 'dApp Transaction Initiated',
   DappTxnApproved = 'dApp Transaction Approved',
   DappTxnRejected = 'dApp Transaction Rejected',
+  QuickSearchOpen = 'Quick Search Open',
+  QuickSearchClick = 'Quick Search Click',
+  QuickSearchClose = 'Quick Search Close',
 }
 
 export enum ButtonName {

@@ -59,6 +59,8 @@ export function PendingTx() {
             }
           } else if (pendingTx.txType === 'cw20TokenTransfer') {
             setPendingTx({ ...pendingTx, txStatus: 'success' })
+          } else if (pendingTx.txType === 'vote') {
+            setPendingTx({ ...pendingTx, txStatus: 'success' })
           }
 
           if (pendingTx.txType === 'secretTokenTransfer') {
@@ -99,12 +101,31 @@ export function PendingTx() {
             })
           }
 
+          if (pendingTx.txType === 'vote') {
+            setTxHash(result.transactionHash)
+
+            txPostToDB({
+              txHash: result.transactionHash,
+              txType: CosmosTxType.GovVote,
+              metadata: {
+                option: pendingTx.voteOption,
+                proposalId: pendingTx.proposalId,
+              },
+              feeQuantity: pendingTx.feeQuantity,
+              feeDenomination: pendingTx.feeDenomination,
+            })
+          }
+
           setTimeout(() => {
             invalidateQueries()
           }, 2000)
         })
         .catch(() => {
           if (pendingTx.txType === 'cw20TokenTransfer') {
+            setPendingTx({ ...pendingTx, txStatus: 'failed' })
+          }
+
+          if (pendingTx.txType === 'vote') {
             setPendingTx({ ...pendingTx, txStatus: 'failed' })
           }
 
@@ -254,7 +275,6 @@ export function PendingTx() {
 
         <div className='mt-auto flex gap-4 w-full'>
           <Buttons.Generic
-            disabled={!txnUrl}
             style={{ height: '48px', background: Colors.gray900, color: Colors.white100 }}
             onClick={handleCloseClick}
           >

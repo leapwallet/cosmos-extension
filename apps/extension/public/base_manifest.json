@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__NAME__",
   "description": "__DESCRIPTION__",
-  "version": "0.8.9",
+  "version": "0.9.0",
   "options_page": "index.html",
   "web_accessible_resources": [
     {

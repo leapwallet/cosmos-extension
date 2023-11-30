@@ -5,6 +5,7 @@ import {
   useFetchStakeDelegations,
   useFetchStakeUndelegations,
   useFetchStakeValidators,
+  useGetNtrnProposals,
   useInitGovProposals,
 } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
@@ -52,6 +53,7 @@ export default function AppRoutes(): JSX.Element {
   useFetchERC20Tokens()
 
   useInitGovProposals()
+  useGetNtrnProposals()
   useFetchStakeClaimRewards()
   useFetchStakeDelegations()
   useFetchStakeUndelegations()

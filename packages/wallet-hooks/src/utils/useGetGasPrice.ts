@@ -34,6 +34,12 @@ async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: strin
   return minGas ?? defaultGasPrice;
 }
 
+export async function getMayaTxFee(lcdUrl: string) {
+  const url = `${lcdUrl}/mayachain/mimir`;
+  const { data } = await axios.get(url);
+  return data.NATIVETRANSACTIONFEE ?? 10000000000;
+}
+
 function getGasPriceStep(chain: ChainInfo, allChainsGasPriceSteps: GasPriceStepsRecord): GasPriceStep {
   let gasPrices = defaultGasPriceStep;
   const gasPriceStepsForChain = allChainsGasPriceSteps[chain.key];

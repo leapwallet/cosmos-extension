@@ -30,10 +30,11 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const trimmedQuery = searchQuery.trim()
 
-  const { ibcSupportData, isIbcSupportDataLoading } = useSendContext() as SendContextType
+  const { displayAccounts: _displayAccounts, isIbcSupportDataLoading } =
+    useSendContext() as SendContextType
 
   const {
-    activeWallet: { addresses, name, colorIndex },
+    activeWallet: { name, colorIndex },
   } = useActiveWallet() as {
     activeWallet: Key
   }
@@ -41,19 +42,10 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
 
-  const displayAccounts = useMemo(() => {
-    if (addresses && !isIbcSupportDataLoading && ibcSupportData) {
-      return Object.entries(addresses).filter(([chain]) => {
-        const chainInfo = chainInfos[chain as SupportedChain]
-        const chainRegistryPath = chainInfo?.chainRegistryPath
-
-        return (
-          ibcSupportData[chainRegistryPath] && chainInfo?.enabled && chain.includes(trimmedQuery)
-        )
-      })
-    }
-    return []
-  }, [addresses, chainInfos, ibcSupportData, isIbcSupportDataLoading, trimmedQuery])
+  const displayAccounts = useMemo(
+    () => _displayAccounts.filter(([chain]) => chain.includes(trimmedQuery)),
+    [_displayAccounts, trimmedQuery],
+  )
 
   return (
     <BottomModal

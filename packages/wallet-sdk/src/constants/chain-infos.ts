@@ -308,6 +308,8 @@ export type ChainInfo = {
   readonly beta?: boolean;
   readonly disableStaking?: boolean;
   readonly cosmosSDK?: string;
+  readonly notSupportedFeatures?: string[];
+  readonly comingSoonFeatures?: string[];
 };
 
 export const ChainInfos: Record<SupportedChain, ChainInfo> = {
@@ -919,6 +921,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(240, 169, 61, 0.32) 0%, rgba(240, 169, 61, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   comdex: {
     chainId: 'comdex-1',
@@ -1296,11 +1299,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(252, 149, 87, 0.32) 0%, rgba(252, 149, 87, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   dydx: {
     chainId: 'dydx-mainnet-1',
     key: 'dydx',
-    chainName: 'dYdX Protocol',
+    chainName: 'dYdX',
     chainRegistryPath: 'dydx',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/dydx.png',
     apis: {
@@ -1456,6 +1460,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(129, 91, 91, 0.32) 0%, rgba(129, 91, 91, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   fetchhub: {
     chainId: 'fetchhub-4',
@@ -1841,6 +1846,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(255, 67, 62, 0.32) 0%, rgba(255, 67, 62, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_46,
   },
   kichain: {
     chainId: 'kichain-2',
@@ -1964,6 +1970,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#58C6B2',
       gradient: 'linear-gradient(180deg, rgba(24, 76, 97, 0.32) 0%, rgba(23, 41, 43, 0) 100%)',
     },
+    cosmosSDK: CosmosSDK.Version_Point_46,
   },
   likecoin: {
     chainId: 'likecoin-mainnet-2',
@@ -2058,16 +2065,16 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'CACAO',
     txExplorer: {
       mainnet: {
-        name: 'Explorer MayaChain',
-        txUrl: 'https://www.explorer.mayachain.info/tx',
-        accountUrl: 'https://www.explorer.mayachain.info/address',
+        name: 'MayaScan',
+        txUrl: 'https://www.mayascan.org/tx',
+        accountUrl: 'https://www.mayascan.org/address',
       },
     },
     bip44: {
       coinType: '931',
     },
     addressPrefix: 'maya',
-    gasPriceStep: defaultGasPriceStep,
+    gasPriceStep: { low: 1, average: 1, high: 1 },
     ibcChannelIds: {},
     nativeDenoms: {
       cacao: denoms.cacao,
@@ -2076,7 +2083,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#419e7c',
       gradient: 'linear-gradient(180deg, rgba(65, 158, 124, 0.32) 0%, rgba(65, 158, 124, 0) 100%)',
     },
-    enabled: false,
+    enabled: true,
+    notSupportedFeatures: ['stake', 'governance'],
   },
   migaloo: {
     chainId: 'migaloo-1',
@@ -2154,6 +2162,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(65, 75, 125, 0.32) 0%, rgba(65, 75, 125, 0) 100%)',
     },
     enabled: true,
+    notSupportedFeatures: ['stake'],
   },
   nibiru: {
     chainId: 'nibiru-itn-1',
@@ -2229,6 +2238,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(151, 177, 249, 0.32) 0%, rgba(151, 177, 249, 0) 100%)',
     },
     enabled: true,
+    notSupportedFeatures: ['stake'],
   },
   nolus: {
     chainId: 'pirin-1',
@@ -2306,6 +2316,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(99, 0, 255, 0.32) 0%, rgba(99, 0, 255, 0) 100%)',
     },
     enabled: true,
+    comingSoonFeatures: ['stake', 'governance'],
   },
   omniflix: {
     chainId: 'omniflixhub-1',

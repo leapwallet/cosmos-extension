@@ -73,8 +73,15 @@ function getQueryFn(
         .map(async (balance) => {
           const chainInfo = chainInfos[activeChain];
           let denom = denoms[balance.denom];
-          if (chainInfo.beta) {
-            denom = Object.values(chainInfo.nativeDenoms)[0];
+
+          if (!denom && chainInfo.beta) {
+            if (Object.values(chainInfo.nativeDenoms)[0].coinMinimalDenom === balance.denom) {
+              denom = Object.values(chainInfo.nativeDenoms)[0];
+            }
+          }
+
+          if (!denom) {
+            return null as unknown as Token;
           }
 
           const amount = fromSmall(new BigNumber(balance.amount).toString(), denom?.coinDecimals);
@@ -104,7 +111,8 @@ function getQueryFn(
           };
         });
 
-      const allTokens: Token[] = await Promise.all(formattedBalances);
+      let allTokens: Token[] = await Promise.all(formattedBalances);
+      allTokens = allTokens.filter((token) => !!token);
 
       if (allTokens?.length === 0 && !isCW20Balances && !isERC20Balances) {
         const denoms = Object.values(chainInfos[activeChain].nativeDenoms);
@@ -346,7 +354,7 @@ function useIbcTokensBalances(
         };
 
         let _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
-        _baseDenom = isTerraClassic(trace?.originChainId) ? 'lunc' : baseDenom;
+        _baseDenom = isTerraClassic(trace?.originChainId) ? 'lunc' : _baseDenom;
         const denomInfo = denoms[_baseDenom];
 
         //const denomInfo = await getDenomInfo(_baseDenom, denomChain, denoms, selectedNetwork === 'testnet');

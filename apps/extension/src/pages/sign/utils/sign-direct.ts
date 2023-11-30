@@ -59,6 +59,8 @@ export function getDirectSignDoc({
     if (signOptions && signOptions.preferNoSetFee && !isGasOptionSelected) {
       fee = _fee
     } else {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //@ts-ignore
       fee = getFee(_fee, gasPrice, gasLimit)
     }
   }
@@ -74,6 +76,7 @@ export function getDirectSignDoc({
         memo: defaultMemo || memo,
       }).finish(),
       authInfoBytes: AuthInfo.encode({
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         //@ts-ignore
         signerInfos: protoSignDocDecoder.authInfo.signerInfos.map((signerInfo) => {
           return {
@@ -81,6 +84,9 @@ export function getDirectSignDoc({
             sequence: new Long(Number(signerInfo.sequence)),
           }
         }),
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        //@ts-ignore
         fee,
       }).finish(),
     },

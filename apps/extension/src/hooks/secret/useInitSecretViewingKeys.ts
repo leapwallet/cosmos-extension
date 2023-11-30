@@ -19,7 +19,7 @@ export function useInitSecretViewingKeys() {
       for (const address of Object.keys(keys)) {
         for (const contract of Object.keys(keys[address])) {
           let viewingKey = decrypt(keys[address][contract], password as string)
-          if (viewingKey !== '') {
+          if (viewingKey === '') {
             viewingKey = decrypt(keys[address][contract], password as string, 100)
           }
           keys[address][contract] = decrypt(keys[address][contract], password as string)

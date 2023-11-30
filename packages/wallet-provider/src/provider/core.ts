@@ -137,6 +137,7 @@ export class Leap implements ILeap {
     const msg = new RequestSignAminoMsg(chainId, signer, signDoc, {
       isADR36WithString,
       enableExtraEntropy: signOptions?.enableExtraEntropy,
+      isSignArbitrary: true,
     });
 
     return (await requester.signAmino(msg)).signature;
@@ -166,6 +167,7 @@ export class Leap implements ILeap {
     const msg = new RequestSignAminoMsg(chainId, signer, signDoc, {
       isADR36WithString,
       ethSignType: type,
+      isSignArbitrary: true,
     });
     const signature = (await requester.signAmino(msg)).signature;
 

@@ -14,8 +14,10 @@ const useGetWallet = Wallet.useGetWallet
 
 export type SendContextType = Readonly<
   {
-    // eslint-disable-next-line no-unused-vars
-    confirmSend: (args: Omit<sendTokensParams, 'gasEstimate' | 'getWallet'>) => Promise<void>
+    confirmSend: (
+      // eslint-disable-next-line no-unused-vars
+      args: Omit<sendTokensParams, 'gasEstimate' | 'getWallet'>,
+    ) => Promise<void>
     sameChain: boolean
   } & ReturnType<typeof useSendModule>
 >
@@ -24,11 +26,11 @@ export const SendContext = createContext<SendContextType | null>(null)
 
 type SendContextProviderProps = {
   activeChain: SupportedChain
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } & React.PropsWithChildren<any>
 
 export const SendContextProvider: React.FC<SendContextProviderProps> = ({ children }) => {
   const { tokenFiatValue, feeTokenFiatValue, confirmSend, selectedToken, ...rest } = useSendModule()
-
   const txCallback = useTxCallBack()
   const getWallet = useGetWallet()
   const currentWalletAddress = useAddress()

@@ -46,10 +46,7 @@ export function TokenCard({
   return (
     <GenericCard
       title={
-        <h3
-          className='capitalize text-md text-ellipsis overflow-hidden whitespace-nowrap'
-          title={title}
-        >
+        <h3 className='text-md text-ellipsis overflow-hidden whitespace-nowrap' title={title}>
           {sliceWord(title, 7, 4)}
         </h3>
       }

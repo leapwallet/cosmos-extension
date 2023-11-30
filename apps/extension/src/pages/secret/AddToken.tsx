@@ -5,12 +5,13 @@ import {
   useDenoms,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { isEthAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { getChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { InputComponent } from 'components/input-component/InputComponent'
 import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
-import { useSetBetaCW20Tokens } from 'hooks/useSetBetaCW20Tokens'
+import { useSetBetaCW20Tokens, useSetBetaNativeTokens } from 'hooks/useSetBetaCW20Tokens'
 import { Images } from 'images'
 import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -27,6 +28,7 @@ function AddTokenForm() {
   const denoms = useDenoms()
   const selectedNetwork = useSelectedNetwork()
   const setBetaCW20Tokens = useSetBetaCW20Tokens()
+  const setBetaNativeTokens = useSetBetaNativeTokens()
 
   const [tokenInfo, setTokenInfo] = useState({
     name: '',
@@ -37,6 +39,7 @@ function AddTokenForm() {
     icon: '',
     chain: activeChain,
   })
+  const [isAddingCw20Token, setIsAddingCw20Token] = useState(false)
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [loading, setLoading] = useState(false)
@@ -134,8 +137,13 @@ function AddTokenForm() {
 
     let error = ''
     if (value) {
-      if (name === 'coinMinimalDenom' && Object.keys(denoms).includes(value.trim().toLowerCase())) {
-        error = 'Token with same minimal denom already exists'
+      if (name === 'coinMinimalDenom') {
+        const _value = value.trim().toLowerCase()
+        if (Object.keys(denoms).includes(_value)) {
+          error = 'Token with same minimal denom already exists'
+        } else if (_value.startsWith('erc20/') || isEthAddress(_value)) {
+          error = "We don't support adding erc20 token yet."
+        }
       } else if (name === 'coinDecimals' && isNotValidNumber(value)) {
         error = 'Incorrect decimal value'
       } else if (name === 'icon' && isNotValidURL(value)) {
@@ -180,7 +188,12 @@ function AddTokenForm() {
       _tokenInfo.name = undefined as unknown as string
     }
 
-    await setBetaCW20Tokens(tokenInfo.coinMinimalDenom, _tokenInfo, chain)
+    if (isAddingCw20Token) {
+      await setBetaCW20Tokens(tokenInfo.coinMinimalDenom, _tokenInfo, chain)
+    } else {
+      await setBetaNativeTokens(tokenInfo.coinMinimalDenom, _tokenInfo, chain)
+    }
+
     setLoading(false)
     navigate('/')
   }
@@ -241,6 +254,20 @@ function AddTokenForm() {
         error={errors.icon}
       />
 
+      <label
+        className='cursor-pointer flex flex-row items-center mb-4 text-base text-gray-400'
+        htmlFor='cw20-checkbox'
+      >
+        <input
+          type='checkbox'
+          id='cw20-checkbox'
+          className='mr-2 h-4 w-4 bg-black-50'
+          checked={isAddingCw20Token}
+          onChange={(e) => setIsAddingCw20Token(e.target.checked)}
+        />
+        Are you adding a cw20 token?
+      </label>
+
       <div className='flex gap-x-4 mt-3'>
         <Buttons.Generic
           className='rounded-2xl w-full font-bold py-3 dark:bg-gray-900 bg-gray-900 text-gray-900 dark:text-white-100 h-12'
@@ -292,7 +319,7 @@ export function AddToken() {
                 Caution:
               </Text>
               <Text size='sm' color='font-bold dark:text-white-100 text-gray-900'>
-                Only add custom token you trust.
+                Only add token you trust.
               </Text>
             </div>
           </div>

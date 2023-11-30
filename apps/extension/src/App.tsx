@@ -3,6 +3,7 @@ import 'react-loading-skeleton/dist/skeleton.css'
 import {
   useGetBannerApi,
   useGetFaucetApi,
+  useGetQuickSearchOptions,
   useInitBetaNFTsCollections,
   useInitCoingeckoPrices,
   useInitCustomChannelsStore,
@@ -96,6 +97,7 @@ export default function App() {
   // initialize request cache
   // useInitRequestCache()
   useInitNodeUrls(setNodeUrlInitialised)
+  useGetQuickSearchOptions()
   useNomicBTCDepositConstants()
 
   return (

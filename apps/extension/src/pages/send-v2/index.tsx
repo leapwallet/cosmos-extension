@@ -15,6 +15,7 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { AmountCard } from './components/amount-card'
 import { FeesView } from './components/fees-view'
+import { MayaFee } from './components/fees-view/MayaFee'
 import { RecipientCard } from './components/recipient-card'
 import { ReviewTransfer } from './components/reivew-transfer'
 import { SendContextProvider } from './context'
@@ -66,7 +67,7 @@ const Send = () => {
             >
               <RecipientCard themeColor={themeColor} />
               <AmountCard themeColor={themeColor} />
-              <FeesView />
+              {activeChain === 'mayachain' ? <MayaFee /> : <FeesView />}
               <ReviewTransfer themeColor={themeColor} />
             </div>
           </SendContextProvider>

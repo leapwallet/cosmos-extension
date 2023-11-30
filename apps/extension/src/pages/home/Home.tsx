@@ -1,6 +1,7 @@
 import {
   SecretToken,
   useGetTokenBalances,
+  useSendIbcChains,
   useSnipDenomsStore,
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
@@ -31,7 +32,7 @@ import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonit
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
+import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -44,13 +45,14 @@ import mixpanel from 'mixpanel-browser'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
-import { useRecoilState } from 'recoil'
+import { useRecoilState, useSetRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress, trim } from 'utils/strings'
 
+import { searchModalState } from '../../atoms/search-modal'
 import AssetCard from './AssetCard'
 import { BitcoinDeposit, DepositBTCBanner } from './DepositBTCBanner'
 import GlobalBannersAD from './GlobalBannersAD'
@@ -77,6 +79,9 @@ export default function Home() {
   const txDeclined = useQuery().get('txDeclined') ?? undefined
   const walletAvatarChanged = useQuery().get('walletAvatarChanged') ?? undefined
   const [showWalletAvatarMsg, setShowWalletAvatarMsg] = useState(!!walletAvatarChanged)
+  const [showQuickOptionDiv, setShowQuickOptionDiv] = useState(
+    localStorage.getItem('showQuickOptionDiv') ? false : true,
+  )
 
   const navigate = useNavigate()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
@@ -104,11 +109,12 @@ export default function Home() {
   const { denoms: SecretTokens } = useSnipDenomsStore()
 
   const [areSmallBalancesHidden] = useHideSmallBalances()
-  const { hideBalances: balancesHidden, formatHideBalance } = useHideAssets()
-  const setBalancesVisibility = useSetHideAssets()
+  const { formatHideBalance } = useHideAssets()
   const [showSelectedChainAlert, setShowSelectedChainAlert] =
     useRecoilState(selectedChainAlertState)
+  const setShowSearchModal = useSetRecoilState(searchModalState)
   const [showBitcoinDepositSheet, setShowBitcoinDepositSheet] = useState(false)
+  const sendIbcChains = useSendIbcChains()
 
   const {
     allAssets,
@@ -218,7 +224,9 @@ export default function Home() {
     ibcTokensStatus !== 'success' &&
     nativeTokensStatus !== 'success'
 
-  const disabled = activeWallet.walletType === WALLETTYPE.LEDGER && chain?.bip44.coinType === '60'
+  const disabled =
+    activeWallet.walletType === WALLETTYPE.LEDGER &&
+    (chain?.bip44.coinType === '60' || chain?.bip44.coinType === '931')
 
   const walletName =
     activeWallet.walletType === WALLETTYPE.LEDGER &&
@@ -236,6 +244,16 @@ export default function Home() {
 
   if (!activeChainInfo) {
     return null
+  }
+
+  const handleQuickSearchIconClick = () => {
+    setShowSearchModal(true)
+
+    mixpanel.track(EventName.QuickSearchOpen, {
+      chainId: chain.chainId,
+      chainName: chain.chainName,
+      openMode: 'Icon',
+    })
   }
 
   return (
@@ -376,15 +394,11 @@ export default function Home() {
                   data-testing-id='home-copy-address-btn'
                 />
                 <button
-                  className={
-                    'flex ml-2 h-9 w-9 dark:bg-gray-900 bg-white-100 justify-center text-xs text-gray-600 dark:text-gray-200 items-center cursor-pointer rounded-full'
-                  }
-                  onClick={() => setBalancesVisibility(!balancesHidden)}
-                  title={balancesHidden ? 'Show Balances' : 'Hide Balances'}
+                  className='flex ml-2 h-9 w-9 dark:bg-gray-900 bg-white-100 justify-center text-xs text-gray-600 dark:text-gray-200 items-center cursor-pointer rounded-full'
+                  onClick={handleQuickSearchIconClick}
+                  title='Search'
                 >
-                  <span className='text-sm material-icons-round'>
-                    {balancesHidden ? 'visibility' : 'visibility_off'}
-                  </span>
+                  <span className='text-base material-icons-round'>search</span>
                 </button>
               </div>
             )}
@@ -411,7 +425,7 @@ export default function Home() {
                 <ClickableIcon
                   image={{ src: Images.Misc.IbcUnion, alt: 'IBC' }}
                   onClick={() => navigate('/ibc')}
-                  disabled={isNomicChain}
+                  disabled={isNomicChain || sendIbcChains.length === 0}
                 />
                 <ClickableIcon
                   image={{ src: 'swap_horiz', alt: 'Swap' }}
@@ -474,7 +488,27 @@ export default function Home() {
             )}
           </div>
 
-          {!isCompassWallet() && <GlobalBannersAD />}
+          {showQuickOptionDiv ? (
+            <div className='flex dark:bg-gray-900 bg-white-100 dark:text-gray-200 text-gray-600 rounded-full w-[344px] p-2 mb-4'>
+              <p className='flex-1 text-center'>
+                Press {navigator.userAgent.toLowerCase().includes('windows') ? 'ctrl' : 'cmd'} + k
+                for quick actions ✨
+              </p>
+              <button
+                className='mr-2'
+                onClick={() => {
+                  setShowQuickOptionDiv(false)
+                  localStorage.setItem('showQuickOptionDiv', 'false')
+                }}
+              >
+                <img className='w-[8px] h-[8px]' src={Images.Misc.Cross} alt='close' />
+              </button>
+            </div>
+          ) : null}
+
+          {!isCompassWallet() && (
+            <GlobalBannersAD handleBtcBannerClick={() => setShowBitcoinDepositSheet(true)} />
+          )}
 
           <div className='rounded-2xl dark:bg-gray-900 bg-white-100 mx-7'>
             <Text size='sm' color='dark:text-gray-200 text-gray-600 font-medium px-5 pt-4'>
@@ -584,6 +618,13 @@ export default function Home() {
         isVisible={showReceiveSheet}
         onCloseHandler={() => {
           setShowReceiveSheet(false)
+        }}
+        handleBtcBannerClick={() => setShowBitcoinDepositSheet(true)}
+      />
+      <BitcoinDeposit
+        isVisible={showBitcoinDepositSheet}
+        onCloseHandler={() => {
+          setShowBitcoinDepositSheet(false)
         }}
       />
       <BitcoinDeposit

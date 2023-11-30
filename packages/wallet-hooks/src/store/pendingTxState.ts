@@ -1,11 +1,12 @@
 import { ExecuteResult } from '@cosmjs/cosmwasm-stargate';
 import { DeliverTxResponse } from '@cosmjs/stargate';
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
+import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import create from 'zustand';
 
 import { ActivityType } from '../types';
 
-type TxStatus = 'loading' | 'success' | 'failed';
+export type TxStatus = 'loading' | 'success' | 'failed';
 
 export type PendingTx = {
   txType: ActivityType;
@@ -28,6 +29,8 @@ export type PendingTx = {
   feeQuantity?: string;
   toAddress?: string;
   txHash?: string;
+  voteOption?: VoteOption;
+  proposalId?: number;
 };
 
 export type PendingTxState = {

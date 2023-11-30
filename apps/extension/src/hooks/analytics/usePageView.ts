@@ -14,6 +14,8 @@ export const usePageView = (pageName: PageName) => {
   const chainName = chain?.chainName ?? ''
 
   useEffect(() => {
+    const time = Date.now() / 1000
+
     const timeoutId = setTimeout(() => {
       try {
         mixpanel.track(
@@ -22,6 +24,7 @@ export const usePageView = (pageName: PageName) => {
             pageName,
             chainId,
             chainName,
+            time,
           },
           {
             transport: 'sendBeacon',

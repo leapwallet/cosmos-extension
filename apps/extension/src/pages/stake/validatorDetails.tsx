@@ -34,8 +34,8 @@ import { capitalize, sliceWord } from 'utils/strings'
 
 import { ChooseValidatorProps } from './chooseValidator'
 import { YourRewardsSheet } from './components'
-import { StakeRewardCard } from './index'
 import InputStakeAmountView, { STAKE_MODE } from './InputStakeAmountView'
+import { StakeRewardCard } from './Stake'
 
 function ValidatorHeading({ validator }: { validator: Validator }) {
   const { data: imageUrl } = useValidatorImage(validator)

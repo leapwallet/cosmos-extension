@@ -31,7 +31,7 @@ export type ProposalDetailsProps = {
   proposalList: any[]
 }
 
-function convertTime(seconds: number) {
+export function convertTime(seconds: number) {
   let sec: number | string = seconds
   let hours: number | string = Math.floor(sec / 3600)
   hours >= 1 ? (sec = sec - hours * 3600) : (hours = '00')
@@ -74,7 +74,7 @@ const chainDecimals: Record<CoinType, number> = {
   '494': 6,
 }
 
-const ShowVotes = ({ dataMock, chain }: IShowVotes) => {
+export const ShowVotes = ({ dataMock, chain }: IShowVotes) => {
   const { scrollRef, props } = useHorizontalScroll<HTMLDivElement>()
   const decimals =
     Object.values(chain.nativeDenoms)?.[0]?.coinDecimals ??
@@ -303,7 +303,8 @@ type ITally = {
   label: string
   value: number
 }
-const Turnout = ({ tallying }: { tallying: ITally[] }) => {
+
+export const Turnout = ({ tallying }: { tallying: ITally[] }) => {
   const [detail, showDetail] = useState('')
   return (
     <>
@@ -354,7 +355,7 @@ const Turnout = ({ tallying }: { tallying: ITally[] }) => {
   )
 }
 
-const getPercentage = (a: number, b: number) => {
+export const getPercentage = (a: number, b: number) => {
   if (b === 0) return '0%'
   return `${Number((a / b) * 100).toFixed(2)}%`
 }

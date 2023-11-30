@@ -79,6 +79,15 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
   };
 
   useEffect(() => {
+    if (
+      activeChainInfo?.comingSoonFeatures?.includes('governance') ||
+      activeChainInfo?.notSupportedFeatures?.includes('governance')
+    ) {
+      setStakeDelegationLoading(false);
+      setStakeDelegationInfo({});
+      return;
+    }
+
     if (lcdUrl && address && activeChain && selectedNetwork && Object.keys(denoms).length) {
       setTimeout(() => {
         setStakeDelegationLoading(true);
@@ -89,5 +98,5 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
         fetchStakeDelegations();
       }, 0);
     }
-  }, [lcdUrl, address, denoms, activeChain, selectedNetwork]);
+  }, [lcdUrl, address, denoms, activeChain, selectedNetwork, activeChainInfo]);
 }

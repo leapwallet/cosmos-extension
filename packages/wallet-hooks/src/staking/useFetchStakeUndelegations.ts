@@ -84,6 +84,15 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
   };
 
   useEffect(() => {
+    if (
+      activeChainInfo?.comingSoonFeatures?.includes('stake') ||
+      activeChainInfo?.notSupportedFeatures?.includes('stake')
+    ) {
+      setStakeUndelegationsStatus('success');
+      setStakeUndelegationsInfo({});
+      return;
+    }
+
     if (lcdUrl && address && activeChain && selectedNetwork && Object.keys(denoms).length) {
       setTimeout(() => {
         setStakeUndelegationsStatus('loading');
@@ -94,5 +103,5 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
         fetchStakeUndelegations();
       }, 0);
     }
-  }, [lcdUrl, address, denoms, activeChain, selectedNetwork]);
+  }, [lcdUrl, address, denoms, activeChain, selectedNetwork, activeChainInfo]);
 }

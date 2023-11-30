@@ -10,10 +10,12 @@ import {
 } from '@leapwallet/leap-ui'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
+import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import kadoDarkLogo from 'images/logos/Kado-dark.svg'
 import kadoLightLogo from 'images/logos/Kado-light.svg'
+import { nBtcSymbol } from 'images/misc'
 import rightArrow from 'images/misc/right-arrow.svg'
 import React, { ReactElement } from 'react'
 import { Colors } from 'theme/colors'
@@ -22,15 +24,35 @@ import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
 
+function BtcButton({ handleBtcBannerClick }: { handleBtcBannerClick?: () => void }) {
+  const { data: nomicBtcDeposit } = useNomicBTCDepositConstants()
+  const activeChainInfo = useChainInfo()
+
+  return nomicBtcDeposit && nomicBtcDeposit.ibcChains.includes(activeChainInfo.key) ? (
+    <div className='mt-2' onClick={handleBtcBannerClick}>
+      <OnboardCard
+        imgSrc={nBtcSymbol}
+        iconSrc={rightArrow}
+        isFilled
+        isRounded
+        size='lg'
+        title='Depost BTC to get nBTC'
+      />
+    </div>
+  ) : null
+}
+
 export type ReceiveTokenProps = {
   isVisible: boolean
   chain?: SupportedChain
   onCloseHandler?: () => void
+  handleBtcBannerClick?: () => void
 }
 
 export default function ReceiveToken({
   isVisible,
   onCloseHandler,
+  handleBtcBannerClick,
 }: ReceiveTokenProps): ReactElement {
   const wallet = useActiveWallet().activeWallet
   const activeChainInfo = useChainInfo()
@@ -74,6 +96,7 @@ export default function ReceiveToken({
               UserClipboard.copyText(address)
             }}
           />
+
           {ON_RAMP_SUPPORT_CHAINS.includes(activeChainInfo.key) && (
             <div
               className='mt-2'
@@ -93,6 +116,8 @@ export default function ReceiveToken({
               />
             </div>
           )}
+
+          {handleBtcBannerClick ? <BtcButton handleBtcBannerClick={handleBtcBannerClick} /> : null}
         </div>
       ) : (
         <></>

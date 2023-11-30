@@ -331,8 +331,10 @@ export namespace LeapWalletApi {
       gitopia: 'GITOPIA' as CosmosBlockchain,
       xpla: 'XPLA' as CosmosBlockchain,
       aura: 'AURA' as CosmosBlockchain,
+      chain4energy: 'CHAIN4ENERGY' as CosmosBlockchain,
+      nolus: 'NOLUS' as CosmosBlockchain,
     };
-    return blockchains[activeChain];
+    return blockchains[activeChain] ?? activeChain.toUpperCase();
   }
 
   export function sanitizeUrl(url: string) {

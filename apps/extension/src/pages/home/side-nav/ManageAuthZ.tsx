@@ -30,7 +30,6 @@ import { useTxCallBack } from 'utils/txCallback'
 import { AuthzDetails } from './AuthzDetails'
 import { SelectChainSheet } from './CustomEndpoints'
 
-const useGetWallet = Wallet.useGetWallet
 const AuthZContext = createContext<
   (AuthzTxType & { onReviewRevokeTx: () => Promise<void> }) | null
 >(null)
@@ -38,7 +37,7 @@ const AuthZContext = createContext<
 function AuthZContextProvider({ children }: { children: ReactNode }) {
   const txCallback = useTxCallBack()
   const { selectedChain, onReviewRevokeTransaction, ...rest } = useAuthzTx()
-  const getWallet = useGetWallet()
+  const getWallet = Wallet.useGetWallet()
 
   const onReviewRevokeTx = async () => {
     const wallet = await getWallet(selectedChain)

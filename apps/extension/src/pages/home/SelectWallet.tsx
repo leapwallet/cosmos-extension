@@ -156,8 +156,11 @@ export default function SelectWallet({
                   ? `${walletLabels[wallet.walletType]} Wallet ${wallet.addressIndex + 1}`
                   : formatWalletName(wallet.name)
               const walletNameLength = walletName.length
+              const sliceLength = wallet.walletType === WALLETTYPE.LEDGER ? 10 : 19
               const shortenedWalletName =
-                walletNameLength > 10 ? walletName.slice(0, 10) + '...' : walletName
+                walletNameLength > sliceLength
+                  ? walletName.slice(0, sliceLength) + '...'
+                  : walletName
 
               let addressText = `${sliceAddress(
                 wallet.addresses[activeChainInfo.key],
@@ -178,7 +181,7 @@ export default function SelectWallet({
                     }}
                     key={formatWalletName(wallet.name)}
                     title={
-                      <div className='flex flex-row items-center'>
+                      <div className='flex flex-row items-center whitespace-nowrap'>
                         {shortenedWalletName}
                         {wallet.walletType === WALLETTYPE.LEDGER && (
                           <Text
@@ -193,7 +196,7 @@ export default function SelectWallet({
                     }
                     icon={
                       <div
-                        className='flex h-[56px] w-[56px] hover:cursor-pointer justify-center text-gray-400 items-center bg-white-100 dark:bg-gray-900 material-icons-round'
+                        className='flex h-[28px] w-[28px] hover:cursor-pointer justify-center text-gray-400 items-center bg-white-100 dark:bg-gray-900 material-icons-round'
                         onClick={(e) => {
                           e.stopPropagation()
                           setEditWallet(wallet)

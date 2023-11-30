@@ -24,7 +24,11 @@ const bolosErrorMessage = 'Please close BOLOS and open the Cosmos Ledger app on 
 const ledgerDisconnectMessage =
   "Ledger Native Error: DisconnectedDeviceDuringOperation: Failed to execute 'transferOut' on 'USBDevice': The device was disconnected.";
 
+//error thrown by ledger
 export const transactionDeclinedError = new LedgerError('Transaction signing request was rejected by the user');
+
+//error shown to user
+export const txDeclinedErrorUser = new LedgerError('Transaction rejected on Ledger.');
 
 export const bolosError = new LedgerError('Please open the Cosmos Ledger app on your Ledger device.');
 
@@ -67,7 +71,7 @@ export async function getLedgerTransport() {
       transport = await TransportWebUsb.create();
     } catch (e) {
       throw new LedgerError(
-        'Unable to connect to Ledger device. Please check if your ledger is connected and try again.',
+        'Unable to connect to Ledger device. Please check if your Ledger is connected and try again.',
       );
     }
   }
@@ -86,6 +90,8 @@ export class LeapLedgerSigner extends LedgerSigner {
       return bolosError;
     } else if (e.message.includes(ledgerDisconnectMessage)) {
       return deviceDisconnectedError;
+    } else if (e.message.includes(ledgerLockedError)) {
+      throw deviceLockedError;
     } else {
       return new LedgerError(e.message.toString());
     }

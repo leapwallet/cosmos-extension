@@ -94,7 +94,7 @@ export function OverflowSideNavSection({ children }: { children: ReactNode }) {
 export default function SideNav({ isShown, toggler }: SideNavProps): ReactElement {
   const { theme } = useTheme()
   const currentNetwork = useSelectedNetwork()
-  const [showGSDropUp, setShowGSDropUp] = useState<boolean>(false)
+  const [showGSDropUp, setShowGSDropUp] = useState(false)
   const [showNetworkDropUp, setShowNetworkDropUp] = useState(false)
   const [showFaucetResp, setShowFaucetResp] = useState<InitialFaucetResp>(initialFaucetResp)
   const [selectedCurrency] = useUserPreferredCurrency()
