@@ -29,7 +29,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LeapWalletApi } from '../apis';
 import { useGetTokenBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import { currencyDetail, useformatCurrency, useUserPreferredCurrency } from '../settings';
 import {
   useActiveChain,
@@ -254,7 +254,7 @@ export function useStakeTx(
   const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
   const { lcdUrl } = useChainApis();
   const getGasPrice = useGetGasPrice(activeChain);
-  const gasAdjustment = useGasAdjustment();
+  const gasAdjustment = useGasAdjustmentForChain();
 
   // FUNCTIONS
   const handleSimulationError = (errorMsg: string) => {

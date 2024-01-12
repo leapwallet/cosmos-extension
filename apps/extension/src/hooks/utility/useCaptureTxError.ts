@@ -11,6 +11,7 @@ export function useCaptureTxError(error: string | undefined) {
     if (error) {
       if (error.includes(TRANSACTION_ID_NOT_FOUND_ON_CHAIN_ERROR)) return
       if (error.includes(REWARD_IS_TOO_LOW)) return
+      if (error.includes("You don't have enough")) return
 
       Sentry.captureException(error)
     }

@@ -1,3 +1,4 @@
+import { StdFee } from '@cosmjs/stargate'
 import {
   currencyDetail,
   FeeTokenData,
@@ -12,12 +13,13 @@ import {
   useChainsStore,
   useDefaultGasEstimates,
   useFeeTokens,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
   useGasPriceStepForChain,
   useGetTokenBalances,
   useLowGasPriceStep,
   useNativeFeeDenom,
   useSelectedNetwork,
+  useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   DefaultGasEstimates,
@@ -26,6 +28,7 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { captureException } from '@sentry/react'
+import * as Sentry from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -34,6 +37,8 @@ import Tooltip from 'components/better-tooltip'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
+import Long from 'long'
+import { useFeeValidation } from 'pages/sign/fee-validation'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { Colors } from 'theme/colors'
@@ -62,6 +67,7 @@ export const useDefaultGasPrice = (options?: {
   return defaultPrice
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type GasPriceOptionsProps = React.PropsWithChildren<any> & {
   className?: string
   recommendedGasLimit?: BigNumber | string
@@ -77,6 +83,9 @@ export type GasPriceOptionsProps = React.PropsWithChildren<any> & {
   network?: 'mainnet' | 'testnet'
   considerGasAdjustment?: boolean
   disableBalanceCheck?: boolean
+  fee?: StdFee
+  validateFee?: boolean
+  onInvalidFees?: (feeData: NativeDenom, isFeesValid: boolean | null) => void
 }
 
 const GasPriceOptions = ({
@@ -94,6 +103,9 @@ const GasPriceOptions = ({
   network,
   considerGasAdjustment = true,
   disableBalanceCheck,
+  validateFee = false,
+  fee,
+  onInvalidFees,
 }: GasPriceOptionsProps) => {
   const [viewAdditionalOptions, setViewAdditionalOptions] = useState(false)
   const _activeChain = useActiveChain()
@@ -102,6 +114,7 @@ const GasPriceOptions = ({
   const _selectedNetwork = useSelectedNetwork()
   const selectedNetwork = network ?? _selectedNetwork
   const nonNativeTokenGasLimitMultiplier = useRef<number>(1)
+  const { data: transactionConfig } = useTransactionConfigs()
 
   useEffect(() => {
     if (activeChain === 'osmosis') {
@@ -114,7 +127,7 @@ const GasPriceOptions = ({
   const { chains } = useChainsStore()
   const chainInfo = chains[activeChain as SupportedChain]
   const defaultGasEstimates = useDefaultGasEstimates()
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain()
 
   const baseGasPriceStep = useGasPriceStepForChain(activeChain, selectedNetwork)
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork)
@@ -136,6 +149,23 @@ const GasPriceOptions = ({
 
   const [userHasSelectedToken, setUserHasSelectedToken] = useState<boolean>(false)
   const [feeTokenData, setFeeTokenData] = useState<FeeTokenData & { gasPriceStep: GasPriceStep }>()
+  const feeValidation = useFeeValidation(chain ?? activeChain)
+
+  useEffect(() => {
+    if (feeTokenData && validateFee) {
+      feeValidation(
+        {
+          gaslimit: fee.gasLimit ?? Long.fromString(fee.gas),
+          feeAmount: fee.amount[0].amount,
+          feeDenom: fee.amount[0].denom,
+          chain: chain,
+        },
+        onInvalidFees,
+      ).catch((e) => {
+        Sentry.captureException(e)
+      })
+    }
+  }, [feeTokenData, fee, chain, transactionConfig])
 
   useEffect(() => {
     const fn = async () => {
@@ -158,7 +188,7 @@ const GasPriceOptions = ({
 
   const {
     allAssets: allTokens,
-    ibcTokensStatus,
+    s3IbcTokensStatus,
     nativeTokensStatus,
   } = useGetTokenBalances(activeChain, selectedNetwork)
 
@@ -183,14 +213,14 @@ const GasPriceOptions = ({
   }, [allTokens, chainInfo?.beta, chainInfo?.nativeDenoms, feeTokenData])
 
   const allTokensStatus = useMemo(() => {
-    if (nativeTokensStatus === 'success' && ibcTokensStatus === 'success') {
+    if (nativeTokensStatus === 'success' && s3IbcTokensStatus === 'success') {
       return 'success'
     }
-    if (nativeTokensStatus === 'loading' || ibcTokensStatus === 'loading') {
+    if (nativeTokensStatus === 'loading' || s3IbcTokensStatus === 'loading') {
       return 'loading'
     }
     return 'error'
-  }, [ibcTokensStatus, nativeTokensStatus])
+  }, [s3IbcTokensStatus, nativeTokensStatus])
 
   const [finalRecommendedGasLimit, setFinalRecommendedGasLimit] = useState(() => {
     return (
@@ -402,7 +432,7 @@ GasPriceOptions.Selector = function Selector({
 
   const defaultGasEstimates = useDefaultGasEstimates()
   const [formatCurrency, preferredCurrency] = useFormatCurrency()
-  const gasAdjustment = useGasAdjustment(activeChain)
+  const gasAdjustment = useGasAdjustmentForChain(activeChain)
 
   const { data: feeTokenFiatValue } = useQuery(
     ['fee-token-fiat-value', feeTokenData.denom.coinGeckoId],
@@ -455,7 +485,7 @@ GasPriceOptions.Selector = function Selector({
           className,
         )}
       >
-        {Object.entries(feeTokenData.gasPriceStep).map(([level, gasPrice]) => {
+        {Object.entries(feeTokenData?.gasPriceStep ?? {}).map(([level, gasPrice]) => {
           const isSelected = value.option === level
           const gasPriceBN = new BigNumber(gasPrice)
           const estimatedGasLimit =
@@ -614,7 +644,7 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
   const activeChainInfo = useChainInfo(activeChain)
 
   const defaultTokenLogo = useDefaultTokenLogo()
-  const gasAdjustment = useGasAdjustment(activeChain)
+  const gasAdjustment = useGasAdjustmentForChain(activeChain)
   const { data: feeTokensList, isLoading } = useFeeTokens(activeChainInfo.key, selectedNetwork)
 
   const [gasLimitInputValue, setGasLimitInputValue] = useState(() => {
@@ -649,8 +679,6 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
   useEffect(() => {
     if (isGasLimitInvalid(gasLimitInputValue)) {
       setError('Gas limit is invalid')
-    } else {
-      setError(null)
     }
   }, [gasLimitInputValue, setError])
 
@@ -832,6 +860,7 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
               buttonTextColor={Colors.getChainColor(activeChain)}
               value={gasLimitInputValue}
               invalid={isGasLimitInvalid(gasLimitInputValue)}
+              maxLength={18}
               onAction={() => {
                 setGasLimit(recommendedGasLimit)
               }}

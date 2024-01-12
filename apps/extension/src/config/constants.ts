@@ -17,4 +17,4 @@ export const PriorityChains: Array<SupportedChain> = [
   'stargaze',
 ]
 
-export const chainsWithSwapSupport = ['osmosis']
+export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']

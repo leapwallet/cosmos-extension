@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
 import { CosmosTxType } from '../connectors';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import { useActiveChain, useAddress, useChainApis, useGetChains, usePendingTxState, useTxMetadata } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback } from '../types';
@@ -93,7 +93,7 @@ export function useAuthzTx() {
     forceNetwork: selectedChainHasMainnetOnly ? 'mainnet' : undefined,
   });
 
-  const gasAdjustment = useGasAdjustment(selectedChain);
+  const gasAdjustment = useGasAdjustmentForChain(selectedChain);
   const gasPrices = useGasRateQuery(selectedChain, selectedChainHasMainnetOnly ? 'mainnet' : undefined);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
 

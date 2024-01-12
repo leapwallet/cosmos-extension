@@ -63,6 +63,7 @@ export function getFilteredDapps(dappList: DApp[], types: DappType[], searchedTe
     return {
       action_name: dapp.title,
       action_icon_url: dapp.icon ?? '',
+      action_light_icon_url: dapp.icon ?? '',
       tags: [],
       show_in_list: false,
       show_in_search: true,

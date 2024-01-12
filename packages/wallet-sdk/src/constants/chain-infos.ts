@@ -80,7 +80,11 @@ export type SupportedChain =
   | 'aura'
   | 'kichain'
   | 'sentinel'
-  | 'bandchain';
+  | 'bandchain'
+  | 'composable'
+  | 'pryzmtestnet'
+  | 'thorchain'
+  | 'odin';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -154,7 +158,11 @@ export type AddressPrefix =
   | 'aura'
   | 'ki'
   | 'sent'
-  | 'band';
+  | 'band'
+  | 'centauri'
+  | 'pryzm'
+  | 'thor'
+  | 'odin';
 
 export type Denom =
   | 'JUNO'
@@ -229,7 +237,11 @@ export type Denom =
   | 'XKI'
   | 'DVPN'
   | 'BAND'
-  | 'DYDX';
+  | 'DYDX'
+  | 'PICA'
+  | 'PRYZM'
+  | 'RUNE'
+  | 'ODIN';
 
 export type CoinType =
   | '118'
@@ -1626,6 +1638,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(30, 199, 218, 0.32) 0%, rgba(30, 199, 218, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   irisnet: {
     chainId: 'irishub-1',
@@ -2318,6 +2331,43 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
     comingSoonFeatures: ['stake', 'governance'],
   },
+  odin: {
+    chainId: 'odin-mainnet-freya',
+    key: 'odin',
+    chainName: 'Odin Protocol',
+    chainRegistryPath: 'odin',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/odin.png',
+    apis: {
+      rest: 'https://rest.cosmos.directory/odin',
+      rpc: 'https://rpc.cosmos.directory/odin',
+    },
+    denom: 'ODIN',
+    txExplorer: {
+      mainnet: {
+        name: 'ODIN Explorer',
+        txUrl: 'https://mainnet.odinprotocol.io/transactions',
+        accountUrl: 'https://mainnet.odinprotocol.io/accounts',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'odin',
+    gasPriceStep: {
+      low: 0.0125,
+      average: 0.025,
+      high: 0.03,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      loki: denoms.loki,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(113, 65, 191, 0.32) 0%, rgba(113, 65, 191, 0) 100%)',
+      primaryColor: '#7141bf',
+    },
+    enabled: true,
+  },
   omniflix: {
     chainId: 'omniflixhub-1',
     key: 'omniflix',
@@ -2391,7 +2441,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
-
   osmosis: {
     chainId: 'osmosis-1',
     testnetChainId: 'osmo-test-5',
@@ -2435,7 +2484,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     nativeDenoms: {
       uosmo: denoms.uosmo,
     },
-
+    cosmosSDK: CosmosSDK.Version_Point_47,
     theme: {
       primaryColor: '#726FDC',
       gradient: 'linear-gradient(180deg, rgba(114, 111, 220, 0.32) 0%, rgba(114, 111, 220, 0) 100%)',
@@ -2573,6 +2622,47 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  composable: {
+    chainId: 'centauri-1',
+    key: 'composable',
+    chainName: 'Picasso',
+    chainRegistryPath: 'composable',
+    // testnetChainId: 'banksy-testnet-3',
+    // testnetChainRegistryPath: 'composabletestnet',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/pica.svg',
+    apis: {
+      rpc: 'https://rpc.cosmos.directory/composable',
+      rest: 'https://rest.cosmos.directory/composable',
+      // rpcTest: 'https://rpc.cosmos.directory/composabletestnet',
+      // restTest: 'https://rest.cosmos.directory/composabletestnet',
+    },
+    denom: 'PICA',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://explorer.nodestake.top/composable/tx',
+        accountUrl: 'https://explorer.nodestake.top/composable/account',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'centauri',
+    gasPriceStep: {
+      low: 0.025,
+      average: 0.03,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      ppica: denoms.ppica,
+    },
+    theme: {
+      primaryColor: '#6156ff',
+      gradient: 'linear-gradient(180deg, rgba(97, 86, 255, 0.32) 0%, rgba(254, 116, 138, 0) 100%)',
+    },
+    enabled: true,
+  },
   planq: {
     chainId: 'planq_7070-2',
     testnetChainId: 'planq_7000-4',
@@ -2650,6 +2740,45 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
     cosmosSDK: CosmosSDK.Version_Point_46,
+  },
+  pryzmtestnet: {
+    chainId: 'indigo-1',
+    testnetChainId: 'indigo-1',
+    key: 'pryzmtestnet',
+    chainName: 'Pryzm Testnet',
+    chainRegistryPath: 'pryzmtestnet',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/pryzm.svg',
+    apis: {
+      restTest: 'https://testnet-api.pryzm.zone',
+      rpcTest: 'https://testnet-rpc.pryzm.zone',
+    },
+    denom: 'PRYZM',
+    txExplorer: {
+      testnet: {
+        name: 'CosmosRun',
+        txUrl: 'https://testnets.cosmosrun.info/pryzm-indigo-1/tx',
+        accountUrl: 'https://testnets.cosmosrun.info/pryzm-indigo-1/account',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'pryzm',
+    gasPriceStep: {
+      low: 0.015,
+      average: 0.025,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      upryzm: denoms.upryzm,
+    },
+    theme: {
+      primaryColor: '#8293de',
+      gradient: 'linear-gradient(180deg, rgba(130, 147, 222, 0.32) 0%, rgba(130, 147, 222, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   quasar: {
     chainId: 'quasar-1',
@@ -3226,6 +3355,40 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(41, 168, 116, 0.32) 0%, rgba(41, 168, 116, 0) 100%)',
     },
     enabled: true,
+  },
+  thorchain: {
+    chainId: 'thorchain-mainnet-v1',
+    key: 'thorchain',
+    chainName: 'THORChain',
+    chainRegistryPath: 'thorchain',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/thorchain.svg',
+    apis: {
+      rest: 'https://thornode.thorchain.liquify.com',
+      rpc: 'https://rpc.ninerealms.com',
+    },
+    denom: 'RUNE',
+    txExplorer: {
+      mainnet: {
+        name: 'ViewBlock',
+        txUrl: 'https://viewblock.io/thorchain/tx',
+        accountUrl: 'https://viewblock.io/thorchain/address',
+      },
+    },
+    bip44: {
+      coinType: '931',
+    },
+    addressPrefix: 'thor',
+    gasPriceStep: { low: 2, average: 2, high: 2 },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      cacao: denoms.cacao,
+    },
+    theme: {
+      primaryColor: '#1fc2a7',
+      gradient: 'linear-gradient(180deg, rgba(31, 194, 167, 0.32) 0%, rgba(31, 194, 167, 0) 100%)',
+    },
+    enabled: true,
+    notSupportedFeatures: ['stake', 'governance'],
   },
   umee: {
     chainId: 'umee-1',

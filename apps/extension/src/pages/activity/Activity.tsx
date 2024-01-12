@@ -22,6 +22,7 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
 import { ActivityList } from './ActivityList'
+import { ActivitySwapTxPage } from './ActivitySwapTxPage'
 import TxDetails from './TxDetails'
 
 export type SelectedTx = {
@@ -39,6 +40,8 @@ function Activity() {
     useRecoilState(selectedChainAlertState)
   const [selectedTx, setSelectedTx] = useState<SelectedTx | null>(null)
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [showSwapTxPageFor, setShowSwapTxPageFor] = useState<any>()
   const defaultTokenLogo = useDefaultTokenLogo()
   const isTestnet = useSelectedNetwork() === 'testnet'
   const activeChain = useActiveChain()
@@ -125,13 +128,24 @@ function Activity() {
                 )}
 
                 <div className='w-full flex flex-col justify-center pt-[28px] items-center mb-20 px-7'>
-                  <ActivityList setSelectedTx={setSelectedTx} txResponse={txResponse} />
+                  <ActivityList
+                    setSelectedTx={setSelectedTx}
+                    txResponse={txResponse}
+                    setShowSwapTxPageFor={setShowSwapTxPageFor}
+                  />
                 </div>
               </>
             )}
           </PopupLayout>
           <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
           <BottomNav label={BottomNavLabel.Activity} />
+
+          {showSwapTxPageFor ? (
+            <ActivitySwapTxPage
+              onClose={() => setShowSwapTxPageFor(undefined)}
+              {...showSwapTxPageFor}
+            />
+          ) : null}
         </>
       )}
     </div>

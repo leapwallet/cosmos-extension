@@ -158,7 +158,7 @@ export function CollectionDetails() {
         }
       >
         <div className='px-6 pt-4 pb-8'>
-          {['omniflix', 'stargaze'].includes(collection.chain) ? (
+          {['omniflix', 'stargaze', 'aura'].includes(collection.chain) ? (
             <ChainHeaderCollectionCard
               nfts={nfts}
               chain={collection.chain}

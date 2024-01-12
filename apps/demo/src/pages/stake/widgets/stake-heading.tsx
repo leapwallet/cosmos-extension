@@ -1,4 +1,4 @@
-import { ChainInfos, Network, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar } from '@leapwallet/leap-ui'
 import currency from 'currency.js'
 import React from 'react'

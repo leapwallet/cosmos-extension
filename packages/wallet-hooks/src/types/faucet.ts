@@ -1,4 +1,4 @@
-export type FaucetSecurityType = 'hcaptcha';
+export type FaucetSecurityType = 'hcaptcha' | 'recaptcha';
 
 export type Faucet = {
   title: string;
@@ -10,7 +10,7 @@ export type Faucet = {
     type: FaucetSecurityType;
     key: string;
   };
-  payloadSchema: {
+  payloadSchema?: {
     type: 'url-encoded' | 'form-data' | 'json';
     schema: {
       address: string;

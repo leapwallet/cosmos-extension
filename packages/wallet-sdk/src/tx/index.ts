@@ -7,5 +7,6 @@ export * from './nft-transfer';
 export * from './seiTx';
 export * from './simulate';
 export * from './strideTx';
+export * from './thorTx';
 export * from './tx';
 export * from './utils';

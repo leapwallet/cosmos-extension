@@ -114,56 +114,22 @@ export const networkData: NetworkData[] = [
     gasPrice: '1500000000000rowan',
     ownerAddress: 'sifvaloper19t5nk5ceq5ga75epwdqhnupwg0v9339p096ydz',
   },
-  {
-    enabled: false,
-    name: 'lumnetwork',
-  },
-  {
-    enabled: true,
-    name: 'stargaze',
-  },
-  {
-    enabled: true,
-    name: 'comdex',
-  },
+  { enabled: false, name: 'lumnetwork' },
+  { enabled: true, name: 'stargaze' },
+  { enabled: true, name: 'comdex' },
   {
     enabled: true,
     name: 'cheqd',
     gasPrice: '25ncheq',
   },
-  {
-    enabled: true,
-    name: 'umee',
-  },
-  {
-    enabled: true,
-    name: 'bitsong',
-  },
-  {
-    enabled: true,
-    name: 'persistenceNew',
-  },
-  {
-    enabled: true,
-    name: 'persistence',
-  },
-  {
-    enabled: true,
-    name: 'agoric',
-  },
-  {
-    enabled: true,
-    name: 'impacthub',
-  },
-  {
-    enabled: false,
-    name: 'kichain',
-    gasPrice: '0.025uxki',
-  },
-  {
-    enabled: true,
-    name: 'sommelier',
-  },
+  { enabled: true, name: 'umee' },
+  { enabled: true, name: 'bitsong' },
+  { enabled: true, name: 'persistenceNew' },
+  { enabled: true, name: 'persistence' },
+  { enabled: true, name: 'agoric' },
+  { enabled: true, name: 'impacthub' },
+  { enabled: false, name: 'kichain', gasPrice: '0.025uxki' },
+  { enabled: true, name: 'sommelier' },
   {
     enabled: false,
     name: 'konstellation',
@@ -279,10 +245,7 @@ export const networkData: NetworkData[] = [
     enabled: true,
     name: 'likecoin',
   },
-  {
-    enabled: true,
-    name: 'jackal',
-  },
+  { enabled: true, name: 'jackal' },
   {
     enabled: true,
     name: 'canto',
@@ -295,26 +258,11 @@ export const networkData: NetworkData[] = [
     enabled: true,
     name: 'cudos',
   },
-  {
-    enabled: true,
-    name: 'kava',
-  },
-  {
-    enabled: true,
-    name: 'omniflix',
-  },
-  {
-    enabled: true,
-    name: 'passage',
-  },
-  {
-    enabled: true,
-    name: 'archway',
-  },
-  {
-    enabled: true,
-    name: 'quasar',
-  },
+  { enabled: true, name: 'kava' },
+  { enabled: true, name: 'omniflix' },
+  { enabled: true, name: 'passage' },
+  { enabled: true, name: 'archway' },
+  { enabled: true, name: 'quasar' },
   { enabled: true, name: 'neutron' },
   { enabled: true, name: 'coreum' },
   { enabled: true, name: 'mainCoreum' },
@@ -344,6 +292,9 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'sentinel' },
   { enabled: true, name: 'bandchain' },
   { enabled: true, name: 'dydx' },
+  { enabled: true, name: 'pryzmtestnet' },
+  { enabled: true, name: 'thorchain' },
+  { enabled: true, name: 'odin' },
 ];
 
 export default networkData;

@@ -80,6 +80,10 @@ export const nativeFeeDenoms: FeeDenoms = {
     aura: 'uaura',
     provenance: 'nhash',
     xpla: 'axpla',
+    composable: 'ppica',
+    pryzmtestnet: 'upryzm',
+    thorchain: 'rune',
+    odin: 'loki',
   },
   testnet: {
     akash: 'uakt',
@@ -155,5 +159,9 @@ export const nativeFeeDenoms: FeeDenoms = {
     aura: 'uaura',
     provenance: 'nhash',
     xpla: 'axpla',
+    composable: 'ppica',
+    pryzmtestnet: 'upryzm',
+    thorchain: 'rune',
+    odin: 'loki',
   },
 };

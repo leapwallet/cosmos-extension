@@ -4,6 +4,7 @@
  */
 export * from './types';
 export * from './useGetAllNFTsList';
+export * from './useGetAuraNFTs';
 export * from './useGetOmniflixNFTs';
 export * from './useGetOwnedCollection';
 export * from './useGetStargazeNFTs';

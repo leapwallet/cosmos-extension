@@ -44,7 +44,7 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
   setMemo,
 }) => {
   const defaultTokenLogo = useDefaultTokenLogo()
-  const [txError, setTxError] = useState('')
+  const [txError] = useState('')
 
   if (showLedgerPopup && txError) {
     return <LedgerConfirmationPopup showLedgerPopup />
@@ -82,7 +82,7 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
                 }
                 isRounded
                 size='md'
-                subtitle={<p>{nftDetails?.tokenId}</p>}
+                subtitle={<p className='break-all'>{nftDetails?.tokenId}</p>}
                 title={
                   <p data-testing-id='send-review-sheet-inputAmount-ele'>
                     {`${

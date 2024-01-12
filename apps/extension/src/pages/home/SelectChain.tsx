@@ -1,26 +1,26 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import { HeaderAction } from '@leapwallet/leap-ui/dist/components/header'
+import { CardDivider, HeaderActionType } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
+import { SearchInput } from 'components/search-input'
 import { ManageChainSettings, useManageChainData } from 'hooks/settings/useManageChains'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
-import React, { Fragment, useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
 import { sliceSearchWord } from 'utils/strings'
 import extension from 'webextension-polyfill'
 
-import BottomSheet from '../../components/bottom-sheet/BottomSheet'
 import Text from '../../components/text'
 import { useActiveChain, useSetActiveChain } from '../../hooks/settings/useActiveChain'
 import { Colors } from '../../theme/colors'
 
 export type ListChainsProps = {
-  headerAction?: HeaderAction
+  headerAction?: HeaderActionType
   headerTitle?: string
   // eslint-disable-next-line no-unused-vars
   onChainSelect: (chainName: SupportedChain) => void
@@ -33,8 +33,6 @@ export function ListChains({
   onChainSelect,
   selectedChain,
   onPage,
-  headerAction,
-  headerTitle,
   chainsToShow,
 }: ListChainsProps) {
   const [chains] = useManageChainData()
@@ -63,21 +61,20 @@ export function ListChains({
 
   return (
     <>
-      <div className='sticky top-0 bg-gray-50 dark:bg-black-100 pb-4 '>
-        <Header title={headerTitle} action={headerAction} />
-        <div className='flex h-10 mt-5 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]  w-[344px] mx-auto'>
-          <input
-            placeholder='Search'
-            className='flex flex-grow text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
-            value={searchedChain}
-            onChange={(event) => setSearchedChain(event.target.value)}
-            data-testing-id='switch-chain-input-search'
-          />
-          <img src={Images.Misc.SearchIcon} />
-        </div>
+      <div className='flex flex-col items-center h-full'>
+        <SearchInput
+          value={searchedChain}
+          onChange={(e) => setSearchedChain(e.target.value)}
+          data-testing-id='switch-chain-input-search'
+          placeholder='Search chains...'
+          onClear={() => setSearchedChain('')}
+        />
       </div>
 
-      <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 mx-7 mb-4'>
+      <div
+        className='bg-white-100 dark:bg-gray-900 rounded-2xl max-h-[400px] w-full'
+        style={{ overflowY: 'scroll' }}
+      >
         {filteredChains.length === 0 ? (
           <EmptyCard
             isRounded
@@ -174,46 +171,34 @@ export default function SelectChain({ isVisible, onClose }: ChainSelectorProps) 
   }, [])
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
+    <BottomModal
+      isOpen={isVisible}
       onClose={onClose}
-      closeOnClickBackDrop={true}
-      customHeader={() => {
-        return <div />
-      }}
+      closeOnBackdropClick={true}
+      title='Switch Chains'
     >
-      <>
-        <ListChains
-          onChainSelect={onChainSelect}
-          headerTitle='Switch Chains'
-          headerAction={{
-            type: HeaderActionType.CANCEL,
-            onClick: onClose,
-          }}
-          selectedChain={selectedChain}
-        />
+      <ListChains onChainSelect={onChainSelect} selectedChain={selectedChain} />
 
-        <div className='w-[344px] mt-4 mb-4 mx-auto rounded-2xl overflow-hidden'>
-          <button
-            className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
-            onClick={handleAddNewChainClick}
-          >
-            <span className='material-icons-round text-gray-400 mr-4 text-lg'>add_circle</span>
-            <Text size='md' className='font-bold'>
-              Add new chain
-            </Text>
-          </button>
-          <button
-            className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
-            onClick={() => navigate('/manageChain')}
-          >
-            <span className='material-icons-round text-gray-400 mr-4 text-lg'>tune</span>
-            <Text size='md' className='font-bold'>
-              Manage Chains
-            </Text>
-          </button>
-        </div>
-      </>
-    </BottomSheet>
+      <div className='w-[344px] mt-4 mb-4 mx-auto rounded-2xl overflow-hidden'>
+        <button
+          className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+          onClick={handleAddNewChainClick}
+        >
+          <span className='material-icons-round text-gray-400 mr-4 text-lg'>add_circle</span>
+          <Text size='md' className='font-bold'>
+            Add new chain
+          </Text>
+        </button>
+        <button
+          className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+          onClick={() => navigate('/manageChain')}
+        >
+          <span className='material-icons-round text-gray-400 mr-4 text-lg'>tune</span>
+          <Text size='md' className='font-bold'>
+            Manage Chains
+          </Text>
+        </button>
+      </div>
+    </BottomModal>
   )
 }

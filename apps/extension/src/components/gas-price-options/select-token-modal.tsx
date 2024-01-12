@@ -2,6 +2,7 @@ import { sortTokens, Token, useActiveChain } from '@leapwallet/cosmos-wallet-hoo
 import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
+import { SearchInput } from 'components/search-input'
 import { TokenCard } from 'components/token-card/TokenCard'
 import { Images } from 'images'
 import React, { useCallback, useMemo, useState } from 'react'
@@ -49,23 +50,13 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = ({
   return (
     <BottomModal isOpen={isOpen} onClose={onClose} title='Select Fee Token'>
       <div className='flex flex-col items-center'>
-        <div className='mx-auto w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-full py-2 pl-5 pr-3'>
-          <input
-            placeholder='search tokens...'
-            className='flex flex-grow text-base text-gray-400 outline-none bg-white-0'
-            value={input}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {input.length === 0 ? (
-            <img src={Images.Misc.SearchIcon} />
-          ) : (
-            <img
-              className='cursor-pointer'
-              src={Images.Misc.CrossFilled}
-              onClick={() => setSearchQuery('')}
-            />
-          )}
-        </div>
+        <SearchInput
+          placeholder='Search tokens...'
+          value={input}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onClear={() => setSearchQuery('')}
+        />
+
         <div className='bg-white-100 dark:bg-gray-900 rounded-2xl w-full min-h-[200px] max-h-[350px] mt-4 overflow-y-auto p-0'>
           {choiceOfTokens.length > 0 ? (
             choiceOfTokens.map((asset, index) => {

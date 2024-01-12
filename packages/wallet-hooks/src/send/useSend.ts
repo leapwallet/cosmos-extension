@@ -27,7 +27,7 @@ import { Token } from 'types/bank';
 import { LeapWalletApi } from '../apis';
 import { useGetTokenBalances, useSnipGetSnip20TokenBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import { useGetIbcChannelId } from '../ibc';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
@@ -65,7 +65,7 @@ export function useSend(toAddress: string) {
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
 
-  const { allAssets, nativeTokensStatus, ibcTokensStatus } = useGetTokenBalances();
+  const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenBalances();
   const { snip20Tokens, snip20TokensStatus } = useSnipGetSnip20TokenBalances();
   const selectedNetwork = useSelectedNetwork();
   const activeChain = useActiveChain();
@@ -83,7 +83,7 @@ export function useSend(toAddress: string) {
   const { lcdUrl } = useChainApis();
   const chainInfo = useChainInfo();
   const getGasPrice = useGetGasPrice(activeChain);
-  const gasAdjustment = useGasAdjustment();
+  const gasAdjustment = useGasAdjustmentForChain();
 
   const assets = useMemo(() => {
     if (snip20Tokens && isValidAddressWithPrefix(toAddress, 'secret')) {
@@ -112,11 +112,11 @@ export function useSend(toAddress: string) {
   });
 
   useEffect(() => {
-    if (ibcTokensStatus === 'success' && nativeTokensStatus === 'success') {
+    if (s3IbcTokensStatus === 'success' && nativeTokensStatus === 'success') {
       const tokensWithBalance = assets.filter((token) => new BigNumber(token.amount).gt(0));
       setSelectedDenom(tokensWithBalance[0]);
     }
-  }, [ibcTokensStatus, nativeTokensStatus, snip20TokensStatus]);
+  }, [s3IbcTokensStatus, nativeTokensStatus, snip20TokensStatus]);
 
   const getTxData = useCallback(() => {
     const fromAddress = address;
@@ -401,7 +401,7 @@ export function useSend(toAddress: string) {
     error,
     setError,
     isLoading,
-    loading: ibcTokensStatus !== 'success' && nativeTokensStatus !== 'success',
+    loading: s3IbcTokensStatus !== 'success' && nativeTokensStatus !== 'success',
     showLedgerPopup,
     signingError,
     sendSnip20,

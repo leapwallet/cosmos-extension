@@ -1,10 +1,11 @@
 import { getNeutronProposals } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 
-import { useChainApis, useGetChains, useSpamProposals } from '../store';
+import { useActiveChain, useChainApis, useGetChains, useSpamProposals } from '../store';
 
 export function useGetNtrnProposals() {
   const { rpcUrl } = useChainApis();
+  const activeChain = useActiveChain();
   const spamProposals = useSpamProposals();
   const chains = useGetChains();
 
@@ -31,6 +32,6 @@ export function useGetNtrnProposals() {
       const proposals = await getNeutronProposals(rpcUrl ?? '');
       return proposals.filter((proposal: any) => filterSpamProposals(proposal));
     },
-    { enabled: !!rpcUrl },
+    { enabled: !!rpcUrl && activeChain === 'neutron' },
   );
 }

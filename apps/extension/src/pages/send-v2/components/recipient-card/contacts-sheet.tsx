@@ -1,8 +1,9 @@
 import { SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { AvatarCard, InputWithButton } from '@leapwallet/leap-ui'
+import { AvatarCard } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
+import { SearchInput } from 'components/search-input'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useContactsSearch } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -48,10 +49,10 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
   return (
     <BottomModal isOpen={isOpen} closeOnBackdropClick={true} title='Contact Book' onClose={onClose}>
       <div>
-        <InputWithButton
-          icon={Images.Misc.Search}
+        <SearchInput
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onClear={() => setSearchQuery('')}
           placeholder='Search your contacts...'
         />
         <div

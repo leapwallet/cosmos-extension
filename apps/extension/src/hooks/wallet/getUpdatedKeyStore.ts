@@ -74,7 +74,7 @@ export const getUpdatedKeyStore = async (
       pubKeys,
     }
   } else if (existingWallet.walletType === WALLETTYPE.LEDGER) {
-    if (coinType === '60') return existingWallet
+    if (coinType === '60' || coinType === '931') return existingWallet
     const pubKeyVal = existingWallet.pubKeys
       ? fromBase64(Object.values(existingWallet.pubKeys)[0])
       : fromHex(secret)

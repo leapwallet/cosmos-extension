@@ -10,7 +10,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useContacts } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
-import React, { ChangeEvent, useEffect, useMemo, useState } from 'react'
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -54,6 +54,7 @@ export default function SaveAddressSheet({
   const chainInfos = useChainInfos()
   const addressPrefixes = useAddressPrefixes()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const enterNameRef = useRef<HTMLInputElement | null>(null)
 
   const chain = useMemo(() => {
     try {
@@ -78,6 +79,12 @@ export default function SaveAddressSheet({
     }
   }, [existingContact])
 
+  useEffect(() => {
+    if (isOpen && enterNameRef.current) {
+      enterNameRef.current.focus()
+    }
+  }, [isOpen])
+
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     error && setError('')
     const value = event.target.value
@@ -98,7 +105,7 @@ export default function SaveAddressSheet({
     }
   }
 
-  const onClickSave = async () => {
+  const handleSubmit = async () => {
     if (name && !isSaving) {
       setIsSaving(true)
       await AddressBook.save({
@@ -126,7 +133,13 @@ export default function SaveAddressSheet({
 
   return (
     <BottomModal isOpen={isOpen} onClose={onClose} title={title} closeOnBackdropClick={true}>
-      <div className='flex flex-col items-center w-full gap-y-4'>
+      <form
+        className='flex flex-col items-center w-full gap-y-4'
+        onSubmit={(event) => {
+          event.preventDefault()
+          handleSubmit()
+        }}
+      >
         <div className='flex flex-col gap-y-4 w-full bg-white-100 dark:bg-gray-900 rounded-2xl p-3 justify-center  items-center'>
           <div className='flex flex-row justify-center items-center'>
             <IconButton
@@ -153,6 +166,7 @@ export default function SaveAddressSheet({
                 placeholder={'enter name'}
                 value={name}
                 onChange={handleNameChange}
+                ref={enterNameRef}
               />
               <div className='absolute right-[16px] top-[14px] text-gray-400 text-sm font-medium'>{`${name.length}/24`}</div>
             </div>
@@ -180,15 +194,13 @@ export default function SaveAddressSheet({
             size='normal'
             className='w-full'
             disabled={!name || !!error}
-            title='Send'
-            onClick={async () => {
-              await onClickSave()
-            }}
+            title='Save contact'
+            type='submit'
           >
             Save contact
           </Buttons.Generic>
         )}
-      </div>
+      </form>
     </BottomModal>
   )
 }

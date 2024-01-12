@@ -10,13 +10,12 @@ import {
   InjectiveTx,
   NativeDenom,
   SigningSscrt,
-  simulateTx,
   SupportedChain,
   Tx,
 } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/tx/nft-transfer/contract';
 import { Coin } from '@leapwallet/parser-parfait';
-import { NFTSendTransaction, TransactionMetadata } from 'apis/types/txLoggingTypes';
+import { NFTSendTransaction } from 'apis/types/txLoggingTypes';
 import { BigNumber } from 'bignumber.js';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useMemo, useState } from 'react';
@@ -24,7 +23,7 @@ import { Wallet } from 'secretjs';
 
 import { LeapWalletApi } from '../apis';
 import { CosmosTxType } from '../connectors';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import {
   PendingTx,
   useActiveChain,
@@ -79,7 +78,7 @@ export type sendNFTTokensReturnType =
     };
 
 export const useSendNft = (forceChain?: SupportedChain) => {
-  const [showLedgerPopup, setShowLedgerPopup] = useState<boolean>(false);
+  const [showLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
   const chainInfo = useChainInfo();
   const { setPendingTx } = usePendingTxState();
@@ -89,17 +88,17 @@ export const useSendNft = (forceChain?: SupportedChain) => {
 
   const defaultGasEstimates = useDefaultGasEstimates();
 
-  const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
+  const [gasOption] = useState<GasOptions>(GasOptions.LOW);
   const [gasEstimate, setGasEstimate] = useState<number>(
     defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
   );
 
-  const gasAdjustment = useGasAdjustment(activeChain);
+  const gasAdjustment = useGasAdjustmentForChain(activeChain);
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
 
   // Change when using forceChain
   const nativeFeeDenom = useNativeFeeDenom(forceChain);
-  const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
+  const [feeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
 
   const { lcdUrl, rpcUrl } = useChainApis();
@@ -180,7 +179,9 @@ export const useSendNft = (forceChain?: SupportedChain) => {
       }),
     }));
 
-    const { gasUsed } = await simulateTx(lcdUrl, fromAddress, msgs, undefined, memo);
+    const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet);
+    const gasUsed = await client.simulate(fromAddress, msgs, memo);
+
     setGasEstimate(gasUsed);
     return gasUsed;
   };
@@ -193,7 +194,6 @@ export const useSendNft = (forceChain?: SupportedChain) => {
     collectionId,
     memo,
     fees,
-    txHandler,
   }: {
     wallet: OfflineSigner;
     fromAddress: string;
@@ -268,7 +268,7 @@ export const useSendNft = (forceChain?: SupportedChain) => {
             return _result;
           }
         })
-        .catch((error) => {
+        .catch(() => {
           setIsSending(false);
           return {
             success: false,

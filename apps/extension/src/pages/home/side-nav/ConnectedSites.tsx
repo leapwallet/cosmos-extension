@@ -1,6 +1,7 @@
 import { Avatar, CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import classnames from 'classnames'
+import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import { CONNECTIONS } from 'config/storage-keys'
 import Fuse from 'fuse.js'
@@ -194,23 +195,17 @@ const ConnectedSites = ({ setPage }: Props) => {
             )}
           </div>
         </div>
+
         <div className='sticky top-0 z-[1] bg-white-100 dark:bg-black-100 px-7 py-4'>
-          <div className='flex items-center h-10 bg-white-100 dark:bg-gray-900 rounded-full pl-4 pr-3'>
-            <input
-              placeholder='Search'
-              className='flex-grow text-base text-gray-400 bg-transparent outline-none focus:outline-1 py-2'
-              value={searchQuery}
-              onChange={handleSearchSite}
-            />
-            {searchQuery.length === 0 ? (
-              <img className='cursor-pointer h-5 w-5' src={Images.Misc.SearchIcon} />
-            ) : (
-              <button className='cursor-pointer h-5 w-5' onClick={() => setSearchQuery('')}>
-                <img src={Images.Misc.CrossFilled} alt='Clear search field' />
-              </button>
-            )}
-          </div>
+          <SearchInput
+            divClassName='flex items-center h-10 bg-white-100 dark:bg-gray-900 rounded-full pl-4 pr-3'
+            placeholder='Search sites...'
+            onChange={handleSearchSite}
+            value={searchQuery}
+            onClear={() => setSearchQuery('')}
+          />
         </div>
+
         <ul className='mx-7 mb-4 dark:bg-gray-900 bg-white-100 rounded-2xl list-none'>
           {sitesToDisplay.map((site, index, arr) => {
             const isLast = index === arr.length - 1

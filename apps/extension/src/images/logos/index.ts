@@ -1,9 +1,11 @@
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 
+import Appstore from './appstore.svg'
 import ArchId from './archId.svg'
 import CompassCircle from './compass-circle.svg'
 import CosmoStation from './cosmo-station.svg'
+import Dashboard from './dashboard.svg'
 import GenericDark from './generic-dark.svg'
 import GenericLight from './generic-light.svg'
 import IBCDomains from './ibc-domains.svg'
@@ -16,12 +18,16 @@ import LeapLightMode from './leap-custom-light-mode.svg'
 import LeapLogo from './leap-logo.svg'
 import LeapLogo28 from './leap-logo-28.svg'
 import Metamask from './metamask.svg'
+import NamedSkip from './named-skip.svg'
 import NftLogo from './nft-logo.svg'
 import NomicFullnameLogo from './nomic-fullname-logo.svg'
 import Osmosis from './osmosis.svg'
+import Playstore from './playstore.svg'
 import SpaceId from './space-id.svg'
 import StargazeNames from './stargaze-names.svg'
 import TerraStation from './terra-station.svg'
+import XLogo from './X_logo.svg'
+import XLogoDark from './X_logo_dark.svg'
 
 const ChainLogos: Record<string, string | undefined> = {
   cosmos: ChainInfos.cosmos.chainSymbolImageUrl,
@@ -93,6 +99,9 @@ const ChainLogos: Record<string, string | undefined> = {
   kichain: ChainInfos.kichain.chainSymbolImageUrl,
   sentinel: ChainInfos.sentinel.chainSymbolImageUrl,
   bandchain: ChainInfos.bandchain.chainSymbolImageUrl,
+  pryzmtestnet: ChainInfos.pryzmtestnet.chainSymbolImageUrl,
+  thorchain: ChainInfos.thorchain.chainSymbolImageUrl,
+  odin: ChainInfos.odin.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {
@@ -135,10 +144,12 @@ export const getNameServiceLogo = (name: string) => {
 }
 
 export {
+  Appstore,
   ArchId,
   ChainLogos,
   CompassCircle,
   CosmoStation,
+  Dashboard,
   GenericDark,
   GenericLight,
   IBCDomains,
@@ -151,8 +162,12 @@ export {
   LeapLogo,
   LeapLogo28,
   Metamask,
+  NamedSkip,
   NftLogo,
   NomicFullnameLogo,
+  Playstore,
   StargazeNames,
   TerraStation,
+  XLogo,
+  XLogoDark,
 }

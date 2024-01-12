@@ -83,8 +83,11 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
       activeChainInfo?.comingSoonFeatures?.includes('governance') ||
       activeChainInfo?.notSupportedFeatures?.includes('governance')
     ) {
-      setStakeDelegationLoading(false);
-      setStakeDelegationInfo({});
+      setTimeout(() => {
+        setStakeDelegationLoading(false);
+        setStakeDelegationInfo({});
+      }, 0);
+
       return;
     }
 

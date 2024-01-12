@@ -1,7 +1,6 @@
 import { Header } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
 import { Images } from 'images'
-import { Twitter } from 'images/nav'
 import React, { useCallback } from 'react'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -18,15 +17,6 @@ const ErrorBoundaryFallback = () => {
       <PopupLayout
         header={
           <Header
-            imgSrc={Twitter}
-            onImgClick={() => {
-              window.open(
-                isCompassWallet()
-                  ? 'https://twitter.com/compass_wallet'
-                  : 'https://twitter.com/leap_cosmos',
-                '_blank',
-              )
-            }}
             title={isCompassWallet() ? 'Compass Wallet' : 'Leap Wallet'}
             topColor={isCompassWallet() ? Colors.compassPrimary : '#E54f47'}
           />

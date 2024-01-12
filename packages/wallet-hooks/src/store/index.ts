@@ -18,6 +18,7 @@ export * from './useDisabledCW20Tokens';
 export * from './useDisabledNFTsCollectionsStore';
 export * from './useERC20Tokens';
 export * from './useFeeDenoms';
+export * from './useGasAdjustments';
 export * from './useGasPriceSteps';
 export * from './useGovProposalsStore';
 export * from './useIbcTracedb';

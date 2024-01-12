@@ -1,6 +1,7 @@
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
+import Add from './add.svg'
 import AddCircle from './add-circle.svg'
 import AddContact from './add-contact.svg'
 import ArrowBack from './arrow-back.svg'
@@ -41,6 +42,7 @@ import EditItems from './edit-items.svg'
 import ExpandContent from './expand-content.svg'
 import Explore from './explore.svg'
 import FilledArrowDown from './filled-arrow-down.svg'
+import FilledExclamationMark from './filled-exclamation-mark.svg'
 import FilledFavStar from './filled-fav-star.svg'
 import FilledKey from './filled-key.svg'
 import FilledPen from './filled-pen.svg'
@@ -55,9 +57,11 @@ import HeartOutlineIcon from './heart-outline.svg'
 import HelpIcon from './help.svg'
 import HideNft from './hide-nft.svg'
 import IBC from './ibc.svg'
+import IbcProtocol from './ibc-protocol.svg'
 import IbcUnion from './ibc-union.svg'
 import IconRight from './icon-right-gray-400.svg'
 import InfoCircle from './info-circle.svg'
+import InfoFilledExclamationMark from './info-filled-exclamation-mark.svg'
 import KeyDark from './key-dark.svg'
 import KeyLight from './key-light.svg'
 import KeyVpn from './key-vpn.svg'
@@ -79,6 +83,7 @@ import NftProfile from './nft-profile.svg'
 import NFTVerifiedCollection from './nft-verified-collection.svg'
 import NoSearchResult from './no-search-result.svg'
 import NotAllowed from './not-allowed.svg'
+import OnboardingFrog from './onboarding-frog.svg'
 import OpenLink from './open-link.svg'
 import OutlinedFavStar from './outlined-fav-start.svg'
 import Pin from './pin.svg'
@@ -97,6 +102,7 @@ import Settings from './settings.svg'
 import SideNavIcon from './side-nav-icon.svg'
 import SortIcon from './sort.svg'
 import SuggestChainIcon from './suggest-chain-icon.svg'
+import SwapVert from './swap-vert.svg'
 import TextSnippet from './text-snippet.svg'
 import Tick from './tick.svg'
 import Timer from './timer.svg'
@@ -147,6 +153,7 @@ export const ChainChecks: Record<string, string> = {
 }
 
 export {
+  Add,
   AddCircle,
   AddContact,
   ArrowBack,
@@ -184,6 +191,7 @@ export {
   ExpandContent,
   Explore,
   FilledArrowDown,
+  FilledExclamationMark,
   FilledFavStar,
   FilledKey,
   FilledPen,
@@ -198,9 +206,11 @@ export {
   HelpIcon,
   HideNft,
   IBC,
+  IbcProtocol,
   IbcUnion,
   IconRight,
   InfoCircle,
+  InfoFilledExclamationMark,
   KeyDark,
   KeyLight,
   KeyVpn,
@@ -222,6 +232,7 @@ export {
   NFTVerifiedCollection,
   NoSearchResult,
   NotAllowed,
+  OnboardingFrog,
   OpenLink,
   OutlinedFavStar,
   Pin,
@@ -240,6 +251,7 @@ export {
   SideNavIcon,
   SortIcon,
   SuggestChainIcon,
+  SwapVert,
   TextSnippet,
   Tick,
   Timer,

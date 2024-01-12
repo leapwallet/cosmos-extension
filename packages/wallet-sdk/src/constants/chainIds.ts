@@ -154,4 +154,6 @@ export const chainIdToChain: Record<string, string> = {
   'sgenet-1': 'sge',
   'dimension_37-1': 'xpla',
   'xstaxy-1': 'aura',
+  'centauri-1': 'composable',
+  'indigo-1': 'pryzmtestnet',
 };

@@ -94,7 +94,7 @@ function LoadNftDetails({ tokensListByCollection, nftChain, index }: LoadNftDeta
           // if not found, i.e its other collection
           if (!coll) return true
           // if found match all tokenIds
-          return coll.tokensListByCollection?.tokens.includes(nft.tokenId)
+          return coll.tokensListByCollection?.tokens.includes(nft.tokenId ?? nft.domain)
         })
 
         return {

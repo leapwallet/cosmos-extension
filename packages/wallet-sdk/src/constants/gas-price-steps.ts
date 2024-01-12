@@ -79,4 +79,8 @@ export const GAS_PRICE_STEPS = {
   kichain: { low: 0.025, average: 0.03, high: 0.05 },
   sentinel: { low: 0.1, average: 0.25, high: 0.4 },
   bandchain: { low: 0.0025, average: 0.003, high: 0.005 },
+  composable: { low: 0.0025, average: 0.003, high: 0.005 },
+  pryzmtestnet: { low: 0.015, average: 0.025, high: 0.04 },
+  thorchain: { low: 0.02, average: 0.02, high: 0.02 },
+  odin: { low: 0.0125, average: 0.025, high: 0.03 },
 };

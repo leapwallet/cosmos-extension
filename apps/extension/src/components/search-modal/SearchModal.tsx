@@ -2,13 +2,16 @@ import {
   getFilteredDapps,
   OptionPlatformConfig,
   QuickSearchOption,
+  useActiveWallet,
   useChainInfo,
   useFetchDappListForQuickSearch,
   useGetQuickSearchOptions,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { WALLETTYPE } from '@leapwallet/leap-keychain'
 import classNames from 'classnames'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { EventName } from 'config/analytics'
+import { LEDGER_DISABLED_COINTYPES } from 'config/config'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
@@ -39,6 +42,7 @@ export function SearchModal() {
   const [searchModalActiveOption, setSearchModalActiveOption] = useRecoilState(
     searchModalActiveOptionState,
   )
+  const activeWallet = useActiveWallet()
   const [searchedText, setSearchedText] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { data: suggestions, status } = useGetQuickSearchOptions()
@@ -135,6 +139,7 @@ export function SearchModal() {
       mixpanel.track(EventName.QuickSearchClose, {
         chainId: chain.chainId,
         chainName: chain.chainName,
+        time: Date.now() / 1000,
       })
     } catch {
       //
@@ -156,6 +161,13 @@ export function SearchModal() {
       }
 
       case 'Copy Address': {
+        if (!activeWallet) return
+        if (
+          activeWallet.walletType === WALLETTYPE.LEDGER &&
+          LEDGER_DISABLED_COINTYPES.includes(chain.bip44.coinType)
+        ) {
+          break
+        }
         handleCopyAddressClick()
         break
       }
@@ -191,6 +203,7 @@ export function SearchModal() {
           actionName,
           chainId: chain.chainId,
           chainName: chain.chainName,
+          time: Date.now() / 1000,
         })
       } catch {
         //
@@ -203,6 +216,7 @@ export function SearchModal() {
           actionName,
           chainId: chain.chainId,
           chainName: chain.chainName,
+          time: Date.now() / 1000,
         })
       } catch {
         //
@@ -249,14 +263,17 @@ export function SearchModal() {
       )}
 
       <div
-        className={classNames('w-full h-full flex items-center justify-center dark:bg-black-80', {
-          'opacity-0 pointer-events-none transition-opacity duration-75': !showModal,
-          'opacity-100 pointer-events-auto transition-opacity duration-75': showModal,
-        })}
+        className={classNames(
+          'w-full h-full flex items-center justify-center bg-[#f4f4f4bf] dark:bg-black-80',
+          {
+            'opacity-0 pointer-events-none transition-opacity duration-75': !showModal,
+            'opacity-100 pointer-events-auto transition-opacity duration-75': showModal,
+          },
+        )}
         onClick={handleClose}
       >
         <div
-          className='h-[468px] w-[349px] rounded-2xl dark:bg-gray-950 border dark:border-gray-900'
+          className='h-[488px] w-[349px] rounded-2xl bg-gray-100 dark:bg-gray-950 border dark:border-gray-900'
           onClick={(event) => event.stopPropagation()}
         >
           <div className='w-full py-3 px-6 border-b dark:border-b-gray-900 flex items-center gap-3'>

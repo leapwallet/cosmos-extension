@@ -6,8 +6,8 @@ const removeTrailingSlash = (url: string | undefined) => {
   return url?.replace(/\/$/, '');
 };
 
-const RETRY_COUNT = 4;
-const TIMEOUT_MILLI_SECONDS = 3000;
+const RETRY_COUNT = 5;
+const TIMEOUT_MILLI_SECONDS = 4000;
 
 export async function axiosWrapper<T = any>(
   options: AxiosRequestConfig,
@@ -49,7 +49,7 @@ export async function axiosWrapper<T = any>(
       (error.response?.status >= 500 ||
         error.response?.status === 429 ||
         error.response?.status === 403 ||
-        error.message?.includes('timeout of 3000ms'))
+        error.message?.includes('timeout of'))
     ) {
       let isRestURL = false;
       let prevTopNodeChainId = '';

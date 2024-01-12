@@ -4,7 +4,7 @@ import {
   formatTokenAmount,
   GasOptions,
   useChainInfo,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
   useGetTokenBalances,
   useNativeFeeDenom,
   useStakeTx,
@@ -101,7 +101,7 @@ export default function InputStakeAmountView({
   } = useStakeTx(mode, toValidator, fromValidator, [delegation as Delegation])
   const [gasLimit, setGasLimit] = useState<string>(recommendedGasLimit)
 
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain()
 
   const selectedToken = useMemo(() => {
     return allAssets.find((asset) => asset.symbol === activeChainInfo.denom)
@@ -109,7 +109,7 @@ export default function InputStakeAmountView({
 
   const customFee = useMemo(() => {
     const gasEstimate = Math.ceil(Number(gasLimit) * gasAdjustment)
-    return calculateFee(gasEstimate, gasPriceOption.gasPrice)
+    return calculateFee(gasEstimate, gasPriceOption.gasPrice as unknown as string)
   }, [gasAdjustment, gasLimit, gasPriceOption.gasPrice])
 
   const handleCloseFeeSettingSheet = useCallback(() => {

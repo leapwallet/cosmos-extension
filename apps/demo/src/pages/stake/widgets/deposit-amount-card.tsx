@@ -1,4 +1,4 @@
-import { ChainInfos, Network, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import { Buttons } from '@leapwallet/leap-ui'
 import React from 'react'

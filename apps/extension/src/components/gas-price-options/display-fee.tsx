@@ -2,7 +2,7 @@ import {
   currencyDetail,
   fetchCurrency,
   useformatCurrency,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -31,7 +31,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
   const [preferredCurrency] = useUserPreferredCurrency()
 
   const { gasLimit, value, feeTokenData, activeChain } = useGasPriceContext()
-  const chainGasAdjustment = useGasAdjustment(activeChain)
+  const chainGasAdjustment = useGasAdjustmentForChain(activeChain)
 
   const { data: feeTokenFiatValue } = useQuery(
     ['fee-token-fiat-value', feeTokenData.denom.coinGeckoId],

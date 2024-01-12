@@ -25,16 +25,17 @@ export const capitalize = (words: string) => {
 
 export const formatTokenAmount = (amount: string, symbol = '', precision = 3) => {
   if (new BigNumber(amount).lt(1) && +amount !== 0) {
-    const amt = currency(+amount, { precision, symbol: '' }).format();
+    if (new BigNumber(amount).lt(1 / Math.pow(10, precision))) {
+      return `<0.001 ${symbol.toUpperCase()}`;
+    }
 
-    // Less than presision logic
-    if (new BigNumber(amount).lt(1 / Math.pow(10, precision)) && +amt == 0) return `<0.001 ${symbol.toUpperCase()}`;
+    const amt = currency(new BigNumber(amount).valueOf(), { precision, symbol: '' }).format();
 
-    // Error in conversion
     if (!+amt) return '0 ' + symbol.toUpperCase();
 
-    return `${(+amt).toString()} ${symbol.toUpperCase()}`; // remove traling zeros
+    return `${(+amt).toString()} ${symbol.toUpperCase()}`;
   }
+
   return currency(amount, { precision: 3, pattern: '# !', symbol }).format();
 };
 

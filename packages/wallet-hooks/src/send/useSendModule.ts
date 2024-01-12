@@ -18,7 +18,7 @@ import { BigNumber } from 'bignumber.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis/LeapWalletApi';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import { useGetIbcChannelId, useGetIBCSupport } from '../ibc';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
@@ -129,7 +129,7 @@ export function useSendModule(): SendModuleType {
   const { isSending, sendTokens, showLedgerPopup } = useSimpleSend();
   const { data: ibcSupportData, isLoading: isIbcSupportDataLoading } = useGetIBCSupport(activeChain);
   const nativeFeeDenom = useNativeFeeDenom();
-  const gasAdjustment = useGasAdjustment(activeChain);
+  const gasAdjustment = useGasAdjustmentForChain(activeChain);
 
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
@@ -142,11 +142,14 @@ export function useSendModule(): SendModuleType {
   /**
    * Ibc Related tx
    */
-  const { data: ibcChannelId } = useQuery(['ibc-channel-id', 'send', selectedAddress?.address], async () => {
-    if (!selectedAddress?.address) return undefined;
-    const ibcChannelIds = await getIbcChannelId(selectedAddress.address);
-    return ibcChannelIds?.[0];
-  });
+  const { data: ibcChannelId } = useQuery(
+    ['ibc-channel-id', 'send', selectedAddress?.address, activeChain, selectedNetwork],
+    async () => {
+      if (!selectedAddress?.address) return undefined;
+      const ibcChannelIds = await getIbcChannelId(selectedAddress.address);
+      return ibcChannelIds?.[0];
+    },
+  );
 
   const isIBCTransfer = useMemo(() => {
     if (selectedAddress && selectedAddress.address) {
@@ -209,7 +212,7 @@ export function useSendModule(): SendModuleType {
    * Currency Calculation Fee Token
    */
   const { data: feeTokenFiatValue } = useQuery(
-    ['fee-token-fiat-value', selectedToken],
+    ['fee-token-fiat-value', selectedToken, feeDenom],
     async () => {
       return fetchCurrency(
         '1',

@@ -1,50 +1,50 @@
 import * as React from 'react'
 import { getTrackBackground, Range } from 'react-range'
 
-const STEP = 1
-const MIN = 1
-const MAX = 5
+type RangeInputProps = {
+  initialValue: number
+  onChangeHandler: (value: number) => void
+  activeColor?: string
+  min?: number
+  max?: number
+  step?: number
+}
 
 const RangeInput = ({
   initialValue,
   onChangeHandler,
   activeColor = '#FF958C',
-}: {
-  initialValue: number
-  // eslint-disable-next-line no-unused-vars
-  onChangeHandler: (value: number) => void
-  activeColor?: string
-}) => {
+  min = 1,
+  max = 5,
+  step = 1,
+}: RangeInputProps) => {
   const [values, setValues] = React.useState([initialValue])
 
   return (
     <div className='flex justify-center flex-wrap'>
       <Range
         values={values}
-        step={STEP}
-        min={MIN}
-        max={MAX}
+        step={step}
+        min={min}
+        max={max}
         onChange={(values) => {
           setValues(values)
           onChangeHandler(values[0])
         }}
         renderTrack={({ props, children }) => (
           <div
-            // eslint-disable-next-line react/prop-types
             onMouseDown={props.onMouseDown}
-            // eslint-disable-next-line react/prop-types
             onTouchStart={props.onTouchStart}
             className='h-9 w-full'
           >
             <div
-              // eslint-disable-next-line react/prop-types
               ref={props.ref}
               style={{
                 background: getTrackBackground({
                   values,
                   colors: [activeColor, '#D6D6D6'],
-                  min: MIN,
-                  max: MAX,
+                  min,
+                  max,
                 }),
               }}
               className='h-3 w-full rounded-lg self-center cursor-pointer'

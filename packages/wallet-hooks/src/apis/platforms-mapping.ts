@@ -79,7 +79,8 @@ export const platforms: Record<string, Platform> = {
   nomic: 'NOMIC',
   //@ts-ignore
   nibiru: 'NIBIRU',
-
+  //@ts-ignore
+  odin: 'ODIN_CHAIN',
   // @ts-ignore
   mayachain: 'MAYA_CHAIN',
   // @ts-ignore
@@ -94,6 +95,12 @@ export const platforms: Record<string, Platform> = {
   celestia: 'CELESTIA',
   // @ts-ignore
   xpla: 'XPLA',
+  // @ts-ignore
+  composable: 'COMPOSABLE',
+  // @ts-ignore
+  pryzmtestnet: 'PRYZM',
+  // @ts-ignore
+  thorchain: 'THOR_CHAIN',
 };
 
 export const platformToChain: Record<Platform, string> = {
@@ -165,4 +172,8 @@ export const platformToChain: Record<Platform, string> = {
   SGE: 'sge',
   CELESTIA: 'celestia',
   XPLA: 'xpla',
+  COMPOSABLE: 'composable',
+  PRYZM: 'pryzmtestnet',
+  THOR_CHAIN: 'thorchain',
+  ODIN_CHAIN: 'odin',
 };

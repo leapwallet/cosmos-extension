@@ -116,17 +116,17 @@ export class OsmosisSwapModule implements SwapModule {
   };
 
   getPoolPricesPairs = async (
-    fromTokenSymbol: string,
-    targetTokenSymbol: string,
+    fromTokenIbcDenom: string,
+    targetTokenIbcDenoml: string,
   ): Promise<[string, [PoolAsset, PoolAsset]]> => {
     await this.initializerPromise;
-    const _from = fromTokenSymbol.toLowerCase();
-    const _target = targetTokenSymbol.toLowerCase();
+    const _from = fromTokenIbcDenom.toLowerCase();
+    const _target = targetTokenIbcDenoml.toLowerCase();
 
     const poolMatch = this.poolsCacheEntries.find(([, assetPair]) => {
       const [assetA, assetB] = assetPair;
-      const _assetA = assetA ? assetA.symbol.toLowerCase() : '';
-      const _assetB = assetB ? assetB.symbol.toLowerCase() : '';
+      const _assetA = assetA ? assetA.denom.toLowerCase() : '';
+      const _assetB = assetB ? assetB.denom.toLowerCase() : '';
 
       return (_assetA === _from && _assetB === _target) || (_assetA === _target && _assetB === _from);
     });
@@ -138,27 +138,31 @@ export class OsmosisSwapModule implements SwapModule {
     return poolMatch;
   };
 
-  getTokenToTokenPrice: SwapModule['getTokenToTokenPrice'] = async ({ tokenASymbol, tokenBSymbol, tokenAmount }) => {
+  getTokenToTokenPrice: SwapModule['getTokenToTokenPrice'] = async ({
+    tokenAIbcDenom,
+    tokenBIbcDenom,
+    tokenAmount,
+  }) => {
     await this.initializerPromise;
     // 1. check direct price pair
     try {
-      const [, [assetA, assetB]] = await this.getPoolPricesPairs(tokenASymbol, tokenBSymbol);
+      const [, [assetA, assetB]] = await this.getPoolPricesPairs(tokenAIbcDenom, tokenBIbcDenom);
       const [fromToken, targetToken] =
-        tokenASymbol.toLowerCase() === assetA.symbol.toLowerCase() ? [assetA, assetB] : [assetB, assetA];
+        tokenAIbcDenom.toLowerCase() === assetA.denom.toLowerCase() ? [assetA, assetB] : [assetB, assetA];
 
       const pricePerUnit = new BigNumber(fromToken.price).div(targetToken.price);
       return pricePerUnit.multipliedBy(tokenAmount);
     } catch (err) {
-      if (err.message === 'no-match' && tokenASymbol !== 'OSMO' && tokenBSymbol !== 'OSMO') {
+      if (err.message === 'no-match' && tokenAIbcDenom !== 'uosmo' && tokenBIbcDenom !== 'uosmo') {
         // 2. check tokenA -> OSMO and OSMO -> tokenB
         const valueA = await this.getTokenToTokenPrice({
-          tokenASymbol,
-          tokenBSymbol: 'OSMO',
+          tokenAIbcDenom,
+          tokenBIbcDenom: 'uosmo',
           tokenAmount,
         });
         const valueB = await this.getTokenToTokenPrice({
-          tokenASymbol: 'OSMO',
-          tokenBSymbol,
+          tokenAIbcDenom: 'uosmo',
+          tokenBIbcDenom,
           tokenAmount: valueA.toNumber(),
         });
         return valueB;
@@ -167,12 +171,12 @@ export class OsmosisSwapModule implements SwapModule {
     }
   };
 
-  getSwapRoute = async (fromTokenSymbol: string, targetTokenSymbol: string): Promise<SwapRoute> => {
+  getSwapRoute = async (fromTokenIbcDenom: string, targetTokenIbcDenom: string): Promise<SwapRoute> => {
     await this.initializerPromise;
     try {
-      const [poolId, [assetA, assetB]] = await this.getPoolPricesPairs(fromTokenSymbol, targetTokenSymbol);
+      const [poolId, [assetA, assetB]] = await this.getPoolPricesPairs(fromTokenIbcDenom, targetTokenIbcDenom);
       const [, targetToken] =
-        fromTokenSymbol.toLowerCase() === assetA.symbol.toLowerCase() ? [assetA, assetB] : [assetB, assetA];
+        fromTokenIbcDenom.toLowerCase() === assetA.denom.toLowerCase() ? [assetA, assetB] : [assetB, assetA];
 
       return [
         {
@@ -181,11 +185,11 @@ export class OsmosisSwapModule implements SwapModule {
         },
       ];
     } catch (err) {
-      const [poolIdA, [assetA, assetB]] = await this.getPoolPricesPairs(fromTokenSymbol, 'OSMO');
-      const [poolIdB, [assetC, assetD]] = await this.getPoolPricesPairs('OSMO', targetTokenSymbol);
+      const [poolIdA, [assetA, assetB]] = await this.getPoolPricesPairs(fromTokenIbcDenom, 'uosmo');
+      const [poolIdB, [assetC, assetD]] = await this.getPoolPricesPairs('uosmo', targetTokenIbcDenom);
       const [, xToken] =
-        fromTokenSymbol.toLowerCase() === assetA.symbol.toLowerCase() ? [assetA, assetB] : [assetB, assetA];
-      const [, targetToken] = 'osmo' === assetC.symbol.toLowerCase() ? [assetC, assetD] : [assetD, assetC];
+        fromTokenIbcDenom.toLowerCase() === assetA.denom.toLowerCase() ? [assetA, assetB] : [assetB, assetA];
+      const [, targetToken] = 'uosmo' === assetC.denom.toLowerCase() ? [assetC, assetD] : [assetD, assetC];
 
       return [
         {
@@ -200,8 +204,8 @@ export class OsmosisSwapModule implements SwapModule {
     }
   };
 
-  getDefaultGasAmount = async (fromTokenSymbol: string, toTokenSymbol: string) => {
-    const swapRoute = await this.getSwapRoute(fromTokenSymbol, toTokenSymbol);
+  getDefaultGasAmount = async (fromTokenIbcDenom: string, toTokenIbcDenom: string) => {
+    const swapRoute = await this.getSwapRoute(fromTokenIbcDenom, toTokenIbcDenom);
     // base gas amount + gas amount per hop
     // this is an optimistic estimate, should be adjusted by chain
     // via gas estimation data
@@ -211,15 +215,27 @@ export class OsmosisSwapModule implements SwapModule {
   swapTokens: SwapModule['swapTokens'] = async ({ swap, fromAddress, signer, rpcEndpoint, lcdEndpoint, customFee }) => {
     await this.initializerPromise;
 
-    const { fromTokenSymbol, targetTokenSymbol, fromTokenAmount, targetTokenAmount, slippage } = swap;
+    const {
+      fromTokenSymbol,
+      fromTokenDenom,
+      fromTokenIbcDenom,
+      targetTokenSymbol,
+      targetTokenDenom,
+      targetTokenIbcDenom,
+      fromTokenAmount,
+      targetTokenAmount,
+      slippage,
+    } = swap;
 
     const fee: StdFee = customFee?.stdFee ?? FEES.osmosis.swapExactAmountIn('medium');
 
-    const tokenInMinimalDenom = this.coinsCache.find((coin) => coin.symbol === fromTokenSymbol)?.denom;
-    const tokenInIBCDenom = this.coinsCache.find((coin) => coin.symbol === fromTokenSymbol)?.ibcDenom;
+    const tokenInMinimalDenom = this.coinsCache.find((coin) => coin.denom === fromTokenDenom)?.denom;
+    const tokenInIBCDenom = this.coinsCache.find((coin) => coin.ibcDenom === fromTokenIbcDenom)?.ibcDenom;
+
     if (!tokenInMinimalDenom || !tokenInIBCDenom)
       throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
     const tokenInNativeDenom = this.nativeDenomsByTokenSymbol[tokenInMinimalDenom];
+
     if (!tokenInNativeDenom) throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
     const tokenInCoinDecimals = tokenInNativeDenom.coinDecimals;
     const tokenInAmountInMinimalDenom = new BigNumber(fromTokenAmount)
@@ -227,21 +243,23 @@ export class OsmosisSwapModule implements SwapModule {
       .decimalPlaces(0)
       .toString();
 
-    const tokenOutMinimalDenom = this.coinsCache.find((coin) => coin.symbol === targetTokenSymbol)?.denom;
+    const tokenOutMinimalDenom = this.coinsCache.find((coin) => coin.denom === targetTokenDenom)?.denom;
     if (!tokenOutMinimalDenom)
       throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
+
     const tokenOutNativeDenom = this.nativeDenomsByTokenSymbol[tokenOutMinimalDenom];
     if (!tokenOutNativeDenom) throw new Error(`Swap pair is not supported: ${fromTokenSymbol} -> ${targetTokenSymbol}`);
+
     const tokenOutCoinDecimals = tokenOutNativeDenom.coinDecimals;
     const tokenOutAmountInMinimalDenom = new BigNumber(targetTokenAmount).multipliedBy(10 ** tokenOutCoinDecimals);
+
     const tokenOutMinAmount = tokenOutAmountInMinimalDenom
       .multipliedBy(1 - slippage / 100)
       .decimalPlaces(0)
       .toString();
 
     const { swapExactAmountIn } = osmosis.poolmanager.v1beta1.MessageComposer.withTypeUrl;
-
-    const swapRoute = await this.getSwapRoute(fromTokenSymbol, targetTokenSymbol);
+    const swapRoute = await this.getSwapRoute(fromTokenIbcDenom, targetTokenIbcDenom);
 
     const msg = swapExactAmountIn({
       sender: fromAddress,

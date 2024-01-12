@@ -191,6 +191,7 @@ export default function GlobalBannersAD({
           chainId: chain.chainId,
           chainName: chain.chainName,
           positionId: getMixpanelPositionId(activeBannerId, activeBannerData),
+          time: Date.now() / 1000,
         })
 
         sessionStorage.setItem(
@@ -349,6 +350,7 @@ export default function GlobalBannersAD({
           chainId: chain.chainId,
           chainName: chain.chainName,
           positionId: getMixpanelPositionId(bannerId, banner),
+          time: Date.now() / 1000,
         })
       } catch (_) {
         //
@@ -392,6 +394,7 @@ export default function GlobalBannersAD({
           chainId: chain.chainId,
           chainName: chain.chainName,
           positionId: getMixpanelPositionId(bannerId, banner),
+          time: Date.now() / 1000,
         })
       } catch (_) {
         //

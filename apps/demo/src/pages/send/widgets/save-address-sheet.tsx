@@ -28,7 +28,7 @@ export default function SaveAddressSheet({
   const [name, setName] = useState<string>('')
   const [emoji, setEmoji] = useState<number>(selectedAddress?.emoji)
 
-  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [isSaving] = useState<boolean>(false)
   const contact = AddressBook.useGetContact(selectedAddress?.address)
 
   useEffect(() => {

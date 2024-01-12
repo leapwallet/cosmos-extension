@@ -138,7 +138,7 @@ export default function SendSelectAddress({
               onAddressSelect(selectedAddress)
             }
           })
-          .catch((e) => {
+          .catch(() => {
             setIbcSupportError('We currently do not support IBC across these chains.')
           })
       } else {

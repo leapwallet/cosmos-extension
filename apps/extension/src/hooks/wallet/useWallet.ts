@@ -464,6 +464,8 @@ export namespace Wallet {
           const hdPaths = [makeCosmoshubPath(activeWallet.addressIndex)]
           const ledgerTransport = await getLedgerTransport()
           return new LeapLedgerSigner(ledgerTransport, {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             hdPaths,
             prefix,
           }) as unknown as OfflineSigner

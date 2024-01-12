@@ -30,6 +30,11 @@ export type SwapTransaction = {
   dexName?: string;
   fromToken?: Token;
   toToken?: Token;
+  msgType?: string;
+  provider?: string;
+  hops?: number;
+  fromChain?: string;
+  toChain?: string;
 };
 
 export type GovVoteTransaction = {
@@ -93,6 +98,23 @@ export type LsUnstakeTransaction = {
   receiverAddress?: string;
 };
 
+export type IBCSwapTransaction = {
+  mappingId: string;
+  msgType: string;
+  provider: string;
+  hops: number;
+  fromChain: string;
+  toChain: string;
+  fromToken: {
+    amount: string;
+    denom: string;
+  };
+  toToken: {
+    amount: string;
+    denom: string;
+  };
+};
+
 export enum DAPP_SOURCE {
   //The field present later eg. 'in_app_browser' will be logged
   IN_APP_BROWSER = 'in_app_browser',
@@ -146,6 +168,7 @@ export type DappTransaction = {
 export type TransactionMetadata =
   | SendTransaction
   | IBCSendTransaction
+  | IBCSwapTransaction
   | SwapTransaction
   | GovVoteTransaction
   | StakeDelegateTransaction

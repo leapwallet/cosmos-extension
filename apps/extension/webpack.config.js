@@ -124,6 +124,14 @@ const base_config = {
           from: 'public/hcaptcha.js',
           to: '.',
         },
+        {
+          from: 'public/recaptcha.js',
+          to: '.',
+        },
+        {
+          from: 'public/recaptcha-loader.js',
+          to: '.',
+        },
       ],
     }),
     new webpack.ProvidePlugin({
@@ -180,7 +188,7 @@ module.exports = (env, argv) => {
     config = Object.assign({}, base_config, {
       mode: 'production',
       output: {
-        path: path.join(__dirname, isCompassBuild ? 'builds/compass-build' : 'builds/cosmos-build'),
+        path: path.join(__dirname, isCompassBuild ? 'staging-builds/compass-build' : 'staging-builds/cosmos-build'),
         filename: '[name].js',
         clean: true,
       },

@@ -8,6 +8,7 @@ import { ComingSoon } from 'components/coming-soon'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
+import { SearchInput } from 'components/search-input'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -47,7 +48,7 @@ function ProposalList({
   fetchMore,
 }: ProposalListProps) {
   const chainInfos = useChainInfos()
-  const [propFilter, setPropFilter] = useState<string>()
+  const [propFilter, setPropFilter] = useState<string>('')
   const handleFilterChange = (event: React.FormEvent<HTMLInputElement>) => {
     setPropFilter(event.currentTarget.value.toLowerCase())
   }
@@ -172,14 +173,14 @@ function ProposalList({
             </div>
 
             <div className='flex items-center justify-between mt-6 mb-4'>
-              <div className='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
-                <input
-                  placeholder='search proposals...'
-                  className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
-                  onChange={handleFilterChange}
-                />
-                <img src={Images.Misc.SearchIcon} />
-              </div>
+              <SearchInput
+                placeholder='Search proposals...'
+                onChange={handleFilterChange}
+                value={propFilter}
+                onClear={() => setPropFilter('')}
+                inputClassName='flex flex-grow text-base text-gray-600 dark:text-gray-200 outline-none bg-white-0'
+                divClassName='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'
+              />
 
               <button
                 className='flex items-center justify-center h-10 bg-white-100 dark:bg-gray-900 rounded-full w-10 m-w-10 ml-3'

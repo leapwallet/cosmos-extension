@@ -16,6 +16,22 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  rune: {
+    coinDenom: 'RUNE',
+    coinDecimals: 8,
+    coinMinimalDenom: 'rune',
+    icon: 'https://assets.leapwallet.io/thorchain.svg',
+    chain: 'thorchain',
+    coinGeckoId: 'thorchain',
+  },
+  upryzm: {
+    coinDenom: 'PRYZM',
+    coinDecimals: 6,
+    coinMinimalDenom: 'upryzm',
+    icon: 'https://assets.leapwallet.io/pryzm.svg',
+    chain: 'pryzmtestnet',
+    coinGeckoId: '',
+  },
   adydx: {
     coinDenom: 'DYDX',
     coinDecimals: 18,
@@ -731,11 +747,12 @@ export const denoms = {
     chain: 'octa',
   },
   loki: {
+    name: 'ODIN',
     coinDenom: 'ODIN',
     coinMinimalDenom: 'loki',
     coinDecimals: 6,
-    coinGeckoId: 'odin',
-    icon: 'https://assets.leapwallet.io/odin.svg',
+    coinGeckoId: 'odin-protocol',
+    icon: 'https://assets.leapwallet.io/odin.png',
     chain: 'odin',
   },
   uflix: {
@@ -1353,6 +1370,14 @@ export const denoms = {
     icon: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/planq/images/planq.svg',
     chain: 'planq',
     coinGeckoId: 'planq',
+  },
+  ppica: {
+    coinDenom: 'PICA',
+    coinMinimalDenom: 'ppica',
+    coinDecimals: 12,
+    icon: 'https://assets.leapwallet.io/pica.svg',
+    chain: 'centauri',
+    coinGeckoId: 'picasso',
   },
   unom: {
     coinDenom: 'NOM',

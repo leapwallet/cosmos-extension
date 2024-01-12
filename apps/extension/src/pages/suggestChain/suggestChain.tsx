@@ -55,6 +55,8 @@ export default function SuggestChain() {
     return () => {
       window.removeEventListener('beforeunload', handleCancel)
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
