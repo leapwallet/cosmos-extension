@@ -26,7 +26,7 @@ export default function Text(props: PropsWithChildren<TextProps>) {
         {
           'text-xs': size === 'xs',
           'text-sm': size === 'sm',
-          'text-md': size === 'md',
+          'text-base': size === 'md',
           'text-lg': size === 'lg',
           'text-xl': size === 'xl',
           'text-xxl': size === 'xxl',

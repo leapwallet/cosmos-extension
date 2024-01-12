@@ -4,8 +4,8 @@
     "baseUrl": "./src/",
     "sourceMap": true,
     "noImplicitAny": true,
-    "module": "ESNext",
-    "target": "ESNext",
+    "module": "ES2020",
+    "target": "ES2020",
     "jsx": "react",
     "allowJs": true,
     "resolveJsonModule": true,
@@ -13,7 +13,10 @@
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "react": ["./node_modules/@types/react"]
+    }
   },
   "include": ["src", "src/types/custom.d.ts"],
   "exclude": ["node_modules", "../../node_modules", ".yalc"]

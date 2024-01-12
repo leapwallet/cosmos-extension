@@ -6,6 +6,7 @@ import BottomModal from 'components/bottom-modal'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
+import { SearchInput } from 'components/search-input'
 import GovCardSkeleton from 'components/Skeletons/GovCardSkeleton'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -38,7 +39,7 @@ export function NtrnProposalList({
   const [showFilter, setShowFilter] = useState(false)
   const [showSelectedChainAlert, setShowSelectedChainAlert] =
     useRecoilState(selectedChainAlertState)
-  const [propFilter, setPropFilter] = useState<string>()
+  const [propFilter, setPropFilter] = useState<string>('')
   const [filter, setFilter] = useState('all')
 
   const chainInfos = useChainInfos()
@@ -117,14 +118,15 @@ export function NtrnProposalList({
           </div>
 
           <div className='flex items-center justify-between mt-6 mb-4'>
-            <div className='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
-              <input
-                placeholder='search proposals...'
-                className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
-                onChange={(event) => setPropFilter(event.currentTarget.value.toLowerCase())}
-              />
-              <img src={Images.Misc.SearchIcon} />
-            </div>
+            <SearchInput
+              placeholder='Search proposals...'
+              onChange={(event) => setPropFilter(event.currentTarget.value.toLowerCase())}
+              value={propFilter}
+              onClear={() => setPropFilter('')}
+              inputClassName='flex flex-grow text-base text-gray-600 dark:text-gray-200 outline-none bg-white-0'
+              divClassName='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'
+            />
+
             <button
               className='flex items-center justify-center h-10 bg-white-100 dark:bg-gray-900 rounded-full w-10 m-w-10 ml-3'
               style={{ minWidth: 40 }}

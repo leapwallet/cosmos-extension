@@ -24,7 +24,7 @@ function SeedPhraseView({
     <div className='h-[600px] overflow-scroll'>
       <Header
         topColor={Colors.getChainColor(activeChain)}
-        title='Secret Recovery Phrase'
+        title='Recovery Phrase'
         action={{
           type: HeaderActionType.BACK,
           onClick: goBack,
@@ -57,7 +57,7 @@ function SeedPhraseView({
               Recommended security practice:
             </Text>
             <Text size='xs' color='text-gray-400'>
-              Write down seed phrase instead of copying it
+              Write down recovery phrase instead of copying it
             </Text>
           </div>
         </div>
@@ -73,7 +73,7 @@ export default function ExportSeedPhrase({ goBack }: { goBack: () => void }): Re
     <SeedPhraseView password={password} goBack={goBack} />
   ) : (
     <EnterPasswordView
-      passwordTo='view the Secret Recovery Phrase'
+      passwordTo='view the Recovery Phrase'
       setRevealed={setRevealed}
       setPassword={setPassword}
       goBack={goBack}

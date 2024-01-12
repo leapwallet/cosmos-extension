@@ -3,10 +3,12 @@ import { AminoSignResponse, OfflineAminoSigner, StdSignature, StdSignDoc } from 
 import { DirectSignResponse, OfflineDirectSigner } from '@cosmjs/proto-signing'
 import {
   convertObjectCasingFromCamelToSnake,
+  DirectSignDocDecoder,
   MsgConverter,
   UnknownMessage,
 } from '@leapwallet/buffer-boba'
 import {
+  FeeTokenData,
   GasOptions,
   LeapWalletApi,
   useActiveWallet,
@@ -22,6 +24,7 @@ import {
   ethSign,
   GasPrice,
   LedgerError,
+  NativeDenom,
   sleep,
   SupportedChain,
   transactionDeclinedError,
@@ -35,6 +38,7 @@ import {
   ParsedMessageType,
 } from '@leapwallet/parser-parfait'
 import { captureException } from '@sentry/react'
+import * as Sentry from '@sentry/react'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
 import { ErrorCard } from 'components/ErrorCard'
@@ -56,7 +60,8 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
-import mixpanel, { type RequestOptions } from 'mixpanel-browser'
+import Long from 'long'
+import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
@@ -69,12 +74,14 @@ import browser from 'webextension-polyfill'
 
 import { EventName } from '../../config/analytics'
 import { isCompassWallet } from '../../utils/isCompassWallet'
+import { useFeeValidation } from './fee-validation'
 import { MemoInput } from './memo-input'
 import MessageDetailsSheet from './message-details-sheet'
 import MessageList from './message-list'
 import StaticFeeDisplay from './static-fee-display'
 import TransactionDetails from './transaction-details'
 import { isGenericOrSendAuthzGrant } from './utils/is-generic-or-send-authz-grant'
+import { mapWalletTypeToMixpanelWalletType, mixpanelTrackOptions } from './utils/mixpanel-config'
 import { getAminoSignDoc } from './utils/sign-amino'
 import { getDirectSignDoc, getProtoSignDocDecoder } from './utils/sign-direct'
 import {
@@ -83,24 +90,6 @@ import {
   logDirectTx,
   logSignAmino,
 } from './utils/tx-logger'
-
-const mixpanelTrackOptions: RequestOptions = {
-  send_immediately: true,
-  transport: 'sendBeacon',
-}
-
-const mapWalletTypeToMixpanelWalletType = (
-  walletType: WALLETTYPE,
-): 'seed-phrase' | 'private-key' | 'ledger' => {
-  switch (walletType) {
-    case WALLETTYPE.LEDGER:
-      return 'ledger'
-    case WALLETTYPE.PRIVATE_KEY:
-      return 'private-key'
-    default:
-      return 'seed-phrase'
-  }
-}
 
 const useGetWallet = Wallet.useGetWallet
 
@@ -145,6 +134,21 @@ const SignTransaction = ({
   const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
   const defaultGasEstimates = useDefaultGasEstimates()
   const selectedGasOptionRef = useRef(false)
+  const [isFeesValid, setIsFeesValid] = useState<boolean | null>(null)
+  const [highFeeAccepted, setHighFeeAccepted] = useState<boolean>(false)
+
+  const errorMessageRef = useRef<any>(null)
+  const feeValidation = useFeeValidation(activeChain)
+
+  useEffect(() => {
+    // Check if the error message is rendered and visible
+    if (!isFeesValid && errorMessageRef.current) {
+      // Scroll the parent component to the error message
+      setTimeout(() => {
+        errorMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }, 10)
+    }
+  }, [isFeesValid])
 
   const [gasPriceOption, setGasPriceOption] = useState<{
     option: GasOptions
@@ -158,13 +162,6 @@ const SignTransaction = ({
       ? `${walletLabels[activeWallet.walletType]} Wallet ${activeWallet.addressIndex + 1}`
       : formatWalletName(activeWallet.name)
   }, [activeWallet.addressIndex, activeWallet.name, activeWallet.walletType])
-
-  useEffect(() => {
-    setGasPriceOption({
-      gasPrice: defaultGasPrice.gasPrice,
-      option: GasOptions.LOW,
-    })
-  }, [defaultGasPrice])
 
   const { isAmino, isAdr36, ethSignType, signOptions } = useMemo(() => {
     const isAmino = !!txnSigningRequest?.isAmino
@@ -263,7 +260,9 @@ const SignTransaction = ({
       })
 
       const docDecoder = getProtoSignDocDecoder({
-        'sign-request': txnSigningRequest,
+        'sign-request': {
+          signDoc: result.signDoc,
+        },
       })
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -309,7 +308,6 @@ const SignTransaction = ({
           }),
         }
       })
-
       return [
         result.allowSetFee,
         parsedMessages,
@@ -356,6 +354,7 @@ const SignTransaction = ({
           chainId: chainInfo.chainId,
           chainName: chainInfo.chainName,
           productVersion: browser.runtime.getManifest().version,
+          time: Date.now() / 1000,
         },
         mixpanelTrackOptions,
       )
@@ -414,15 +413,67 @@ const SignTransaction = ({
     if (!activeChain || !signDoc || !activeAddress) {
       return
     }
+    const skipFeeCheck = isSignArbitrary || ethSignType
+    const onValidationFailed =
+      (txFee: any) => (denomData: NativeDenom, isValidFee: boolean | null) => {
+        mixpanel.track(
+          EventName.FeeValidationFailed,
+          {
+            dAppURL: siteOrigin,
+            transactionTypes,
+            signMode: isAmino ? 'sign-amino' : 'sign-direct',
+            walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+            chainId: chainInfo.chainId,
+            chainName: chainInfo.chainName,
+            productVersion: browser.runtime.getManifest().version,
+            time: Date.now() / 1000,
+            signOptions: JSON.stringify(signOptions),
+            txData: JSON.stringify(messages),
+            gasPrice: gasPriceOption.gasPrice.toString(),
+            gasLimit: userPreferredGasLimit || recommendedGasLimit,
+            denom: JSON.stringify(denomData),
+            fee: JSON.stringify(txFee),
+            context: 'post-approval',
+            cause: isValidFee === null ? 'usd-value-unknown' : 'fee-too-high',
+          },
+          mixpanelTrackOptions,
+        )
+      }
     if (!isAmino) {
       try {
+        if (!skipFeeCheck) {
+          let feeCheck: boolean | null = null
+          const decodedTx = new DirectSignDocDecoder(signDoc as SignDoc)
+          const fee = decodedTx.authInfo.fee
+          if (!fee) {
+            throw new Error('Transaction does not have fee')
+          }
+          try {
+            feeCheck = await feeValidation(
+              {
+                feeDenom: fee.amount[0].denom,
+                feeAmount: fee.amount[0].amount,
+                gaslimit: fee.gasLimit,
+                chain: activeChain,
+              },
+              onValidationFailed(fee),
+            )
+          } catch (e) {
+            Sentry.captureException(e)
+          }
+          if (feeCheck === false) {
+            throw new Error(
+              'Unusually high fees detected, could not process transaction. Please try again.',
+            )
+          }
+        }
+
         const wallet = (await getWallet(activeChain)) as OfflineDirectSigner
         const data = await (async () => {
           try {
             if (typeof wallet.signDirect === 'function') {
               return wallet.signDirect(activeAddress, SignDoc.fromPartial(signDoc as any))
             }
-
             return null
           } catch (e) {
             captureException(e)
@@ -452,6 +503,7 @@ const SignTransaction = ({
               chainId: chainInfo.chainId,
               chainName: chainInfo.chainName,
               productVersion: browser.runtime.getManifest().version,
+              time: Date.now() / 1000,
             },
             mixpanelTrackOptions,
           )
@@ -496,6 +548,30 @@ const SignTransaction = ({
     } else {
       setSigningError(null)
       try {
+        if (!skipFeeCheck) {
+          let feeCheck = null
+          try {
+            const fee = (signDoc as StdSignDoc).fee
+            feeCheck = await feeValidation(
+              {
+                feeDenom: fee.amount[0].denom,
+                feeAmount: fee.amount[0].amount,
+                gaslimit: Long.fromString(fee.gas),
+                chain: activeChain,
+              },
+              onValidationFailed(fee),
+            )
+          } catch (e) {
+            Sentry.captureException(e)
+          }
+
+          if (feeCheck === false) {
+            throw new Error(
+              'Unusually high fees detected, could not process transaction. Please try again.',
+            )
+          }
+        }
+
         const wallet = (await getWallet(activeChain)) as OfflineAminoSigner & {
           signAmino: (
             // eslint-disable-next-line no-unused-vars
@@ -560,6 +636,7 @@ const SignTransaction = ({
             chainId: chainInfo.chainId,
             chainName: chainInfo.chainName,
             productVersion: browser.runtime.getManifest().version,
+            time: Date.now() / 1000,
           }
 
           try {
@@ -644,6 +721,7 @@ const SignTransaction = ({
           chainId: chainInfo.chainId,
           chainName: chainInfo.chainName,
           productVersion: browser.runtime.getManifest().version,
+          time: Date.now() / 1000,
         },
         mixpanelTrackOptions,
       )
@@ -671,9 +749,11 @@ const SignTransaction = ({
   }, [isSignArbitrary, messages])
 
   const isApproveBtnDisabled =
+    !dappFeeDenom ||
     !!signingError ||
     !!gasPriceError ||
-    (hasToShowCheckbox === true && checkedGrantAuthBox === false)
+    (hasToShowCheckbox === true && checkedGrantAuthBox === false) ||
+    (isFeesValid === false && !highFeeAccepted)
 
   const NotAllowSignTxGasOptions = () => {
     const { viewAdditionalOptions } = useGasPriceContext()
@@ -777,6 +857,40 @@ const SignTransaction = ({
                 setError={setGasPriceError}
                 considerGasAdjustment={false}
                 disableBalanceCheck={fee.granter || signOptions.disableBalanceCheck}
+                fee={fee}
+                chain={activeChain}
+                validateFee={true}
+                onInvalidFees={(feeTokenData: FeeTokenData, isFeesValid: boolean | null) => {
+                  try {
+                    if (isFeesValid === false) {
+                      setIsFeesValid(false)
+                    }
+                    mixpanel.track(
+                      EventName.FeeValidationFailed,
+                      {
+                        dAppURL: siteOrigin,
+                        transactionTypes,
+                        signMode: isAmino ? 'sign-amino' : 'sign-direct',
+                        walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+                        chainId: chainInfo.chainId,
+                        chainName: chainInfo.chainName,
+                        productVersion: browser.runtime.getManifest().version,
+                        time: Date.now() / 1000,
+                        signOptions: JSON.stringify(signOptions),
+                        txData: JSON.stringify(messages),
+                        gasPrice: gasPriceOption.gasPrice.toString(),
+                        gasLimit: userPreferredGasLimit || recommendedGasLimit,
+                        denom: JSON.stringify(feeTokenData.denom),
+                        fee: JSON.stringify(fee),
+                        context: 'pre-approval',
+                        cause: isFeesValid === null ? 'usd-value-unknown' : 'fee-too-high',
+                      },
+                      mixpanelTrackOptions,
+                    )
+                  } catch (e) {
+                    Sentry.captureException(e)
+                  }
+                }}
               >
                 <Tabs
                   className='mt-3'
@@ -923,6 +1037,32 @@ const SignTransaction = ({
               onClose={() => setSelectedMessage(null)}
               message={selectedMessage}
             />
+            {isFeesValid === false && (
+              <div
+                ref={errorMessageRef}
+                className='flex dark:bg-gray-900 bg-white-100 px-4 py-3 w-full rounded-2xl items-center mt-3'
+              >
+                <div className='mr-3' onClick={() => setHighFeeAccepted(!highFeeAccepted)}>
+                  {!highFeeAccepted ? (
+                    <span className='material-icons-round text-gray-700 cursor-pointer'>
+                      check_box_outline_blank
+                    </span>
+                  ) : (
+                    <span
+                      className='material-icons-round cursor-pointer'
+                      style={{ color: Colors.getChainColor(activeChain) }}
+                    >
+                      check_box
+                    </span>
+                  )}
+                </div>
+
+                <Text size='sm' color='text-gray-400'>
+                  The selected fee amount is unusually high.
+                  <br />I confirm and agree to proceed
+                </Text>
+              </div>
+            )}
           </div>
 
           <div className='absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full'>

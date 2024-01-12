@@ -58,7 +58,7 @@ const base_config = {
         exclude: /node_modules/,
         options: {
           loader: 'jsx',
-          target: 'es2015',
+          target: 'es2020',
         },
       },
       {
@@ -67,7 +67,7 @@ const base_config = {
         exclude: /node_modules/,
         options: {
           loader: 'tsx',
-          target: 'es2015',
+          target: 'es2020',
         },
       },
       {
@@ -122,6 +122,14 @@ const base_config = {
         },
         {
           from: 'public/hcaptcha.js',
+          to: '.',
+        },
+        {
+          from: 'public/recaptcha.js',
+          to: '.',
+        },
+        {
+          from: 'public/recaptcha-loader.js',
           to: '.',
         },
       ],
@@ -180,7 +188,7 @@ module.exports = (env, argv) => {
     config = Object.assign({}, base_config, {
       mode: 'production',
       output: {
-        path: path.join(__dirname, isCompassBuild ? 'builds/compass-build' : 'builds/cosmos-build'),
+        path: path.join(__dirname, isCompassBuild ? 'staging-builds/compass-build' : 'staging-builds/cosmos-build'),
         filename: '[name].js',
         clean: true,
       },
@@ -195,7 +203,7 @@ module.exports = (env, argv) => {
         usedExports: true,
         minimizer: [
           new ESBuildMinifyPlugin({
-            target: 'es2015',
+            target: 'es2020',
           }),
         ],
       },
@@ -254,7 +262,7 @@ module.exports = (env, argv) => {
           usedExports: true,
           minimizer: [
             new ESBuildMinifyPlugin({
-              target: 'es2015',
+              target: 'es2020',
             }),
           ],
         },

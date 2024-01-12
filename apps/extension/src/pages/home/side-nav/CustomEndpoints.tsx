@@ -4,7 +4,7 @@ import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap
 import axios from 'axios'
 import classNames from 'classnames'
 import AlertStrip from 'components/alert-strip/AlertStrip'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { CUSTOM_ENDPOINTS } from 'config/storage-keys'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -31,19 +31,22 @@ export function SelectChainSheet({
   onChainSelect,
   selectedChain,
   onPage,
+  chainsToShow,
 }: SelectChainSheetProps) {
   return (
-    <BottomSheet
-      isVisible={isVisible}
+    <BottomModal
+      title='Select Chain'
       onClose={onClose}
-      headerTitle='Select Chain'
-      headerActionType={HeaderActionType.CANCEL}
-      closeOnClickBackDrop={true}
+      isOpen={isVisible}
+      closeOnBackdropClick={true}
     >
-      <div className='h-[400px]'>
-        <ListChains selectedChain={selectedChain} onChainSelect={onChainSelect} onPage={onPage} />
-      </div>
-    </BottomSheet>
+      <ListChains
+        selectedChain={selectedChain}
+        onChainSelect={onChainSelect}
+        onPage={onPage}
+        chainsToShow={chainsToShow}
+      />
+    </BottomModal>
   )
 }
 

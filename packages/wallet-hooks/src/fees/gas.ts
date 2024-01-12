@@ -1,10 +1,11 @@
-import { gasAdjustment, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 
-import { useActiveChain } from '../store';
+import { useActiveChain, useGasAdjustments } from '../store';
 
-export const useGasAdjustment = (forceChain?: string) => {
+export const useGasAdjustmentForChain = (forceChain?: string) => {
+  const gasAdjustments = useGasAdjustments();
   const activeChain = useActiveChain();
   const chain = (forceChain ?? activeChain) as SupportedChain;
 
-  return gasAdjustment[chain] ?? gasAdjustment.cosmos;
+  return gasAdjustments[chain] ?? gasAdjustments.cosmos;
 };

@@ -12,6 +12,7 @@ import {
   NativeDenom,
   SigningSscrt,
   SupportedChain,
+  ThorTx,
   toSmall,
   transactionDeclinedError,
   Tx,
@@ -203,7 +204,7 @@ export const useSimpleSend = () => {
     [],
   );
 
-  const sendMaya = useCallback(
+  const send931 = useCallback(
     async ({
       wallet,
       fromAddress,
@@ -222,8 +223,14 @@ export const useSimpleSend = () => {
       fees: StdFee;
     }): Promise<sendTokensReturnType> => {
       try {
-        const mayaClient = new MayaTx(wallet);
-        const { txHash, amount: _amount } = await mayaClient.sendTokens(
+        let client;
+        if (activeChain === 'mayachain') {
+          client = new MayaTx(wallet);
+        } else {
+          client = new ThorTx(wallet);
+        }
+
+        const { txHash, amount: _amount } = await client.sendTokens(
           fromAddress,
           toAddress,
           {
@@ -507,8 +514,8 @@ export const useSimpleSend = () => {
           wallet: (await getWallet()) as Wallet,
           txHandler: txHandler as SigningSscrt,
         });
-      } else if (activeChain === 'mayachain') {
-        result = await sendMaya({
+      } else if (['mayachain', 'thorchain'].includes(activeChain)) {
+        result = await send931({
           fromAddress: activeWallet.addresses[activeChain],
           wallet: (await getWallet()) as OfflineSigner,
           toAddress,

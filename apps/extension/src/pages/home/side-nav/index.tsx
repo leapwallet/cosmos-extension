@@ -15,7 +15,6 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
 import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
-import { useAddress } from 'hooks/wallet/useAddress'
 import { Images } from 'images'
 import React, { ReactElement, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -24,7 +23,6 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize } from 'utils/strings'
 import browser from 'webextension-polyfill'
 
-import RequestFaucet from '../RequestFaucet'
 import ChangeCurrency from './ChangeCurrency'
 import { CustomEndpoints } from './CustomEndpoints'
 import ExportPrivateKey from './ExportPrivateKey'
@@ -105,7 +103,6 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
   const activeChain = useActiveChain()
   const containerRef = useRef<HTMLDivElement | null>(null)
 
-  const address = useAddress()
   const auth = useAuth()
   const isDark = theme === ThemeName.DARK
   const isInExpandView = browser.extension.getViews({ type: 'tab' }).length > 0
@@ -181,7 +178,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
       enabled: true,
     },
     {
-      title: 'Show Secret Phrase',
+      title: 'Show Recovery Phrase',
       titleIcon: Images.Nav.SecretPhrase,
       onClick: () => setShowNavPage(NavPages.ExportSeedPhrase),
       enabled:
@@ -353,16 +350,6 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
                 isRounded
                 imgSrc={Images.Nav.ExportIcon}
                 onClick={handleExpandView}
-              />
-            )}
-
-            {currentNetwork === 'testnet' && !isInExpandView && <div className='mt-4' />}
-            {currentNetwork === 'testnet' && (
-              <RequestFaucet
-                address={address}
-                setShowFaucetResp={(data) => {
-                  setShowFaucetResp(data)
-                }}
               />
             )}
 

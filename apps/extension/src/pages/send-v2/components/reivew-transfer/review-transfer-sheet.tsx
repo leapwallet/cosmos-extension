@@ -3,7 +3,7 @@ import {
   Token,
   useActiveChain,
   useformatCurrency,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { Avatar, Buttons, Card, CardDivider, Memo } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
@@ -14,6 +14,7 @@ import { calculateFeeAmount } from 'components/gas-price-options'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
+import { FIXED_FEE_CHAINS } from 'config/constants'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useSendContext } from 'pages/send-v2/context'
@@ -21,7 +22,7 @@ import React, { useCallback, useMemo } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
-import { MayaFee } from '../fees-view/MayaFee'
+import { FixedFee } from '../fees-view/FixedFee'
 import { IBCBanner } from '../ibc-banner'
 
 type ReviewTransactionSheetProps = {
@@ -62,7 +63,7 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
     customIbcChannelId,
   } = useSendContext()
 
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain()
 
   const fiatValue = useMemo(
     () => formatCurrency(new BigNumber(inputAmount).multipliedBy(tokenFiatValue ?? 0)),
@@ -200,8 +201,8 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
             }}
           />
 
-          {activeChain === 'mayachain' ? (
-            <MayaFee />
+          {FIXED_FEE_CHAINS.includes(activeChain) ? (
+            <FixedFee />
           ) : (
             <div className='flex items-center justify-center text-gray-600 dark:text-gray-200'>
               <p className='font-semibold text-center text-sm'>Transaction fee: </p>

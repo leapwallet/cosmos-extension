@@ -14,7 +14,8 @@
     "moduleResolution": "node",
     "skipLibCheck": true,
     "paths": {
-      "~/*": ["./*"]
+      "~/*": ["./*"],
+      "react": ["../../node_modules/@types/react"]
     },
     "strict": false
   },

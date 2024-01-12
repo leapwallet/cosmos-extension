@@ -6,7 +6,6 @@ import {
   useFeeTokens,
   useformatCurrency,
   useGetTokenBalances,
-  useNativeFeeDenom,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { fromSmallBN, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -37,16 +36,23 @@ type StaticFeeDisplayProps = {
   fee: Fee | null
   error: string | null
   setError: React.Dispatch<React.SetStateAction<string | null>>
+  disableBalanceCheck?: boolean
 }
 
-const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setError }) => {
+const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
+  fee,
+  error,
+  setError,
+  disableBalanceCheck,
+}) => {
   const defaultGasEstimates = useDefaultGasEstimates()
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
-  const { allAssets, nativeTokensStatus, ibcTokensStatus } = useGetTokenBalances()
+  const { allAssets, nativeTokensStatus, s3IbcTokensStatus, nonS3IbcTokensStatus } =
+    useGetTokenBalances()
   const activeChain = useActiveChain()
 
-  const { data: feeTokensList, isLoading, isFetching } = useFeeTokens(activeChain)
+  const { data: feeTokensList, isFetching } = useFeeTokens(activeChain)
 
   const feeToken = useMemo(() => {
     const feeBaseDenom = fee?.amount[0]?.denom
@@ -59,7 +65,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setErro
     })?.amount
 
     return { ...feeDenomData, amount }
-  }, [allAssets, feeTokensList])
+  }, [allAssets, fee?.amount, feeTokensList])
 
   const { data: feeTokenFiatValue } = useQuery(
     ['fee-token-fiat-value', feeToken?.denom?.coinDenom],
@@ -83,16 +89,21 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({ fee, error, setErro
   const amountString = feeValues?.amount?.toString()
 
   useEffect(() => {
-    if (feeToken && amountString) {
+    if (!disableBalanceCheck && feeToken && amountString) {
       if (new BigNumber(amountString).isGreaterThan(feeToken?.amount ?? 0)) {
         setError(`You don't have enough ${feeToken?.denom?.coinDenom} to pay the gas fee`)
       } else {
         setError(null)
       }
     }
-  }, [amountString, feeToken, setError])
+  }, [amountString, feeToken, setError, fee, disableBalanceCheck])
 
-  if (isFetching || nativeTokensStatus === 'loading' || ibcTokensStatus === 'loading') {
+  if (
+    isFetching ||
+    nativeTokensStatus === 'loading' ||
+    s3IbcTokensStatus === 'loading' ||
+    nonS3IbcTokensStatus === 'loading'
+  ) {
     return <Loader />
   }
 

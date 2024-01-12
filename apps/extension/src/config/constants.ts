@@ -10,13 +10,11 @@ export const walletLabels: Record<WALLETTYPE, string> = {
 
 export const PriorityChains: Array<SupportedChain> = [
   'cosmos',
-  'juno',
   'osmosis',
-  'secret',
-  'seiTestnet2',
-  'mars',
+  'celestia',
+  'dydx',
+  'injective',
   'stargaze',
-  'evmos',
 ]
 
-export const chainsWithSwapSupport = ['osmosis']
+export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']

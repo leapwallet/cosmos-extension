@@ -4,7 +4,7 @@ import {
   formatTokenAmount,
   GasOptions,
   useChainInfo,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
   useGetTokenBalances,
   useNativeFeeDenom,
   useStakeTx,
@@ -40,7 +40,12 @@ import useGetWallet = Wallet.useGetWallet
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import { Colors } from 'theme/colors'
 
-export type STAKE_MODE = 'DELEGATE' | 'UNDELEGATE' | 'REDELEGATE' | 'CLAIM_REWARDS'
+export type STAKE_MODE =
+  | 'DELEGATE'
+  | 'UNDELEGATE'
+  | 'REDELEGATE'
+  | 'CLAIM_REWARDS'
+  | 'CANCEL_UNDELEGATION'
 
 export default function InputStakeAmountView({
   toValidator,
@@ -96,7 +101,7 @@ export default function InputStakeAmountView({
   } = useStakeTx(mode, toValidator, fromValidator, [delegation as Delegation])
   const [gasLimit, setGasLimit] = useState<string>(recommendedGasLimit)
 
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain()
 
   const selectedToken = useMemo(() => {
     return allAssets.find((asset) => asset.symbol === activeChainInfo.denom)
@@ -104,7 +109,7 @@ export default function InputStakeAmountView({
 
   const customFee = useMemo(() => {
     const gasEstimate = Math.ceil(Number(gasLimit) * gasAdjustment)
-    return calculateFee(gasEstimate, gasPriceOption.gasPrice)
+    return calculateFee(gasEstimate, gasPriceOption.gasPrice as unknown as string)
   }, [gasAdjustment, gasLimit, gasPriceOption.gasPrice])
 
   const handleCloseFeeSettingSheet = useCallback(() => {
@@ -177,7 +182,7 @@ export default function InputStakeAmountView({
     <GasPriceOptions
       recommendedGasLimit={recommendedGasLimit}
       gasLimit={gasLimit}
-      setGasLimit={(value) => setGasLimit(value.toString())}
+      setGasLimit={(value: number) => setGasLimit(value.toString())}
       gasPriceOption={gasPriceOption}
       onGasPriceOptionChange={onGasPriceOptionChange}
       error={gasError}
@@ -306,6 +311,7 @@ export default function InputStakeAmountView({
           setReviewTransactionSheet(false)
         }}
         showLedgerPopup={!ledgerError && showLedgerPopup}
+        gasOption={gasPriceOption.option}
       />
     </GasPriceOptions>
   )

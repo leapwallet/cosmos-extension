@@ -57,9 +57,9 @@ import { PasswordManager } from './password-manager'
 import { storageMigrationV77 } from './migrations/v77'
 import { getChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { storageMigrationV80 } from './migrations/v80'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { formatWalletName } from 'utils/formatWalletName'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
+import { listenPendingSwapTx, trackPendingSwapTx } from './pending-swap-tx'
 const storageAdapter = getStorageAdapter()
 initStorage(storageAdapter)
 initCrypto()
@@ -71,6 +71,8 @@ const windowIdForPayloadId: { [x: number | string]: { type: string; payloadId: n
 let enableAccessRequests: Record<string, number> = {}
 
 const passwordManager = PasswordManager.create()
+trackPendingSwapTx()
+listenPendingSwapTx()
 
 const connectRemote = (remotePort: any) => {
   if (remotePort.name !== 'LeapCosmosExtension') {
@@ -278,7 +280,7 @@ const connectRemote = (remotePort: any) => {
                 if (shouldOpenPopup) {
                   delete enableAccessRequests[queryString]
                   enableAccessRequests[queryString] = popupWindowId
-                  const window = await openPopup('approveConnection')
+                  await openPopup('approveConnection')
                   requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
                   windowIdForPayloadId[popupWindowId] = {
                     type: type.toUpperCase(),
@@ -333,7 +335,7 @@ const connectRemote = (remotePort: any) => {
             queryString += `&chainIds=${chainId}`
           })
 
-          const store = await browser.storage.local.get([ACTIVE_WALLET])
+          await browser.storage.local.get([ACTIVE_WALLET])
           const password = passwordManager.getPassword()
           if (!password) {
             try {

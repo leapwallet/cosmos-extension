@@ -210,7 +210,7 @@ export function NtrnProposalDetails({ selectedProp, onBack, proposalList }: Prop
     return [
       {
         label: 'Turnout',
-        value: totalVotes / proposal.proposal.total_power,
+        value: (totalVotes / proposal.proposal.total_power) * 100,
       },
       { label: 'Quorum', value: proposal.proposal.threshold.threshold_quorum.quorum.percent * 100 },
     ]

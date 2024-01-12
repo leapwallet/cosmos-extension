@@ -3,11 +3,13 @@ import {
   CosmosTxType,
   formatTokenAmount,
   LeapWalletApi,
+  MobileAppBanner,
   sliceAddress,
   useActiveChain,
   useInvalidateActivity,
   useInvalidateDelegations,
   useInvalidateTokenBalances,
+  useMobileAppBanner,
   usePendingTxState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -20,6 +22,7 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
+import { Cross } from 'images/misc'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { TxResponse } from 'secretjs'
@@ -27,12 +30,39 @@ import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
+const PENDING_TX_MOBILE_QR_CODE_BANNER = 'pending-tx-mobile-qr-code-banner'
+
+function MobileQrCode({
+  setShowMobileQrCode,
+  data,
+}: {
+  setShowMobileQrCode: React.Dispatch<React.SetStateAction<boolean>>
+  data: MobileAppBanner
+}) {
+  const handleClose = () => {
+    setShowMobileQrCode(false)
+    sessionStorage.setItem(PENDING_TX_MOBILE_QR_CODE_BANNER, 'true')
+  }
+
+  return (
+    <div className='mb-4 relative'>
+      <img src={data.img_src} />
+      <button className='absolute top-[20px] right-[20px] w-[8px]' onClick={handleClose}>
+        <img src={Cross} />
+      </button>
+    </div>
+  )
+}
+
 export function PendingTx() {
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
   const navigate = useNavigate()
   const selectedNetwork = useSelectedNetwork()
   const [txHash, setTxHash] = useState('')
+  const [showMobileQrCode, setShowMobileQrCode] = useState(
+    sessionStorage.getItem(PENDING_TX_MOBILE_QR_CODE_BANNER) ? false : true,
+  )
 
   const copyTxHashRef = useRef<HTMLButtonElement>(null)
   const { pendingTx, setPendingTx } = usePendingTxState()
@@ -52,14 +82,14 @@ export function PendingTx() {
       pendingTx.promise
         .then(async (result) => {
           if ('code' in result) {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             if (result && isDeliverTxSuccess(result)) {
               setPendingTx({ ...pendingTx, txStatus: 'success' })
             } else {
               setPendingTx({ ...pendingTx, txStatus: 'failed' })
             }
           } else if (pendingTx.txType === 'cw20TokenTransfer') {
-            setPendingTx({ ...pendingTx, txStatus: 'success' })
-          } else if (pendingTx.txType === 'vote') {
             setPendingTx({ ...pendingTx, txStatus: 'success' })
           }
 
@@ -101,31 +131,12 @@ export function PendingTx() {
             })
           }
 
-          if (pendingTx.txType === 'vote') {
-            setTxHash(result.transactionHash)
-
-            txPostToDB({
-              txHash: result.transactionHash,
-              txType: CosmosTxType.GovVote,
-              metadata: {
-                option: pendingTx.voteOption,
-                proposalId: pendingTx.proposalId,
-              },
-              feeQuantity: pendingTx.feeQuantity,
-              feeDenomination: pendingTx.feeDenomination,
-            })
-          }
-
           setTimeout(() => {
             invalidateQueries()
           }, 2000)
         })
         .catch(() => {
           if (pendingTx.txType === 'cw20TokenTransfer') {
-            setPendingTx({ ...pendingTx, txStatus: 'failed' })
-          }
-
-          if (pendingTx.txType === 'vote') {
             setPendingTx({ ...pendingTx, txStatus: 'failed' })
           }
 
@@ -156,6 +167,8 @@ export function PendingTx() {
   }, [_txHash])
 
   const { formatHideBalance } = useHideAssets()
+  const { status, data } = useMobileAppBanner()
+  const [isCopiedClick, setIsCopiedClick] = useState(false)
 
   const sentAmountInfo =
     sentAmount && sentTokenInfo ? formatTokenAmount(sentAmount, sentTokenInfo.coinDenom) : undefined
@@ -198,99 +211,114 @@ export function PendingTx() {
         topColor={txStatusStyles[txStatus ?? 'loading'].topColor}
         title={`Transaction ${txStatusStyles[txStatus ?? 'loading'].title}`}
       />
-      <div className='flex flex-col h-[500px] items-center p-7'>
-        <div className='bg-white-100 dark:bg-gray-900 rounded-2xl w-full flex flex-col items-center p-7'>
-          {txStatus === 'loading' && <LoaderAnimation color='#29a874' className='w-16 h-16' />}
-          {txStatus === 'success' && (
-            <img src={Images.Activity.SendDetails} className='h-16 w-16 mb-3' />
-          )}
-          {txStatus === 'failed' && <img src={Images.Activity.Error} className='h-16 w-16 mb-3' />}
-
-          <div className='text-xl font-bold text-black-100 dark:text-white-100 text-left mt-4'>
-            {title1}
-          </div>
-          <div className='text-base text-gray-600 dark:text-gray-400 text-center break-all'>
-            {subtitle1}
-          </div>
-
-          <div className='flex mt-2 space-x-2 text-sm items-center'>
-            {txType === 'swap' ? (
-              <>
-                {receivedAmountInfo && (
-                  <p className='text-right font-semibold text-green-600 dark:text-green-600'>
-                    + {formatHideBalance(receivedAmountInfo)}
-                  </p>
-                )}
-                {sentAmountInfo && (
-                  <p className='text-right text-gray-600 dark:text-gray-400'>
-                    - {formatHideBalance(sentAmountInfo)}
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                {sentUsdValue && (
-                  <p
-                    className={classnames('text-right font-semibold', {
-                      'text-black-100 dark:text-white-100': !balanceIncreased && !balanceReduced,
-                      'text-red-600 dark:text-red-300': balanceReduced,
-                      'text-green-600 dark:text-green-600': balanceIncreased,
-                    })}
-                  >
-                    ({balanceReduced && '-'} ${formatHideBalance(Number(sentUsdValue).toFixed(2))})
-                  </p>
-                )}
-
-                {sentAmountInfo && (
-                  <p className={classnames('text-right text-gray-600 dark:text-gray-400')}>
-                    {balanceReduced && '-'} {formatHideBalance(sentAmountInfo)}
-                  </p>
-                )}
-              </>
+      <div className='flex h-[528px] p-7'>
+        <div
+          className={classnames({
+            'overflow-y-auto': showMobileQrCode,
+            'flex flex-col items-center': !showMobileQrCode,
+          })}
+        >
+          <div className='bg-white-100 dark:bg-gray-900 rounded-2xl w-full flex flex-col items-center p-3 mb-4'>
+            {txStatus === 'loading' && <LoaderAnimation color='#29a874' className='w-16 h-16' />}
+            {txStatus === 'success' && (
+              <img src={Images.Activity.SendDetails} className='h-16 w-16' />
             )}
-          </div>
-        </div>
+            {txStatus === 'failed' && <img src={Images.Activity.Error} className='h-16 w-16' />}
 
-        {txHash && (
-          <div className='rounded-2xl overflow-hidden w-full m-4'>
-            <GenericCard
-              title='Transaction ID'
-              img={<img className='mr-3' src={Images.Activity.TxHash} />}
-              subtitle={sliceAddress(txHash)}
-              onClick={() => {
-                copyTxHashRef.current?.click()
-                UserClipboard.copyText(txHash)
-              }}
-              size='md'
-              icon={
-                <Buttons.CopyWalletAddress
-                  copyIcon={Images.Activity.Copy}
-                  ref={copyTxHashRef}
-                  color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-                />
-              }
-            />
-          </div>
-        )}
-
-        <div className='mt-auto flex gap-4 w-full'>
-          <Buttons.Generic
-            style={{ height: '48px', background: Colors.gray900, color: Colors.white100 }}
-            onClick={handleCloseClick}
-          >
-            Close
-          </Buttons.Generic>
-
-          <Buttons.Generic
-            disabled={!txnUrl}
-            className='py-3'
-            size='normal'
-            onClick={() => window.open(txnUrl, '_blank')}
-          >
-            <div className={'flex justify-center text-black-100  items-center'}>
-              <span className='mr-2 material-icons-round'>open_in_new</span>
-              <span>Explorer</span>
+            <div className='text-xl font-bold text-black-100 dark:text-white-100 text-left mt-4 break-all'>
+              {title1}
             </div>
+            <div className='text-base text-gray-600 dark:text-gray-400 text-center break-all'>
+              {subtitle1}
+            </div>
+
+            <div className='flex mt-2 space-x-2 text-sm items-center'>
+              {txType === 'swap' ? (
+                <>
+                  {receivedAmountInfo && (
+                    <p className='text-right font-semibold text-green-600 dark:text-green-600'>
+                      + {formatHideBalance(receivedAmountInfo)}
+                    </p>
+                  )}
+                  {sentAmountInfo && (
+                    <p className='text-right text-gray-600 dark:text-gray-400'>
+                      - {formatHideBalance(sentAmountInfo)}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  {sentUsdValue && (
+                    <p
+                      className={classnames('text-right font-semibold', {
+                        'text-black-100 dark:text-white-100': !balanceIncreased && !balanceReduced,
+                        'text-red-600 dark:text-red-300': balanceReduced,
+                        'text-green-600 dark:text-green-600': balanceIncreased,
+                      })}
+                    >
+                      ({balanceReduced && '-'} ${formatHideBalance(Number(sentUsdValue).toFixed(2))}
+                      )
+                    </p>
+                  )}
+
+                  {sentAmountInfo && (
+                    <p className={classnames('text-right text-gray-600 dark:text-gray-400')}>
+                      {balanceReduced && '-'} {formatHideBalance(sentAmountInfo)}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {txHash && (
+            <div className='rounded-2xl overflow-hidden w-full mb-4'>
+              <GenericCard
+                title='Transaction ID'
+                img={<img className='mr-3' src={Images.Activity.TxHash} />}
+                subtitle={sliceAddress(txHash)}
+                onClick={() => {
+                  copyTxHashRef.current?.click()
+                  UserClipboard.copyText(txHash)
+                  setIsCopiedClick(true)
+                  setTimeout(() => setIsCopiedClick(false), 2000)
+                }}
+                size='md'
+                icon={
+                  <>
+                    <Buttons.CopyWalletAddress
+                      copyIcon={Images.Activity.Copy}
+                      ref={copyTxHashRef}
+                      color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+                    />
+
+                    {txnUrl && !isCopiedClick ? (
+                      <span
+                        className='material-icons-round text-[#9E9E9E]'
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          window.open(txnUrl, '_blank')
+                        }}
+                      >
+                        open_in_new
+                      </span>
+                    ) : null}
+                  </>
+                }
+              />
+            </div>
+          )}
+
+          {!isCompassWallet() &&
+          showMobileQrCode &&
+          status === 'success' &&
+          data &&
+          data.visible ? (
+            <MobileQrCode setShowMobileQrCode={setShowMobileQrCode} data={data} />
+          ) : null}
+
+          <Buttons.Generic size='normal' onClick={handleCloseClick} className='mt-auto w-full'>
+            Done
           </Buttons.Generic>
         </div>
       </div>

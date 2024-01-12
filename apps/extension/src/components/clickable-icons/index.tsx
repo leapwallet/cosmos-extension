@@ -48,7 +48,9 @@ const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
         >
           {image.alt}
         </p>
-      ) : null}
+      ) : (
+        <></>
+      )}
     </div>
   ),
 )

@@ -16,6 +16,7 @@ import KeyboardEventHandler from 'react-keyboard-event-handler'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import browser, { extension } from 'webextension-polyfill'
 
 import {
@@ -195,73 +196,100 @@ export function RequireAuth({
 
   const views = extension.getViews({ type: 'popup' })
 
-  const Children = QUICK_SEARCH_DISABLED_PAGES.includes(location.pathname) ? (
-    children
-  ) : (
-    <>
-      <KeyboardEventHandler
-        handleKeys={['meta+k', 'ctrl+k', 'up', 'down', 'enter']}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onKeyEvent={(key: string, event: any) => {
-          event.stopPropagation()
-          event.preventDefault()
+  const Children =
+    QUICK_SEARCH_DISABLED_PAGES.includes(location.pathname) || isCompassWallet() ? (
+      children
+    ) : (
+      <>
+        <KeyboardEventHandler
+          handleKeys={['meta+k', 'ctrl+k', 'up', 'down', 'enter']}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onKeyEvent={(key: string, event: any) => {
+            switch (key) {
+              case 'down':
+              case 'up':
+                {
+                  if (showModal) {
+                    event.stopPropagation()
+                    event.preventDefault()
 
-          if (['down', 'up'].includes(key)) {
-            if (showModal) {
-              const newActive =
-                key === 'down'
-                  ? searchModalActiveOption.active + 1
-                  : searchModalActiveOption.active - 1
+                    const newActive =
+                      key === 'down'
+                        ? searchModalActiveOption.active + 1
+                        : searchModalActiveOption.active - 1
 
-              if (
-                newActive >= searchModalActiveOption.lowLimit &&
-                newActive < searchModalActiveOption.highLimit
-              ) {
-                setSearchModalActiveOption({ ...searchModalActiveOption, active: newActive })
-                document
-                  .querySelector(
-                    `[data-search-active-option-id=search-active-option-id-${newActive}]`,
-                  )
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-              }
+                    if (
+                      newActive >= searchModalActiveOption.lowLimit &&
+                      newActive < searchModalActiveOption.highLimit
+                    ) {
+                      setSearchModalActiveOption({ ...searchModalActiveOption, active: newActive })
+                      document
+                        .querySelector(
+                          `[data-search-active-option-id=search-active-option-id-${newActive}]`,
+                        )
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    }
 
-              setSearchModalEnteredOption(null)
+                    setSearchModalEnteredOption(null)
+                  }
+                }
+                break
+
+              case 'enter':
+                {
+                  if (showModal) {
+                    event.stopPropagation()
+                    event.preventDefault()
+
+                    setSearchModalEnteredOption(searchModalActiveOption.active)
+                  }
+                }
+                break
+
+              case 'meta+k':
+              case 'ctrl+k':
+                {
+                  event.stopPropagation()
+                  event.preventDefault()
+
+                  if (!showModal) {
+                    try {
+                      mixpanel.track(EventName.QuickSearchOpen, {
+                        chainId: chain.chainId,
+                        chainName: chain.chainName,
+                        openMode: 'Shortcut',
+                        time: Date.now() / 1000,
+                      })
+                    } catch (e) {
+                      //
+                    }
+                  } else {
+                    try {
+                      mixpanel.track(EventName.QuickSearchClose, {
+                        chainId: chain.chainId,
+                        chainName: chain.chainName,
+                        time: Date.now() / 1000,
+                      })
+                    } catch {
+                      //
+                    }
+                  }
+
+                  setShowSearchModal(!showModal)
+                  setSearchModalEnteredOption(null)
+                }
+                break
             }
-          } else if (key === 'enter') {
-            showModal && setSearchModalEnteredOption(searchModalActiveOption.active)
-          } else {
-            if (!showModal) {
-              try {
-                mixpanel.track(EventName.QuickSearchOpen, {
-                  chainId: chain.chainId,
-                  chainName: chain.chainName,
-                  openMode: 'Shortcut',
-                })
-              } catch (e) {
-                //
-              }
-            } else {
-              try {
-                mixpanel.track(EventName.QuickSearchClose, {
-                  chainId: chain.chainId,
-                  chainName: chain.chainName,
-                })
-              } catch {
-                //
-              }
-            }
-
-            setShowSearchModal(!showModal)
-            setSearchModalEnteredOption(null)
-          }
-        }}
-        handleFocusableElements={true}
-      />
-      {children}
-      <SearchModal />
-      {showSideNav ? <SideNav isShown={showSideNav} toggler={() => setShowSideNav(false)} /> : null}
-    </>
-  )
+          }}
+          handleFocusableElements={true}
+        />
+        {children}
+        <SearchModal />
+        {showSideNav ? (
+          <SideNav isShown={showSideNav} toggler={() => setShowSideNav(false)} />
+        ) : null}
+      </>
+    )
 
   if (hideBorder) {
     return (

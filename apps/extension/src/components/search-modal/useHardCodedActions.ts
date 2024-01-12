@@ -1,14 +1,12 @@
 import {
   sliceAddress,
-  useActiveChain,
   useAddress,
-  useSelectedNetwork,
+  useChainInfo,
+  useFeatureFlags,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { showSideNavFromSearchModalState } from 'atoms/search-modal'
-import { chainsWithSwapSupport } from 'config/constants'
 import { useAuth } from 'context/auth-context'
 import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useSetRecoilState } from 'recoil'
@@ -16,13 +14,12 @@ import { UserClipboard } from 'utils/clipboard'
 import Browser from 'webextension-polyfill'
 
 export function useHardCodedActions() {
-  const activeChain = useActiveChain()
-  const isTestnet = useSelectedNetwork() === 'testnet'
   const navigate = useNavigate()
   const auth = useAuth()
+  const { data: featureFlags } = useFeatureFlags()
 
-  const chainInfos = useChainInfos()
   const address = useAddress()
+  const activeChainInfo = useChainInfo()
   const { hideBalances: balancesHidden } = useHideAssets()
   const setBalancesVisibility = useSetHideAssets()
 
@@ -30,14 +27,14 @@ export function useHardCodedActions() {
   const [alertMessage, setAlertMessage] = useState('')
   const setShowSideNav = useSetRecoilState(showSideNavFromSearchModalState)
 
-  function handleSwapClick() {
-    if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
-      navigate('/swap')
-    } else {
-      const chain = chainInfos[activeChain]
-      const redirectUrl = `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${chain.chainId}`
-
+  function handleSwapClick(_redirectUrl?: string) {
+    if (featureFlags?.all_chains?.swap === 'redirect') {
+      const redirectUrl =
+        _redirectUrl ??
+        `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${activeChainInfo.chainId}`
       window.open(redirectUrl, '_blank')
+    } else {
+      navigate('/swap')
     }
   }
 

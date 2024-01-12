@@ -13,6 +13,7 @@ export * from './gov';
 export * from './ibc';
 export * from './nameservice';
 export * from './nfts';
+export * from './nudges';
 export * from './quick-search';
 export * from './send';
 export * from './settings';

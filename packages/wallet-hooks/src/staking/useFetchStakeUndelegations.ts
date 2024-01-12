@@ -88,8 +88,11 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
       activeChainInfo?.comingSoonFeatures?.includes('stake') ||
       activeChainInfo?.notSupportedFeatures?.includes('stake')
     ) {
-      setStakeUndelegationsStatus('success');
-      setStakeUndelegationsInfo({});
+      setTimeout(() => {
+        setStakeUndelegationsStatus('success');
+        setStakeUndelegationsInfo({});
+      }, 0);
+
       return;
     }
 

@@ -1,9 +1,9 @@
 import { Key, SelectedAddress, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { InputWithButton } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import Loader from 'components/loader/Loader'
+import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -64,12 +64,13 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
           </div>
         ) : (
           <>
-            <InputWithButton
-              icon={Images.Misc.Search}
+            <SearchInput
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery('')}
               placeholder='Search chains...'
             />
+
             <div className='bg-white-100 dark:bg-gray-900 rounded-2xl p-4 relative mt-4'>
               {displayAccounts.length > 0 ? (
                 <>

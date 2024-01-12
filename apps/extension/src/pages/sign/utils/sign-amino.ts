@@ -46,6 +46,8 @@ export function getAminoSignDoc({
               : 'gasLimit' in sortedSignDoc.fee
               ? sortedSignDoc.fee.gasLimit
               : sortedSignDoc.fee.gas,
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             gasPrice,
           )
 

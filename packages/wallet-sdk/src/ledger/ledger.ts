@@ -12,37 +12,17 @@ import { LedgerConnectorOptions } from '@cosmjs/ledger-amino/build/ledgerconnect
 import Transport from '@ledgerhq/hw-transport';
 
 import { ChainInfos, SupportedChain } from '../constants';
-
-export class LedgerError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'LedgerError';
-  }
-}
-
-const bolosErrorMessage = 'Please close BOLOS and open the Cosmos Ledger app on your Ledger device.';
-const ledgerDisconnectMessage =
-  "Ledger Native Error: DisconnectedDeviceDuringOperation: Failed to execute 'transferOut' on 'USBDevice': The device was disconnected.";
-
-//error thrown by ledger
-export const transactionDeclinedError = new LedgerError('Transaction signing request was rejected by the user');
-
-//error shown to user
-export const txDeclinedErrorUser = new LedgerError('Transaction rejected on Ledger.');
-
-export const bolosError = new LedgerError('Please open the Cosmos Ledger app on your Ledger device.');
-
-export const deviceLockedError = new LedgerError('Please unlock your Ledger device.');
-
-export const ledgerConnectedOnDifferentTabError = new LedgerError(
-  'Ledger is connected on a different tab. Please close the other tab and try again.',
-);
-
-export const deviceDisconnectedError = new LedgerError(
-  'Ledger device disconnected. Please connect and unlock your device and open the cosmos app on it.',
-);
-
-const ledgerLockedError = 'Ledger Native Error: LockedDeviceError: Ledger device: Locked device (0x5515)';
+import {
+  bolosError,
+  bolosErrorMessage,
+  deviceDisconnectedError,
+  deviceLockedError,
+  ledgerDisconnectMessage,
+  LedgerError,
+  ledgerLockedError,
+  transactionDeclinedError,
+  txDeclinedErrorUser,
+} from './ledger-errors';
 
 const isWindows = () => navigator.platform.indexOf('Win') > -1;
 
@@ -92,6 +72,8 @@ export class LeapLedgerSigner extends LedgerSigner {
       return deviceDisconnectedError;
     } else if (e.message.includes(ledgerLockedError)) {
       throw deviceLockedError;
+    } else if (e.message === transactionDeclinedError.message) {
+      return txDeclinedErrorUser;
     } else {
       return new LedgerError(e.message.toString());
     }
@@ -189,7 +171,7 @@ export async function importLedgerAccount(indexes?: Array<number>, primaryChain?
     const primaryChainAccount = await ledgerSigner.getAccounts();
     const chainWiseAddresses: Record<string, Array<{ address: string; pubKey: Uint8Array }>> = {};
     const enabledChains = Object.entries(ChainInfos).filter(
-      (chain) => chain[1].enabled && chain[1].bip44.coinType !== '60',
+      (chain) => chain[1].enabled && chain[1].bip44.coinType !== '60' && chain[1].bip44.coinType !== '931',
     );
     for (const chainEntries of enabledChains) {
       const [chain, chainInfo] = chainEntries;

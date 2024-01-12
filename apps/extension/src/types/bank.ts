@@ -6,6 +6,8 @@ export type IbcChainInfo = {
 }
 
 export type Token = {
+  name?: string
+  chain?: string
   symbol: string
   coinMinimalDenom: string
   amount: string

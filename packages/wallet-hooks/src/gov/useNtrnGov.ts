@@ -1,21 +1,27 @@
+import { toUtf8 } from '@cosmjs/encoding';
 import { OfflineSigner } from '@cosmjs/proto-signing';
-import { calculateFee, GasPrice } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
 import { DefaultGasEstimates, fromSmall, NativeDenom, NTRN_GOV_CONTRACT_ADDRESS } from '@leapwallet/cosmos-wallet-sdk';
+import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/tx/nft-transfer/contract';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
+import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
 
-import { useGasAdjustment } from '../fees';
+import { LeapWalletApi } from '../apis';
+import { useGasAdjustmentForChain } from '../fees';
+import { sendTokensReturnType } from '../send';
 import {
-  TxStatus,
   useActiveChain,
   useAddress,
+  useChainApis,
   useDefaultGasEstimates,
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
 } from '../store';
 import { useCW20TxHandler } from '../tx';
-import { ActivityType, TxCallback, VoteOptions } from '../types';
+import { TxCallback, VoteOptions } from '../types';
 import { GasOptions, useGasRateQuery, useNativeFeeDenom } from '../utils';
 import { getVoteNum } from './useGov';
 
@@ -35,12 +41,15 @@ export function useNtrnGov() {
   const [txError, setTxError] = useState<string | undefined>(undefined);
   const [memo, setMemo] = useState<string>('');
 
-  const gasEstimate = useMemo(
-    () => (defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER) * 3,
-    [activeChain, defaultGasEstimates],
+  const [gasEstimate, setGasEstimate] = useState(
+    () => defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
   );
 
-  const gasAdjustment = useGasAdjustment(activeChain);
+  const [isVoting, setIsVoting] = useState(false);
+  const { lcdUrl } = useChainApis();
+  const txPostToDB = LeapWalletApi.useOperateCosmosTx();
+
+  const gasAdjustment = useGasAdjustmentForChain(activeChain);
   const selectedNetwork = useSelectedNetwork();
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
@@ -54,7 +63,7 @@ export function useNtrnGov() {
     if (!gasPriceOptions) return;
 
     const getFeeValue = (gasPriceOption: GasPrice) => {
-      const gasAdjustmentValue = gasAdjustment * 3;
+      const gasAdjustmentValue = gasAdjustment;
       const stdFee = calculateFee(Math.ceil(gasEstimate * gasAdjustmentValue), gasPriceOption);
       return fromSmall(stdFee.amount[0].amount, feeDenom?.coinDecimals);
     };
@@ -72,7 +81,7 @@ export function useNtrnGov() {
     const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption];
     if (!_gasPrice) return;
 
-    const gasAdjustmentValue = gasAdjustment * 3;
+    const gasAdjustmentValue = gasAdjustment;
     return calculateFee(Math.ceil(_gasLimit * gasAdjustmentValue), _gasPrice);
 
     // keep feeDenom in the dependency array to update the fee when the denom changes
@@ -82,32 +91,52 @@ export function useNtrnGov() {
     setTxError(undefined);
   }, []);
 
-  const voteOnProposal = async (wallet: OfflineSigner, proposalId: number, voteOption: VoteOptions) => {
+  const voteOnProposal = async (
+    wallet: OfflineSigner,
+    proposalId: number,
+    voteOption: VoteOptions,
+    customFee?: {
+      stdFee: StdFee;
+      feeDenom: NativeDenom;
+    },
+  ): Promise<sendTokensReturnType> => {
     try {
+      const pollForTx = new PollForTx(lcdUrl ?? '');
       const client = await getCW20TxClient(wallet as Wallet);
-      const promise = client.execute(
+
+      const result = await client.execute(
         address,
         NTRN_GOV_CONTRACT_ADDRESS,
         {
           vote: { proposal_id: proposalId, vote: voteOption.toLowerCase() },
         },
-        fee ?? 'auto',
+        customFee?.stdFee ?? fee ?? 'auto',
         memo,
       );
+
+      const txHash = result.transactionHash;
+      const pollPromise = pollForTx.pollForTx(txHash);
 
       return {
         success: true,
         pendingTx: {
           img: chainInfos[activeChain].chainSymbolImageUrl,
-          subtitle1: `Proposal ${proposalId}`,
           title1: `Voted ${voteOption}`,
-          txStatus: 'loading' as TxStatus,
-          txType: 'vote' as ActivityType,
-          promise,
-          feeDenomination: fee?.amount[0].denom,
-          feeQuantity: fee?.amount[0].amount,
-          voteOption: getVoteNum(voteOption),
-          proposalId: proposalId,
+          subtitle1: `Proposal ${proposalId}`,
+          txStatus: 'loading',
+          txType: 'vote',
+          promise: pollPromise,
+          txHash,
+        },
+        data: {
+          txHash,
+          txType: CosmosTxType.GovVote,
+          metadata: {
+            option: getVoteNum(voteOption),
+            proposalId: proposalId,
+          },
+          feeDenomination: fee?.amount[0].denom ?? '',
+          feeQuantity: fee?.amount[0].amount ?? '',
         },
       };
     } catch (error) {
@@ -123,14 +152,23 @@ export function useNtrnGov() {
     callback,
     voteOption,
     proposalId,
+    customFee,
   }: {
     voteOption: VoteOptions;
     wallet: OfflineSigner;
     callback: TxCallback;
     proposalId: number;
+    customFee?: {
+      stdFee: StdFee;
+      feeDenom: NativeDenom;
+    };
   }) => {
-    const result = await voteOnProposal(wallet, proposalId, voteOption);
-    if (result.success === true && result.pendingTx) {
+    setIsVoting(true);
+    const result = await voteOnProposal(wallet, proposalId, voteOption, customFee);
+    setIsVoting(false);
+
+    if (result.success === true) {
+      if (result.data) txPostToDB(result.data);
       setPendingTx({ ...result.pendingTx });
       callback('success');
     } else {
@@ -140,6 +178,38 @@ export function useNtrnGov() {
       setTxError(result.errors?.join(',\n'));
     }
   };
+
+  const simulateNtrnVote = useCallback(
+    async (wallet: OfflineSigner, proposalId: number, voteOption: VoteOptions) => {
+      try {
+        const client = await getCW20TxClient(wallet as Wallet);
+        const result = await client.simulate(
+          address,
+          [
+            {
+              typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
+              value: MsgExecuteContract.fromPartial({
+                sender: address,
+                contract: NTRN_GOV_CONTRACT_ADDRESS,
+                msg: toUtf8(
+                  JSON.stringify({
+                    vote: { proposal_id: proposalId, vote: voteOption.toLowerCase() },
+                  }),
+                ),
+                funds: [],
+              }),
+            },
+          ],
+          memo,
+        );
+
+        setGasEstimate(result);
+      } catch (_) {
+        //
+      }
+    },
+    [memo],
+  );
 
   return {
     feeDenom,
@@ -157,7 +227,8 @@ export function useNtrnGov() {
     clearTxError,
     memo,
     setMemo,
-    isVoting: false,
+    isVoting,
     handleVote,
+    simulateNtrnVote,
   };
 }
