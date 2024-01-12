@@ -1,5 +1,5 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import { CardDivider } from '@leapwallet/leap-ui'
+import { CardDivider, HeaderActionType } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { SearchInput } from 'components/search-input'
@@ -20,6 +20,8 @@ import { useActiveChain, useSetActiveChain } from '../../hooks/settings/useActiv
 import { Colors } from '../../theme/colors'
 
 export type ListChainsProps = {
+  headerAction?: HeaderActionType
+  headerTitle?: string
   // eslint-disable-next-line no-unused-vars
   onChainSelect: (chainName: SupportedChain) => void
   selectedChain: SupportedChain

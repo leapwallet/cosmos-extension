@@ -51,6 +51,8 @@ type ActivePage = {
 
 type NftDetails = (OwnedCollectionTokenInfo & { chain: SupportedChain }) | null
 
+export type NftDetailsType = NftDetails
+
 type NftContextType = ActivePage & {
   collectionData: CollectionData | null
   _collectionData: CollectionData | null

@@ -669,6 +669,12 @@ export default function Home() {
           setShowBitcoinDepositSheet(false)
         }}
       />
+      <BitcoinDeposit
+        isVisible={showBitcoinDepositSheet}
+        onCloseHandler={() => {
+          setShowBitcoinDepositSheet(false)
+        }}
+      />
       <BottomNav label={BottomNavLabel.Home} disabled={disabled} />
     </div>
   )

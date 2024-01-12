@@ -1,3 +1,5 @@
+import { PageName } from 'config/analytics'
+import { usePageView } from 'hooks/analytics/usePageView'
 import React, { useState } from 'react'
 
 import {
@@ -10,6 +12,8 @@ import {
 } from './index'
 
 export function NFTs() {
+  usePageView(PageName.NFT)
+
   const [activePage, setActivePage] = useState<NftPage>('ShowNfts')
   const value = { activePage, setActivePage }
 

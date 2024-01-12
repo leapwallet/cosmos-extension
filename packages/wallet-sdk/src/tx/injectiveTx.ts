@@ -100,14 +100,17 @@ export class InjectiveTx {
         expiryDate,
       ),
     ];
-
     return await this.signAndBroadcastTx(fromAddress, messages, fee, memo);
   }
 
   async revokeRestake(fromAddress: string, grantee: string, fee: StdFee, memo: string) {
     const messages = [buildRevokeMsg('/cosmos.staking.v1beta1.MsgDelegate', fromAddress, grantee)];
-
     return await this.signAndBroadcastTx(fromAddress, messages, fee, memo);
+  }
+
+  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: number | StdFee | 'auto', memo = '') {
+    const revokeMsg = [buildRevokeMsg(msgType, fromAddress, grantee)];
+    return await this.signAndBroadcastTx(fromAddress, revokeMsg, fee, memo);
   }
 
   async sendTokens(
@@ -185,6 +188,25 @@ export class InjectiveTx {
     memo?: string,
   ) {
     return (await this._unDelegate(delegatorAddress, validatorAddress, amount, false, fee, memo)) as unknown as string;
+  }
+
+  async cancelunDelegation(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    creationHeight: string,
+    fee: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    return (await this._cancelUnDelegate(
+      delegatorAddress,
+      validatorAddress,
+      amount,
+      false,
+      creationHeight,
+      fee,
+      memo,
+    )) as unknown as string;
   }
 
   async simulateUnDelegate(delegatorAddress: string, validatorAddress: string, amount: Coin) {
@@ -451,6 +473,34 @@ export class InjectiveTx {
     }
   }
 
+  private async _cancelUnDelegate(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    simulate: boolean,
+    creationHeight: string,
+    fee?: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    const undelegateMsg = {
+      typeUrl: '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
+      value: {
+        injectiveAddress: delegatorAddress,
+        validatorAddress: validatorAddress,
+        creationHeight: longify(creationHeight),
+        amount: {
+          amount: amount.amount,
+          denom: amount.denom,
+        },
+      },
+    };
+    if (simulate && !fee) {
+      return await this.simulate(delegatorAddress, [undelegateMsg]);
+    } else if (fee) {
+      return await this.signAndBroadcastTx(delegatorAddress, [undelegateMsg], fee, memo);
+    }
+  }
+
   private async _withdrawRewards(
     delegatorAddress: string,
     validatorAddresses: string[],
@@ -485,7 +535,7 @@ export class InjectiveTx {
     }
   }
 
-  private async broadcastTx(txRaw: any, retry = 3): Promise<string> {
+  async broadcastTx(txRaw: any, retry = 3): Promise<string> {
     try {
       const txResponse: any = await this.txRestClient.broadcast(txRaw);
       return txResponse.txHash;
@@ -498,7 +548,7 @@ export class InjectiveTx {
     }
   }
 
-  private async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = '') {
+  async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = '') {
     try {
       const usedFee = await this.getFees(signerAddress, msgs, fee);
       const { txRaw, signBytes, signDoc } = await this.createTx(signerAddress, msgs, usedFee, memo);
@@ -549,7 +599,7 @@ export class InjectiveTx {
     }
   }
 
-  private async getFees(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number) {
+  async getFees(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number) {
     let usedFee: StdFee;
     if (fee === 'auto' || typeof fee === 'number') {
       if (!this.options?.gasPrice) {
@@ -570,7 +620,7 @@ export class InjectiveTx {
     };
   }
 
-  private async createTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee, memo = '') {
+  async createTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee, memo = '') {
     const accountDetails = await fetchAccountDetails(this.restEndpoint, signerAddress);
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

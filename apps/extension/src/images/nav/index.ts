@@ -8,7 +8,9 @@ import GppGood from './gpp-good.svg'
 import LightIcon from './light.svg'
 import Lock from './lock.svg'
 import LockTimer from './lock-timer.svg'
+import ManageAuthZ from './manage-authz.svg'
 import NetworkIcon from './network.svg'
+import NoAuthZ from './no-authz.svg'
 import SecretKeyDark from './secret-key-dark.svg'
 import SecretKeyLight from './secret-key-light.svg'
 import SecretPhrase from './secret-phrase.svg'
@@ -32,7 +34,9 @@ export {
   LightIcon,
   Lock,
   LockTimer,
+  ManageAuthZ,
   NetworkIcon,
+  NoAuthZ,
   SecretKeyDark,
   SecretKeyLight,
   SecretPhrase,

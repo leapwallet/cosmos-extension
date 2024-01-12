@@ -57,7 +57,6 @@ export default function ReceiveToken({
   const wallet = useActiveWallet().activeWallet
   const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
-
   const address = wallet?.addresses[activeChainInfo.key]
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
@@ -66,7 +65,6 @@ export default function ReceiveToken({
     width: 250,
     data: address ?? '',
   }
-
   if (isCompassWallet()) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore

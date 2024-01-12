@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "1.4.4",
-    "@leapwallet/buffer-boba": "0.1.6",
+    "@leapwallet/buffer-boba": "0.1.8",
     "@leapwallet/cosmos-wallet-hooks": "*",
     "@leapwallet/cosmos-wallet-provider": "*",
     "@leapwallet/cosmos-wallet-sdk": "*",
