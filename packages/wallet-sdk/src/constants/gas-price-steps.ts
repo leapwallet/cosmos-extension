@@ -33,7 +33,7 @@ export const GAS_PRICE_STEPS = {
   kava: { low: 0.01, average: 0.025, high: 0.04 },
   kujira: { low: 0.01, average: 0.025, high: 0.04 },
   kyve: { low: 0.02, average: 0.03, high: 0.05 },
-  likecoin: { low: 1, average: 10, high: 1000 },
+  likecoin: { low: 1000, average: 10000, high: 1000000 },
   mars: { low: 0.01, average: 0.025, high: 0.04 },
   migaloo: { low: 0.01, average: 0.025, high: 0.04 },
   neutron: { low: 0.01, average: 0.025, high: 0.04 },
