@@ -1,9 +1,10 @@
 import { Key, SelectedAddress, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { InputWithButton } from '@leapwallet/leap-ui'
+import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import Loader from 'components/loader/Loader'
+import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -43,8 +44,12 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   const defaultTokenLogo = useDefaultTokenLogo()
 
   const displayAccounts = useMemo(
-    () => _displayAccounts.filter(([chain]) => chain.includes(trimmedQuery)),
-    [_displayAccounts, trimmedQuery],
+    () =>
+      _displayAccounts.filter(([chain]) => {
+        const chainName = chainInfos[chain as SupportedChain]?.chainName ?? chain
+        return chainName.toLowerCase().includes(trimmedQuery.toLowerCase())
+      }),
+    [_displayAccounts, chainInfos, trimmedQuery],
   )
 
   return (
@@ -64,12 +69,13 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
           </div>
         ) : (
           <>
-            <InputWithButton
-              icon={Images.Misc.Search}
+            <SearchInput
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery('')}
               placeholder='Search chains...'
             />
+
             <div className='bg-white-100 dark:bg-gray-900 rounded-2xl p-4 relative mt-4'>
               {displayAccounts.length > 0 ? (
                 <>
@@ -86,13 +92,15 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                     {displayAccounts.map(([_chain, address], index) => {
                       const chain = _chain as unknown as SupportedChain
                       const img = chainInfos[chain]?.chainSymbolImageUrl ?? defaultTokenLogo
+                      const chainName = chainInfos[chain]?.chainName ?? chain
                       const isFirst = index === 0
                       const isLast = index === displayAccounts.length - 1
 
                       return (
                         <React.Fragment key={_chain}>
                           <button
-                            className={`card-container w-full flex-row items-center py-3 px-4 ${
+                            style={{ paddingLeft: 0, paddingRight: 0 }}
+                            className={`card-container w-full flex-row items-center py-3 ${
                               isFirst || isLast ? 'rounded-2xl' : ''
                             }`}
                             onClick={() => {
@@ -112,11 +120,11 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                           >
                             <img
                               src={img}
-                              alt={`${chain} logo`}
+                              alt={`${chainName} logo`}
                               className='rounded-full border border-white-30 h-10 w-10'
                             />
                             <p className='font-bold dark:text-white-100 text-gray-700 capitalize ml-2'>
-                              {chain}
+                              {chainName}
                             </p>
                             <img
                               className='ml-auto'
@@ -124,8 +132,11 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                               alt='Right Arrow'
                             />
                           </button>
+
                           {!isLast && (
-                            <div className='w-full bg-gray-100 dark:bg-gray-800 h-[1px]' />
+                            <div className='w-full flex'>
+                              <CardDivider />
+                            </div>
                           )}
                         </React.Fragment>
                       )

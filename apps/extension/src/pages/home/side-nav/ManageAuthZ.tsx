@@ -24,7 +24,6 @@ import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
 import { formatAuthzDate } from 'utils/formatAuthzDate'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { useTxCallBack } from 'utils/txCallback'
 
 import { AuthzDetails } from './AuthzDetails'
@@ -186,13 +185,8 @@ function _ManageAuthZ({ goBack }: { goBack: () => void }) {
               }
               isRounded={true}
               title2='Chain'
-              icon={
-                isCompassWallet() ? null : (
-                  <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
-                )
-              }
-              className={isCompassWallet() ? '!cursor-default' : ''}
-              onClick={isCompassWallet() ? undefined : () => setShowSelectChain(true)}
+              icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
+              onClick={() => setShowSelectChain(true)}
             />
 
             {isLoading && (

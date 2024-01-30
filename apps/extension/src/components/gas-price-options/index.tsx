@@ -1,3 +1,4 @@
+import { StdFee } from '@cosmjs/stargate'
 import {
   currencyDetail,
   FeeTokenData,
@@ -12,20 +13,23 @@ import {
   useChainsStore,
   useDefaultGasEstimates,
   useFeeTokens,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
   useGasPriceStepForChain,
   useGetTokenBalances,
   useLowGasPriceStep,
   useNativeFeeDenom,
+  useSelectedNetwork,
+  useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
-  axiosWrapper,
   DefaultGasEstimates,
   GasPrice,
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { useChains } from '@leapwallet/elements-hooks'
 import { captureException } from '@sentry/react'
+import * as Sentry from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -34,7 +38,9 @@ import Tooltip from 'components/better-tooltip'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import Long from 'long'
+import { useFeeValidation } from 'pages/sign/fee-validation'
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
@@ -47,22 +53,22 @@ export const useDefaultGasPrice = (options?: {
   selectedNetwork?: 'mainnet' | 'testnet'
   feeDenom?: NativeDenom
 }) => {
-  const lowGasPriceStep = useLowGasPriceStep()
+  const lowGasPriceStep = useLowGasPriceStep(options?.activeChain)
   const nativeFeeDenom = useNativeFeeDenom(options?.activeChain, options?.selectedNetwork)
 
   const defaultPrice = useMemo(() => {
     const feeDenom = options?.feeDenom ?? nativeFeeDenom
     const amount = new BigNumber(lowGasPriceStep)
-
     return {
-      gasPrice: GasPrice.fromUserInput(amount.toString(), feeDenom.coinMinimalDenom),
+      gasPrice: GasPrice.fromUserInput(amount.toString(), feeDenom?.coinMinimalDenom ?? ''),
     }
   }, [options, nativeFeeDenom, lowGasPriceStep])
 
   return defaultPrice
 }
 
-export type GasPriceOptionsProps = React.PropsWithChildren & {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type GasPriceOptionsProps = React.PropsWithChildren<any> & {
   className?: string
   recommendedGasLimit?: BigNumber | string
   gasLimit: BigNumber | string
@@ -74,8 +80,12 @@ export type GasPriceOptionsProps = React.PropsWithChildren & {
   setError: React.Dispatch<React.SetStateAction<string | null>>
   initialFeeDenom?: string
   chain?: SupportedChain
+  network?: 'mainnet' | 'testnet'
   considerGasAdjustment?: boolean
   disableBalanceCheck?: boolean
+  fee?: StdFee
+  validateFee?: boolean
+  onInvalidFees?: (feeData: NativeDenom, isFeesValid: boolean | null) => void
 }
 
 const GasPriceOptions = ({
@@ -90,15 +100,21 @@ const GasPriceOptions = ({
   error,
   setError,
   chain,
+  network,
   considerGasAdjustment = true,
   disableBalanceCheck,
+  validateFee = false,
+  fee,
+  onInvalidFees,
 }: GasPriceOptionsProps) => {
   const [viewAdditionalOptions, setViewAdditionalOptions] = useState(false)
-
   const _activeChain = useActiveChain()
   const activeChain = chain ?? _activeChain
 
+  const _selectedNetwork = useSelectedNetwork()
+  const selectedNetwork = network ?? _selectedNetwork
   const nonNativeTokenGasLimitMultiplier = useRef<number>(1)
+  const { data: transactionConfig } = useTransactionConfigs()
 
   useEffect(() => {
     if (activeChain === 'osmosis') {
@@ -109,27 +125,51 @@ const GasPriceOptions = ({
   }, [activeChain])
 
   const { chains } = useChainsStore()
-  const chainInfo = chains[activeChain]
+  const chainInfo = chains[activeChain as SupportedChain]
   const defaultGasEstimates = useDefaultGasEstimates()
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain()
 
-  const baseGasPriceStep = useGasPriceStepForChain(activeChain)
-  const { lcdUrl } = useChainApis(activeChain)
+  const baseGasPriceStep = useGasPriceStepForChain(activeChain, selectedNetwork)
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork)
 
-  const { data: feeTokensList, isLoading: isFeeTokensListLoading } = useFeeTokens(activeChain)
+  const { data: feeTokensList, isLoading: isFeeTokensListLoading } = useFeeTokens(
+    activeChain,
+    selectedNetwork,
+  )
 
   const chainNativeFeeTokenData = useMemo(() => feeTokensList[0], [feeTokensList])
 
   const feeIbcDenomTrackerRef = useRef<{
-    current: string
+    current: string | null
     previous: string | null
   }>({
-    current: chainNativeFeeTokenData.ibcDenom,
+    current: chainNativeFeeTokenData.ibcDenom ?? null,
     previous: null,
   })
 
   const [userHasSelectedToken, setUserHasSelectedToken] = useState<boolean>(false)
   const [feeTokenData, setFeeTokenData] = useState<FeeTokenData & { gasPriceStep: GasPriceStep }>()
+  const feeValidation = useFeeValidation(chain ?? activeChain)
+  const prevFeeRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (JSON.stringify(fee) === prevFeeRef.current) return
+    prevFeeRef.current = JSON.stringify(fee)
+    if (fee && validateFee) {
+      feeValidation(
+        {
+          gaslimit: fee.gasLimit ?? Long.fromString(fee.gas),
+          feeAmount: fee.amount[0].amount,
+          feeDenom: fee.amount[0].denom,
+          chain: chain,
+        },
+        onInvalidFees,
+      ).catch((e) => {
+        Sentry.captureException(e)
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fee, chain])
 
   useEffect(() => {
     const fn = async () => {
@@ -138,7 +178,7 @@ const GasPriceOptions = ({
       if (activeChain === 'osmosis' && feeTokenData && feeTokenData.ibcDenom !== 'uosmo') {
         const gasPriceStep = await getGasPricesForOsmosisFee(
           lcdUrl ?? '',
-          feeTokenData.ibcDenom,
+          feeTokenData.ibcDenom ?? feeTokenData.denom.coinMinimalDenom,
           baseGasPriceStep,
         )
         setFeeTokenData(() => ({ ...feeTokenData, gasPriceStep }))
@@ -146,9 +186,15 @@ const GasPriceOptions = ({
     }
 
     fn()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feeTokensList])
 
-  const { allAssets: allTokens, ibcTokensStatus, nativeTokensStatus } = useGetTokenBalances()
+  const {
+    allAssets: allTokens,
+    s3IbcTokensStatus,
+    nativeTokensStatus,
+  } = useGetTokenBalances(activeChain, selectedNetwork)
 
   const feeTokenAsset = useMemo(() => {
     return allTokens.find((token) => {
@@ -171,19 +217,19 @@ const GasPriceOptions = ({
   }, [allTokens, chainInfo?.beta, chainInfo?.nativeDenoms, feeTokenData])
 
   const allTokensStatus = useMemo(() => {
-    if (nativeTokensStatus === 'success' && ibcTokensStatus === 'success') {
+    if (nativeTokensStatus === 'success' && s3IbcTokensStatus === 'success') {
       return 'success'
     }
-    if (nativeTokensStatus === 'loading' || ibcTokensStatus === 'loading') {
+    if (nativeTokensStatus === 'loading' || s3IbcTokensStatus === 'loading') {
       return 'loading'
     }
     return 'error'
-  }, [ibcTokensStatus, nativeTokensStatus])
+  }, [s3IbcTokensStatus, nativeTokensStatus])
 
   const [finalRecommendedGasLimit, setFinalRecommendedGasLimit] = useState(() => {
     return (
       recommendedGasLimit?.toString() ??
-      defaultGasEstimates[activeChain].DEFAULT_GAS_TRANSFER.toString() ??
+      defaultGasEstimates[activeChain as SupportedChain].DEFAULT_GAS_TRANSFER.toString() ??
       DefaultGasEstimates.DEFAULT_GAS_TRANSFER.toString()
     )
   })
@@ -207,6 +253,8 @@ const GasPriceOptions = ({
   useEffect(() => {
     feeIbcDenomTrackerRef.current.previous = feeIbcDenomTrackerRef.current.current
     feeIbcDenomTrackerRef.current.current = feeTokenData?.ibcDenom ?? ''
+
+    if (!feeIbcDenomTrackerRef.current.previous) return
 
     if (
       feeIbcDenomTrackerRef.current.current !== chainNativeFeeTokenData.ibcDenom &&
@@ -233,6 +281,7 @@ const GasPriceOptions = ({
       const newRecommendedGasLimit = new BigNumber(finalRecommendedGasLimit)
         .dividedBy(nonNativeTokenGasLimitMultiplier.current)
         .toFixed(0)
+
       setGasLimit(newGasLimit)
       setFinalRecommendedGasLimit(newRecommendedGasLimit)
     }
@@ -256,28 +305,31 @@ const GasPriceOptions = ({
       setError(null)
       return
     }
-    if (!feeTokenAsset) {
+    if (!feeTokenAsset && feeTokenData?.denom.coinDenom) {
       return setError(`You do not have any ${feeTokenData?.denom.coinDenom} tokens`)
     }
     const isIbcDenom = !!feeTokenAsset?.ibcDenom
     const amount = gasPriceBN
       .multipliedBy(gasLimit)
-      .multipliedBy(gasAdjustment)
+      .multipliedBy(considerGasAdjustment ? gasAdjustment : 1)
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore
       .dividedBy(10 ** feeTokenData?.denom?.coinDecimals ?? 8)
 
     if (
       (isIbcDenom && feeTokenAsset?.ibcDenom === feeTokenData?.ibcDenom) ||
-      feeTokenAsset.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
+      feeTokenAsset?.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
     ) {
-      if (amount.isGreaterThan(feeTokenAsset.amount ?? 0)) {
+      if (amount.isGreaterThan(feeTokenAsset?.amount ?? 0)) {
         setError(
           `You don't have enough ${feeTokenData?.denom.coinDenom.toUpperCase()} to pay gas fees`,
         )
       } else {
-        setError(null)
+        Number(gasLimit) && setError(null)
       }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     feeTokenAsset,
     feeTokenData,
@@ -288,6 +340,7 @@ const GasPriceOptions = ({
     nativeTokensStatus,
     setError,
     disableBalanceCheck,
+    considerGasAdjustment,
   ])
 
   // if recommended gas limit updates, set the gas limit to the recommended gas limit
@@ -336,6 +389,8 @@ const GasPriceOptions = ({
           userHasSelectedToken,
           setUserHasSelectedToken,
           considerGasAdjustment: considerGasAdjustment,
+          activeChain,
+          selectedNetwork,
         }}
       >
         {children}
@@ -376,12 +431,12 @@ GasPriceOptions.Selector = function Selector({
   className?: string
   preSelected?: boolean
 }) {
-  const { value, onChange, gasLimit, feeTokenData, considerGasAdjustment } = useGasPriceContext()
-  const activeChain = useActiveChain()
+  const { value, onChange, gasLimit, feeTokenData, considerGasAdjustment, activeChain } =
+    useGasPriceContext()
 
   const defaultGasEstimates = useDefaultGasEstimates()
   const [formatCurrency, preferredCurrency] = useFormatCurrency()
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain(activeChain)
 
   const { data: feeTokenFiatValue } = useQuery(
     ['fee-token-fiat-value', feeTokenData.denom.coinGeckoId],
@@ -403,7 +458,7 @@ GasPriceOptions.Selector = function Selector({
           option: GasOptions.LOW,
           gasPrice: GasPrice.fromUserInput(
             feeTokenData.gasPriceStep.low.toString(),
-            feeTokenData.ibcDenom,
+            feeTokenData.ibcDenom ?? feeTokenData.denom.coinMinimalDenom,
           ),
         },
         feeTokenData,
@@ -416,7 +471,7 @@ GasPriceOptions.Selector = function Selector({
           option: '' as GasOptions,
           gasPrice: GasPrice.fromUserInput(
             feeTokenData.gasPriceStep.low.toString(),
-            feeTokenData.ibcDenom,
+            feeTokenData.ibcDenom ?? feeTokenData.denom.coinMinimalDenom,
           ),
         },
         feeTokenData,
@@ -434,7 +489,7 @@ GasPriceOptions.Selector = function Selector({
           className,
         )}
       >
-        {Object.entries(feeTokenData.gasPriceStep).map(([level, gasPrice]) => {
+        {Object.entries(feeTokenData?.gasPriceStep ?? {}).map(([level, gasPrice]) => {
           const isSelected = value.option === level
           const gasPriceBN = new BigNumber(gasPrice)
           const estimatedGasLimit =
@@ -454,7 +509,10 @@ GasPriceOptions.Selector = function Selector({
             onChange(
               {
                 option: level as GasOptions,
-                gasPrice: GasPrice.fromUserInput(gasPrice.toString(), feeTokenData.ibcDenom),
+                gasPrice: GasPrice.fromUserInput(
+                  gasPrice.toString(),
+                  feeTokenData.ibcDenom ?? feeTokenData.denom.coinMinimalDenom,
+                ),
               },
               feeTokenData,
             )
@@ -564,15 +622,9 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
 }) {
   const [showTokenSelectSheet, setShowTokenSelectSheet] = useState(false)
   const [inputTouched, setInputTouched] = useState(false)
-  const activeChain = useActiveChain()
-
-  // hardcoded
-  const baseGasPriceStep = useGasPriceStepForChain(activeChain)
-  const { lcdUrl } = useChainApis(activeChain)
 
   const ref = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const activeChainInfo = useChainInfo()
 
   const {
     feeTokenData,
@@ -589,17 +641,23 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
     setUserHasSelectedToken,
     userHasSelectedToken,
     considerGasAdjustment,
+    activeChain,
+    selectedNetwork,
   } = useGasPriceContext()
 
+  // hardcoded
+  const baseGasPriceStep = useGasPriceStepForChain(activeChain, selectedNetwork)
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork)
+  const activeChainInfo = useChainInfo(activeChain)
+
   const defaultTokenLogo = useDefaultTokenLogo()
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain(activeChain)
+  const { data: feeTokensList, isLoading } = useFeeTokens(activeChainInfo.key, selectedNetwork)
 
   const [gasLimitInputValue, setGasLimitInputValue] = useState(() => {
     const limit = gasLimit.toString() || recommendedGasLimit?.toString() || '100000'
     return Math.round(Number(limit) * (considerGasAdjustment ? gasAdjustment : 1)).toString()
   })
-
-  const { data: feeTokensList, isLoading } = useFeeTokens(activeChainInfo.key)
 
   const eligibleFeeTokens = useMemo(() => {
     return allTokens.filter((token) => {
@@ -614,12 +672,6 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
   }, [allTokens, feeTokensList])
 
   useEffect(() => {
-    setGasLimitInputValue(
-      Math.round(Number(gasLimit) * (considerGasAdjustment ? gasAdjustment : 1)).toString(),
-    )
-  }, [considerGasAdjustment, gasAdjustment, gasLimit])
-
-  useEffect(() => {
     if (viewAdditionalOptions) {
       ref.current?.scrollIntoView({ behavior: 'smooth' })
     }
@@ -628,29 +680,8 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
   useEffect(() => {
     if (isGasLimitInvalid(gasLimitInputValue)) {
       setError('Gas limit is invalid')
-    } else {
-      setError(null)
     }
   }, [gasLimitInputValue, setError])
-
-  useEffect(() => {
-    const input = inputRef.current
-    if (!input) {
-      return
-    }
-    const handleInputValueChange = (e: Event) => {
-      const value = (e.target as HTMLInputElement).value
-      const _gasLimitInt = parseInt(value, 10) / (considerGasAdjustment ? gasAdjustment : 1)
-      const _gasLimit = Math.round(_gasLimitInt).toString()
-      if (!isGasLimitInvalid(gasLimitInputValue) && _gasLimit !== recommendedGasLimit) {
-        setGasLimit(_gasLimit)
-      }
-    }
-    input.addEventListener('change', handleInputValueChange)
-    return () => {
-      input.removeEventListener('change', handleInputValueChange)
-    }
-  }, [considerGasAdjustment, gasAdjustment, gasLimitInputValue, recommendedGasLimit, setGasLimit])
 
   useEffect(() => {
     const handleTouch = () => {
@@ -743,6 +774,18 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
     }
   }
 
+  const handleGasLimitOnChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setGasLimitInputValue(value)
+
+    const _gasLimitInt = parseInt(value || '0', 10) / (considerGasAdjustment ? gasAdjustment : 1)
+    const _gasLimit = Math.round(_gasLimitInt).toString()
+
+    if (!isGasLimitInvalid(gasLimitInputValue) && _gasLimit !== recommendedGasLimit) {
+      setGasLimit(_gasLimit)
+    }
+  }
+
   return viewAdditionalOptions ? (
     <>
       <div
@@ -811,12 +854,11 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
               buttonTextColor={Colors.getChainColor(activeChain)}
               value={gasLimitInputValue}
               invalid={isGasLimitInvalid(gasLimitInputValue)}
+              maxLength={18}
               onAction={() => {
                 setGasLimit(recommendedGasLimit)
               }}
-              onChange={(e) => {
-                setGasLimitInputValue(e.target.value)
-              }}
+              onChange={handleGasLimitOnChange}
             />
           </div>
           {showGasLimitWarning &&

@@ -32,6 +32,7 @@ export function getAminoSignDoc({
     fee: defaultFee,
     memo: defaultMemo,
     msgs: signDoc.msgs,
+    ...signDoc,
   }
 
   if (!isAdr36) {
@@ -46,6 +47,8 @@ export function getAminoSignDoc({
               : 'gasLimit' in sortedSignDoc.fee
               ? sortedSignDoc.fee.gasLimit
               : sortedSignDoc.fee.gas,
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             gasPrice,
           )
 

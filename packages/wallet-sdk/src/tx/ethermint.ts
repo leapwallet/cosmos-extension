@@ -15,16 +15,16 @@ import { getClientState } from '../utils';
 import { sleep } from '../utils/sleep';
 
 export class EthermintTxHandler {
-  private chain: transactions.Chain;
+  protected chain: transactions.Chain;
 
-  constructor(private restUrl: string, private wallet: EthWallet, private chainId?: string) {
+  constructor(private restUrl: string, protected wallet: EthWallet, private chainId?: string) {
     this.chain = {
       chainId: 123,
       cosmosChainId: chainId ? chainId : 'evmos_9001-2',
     };
   }
 
-  private static getFeeObject(fee: StdFee): transactions.Fee {
+  protected static getFeeObject(fee: StdFee): transactions.Fee {
     return {
       amount: fee.amount[0].amount,
       denom: fee.amount[0].denom,
@@ -150,6 +150,18 @@ export class EthermintTxHandler {
     return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
   }
 
+  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: StdFee, memo = '') {
+    const walletAccount = await this.wallet.getAccounts();
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const txFee = EthermintTxHandler.getFeeObject(fee);
+    const tx = transactions.createTxMsgGenericRevoke(this.chain, sender, txFee, memo ?? '', {
+      botAddress: grantee,
+      typeUrl: msgType,
+    });
+
+    return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
+  }
+
   async unDelegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee, memo?: string) {
     const walletAccount = await this.wallet.getAccounts();
     const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
@@ -261,23 +273,31 @@ export class EthermintTxHandler {
     }
     const baseURL = this.restUrl;
     await sleep(2000);
-    const { data: result } = await axiosWrapper({ baseURL, method: 'get', url: `/cosmos/tx/v1beta1/txs/${txHash}` });
-    const txResponse = result.tx_response;
-    if (txResponse.code) {
+    let result;
+
+    try {
+      const { data } = await axiosWrapper({ baseURL, method: 'get', url: `/cosmos/tx/v1beta1/txs/${txHash}` });
+      result = data;
+    } catch (_) {
+      return this.pollForTx(txHash, timeout, pollcount + 1);
+    }
+
+    const txResponse = result?.tx_response;
+    if (txResponse?.code) {
       return this.pollForTx(txHash, timeout, pollcount + 1);
     }
     return {
-      code: result.code,
-      height: result.height,
-      rawLog: result.rawLog,
+      code: result?.code,
+      height: result?.height,
+      rawLog: result?.rawLog,
       transactionHash: txHash,
-      gasUsed: result.gasUsed,
-      gasWanted: result.gasWanted,
-      events: result.events,
+      gasUsed: result?.gasUsed,
+      gasWanted: result?.gasWanted,
+      events: result?.events,
     };
   }
 
-  private async getSender(address: string, pubkey: string): Promise<transactions.Sender> {
+  protected async getSender(address: string, pubkey: string): Promise<transactions.Sender> {
     const account = await fetchAccountDetails(this.restUrl ?? '', address);
 
     return {

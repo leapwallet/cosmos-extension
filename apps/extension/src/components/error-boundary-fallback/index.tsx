@@ -1,7 +1,7 @@
 import { Header } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
+import { ACTIVE_CHAIN, SELECTED_NETWORK } from 'config/storage-keys'
 import { Images } from 'images'
-import { Twitter } from 'images/nav'
 import React, { useCallback } from 'react'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -9,6 +9,12 @@ import browser from 'webextension-polyfill'
 
 const ErrorBoundaryFallback = () => {
   const reload = useCallback(() => {
+    //reset the active chain to cosmos or sei
+    if (isCompassWallet()) {
+      browser.storage.local.set({ [ACTIVE_CHAIN]: 'seiTestnet2', [SELECTED_NETWORK]: 'mainnet' })
+    } else {
+      browser.storage.local.set({ [ACTIVE_CHAIN]: 'cosmos', [SELECTED_NETWORK]: 'mainnet' })
+    }
     window.location.href = browser.runtime.getURL('/index.html#/home')
     window.location.reload()
   }, [])
@@ -18,15 +24,6 @@ const ErrorBoundaryFallback = () => {
       <PopupLayout
         header={
           <Header
-            imgSrc={Twitter}
-            onImgClick={() => {
-              window.open(
-                isCompassWallet()
-                  ? 'https://twitter.com/compass_wallet'
-                  : 'https://twitter.com/leap_cosmos',
-                '_blank',
-              )
-            }}
             title={isCompassWallet() ? 'Compass Wallet' : 'Leap Wallet'}
             topColor={isCompassWallet() ? Colors.compassPrimary : '#E54f47'}
           />

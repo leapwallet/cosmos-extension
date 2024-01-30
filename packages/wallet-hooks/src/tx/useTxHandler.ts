@@ -2,6 +2,7 @@ import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { InjectiveTx, SeiTxHandler, StrideTx, SupportedChain, Tx } from '@leapwallet/cosmos-wallet-sdk';
 import { EthermintTxHandler } from '@leapwallet/cosmos-wallet-sdk';
+import { CWTx } from '@leapwallet/cosmos-wallet-sdk';
 import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/secret/sscrt';
 import { useCallback } from 'react';
 import { Wallet } from 'secretjs';
@@ -17,8 +18,8 @@ export function useTxHandler({
   const chain = forceChain ?? activeChain;
   const network = forceNetwork ?? selectedNetwork;
 
-  const { rpcUrl, lcdUrl } = useChainApis(forceChain, forceNetwork);
-  const chainInfo = useChainInfo(forceChain);
+  const { rpcUrl, lcdUrl } = useChainApis(chain, network);
+  const chainInfo = useChainInfo(chain);
   const chainInfos = useGetChains();
 
   return useCallback(
@@ -78,6 +79,21 @@ export function useCW20TxHandler() {
         broadcastTimeoutMs: 60_000,
       });
       return client;
+    },
+    [rpcUrl],
+  );
+}
+
+export function useCWTxHandler() {
+  const { rpcUrl, lcdUrl = '' } = useChainApis();
+
+  return useCallback(
+    async (wallet: OfflineSigner) => {
+      const _tx = new CWTx(`${rpcUrl}/`, lcdUrl, wallet);
+      await _tx.initClient();
+      return _tx;
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [rpcUrl],
   );

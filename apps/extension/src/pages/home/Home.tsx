@@ -1,11 +1,14 @@
 import {
   SecretToken,
+  useFeatureFlags,
+  useGetAsteroidTokens,
   useGetTokenBalances,
   useSendIbcChains,
   useSnipDenomsStore,
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { getEthereumAddress } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Buttons,
   CardDivider,
@@ -20,19 +23,21 @@ import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import ClickableIcon from 'components/clickable-icons'
 import { EmptyCard } from 'components/empty-card'
+import { EthCopyWalletAddress } from 'components/eth-copy-wallet-address'
 import PopupLayout from 'components/layout/popup-layout'
 import ReceiveToken from 'components/Receive'
+import { useHardCodedActions } from 'components/search-modal'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
-import { ButtonName, EventName, PageName } from 'config/analytics'
+import { EventName, PageName } from 'config/analytics'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX, ON_RAMP_SUPPORT_CHAINS } from 'config/config'
-import { chainsWithSwapSupport, walletLabels } from 'config/constants'
+import { SHOW_ETH_ADDRESS_CHAINS, walletLabels } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
+import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
 import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -54,10 +59,13 @@ import { sliceAddress, trim } from 'utils/strings'
 
 import { searchModalState } from '../../atoms/search-modal'
 import AssetCard from './AssetCard'
+import { CopyAddressSheet } from './CopyAddressSheet'
 import { BitcoinDeposit, DepositBTCBanner } from './DepositBTCBanner'
+import FundBanners from './FundBanners'
 import GlobalBannersAD from './GlobalBannersAD'
 import { ManageTokens, SecretManageTokens } from './manage-tokens'
 import NftV2Header from './NftV2Header'
+import RequestFaucet from './RequestFaucet'
 import SelectChain from './SelectChain'
 import SelectWallet from './SelectWallet'
 import SideNav from './side-nav'
@@ -75,6 +83,7 @@ const initialFaucetResp: InitialFaucetResp = {
 export default function Home() {
   usePageView(PageName.Home)
 
+  const { data: featureFlags } = useFeatureFlags()
   const chainInfos = useChainInfos()
   const txDeclined = useQuery().get('txDeclined') ?? undefined
   const walletAvatarChanged = useQuery().get('walletAvatarChanged') ?? undefined
@@ -85,6 +94,7 @@ export default function Home() {
 
   const navigate = useNavigate()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
+  const { handleSwapClick } = useHardCodedActions()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -109,7 +119,9 @@ export default function Home() {
   const { denoms: SecretTokens } = useSnipDenomsStore()
 
   const [areSmallBalancesHidden] = useHideSmallBalances()
-  const { formatHideBalance } = useHideAssets()
+  const { hideBalances: balancesHidden, formatHideBalance } = useHideAssets()
+  const setBalancesVisibility = useSetHideAssets()
+
   const [showSelectedChainAlert, setShowSelectedChainAlert] =
     useRecoilState(selectedChainAlertState)
   const setShowSearchModal = useSetRecoilState(searchModalState)
@@ -117,18 +129,32 @@ export default function Home() {
   const sendIbcChains = useSendIbcChains()
 
   const {
-    allAssets,
-    totalCurrencyInPreferredFiatValue,
-    ibcTokensStatus,
+    isWalletHasFunds,
+    allAssets: _allAssets,
+    totalCurrencyInPreferredFiatValue: _allAssetsCurrencyInFiat,
+    s3IbcTokensStatus,
+    nonS3IbcTokensStatus,
     nativeTokensStatus,
     cw20TokensStatus,
     cw20TokensBalances,
     erc20TokensStatus,
   } = useGetTokenBalances()
+
+  const { status: asteroidsTokensStatus, data } = useGetAsteroidTokens()
+  const allAssets = useMemo(() => {
+    return [..._allAssets, ...(data?.asteroidTokens ?? [])]
+  }, [_allAssets, data?.asteroidTokens])
+
+  const totalCurrencyInPreferredFiatValue = useMemo(() => {
+    return _allAssetsCurrencyInFiat.plus(data?.currencyInFiatValue ?? 0)
+  }, [_allAssetsCurrencyInFiat, data?.currencyInFiatValue])
+
   const activeChain = useActiveChain()
-  const isNomicChain = activeChain === 'nomic'
-  const chain = chainInfos[activeChain]
+  const [showCopyAddressSheet, setShowCopyAddressSheet] = useState(false)
   const { activeWallet } = useActiveWallet()
+
+  const chain = chainInfos[activeChain]
+
   const isTestnet = useSelectedNetwork() === 'testnet'
 
   const walletAvatar = useMemo(() => {
@@ -147,29 +173,42 @@ export default function Home() {
     let status =
       erc20TokensStatus !== 'success' &&
       cw20TokensStatus !== 'success' &&
-      ibcTokensStatus !== 'success' &&
-      nativeTokensStatus !== 'success'
+      s3IbcTokensStatus !== 'success' &&
+      nonS3IbcTokensStatus !== 'success' &&
+      nativeTokensStatus !== 'success' &&
+      asteroidsTokensStatus !== 'success'
         ? 'loading'
         : ''
 
     status =
       erc20TokensStatus === 'success' &&
       cw20TokensStatus == 'success' &&
-      ibcTokensStatus === 'success' &&
-      nativeTokensStatus === 'success'
+      s3IbcTokensStatus === 'success' &&
+      nonS3IbcTokensStatus === 'success' &&
+      nativeTokensStatus === 'success' &&
+      asteroidsTokensStatus === 'success'
         ? 'success'
         : status
 
     status =
       erc20TokensStatus === 'error' &&
       cw20TokensStatus === 'error' &&
-      ibcTokensStatus === 'error' &&
-      nativeTokensStatus === 'error'
+      s3IbcTokensStatus === 'error' &&
+      nonS3IbcTokensStatus === 'error' &&
+      nativeTokensStatus === 'error' &&
+      asteroidsTokensStatus === 'error'
         ? 'error'
         : status
 
     return status
-  }, [cw20TokensStatus, erc20TokensStatus, ibcTokensStatus, nativeTokensStatus])
+  }, [
+    asteroidsTokensStatus,
+    cw20TokensStatus,
+    erc20TokensStatus,
+    nativeTokensStatus,
+    nonS3IbcTokensStatus,
+    s3IbcTokensStatus,
+  ])
 
   usePerformanceMonitor({
     page: 'home',
@@ -177,6 +216,16 @@ export default function Home() {
     op: 'homePageLoad',
     description: 'loading state on home page',
   })
+
+  const walletAddresses = useMemo(() => {
+    if (
+      activeWallet?.walletType !== WALLETTYPE.LEDGER &&
+      SHOW_ETH_ADDRESS_CHAINS.includes(activeChain)
+    ) {
+      return [getEthereumAddress(address), address]
+    }
+    return [address]
+  }, [activeChain, address, activeWallet])
 
   const [assets, smallBalanceAssets] = useMemo(() => {
     let assetsToShow = allAssets
@@ -221,12 +270,17 @@ export default function Home() {
   const loading =
     erc20TokensStatus !== 'success' &&
     cw20TokensStatus !== 'success' &&
-    ibcTokensStatus !== 'success' &&
-    nativeTokensStatus !== 'success'
+    s3IbcTokensStatus !== 'success' &&
+    nonS3IbcTokensStatus !== 'success' &&
+    nativeTokensStatus !== 'success' &&
+    asteroidsTokensStatus !== 'success'
 
   const disabled =
     activeWallet.walletType === WALLETTYPE.LEDGER &&
     (chain?.bip44.coinType === '60' || chain?.bip44.coinType === '931')
+
+  const isNomicChain = activeChain === 'nomic'
+  const walletCtaDisabled = isNomicChain || disabled
 
   const walletName =
     activeWallet.walletType === WALLETTYPE.LEDGER &&
@@ -238,7 +292,9 @@ export default function Home() {
     erc20TokensStatus === 'loading' ||
     nativeTokensStatus === 'loading' ||
     cw20TokensStatus === 'loading' ||
-    ibcTokensStatus === 'loading'
+    s3IbcTokensStatus === 'loading' ||
+    nonS3IbcTokensStatus === 'loading' ||
+    asteroidsTokensStatus === 'loading'
 
   const activeChainInfo = chainInfos[activeChain]
 
@@ -253,6 +309,7 @@ export default function Home() {
       chainId: chain.chainId,
       chainName: chain.chainName,
       openMode: 'Icon',
+      time: Date.now() / 1000,
     })
   }
 
@@ -277,13 +334,7 @@ export default function Home() {
               imgSrc: NftLogo,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={
-              isCompassWallet()
-                ? undefined
-                : function noRefCheck() {
-                    setShowChainSelector(true)
-                  }
-            }
+            onImgClick={() => setShowChainSelector(true)}
             title={
               <Buttons.Wallet
                 brandLogo={
@@ -380,26 +431,42 @@ export default function Home() {
             {disabled ? (
               <div className='flex items-center bg-red-300 rounded-2xl py-1 px-4 w-fit self-center mx-auto mb-[24px]'>
                 <span className='material-icons-round text-white-100 mr-[5px]'>error</span>{' '}
-                <Text size='xs'>{`Ledger not supported for ${chain?.chainName} chain`}</Text>
+                <Text size='xs'>Ledger not supported for {chain?.chainName}</Text>
               </div>
             ) : (
               <div className='flex justify-center items-start mb-6'>
-                <Buttons.CopyWalletAddress
+                <EthCopyWalletAddress
                   textOnCopied={'Copied Address'}
-                  walletAddress={sliceAddress(address)}
+                  walletAddresses={walletAddresses.map((address) => sliceAddress(address))}
                   color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-                  onCopy={() => {
-                    UserClipboard.copyText(address)
-                  }}
+                  onCopy={() => UserClipboard.copyText(walletAddresses[0])}
                   data-testing-id='home-copy-address-btn'
+                  onTextClick={
+                    walletAddresses.length > 1 ? () => setShowCopyAddressSheet(true) : undefined
+                  }
                 />
-                <button
-                  className='flex ml-2 h-9 w-9 dark:bg-gray-900 bg-white-100 justify-center text-xs text-gray-600 dark:text-gray-200 items-center cursor-pointer rounded-full'
-                  onClick={handleQuickSearchIconClick}
-                  title='Search'
-                >
-                  <span className='text-base material-icons-round'>search</span>
-                </button>
+
+                {isCompassWallet() ? (
+                  <button
+                    className={
+                      'flex ml-2 h-9 w-9 dark:bg-gray-900 bg-white-100 justify-center text-xs text-gray-600 dark:text-gray-200 items-center cursor-pointer rounded-full'
+                    }
+                    onClick={() => setBalancesVisibility(!balancesHidden)}
+                    title={balancesHidden ? 'Show Balances' : 'Hide Balances'}
+                  >
+                    <span className='text-sm material-icons-round'>
+                      {balancesHidden ? 'visibility' : 'visibility_off'}
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    className='flex ml-2 h-9 w-9 dark:bg-gray-900 bg-white-100 justify-center text-xs text-gray-600 dark:text-gray-200 items-center cursor-pointer rounded-full'
+                    onClick={handleQuickSearchIconClick}
+                    title='Search'
+                  >
+                    <span className='text-base material-icons-round'>search</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -415,40 +482,33 @@ export default function Home() {
                     alt: ON_RAMP_SUPPORT_CHAINS.includes(activeChain) ? 'Deposit' : 'Receive',
                   }}
                   onClick={() => setShowReceiveSheet(true)}
-                  disabled={isNomicChain}
+                  disabled={walletCtaDisabled}
                 />
                 <ClickableIcon
                   image={{ src: 'file_upload', alt: 'Send' }}
                   onClick={() => navigate('/send')}
-                  disabled={isNomicChain}
+                  disabled={walletCtaDisabled}
                 />
                 <ClickableIcon
-                  image={{ src: Images.Misc.IbcUnion, alt: 'IBC' }}
+                  image={{ src: Images.Misc.IbcUnion, alt: 'IBC', type: 'url' }}
                   onClick={() => navigate('/ibc')}
-                  disabled={isNomicChain || sendIbcChains.length === 0}
+                  disabled={walletCtaDisabled || sendIbcChains.length === 0}
+                />
+                <ClickableIcon
+                  image={{ src: Images.Misc.BridgeRoute, alt: 'Bridge', type: 'url' }}
+                  onClick={() => {
+                    const baseUrl = 'https://cosmos.leapwallet.io/transact/bridge'
+                    window.open(
+                      `${baseUrl}?destinationChainId=${activeChainInfo.chainId}`,
+                      '_blank',
+                    )
+                  }}
+                  disabled={walletCtaDisabled}
                 />
                 <ClickableIcon
                   image={{ src: 'swap_horiz', alt: 'Swap' }}
-                  disabled={isNomicChain}
-                  onClick={() => {
-                    if (chainsWithSwapSupport.includes(activeChain) && !isTestnet) {
-                      navigate('/swap')
-                    } else {
-                      const chain = chainInfos[activeChain]
-                      const redirectUrl = `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${chain.chainId}`
-                      try {
-                        mixpanel.track(EventName.ButtonClick, {
-                          buttonName: ButtonName.IBC_SWAP,
-                          redirectUrl,
-                          chainId: chain.chainId,
-                          chainName: chain.chainName,
-                        })
-                      } catch (e) {
-                        // ignore
-                      }
-                      window.open(redirectUrl, '_blank')
-                    }
-                  }}
+                  disabled={walletCtaDisabled || featureFlags?.all_chains?.swap === 'disabled'}
+                  onClick={() => handleSwapClick()}
                 />
               </div>
             ) : (
@@ -488,7 +548,7 @@ export default function Home() {
             )}
           </div>
 
-          {showQuickOptionDiv ? (
+          {showQuickOptionDiv && !isCompassWallet() ? (
             <div className='flex dark:bg-gray-900 bg-white-100 dark:text-gray-200 text-gray-600 rounded-full w-[344px] p-2 mb-4'>
               <p className='flex-1 text-center'>
                 Press {navigator.userAgent.toLowerCase().includes('windows') ? 'ctrl' : 'cmd'} + k
@@ -506,90 +566,111 @@ export default function Home() {
             </div>
           ) : null}
 
-          {!isCompassWallet() && (
-            <GlobalBannersAD handleBtcBannerClick={() => setShowBitcoinDepositSheet(true)} />
+          {!isCompassWallet() &&
+            selectedNetwork !== 'testnet' &&
+            isWalletHasFunds &&
+            !atLeastOneTokenIsLoading && (
+              <GlobalBannersAD handleBtcBannerClick={() => setShowBitcoinDepositSheet(true)} />
+            )}
+
+          {selectedNetwork === 'testnet' && (
+            <RequestFaucet
+              address={address}
+              setShowFaucetResp={(data) => {
+                setShowFaucetResp(data)
+              }}
+            />
           )}
 
-          <div className='rounded-2xl dark:bg-gray-900 bg-white-100 mx-7'>
-            <Text size='sm' color='dark:text-gray-200 text-gray-600 font-medium px-5 pt-4'>
-              Available Tokens {(assets?.length ?? 0) > 0 ? `(${assets.length})` : ''}
-            </Text>
-
-            {!atLeastOneTokenIsLoading && assets.length === 0 ? (
-              <Text size='sm' className='dark:text-gray-400 text-gray-400 px-5 mt-2'>
-                You don&apos;t have any tokens yet.
-              </Text>
-            ) : null}
-
-            {assets?.map((asset, index, array) => (
-              <AssetCard
-                key={`${asset.symbol}-${index}-${asset.ibcChainInfo?.pretty_name}`}
-                isLast={index === array.length - 1}
-                asset={array[index]}
-              />
-            ))}
-
-            {!atLeastOneTokenIsLoading &&
-            areSmallBalancesHidden &&
-            smallBalanceAssets?.length !== 0 ? (
-              <p className='text-xs px-4 my-4 text-gray-300 dark:text-gray-600'>
-                Tokens with small balances hidden (&lt;$0.1). Customize settings{' '}
-                <button className='inline underline' onClick={() => setShowSideNav(true)}>
-                  here
-                </button>
-                .
-              </p>
-            ) : null}
-
-            {invalidKeyTokens?.map((token) => {
-              return (
-                <React.Fragment key={token.symbol + token?.ibcDenom}>
-                  <CardDivider />
-                  <GenericCard
-                    onClick={() => {
-                      setScrtToken({
-                        ...SecretTokens[token.coinMinimalDenom],
-                        contractAddr: token.coinMinimalDenom,
-                      })
-                    }}
-                    title={token.symbol}
-                    img={<img src={token.img} className='w-[28px] h-[28px] mr-2' />}
-                    subtitle2={<span className='material-icons-round text-red-300'>error</span>}
-                  />
-                  <div className='bg-gray-100 dark:bg-gray-800 px-4 py-2 mx-4 rounded mb-4'>
-                    <Text size='xs' color={'text-gray-400'} className='font-bold'>
-                      Wrong Key or Key not set
-                    </Text>
-                  </div>
-                </React.Fragment>
-              )
-            })}
-
-            {nativeTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
-            {ibcTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
-            {cw20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
-            {activeChain === 'secret' && snip20TokensStatus !== 'success' && snip20Enabled ? (
-              <TokenCardSkeleton />
-            ) : null}
-            {erc20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
-
-            {cw20TokensStatus === 'success' && (
-              <div
-                className='px-4 py-3 border-t-[1px] dark:border-gray-800 border-gray-100 cursor-pointer'
-                onClick={() => setShowManageTokens(true)}
-              >
-                <Text
-                  size='md'
-                  className='font-bold'
-                  style={{
-                    color: Colors.getChainColor(activeChain, chain),
-                  }}
-                >
-                  Manage Tokens
+          {!isCompassWallet() && !isWalletHasFunds && !atLeastOneTokenIsLoading ? (
+            <FundBanners />
+          ) : (
+            <div className='rounded-2xl dark:bg-gray-900 bg-white-100 mx-7'>
+              {!atLeastOneTokenIsLoading && (
+                <Text size='sm' color='dark:text-gray-200 text-gray-600 font-medium px-5 pt-4'>
+                  Available Tokens {(assets?.length ?? 0) > 0 ? `(${assets.length})` : ''}
                 </Text>
-              </div>
-            )}
-          </div>
+              )}
+
+              {!atLeastOneTokenIsLoading && assets.length === 0 ? (
+                <Text size='sm' className='dark:text-gray-400 text-gray-400 px-5 mt-2'>
+                  You don&apos;t have any tokens yet.
+                </Text>
+              ) : null}
+
+              {assets?.map((asset, index, array) => (
+                <AssetCard
+                  key={`${asset.symbol}-${index}-${asset.ibcChainInfo?.pretty_name}`}
+                  isLast={index === array.length - 1}
+                  asset={array[index]}
+                />
+              ))}
+
+              {!atLeastOneTokenIsLoading &&
+              areSmallBalancesHidden &&
+              smallBalanceAssets?.length !== 0 ? (
+                <p className='text-xs px-4 my-4 text-gray-300 dark:text-gray-600'>
+                  Tokens with small balances hidden (&lt;$0.1). Customize settings{' '}
+                  <button className='inline underline' onClick={() => setShowSideNav(true)}>
+                    here
+                  </button>
+                  .
+                </p>
+              ) : null}
+
+              {invalidKeyTokens?.map((token) => {
+                return (
+                  <React.Fragment key={token.symbol + token?.ibcDenom}>
+                    <CardDivider />
+                    <GenericCard
+                      onClick={() => {
+                        setScrtToken({
+                          ...SecretTokens[token.coinMinimalDenom],
+                          contractAddr: token.coinMinimalDenom,
+                        })
+                      }}
+                      title={token.symbol}
+                      img={<img src={token.img} className='w-[28px] h-[28px] mr-2' />}
+                      subtitle2={<span className='material-icons-round text-red-300'>error</span>}
+                    />
+                    <div className='bg-gray-100 dark:bg-gray-800 px-4 py-2 mx-4 rounded mb-4'>
+                      <Text size='xs' color={'text-gray-400'} className='font-bold'>
+                        Wrong Key or Key not set
+                      </Text>
+                    </div>
+                  </React.Fragment>
+                )
+              })}
+
+              {nativeTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+              {s3IbcTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+              {nonS3IbcTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+
+              {cw20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+              {activeChain === 'secret' && snip20TokensStatus !== 'success' && snip20Enabled ? (
+                <TokenCardSkeleton />
+              ) : null}
+              {erc20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+              {asteroidsTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+
+              {!atLeastOneTokenIsLoading && cw20TokensStatus === 'success' && (
+                <div
+                  className='px-4 py-3 border-t-[1px] dark:border-gray-800 border-gray-100 cursor-pointer'
+                  onClick={() => setShowManageTokens(true)}
+                >
+                  <Text
+                    size='md'
+                    className='font-bold'
+                    style={{
+                      color: Colors.getChainColor(activeChain, chain),
+                    }}
+                  >
+                    Manage Tokens
+                  </Text>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </PopupLayout>
 
@@ -626,6 +707,11 @@ export default function Home() {
         onCloseHandler={() => {
           setShowBitcoinDepositSheet(false)
         }}
+      />
+      <CopyAddressSheet
+        isVisible={showCopyAddressSheet}
+        onClose={() => setShowCopyAddressSheet(false)}
+        walletAddresses={walletAddresses}
       />
       <BottomNav label={BottomNavLabel.Home} disabled={disabled} />
     </div>

@@ -15,10 +15,12 @@ import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 import { sessionGetItem, sessionRemoveItem } from 'utils/sessionStorage'
 
 import { Chip, NftCard } from './components'
+import { SendNftCard } from './components/send-nft'
 import { NftPage, useNftContext } from './context'
 
 type MenuProps = {
@@ -81,6 +83,7 @@ export function NftDetails() {
   const { setActivePage, nftDetails, setNftDetails } = useNftContext()
 
   const favNfts = useFavNFTs()
+  const [showSendNFT, setShowSendNFT] = useState(false)
   const hiddenNfts = useHiddenNFTs()
   const { addFavNFT, removeFavNFT } = useModifyFavNFTs()
   const { addHiddenNFT, removeHiddenNFT } = useModifyHiddenNFTs()
@@ -164,17 +167,21 @@ export function NftDetails() {
           <Header
             action={{
               onClick: () => {
-                const lastActivePage = sessionGetItem('nftLastActivePage') ?? 'ShowNfts'
-                setActivePage(lastActivePage as NftPage)
-                sessionRemoveItem('nftLastActivePage')
-                setNftDetails(null)
+                if (showSendNFT) {
+                  setShowSendNFT(false)
+                } else {
+                  const lastActivePage = sessionGetItem('nftLastActivePage') ?? 'ShowNfts'
+                  setActivePage(lastActivePage as NftPage)
+                  sessionRemoveItem('nftLastActivePage')
+                  setNftDetails(null)
+                }
               },
               type: HeaderActionType.BACK,
             }}
             title={
               <h1 className='flex'>
                 <span className='truncate max-w-[150px]' title={nftDetails?.name ?? ''}>
-                  {nftDetails?.name ?? ''}
+                  {showSendNFT ? 'Send' : nftDetails?.name ?? ''}
                 </span>
               </h1>
             }
@@ -248,86 +255,109 @@ export function NftDetails() {
           </div>
 
           <CardDivider />
+          {!!showSendNFT && isCompassWallet() && <SendNftCard nftDetails={nftDetails} />}
+          {!showSendNFT && (
+            <div className='my-4 flex justify-between items-center'>
+              <button
+                className={classNames(
+                  'rounded-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white-100 flex items-center justify-center flex-1 py-[12px] px-[30px] mr-[12px]',
+                  {
+                    'opacity-50': !nftDetails?.tokenUri,
+                  },
+                )}
+                onClick={() => window.open(normalizeImageSrc(nftDetails?.tokenUri ?? ''), '_blank')}
+                disabled={!nftDetails?.tokenUri}
+              >
+                <img className='mr-2 invert dark:invert-0' src={Images.Misc.OpenLink} alt='open' />{' '}
+                View on marketplace
+              </button>
 
-          <div className='my-4 flex justify-between items-center'>
-            <button
-              className={classNames(
-                'rounded-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white-100 flex items-center justify-center flex-1 py-[12px] px-[30px] mr-[12px]',
-                {
-                  'opacity-50': !nftDetails?.tokenUri,
-                },
+              {isCompassWallet() && (
+                <button
+                  title='send'
+                  className='w-[20px] h-[20px] dark:text-gray-100 mx-1 text-black-100'
+                  onClick={() => {
+                    setShowSendNFT(true)
+                  }}
+                >
+                  <span className='material-icons-round'>{'file_upload'}</span>
+                </button>
               )}
-              onClick={() => window.open(normalizeImageSrc(nftDetails?.tokenUri ?? ''), '_blank')}
-              disabled={!nftDetails?.tokenUri}
-            >
-              <img className='mr-2 invert dark:invert-0' src={Images.Misc.OpenLink} alt='open' />{' '}
-              View on marketplace
-            </button>
 
-            <button
-              title='favourite'
-              className='w-[20px] h-[20px] mx-[12px]'
-              onClick={handleFavNftClick}
-            >
-              {isInFavNfts ? (
-                <img src={Images.Misc.FilledFavStar} alt='star' />
-              ) : (
-                <img
-                  className='invert dark:invert-0'
-                  src={Images.Misc.OutlinedFavStar}
-                  alt='star'
-                />
-              )}
-            </button>
+              <button
+                title='favourite'
+                className='w-[20px] h-[20px] mx-[12px]'
+                onClick={handleFavNftClick}
+              >
+                {isInFavNfts ? (
+                  <img src={Images.Misc.FilledFavStar} alt='star' />
+                ) : (
+                  <img
+                    className='invert dark:invert-0'
+                    src={Images.Misc.OutlinedFavStar}
+                    alt='star'
+                  />
+                )}
+              </button>
 
-            <button title='menu' onClick={() => setShowMenu(!showMenu)}>
-              <img className='invert dark:invert-0' src={Images.Misc.VerticalDots} alt='menu' />
-            </button>
-          </div>
-
-          <CardDivider />
-          {showMenu && (
-            <Menu
-              handleProfileClick={handleProfileClick}
-              isInProfile={isInProfile}
-              showProfileOption={showProfileOption}
-              handleHideNftClick={handleHideNftClick}
-              isInHiddenNfts={isInHiddenNfts}
-            />
+              <button title='menu' onClick={() => setShowMenu(!showMenu)}>
+                <img className='invert dark:invert-0' src={Images.Misc.VerticalDots} alt='menu' />
+              </button>
+            </div>
           )}
-
-          <ProposalDescription
-            title={`About ${nftDetails?.name ?? ''}`}
-            description={
-              nftDetails?.description ??
-              nftDetails?.extension?.description ??
-              `${nftDetails?.collection?.name ?? ''} - ${nftDetails?.name}`
-            }
-            btnColor={color}
-            className='my-4'
-          />
-
-          {nftDetails?.attributes && nftDetails.attributes.length && (
+          {!showSendNFT && (
             <>
               <CardDivider />
-              <h3 className='w-100 font-bold text-left text-gray-400 text-sm mt-6 mb-2'>
-                Features
-              </h3>
-              <div className='flex flex-wrap gap-[10px]'>
-                {nftDetails.attributes.map((m: NftAttribute, index: number) => (
-                  <div
-                    key={index}
-                    className='rounded-xl px-3 py-2 dark:bg-gray-900 bg-gray-100 mr-2 min-w-[80px]'
-                  >
-                    <div className=' text-gray-400 text-sm capitalize'>
-                      {m.trait_type.toLowerCase()}
-                    </div>
-                    <div className=' text-gray-900 text-sm dark:text-white-100 font-bold'>
-                      {m.value}
-                    </div>
+              {showMenu && (
+                <Menu
+                  handleProfileClick={handleProfileClick}
+                  isInProfile={isInProfile}
+                  showProfileOption={showProfileOption}
+                  handleHideNftClick={handleHideNftClick}
+                  isInHiddenNfts={isInHiddenNfts}
+                />
+              )}
+
+              <ProposalDescription
+                title={`About ${nftDetails?.name ?? ''}`}
+                description={
+                  nftDetails?.description ??
+                  nftDetails?.extension?.description ??
+                  `${nftDetails?.collection?.name ?? ''} - ${nftDetails?.name}`
+                }
+                btnColor={color}
+                className='my-4'
+              />
+
+              {nftDetails?.attributes && nftDetails.attributes.length && (
+                <>
+                  <CardDivider />
+                  <h3 className='w-100 font-bold text-left text-gray-400 text-sm mt-6 mb-2'>
+                    Features
+                  </h3>
+                  <div className='flex flex-wrap gap-[10px]'>
+                    {nftDetails.attributes.map((m: NftAttribute, index: number) => {
+                      if (!m.trait_type || !m.value) {
+                        return null
+                      }
+
+                      return (
+                        <div
+                          key={index}
+                          className='rounded-xl px-3 py-2 dark:bg-gray-900 bg-gray-100 mr-2 min-w-[80px]'
+                        >
+                          <div className=' text-gray-400 text-sm capitalize'>
+                            {(m.trait_type ?? '').toLowerCase()}
+                          </div>
+                          <div className=' text-gray-900 text-sm dark:text-white-100 font-bold'>
+                            {m.value ?? ''}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
             </>
           )}
         </div>

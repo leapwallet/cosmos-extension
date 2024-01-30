@@ -4,7 +4,7 @@ import { Dict, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { QueryStatus, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { useActiveChain, useChainApis } from '../store';
+import { useActiveChain, useChainApis, useIteratedUriEnabledNftContracts } from '../store';
 import { CosmWasmClientHandler, defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
 import {
   NFTDisplayInformation,
@@ -35,6 +35,7 @@ export const useGetOwnedCollection = (
   const chain = options?.forceChain ?? _chain;
   const paginationLimit = options?.paginationLimit ?? 30;
   const [fetchTillIndex, setFetchTillIndex] = useState(paginationLimit);
+  const iteratedUriNftContracts = useIteratedUriEnabledNftContracts();
 
   const { rpcUrl } = useChainApis(chain, options?.forceNetwork);
   if (!rpcUrl) {
@@ -46,7 +47,7 @@ export const useGetOwnedCollection = (
     queryFn: async () => {
       const client = await CosmWasmClientHandler.getClient(rpcUrl);
       if (!client || !tokensListByCollection.collection.address) {
-        throw new Error('useGetAllNFTsList: Invalid state');
+        throw new Error('useGetOwnedCollection: Invalid state');
       }
 
       const allTokensInfo = await Promise.all(
@@ -55,6 +56,15 @@ export const useGetOwnedCollection = (
             const nftInfo: NFTInfo = await client.queryContractSmart(tokensListByCollection.collection.address, {
               nft_info: { token_id: tokenId },
             });
+
+            if (iteratedUriNftContracts.includes(tokensListByCollection.collection.address)) {
+              return {
+                tokenUri: `${nftInfo.token_uri ?? ''}/${tokenId}`,
+                extension: nftInfo.extension as Dict,
+                tokenId: tokenId ?? '',
+              };
+            }
+
             return {
               tokenUri: nftInfo.token_uri ?? '',
               extension: nftInfo.extension as Dict,
@@ -71,50 +81,81 @@ export const useGetOwnedCollection = (
         contractAddress: tokensListByCollection.collection.address ?? '',
       };
 
-      let resolvedInfo = await Promise.all(
-        allTokensInfo.map(async ({ tokenUri, tokenId, extension }) => {
-          try {
-            const res = await fetch(options?.tokenUriModifier?.(tokenUri) ?? tokenUri);
-            //The below fix is to fetch details properly on android, the request was made but when we do res.json(), it results into a parse error. Due to some object structure
-            let nftDisplayInfo: NFTDisplayInformation = await JSON.parse((await res.text()).trim());
+      let resolvedInfo;
 
-            // for one of the collection on Sei, we get name and image in properties property
-            if ([nftDisplayInfo.name, nftDisplayInfo.image].includes(undefined) && nftDisplayInfo?.properties) {
-              nftDisplayInfo = {
-                name: nftDisplayInfo.properties?.name?.description ?? '',
-                image: nftDisplayInfo.properties?.image?.description ?? '',
-              };
-            }
-
-            // for Zen on Injective, we get NFT Image in media property
-            if ([nftDisplayInfo.name, nftDisplayInfo.image].includes(undefined) && nftDisplayInfo?.media) {
-              nftDisplayInfo = {
-                image: nftDisplayInfo.media ?? '',
-                name: nftDisplayInfo.title ?? nftDisplayInfo.name ?? '',
-              };
-            }
-
-            return {
-              ...nftDisplayInfo,
-              tokenUri,
-              tokenId,
-              collection,
-              extension,
-            };
-          } catch (_) {
-            //
+      if (chain === 'teritori') {
+        resolvedInfo = allTokensInfo.map((tokensInfo) => {
+          if (!tokensInfo) {
+            return null;
           }
-          // For domain name nfts
-          if (extension && extension.name && extension.domain) {
+
+          const { tokenId, extension } = tokensInfo;
+
+          if (extension.public_name && tokenId.includes('.')) {
             return {
-              name: extension.name ?? '',
-              domain: extension.domain ?? '',
+              name: extension.public_name ?? '',
+              domain: tokenId ?? '',
               collection,
               extension,
             };
           }
-        }),
-      );
+
+          return {
+            extension,
+            collection,
+            name: extension.name,
+            image: extension.image,
+            tokenId,
+            tokenUri: `https://app.teritori.com/nft/tori-${collection.contractAddress}-${tokenId}`,
+          };
+        });
+      } else {
+        resolvedInfo = await Promise.all(
+          allTokensInfo.map(async ({ tokenUri, tokenId, extension }) => {
+            try {
+              const res = await fetch(options?.tokenUriModifier?.(tokenUri) ?? tokenUri);
+              //The below fix is to fetch details properly on android, the request was made but when we do res.json(), it results into a parse error. Due to some object structure
+              let nftDisplayInfo: NFTDisplayInformation = await JSON.parse((await res.text()).trim());
+
+              // for one of the collection on Sei, we get name and image in properties property
+              if ([nftDisplayInfo.name, nftDisplayInfo.image].includes(undefined) && nftDisplayInfo?.properties) {
+                nftDisplayInfo = {
+                  name: nftDisplayInfo.properties?.name?.description ?? '',
+                  image: nftDisplayInfo.properties?.image?.description ?? '',
+                };
+              }
+
+              // for Zen on Injective, we get NFT Image in media property
+              if ([nftDisplayInfo.name, nftDisplayInfo.image].includes(undefined) && nftDisplayInfo?.media) {
+                nftDisplayInfo = {
+                  image: nftDisplayInfo.media ?? '',
+                  name: nftDisplayInfo.title ?? nftDisplayInfo.name ?? '',
+                };
+              }
+
+              return {
+                ...nftDisplayInfo,
+                tokenUri,
+                tokenId,
+                collection,
+                extension,
+              };
+            } catch (_) {
+              //
+            }
+
+            // For domain name nfts
+            if (extension && extension.name && extension.domain) {
+              return {
+                name: extension.name ?? '',
+                domain: extension.domain ?? '',
+                collection,
+                extension,
+              };
+            }
+          }),
+        );
+      }
 
       resolvedInfo = resolvedInfo.filter((info) => info);
       return {
@@ -143,7 +184,7 @@ export const useGetOwnedCollection = (
       return 'success';
     })() as QueryStatus | 'fetching-more',
     fetchMore: function () {
-      if (!queryData.isFetching && fetchTillIndex + paginationLimit < tokensListByCollection.tokens.length) {
+      if (fetchTillIndex < tokensListByCollection.tokens.length) {
         setFetchTillIndex((prevValue) => prevValue + paginationLimit);
       }
     },

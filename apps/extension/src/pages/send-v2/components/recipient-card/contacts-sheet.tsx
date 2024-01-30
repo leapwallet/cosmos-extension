@@ -1,8 +1,9 @@
 import { SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { AvatarCard, InputWithButton } from '@leapwallet/leap-ui'
+import { AvatarCard } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
+import { SearchInput } from 'components/search-input'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useContactsSearch } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -48,10 +49,10 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
   return (
     <BottomModal isOpen={isOpen} closeOnBackdropClick={true} title='Contact Book' onClose={onClose}>
       <div>
-        <InputWithButton
-          icon={Images.Misc.Search}
+        <SearchInput
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onClear={() => setSearchQuery('')}
           placeholder='Search your contacts...'
         />
         <div
@@ -62,7 +63,7 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
           {contacts.length > 0 ? (
             contacts.map((contact) => {
               const chainImage =
-                chainInfos[contact.blockchain].chainSymbolImageUrl ?? defaultTokenLogo
+                chainInfos[contact.blockchain]?.chainSymbolImageUrl ?? defaultTokenLogo
 
               return (
                 <AvatarCard
@@ -70,7 +71,7 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
                   chainIcon={chainImage}
                   emoji={contact.emoji}
                   size='md'
-                  subtitle={sliceAddress(contact.address)}
+                  subtitle={sliceAddress(contact.ethAddress ? contact.ethAddress : contact.address)}
                   title={contact.name}
                   onClick={() => handleAvatarClick(contact, chainImage)}
                 />

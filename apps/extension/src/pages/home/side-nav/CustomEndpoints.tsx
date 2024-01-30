@@ -1,10 +1,10 @@
-import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
+import { removeTrailingSlash, useChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import axios from 'axios'
 import classNames from 'classnames'
 import AlertStrip from 'components/alert-strip/AlertStrip'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { CUSTOM_ENDPOINTS } from 'config/storage-keys'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -15,7 +15,6 @@ import { Images } from 'images'
 import React, { useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import Browser from 'webextension-polyfill'
 
 import { ListChains, ListChainsProps } from '../SelectChain'
@@ -31,19 +30,22 @@ export function SelectChainSheet({
   onChainSelect,
   selectedChain,
   onPage,
+  chainsToShow,
 }: SelectChainSheetProps) {
   return (
-    <BottomSheet
-      isVisible={isVisible}
+    <BottomModal
+      title='Select Chain'
       onClose={onClose}
-      headerTitle='Select Chain'
-      headerActionType={HeaderActionType.CANCEL}
-      closeOnClickBackDrop={true}
+      isOpen={isVisible}
+      closeOnBackdropClick={true}
     >
-      <div className='h-[400px]'>
-        <ListChains selectedChain={selectedChain} onChainSelect={onChainSelect} onPage={onPage} />
-      </div>
-    </BottomSheet>
+      <ListChains
+        selectedChain={selectedChain}
+        onChainSelect={onChainSelect}
+        onPage={onPage}
+        chainsToShow={chainsToShow}
+      />
+    </BottomModal>
   )
 }
 
@@ -184,7 +186,7 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
 
     if (value) {
       setValidating(true)
-      debouncedValidateEndpoints(name, value)
+      debouncedValidateEndpoints(name, removeTrailingSlash(value))
     } else {
       delete errors[name]
       setErrors(errors)
@@ -198,8 +200,11 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
 
   const handleSaveClick = async () => {
     const storage = await Browser.storage.local.get([CUSTOM_ENDPOINTS])
-    const newRpcURL = customEndpoints.rpc !== rpcUrl ? customEndpoints.rpc : undefined
-    const newLcdURL = customEndpoints.lcd !== lcdUrl ? customEndpoints.lcd : undefined
+    const customNewRpcURL = removeTrailingSlash(customEndpoints.rpc)
+    const customNewLcdURL = removeTrailingSlash(customEndpoints.lcd)
+
+    const newRpcURL = customNewRpcURL !== rpcUrl ? customNewRpcURL : undefined
+    const newLcdURL = customNewLcdURL !== lcdUrl ? customNewLcdURL : undefined
 
     if (storage[CUSTOM_ENDPOINTS]) {
       await Browser.storage.local.set({
@@ -225,7 +230,8 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
     !!errors.lcd ||
     customEndpoints.rpc === '' ||
     customEndpoints.lcd === '' ||
-    (rpcUrl === customEndpoints.rpc && lcdUrl === customEndpoints.lcd)
+    (rpcUrl === removeTrailingSlash(customEndpoints.rpc) &&
+      lcdUrl === removeTrailingSlash(customEndpoints.lcd))
 
   return (
     <>
@@ -258,13 +264,8 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
             }
             isRounded={true}
             title2='Chain'
-            icon={
-              isCompassWallet() ? null : (
-                <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
-              )
-            }
-            className={isCompassWallet() ? '!cursor-default' : ''}
-            onClick={isCompassWallet() ? undefined : () => setShowSelectChain(true)}
+            icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
+            onClick={() => setShowSelectChain(true)}
           />
 
           <CustomEndpointInput

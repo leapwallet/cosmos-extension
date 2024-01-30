@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AminoSignResponse, encodeSecp256k1Pubkey } from '@cosmjs/amino'
 import { fromBase64 } from '@cosmjs/encoding'
 import { Int53 } from '@cosmjs/math'
@@ -10,7 +12,6 @@ import {
 } from '@cosmjs/proto-signing'
 import { AminoTypes } from '@cosmjs/stargate'
 import { AminoMsgTransfer } from '@cosmjs/stargate'
-import { DirectSignDocDecoder } from '@leapwallet/buffer-boba'
 import { LeapWalletApi } from '@leapwallet/cosmos-wallet-hooks'
 import { CosmosTxType } from '@leapwallet/cosmos-wallet-hooks'
 import { getTxHashFromSignedTx, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -25,7 +26,6 @@ import {
   osmosisProtoRegistry,
 } from '@osmosis-labs/proto-codecs'
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing'
-import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import Long from 'long'
 import { strideAminoConverters } from 'stridejs'
@@ -102,8 +102,11 @@ const ibcAminoConverters: Record<
       receiver,
       timeout_height,
       timeout_timestamp,
+      //@ts-ignore
+      memo = '',
     }: AminoMsgTransfer['value']): MsgTransfer => {
       return {
+        memo,
         sourcePort: source_port,
         sourceChannel: source_channel,
         token: {
@@ -140,7 +143,6 @@ const registry = new Registry([
 ])
 
 import LogCosmosDappTx = LeapWalletApi.LogCosmosDappTx
-import { uint8ArrayToBase64 } from 'utils/uint8Utils'
 
 export function getTxHashFromDirectSignResponse(data: DirectSignResponse): string {
   const txHash = getTxHashFromSignedTx({

@@ -1,4 +1,4 @@
-import { SelectedAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { Avatar } from '@leapwallet/leap-ui'
 import Text from 'components/text'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -31,7 +31,9 @@ export const SelectedAddressPreview: React.FC<SelectedAddressPreviewProps> = ({
     <>
       <div
         className='flex items-center'
-        title={`${selectedAddress.chainName}: ${selectedAddress.address}`}
+        title={`${selectedAddress.chainName}: ${
+          selectedAddress.ethAddress ? selectedAddress.ethAddress : selectedAddress.address
+        }`}
       >
         <Avatar
           size='sm'
@@ -46,7 +48,9 @@ export const SelectedAddressPreview: React.FC<SelectedAddressPreviewProps> = ({
           className='bg-gray-200 dark:bg-gray-800 !h-8 !w-8'
         />
         <Text size='md' className='text-gray-800 dark:text-gray-200 ml-2'>
-          {selectedAddress.name}
+          {selectedAddress.ethAddress
+            ? sliceAddress(selectedAddress.ethAddress)
+            : selectedAddress.name}
         </Text>
         {showEditMenu ? (
           <button onClick={handleClick} className='ml-auto'>

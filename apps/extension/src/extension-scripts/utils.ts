@@ -4,6 +4,7 @@ import { getChains } from '@leapwallet/cosmos-wallet-hooks'
 import { chainIdToChain, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
+import { MessageTypes } from 'config/message-types'
 import { BETA_CHAINS } from 'config/storage-keys'
 import CryptoJs from 'crypto-js'
 import { addToConnections } from 'pages/ApproveConnection/utils'
@@ -286,6 +287,33 @@ export async function awaitUIResponse(messageType: string) {
           resolve('success')
         } else {
           reject('failed')
+        }
+        browser.runtime.onMessage.removeListener(listener)
+      }
+    }
+    browser.runtime.onMessage.addListener(listener)
+  })
+}
+
+export function requestSignTransaction(payload: any) {
+  const listener = (message: any, sender: any) => {
+    if (sender.id !== browser.runtime.id) throw new Error('Invalid Sender')
+    if (message.type === MessageTypes.signingPopupOpen) {
+      browser.runtime.sendMessage({ type: MessageTypes.signTransaction, payload })
+      browser.runtime.onMessage.removeListener(listener)
+    }
+  }
+  browser.runtime.onMessage.addListener(listener)
+}
+
+export async function awaitSigningResponse(messageType: string) {
+  return new Promise((resolve, reject) => {
+    const listener = (message: any) => {
+      if (message.type === messageType) {
+        if (message.payload.status === 'success') {
+          resolve(message.payload.data)
+        } else {
+          reject(message.payload.data)
         }
         browser.runtime.onMessage.removeListener(listener)
       }

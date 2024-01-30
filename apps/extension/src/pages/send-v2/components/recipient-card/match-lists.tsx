@@ -80,7 +80,7 @@ export const ContactsMatchList: React.FC<ContactsMatchListProps> = ({
                   {contact.name}
                 </Text>
                 <Text size='sm' color='text-gray-600 dark:text-gray-400'>
-                  {sliceAddress(contact.address)}
+                  {sliceAddress(contact.ethAddress ? contact.ethAddress : contact.address)}
                 </Text>
               </div>
             </li>

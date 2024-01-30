@@ -39,6 +39,7 @@ import { storageMigrationV10 } from './migrations/v10'
 import { storageMigrationV19 } from './migrations/v19'
 import { storageMigrationV53 } from './migrations/v53'
 import {
+  awaitSigningResponse,
   awaitUIResponse,
   checkChainConnections,
   checkConnection,
@@ -50,6 +51,7 @@ import {
   isConnected,
   openPopup,
   requestEnableAccess,
+  requestSignTransaction,
   validateNewChainInfo,
 } from './utils'
 import { EncryptionUtilsImpl } from '@leapwallet/cosmos-wallet-sdk/dist/secret/encryptionutil'
@@ -57,9 +59,10 @@ import { PasswordManager } from './password-manager'
 import { storageMigrationV77 } from './migrations/v77'
 import { getChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { storageMigrationV80 } from './migrations/v80'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { formatWalletName } from 'utils/formatWalletName'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
+import { listenPendingSwapTx, trackPendingSwapTx } from './pending-swap-tx'
+import { MessageTypes } from 'config/message-types'
 const storageAdapter = getStorageAdapter()
 initStorage(storageAdapter)
 initCrypto()
@@ -71,6 +74,8 @@ const windowIdForPayloadId: { [x: number | string]: { type: string; payloadId: n
 let enableAccessRequests: Record<string, number> = {}
 
 const passwordManager = PasswordManager.create()
+trackPendingSwapTx()
+listenPendingSwapTx()
 
 const connectRemote = (remotePort: any) => {
   if (remotePort.name !== 'LeapCosmosExtension') {
@@ -278,7 +283,7 @@ const connectRemote = (remotePort: any) => {
                 if (shouldOpenPopup) {
                   delete enableAccessRequests[queryString]
                   enableAccessRequests[queryString] = popupWindowId
-                  const window = await openPopup('approveConnection')
+                  await openPopup('approveConnection')
                   requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
                   windowIdForPayloadId[popupWindowId] = {
                     type: type.toUpperCase(),
@@ -333,7 +338,7 @@ const connectRemote = (remotePort: any) => {
             queryString += `&chainIds=${chainId}`
           })
 
-          const store = await browser.storage.local.get([ACTIVE_WALLET])
+          await browser.storage.local.get([ACTIVE_WALLET])
           const password = passwordManager.getPassword()
           if (!password) {
             try {
@@ -433,75 +438,46 @@ const connectRemote = (remotePort: any) => {
       case SUPPORTED_METHODS.REQUEST_SIGN_DIRECT: {
         const msg = payload
 
-        browser.storage.local
-          .set({
-            [SIGN_REQUEST]: {
-              signDoc: msg.signDoc,
-              signer: msg.signer,
-              origin: msg.origin,
-              isAmino: false,
-              signOptions: msg.signOptions,
-            },
-          })
-          .then(() => {
-            return browser.storage.local.set({ [REDIRECT_REQUEST]: { type: type } })
-          })
-          .then(() => {
-            return openPopup('sign')
-          })
-          .then((window) => {
-            const windowId = (window as browser.Windows.Window).id as number
-            windowIdForPayloadId[windowId] = { type: type.toUpperCase(), payloadId: payload.id }
-            return awaitResponse('direct')
-          })
-          .then((response) => {
-            sendResponse(`on${type.toUpperCase()}`, { directSignResponse: response }, payload.id)
-          })
-          .catch(() => {
-            sendResponse(`on${type.toUpperCase()}`, { error: 'Transaction declined' }, payload.id)
-          })
+        requestSignTransaction({
+          signDoc: msg.signDoc,
+          signer: msg.signer,
+          origin: msg.origin,
+          isAmino: false,
+          signOptions: msg.signOptions,
+        })
+
+        await openPopup('sign')
+        try {
+          const response = await awaitSigningResponse(MessageTypes.signResponse)
+          sendResponse(`on${type.toUpperCase()}`, { directSignResponse: response }, payload.id)
+        } catch (e) {
+          sendResponse(`on${type.toUpperCase()}`, { error: 'Transaction declined' }, payload.id)
+        }
         break
       }
 
       case SUPPORTED_METHODS.REQUEST_SIGN_AMINO: {
         const msg = payload
-        browser.storage.local
-          .set({
-            [SIGN_REQUEST]: {
-              signDoc: msg.signDoc,
-              chainId: msg.chainId,
-              signer: msg.signer,
-              origin: msg.origin,
-              isAmino: true,
-              isAdr36: msg.signOptions.isSignArbitrary,
-              isADR36WithString: msg.signOptions.isAdr36WithString,
-              ethSignType: msg.signOptions.ethSignType,
-              signOptions: msg.signOptions,
-            },
-          })
-          .then(() => {
-            return browser.storage.local.set({ [REDIRECT_REQUEST]: { type } })
-          })
-          .then(() => {
-            // hasUnApprovedTx = true
-            return openPopup('sign')
-          })
-          .then((window) => {
-            popupWindowId = (window as browser.Windows.Window).id as number
-            windowIdForPayloadId[popupWindowId] = {
-              type: type.toUpperCase(),
-              payloadId: payload.id,
-            }
 
-            return awaitResponse('amino')
-          })
-          .then((response) => {
-            sendResponse(`on${type.toUpperCase()}`, { aminoSignResponse: response }, payload.id)
-            // hasUnApprovedTx = false
-          })
-          .catch(() => {
-            sendResponse(`on${type.toUpperCase()}`, { error: 'Transaction declined' }, payload.id)
-          })
+        requestSignTransaction({
+          signDoc: msg.signDoc,
+          chainId: msg.chainId,
+          signer: msg.signer,
+          origin: msg.origin,
+          isAmino: true,
+          isAdr36: msg.signOptions.isSignArbitrary,
+          isADR36WithString: msg.signOptions.isAdr36WithString,
+          ethSignType: msg.signOptions.ethSignType,
+          signOptions: msg.signOptions,
+        })
+
+        await openPopup('sign')
+        try {
+          const response = await awaitSigningResponse(MessageTypes.signResponse)
+          sendResponse(`on${type.toUpperCase()}`, { aminoSignResponse: response }, payload.id)
+        } catch (e) {
+          sendResponse(`on${type.toUpperCase()}`, { error: 'Transaction declined' }, payload.id)
+        }
         break
       }
 
@@ -885,12 +861,6 @@ function awaitEnableChainResponse(): Promise<any> {
     browser.storage.onChanged.addListener(enableChainListener)
   })
 }
-
-// function fetchChainData(url: string) {
-//   return fetch(url)
-//     .then((res) => res.json())
-//     .catch((err) => err)
-// }
 
 function removeTrailingSlash(url?: string) {
   if (!url) return ''
