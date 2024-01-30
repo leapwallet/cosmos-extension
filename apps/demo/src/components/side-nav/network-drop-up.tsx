@@ -1,6 +1,6 @@
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { GenericCard, HeaderActionType } from '@leapwallet/leap-ui'
-import React, { useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 
 import BottomSheet from '~/components/bottom-sheet'

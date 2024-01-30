@@ -29,7 +29,6 @@ import {
 } from '~/hooks/settings/use-hide-small-balances'
 import { useRewardsBalance } from '~/hooks/staking/use-rewards-balance'
 import { useDelegations } from '~/hooks/staking/use-staking'
-import { useShowChainAlert } from '~/hooks/use-show-chain-alert'
 import useAssetsValue from '~/hooks/wallet/use-assets-value'
 import { useActiveWallet } from '~/hooks/wallet/use-wallet'
 import { ChainLogos } from '~/images/logos'

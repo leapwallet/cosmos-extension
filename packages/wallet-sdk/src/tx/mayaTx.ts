@@ -1,11 +1,15 @@
-import { fromBase64 } from '@cosmjs/encoding';
+import { fromBase64, toBase64 } from '@cosmjs/encoding';
 import { OfflineDirectSigner, OfflineSigner } from '@cosmjs/proto-signing';
 import cosmosclient from '@cosmos-client/core';
 import { TxHash, TxParams } from '@xchainjs/xchain-client';
 import { AssetCacao, AssetMaya, CACAO_DECIMAL, Client, DEFAULT_GAS_LIMIT_VALUE } from '@xchainjs/xchain-mayachain';
 import { assetAmount, assetToBase, assetToString, BaseAmount, baseAmount } from '@xchainjs/xchain-util';
 import BigNumber from 'bignumber.js';
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import Long from 'long';
+
+import { fetchAccountDetails } from '../accounts';
+import { ChainInfos } from '../constants/chain-infos';
 
 export class MayaTx {
   client;
@@ -78,7 +82,8 @@ export class MayaTx {
     const walletAccounts = await this.wallet.getAccounts();
 
     if (!authInfo.signer_infos[0].public_key) {
-      authInfo.signer_infos[0].public_key = cosmosclient.codec.instanceToProtoAny(walletAccounts[0].pubkey);
+      const encodedPubKey = new cosmosclient.proto.cosmos.crypto.secp256k1.PubKey({ key: walletAccounts[0].pubkey });
+      authInfo.signer_infos[0].public_key = cosmosclient.codec.instanceToProtoAny(encodedPubKey);
     }
 
     const txBuilder = new cosmosclient.TxBuilder(
@@ -87,9 +92,9 @@ export class MayaTx {
       authInfo,
     );
 
-    const { account_number: accountNumber } = await this.client
-      .getCosmosClient()
-      .getAccount(cosmosclient.AccAddress.fromString(sender));
+    const accountDetails = await fetchAccountDetails(ChainInfos.mayachain.apis.rest ?? '', sender);
+    const accountNumber = Long.fromString(accountDetails.accountNumber);
+
     if (!accountNumber) throw Error(`Transfer failed - missing account number`);
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -105,9 +110,14 @@ export class MayaTx {
     };
 
     const signedDoc = await (this.wallet as OfflineDirectSigner).signDirect(sender, formattedSignDoc);
+    const txRaw = TxRaw.fromPartial({
+      bodyBytes: signedDoc.signed.bodyBytes,
+      authInfoBytes: signedDoc.signed.authInfoBytes,
+      signatures: [fromBase64(signedDoc.signature.signature)],
+    });
 
-    txBuilder.addSignature(fromBase64(signedDoc.signature.signature));
-    const signedTx = txBuilder.txBytes();
-    return this.client.broadcastTx(signedTx);
+    const txBytes = TxRaw.encode(txRaw).finish();
+
+    return this.client.broadcastTx(toBase64(txBytes));
   }
 }

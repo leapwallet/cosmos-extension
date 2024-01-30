@@ -21,6 +21,8 @@ import { useActiveChain, useSetActiveChain } from '../../hooks/settings/useActiv
 import { Colors } from '../../theme/colors'
 
 export type ListChainsProps = {
+  headerAction?: HeaderActionType
+  headerTitle?: string
   // eslint-disable-next-line no-unused-vars
   onChainSelect: (chainName: SupportedChain) => void
   selectedChain: SupportedChain

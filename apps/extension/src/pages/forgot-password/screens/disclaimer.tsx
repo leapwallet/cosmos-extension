@@ -30,19 +30,19 @@ const Disclaimer: React.FC<PropsType> = ({ incrementStep }) => {
           Forgot your password?
         </Text>
         <Text size='md' color='text-gray-500 dark:text-gray-300 mb-[32px]'>
-          Clear your data and restore your wallet using your secret recovery phrase
+          Clear your data and restore your wallet using your recovery phrase
         </Text>
         <Text size='md' color='text-gray-500 dark:text-gray-300 mb-[16px]'>
           We won’t be able to recover your password as it’s stored securely only on your computer.
         </Text>
         <Text size='md' color='text-gray-500 dark:text-gray-300'>
           To recover the wallet you will have to clear you data which will delete your current
-          wallet and secret recovery phrase from this device, along with the list of accounts you’ve
-          curated. After that you can restore you wallet using your secret recovery phrase
+          wallet and recovery phrase from this device, along with the list of accounts you’ve
+          curated. After that you can restore you wallet using your recovery phrase
         </Text>
         <div className='flex w-full shrink mt-[44px]'>
           <Buttons.Generic size='normal' color={Colors.cosmosPrimary} onClick={incrementStep}>
-            Clear data and restore using secret phrase
+            Clear data and restore using recovery phrase
           </Buttons.Generic>
         </div>
       </div>

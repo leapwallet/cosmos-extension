@@ -51,7 +51,7 @@ export function PhraseView({ children, heading, subHeading }: PhraseViewProps) {
           </Text>
           <Text size='md' color='text-gray-600 dark:text-gray-400'>
             <ul>
-              <li>Never share your secret recovery phrase with anyone or enter it in any form</li>
+              <li>Never share your recovery phrase with anyone or enter it in any form</li>
               <li>
                 {isCompassWallet() ? 'Compass' : 'Leap'} support will never ask for your recovery
                 phrase.

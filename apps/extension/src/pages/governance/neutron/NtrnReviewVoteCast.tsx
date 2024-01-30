@@ -20,7 +20,6 @@ export function NtrnReviewVoteCast({
   memo,
   setMemo,
   proposalId,
-  refetchCurrVote,
   gasOption,
 }: Omit<ReviewVoteCastProps, 'feeText'>) {
   const activeChain = useActiveChain()
@@ -54,7 +53,6 @@ export function NtrnReviewVoteCast({
         />
 
         <DisplayFee className='mt-4' />
-        {error && <ErrorCard text={getErrorMsg(error, gasOption, 'vote')} />}
 
         <Buttons.Generic
           color={Colors.getChainColor(activeChain)}
@@ -63,16 +61,15 @@ export function NtrnReviewVoteCast({
           title='Vote'
           onClick={async () => {
             if (selectedVote !== undefined) {
-              const txSuccess = await onSubmitVote(selectedVote)
-              if (txSuccess) {
-                onCloseHandler()
-                refetchCurrVote()
-              }
+              await onSubmitVote(selectedVote)
             }
           }}
+          disabled={loading}
         >
           {loading ? <LoaderAnimation color={Colors.white100} /> : 'Approve'}
         </Buttons.Generic>
+
+        {error && <ErrorCard text={getErrorMsg(error, gasOption, 'vote')} />}
       </div>
     </BottomModal>
   )

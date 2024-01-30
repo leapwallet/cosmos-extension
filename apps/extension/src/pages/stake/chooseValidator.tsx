@@ -13,6 +13,7 @@ import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
+import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import currency from 'currency.js'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -251,7 +252,7 @@ function ValidatorList({
         )}
       </div>
       {validators.map((v, index) => (
-        <React.Fragment key={`validator${index}`}>
+        <React.Fragment key={`validator-${index}-${v.address}`}>
           {index !== 0 && <CardDivider />}
           <ValidatorCard
             onClick={() => onSelectValidator(v)}
@@ -311,27 +312,16 @@ function ChooseValidatorView({
         {fromValidator && delegation && (
           <CurrentValidatorCard fromValidator={fromValidator} delegation={delegation} />
         )}
-        {/* SearchBox */}
+
         <div className='flex justify-between items-center'>
-          <div className='w-[288px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
-            <input
-              type={'text'}
-              value={searchfilter}
-              placeholder='search...'
-              className='flex flex-grow font-medium text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
-              onChange={(e) => setSearchfilter(e.target?.value)}
-            />
-            {searchfilter.length > 0 ? (
-              <span
-                onClick={() => setSearchfilter('')}
-                className='material-icons-round h-8 w-8 cursor-pointer text-center text-gray-400'
-              >
-                close
-              </span>
-            ) : (
-              <img src={Images.Misc.SearchIcon} />
-            )}
-          </div>
+          <SearchInput
+            divClassName='w-[288px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'
+            placeholder='Search validators...'
+            value={searchfilter}
+            onChange={(e) => setSearchfilter(e.target?.value)}
+            onClear={() => setSearchfilter('')}
+          />
+
           <div
             onClick={onClickSortBy}
             className='rounded-3xl h-10 w-10 cursor-pointer ml-3 justify-center items-center dark:bg-gray-900 bg-white-100'
@@ -430,12 +420,14 @@ export default function ChooseValidator() {
   )
 
   const filterValidators = useMemo(
-    () =>
-      Object.values(activeValidators ?? {}).filter(
-        (v) =>
+    () => {
+      return Object.values(activeValidators ?? {}).filter((v) => {
+        return (
           v.moniker.toLowerCase().includes(searchfilter.toLowerCase()) ||
-          v.address.includes(searchfilter),
-      ),
+          v.address.includes(searchfilter)
+        )
+      })
+    },
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [searchfilter, sortBy],

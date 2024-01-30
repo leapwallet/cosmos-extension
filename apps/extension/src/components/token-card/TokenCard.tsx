@@ -1,6 +1,7 @@
 import { formatTokenAmount, IbcChainInfo, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import { GenericCard } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
+import Badge from 'components/badge/Badge'
 import IBCTokenBadge from 'components/badge/IbcTokenBadge'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
@@ -21,6 +22,7 @@ type TokenCardProps = {
   readonly iconSrc?: string
   readonly size?: 'sm' | 'md' | 'lg'
   readonly ibcChainInfo?: IbcChainInfo | undefined
+  readonly hasToShowIbcTag?: boolean
 }
 
 export function TokenCard({
@@ -36,6 +38,7 @@ export function TokenCard({
   isIconVisible,
   iconSrc,
   size,
+  hasToShowIbcTag,
 }: TokenCardProps) {
   const [formatCurrency] = useFormatCurrency()
   const { formatHideBalance } = useHideAssets()
@@ -52,9 +55,11 @@ export function TokenCard({
       }
       subtitle={
         <div className='flex space-x-2 font-normal text-gray-400'>
-          {ibcChainInfo && (
+          {ibcChainInfo && !hasToShowIbcTag ? (
             <IBCTokenBadge text={`${ibcChainInfo.pretty_name} / ${ibcChainInfo?.channelId}`} />
-          )}
+          ) : null}
+
+          {ibcChainInfo && hasToShowIbcTag ? <Badge text='IBC' /> : null}
         </div>
       }
       title2={

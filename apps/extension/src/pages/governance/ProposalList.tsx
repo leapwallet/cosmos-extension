@@ -4,6 +4,7 @@ import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomModal from 'components/bottom-modal'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
+import { ComingSoon } from 'components/coming-soon'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
@@ -216,6 +217,7 @@ function ProposalList({
                                 <Status status={prop.status as unknown as ProposalStatus} />
                               </div>
                             </div>
+                            <img className='ml-5' src={Images.Misc.RightArrow} />
                           </div>
                           <img className='ml-5' src={Images.Misc.RightArrow} />
                         </div>

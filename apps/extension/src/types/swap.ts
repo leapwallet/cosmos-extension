@@ -1,91 +1,53 @@
-import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate'
+import { Token } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  Asset,
+  ChainData,
+  PacketContent,
+  TRANSFER_STATE,
+  TXN_STATUS,
+} from '@leapwallet/elements-core'
+import BigNumber from 'bignumber.js'
 
-export type TokenInfo = {
-  id: string
-  chain_id: string
-  token_address: string
-  symbol: string
-  name: string
-  decimals: number
-  logoURI: string
-  tags: string[]
-  denom: string
-  native: boolean
+export type SwapTxAction = {
+  chain: string
+  destinationAsset: string
+  sourceAsset: string
+  transactionNumber: number
+  type: 'SWAP'
+  venue: string
 }
 
-export interface fetchedTokenTypes {
-  id: string
-  name: string
-  symbol: string
-  chain_id: string
-  rpc: string
-  denom: string
-  decimals: number
-  channel: string
-  juno_channel: string
-  juno_denom: string
-  logoURI: string
+export type TransferTxAction = {
+  type: 'SEND' | 'TRANSFER'
+  asset: string
+  sourceChain: string
+  fromAddress: string
+  toAddress: string
+  destinationChain: string
+  amount: string | BigNumber
 }
 
-export type TokenInfoWithReward = TokenInfo & {
-  rewards_address: string
+export type SourceChain = ChainData & { key: SupportedChain; coinType: string }
+export type SourceToken = Token & { skipAsset: Asset; coinGeckoId?: string }
+
+type Packet = {
+  send_tx: PacketContent
+  receive_tx: PacketContent | null
+  acknowledge_tx: PacketContent | null
+  timeout_tx: object | null
+  error: object | null
 }
 
-export type PoolEntityType = {
-  pool_id: string
-  pool_assets: [TokenInfo, TokenInfo]
-  swap_address: string
-  staking_address: string
-  rewards_tokens: Array<TokenInfoWithReward>
+export type TransferInfo = {
+  src_chain_id: string
+  dst_chain_id: string
+  state: TRANSFER_STATE
+  packet_txs: Packet
 }
 
-export type PoolsListQueryResponse = {
-  base_token: TokenInfo
-  pools: Array<PoolEntityType>
-  poolsById: Record<string, PoolEntityType>
-  name: string
-  logoURI: string
-  keywords: Array<string>
-  tags: Record<string, { name: string; description: string }>
-}
-
-export type PoolMatchForSwap = {
-  streamlinePoolAB?: PoolEntityType
-  streamlinePoolBA?: PoolEntityType
-  baseTokenAPool?: PoolEntityType
-  baseTokenBPool?: PoolEntityType
-}
-
-export type TokenToTokenPriceQueryArgs = {
-  matchingPools: PoolMatchForSwap
-  tokenA: TokenInfo
-  tokenB: TokenInfo
-  amount: number
-  client: CosmWasmClient
-}
-
-export type FindPoolForSwapArgs = {
-  baseToken: TokenInfo
-  tokenA: TokenInfo
-  tokenB: TokenInfo
-  poolsList: Array<PoolEntityType>
-}
-
-export type GetMatchingPoolArgs = {
-  tokenA: TokenInfo
-  tokenB: TokenInfo
-}
-
-export type TokenList = {
-  base_token: TokenInfo
-  tokens: Array<TokenInfo>
-  tokensBySymbol: Map<string, TokenInfo>
-}
-
-export type UseTokenPairsPricesArgs = {
-  tokenASymbol: TokenInfo['symbol']
-  tokenBSymbol: TokenInfo['symbol']
-  tokenAmount: number
-  enabled?: boolean
-  refetchInBackground?: boolean
+export type SwapTxnStatus = {
+  status: TXN_STATUS
+  responses: TransferInfo[]
+  isComplete: boolean
 }

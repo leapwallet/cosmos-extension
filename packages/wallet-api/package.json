@@ -25,6 +25,6 @@
     "babel-plugin-transform-import-meta": "2.2.1",
     "eslint-plugin-jsdoc": "39.3.0",
     "jest": "28.1.0",
-    "typescript": "4.6.4"
+    "typescript": "5.2.2"
   }
 }

@@ -45,7 +45,7 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
       const claimTotal = await Promise.all(
         total.map(async (claim) => {
           const { amount: _amount, denom } = claim;
-          const denomInfo = await getIbcDenomInfo(denom);
+          const { denomInfo } = await getIbcDenomInfo(denom);
           const amount = fromSmall(_amount, denomInfo?.coinDecimals ?? 6);
 
           let denomFiatValue = '0';
@@ -158,8 +158,11 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
       activeChainInfo?.comingSoonFeatures?.includes('stake') ||
       activeChainInfo?.notSupportedFeatures?.includes('stake')
     ) {
-      setClaimStatus('success');
-      setClaimRewards({});
+      setTimeout(() => {
+        setClaimStatus('success');
+        setClaimRewards({});
+      }, 0);
+
       return;
     }
 

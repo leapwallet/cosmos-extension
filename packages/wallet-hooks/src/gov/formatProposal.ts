@@ -1,5 +1,6 @@
 import { CosmosSDK } from '@leapwallet/cosmos-wallet-sdk';
-import { normalizeImageSrc } from 'utils/normalizeImageSrc';
+
+import { normalizeImageSrc } from '../utils';
 
 export async function formatProposal(version: CosmosSDK, proposal: any) {
   switch (version) {

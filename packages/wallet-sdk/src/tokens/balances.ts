@@ -17,7 +17,6 @@ export async function fetchAllBalancesRestApi(lcdUrl: string, address: string, f
   try {
     const response = await axiosWrapper<BalancesResponse>({
       baseURL: lcdUrl.trim(),
-      headers: { 'Cache-Control': 'no-cache' },
       method: 'get',
       url: `/cosmos/bank/v1beta1/${
         address.toLowerCase().includes('terra') ? 'spendable_' : ''

@@ -9,7 +9,9 @@ import {
 import { getBlockChainFromAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { useMutation } from '@tanstack/react-query'
 import CssLoader from 'components/css-loader/CssLoader'
+import { Recaptcha } from 'components/re-captcha'
 import Text from 'components/text'
+import { RECAPTCHA_CHAINS } from 'config/config'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import React, { useEffect, useRef } from 'react'
@@ -26,10 +28,30 @@ type RequestFaucetProps = {
 
 export default function RequestFaucet({ address, setShowFaucetResp }: RequestFaucetProps) {
   const chain = useChainInfo()
-  const faucetDetails: Faucet = useGetFaucet(chain?.testnetChainId ?? chain?.chainId ?? '')
-  const hCaptchaRef = useRef<HCaptcha>(null)
   const activeChain = useActiveChain()
   const invalidateBalances = useInvalidateTokenBalances()
+  const hCaptchaRef = useRef<HCaptcha>(null)
+  const reCaptchaRef = useRef<Recaptcha>(null)
+
+  let faucetDetails: Faucet = useGetFaucet(chain?.testnetChainId ?? chain?.chainId ?? '')
+
+  faucetDetails = RECAPTCHA_CHAINS.includes(activeChain)
+    ? {
+        title: 'Pryzm Testnet Faucet',
+        description: 'Claim Pryzm testnet tokens directly from Leap Wallet',
+        url: 'https://testnet-pryzmatics.pryzm.zone/pryzmatics/faucet/claim',
+        network: 'testnet',
+        security: {
+          type: 'recaptcha',
+          key: process.env.PRYZM_RECAPTCHA_KEY ?? '',
+        },
+        method: 'GET',
+        payloadResolution: {
+          address: '${walletAddress}',
+          recaptcha_response: '${captchaKey}',
+        },
+      }
+    : faucetDetails
 
   const {
     data: faucetResponse,
@@ -59,7 +81,7 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
         }, {})
       }
       if (method === 'POST') {
-        if (faucetDetails.payloadSchema.type === 'form-data') {
+        if (faucetDetails.payloadSchema?.type === 'form-data') {
           const body = new FormData()
           Object.keys(args).forEach((field: string) => {
             body.append(field, payload[field])
@@ -110,13 +132,19 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
         return
       }
 
-      const res = await hCaptchaRef.current?.execute({ async: true })
-      if (!res) {
+      if (RECAPTCHA_CHAINS.includes(activeChain)) {
+        reCaptchaRef.current?.execute()
+        return
+      }
+
+      const result = await hCaptchaRef.current?.execute({ async: true })
+      if (!result) {
         throw new Error('could not get hCaptcha response')
       }
+
       requestTokens({
         address,
-        captchaKey: res.response,
+        captchaKey: result.response,
       })
     } catch (error) {
       setShowFaucetResp({
@@ -124,6 +152,13 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
         msg: 'Failed to verify captcha. Please try again.',
       })
     }
+  }
+
+  const handleRecaptchaVerify = (token: string) => {
+    requestTokens({
+      address,
+      recaptcha_response: token,
+    })
   }
 
   useEffect(() => {
@@ -225,16 +260,34 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
           </>
         )}
       </button>
+
       <form>
-        <HCaptcha
-          ref={hCaptchaRef}
-          sitekey={faucetDetails.security?.key ?? ''}
-          size='invisible'
-          theme='dark'
-          onVerify={() => {
-            //
-          }}
-        />
+        {RECAPTCHA_CHAINS.includes(activeChain) ? (
+          <Recaptcha
+            elementID='g-recaptcha'
+            className='g-recaptcha'
+            ref={reCaptchaRef}
+            sitekey={faucetDetails.security?.key ?? ''}
+            size='invisible'
+            theme='dark'
+            render='explicit'
+            verifyCallback={handleRecaptchaVerify}
+            badge='none'
+            type='image'
+            tabindex='0'
+            onloadCallbackName='onloadCallback'
+            verifyCallbackName='verifyCallback'
+            expiredCallbackName='expiredCallback'
+            action='faucet'
+          />
+        ) : (
+          <HCaptcha
+            ref={hCaptchaRef}
+            sitekey={faucetDetails.security?.key ?? ''}
+            size='invisible'
+            theme='dark'
+          />
+        )}
       </form>
     </>
   )

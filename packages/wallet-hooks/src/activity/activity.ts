@@ -176,14 +176,22 @@ function unionOfTxs(_txs1: ParsedTransaction[], _txs2: ParsedTransaction[]): Par
 
 const txnParser = new TransactionParser();
 
-export function useActivity(forceChain?: SupportedChain): {
+export function useActivity(
+  forceChain?: SupportedChain,
+  forceAddress?: string,
+  forceNetwork?: 'mainnet' | 'testnet',
+): {
   txResponse: TxResponse;
+  activityData: Activity[];
 } {
-  const address = useAddress();
-  const activeChain = forceChain ?? useActiveChain();
-  const selectedNetwork = useSelectedNetwork();
+  const userAddress = useAddress();
+  const chain = useActiveChain();
+  const network = useSelectedNetwork();
+  const address = forceAddress ?? userAddress;
+  const activeChain = forceChain ?? chain;
+  const selectedNetwork = forceNetwork ?? network;
 
-  const { lcdUrl: restUrl = '' } = useChainApis(activeChain);
+  const { lcdUrl: restUrl = '' } = useChainApis(activeChain, selectedNetwork);
   const { chains } = useChainsStore();
   const denoms = useDenoms();
 
@@ -328,5 +336,6 @@ export function useActivity(forceChain?: SupportedChain): {
       loading: status === 'loading',
       error: status === 'error',
     },
+    activityData: data as Activity[],
   };
 }

@@ -25,7 +25,7 @@ export function storeLockTimer(time: number): void {
 
 export function useLockTimer() {
   const [lockTime, setLockTime] = useState<number>()
-  const [shouldAutoLock, setshouldAutoLock] = useState<boolean>()
+  const [shouldAutoLock] = useState<boolean>()
 
   const setTimer = (time: string) => {
     setLockTime(TimerLockPeriod[time])

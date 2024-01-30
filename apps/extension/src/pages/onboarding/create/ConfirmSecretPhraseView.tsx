@@ -89,8 +89,8 @@ export function ConfirmSecretPhraseView({ onProceed, mnemonic }: SeedPhraseViewP
 
   return (
     <PhraseView
-      heading='Confirm Secret Recovery Phrase'
-      subHeading='Enter the 4th, 8th and 12th words of your Secret Recovery Phrase'
+      heading='Confirm Recovery Phrase'
+      subHeading='Enter the 4th, 8th and 12th words of your Recovery Phrase'
     >
       <form onSubmit={(event) => event.preventDefault()}>
         <div

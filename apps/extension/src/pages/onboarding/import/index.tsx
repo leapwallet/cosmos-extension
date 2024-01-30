@@ -75,19 +75,14 @@ function SeedPhraseView({
           height='36'
         />
         <Text size='xxl' className='font-black mt-4'>
-          Import {isPrivateKey ? 'via Private Key' : walletName} {!walletName && 'via Seed Phrase'}
+          Import {isPrivateKey ? 'via Private Key' : walletName}{' '}
+          {!walletName && 'via Recovery Phrase'}
         </Text>
         <Text size='md' color='text-gray-600 dark:text-gray-400' className='font-medium mb-[32px]'>
           {isPrivateKey ? (
-            <>
-              To import an existing wallet, please enter the
-              <br /> private key here:
-            </>
+            <>To import an existing wallet, please enter the private key here:</>
           ) : (
-            <>
-              To import an existing {walletName} wallet, please enter the
-              <br /> recovery phrase here:
-            </>
+            <>To import an existing {walletName} wallet, please enter the recovery phrase here:</>
           )}
         </Text>
 
@@ -165,8 +160,8 @@ function SeedPhraseView({
                         2. On top left, click on the <strong> Hamburger icon </strong>{' '}
                       </li>
                       <li>
-                        3. Select show secret phrase and enter your password and{' '}
-                        <strong> view mnemonic seed </strong>{' '}
+                        3. Select show recovery phrase and enter your password and{' '}
+                        <strong> view recovery phrase </strong>{' '}
                       </li>
                     </>
                   ) : (
@@ -177,11 +172,11 @@ function SeedPhraseView({
                       </li>
                       <li>
                         3. Select {isCosmostation ? 'account settings' : 'wallet'} and click on the
-                        3 dots and <strong> view mnemonic seed </strong>{' '}
+                        3 dots and <strong> view recovery phrase </strong>{' '}
                       </li>
                     </>
                   )}
-                  <li>4. Copy and paste the mnemonic/seed phrase to the field on the left. </li>
+                  <li>4. Copy and paste the recovery phrase to the field on the left. </li>
                 </ol>
               </Text>
             </>

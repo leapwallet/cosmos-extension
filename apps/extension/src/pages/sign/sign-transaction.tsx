@@ -38,6 +38,7 @@ import {
   ParsedMessageType,
 } from '@leapwallet/parser-parfait'
 import { captureException } from '@sentry/react'
+import * as Sentry from '@sentry/react'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
 import { ErrorCard } from 'components/ErrorCard'

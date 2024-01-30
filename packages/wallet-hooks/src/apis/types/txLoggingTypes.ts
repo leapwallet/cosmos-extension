@@ -3,9 +3,19 @@ export type Token = {
   denom?: string;
 };
 
+export type NFTToken = {
+  collectionId: number | string;
+  tokenId: string | number;
+};
+
 export type SendTransaction = {
   toAddress?: string;
   token?: Token;
+};
+
+export type NFTSendTransaction = {
+  toAddress: string;
+  token: NFTToken;
 };
 
 export type IBCSendTransaction = {
@@ -20,6 +30,11 @@ export type SwapTransaction = {
   dexName?: string;
   fromToken?: Token;
   toToken?: Token;
+  msgType?: string;
+  provider?: string;
+  hops?: number;
+  fromChain?: string;
+  toChain?: string;
 };
 
 export type GovVoteTransaction = {
@@ -28,6 +43,11 @@ export type GovVoteTransaction = {
 };
 
 export type StakeDelegateTransaction = {
+  validatorAddress?: string;
+  token?: Token;
+};
+
+export type StakeCancelUndelegateTransaction = {
   validatorAddress?: string;
   token?: Token;
 };
@@ -76,6 +96,23 @@ export type LsUnstakeTransaction = {
   amount?: string;
   conversionRate?: string;
   receiverAddress?: string;
+};
+
+export type IBCSwapTransaction = {
+  mappingId: string;
+  msgType: string;
+  provider: string;
+  hops: number;
+  fromChain: string;
+  toChain: string;
+  fromToken: {
+    amount: string;
+    denom: string;
+  };
+  toToken: {
+    amount: string;
+    denom: string;
+  };
 };
 
 export enum DAPP_SOURCE {
@@ -131,6 +168,7 @@ export type DappTransaction = {
 export type TransactionMetadata =
   | SendTransaction
   | IBCSendTransaction
+  | IBCSwapTransaction
   | SwapTransaction
   | GovVoteTransaction
   | StakeDelegateTransaction
@@ -142,4 +180,5 @@ export type TransactionMetadata =
   | AuthzRevokeTransaction
   | AuthzGrantTransaction
   | LsStakeTransaction
-  | LsUnstakeTransaction;
+  | LsUnstakeTransaction
+  | NFTSendTransaction;

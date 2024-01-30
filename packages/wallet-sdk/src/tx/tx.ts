@@ -37,6 +37,7 @@ import {
   getVoteMsg,
   getWithDrawRewardsMsg,
 } from './msgs/cosmos';
+import { customTypes } from './nft-transfer/omniflix/utils/registry';
 import { getTxData } from './utils';
 
 function uint64FromProto(input: number | Long): Uint64 {

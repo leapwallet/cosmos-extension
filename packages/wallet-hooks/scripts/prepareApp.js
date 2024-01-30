@@ -12,7 +12,6 @@ if (isOpenSource) {
     connectorString = `${connectorString}export * from "${package}";\n`;
   });
 } else {
-  // Replace import of opensource import to closed source one
   Object.keys(openClosedMap).map((package) => {
     const singlePackage = openClosedMap[package];
     delete packageJson.dependencies[package];

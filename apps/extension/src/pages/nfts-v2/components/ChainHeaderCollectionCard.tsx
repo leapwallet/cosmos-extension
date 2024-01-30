@@ -133,7 +133,12 @@ export function ChainHeaderCollectionCard({
 
           {haveToShowLoader && (
             <div className='col-span-2'>
-              <div data-loader-id={nfts[0].collection.address ?? ''} className='mt-1' />
+              <div
+                data-loader-id={
+                  nfts[0].collection.address ?? nfts[0].collection.contractAddress ?? ''
+                }
+                className='mt-1'
+              />
               {isFetchingMore && (
                 <div className='flex items-center justify-center'>
                   <LoaderAnimation
