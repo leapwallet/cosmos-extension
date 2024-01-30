@@ -42,12 +42,20 @@ function SwapPage() {
   const [showSelectSheetFor, setShowSelectSheetFor] = useState<'source' | 'destination' | ''>(
     'source',
   )
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+
   const [showChainSelectSheet, setShowChainSelectSheet] = useState<boolean>(false)
   const [showTxReviewSheet, setShowTxReviewSheet] = useState<boolean>(false)
   const [showTxPage, setShowTxPage] = useState<boolean>(false)
   const [showSlippageSheet, setShowSlippageSheet] = useState(false)
   const [ledgerError, setLedgerError] = useState<string>()
 
+  const [isBlockingPriceImpactWarning, setIsBlockingPriceImpactWarning] = useState<boolean>(false)
+  const [isBlockingPriceImpactWarningChecked, setIsBlockingPriceImpactWarningChecked] =
+    useState<boolean>(false)
+  const [isBlockingUsdValueWarning, setIsBlockingUsdValueWarning] = useState<boolean>(false)
+  const [isBlockingUsdValueWarningChecked, setIsBlockingUsdValueWarningChecked] =
+    useState<boolean>(false)
   const activeWallet = useActiveWallet()
 
   const {
@@ -90,10 +98,16 @@ function SwapPage() {
         showTxReviewSheet,
       ].includes(true)
     ) {
-      intervalTimeout.current = setInterval(() => {
+      intervalTimeout.current = setInterval(async () => {
         if (counter.current === 10) {
           counter.current = 0
-          refresh()
+          setIsRefreshing(true)
+          try {
+            await refresh()
+          } catch (_) {
+            //
+          }
+          setIsRefreshing(false)
           return
         }
 
@@ -121,6 +135,12 @@ function SwapPage() {
     }
     return chainsToShow
   }, [chainsToShow, activeWallet])
+
+  const reviewDisabled =
+    reviewBtnDisabled ||
+    isRefreshing ||
+    (isBlockingPriceImpactWarning && !isBlockingPriceImpactWarningChecked) ||
+    (isBlockingUsdValueWarning && !isBlockingUsdValueWarningChecked)
 
   return (
     <div className='relative w-[400px] overflow-clip'>
@@ -194,6 +214,7 @@ function SwapPage() {
           {errorMsg ? <SwapError errorMsg={errorMsg} /> : null}
           {ledgerError ? <SwapError errorMsg={ledgerError} /> : null}
           {loadingMsg ? <SwapLoading loadingMsg={loadingMsg} /> : null}
+          {isRefreshing ? <SwapLoading loadingMsg='Refreshing transaction routes' /> : null}
           {infoMsg ? <SwapInfo infoMsg={infoMsg} /> : null}
 
           {isMoreThanOneStepTransaction ? (
@@ -208,14 +229,28 @@ function SwapPage() {
             </Buttons.Generic>
           ) : (
             <>
-              <HighPriceImpactWarning onClick={() => setShowPriceImpactSheet(true)} />
+              <HighPriceImpactWarning
+                onClick={() => setShowPriceImpactSheet(true)}
+                isBlockingPriceImpactWarning={isBlockingPriceImpactWarning}
+                setIsBlockingPriceImpactWarning={setIsBlockingPriceImpactWarning}
+                isBlockingPriceImpactWarningChecked={isBlockingPriceImpactWarningChecked}
+                onPriceWarningCheckboxClick={() =>
+                  setIsBlockingPriceImpactWarningChecked((prev) => !prev)
+                }
+                isBlockingUsdValueWarning={isBlockingUsdValueWarning}
+                setIsBlockingUsdValueWarning={setIsBlockingUsdValueWarning}
+                isBlockingUsdValueWarningChecked={isBlockingUsdValueWarningChecked}
+                onUsdValueWarningCheckboxClick={() =>
+                  setIsBlockingUsdValueWarningChecked((prev) => !prev)
+                }
+              />
               <div className='w-[344px] flex flex-col gap-3'>
                 <FeesView />
 
                 <Buttons.Generic
                   className='w-full'
                   color={activeChainInfo.theme.primaryColor ?? Colors.cosmosPrimary}
-                  disabled={reviewBtnDisabled}
+                  disabled={reviewDisabled}
                   onClick={() => setShowTxReviewSheet(true)}
                 >
                   Review

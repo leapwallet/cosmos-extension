@@ -26,6 +26,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { getChainInfosList } from 'utils/getChainInfosList'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 import extension from 'webextension-polyfill'
 
@@ -47,7 +48,7 @@ export namespace Wallet {
     return await browser.storage.local.set({
       [KEYSTORE]: newKeystore,
       [ACTIVE_WALLET]: newWallets[lastEntry],
-      [ACTIVE_CHAIN]: ChainInfos.cosmos.key,
+      [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : ChainInfos.cosmos.key,
     })
   }
 

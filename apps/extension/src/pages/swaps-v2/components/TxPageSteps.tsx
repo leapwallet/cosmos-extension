@@ -17,21 +17,27 @@ export function TxPageSteps({ route, txStatus }: TxPageStepsProps) {
     <div className='min-h-[75px] max-h-[150px] overflow-y-auto flex flex-col ml-[48px] gap-2'>
       {Object.keys(groupedTransactions).length > 0
         ? Object.entries(groupedTransactions).map(([, value], txIndex) => {
-            let currentResponseIndex = 0
+            let currentResponseIndex = -1
 
             return (
               <React.Fragment key={txIndex}>
                 {value?.map((action: SwapTxAction | TransferTxAction, index: number) => {
-                  if ((action.type === 'TRANSFER' || action.type === 'SEND') && index > 1) {
+                  if (action.type === 'TRANSFER' || action.type === 'SEND') {
                     currentResponseIndex++
                   }
+
+                  let responseIndex = currentResponseIndex
+                  if (action.type === 'SWAP' && index === 0) {
+                    responseIndex = 0
+                  }
+
                   return (
                     <TxPageStepsType
                       key={`${action.type}-${index}`}
                       action={action}
                       isFirst={index === 0}
                       isLast={index === value.length - 1}
-                      response={txStatus[txIndex].responses[currentResponseIndex]}
+                      response={txStatus[txIndex].responses[responseIndex]}
                     />
                   )
                 })}

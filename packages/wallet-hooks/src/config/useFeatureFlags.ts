@@ -11,8 +11,8 @@ export type FeatureFlags = {
 
 export function getFeatureFlags(storage: storage): Promise<FeatureFlags> {
   return cachedRemoteDataWithLastModified({
-    remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/config/feature-flags.json',
-    storageKey: 'feature-flag',
+    remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/config/feature-flags-v1.json',
+    storageKey: 'feature-flag-v1',
     storage,
   });
 }
@@ -20,5 +20,5 @@ export function getFeatureFlags(storage: storage): Promise<FeatureFlags> {
 export function useFeatureFlags() {
   const storage = useGetStorageLayer();
 
-  return useQuery<FeatureFlags>(['query-feature-flag'], () => getFeatureFlags(storage), { retry: 2 });
+  return useQuery<FeatureFlags>(['query-feature-flag-v1'], () => getFeatureFlags(storage), { retry: 2 });
 }

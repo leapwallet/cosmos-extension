@@ -1,11 +1,16 @@
-import { ExecuteResult, SigningCosmWasmClient, SigningCosmWasmClientOptions } from '@cosmjs/cosmwasm-stargate';
+import {
+  ExecuteResult,
+  JsonObject,
+  SigningCosmWasmClient,
+  SigningCosmWasmClientOptions,
+} from '@cosmjs/cosmwasm-stargate';
 import { toHex } from '@cosmjs/encoding';
-import { EncodeObject, OfflineSigner } from '@cosmjs/proto-signing';
+import { Coin, EncodeObject, OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, coin, DeliverTxResponse, SignerData, StdFee, TimeoutError } from '@cosmjs/stargate';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { DirectTokenSwapArgs, PassThroughTokenSwapArgs, TokenInfo } from 'types/swap';
 
-import { GasPrice } from '../tx';
+import { GasPrice, getTxData } from '../tx';
 import { sleep } from '../utils/sleep';
 import { createExecuteMessage, createIncreaseAllowanceMessage } from './utils/messages';
 import { getDirectTokenSwapMessage, getPassthroughSwapMessage } from './utils/messages/createExecuteMessage';
@@ -16,12 +21,14 @@ export class BaseSwapTx {
   rpcEndPoint: string;
   options: SigningCosmWasmClientOptions | undefined;
   gasPrice: GasPrice;
+  lcdUrl: string;
 
-  constructor(rpcEndPoint: string, wallet: OfflineSigner, options?: SigningCosmWasmClientOptions) {
+  constructor(rpcEndPoint: string, lcdUrl: string, wallet: OfflineSigner, options?: SigningCosmWasmClientOptions) {
     this.client = null;
     this.wallet = wallet;
     this.rpcEndPoint = rpcEndPoint;
     this.options = options;
+    this.lcdUrl = lcdUrl;
     if (!options?.gasPrice) {
       throw new Error('options.gasPrice price is required');
     }
@@ -59,7 +66,8 @@ export class BaseSwapTx {
       );
     }
     await sleep(this.options?.broadcastPollIntervalMs ?? 2_000);
-    const result = await this.client?.getTx(txId);
+    const result = await getTxData(txId, this.lcdUrl);
+
     return result
       ? {
           code: result.code,
@@ -68,7 +76,7 @@ export class BaseSwapTx {
           transactionHash: txId,
           gasUsed: result.gasUsed,
           gasWanted: result.gasWanted,
-          events: result.events,
+          events: [],
         }
       : this.pollForTx(txId, limit, pollCount + 1);
   }
@@ -95,6 +103,7 @@ export class BaseSwapTx {
       if (broadcasted.code) {
         return Promise.reject(new Error(broadcasted.code.toString()));
       }
+
       return toHex(broadcasted.hash).toUpperCase();
     } else {
       throw new Error('Cosmwasm client not initialised');
@@ -124,14 +133,14 @@ export class BaseSwapTx {
 }
 
 export class CWTx extends BaseSwapTx {
-  constructor(rpcEndPoint: string, wallet: OfflineSigner, options?: SigningCosmWasmClientOptions) {
+  constructor(rpcEndPoint: string, lcdUrl: string, wallet: OfflineSigner, options?: SigningCosmWasmClientOptions) {
     const cwOptions = {
       ...(options ?? {}),
     };
     if (!cwOptions.gasPrice) {
       cwOptions.gasPrice = GasPrice.fromString('0.01ujuno');
     }
-    super(rpcEndPoint, wallet, cwOptions);
+    super(rpcEndPoint, lcdUrl, wallet, cwOptions);
   }
 
   async directTokenSwap({
@@ -186,6 +195,24 @@ export class CWTx extends BaseSwapTx {
   }: PassThroughTokenSwapArgs): Promise<number | undefined> {
     const swapMessage = getPassthroughSwapMessage(price, slippage, tokenAmount, outputSwapAddress);
     return await this.simulateSwap({ senderAddress, swapAddress, tokenA, tokenAmount, swapMessage });
+  }
+
+  async execute(
+    senderAddress: string,
+    contractAddress: string,
+    message: JsonObject,
+    fee: StdFee | 'auto' | number,
+    memo: string = '',
+    funds?: Coin[],
+  ) {
+    const executeMessage = createExecuteMessage({
+      senderAddress,
+      contractAddress,
+      message,
+      funds,
+    });
+
+    return this.signAndBroadcastTx(senderAddress, [executeMessage], fee, memo);
   }
 
   async executeSwap(

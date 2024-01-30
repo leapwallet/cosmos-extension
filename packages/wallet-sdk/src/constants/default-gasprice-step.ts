@@ -111,6 +111,8 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   sentinel: DefaultGasEstimates,
   bandchain: DefaultGasEstimates,
   composable: DefaultGasEstimates,
+  seiDevnet: DefaultGasEstimates,
+  dymension: DefaultGasEstimates,
   pryzmtestnet: DefaultGasEstimates,
   thorchain: DefaultGasEstimates,
   odin: DefaultGasEstimates,

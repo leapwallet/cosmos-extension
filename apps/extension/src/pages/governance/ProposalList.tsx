@@ -136,13 +136,7 @@ function ProposalList({
                 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={
-              isCompassWallet()
-                ? undefined
-                : function noRefCheck() {
-                    setShowChainSelector(true)
-                  }
-            }
+            onImgClick={() => setShowChainSelector(true)}
             title={'Governance'}
             topColor={themeColor}
           />

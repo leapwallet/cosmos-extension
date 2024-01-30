@@ -23,6 +23,7 @@ import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 
 import { sleep } from '../utils/sleep';
+import { Profile } from './desmos/models-profile';
 import { StridePeriodicVestingAccount } from './liquidStakeRegistry/stride/periodic-vesting-account';
 import {
   buildGrantMsg,
@@ -84,6 +85,14 @@ export class Tx {
           assert(baseAccount);
           return accountFromBaseAccount(baseAccount);
         }
+
+        if (typeUrl === '/desmos.profiles.v3.Profile') {
+          const account = Profile.decode(value).account;
+          if (account) {
+            return accountFromAny(account);
+          }
+        }
+
         return accountFromAny(input);
       },
     });

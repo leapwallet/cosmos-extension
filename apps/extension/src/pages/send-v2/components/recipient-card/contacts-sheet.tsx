@@ -71,7 +71,7 @@ export const ContactsSheet: React.FC<ContactsSheetProps> = ({
                   chainIcon={chainImage}
                   emoji={contact.emoji}
                   size='md'
-                  subtitle={sliceAddress(contact.address)}
+                  subtitle={sliceAddress(contact.ethAddress ? contact.ethAddress : contact.address)}
                   title={contact.name}
                   onClick={() => handleAvatarClick(contact, chainImage)}
                 />

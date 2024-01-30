@@ -102,9 +102,11 @@ const ibcAminoConverters: Record<
       receiver,
       timeout_height,
       timeout_timestamp,
+      //@ts-ignore
+      memo = '',
     }: AminoMsgTransfer['value']): MsgTransfer => {
       return {
-        memo: '',
+        memo,
         sourcePort: source_port,
         sourceChannel: source_channel,
         token: {

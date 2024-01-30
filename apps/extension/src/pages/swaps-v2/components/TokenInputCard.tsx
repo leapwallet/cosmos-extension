@@ -98,6 +98,7 @@ export function TokenInputCard({
           relative: showFor === 'source',
         },
       )}
+      key={balanceAmount}
     >
       <div
         className={classNames(

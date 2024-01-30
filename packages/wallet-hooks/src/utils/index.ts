@@ -1,4 +1,6 @@
+export * from './balanceCalculator';
 export * from './cached-remote-data';
+export * from './convertScientificNotation';
 export * from './convertScrtToDenom';
 export * from './DenomFetcher';
 export * from './findUSDValue';

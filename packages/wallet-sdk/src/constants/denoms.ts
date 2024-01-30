@@ -16,6 +16,14 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  udym: {
+    coinDenom: 'DYM',
+    coinDecimals: 18,
+    coinMinimalDenom: 'udym',
+    icon: 'https://assets.leapwallet.io/dymension-logo.svg',
+    chain: 'dymension',
+    coinGeckoId: '',
+  },
   rune: {
     coinDenom: 'RUNE',
     coinDecimals: 8,
@@ -124,9 +132,9 @@ export const denoms = {
     coinDenom: 'NIBI',
     coinMinimalDenom: 'unibi',
     coinDecimals: 6,
-    icon: 'https://assets.leapwallet.io/nibiry.png',
+    icon: 'https://assets.leapwallet.io/nibiru.png',
     chain: 'nibiru',
-    coinGeckoId: '',
+    coinGeckoId: 'nibi',
   },
   cacao: {
     coinDenom: 'CACAO',

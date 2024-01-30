@@ -268,7 +268,7 @@ export class OsmosisSwapModule implements SwapModule {
       tokenOutMinAmount,
     });
 
-    const client = new BaseSwapTx(rpcEndpoint, signer, {
+    const client = new BaseSwapTx(rpcEndpoint, lcdEndpoint, signer, {
       registry: new Registry(osmosis.poolmanager.v1beta1.registry),
       aminoTypes: new AminoTypes(osmosisAminoConverters),
       gasPrice: new GasPrice(Decimal.fromUserInput(fee.amount[0].amount, 18), fee.amount[0].denom),

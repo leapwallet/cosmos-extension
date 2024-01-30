@@ -17,4 +17,12 @@ export const PriorityChains: Array<SupportedChain> = [
   'stargaze',
 ]
 
+export const REMOVED_CHAINS_FROM_ONBOARDING = [
+  'iov-mainnet-ibc',
+  'odin-mainnet-freya',
+  'gravity-bridge-3',
+]
+
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']
+
+export const SHOW_ETH_ADDRESS_CHAINS = ['dymension']

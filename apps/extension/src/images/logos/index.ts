@@ -99,6 +99,8 @@ const ChainLogos: Record<string, string | undefined> = {
   kichain: ChainInfos.kichain.chainSymbolImageUrl,
   sentinel: ChainInfos.sentinel.chainSymbolImageUrl,
   bandchain: ChainInfos.bandchain.chainSymbolImageUrl,
+  seiDevnet: ChainInfos.seiDevnet.chainSymbolImageUrl,
+  dymension: ChainInfos.dymension.chainSymbolImageUrl,
   pryzmtestnet: ChainInfos.pryzmtestnet.chainSymbolImageUrl,
   thorchain: ChainInfos.thorchain.chainSymbolImageUrl,
   odin: ChainInfos.odin.chainSymbolImageUrl,

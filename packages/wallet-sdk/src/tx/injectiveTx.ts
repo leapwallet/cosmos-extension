@@ -38,7 +38,7 @@ import { AccountDetails, fetchAccountDetails, InjectiveAccountRestResponse } fro
 import { ChainInfos } from '../constants';
 import { getClientState, getRestUrl } from '../utils';
 import { sleep } from '../utils';
-import { buildGrantMsg, buildRevokeMsg } from './msgs/cosmos';
+import { buildGrantMsg } from './msgs/cosmos';
 enum MsgTypes {
   GRANT = '/cosmos.authz.v1beta1.MsgGrant',
   REVOKE = '/cosmos.authz.v1beta1.MsgRevoke',
@@ -104,12 +104,32 @@ export class InjectiveTx {
   }
 
   async revokeRestake(fromAddress: string, grantee: string, fee: StdFee, memo: string) {
-    const messages = [buildRevokeMsg('/cosmos.staking.v1beta1.MsgDelegate', fromAddress, grantee)];
+    const messages = [
+      {
+        typeUrl: '/cosmos.authz.v1beta1.MsgRevoke',
+        value: {
+          messageType: '/cosmos.staking.v1beta1.MsgDelegate',
+          grantee,
+          granter: fromAddress,
+        },
+      },
+    ];
+
     return await this.signAndBroadcastTx(fromAddress, messages, fee, memo);
   }
 
   async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: number | StdFee | 'auto', memo = '') {
-    const revokeMsg = [buildRevokeMsg(msgType, fromAddress, grantee)];
+    const revokeMsg = [
+      {
+        typeUrl: '/cosmos.authz.v1beta1.MsgRevoke',
+        value: {
+          messageType: msgType,
+          grantee,
+          granter: fromAddress,
+        },
+      },
+    ];
+
     return await this.signAndBroadcastTx(fromAddress, revokeMsg, fee, memo);
   }
 

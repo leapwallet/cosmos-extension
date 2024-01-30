@@ -144,7 +144,8 @@ export const chainIdToChain: Record<string, string> = {
   'nolus-rila': 'nolus',
   'pirin-1': 'nolus',
   gitopia: 'gitopia',
-  'nibiru-itn-1': 'nibiru',
+  'cataclysm-1': 'nibiru',
+  'nibiru-testnet-1': 'nibiru',
   'mayachain-mainnet-v1': 'mayachain',
   'empowerchain-1': 'empowerchain',
   'dydx-testnet-1': 'dydx',
@@ -155,5 +156,7 @@ export const chainIdToChain: Record<string, string> = {
   'dimension_37-1': 'xpla',
   'xstaxy-1': 'aura',
   'centauri-1': 'composable',
+  'arctic-1': 'seiDevnet',
+  'froopyland_100-1': 'dymension',
   'indigo-1': 'pryzmtestnet',
 };

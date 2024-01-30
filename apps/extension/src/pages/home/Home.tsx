@@ -1,12 +1,14 @@
 import {
   SecretToken,
   useFeatureFlags,
+  useGetAsteroidTokens,
   useGetTokenBalances,
   useSendIbcChains,
   useSnipDenomsStore,
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { getEthereumAddress } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Buttons,
   CardDivider,
@@ -21,6 +23,7 @@ import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import ClickableIcon from 'components/clickable-icons'
 import { EmptyCard } from 'components/empty-card'
+import { EthCopyWalletAddress } from 'components/eth-copy-wallet-address'
 import PopupLayout from 'components/layout/popup-layout'
 import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
@@ -28,7 +31,7 @@ import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
 import { EventName, PageName } from 'config/analytics'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX, ON_RAMP_SUPPORT_CHAINS } from 'config/config'
-import { walletLabels } from 'config/constants'
+import { SHOW_ETH_ADDRESS_CHAINS, walletLabels } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -56,6 +59,7 @@ import { sliceAddress, trim } from 'utils/strings'
 
 import { searchModalState } from '../../atoms/search-modal'
 import AssetCard from './AssetCard'
+import { CopyAddressSheet } from './CopyAddressSheet'
 import { BitcoinDeposit, DepositBTCBanner } from './DepositBTCBanner'
 import FundBanners from './FundBanners'
 import GlobalBannersAD from './GlobalBannersAD'
@@ -126,8 +130,8 @@ export default function Home() {
 
   const {
     isWalletHasFunds,
-    allAssets,
-    totalCurrencyInPreferredFiatValue,
+    allAssets: _allAssets,
+    totalCurrencyInPreferredFiatValue: _allAssetsCurrencyInFiat,
     s3IbcTokensStatus,
     nonS3IbcTokensStatus,
     nativeTokensStatus,
@@ -135,10 +139,22 @@ export default function Home() {
     cw20TokensBalances,
     erc20TokensStatus,
   } = useGetTokenBalances()
+
+  const { status: asteroidsTokensStatus, data } = useGetAsteroidTokens()
+  const allAssets = useMemo(() => {
+    return [..._allAssets, ...(data?.asteroidTokens ?? [])]
+  }, [_allAssets, data?.asteroidTokens])
+
+  const totalCurrencyInPreferredFiatValue = useMemo(() => {
+    return _allAssetsCurrencyInFiat.plus(data?.currencyInFiatValue ?? 0)
+  }, [_allAssetsCurrencyInFiat, data?.currencyInFiatValue])
+
   const activeChain = useActiveChain()
+  const [showCopyAddressSheet, setShowCopyAddressSheet] = useState(false)
+  const { activeWallet } = useActiveWallet()
 
   const chain = chainInfos[activeChain]
-  const { activeWallet } = useActiveWallet()
+
   const isTestnet = useSelectedNetwork() === 'testnet'
 
   const walletAvatar = useMemo(() => {
@@ -159,7 +175,8 @@ export default function Home() {
       cw20TokensStatus !== 'success' &&
       s3IbcTokensStatus !== 'success' &&
       nonS3IbcTokensStatus !== 'success' &&
-      nativeTokensStatus !== 'success'
+      nativeTokensStatus !== 'success' &&
+      asteroidsTokensStatus !== 'success'
         ? 'loading'
         : ''
 
@@ -168,7 +185,8 @@ export default function Home() {
       cw20TokensStatus == 'success' &&
       s3IbcTokensStatus === 'success' &&
       nonS3IbcTokensStatus === 'success' &&
-      nativeTokensStatus === 'success'
+      nativeTokensStatus === 'success' &&
+      asteroidsTokensStatus === 'success'
         ? 'success'
         : status
 
@@ -177,12 +195,14 @@ export default function Home() {
       cw20TokensStatus === 'error' &&
       s3IbcTokensStatus === 'error' &&
       nonS3IbcTokensStatus === 'error' &&
-      nativeTokensStatus === 'error'
+      nativeTokensStatus === 'error' &&
+      asteroidsTokensStatus === 'error'
         ? 'error'
         : status
 
     return status
   }, [
+    asteroidsTokensStatus,
     cw20TokensStatus,
     erc20TokensStatus,
     nativeTokensStatus,
@@ -196,6 +216,16 @@ export default function Home() {
     op: 'homePageLoad',
     description: 'loading state on home page',
   })
+
+  const walletAddresses = useMemo(() => {
+    if (
+      activeWallet?.walletType !== WALLETTYPE.LEDGER &&
+      SHOW_ETH_ADDRESS_CHAINS.includes(activeChain)
+    ) {
+      return [getEthereumAddress(address), address]
+    }
+    return [address]
+  }, [activeChain, address, activeWallet])
 
   const [assets, smallBalanceAssets] = useMemo(() => {
     let assetsToShow = allAssets
@@ -242,7 +272,8 @@ export default function Home() {
     cw20TokensStatus !== 'success' &&
     s3IbcTokensStatus !== 'success' &&
     nonS3IbcTokensStatus !== 'success' &&
-    nativeTokensStatus !== 'success'
+    nativeTokensStatus !== 'success' &&
+    asteroidsTokensStatus !== 'success'
 
   const disabled =
     activeWallet.walletType === WALLETTYPE.LEDGER &&
@@ -262,7 +293,8 @@ export default function Home() {
     nativeTokensStatus === 'loading' ||
     cw20TokensStatus === 'loading' ||
     s3IbcTokensStatus === 'loading' ||
-    nonS3IbcTokensStatus === 'loading'
+    nonS3IbcTokensStatus === 'loading' ||
+    asteroidsTokensStatus === 'loading'
 
   const activeChainInfo = chainInfos[activeChain]
 
@@ -302,13 +334,7 @@ export default function Home() {
               imgSrc: NftLogo,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={
-              isCompassWallet()
-                ? undefined
-                : function noRefCheck() {
-                    setShowChainSelector(true)
-                  }
-            }
+            onImgClick={() => setShowChainSelector(true)}
             title={
               <Buttons.Wallet
                 brandLogo={
@@ -405,18 +431,19 @@ export default function Home() {
             {disabled ? (
               <div className='flex items-center bg-red-300 rounded-2xl py-1 px-4 w-fit self-center mx-auto mb-[24px]'>
                 <span className='material-icons-round text-white-100 mr-[5px]'>error</span>{' '}
-                <Text size='xs'>{`Ledger not supported for ${chain?.chainName} chain`}</Text>
+                <Text size='xs'>Ledger not supported for {chain?.chainName}</Text>
               </div>
             ) : (
               <div className='flex justify-center items-start mb-6'>
-                <Buttons.CopyWalletAddress
+                <EthCopyWalletAddress
                   textOnCopied={'Copied Address'}
-                  walletAddress={sliceAddress(address)}
+                  walletAddresses={walletAddresses.map((address) => sliceAddress(address))}
                   color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-                  onCopy={() => {
-                    UserClipboard.copyText(address)
-                  }}
+                  onCopy={() => UserClipboard.copyText(walletAddresses[0])}
                   data-testing-id='home-copy-address-btn'
+                  onTextClick={
+                    walletAddresses.length > 1 ? () => setShowCopyAddressSheet(true) : undefined
+                  }
                 />
 
                 {isCompassWallet() ? (
@@ -463,9 +490,20 @@ export default function Home() {
                   disabled={walletCtaDisabled}
                 />
                 <ClickableIcon
-                  image={{ src: Images.Misc.IbcUnion, alt: 'IBC' }}
+                  image={{ src: Images.Misc.IbcUnion, alt: 'IBC', type: 'url' }}
                   onClick={() => navigate('/ibc')}
                   disabled={walletCtaDisabled || sendIbcChains.length === 0}
+                />
+                <ClickableIcon
+                  image={{ src: Images.Misc.BridgeRoute, alt: 'Bridge', type: 'url' }}
+                  onClick={() => {
+                    const baseUrl = 'https://cosmos.leapwallet.io/transact/bridge'
+                    window.open(
+                      `${baseUrl}?destinationChainId=${activeChainInfo.chainId}`,
+                      '_blank',
+                    )
+                  }}
+                  disabled={walletCtaDisabled}
                 />
                 <ClickableIcon
                   image={{ src: 'swap_horiz', alt: 'Swap' }}
@@ -613,6 +651,7 @@ export default function Home() {
                 <TokenCardSkeleton />
               ) : null}
               {erc20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+              {asteroidsTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
 
               {!atLeastOneTokenIsLoading && cw20TokensStatus === 'success' && (
                 <div
@@ -669,11 +708,10 @@ export default function Home() {
           setShowBitcoinDepositSheet(false)
         }}
       />
-      <BitcoinDeposit
-        isVisible={showBitcoinDepositSheet}
-        onCloseHandler={() => {
-          setShowBitcoinDepositSheet(false)
-        }}
+      <CopyAddressSheet
+        isVisible={showCopyAddressSheet}
+        onClose={() => setShowCopyAddressSheet(false)}
+        walletAddresses={walletAddresses}
       />
       <BottomNav label={BottomNavLabel.Home} disabled={disabled} />
     </div>

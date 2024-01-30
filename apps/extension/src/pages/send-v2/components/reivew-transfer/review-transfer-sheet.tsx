@@ -190,7 +190,12 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
                 </>
               }
               title={
-                <p data-testing-id='send-review-sheet-to-ele'>{'To ' + selectedAddress?.name}</p>
+                <p data-testing-id='send-review-sheet-to-ele'>
+                  {'To ' +
+                    (selectedAddress?.ethAddress
+                      ? sliceAddress(selectedAddress.ethAddress)
+                      : selectedAddress?.name)}
+                </p>
               }
             />
           </div>

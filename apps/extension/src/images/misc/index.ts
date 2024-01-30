@@ -7,6 +7,7 @@ import AddContact from './add-contact.svg'
 import ArrowBack from './arrow-back.svg'
 import ArrowDown from './arrow-down.svg'
 import Blockchain from './blockchain.svg'
+import BridgeRoute from './bridge-route.svg'
 import CardDividerDarkMode from './card-divider-dark-mode.svg'
 import CardDividerLightMode from './card-divider-light-mode.svg'
 import CheckCompass from './check-compass.svg'
@@ -46,6 +47,7 @@ import FilledExclamationMark from './filled-exclamation-mark.svg'
 import FilledFavStar from './filled-fav-star.svg'
 import FilledKey from './filled-key.svg'
 import FilledPen from './filled-pen.svg'
+import FilledRoundedSquareCheckMark from './filled-rounded-square-check-mark.svg'
 import FlashOn from './flash-on.svg'
 import Gear from './gear.svg'
 import Globe from './globe.svg'
@@ -62,6 +64,7 @@ import IbcUnion from './ibc-union.svg'
 import IconRight from './icon-right-gray-400.svg'
 import InfoCircle from './info-circle.svg'
 import InfoFilledExclamationMark from './info-filled-exclamation-mark.svg'
+import InfoFilledExclamationRedMark from './info-filled-exclamation-red-mark.svg'
 import KeyDark from './key-dark.svg'
 import KeyLight from './key-light.svg'
 import KeyVpn from './key-vpn.svg'
@@ -159,6 +162,7 @@ export {
   ArrowBack,
   ArrowDown,
   Blockchain,
+  BridgeRoute,
   CardDividerDarkMode,
   CardDividerLightMode,
   CheckCompass,
@@ -195,6 +199,7 @@ export {
   FilledFavStar,
   FilledKey,
   FilledPen,
+  FilledRoundedSquareCheckMark,
   FlashOn,
   Gear,
   Globe,
@@ -211,6 +216,7 @@ export {
   IconRight,
   InfoCircle,
   InfoFilledExclamationMark,
+  InfoFilledExclamationRedMark,
   KeyDark,
   KeyLight,
   KeyVpn,

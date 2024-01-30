@@ -36,14 +36,16 @@ export function useInitNodeUrls(
       if (NODE_URLS) {
         for (const chain in customEndpoints) {
           const { rpc, lcd } = customEndpoints[chain]
-          const chainId = chains[chain as SupportedChain].chainId
+          const chainId = chains[chain as SupportedChain]?.chainId
 
-          if (lcd && NODE_URLS.rest) {
-            NODE_URLS.rest[chainId] = [{ nodeUrl: lcd, nodeProvider: null }]
-          }
+          if (chainId) {
+            if (lcd && NODE_URLS.rest) {
+              NODE_URLS.rest[chainId] = [{ nodeUrl: lcd, nodeProvider: null }]
+            }
 
-          if (rpc && NODE_URLS.rpc) {
-            NODE_URLS.rpc[chainId] = [{ nodeUrl: rpc, nodeProvider: null }]
+            if (rpc && NODE_URLS.rpc) {
+              NODE_URLS.rpc[chainId] = [{ nodeUrl: rpc, nodeProvider: null }]
+            }
           }
         }
       }

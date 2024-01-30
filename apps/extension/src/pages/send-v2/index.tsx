@@ -12,7 +12,6 @@ import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
 import React, { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { AmountCard } from './components/amount-card'
 import { FeesView } from './components/fees-view'
@@ -49,13 +48,7 @@ const Send = () => {
                 type: HeaderActionType.BACK,
               }}
               imgSrc={chainImage}
-              onImgClick={
-                isCompassWallet()
-                  ? undefined
-                  : function noRefCheck() {
-                      setShowChainSelector(true)
-                    }
-              }
+              onImgClick={() => setShowChainSelector(true)}
               title={location.pathname === '/ibc' ? 'IBC' : 'Send'}
               topColor={themeColor}
             />

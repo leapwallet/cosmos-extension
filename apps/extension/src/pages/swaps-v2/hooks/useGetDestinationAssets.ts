@@ -30,6 +30,7 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
       allAssets,
       denoms,
       destinationChain,
+      ibcTraceData,
     ],
     async function () {
       if (destinationAssets && destinationAssets.success && destinationAssets.assets.length > 0) {
@@ -102,7 +103,7 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
                 } else {
                   needToFetchIbcSourceChainsFor.push({
                     denom: skipAsset.denom,
-                    chain_id: String(destinationChain?.chainId) ?? '',
+                    chain_id: String(destinationChain?.chainId ?? ''),
                   })
                 }
 

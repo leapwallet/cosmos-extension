@@ -350,6 +350,7 @@ export namespace LeapWalletApi {
       chain4energy: CosmosBlockchain.chain4Energy,
       composable: 'COMPOSABLE' as CosmosBlockchain,
       nolus: CosmosBlockchain.Nolus,
+      dymension: 'DYMENSION' as CosmosBlockchain,
       pryzmtestnet: 'PRYZM' as CosmosBlockchain,
       thorchain: 'THOR_CHAIN' as CosmosBlockchain,
       odin: 'ODIN_CHAIN' as CosmosBlockchain,

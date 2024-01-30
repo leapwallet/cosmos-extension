@@ -51,6 +51,7 @@ import SelectWalletSheet from 'components/select-wallet-sheet'
 import { Tabs } from 'components/tabs'
 import Text from 'components/text'
 import { walletLabels } from 'config/constants'
+import { MessageTypes } from 'config/message-types'
 import { BG_RESPONSE, SIGN_REQUEST } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
@@ -74,6 +75,7 @@ import browser from 'webextension-polyfill'
 
 import { EventName } from '../../config/analytics'
 import { isCompassWallet } from '../../utils/isCompassWallet'
+import { NotAllowSignTxGasOptions } from './additional-fee-settings'
 import { useFeeValidation } from './fee-validation'
 import { MemoInput } from './memo-input'
 import MessageDetailsSheet from './message-details-sheet'
@@ -129,8 +131,9 @@ const SignTransaction = ({
   const chainInfos = useChainInfos()
   const activeWallet = useActiveWallet()
   const getWallet = useGetWallet()
-  const defaultGasPrice = useDefaultGasPrice()
+
   const activeChain = useActiveChain()
+  const defaultGasPrice = useDefaultGasPrice({ activeChain })
   const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
   const defaultGasEstimates = useDefaultGasEstimates()
   const selectedGasOptionRef = useRef(false)
@@ -358,18 +361,17 @@ const SignTransaction = ({
         },
         mixpanelTrackOptions,
       )
-    } catch (_) {
-      //
+    } catch (e) {
+      captureException(e)
     }
 
-    await browser.storage.local.set({
-      [BG_RESPONSE]: { error: 'Transaction cancelled by the user.' },
+    browser.runtime.sendMessage({
+      type: MessageTypes.signResponse,
+      payload: { status: 'error', data: 'Transaction cancelled by the user.' },
     })
     await sleep(100)
 
     setTimeout(async () => {
-      await browser.storage.local.remove(SIGN_REQUEST)
-      await browser.storage.local.remove(BG_RESPONSE)
       window.close()
     }, 10)
   }, [
@@ -430,6 +432,7 @@ const SignTransaction = ({
             signOptions: JSON.stringify(signOptions),
             txData: JSON.stringify(messages),
             gasPrice: gasPriceOption.gasPrice.toString(),
+            gasLimitOriginal: recommendedGasLimit,
             gasLimit: userPreferredGasLimit || recommendedGasLimit,
             denom: JSON.stringify(denomData),
             fee: JSON.stringify(txFee),
@@ -459,7 +462,7 @@ const SignTransaction = ({
               onValidationFailed(fee),
             )
           } catch (e) {
-            Sentry.captureException(e)
+            captureException(e)
           }
           if (feeCheck === false) {
             throw new Error(
@@ -488,6 +491,18 @@ const SignTransaction = ({
         const bgResponse = JSON.stringify(data)
 
         isApprovedRef.current = true
+        logDirectTx(
+          data as DirectSignResponse,
+          messages ?? [],
+          siteOrigin ?? origin,
+          fee,
+          activeChain,
+          activeWallet?.addresses[activeChain] as string,
+          txPostToDb,
+          txnDoc.chain_id,
+        ).catch((e) => {
+          captureException(e)
+        })
 
         try {
           const txHash = getTxHashFromDirectSignResponse(data)
@@ -507,33 +522,23 @@ const SignTransaction = ({
             },
             mixpanelTrackOptions,
           )
-        } catch (_) {
-          //
+        } catch (e) {
+          captureException(e)
         }
 
         await sleep(100)
 
         try {
-          await browser.storage.local.set({ [BG_RESPONSE]: bgResponse })
+          browser.runtime.sendMessage({
+            type: MessageTypes.signResponse,
+            payload: { status: 'success', data },
+          })
         } catch {
           throw new Error('Could not send transaction to the dApp')
         }
 
-        logDirectTx(
-          data as DirectSignResponse,
-          messages ?? [],
-          siteOrigin ?? origin,
-          fee,
-          activeChain,
-          activeWallet?.addresses[activeChain] as string,
-          txPostToDb,
-          txnDoc.chain_id,
-        ).catch((e) => {
-          DEBUG('logDirectTx error', e)
-        })
-
         setTimeout(async () => {
-          await browser.storage.local.remove(SIGN_REQUEST)
+          //await browser.storage.local.remove(SIGN_REQUEST)
           window.close()
         }, 10)
       } catch (e) {
@@ -562,7 +567,7 @@ const SignTransaction = ({
               onValidationFailed(fee),
             )
           } catch (e) {
-            Sentry.captureException(e)
+            captureException(e)
           }
 
           if (feeCheck === false) {
@@ -623,8 +628,8 @@ const SignTransaction = ({
             activeAddress,
             siteOrigin ?? origin,
           )
-        } catch {
-          //
+        } catch (e) {
+          captureException(e)
         }
 
         try {
@@ -658,13 +663,16 @@ const SignTransaction = ({
         await sleep(100)
 
         try {
-          await browser.storage.local.set({ [BG_RESPONSE]: bgResponse })
+          browser.runtime.sendMessage({
+            type: MessageTypes.signResponse,
+            payload: { status: 'success', data },
+          })
         } catch {
           throw new Error('Could not send transaction to the dApp')
         }
 
         setTimeout(async () => {
-          await browser.storage.local.remove(SIGN_REQUEST)
+          //await browser.storage.local.remove(SIGN_REQUEST)
           window.close()
         }, 10)
       } catch (e) {
@@ -754,35 +762,6 @@ const SignTransaction = ({
     !!gasPriceError ||
     (hasToShowCheckbox === true && checkedGrantAuthBox === false) ||
     (isFeesValid === false && !highFeeAccepted)
-
-  const NotAllowSignTxGasOptions = () => {
-    const { viewAdditionalOptions } = useGasPriceContext()
-    return viewAdditionalOptions ? (
-      <div className='rounded-2xl p-4 mt-3 dark:bg-[#141414] bg-white-100'>
-        <div className='flex items-center'>
-          <p className='text-gray-500 dark:text-gray-100 text-sm font-medium tracking-wide'>
-            Gas Fees <span className='capitalize'>({gasPriceOption.option})</span>
-          </p>
-          <Tooltip
-            content={
-              <p className='text-gray-500 dark:text-gray-100 text-sm'>
-                You can choose higher gas fees for faster transaction processing.
-              </p>
-            }
-          >
-            <div className='relative ml-2'>
-              <img src={Images.Misc.InfoCircle} alt='Hint' />
-            </div>
-          </Tooltip>
-        </div>
-        <GasPriceOptions.Selector className='mt-2' preSelected={false} />
-        <GasPriceOptions.AdditionalSettings className='mt-5 p-0' showGasLimitWarning={true} />
-        {gasPriceError ? (
-          <p className='text-red-300 text-sm font-medium mt-2 px-1'>{gasPriceError}</p>
-        ) : null}
-      </div>
-    ) : null
-  }
 
   return (
     <div className='w-[400px] h-full relative self-center justify-self-center flex justify-center items-center mt-2'>
@@ -879,7 +858,8 @@ const SignTransaction = ({
                         signOptions: JSON.stringify(signOptions),
                         txData: JSON.stringify(messages),
                         gasPrice: gasPriceOption.gasPrice.toString(),
-                        gasLimit: userPreferredGasLimit || recommendedGasLimit,
+                        gasLimitOriginal: recommendedGasLimit,
+                        gasLimit: userPreferredGasLimit,
                         denom: JSON.stringify(feeTokenData.denom),
                         fee: JSON.stringify(fee),
                         context: 'pre-approval',
@@ -888,7 +868,7 @@ const SignTransaction = ({
                       mixpanelTrackOptions,
                     )
                   } catch (e) {
-                    Sentry.captureException(e)
+                    captureException(e)
                   }
                 }}
               >
@@ -951,7 +931,10 @@ const SignTransaction = ({
                           <div className='flex items-center justify-end'>
                             <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
                           </div>
-                          <NotAllowSignTxGasOptions />
+                          <NotAllowSignTxGasOptions
+                            gasPriceOption={gasPriceOption}
+                            gasPriceError={gasPriceError}
+                          />
                         </div>
                       </>
                     ),
@@ -1081,10 +1064,15 @@ const SignTransaction = ({
             )}
 
             <div className='flex items-center justify-center w-full space-x-3'>
-              <Buttons.Generic color={Colors.gray900} onClick={handleCancel}>
+              <Buttons.Generic
+                title={'Reject Button'}
+                color={Colors.gray900}
+                onClick={handleCancel}
+              >
                 Reject
               </Buttons.Generic>
               <Buttons.Generic
+                title={'Approve Button'}
                 color={Colors.getChainColor(activeChain)}
                 onClick={approveTransaction}
                 disabled={isApproveBtnDisabled}
@@ -1125,42 +1113,29 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
       decodeChainIdToChain().then(setChainIdToChain).catch(captureException)
     }, [])
 
-    useEffect(() => {
-      const getTxnData = async () => {
-        const storage = await browser.storage.local.get([SIGN_REQUEST])
-        const txnData = storage[SIGN_REQUEST]
-        if (!txnData) {
-          throw new Error('no-data')
+    const signTxEventHandler = (message: any, sender: any) => {
+      if (sender.id !== browser.runtime.id) return
+      if (message.type === MessageTypes.signTransaction) {
+        const txnData = message.payload
+        const chainId = txnData.chainId ? txnData.chainId : txnData.signDoc?.chainId
+        const chain = chainId ? (_chainIdToChain[chainId] as SupportedChain) : undefined
+
+        if (txnData.signOptions.isSignArbitrary) {
+          setIsSignArbitrary(true)
         }
-        return txnData
+        setChain(chain)
+        setChainId(chainId)
+        setTxnData(txnData)
       }
-      getTxnData()
-        .then((txnData: Record<string, any>) => {
-          const chainId = txnData.chainId ? txnData.chainId : txnData.signDoc?.chainId
-          const chain = chainId ? (_chainIdToChain[chainId] as SupportedChain) : undefined
+    }
 
-          if (txnData.signOptions.isSignArbitrary) {
-            setIsSignArbitrary(true)
-          }
-
-          setChain(chain)
-          setChainId(chainId)
-          setTxnData(txnData)
-        })
-        .catch((e) => {
-          if (e.message === 'no-data') {
-            setError({
-              message: 'No transaction data was found, please retry the transaction from the dApp.',
-              code: 'no-data',
-            })
-          } else {
-            setError({
-              message: 'Something went wrong, please try again.',
-              code: 'unknown',
-            })
-          }
-        })
-    }, [_chainIdToChain])
+    useEffect(() => {
+      browser.runtime.sendMessage({ type: MessageTypes.signingPopupOpen })
+      browser.runtime.onMessage.addListener(signTxEventHandler)
+      return () => {
+        browser.runtime.onMessage.removeListener(signTxEventHandler)
+      }
+    }, [])
 
     useEffect(() => {
       if (chain && chain !== activeChain) {
@@ -1230,4 +1205,6 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
   return Wrapped
 }
 
-export default withTxnSigningRequest(SignTransaction)
+const signTx = withTxnSigningRequest(React.memo(SignTransaction))
+
+export default signTx

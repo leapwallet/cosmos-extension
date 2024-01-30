@@ -49,35 +49,15 @@ export function SelectTokenSheet({
   const tokensToShow = useMemo(() => {
     switch (showFor) {
       case 'source':
-        return sourceAssets.filter((sourceAsset) => {
-          if (destinationToken) {
-            if (destinationToken.ibcDenom && sourceAsset.ibcDenom) {
-              return sourceAsset.ibcDenom !== destinationToken.ibcDenom
-            }
-
-            return sourceAsset.coinMinimalDenom !== destinationToken.coinMinimalDenom
-          }
-
-          return true
-        })
+        return sourceAssets
 
       case 'destination':
-        return destinationAssets.filter((destinationAsset) => {
-          if (sourceToken) {
-            if (destinationAsset.ibcDenom && sourceToken.ibcDenom) {
-              return destinationAsset.ibcDenom !== sourceToken.ibcDenom
-            }
-
-            return destinationAsset.coinMinimalDenom !== sourceToken.coinMinimalDenom
-          }
-
-          return true
-        })
+        return destinationAssets
 
       default:
         return []
     }
-  }, [showFor, sourceAssets, destinationAssets, destinationToken, sourceToken])
+  }, [showFor, sourceAssets, destinationAssets])
 
   const filteredTokens = useMemo(() => {
     if (searchQuery.length === 0) {
@@ -126,12 +106,10 @@ export function SelectTokenSheet({
               const isFirst = index === 0
               const isLast = index === tokensToShow.length - 1
 
-              let isSelected = false
+              let isSelected = token.coinMinimalDenom === selectedToken?.coinMinimalDenom
 
-              if (token.ibcDenom && selectedToken?.ibcDenom) {
-                isSelected = token.ibcDenom === selectedToken.ibcDenom
-              } else {
-                isSelected = token.coinMinimalDenom === selectedToken?.coinMinimalDenom
+              if (token.ibcDenom !== undefined && selectedToken?.ibcDenom !== undefined) {
+                isSelected = isSelected && token.ibcDenom === selectedToken.ibcDenom
               }
 
               return (

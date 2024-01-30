@@ -184,7 +184,7 @@ export const useGetOwnedCollection = (
       return 'success';
     })() as QueryStatus | 'fetching-more',
     fetchMore: function () {
-      if (fetchTillIndex + paginationLimit <= tokensListByCollection.tokens.length) {
+      if (fetchTillIndex < tokensListByCollection.tokens.length) {
         setFetchTillIndex((prevValue) => prevValue + paginationLimit);
       }
     },

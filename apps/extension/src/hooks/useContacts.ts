@@ -43,7 +43,7 @@ export const useContactsSearch = (searchQuery?: string): AddressBook.SavedAddres
     }
     return new Fuse(contactsList, {
       threshold: 0.3,
-      keys: ['name', 'address'],
+      keys: ['name', 'address', 'ethAddress'],
     })
       .search(cleanSearchQuery)
       .map((contact) => contact.item)

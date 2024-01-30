@@ -21,6 +21,7 @@ type SaveAddressSheetProps = {
   title?: string
   isOpen: boolean
   address: string
+  ethAddress?: string
   onClose: () => void
   // eslint-disable-next-line no-unused-vars
   onSave?: (s: SelectedAddress) => void
@@ -39,6 +40,7 @@ export default function SaveAddressSheet({
   isOpen,
   onClose,
   address,
+  ethAddress,
   onSave,
 }: SaveAddressSheetProps) {
   const [memo, setMemo] = useState<string>('')
@@ -65,7 +67,7 @@ export default function SaveAddressSheet({
       }
       return _chain as SupportedChain
     } catch (e) {
-      return 'cosmos'
+      return isCompassWallet() ? 'seiTestnet2' : 'cosmos'
     }
   }, [address, addressPrefixes])
 
@@ -114,10 +116,12 @@ export default function SaveAddressSheet({
         emoji: emoji,
         name: name,
         memo: memo,
+        ethAddress,
       })
 
       setNewMemo(memo)
       onSave?.({
+        ethAddress,
         address: address,
         chainIcon: chainIcon ?? '',
         emoji: emoji,

@@ -20,6 +20,9 @@ import {
   ledgerDisconnectMessage,
   LedgerError,
   ledgerLockedError,
+  ledgerLockedError2,
+  sizeLimitExceededError,
+  sizeLimitExceededErrorUser,
   transactionDeclinedError,
   txDeclinedErrorUser,
 } from './ledger-errors';
@@ -74,8 +77,12 @@ export class LeapLedgerSigner extends LedgerSigner {
       throw deviceLockedError;
     } else if (e.message === transactionDeclinedError.message) {
       return txDeclinedErrorUser;
+    } else if (e.message === sizeLimitExceededError) {
+      return sizeLimitExceededErrorUser;
+    } else if (e.message === ledgerLockedError2) {
+      return deviceLockedError;
     } else {
-      return new LedgerError(e.message.toString());
+      return new LedgerError('Something went wrong. Please reconnect your Ledger and try again.');
     }
   }
 

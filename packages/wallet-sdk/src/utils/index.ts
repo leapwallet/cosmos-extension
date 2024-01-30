@@ -1,5 +1,7 @@
+export * from './address-conversion';
 export * from './crypto';
 export * from './get-hdpath';
+export * from './getBaseAccount';
 export * from './getErrorMessageFromCode';
 export { getRestUrl } from './getRestURL';
 export * from './mathUtil';

@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
-import { SourceToken } from 'types/swap'
+import { SourceChain, SourceToken } from 'types/swap'
 
 export function useGetErrorMsg(
   routeError: Error | undefined,
   sourceToken: SourceToken | null,
   destinationToken: SourceToken | null,
+  sourceChain: SourceChain | undefined,
+  destinationChain: SourceChain | undefined,
   errorMsg?: string,
 ) {
   return useMemo(() => {
@@ -19,11 +21,14 @@ export function useGetErrorMsg(
     if (
       sourceToken &&
       destinationToken &&
-      sourceToken.coinMinimalDenom === destinationToken.coinMinimalDenom
+      sourceChain &&
+      destinationChain &&
+      sourceToken.coinMinimalDenom === destinationToken.coinMinimalDenom &&
+      sourceChain.chainId === destinationChain.chainId
     ) {
       return 'Source and destination tokens cannot be the same'
     }
 
     return ''
-  }, [destinationToken, errorMsg, routeError, sourceToken])
+  }, [destinationChain, destinationToken, errorMsg, routeError, sourceChain, sourceToken])
 }

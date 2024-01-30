@@ -6,7 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { useSecretWallet } from 'hooks/wallet/useScrtWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
-import React, { createContext, useCallback, useContext, useMemo } from 'react'
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { assert } from 'utils/assert'
 import { useTxCallBack } from 'utils/txCallback'
 
@@ -19,6 +19,8 @@ export type SendContextType = Readonly<
       args: Omit<sendTokensParams, 'gasEstimate' | 'getWallet'>,
     ) => Promise<void>
     sameChain: boolean
+    ethAddress: string
+    setEthAddress: React.Dispatch<React.SetStateAction<string>>
   } & ReturnType<typeof useSendModule>
 >
 
@@ -35,6 +37,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
   const getWallet = useGetWallet()
   const currentWalletAddress = useAddress()
   const getSscrtWallet = useSecretWallet()
+  const [ethAddress, setEthAddress] = useState('')
 
   const confirmSendTx = useCallback(
     async (args: Omit<sendTokensParams, 'gasEstimate' | 'getWallet'>) => {
@@ -66,6 +69,8 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
     const sameChain = fromChain === toChain
 
     return {
+      ethAddress,
+      setEthAddress,
       tokenFiatValue: tokenFiatValue ?? '',
       feeTokenFiatValue: feeTokenFiatValue ?? '',
       selectedToken,
@@ -73,7 +78,15 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
       sameChain,
       ...rest,
     } as const
-  }, [confirmSendTx, currentWalletAddress, feeTokenFiatValue, rest, selectedToken, tokenFiatValue])
+  }, [
+    confirmSendTx,
+    currentWalletAddress,
+    ethAddress,
+    feeTokenFiatValue,
+    rest,
+    selectedToken,
+    tokenFiatValue,
+  ])
 
   return <SendContext.Provider value={value}>{children}</SendContext.Provider>
 }

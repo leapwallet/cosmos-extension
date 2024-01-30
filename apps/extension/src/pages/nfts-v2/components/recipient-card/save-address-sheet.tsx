@@ -61,7 +61,7 @@ export default function SaveAddressSheet({
       }
       return _chain as SupportedChain
     } catch (e) {
-      return 'cosmos'
+      return isCompassWallet() ? 'seiTestnet2' : 'cosmos'
     }
   }, [address, addressPrefixes])
 

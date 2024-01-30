@@ -56,12 +56,15 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
 
   const feeToken = useMemo(() => {
     const feeBaseDenom = fee?.amount[0]?.denom
-    const feeDenomData = feeTokensList?.find((token) => token.ibcDenom === feeBaseDenom)
+    const feeDenomData = feeTokensList?.find((token) => {
+      return token.ibcDenom === feeBaseDenom || token.denom.coinMinimalDenom === feeBaseDenom
+    })
     const amount = allAssets.find((asset) => {
-      if (asset.ibcDenom === feeDenomData?.ibcDenom) {
-        return asset.ibcDenom === feeDenomData?.ibcDenom
+      const denom = feeDenomData?.ibcDenom ?? feeDenomData?.denom.coinMinimalDenom
+      if (asset.ibcDenom === denom) {
+        return asset.ibcDenom === denom
       }
-      return asset.coinMinimalDenom === feeDenomData?.ibcDenom
+      return asset.coinMinimalDenom === denom
     })?.amount
 
     return { ...feeDenomData, amount }
@@ -86,9 +89,8 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChain, defaultGasEstimates, fee, feeToken?.denom?.coinDecimals])
 
-  const amountString = feeValues?.amount?.toString()
-
   useEffect(() => {
+    const amountString = feeValues?.amount?.toString()
     if (!disableBalanceCheck && feeToken && amountString) {
       if (new BigNumber(amountString).isGreaterThan(feeToken?.amount ?? 0)) {
         setError(`You don't have enough ${feeToken?.denom?.coinDenom} to pay the gas fee`)
@@ -96,7 +98,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
         setError(null)
       }
     }
-  }, [amountString, feeToken, setError, fee, disableBalanceCheck])
+  }, [feeToken, feeValues, disableBalanceCheck])
 
   if (
     isFetching ||
@@ -139,4 +141,4 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
   ) : null
 }
 
-export default StaticFeeDisplay
+export default React.memo(StaticFeeDisplay)

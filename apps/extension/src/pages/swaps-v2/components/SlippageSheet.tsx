@@ -29,7 +29,8 @@ export function SlippageSheet({ isOpen, onClose }: SlippageSheetProps) {
           />
 
           <p className='text-gray-300 text-center text-sm'>
-            Your transaction will fail if the price changes unfavourable more than this percentage.
+            Your transaction will revert if the price changes unfavorably by more than this
+            percentage.
           </p>
         </div>
 

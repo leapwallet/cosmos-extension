@@ -1,4 +1,4 @@
-import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
+import { removeTrailingSlash, useChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import axios from 'axios'
@@ -15,7 +15,6 @@ import { Images } from 'images'
 import React, { useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import Browser from 'webextension-polyfill'
 
 import { ListChains, ListChainsProps } from '../SelectChain'
@@ -187,7 +186,7 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
 
     if (value) {
       setValidating(true)
-      debouncedValidateEndpoints(name, value)
+      debouncedValidateEndpoints(name, removeTrailingSlash(value))
     } else {
       delete errors[name]
       setErrors(errors)
@@ -201,8 +200,11 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
 
   const handleSaveClick = async () => {
     const storage = await Browser.storage.local.get([CUSTOM_ENDPOINTS])
-    const newRpcURL = customEndpoints.rpc !== rpcUrl ? customEndpoints.rpc : undefined
-    const newLcdURL = customEndpoints.lcd !== lcdUrl ? customEndpoints.lcd : undefined
+    const customNewRpcURL = removeTrailingSlash(customEndpoints.rpc)
+    const customNewLcdURL = removeTrailingSlash(customEndpoints.lcd)
+
+    const newRpcURL = customNewRpcURL !== rpcUrl ? customNewRpcURL : undefined
+    const newLcdURL = customNewLcdURL !== lcdUrl ? customNewLcdURL : undefined
 
     if (storage[CUSTOM_ENDPOINTS]) {
       await Browser.storage.local.set({
@@ -228,7 +230,8 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
     !!errors.lcd ||
     customEndpoints.rpc === '' ||
     customEndpoints.lcd === '' ||
-    (rpcUrl === customEndpoints.rpc && lcdUrl === customEndpoints.lcd)
+    (rpcUrl === removeTrailingSlash(customEndpoints.rpc) &&
+      lcdUrl === removeTrailingSlash(customEndpoints.lcd))
 
   return (
     <>
@@ -261,13 +264,8 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
             }
             isRounded={true}
             title2='Chain'
-            icon={
-              isCompassWallet() ? null : (
-                <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
-              )
-            }
-            className={isCompassWallet() ? '!cursor-default' : ''}
-            onClick={isCompassWallet() ? undefined : () => setShowSelectChain(true)}
+            icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
+            onClick={() => setShowSelectChain(true)}
           />
 
           <CustomEndpointInput

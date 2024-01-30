@@ -131,7 +131,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
         containerRef.current?.scrollTo(0, 0)
         setShowNetworkDropUp(true)
       },
-      enabled: true,
+      enabled: !(isCompassWallet() && activeChain === 'seiDevnet'),
     },
     // {
     //   title: 'Finder',

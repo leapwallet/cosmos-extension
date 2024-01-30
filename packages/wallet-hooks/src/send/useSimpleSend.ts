@@ -27,10 +27,11 @@ import { CosmosTxType } from '../connectors';
 import { useValidateIbcChannelId } from '../ibc/useValidateIbcChannelId';
 import { useActiveChain, useActiveWalletStore, useAddressPrefixes, useChainsStore, useDenoms } from '../store';
 import { useChainInfo } from '../store/useChainInfo';
-import { useCW20TxHandler, useScrtTxHandler, useTxHandler } from '../tx';
+import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
 import { Token } from '../types/bank';
+import { convertScientificNotation } from '../utils';
 import { sliceAddress } from '../utils/strings';
 import { getMetaDataForIbcTx, getMetaDataForSendTx } from './get-metadata';
 import { useIsCW20Tx } from './useIsCW20Tx';
@@ -89,7 +90,7 @@ export const useSimpleSend = () => {
   const { activeWallet } = useActiveWalletStore();
   const getTxHandler = useTxHandler();
   const getScrtTxHandler = useScrtTxHandler();
-  const getCW20TxClient = useCW20TxHandler();
+  const getCW20TxClient = useCWTxHandler();
   const checkIsCW20Tx = useIsCW20Tx();
   const addressPrefixes = useAddressPrefixes();
   const validateIbcChannelId = useValidateIbcChannelId();
@@ -115,15 +116,21 @@ export const useSimpleSend = () => {
     }): Promise<sendTokensReturnType> => {
       try {
         const client = await getCW20TxClient(wallet);
-        const promise = client.execute(
+
+        const hash = await client.execute(
           fromAddress,
           selectedDenom.coinMinimalDenom,
           {
-            transfer: { recipient: toAddress, amount: amount.times(10 ** selectedDenom?.coinDecimals ?? 6).toString() },
+            transfer: {
+              recipient: toAddress,
+              amount: convertScientificNotation(amount.times(10 ** (selectedDenom?.coinDecimals ?? 6)).toNumber()),
+            },
           },
           fees,
           memo,
         );
+
+        const promise = client.pollForTx(hash);
 
         return {
           success: true,

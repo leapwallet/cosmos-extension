@@ -292,6 +292,8 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'sentinel' },
   { enabled: true, name: 'bandchain' },
   { enabled: true, name: 'dydx' },
+  { enabled: true, name: 'seiDevnet' },
+  { enabled: true, name: 'dymension' },
   { enabled: true, name: 'pryzmtestnet' },
   { enabled: true, name: 'thorchain' },
   { enabled: true, name: 'odin' },

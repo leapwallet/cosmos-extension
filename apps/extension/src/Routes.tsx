@@ -9,9 +9,7 @@ import {
   useInitGovProposals,
 } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
-import PopupLayout from 'components/layout/popup-layout'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
-import Loader from 'components/loader/Loader'
 import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
 import { useFillBetaCW20Tokens } from 'hooks/settings'
 import { lazy, Suspense } from 'react'

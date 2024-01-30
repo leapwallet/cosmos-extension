@@ -2,8 +2,11 @@ import { calculateFee } from '@cosmjs/stargate'
 import {
   FeeTokenData,
   GasOptions,
+  getOsmosisGasPriceSteps,
+  useChainApis,
   useDefaultGasEstimates,
   useGasAdjustmentForChain,
+  useGasPriceSteps,
   useGetChains,
   useGov,
   useNativeFeeDenom,
@@ -13,6 +16,7 @@ import {
 import {
   CosmosSDK,
   DefaultGasEstimates,
+  GasPrice,
   getSimulationFee,
   NativeDenom,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -60,6 +64,9 @@ export const CastVote: React.FC<CastVoteProps> = ({
     useGov({
       proposalId,
     })
+
+  const { lcdUrl } = useChainApis()
+  const allChainsGasPriceSteps = useGasPriceSteps()
   const nativeFeeDenom = useNativeFeeDenom()
   const gasAdjustment = useGasAdjustmentForChain()
 
@@ -78,6 +85,45 @@ export const CastVote: React.FC<CastVoteProps> = ({
   })
   const simulateVote = useSimulateVote()
   const firstTime = useRef(true)
+
+  useEffect(() => {
+    ;(async function () {
+      if (feeDenom.coinMinimalDenom === 'uosmo' && activeChain === 'osmosis') {
+        const { low, medium, high } = await getOsmosisGasPriceSteps(
+          lcdUrl ?? '',
+          allChainsGasPriceSteps,
+        )
+
+        switch (gasPriceOption.option) {
+          case GasOptions.LOW: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+
+          case GasOptions.MEDIUM: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+
+          case GasOptions.HIGH: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+        }
+      }
+    })()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChain, gasLimit, feeDenom.coinMinimalDenom, gasPriceOption.option])
 
   const customFee = useMemo(() => {
     const gasEstimate = Math.ceil(Number(gasLimit) * gasAdjustment)

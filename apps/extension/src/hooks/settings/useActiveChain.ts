@@ -75,12 +75,11 @@ export function useInitActiveChain() {
   const setActiveChain = useSetActiveChainWalletHooks()
   useEffect(() => {
     browser.storage.local.get(ACTIVE_CHAIN).then((storage) => {
-      let activeChain: SupportedChain = storage[ACTIVE_CHAIN] ?? chainInfos.cosmos.key
-      if (!chainInfos[activeChain]) {
-        activeChain = chainInfos.cosmos.key
-      }
-      if (isCompassWallet()) {
+      let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
+      if (!activeChain && isCompassWallet()) {
         activeChain = chainInfos.seiTestnet2.key
+      } else if (!activeChain) {
+        activeChain = chainInfos.cosmos.key
       }
       setActiveChain(activeChain)
     })

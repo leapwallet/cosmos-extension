@@ -56,6 +56,11 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
               const isFirst = index === 0
               const isLast = index === transferableTokens.length - 1
 
+              let isSelected = selectedToken?.coinMinimalDenom === asset.coinMinimalDenom
+              if (selectedToken?.ibcDenom || asset.ibcDenom) {
+                isSelected = selectedToken?.ibcDenom === asset.ibcDenom
+              }
+
               return (
                 <React.Fragment key={`${asset.symbol}-${index}`}>
                   <div className='relative' onClick={() => handleSelectToken(asset)}>
@@ -65,7 +70,7 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
                       ibcChainInfo={asset.ibcChainInfo}
                       amount={asset.amount}
                       symbol={asset.symbol}
-                      isIconVisible={selectedToken?.symbol === asset?.symbol}
+                      isIconVisible={isSelected}
                       iconSrc={
                         Images.Misc.ChainChecks[activeChain] ?? Images.Misc.ChainChecks['cosmos']
                       }

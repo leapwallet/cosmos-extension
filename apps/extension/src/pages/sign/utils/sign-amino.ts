@@ -32,6 +32,7 @@ export function getAminoSignDoc({
     fee: defaultFee,
     memo: defaultMemo,
     msgs: signDoc.msgs,
+    ...signDoc,
   }
 
   if (!isAdr36) {

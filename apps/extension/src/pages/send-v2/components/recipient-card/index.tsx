@@ -6,6 +6,7 @@ import {
   useChainsStore,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
+  getBech32Address,
   getBlockChainFromAddress,
   isValidAddress,
   SupportedChain,
@@ -48,6 +49,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const [recipientInputValue, setRecipientInputValue] = useState<string>('')
 
   const {
+    ethAddress,
     selectedAddress,
     setSelectedAddress,
     ibcSupportData,
@@ -57,6 +59,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     setMemo,
     customIbcChannelId,
     setCustomIbcChannelId,
+    setEthAddress,
   } = useSendContext()
 
   const { chains } = useChainsStore()
@@ -64,19 +67,47 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const addressPrefixes = useAddressPrefixes()
   const activeChain = useActiveChain()
   const activeNetwork = useSelectedNetwork()
-
   const activeChainInfo = chains[activeChain]
 
-  const contactsToShow = useContactsSearch(recipientInputValue)
-  const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
+  const recipientValueToShow = useMemo(() => {
+    if (ethAddress) {
+      return ethAddress
+    }
+
+    return recipientInputValue
+  }, [ethAddress, recipientInputValue])
+
+  const contactsToShow = useContactsSearch(recipientValueToShow)
+  const existingContactMatch = AddressBook.useGetContact(recipientValueToShow)
   const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
   const defaultTokenLogo = useDefaultTokenLogo()
 
+  const fillRecipientInputValue = useCallback(
+    (value: string) => {
+      if (Number(activeChainInfo.bip44.coinType) === 60 && value.toLowerCase().startsWith('0x')) {
+        try {
+          setAddressError(undefined)
+          const bech32Address = getBech32Address(activeChainInfo.addressPrefix, value)
+          setEthAddress(value)
+          setRecipientInputValue(bech32Address)
+          return
+        } catch (_) {
+          setAddressError('Invalid Address')
+        }
+      }
+
+      setEthAddress('')
+      setRecipientInputValue(value)
+    },
+    [activeChainInfo.addressPrefix, activeChainInfo.bip44.coinType, setAddressError, setEthAddress],
+  )
+
   const handleOnChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setRecipientInputValue(e.target.value)
+      const value = e.target.value.trim()
+      fillRecipientInputValue(value)
     },
-    [setRecipientInputValue],
+    [fillRecipientInputValue],
   )
 
   const actionHandler = useCallback(
@@ -85,10 +116,12 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         case 'paste':
           UserClipboard.pasteText().then((text) => {
             if (!text) return
-            setRecipientInputValue(text.trim())
+
+            fillRecipientInputValue(text.trim())
           })
           break
         case 'clear':
+          setEthAddress('')
           setRecipientInputValue('')
           setSelectedAddress(null)
           setMemo('')
@@ -97,18 +130,19 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           break
       }
     },
-    [setMemo, setSelectedAddress],
+    [fillRecipientInputValue, setEthAddress, setMemo, setSelectedAddress],
   )
 
   const handleContactSelect = useCallback(
     (s: SelectedAddress) => {
       setSelectedAddress(s)
+      setEthAddress(s.ethAddress ?? '')
       setRecipientInputValue(s.address ?? '')
       if (isContactsSheetVisible) {
         setIsContactsSheetVisible(false)
       }
     },
-    [isContactsSheetVisible, setRecipientInputValue, setSelectedAddress],
+    [isContactsSheetVisible, setEthAddress, setSelectedAddress],
   )
 
   const handleWalletSelect = useCallback(
@@ -163,28 +197,41 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       return (
         <SelectedAddressPreview
           selectedAddress={selectedAddress}
-          showEditMenu={selectedAddress.address === existingContactMatch?.address}
+          showEditMenu={
+            selectedAddress.address === existingContactMatch?.address &&
+            selectedAddress.ethAddress === existingContactMatch?.ethAddress
+          }
           onDelete={() => {
             setSelectedAddress(null)
             setRecipientInputValue('')
+            setEthAddress('')
           }}
         />
       )
     }
-    if (recipientInputValue.length > 0) {
+
+    if (recipientValueToShow.length > 0) {
       try {
-        bech32.decode(recipientInputValue)
+        bech32.decode(recipientValueToShow)
         return (
           <Text size='md' className='text-gray-800 dark:text-gray-200'>
-            {sliceAddress(recipientInputValue)}
+            {sliceAddress(recipientValueToShow)}
           </Text>
         )
       } catch (err) {
         return undefined
       }
     }
+
     return undefined
-  }, [existingContactMatch, recipientInputValue, selectedAddress, setSelectedAddress])
+  }, [
+    existingContactMatch?.address,
+    existingContactMatch?.ethAddress,
+    recipientValueToShow,
+    selectedAddress,
+    setEthAddress,
+    setSelectedAddress,
+  ])
 
   const showContactsList = recipientInputValue.trim().length > 0 && contactsToShow.length > 0
   const isSavedContactSelected =
@@ -243,6 +290,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       const img = chains[_chain]?.chainSymbolImageUrl ?? defaultTokenLogo
 
       setSelectedAddress({
+        ethAddress,
         address: cleanInputValue,
         name: sliceAddress(cleanInputValue),
         avatarIcon: img ?? '',
@@ -268,6 +316,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   useEffect(() => {
     if (existingContactMatch) {
       const shouldUpdate =
+        existingContactMatch.ethAddress !== selectedAddress?.ethAddress ||
         existingContactMatch.address !== selectedAddress?.address ||
         existingContactMatch.name !== selectedAddress?.name ||
         existingContactMatch.emoji !== selectedAddress?.emoji ||
@@ -275,7 +324,10 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
       if (shouldUpdate) {
         const img = chains[existingContactMatch.blockchain]?.chainSymbolImageUrl ?? defaultTokenLogo
+        setMemo(existingContactMatch.memo ?? '')
+
         setSelectedAddress({
+          ethAddress: existingContactMatch?.ethAddress,
           address: existingContactMatch.address,
           name: existingContactMatch.name,
           avatarIcon: undefined,
@@ -284,7 +336,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           chainName: existingContactMatch.blockchain,
           selectionType: 'saved',
         })
-        setMemo(existingContactMatch.memo ?? '')
       }
     }
 
@@ -409,7 +460,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           buttonText={action}
           buttonTextColor={themeColor}
           icon={inputButtonIcon}
-          value={recipientInputValue}
+          value={recipientValueToShow}
           onAction={actionHandler}
           onChange={handleOnChange}
           placeholder='Enter name or address'
@@ -497,6 +548,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           onSave={handleContactSelect}
           onClose={() => setIsAddContactSheetVisible(false)}
           address={recipientInputValue}
+          ethAddress={ethAddress}
         />
       </motion.div>
 

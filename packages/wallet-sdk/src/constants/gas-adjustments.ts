@@ -80,6 +80,8 @@ export const gasAdjustments: GasAdjustments = {
   sentinel: 1.5,
   bandchain: 1.5,
   composable: 1.5,
+  seiDevnet: 1.5,
+  dymension: 1.5,
   pryzmtestnet: 1.5,
   thorchain: 1.5,
   odin: 1.5,

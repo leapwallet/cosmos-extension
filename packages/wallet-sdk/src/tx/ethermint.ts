@@ -273,19 +273,27 @@ export class EthermintTxHandler {
     }
     const baseURL = this.restUrl;
     await sleep(2000);
-    const { data: result } = await axiosWrapper({ baseURL, method: 'get', url: `/cosmos/tx/v1beta1/txs/${txHash}` });
-    const txResponse = result.tx_response;
-    if (txResponse.code) {
+    let result;
+
+    try {
+      const { data } = await axiosWrapper({ baseURL, method: 'get', url: `/cosmos/tx/v1beta1/txs/${txHash}` });
+      result = data;
+    } catch (_) {
+      return this.pollForTx(txHash, timeout, pollcount + 1);
+    }
+
+    const txResponse = result?.tx_response;
+    if (txResponse?.code) {
       return this.pollForTx(txHash, timeout, pollcount + 1);
     }
     return {
-      code: result.code,
-      height: result.height,
-      rawLog: result.rawLog,
+      code: result?.code,
+      height: result?.height,
+      rawLog: result?.rawLog,
       transactionHash: txHash,
-      gasUsed: result.gasUsed,
-      gasWanted: result.gasWanted,
-      events: result.events,
+      gasUsed: result?.gasUsed,
+      gasWanted: result?.gasWanted,
+      events: result?.events,
     };
   }
 

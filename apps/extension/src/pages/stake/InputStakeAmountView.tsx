@@ -3,8 +3,11 @@ import {
   FeeTokenData,
   formatTokenAmount,
   GasOptions,
+  getOsmosisGasPriceSteps,
+  useChainApis,
   useChainInfo,
   useGasAdjustmentForChain,
+  useGasPriceSteps,
   useGetTokenBalances,
   useNativeFeeDenom,
   useStakeTx,
@@ -37,6 +40,7 @@ import ReviewStakeTransaction, {
 } from './reviewStake'
 
 import useGetWallet = Wallet.useGetWallet
+import { GasPrice } from '@leapwallet/cosmos-wallet-sdk'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import { Colors } from 'theme/colors'
 
@@ -71,6 +75,8 @@ export default function InputStakeAmountView({
   const nativeFeeDenom = useNativeFeeDenom()
 
   const { allAssets } = useGetTokenBalances()
+  const { lcdUrl } = useChainApis()
+  const allChainsGasPriceSteps = useGasPriceSteps()
 
   const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
   const [feeDenom, setFeeDenom] = useState<NativeDenom>(nativeFeeDenom)
@@ -102,6 +108,45 @@ export default function InputStakeAmountView({
   const [gasLimit, setGasLimit] = useState<string>(recommendedGasLimit)
 
   const gasAdjustment = useGasAdjustmentForChain()
+
+  useEffect(() => {
+    ;(async function () {
+      if (feeDenom.coinMinimalDenom === 'uosmo' && activeChainInfo.key === 'osmosis') {
+        const { low, medium, high } = await getOsmosisGasPriceSteps(
+          lcdUrl ?? '',
+          allChainsGasPriceSteps,
+        )
+
+        switch (gasPriceOption.option) {
+          case GasOptions.LOW: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+
+          case GasOptions.MEDIUM: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+
+          case GasOptions.HIGH: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+        }
+      }
+    })()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feeDenom.coinMinimalDenom, activeChainInfo.key, gasPriceOption.option, gasLimit])
 
   const selectedToken = useMemo(() => {
     return allAssets.find((asset) => asset.symbol === activeChainInfo.denom)

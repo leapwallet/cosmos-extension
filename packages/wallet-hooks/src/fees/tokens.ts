@@ -11,7 +11,7 @@ import { GasPriceStep, useGasPriceStepForChain, useNativeFeeDenom } from '../uti
 
 export type FeeTokenData = {
   denom: NativeDenom;
-  ibcDenom: string;
+  ibcDenom?: string;
   gasPriceStep: GasPriceStep;
 };
 
@@ -31,9 +31,13 @@ export const getOsmosisFeeTokens = async ({
   restUrl: string;
   allAssets: Token[];
 }): Promise<FeeTokenData[]> => {
+  const nativeFeeTokenIbcDenom = nativeDenom.coinMinimalDenom.toLowerCase().startsWith('ibc/')
+    ? nativeDenom.coinMinimalDenom
+    : undefined;
+
   const nativeFeeToken = {
     denom: nativeDenom,
-    ibcDenom: nativeDenom.coinMinimalDenom,
+    ibcDenom: nativeFeeTokenIbcDenom,
     gasPriceStep: baseGasPriceStep,
   };
 
@@ -112,9 +116,13 @@ export const getChainFeeTokens = async ({
   nativeDenom,
   denoms,
 }: getChainFeeTokensFnArgs): Promise<FeeTokenData[]> => {
+  const nativeFeeTokenIbcDenom = nativeDenom.coinMinimalDenom.toLowerCase().startsWith('ibc/')
+    ? nativeDenom.coinMinimalDenom
+    : undefined;
+
   const nativeFeeToken = {
     denom: nativeDenom,
-    ibcDenom: nativeDenom.coinMinimalDenom,
+    ibcDenom: nativeFeeTokenIbcDenom,
     gasPriceStep: baseGasPriceStep,
   };
   try {

@@ -98,6 +98,8 @@ export const platforms: Record<string, Platform> = {
   // @ts-ignore
   composable: 'COMPOSABLE',
   // @ts-ignore
+  dymension: 'DYMENSION',
+  // @ts-ignore
   pryzmtestnet: 'PRYZM',
   // @ts-ignore
   thorchain: 'THOR_CHAIN',
@@ -173,6 +175,7 @@ export const platformToChain: Record<Platform, string> = {
   CELESTIA: 'celestia',
   XPLA: 'xpla',
   COMPOSABLE: 'composable',
+  DYMENSION: 'dymension',
   PRYZM: 'pryzmtestnet',
   THOR_CHAIN: 'thorchain',
   ODIN_CHAIN: 'odin',

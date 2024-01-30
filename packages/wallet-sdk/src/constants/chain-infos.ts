@@ -82,6 +82,8 @@ export type SupportedChain =
   | 'sentinel'
   | 'bandchain'
   | 'composable'
+  | 'seiDevnet'
+  | 'dymension'
   | 'pryzmtestnet'
   | 'thorchain'
   | 'odin';
@@ -160,6 +162,7 @@ export type AddressPrefix =
   | 'sent'
   | 'band'
   | 'centauri'
+  | 'dym'
   | 'pryzm'
   | 'thor'
   | 'odin';
@@ -239,6 +242,7 @@ export type Denom =
   | 'BAND'
   | 'DYDX'
   | 'PICA'
+  | 'DYM'
   | 'PRYZM'
   | 'RUNE'
   | 'ODIN';
@@ -1351,6 +1355,45 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
     cosmosSDK: CosmosSDK.Version_Point_47,
   },
+  dymension: {
+    chainId: 'froopyland_100-1',
+    key: 'dymension',
+    chainName: 'Dymension Froopyland',
+    chainRegistryPath: 'dymension',
+    testnetChainId: 'froopyland_100-1',
+    testnetChainRegistryPath: 'dymension',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/dymension-logo.svg',
+    apis: {
+      rpcTest: 'https://froopyland.blockpi.network/rpc/v1/0837569d56317f9a6af3c82170a7242ce8319ae4',
+      restTest: 'https://froopyland.blockpi.network/lcd/v1/0837569d56317f9a6af3c82170a7242ce8319ae4',
+    },
+    denom: 'DYM',
+    txExplorer: {
+      testnet: {
+        name: 'Evmos Block Explorer',
+        txUrl: 'https://fl.dym.fyi/tx',
+        accountUrl: 'https://fl.dym.fyi/address',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'dym',
+    gasPriceStep: {
+      low: 0.25,
+      average: 0.4,
+      high: 0.55,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      udym: denoms.udym,
+    },
+    theme: {
+      primaryColor: '#c07c3f',
+      gradient: 'linear-gradient(180deg, rgba(192, 124, 63, 0.32) 0%, rgba(192, 124, 63, 0) 100%)',
+    },
+    enabled: true,
+  },
   emoney: {
     chainId: 'emoney-3',
     key: 'emoney',
@@ -2178,19 +2221,26 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     notSupportedFeatures: ['stake'],
   },
   nibiru: {
-    chainId: 'nibiru-itn-1',
-    testnetChainId: 'nibiru-itn-1',
+    chainId: 'cataclysm-1',
+    testnetChainId: 'nibiru-testnet-1',
     key: 'nibiru',
-    chainName: 'Nibiru',
+    chainName: 'Nibiru chain',
     chainRegistryPath: 'nibiru',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/nibiry.png',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/nibiru.png',
     apis: {
-      rpcTest: 'https://rpc.itn-1.nibiru.fi',
-      restTest: 'https://lcd.itn-1.nibiru.fi',
+      rpc: 'https://rpc.cosmos.directory/nibiru',
+      rest: 'https://rest.cosmos.directory/nibiru',
+      rpcTest: 'https://rpc.testnet-1.nibiru.fi',
+      restTest: 'https://lcd.testnet-1.nibiru.fi',
     },
     denom: 'NIBI',
     txExplorer: {
       mainnet: {
+        name: 'Nibiru Guru',
+        txUrl: 'https://nibiru.explorers.guru/transaction',
+        accountUrl: 'https://nibiru.explorers.guru/account',
+      },
+      testnet: {
         name: 'Ping.Pub',
         txUrl: 'https://ping.testnet.noble.strange.love/noble/tx',
         accountUrl: 'https://ping.testnet.noble.strange.love/noble/account',
@@ -2200,14 +2250,14 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       coinType: '118',
     },
     addressPrefix: 'nibi',
-    gasPriceStep: { low: 0.05, average: 0.125, high: 0.2 },
+    gasPriceStep: { low: 0.025, average: 0.05, high: 0.1 },
     ibcChannelIds: {},
     nativeDenoms: {
       unibi: denoms.unibi,
     },
     theme: {
-      primaryColor: '#5036cc',
-      gradient: 'linear-gradient(180deg, rgba(80, 54, 204, 0.32) 0%, rgba(80, 54, 204, 0) 100%)',
+      primaryColor: '#b589d4',
+      gradient: 'linear-gradient(180deg, rgba(181, 137, 212, 0.32) 0%, rgba(181, 137, 212, 0) 100%)',
     },
     enabled: true,
   },
@@ -2400,6 +2450,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(255, 153, 0, 0.32) 0%, rgba(255, 153, 0, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   onomy: {
     chainId: 'onomy-mainnet-1',
@@ -2964,6 +3015,35 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
         accountUrl: 'https://www.seiscan.app/atlantic-2/accounts',
       },
     },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'sei',
+    gasPriceStep: defaultGasPriceStep,
+    ibcChannelIds: {},
+    nativeDenoms: {
+      usei: denoms.usei,
+    },
+    theme: {
+      primaryColor: '#AF3450',
+      gradient: 'linear-gradient(180deg, rgba(175, 52, 80, 0.32) 0%, rgba(175, 52, 80, 0) 100%)',
+    },
+    enabled: true,
+  },
+  seiDevnet: {
+    chainId: 'arctic-1',
+    testnetChainId: '',
+    key: 'seiDevnet',
+    chainName: 'Sei (Arctic-1)',
+    chainRegistryPath: 'seiDevnet',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/sei.png',
+    apis: {
+      // rpc: 'https://rpc.wallet.arctic-1.sei.io',
+      rpc: 'https://rpc.arctic-1.seinetwork.io',
+      rest: 'https://rest.wallet.arctic-1.sei.io',
+    },
+    denom: 'SEI',
+    txExplorer: {},
     bip44: {
       coinType: '118',
     },

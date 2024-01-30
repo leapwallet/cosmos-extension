@@ -32,12 +32,12 @@ async function getCoreumGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRec
   return isNaN(minGasPrice) ? defaultGasPrice : minGasPrice;
 }
 
-async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: string) {
+async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: string, chainKey: SupportedChain) {
   const seiGasJSON = 'https://raw.githubusercontent.com/sei-protocol/chain-registry/main/gas.json';
   const { data } = await axios.get(seiGasJSON);
 
   const minGas = data[chainId]?.min_gas_price;
-  const defaultGasPrice = gasPriceSteps.seiTestnet2?.low;
+  const defaultGasPrice = gasPriceSteps[chainKey]?.low;
 
   return minGas ?? defaultGasPrice;
 }
@@ -47,6 +47,16 @@ async function getOsmosisGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRe
   const { data } = await axios.get(url);
 
   return roundOf(Number(data.base_fee), 4) ?? gasPriceSteps.osmosis.low;
+}
+
+export async function getOsmosisGasPriceSteps(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
+  const minGasPrice = await getOsmosisGasPrice(lcdUrl ?? '', gasPriceSteps);
+
+  const low = Math.max(gasPriceSteps.osmosis.low, minGasPrice);
+  const medium = Math.max(gasPriceSteps.osmosis.average, minGasPrice * 1.1);
+  const high = Math.max(gasPriceSteps.osmosis.high, minGasPrice * 2);
+
+  return { low, medium, high };
 }
 
 export async function getMayaTxFee(lcdUrl: string) {
@@ -92,7 +102,11 @@ export function useGetGasPrice(chain: SupportedChain) {
       if (chain === 'seiTestnet2') {
         const chainId =
           selectedNetwork === 'mainnet' ? chains['seiTestnet2'].chainId : chains['seiTestnet2'].testnetChainId ?? '';
-        gasPrice = await getSeiGasPrice(gasPriceSteps, chainId);
+        gasPrice = await getSeiGasPrice(gasPriceSteps, chainId, 'seiTestnet2');
+      }
+
+      if (chain === 'seiDevnet') {
+        gasPrice = await getSeiGasPrice(gasPriceSteps, chains['seiDevnet'].chainId, 'seiDevnet');
       }
 
       if (chain === 'osmosis') {
@@ -136,17 +150,17 @@ export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?:
       if (chainKey === 'seiTestnet2') {
         const chainId =
           selectedNetwork === 'mainnet' ? chains['seiTestnet2'].chainId : chains['seiTestnet2'].testnetChainId ?? '';
-        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chainId);
+        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chainId, 'seiTestnet2');
+        setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
+      }
+
+      if (chainKey === 'seiDevnet') {
+        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chains['seiDevnet'].chainId, 'seiDevnet');
         setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
       }
 
       if (chainKey === 'osmosis') {
-        const minGasPrice = await getOsmosisGasPrice(lcdUrl ?? '', allChainsGasPriceSteps);
-
-        const low = Math.max(allChainsGasPriceSteps.osmosis.low, minGasPrice);
-        const medium = Math.max(allChainsGasPriceSteps.osmosis.average, minGasPrice * 1.1);
-        const high = Math.max(allChainsGasPriceSteps.osmosis.high, minGasPrice * 2);
-
+        const { low, medium, high } = await getOsmosisGasPriceSteps(lcdUrl ?? '', allChainsGasPriceSteps);
         setGasPriceStep({ low, medium, high });
       }
     } catch {

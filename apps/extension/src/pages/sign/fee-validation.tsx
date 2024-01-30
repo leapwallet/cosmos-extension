@@ -1,9 +1,11 @@
 import {
   currencyDetail,
   fetchCurrency,
+  useChainApis,
   useFeeTokens,
   useTransactionConfigs,
-  validateFee,
+  validateCosmosFee,
+  validateOsmosisFee,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   denoms,
@@ -23,19 +25,16 @@ type FeeValidationParams = {
   chain: SupportedChain
   maxFeeUsdValue: number
   feeDenomUsdValue?: string
+  lcdUrl: string
 }
 
 export async function feeValidation({
   feeDenomData,
-  gaslimit,
   feeAmount,
-  feeDenom,
-  chain,
   feeDenomUsdValue,
   maxFeeUsdValue,
 }: FeeValidationParams) {
-  const isValidFee = validateFee(feeAmount, feeDenom, gaslimit.toNumber(), chain)
-  if (isValidFee && !feeDenomUsdValue) return null
+  if (!feeDenomUsdValue) return null
   let isValidUsdValue = false
   if (feeDenomUsdValue) {
     const feeAmountUsd = fromSmallBN(feeAmount, feeDenomData.coinDecimals).multipliedBy(
@@ -43,7 +42,7 @@ export async function feeValidation({
     )
     isValidUsdValue = feeAmountUsd.lt(maxFeeUsdValue)
   }
-  return isValidFee && isValidUsdValue
+  return isValidUsdValue
 }
 
 /*
@@ -55,7 +54,7 @@ export async function feeValidation({
 type UseFeeValidationReturn = (
   feeValidationParams: Omit<
     FeeValidationParams,
-    'feeDenomData' | 'maxFeeUsdValue' | 'feeDenomUsdValue'
+    'feeDenomData' | 'maxFeeUsdValue' | 'feeDenomUsdValue' | 'lcdUrl'
   >,
   onValidationFailed: (tokenData: NativeDenom, isFeesValid: boolean | null) => void,
 ) => Promise<boolean | null>
@@ -63,34 +62,43 @@ type UseFeeValidationReturn = (
 export function useFeeValidation(chain: SupportedChain): UseFeeValidationReturn {
   const { data: txConfig } = useTransactionConfigs()
 
-  const { data: feeTokens } = useFeeTokens(chain, 'mainnet')
+  const { data: feeTokens, status } = useFeeTokens(chain, 'mainnet')
+  const { lcdUrl } = useChainApis(chain)
 
   return useCallback(
     async (feeValidationParams, onValidationFailed) => {
       const maxFeeUsdValue = txConfig?.allChains.maxFeeValueUSD ?? 10
-      const feeToken = feeTokens?.find(
-        ({ denom }) => denom.coinMinimalDenom === feeValidationParams.feeDenom,
-      )
+      const feeToken = feeTokens?.find(({ ibcDenom, denom }) => {
+        if (ibcDenom === feeValidationParams.feeDenom) {
+          return ibcDenom === feeValidationParams.feeDenom
+        }
+        return denom?.coinMinimalDenom === feeValidationParams.feeDenom
+      })
       let feeDenomData = feeToken?.denom
       if (!feeDenomData) {
         feeDenomData = denoms[feeValidationParams.feeDenom as SupportedDenoms]
       }
-      const usdValue = await fetchCurrency(
-        '1',
-        feeDenomData.coinGeckoId,
-        feeDenomData.chain as SupportedChain,
-        currencyDetail.US.currencyPointer,
-      )
+
+      let usdValue
+      if (feeDenomData?.coinGeckoId && feeDenomData?.chain) {
+        usdValue = await fetchCurrency(
+          '1',
+          feeDenomData.coinGeckoId,
+          feeDenomData.chain as SupportedChain,
+          currencyDetail.US.currencyPointer,
+        )
+      }
 
       const isFeeValid = await feeValidation({
         feeDenomData,
         maxFeeUsdValue,
         feeDenomUsdValue: usdValue,
+        lcdUrl: lcdUrl ?? '',
         ...feeValidationParams,
       })
       if (!isFeeValid) onValidationFailed(feeDenomData, isFeeValid)
       return isFeeValid
     },
-    [feeTokens, txConfig],
+    [feeTokens, txConfig, status, lcdUrl],
   )
 }

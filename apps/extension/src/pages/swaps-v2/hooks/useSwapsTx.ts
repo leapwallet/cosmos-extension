@@ -9,6 +9,7 @@ import {
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
+  ChainInfos,
   DefaultGasEstimates,
   GasPrice,
   NativeDenom,
@@ -17,7 +18,7 @@ import {
 import { useMessages, useRoute, useSKIPGasFeeSWR } from '@leapwallet/elements-hooks'
 import { useQuery } from '@tanstack/react-query'
 import { calculateFeeAmount } from 'components/gas-price-options'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
 import {
@@ -91,6 +92,7 @@ export function useSwapsTx(): SwapsTxType {
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
   const [impactedPriceValue, setImpactedPriceValue] = useState('')
+  const isSwitchedRef = useRef(false)
 
   /**
    * states for chain, token and amount
@@ -135,9 +137,23 @@ export function useSwapsTx(): SwapsTxType {
         (chain) => chain.chainId === activeChainInfo.chainId,
       )
 
-      const firstNotActiveChainToShow = chainsToShow.find(
-        (chain) => chain.chainId !== activeChainInfo.chainId,
-      )
+      const firstNotActiveChainToShow = chainsToShow.find((chain) => {
+        /**
+         * If active chain is Osmosis, set Cosmos as the starting destination chain
+         */
+        if (activeChainInfo.chainId === ChainInfos.osmosis.chainId) {
+          if (chain.chainId === ChainInfos.cosmos.chainId) {
+            return true
+          }
+
+          return false
+        }
+
+        /**
+         * Else, set Osmosis as the starting destination chain
+         */
+        return chain.chainId === ChainInfos.osmosis.chainId
+      })
 
       if (activeChainToShow) {
         setSourceChain(activeChainToShow)
@@ -151,13 +167,13 @@ export function useSwapsTx(): SwapsTxType {
         setDestinationChain(chainsToShow[1])
       }
     }
-  }, [activeChainInfo.chainId, chainsToShow])
+  }, [activeChainInfo.chainId, chainsToShow, destinationChain, sourceChain])
 
   /**
    * set source token
    */
   useEffect(() => {
-    if (sourceAssets && sourceAssets.length > 0 && !sourceToken) {
+    if (sourceAssets && sourceAssets.length > 0 && !isSwitchedRef.current) {
       if (sourceChain) {
         const sourceToken = sourceAssets.find(
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -173,13 +189,13 @@ export function useSwapsTx(): SwapsTxType {
 
       setSourceToken(sourceAssets[0])
     }
-  }, [sourceAssets, sourceChain, sourceToken])
+  }, [sourceAssets.length, sourceAssets, sourceChain])
 
   /**
    * set destination token
    */
   useEffect(() => {
-    if (destinationAssets && destinationAssets.length > 0 && !destinationToken) {
+    if (destinationAssets && destinationAssets.length > 0 && !isSwitchedRef.current) {
       if (destinationChain) {
         const destinationToken = destinationAssets.find(
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -195,7 +211,7 @@ export function useSwapsTx(): SwapsTxType {
 
       setDestinationToken(destinationAssets[0])
     }
-  }, [destinationAssets, destinationChain, destinationToken])
+  }, [destinationAssets.length, destinationAssets, destinationChain])
 
   /**
    * element hooks
@@ -301,7 +317,14 @@ export function useSwapsTx(): SwapsTxType {
     return (routeResponse?.transactionCount ?? 0) > 1
   }, [routeResponse?.transactionCount])
 
-  const errorMsg = useGetErrorMsg(routeError, sourceToken, destinationToken, userAddressesError)
+  const errorMsg = useGetErrorMsg(
+    routeError,
+    sourceToken,
+    destinationToken,
+    sourceChain,
+    destinationChain,
+    userAddressesError,
+  )
   const loadingMsg = loadingRoutes && inAmount && sourceToken ? 'Finding transaction routes' : ''
   const infoMsg = useGetInfoMsg(routeResponse?.transactionCount ?? 0)
 
@@ -349,10 +372,17 @@ export function useSwapsTx(): SwapsTxType {
 
   const handleSwitchOrder = () => {
     if (isSwitchOrderPossible) {
+      isSwitchedRef.current = true
       setSourceChain(destinationChain)
       setDestinationChain(sourceChain)
       setSourceToken(destinationToken)
       setDestinationToken(sourceToken)
+
+      setTimeout(() => {
+        isSwitchedRef.current = false
+      }, 2000)
+    } else {
+      isSwitchedRef.current = false
     }
   }
 

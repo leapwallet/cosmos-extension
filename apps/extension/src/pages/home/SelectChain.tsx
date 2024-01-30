@@ -12,6 +12,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceSearchWord } from 'utils/strings'
 import extension from 'webextension-polyfill'
 
@@ -41,22 +42,26 @@ export function ListChains({
   const [searchedChain, setSearchedChain] = useState('')
 
   const filteredChains = useMemo(() => {
-    return chains.filter(function (chain) {
-      if (
-        chainsToShow &&
-        chainsToShow.length &&
-        !chainsToShow.includes(chainInfos[chain.chainName].chainRegistryPath)
-      ) {
-        return false
-      }
+    return chains
+      .filter(function (chain) {
+        if (
+          chainsToShow &&
+          chainsToShow.length &&
+          !chainsToShow.includes(chainInfos[chain.chainName].chainRegistryPath)
+        ) {
+          return false
+        }
 
-      if (onPage === 'AddCollection' && ['omniflix', 'stargaze'].includes(chain.chainName)) {
-        return false
-      }
+        if (onPage === 'AddCollection' && ['omniflix', 'stargaze'].includes(chain.chainName)) {
+          return false
+        }
 
-      const chainName = chainInfos[chain.chainName].chainName
-      return chainName.toLowerCase().includes(searchedChain.toLowerCase())
-    })
+        const chainName = chainInfos[chain.chainName].chainName
+        return chainName.toLowerCase().includes(searchedChain.toLowerCase())
+      })
+      .filter((chain) => {
+        return !(isCompassWallet() && chain.chainName === 'cosmos')
+      })
   }, [chainInfos, chains, chainsToShow, onPage, searchedChain])
 
   return (
@@ -179,26 +184,28 @@ export default function SelectChain({ isVisible, onClose }: ChainSelectorProps) 
     >
       <ListChains onChainSelect={onChainSelect} selectedChain={selectedChain} />
 
-      <div className='w-[344px] mt-4 mb-4 mx-auto rounded-2xl overflow-hidden'>
-        <button
-          className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
-          onClick={handleAddNewChainClick}
-        >
-          <span className='material-icons-round text-gray-400 mr-4 text-lg'>add_circle</span>
-          <Text size='md' className='font-bold'>
-            Add new chain
-          </Text>
-        </button>
-        <button
-          className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
-          onClick={() => navigate('/manageChain')}
-        >
-          <span className='material-icons-round text-gray-400 mr-4 text-lg'>tune</span>
-          <Text size='md' className='font-bold'>
-            Manage Chains
-          </Text>
-        </button>
-      </div>
+      {isCompassWallet() ? null : (
+        <div className='w-[344px] mt-4 mb-4 mx-auto rounded-2xl overflow-hidden'>
+          <button
+            className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+            onClick={handleAddNewChainClick}
+          >
+            <span className='material-icons-round text-gray-400 mr-4 text-lg'>add_circle</span>
+            <Text size='md' className='font-bold'>
+              Add new chain
+            </Text>
+          </button>
+          <button
+            className='w-full flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+            onClick={() => navigate('/manageChain')}
+          >
+            <span className='material-icons-round text-gray-400 mr-4 text-lg'>tune</span>
+            <Text size='md' className='font-bold'>
+              Manage Chains
+            </Text>
+          </button>
+        </div>
+      )}
     </BottomModal>
   )
 }

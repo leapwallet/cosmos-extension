@@ -72,9 +72,11 @@ export function ActivityList({
 
   const { activity } = txResponse
   const [assetFilter, setAssetFilter] = useState<string>('')
-  const explorerAccountLink = `${removeTrailingSlash(
-    chains[activeChain].txExplorer?.[selectedNetwork]?.accountUrl ?? '',
-  )}/${activeAddress}`
+  const explorerAccountLink = chains[activeChain].txExplorer?.[selectedNetwork]?.accountUrl
+    ? `${removeTrailingSlash(
+        chains[activeChain].txExplorer?.[selectedNetwork]?.accountUrl ?? '',
+      )}/${activeAddress}`
+    : ''
 
   const handleFilterChange = (event: React.FormEvent<HTMLInputElement>) => {
     setAssetFilter(event.currentTarget.value.toLowerCase())
@@ -114,15 +116,17 @@ export function ActivityList({
           subHeading='Your activity will appear here'
         />
 
-        <a
-          href={explorerAccountLink}
-          target='_blank'
-          className='font-semibold text-base mt-4 text-center'
-          style={{ color: Colors.getChainColor(activeChain) }}
-          rel='noreferrer'
-        >
-          Check on Explorer
-        </a>
+        {explorerAccountLink ? (
+          <a
+            href={explorerAccountLink}
+            target='_blank'
+            className='font-semibold text-base mt-4 text-center'
+            style={{ color: Colors.getChainColor(activeChain) }}
+            rel='noreferrer'
+          >
+            Check on Explorer
+          </a>
+        ) : null}
       </div>
     )
   }
@@ -132,15 +136,17 @@ export function ActivityList({
       <div className='flex flex-col h-[350px]'>
         <EmptyCard src={Images.Activity.ActivityIcon} heading='Unable to fetch activity' />
 
-        <a
-          href={explorerAccountLink}
-          target='_blank'
-          className='font-semibold text-base mt-4 text-center'
-          style={{ color: Colors.getChainColor(activeChain) }}
-          rel='noreferrer'
-        >
-          Check on Explorer
-        </a>
+        {explorerAccountLink ? (
+          <a
+            href={explorerAccountLink}
+            target='_blank'
+            className='font-semibold text-base mt-4 text-center'
+            style={{ color: Colors.getChainColor(activeChain) }}
+            rel='noreferrer'
+          >
+            Check on Explorer
+          </a>
+        ) : null}
       </div>
     )
   }
@@ -158,7 +164,7 @@ export function ActivityList({
       {pendingSwapTxs.length > 0 ? (
         <div className='my-7'>
           <div className='font-bold text-sm text-gray-600 dark:text-gray-200 mb-2'>
-            Pending Swap Txs
+            Pending Swap Transactions
           </div>
           <div className='rounded-2xl overflow-hidden bg-white-100 dark:bg-gray-900'>
             {
@@ -234,7 +240,7 @@ export function ActivityList({
             )
           })}
 
-        {!txResponse.loading && (
+        {!txResponse.loading && explorerAccountLink ? (
           <a
             href={explorerAccountLink}
             target='_blank'
@@ -244,7 +250,7 @@ export function ActivityList({
           >
             Check more on Explorer
           </a>
-        )}
+        ) : null}
       </div>
     </div>
   )
