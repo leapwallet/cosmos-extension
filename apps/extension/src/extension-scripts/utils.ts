@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { getChains } from '@leapwallet/cosmos-wallet-hooks'
-import { chainIdToChain, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { chainIdToChain, ChainInfo, sleep, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
+import { MessageTypes } from 'config/message-types'
 import { BETA_CHAINS } from 'config/storage-keys'
 import CryptoJs from 'crypto-js'
 import { addToConnections } from 'pages/ApproveConnection/utils'
@@ -112,51 +113,100 @@ export async function checkConnection(chainIds: [string], msg: any) {
   const [activeWallet, connections] = await Promise.all([getActiveWallet(), getConnections()])
   return await checkChainConnections(chainIds, connections, msg, activeWallet)
 }
-let popupId = 0
+const popupIds: Record<string, number> = {}
+const pendingPromises: Array<Promise<any>> = []
+
 type Page = 'approveConnection' | 'suggestChain' | 'sign' | 'add-secret-token' | 'login'
 
 async function getPopup() {
-  return await browser.windows.getAll({ populate: true })
+  if (popupIds.length === 0) {
+    return undefined
+  }
+  const window = await browser.windows.get(popupIds[0], { populate: true })
+  return [window]
 }
 
-function getPopupInWindows(windows: browser.Windows.Window[]) {
+function getPopupInWindows(windows: browser.Windows.Window[] | undefined) {
   return windows
-    ? windows.find((window) => window.type === 'popup' && window.id === popupId)
+    ? windows.find((window) => {
+        if (!window.id) return false
+        return window.type === 'popup' && Object.values(popupIds).includes(window.id)
+      })
     : undefined
 }
 
 export async function openPopup(page: Page, queryString?: string) {
-  const popups = await getPopup()
-  const existingPopup = getPopupInWindows(popups)
+  let url = `index.html#/`
+  if (page !== 'login') {
+    url = url + page
+  }
 
-  if (existingPopup?.id) {
-    return await browser.windows.update(existingPopup.id, { focused: true })
+  if (queryString) {
+    url = url + queryString
+  }
+
+  const popup = {
+    width: POPUP_WIDTH,
+    height: POPUP_HEIGHT,
+    type: 'popup' as const,
+    left: 0,
+    top: 0,
+    url,
+  }
+
+  if (pendingPromises.length > 0) {
+    await pendingPromises[0]
+    return
+  }
+
+  if (popupIds[url]) {
+    try {
+      const existingPopup = await browser.windows.get(popupIds[url], { populate: true })
+      if (existingPopup.tabs?.length) {
+        const [tab] = existingPopup.tabs
+        if (tab?.id) {
+          await browser.tabs.update(tab.id, { active: true, url: url })
+        } else {
+          throw new Error('No tabs')
+        }
+      } else {
+        throw new Error('No tabs')
+      }
+    } catch {
+      try {
+        const promise = browser.windows.create(popup)
+        pendingPromises.push(promise)
+        const windowId = (await promise).id
+        if (windowId) {
+          popupIds[url] = windowId
+        }
+      } finally {
+        pendingPromises.pop()
+      }
+    }
   } else {
-    let url = `index.html#/`
-    if (page !== 'login') {
-      url = url + page
+    try {
+      const promise = browser.windows.create(popup)
+      pendingPromises.push(promise)
+      const windowId = (await promise).id
+      if (windowId) {
+        popupIds[url] = windowId
+      }
+      return windowId
+    } finally {
+      pendingPromises.pop()
     }
-
-    if (queryString) {
-      url = url + queryString
-    }
-    const popup = {
-      width: POPUP_WIDTH,
-      height: POPUP_HEIGHT,
-      type: 'popup',
-      left: 0,
-      top: 0,
-      url,
-    }
-
-    // @ts-ignore
-    const window = await browser.windows.create(popup)
-    if (window.id) {
-      popupId = window.id
-    }
-    return window
   }
 }
+
+browser.windows.onRemoved.addListener((windowId) => {
+  const entries = Object.entries(popupIds)
+  entries.forEach(([url, popupId]) => {
+    if (popupId === windowId) {
+      delete popupIds[url]
+    }
+  })
+})
 
 export async function isConnected(msg: { chainId: string; origin: string }) {
   const [activeWallet, connections] = await Promise.all([getActiveWallet(), getConnections()])
@@ -286,6 +336,33 @@ export async function awaitUIResponse(messageType: string) {
           resolve('success')
         } else {
           reject('failed')
+        }
+        browser.runtime.onMessage.removeListener(listener)
+      }
+    }
+    browser.runtime.onMessage.addListener(listener)
+  })
+}
+
+export function requestSignTransaction(payload: any) {
+  const listener = (message: any, sender: any) => {
+    if (sender.id !== browser.runtime.id) throw new Error('Invalid Sender')
+    if (message.type === MessageTypes.signingPopupOpen) {
+      browser.runtime.sendMessage({ type: MessageTypes.signTransaction, payload })
+      browser.runtime.onMessage.removeListener(listener)
+    }
+  }
+  browser.runtime.onMessage.addListener(listener)
+}
+
+export async function awaitSigningResponse(messageType: string) {
+  return new Promise((resolve, reject) => {
+    const listener = (message: any) => {
+      if (message.type === messageType) {
+        if (message.payload.status === 'success') {
+          resolve(message.payload.data)
+        } else {
+          reject(message.payload.data)
         }
         browser.runtime.onMessage.removeListener(listener)
       }

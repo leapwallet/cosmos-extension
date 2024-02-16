@@ -1,3 +1,7 @@
+/**
+ * TODO - Delete this file once all the platforms are using useFeeDenoms hook
+ */
+
 import { SupportedChain } from './chain-infos';
 import { denoms, NativeDenom } from './denoms';
 
@@ -72,9 +76,21 @@ export const feeDenoms: FeeDenoms = {
     nibiru: denoms.unibi,
     mayachain: denoms.cacao,
     empowerchain: denoms.umpwr,
-    dydx: denoms.dv4tnt,
-    celestiatestnet3: denoms.utia,
+    dydx: denoms.adydx,
+    celestia: denoms.utia,
     sge: denoms.usge,
+    xpla: denoms.axpla,
+    provenance: denoms.nhash,
+    aura: denoms.uaura,
+    kichain: denoms.uxki,
+    sentinel: denoms.udvpn,
+    bandchain: denoms.uband,
+    composable: denoms.ppica,
+    seiDevnet: denoms.usei,
+    dymension: denoms.adym,
+    pryzmtestnet: denoms.upryzm,
+    thorchain: denoms.rune,
+    odin: denoms.loki,
   },
   testnet: {
     akash: denoms.uakt,
@@ -141,8 +157,20 @@ export const feeDenoms: FeeDenoms = {
     nibiru: denoms.unibi,
     mayachain: denoms.cacao,
     empowerchain: denoms.umpwr,
-    dydx: denoms.dv4tnt,
-    celestiatestnet3: denoms.utia,
+    dydx: denoms.adydx,
+    celestia: denoms.utia,
     sge: denoms.usge,
+    xpla: denoms.axpla,
+    provenance: denoms.nhash,
+    aura: denoms.uaura,
+    kichain: denoms.uxki,
+    sentinel: denoms.udvpn,
+    bandchain: denoms.uband,
+    composable: denoms.ppica,
+    seiDevnet: denoms.usei,
+    dymension: denoms.udym,
+    pryzmtestnet: denoms.upryzm,
+    thorchain: denoms.rune,
+    odin: denoms.loki,
   },
 };

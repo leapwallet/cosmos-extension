@@ -78,24 +78,24 @@ const ApproveConnection = () => {
   const [approvalRequests, setApprovalRequests] = useState<Array<any>>([])
 
   const handleCancel = useCallback(async () => {
-    const currentApprovalRequest = approvalRequests[0]
-    if (!currentApprovalRequest) {
-      closeWindow()
-      return
+    for (const currentApprovalRequest of approvalRequests) {
+      if (!currentApprovalRequest) {
+        closeWindow()
+        return
+      }
+
+      const chainsIds = currentApprovalRequest?.validChainIds ?? [
+        currentApprovalRequest?.[0]?.chainId,
+      ]
+
+      browser.runtime.sendMessage({
+        type: 'chain-approval-rejected',
+        payload: { origin, chainsIds, payloadId: currentApprovalRequest.payloadId },
+      })
     }
 
-    const chainsIds = currentApprovalRequest?.validChainIds ?? [
-      currentApprovalRequest?.[0]?.chainId,
-    ]
-    browser.runtime.sendMessage({
-      type: 'chain-approval-rejected',
-      payload: { origin, chainsIds, payloadId: currentApprovalRequest.payloadId },
-    })
-    setApprovalRequests((prev) => prev.slice(1))
-    if (approvalRequests.length === 1) {
-      window.removeEventListener('beforeunload', handleCancel)
-      closeWindow()
-    }
+    window.removeEventListener('beforeunload', handleCancel)
+    closeWindow()
   }, [approvalRequests])
 
   useEffect(() => {

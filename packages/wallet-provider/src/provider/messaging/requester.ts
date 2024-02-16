@@ -40,13 +40,6 @@ export enum SUPPORTED_METHODS {
   REQUEST_VERIFY_ADR36_AMINO_SIGN_DOC = 'request-verify-adr36-amino-sign-doc',
 }
 
-export function getKeplrExtensionRouterId(): number {
-  if (window.keplrExtensionRouterId == null) {
-    window.keplrExtensionRouterId = Math.floor(Math.random() * 1000000);
-  }
-  return window.keplrExtensionRouterId;
-}
-
 export class InExtensionMessageRequester implements MessageRequester {
   private inpageStream!: WindowPostMessageStream;
   private origin: string;
@@ -56,7 +49,7 @@ export class InExtensionMessageRequester implements MessageRequester {
       name: `${identifier}:inpage`,
       target: `${identifier}:content`,
     });
-    this.inpageStream.setMaxListeners(35);
+    this.inpageStream.setMaxListeners(100);
     this.origin = window.location.origin;
     this.queue = [];
   }

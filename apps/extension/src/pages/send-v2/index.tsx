@@ -3,6 +3,7 @@ import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
+import { FIXED_FEE_CHAINS } from 'config/constants'
 import { motion } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -15,7 +16,7 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { AmountCard } from './components/amount-card'
 import { FeesView } from './components/fees-view'
-import { MayaFee } from './components/fees-view/MayaFee'
+import { FixedFee } from './components/fees-view/FixedFee'
 import { RecipientCard } from './components/recipient-card'
 import { ReviewTransfer } from './components/reivew-transfer'
 import { SendContextProvider } from './context'
@@ -48,13 +49,7 @@ const Send = () => {
                 type: HeaderActionType.BACK,
               }}
               imgSrc={chainImage}
-              onImgClick={
-                isCompassWallet()
-                  ? undefined
-                  : function noRefCheck() {
-                      setShowChainSelector(true)
-                    }
-              }
+              onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
               title={location.pathname === '/ibc' ? 'IBC' : 'Send'}
               topColor={themeColor}
             />
@@ -67,7 +62,7 @@ const Send = () => {
             >
               <RecipientCard themeColor={themeColor} />
               <AmountCard themeColor={themeColor} />
-              {activeChain === 'mayachain' ? <MayaFee /> : <FeesView />}
+              {FIXED_FEE_CHAINS.includes(activeChain) ? <FixedFee /> : <FeesView />}
               <ReviewTransfer themeColor={themeColor} />
             </div>
           </SendContextProvider>

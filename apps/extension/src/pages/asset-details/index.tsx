@@ -112,13 +112,7 @@ export default function AssetDetails() {
               type: HeaderActionType.BACK,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={
-              isCompassWallet()
-                ? undefined
-                : function noRefCheck() {
-                    setShowChainSelector(true)
-                  }
-            }
+            onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
             title={<Text size='lg'>Asset details</Text>}
             topColor={Colors.getChainColor(activeChain)}
           />

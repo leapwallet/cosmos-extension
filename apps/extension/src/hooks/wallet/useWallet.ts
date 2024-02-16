@@ -26,6 +26,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { getChainInfosList } from 'utils/getChainInfosList'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 import extension from 'webextension-polyfill'
 
@@ -47,7 +48,7 @@ export namespace Wallet {
     return await browser.storage.local.set({
       [KEYSTORE]: newKeystore,
       [ACTIVE_WALLET]: newWallets[lastEntry],
-      [ACTIVE_CHAIN]: ChainInfos.cosmos.key,
+      [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : ChainInfos.cosmos.key,
     })
   }
 
@@ -84,7 +85,7 @@ export namespace Wallet {
         [ENCRYPTED_ACTIVE_WALLET]: null,
         [CONNECTIONS]: null,
         [BETA_CHAINS]: null,
-        [ACTIVE_CHAIN]: ChainInfos.cosmos.key,
+        [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : ChainInfos.cosmos.key,
       })
 
       await setActiveWallet(null)
@@ -184,6 +185,37 @@ export namespace Wallet {
       },
       [password, setActiveWallet, chains],
     )
+  }
+
+  export function useFirstWalletCosmosAddress() {
+    const wallets = useWallets()
+
+    const firstWallet = useMemo(() => {
+      if (!wallets) {
+        return undefined
+      }
+
+      const seedPhraseWallets = Object.values(wallets)
+        .filter((wallet) => wallet.walletType === WALLETTYPE.SEED_PHRASE)
+        .sort((a, b) => a.addressIndex - b.addressIndex)
+
+      if (seedPhraseWallets.length > 0) {
+        return seedPhraseWallets[0]
+      }
+
+      const otherWallets = Object.values(wallets).sort((a, b) => {
+        // compare IDs as there is no address index for non-seed-phrase wallets
+        return a.id.localeCompare(b.id)
+      })
+
+      if (otherWallets.length > 0) {
+        return otherWallets[0]
+      }
+
+      return undefined
+    }, [wallets])
+
+    return firstWallet ? firstWallet.addresses.cosmos : undefined
   }
 
   // eslint-disable-next-line no-inner-declarations
@@ -369,7 +401,7 @@ export namespace Wallet {
           name: name ?? `Wallet ${lastIndex + currentIndex + 1}`,
           addresses,
           addressIndex: parseInt(addressIndex),
-          cipher: encrypt(Buffer.from(pubKeys[0]).toString('hex'), password),
+          cipher: encrypt(Buffer.from(pubKeys[currentIndex]).toString('hex'), password),
           id: walletId,
           colorIndex: colorIndex ?? currentIndex,
           pubKeys: chainPubKeys,
@@ -433,6 +465,8 @@ export namespace Wallet {
           const hdPaths = [makeCosmoshubPath(activeWallet.addressIndex)]
           const ledgerTransport = await getLedgerTransport()
           return new LeapLedgerSigner(ledgerTransport, {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             hdPaths,
             prefix,
           }) as unknown as OfflineSigner

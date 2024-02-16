@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Compass Wallet for Sei",
   "description": "A crypto wallet for Sei Blockchain, brought to you by the Leap Wallet team.",
-  "version": "0.9.0",
+  "version": "0.10.5",
   "options_page": "index.html",
   "web_accessible_resources": [
     {
@@ -41,6 +41,6 @@
   },
   "permissions": ["storage"],
   "content_security_policy": {
-    "extension_pages": "object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; img-src * 'self' data: https:; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com  data: 'unsafe-inline'; connect-src * data: blob: filesystem:; media-src * data: blob: filesystem:; form-action 'self'; frame-ancestors 'none';frame-src https://newassets.hcaptcha.com ; base-uri 'self'; default-src 'none'"
+    "extension_pages": "object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; img-src * 'self' data: https:; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com  data: 'unsafe-inline'; connect-src * data: blob: filesystem:; media-src * data: blob: filesystem:; form-action 'self'; frame-ancestors 'none';frame-src https://newassets.hcaptcha.com https://www.google.com/; base-uri 'self'; default-src 'none'"
   }
 }
