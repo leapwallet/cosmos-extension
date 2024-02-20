@@ -1126,6 +1126,17 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
         setChain(chain)
         setChainId(chainId)
         setTxnData(txnData)
+        if (chain && chain !== activeChain) {
+          setActiveChain(chain)
+        }
+        if (chain) {
+          const isTestnet = ChainInfos[chain]?.testnetChainId === chainId
+          if (!isTestnet && selectedNetwork === 'testnet') {
+            setSelectedNetwork('mainnet')
+          } else if (isTestnet && selectedNetwork === 'mainnet') {
+            setSelectedNetwork('testnet')
+          }
+        }
       }
     }
 
@@ -1136,20 +1147,6 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
         browser.runtime.onMessage.removeListener(signTxEventHandler)
       }
     }, [])
-
-    useEffect(() => {
-      if (chain && chain !== activeChain) {
-        setActiveChain(chain)
-      }
-      if (chain) {
-        const isTestnet = ChainInfos[chain]?.testnetChainId === chainId
-        if (!isTestnet && selectedNetwork === 'testnet') {
-          setSelectedNetwork('mainnet')
-        } else if (isTestnet && selectedNetwork === 'mainnet') {
-          setSelectedNetwork('testnet')
-        }
-      }
-    }, [activeChain, chain, setActiveChain, selectedNetwork, setSelectedNetwork, chainId])
 
     if (chain === activeChain && txnData && chainId) {
       return <Component data={txnData} chainId={chainId} isSignArbitrary={isSignArbitrary} />

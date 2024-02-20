@@ -199,6 +199,8 @@ export function getTxHashFromAminoSignResponse(
   const signedTxBody = {
     messages: data.signed.msgs.map((msg) => aminoTypes.fromAmino(msg)),
     memo: data.signed.memo,
+    //@ts-ignore
+    timeoutHeight: data.signed.timeout_height,
   }
 
   const signedTxBodyEncodeObject: TxBodyEncodeObject = {

@@ -1,4 +1,11 @@
-import { axiosWrapper, Delegation, DelegationResponse, fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  axiosWrapper,
+  Delegation,
+  DelegationResponse,
+  fromSmall,
+  SupportedChain,
+  SupportedDenoms,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 import { useEffect } from 'react';
 
@@ -37,7 +44,11 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
         method: 'get',
         url: '/cosmos/staking/v1beta1/delegations/' + address,
       });
-      const denom = denoms[Object.keys(activeChainInfo.nativeDenoms)[0]];
+      const { delegation_responses } = res.data as DelegationResponse;
+      const denomKey = Object.keys(activeChainInfo.nativeDenoms).find(
+        (d) => d === delegation_responses[0].balance.denom,
+      );
+      const denom = denoms[denomKey as SupportedDenoms];
 
       const denomFiatValue = await fetchCurrency(
         '1',
@@ -46,7 +57,6 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
         currencyDetail[preferredCurrency].currencyPointer,
       );
 
-      const { delegation_responses } = res.data as DelegationResponse;
       delegation_responses.map(
         (r) => (r.balance.amount = fromSmall(r.balance.amount, denoms[r.balance.denom]?.coinDecimals ?? 6)),
       );

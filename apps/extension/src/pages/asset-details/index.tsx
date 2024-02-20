@@ -41,6 +41,7 @@ import {
 import { Colors } from 'theme/colors'
 import { Token } from 'types/bank'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize, formatTokenAmount, trim } from 'utils/strings'
 
 export default function AssetDetails() {
@@ -111,7 +112,7 @@ export default function AssetDetails() {
               type: HeaderActionType.BACK,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={() => setShowChainSelector(true)}
+            onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
             title={<Text size='lg'>Asset details</Text>}
             topColor={Colors.getChainColor(activeChain)}
           />

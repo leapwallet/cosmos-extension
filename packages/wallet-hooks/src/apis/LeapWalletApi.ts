@@ -33,7 +33,9 @@ export namespace LeapWalletApi {
     readonly feeDenomination?: string;
     readonly feeQuantity?: string;
     readonly chainId?: string;
-    readonly forceAddress?: string;
+    readonly forcePrimaryAddress?: string;
+    readonly forceWalletAddress?: string;
+    readonly forceChain?: string;
   };
 
   export type OperateCosmosTx = (info: LogInfo) => Promise<void>;
@@ -381,7 +383,7 @@ export namespace LeapWalletApi {
     const { chains } = useChainsStore();
     const isCompassWallet = getAppName() === APP_NAME.Compass;
 
-    const activeChain = useActiveChain();
+    const _activeChain = useActiveChain();
     const address = useAddress();
     const selectedNetwork = useSelectedNetwork();
     const { primaryAddress } = useAddressStore();
@@ -392,14 +394,31 @@ export namespace LeapWalletApi {
     }, [chains]);
 
     return useCallback(
-      async ({ txHash, chainId, txType, metadata, feeDenomination, feeQuantity, forceAddress }) => {
+      async ({
+        txHash,
+        chainId,
+        txType,
+        metadata,
+        feeDenomination,
+        feeQuantity,
+        forcePrimaryAddress,
+        forceWalletAddress,
+        forceChain,
+      }) => {
+        const walletAddress = forceWalletAddress || address;
+        const wallet = forcePrimaryAddress || (primaryAddress ?? address);
+        const activeChain = (forceChain || _activeChain) as SupportedChain;
+
+        const isMainnet = chainId ? !testnetChainIds.includes(chainId) : selectedNetwork === 'mainnet';
+        const blockchain = getCosmosNetwork(chains[activeChain].key);
+
         const logReq = {
           app: getPlatform(),
           txHash,
-          blockchain: getCosmosNetwork(chains[activeChain].key),
-          isMainnet: chainId ? !testnetChainIds.includes(chainId) : selectedNetwork === 'mainnet',
-          wallet: (primaryAddress ?? address) || forceAddress,
-          walletAddress: address || forceAddress,
+          blockchain,
+          isMainnet,
+          wallet,
+          walletAddress,
           type: txType,
           metadata: formatMetadata(metadata),
           feeDenomination,
@@ -416,7 +435,7 @@ export namespace LeapWalletApi {
           console.error(err);
         }
       },
-      [activeChain, selectedNetwork, primaryAddress, address, chains],
+      [_activeChain, selectedNetwork, primaryAddress, address, chains],
     );
   }
 

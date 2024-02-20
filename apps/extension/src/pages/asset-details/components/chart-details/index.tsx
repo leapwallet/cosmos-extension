@@ -34,6 +34,7 @@ import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize } from 'utils/strings'
 
 import ChartSkeleton from '../chart-skeleton/ChartSkeleton'
@@ -213,7 +214,7 @@ function TokensDetails() {
               type: HeaderActionType.BACK,
             }}
             imgSrc={chainInfos[activeChain].chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={() => setShowChainSelector(true)}
+            onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
             title={<Text size='lg'>Asset details</Text>}
             topColor={Colors.getChainColor(activeChain)}
           />

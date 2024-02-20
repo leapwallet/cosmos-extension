@@ -86,7 +86,7 @@ function Activity() {
                     'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
                 }}
                 imgSrc={chainInfos[activeChain].chainSymbolImageUrl ?? defaultTokenLogo}
-                onImgClick={() => setShowChainSelector(true)}
+                onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
                 title={'Activity'}
                 topColor={themeColor}
               />

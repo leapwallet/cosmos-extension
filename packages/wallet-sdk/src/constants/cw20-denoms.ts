@@ -230,14 +230,14 @@ export const Cw20Denoms: Record<CosmWasmChain, Record<string, NativeDenom>> = {
     },
   },
   archway: {
-    "archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n": {
-      "name": "archAXV",
-      "coinDenom": "AXV",
-      "coinMinimalDenom": "archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n",
-      "coinDecimals": 6,
-      "coinGeckoId": "",
-      "icon": "https://assets.leapwallet.io/archaxv.svg",
-      "chain": "archway"
+    archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n: {
+      name: 'archAXV',
+      coinDenom: 'AXV',
+      coinMinimalDenom: 'archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n',
+      coinDecimals: 6,
+      coinGeckoId: '',
+      icon: 'https://assets.leapwallet.io/archaxv.svg',
+      chain: 'archway',
     },
   },
   secret: {

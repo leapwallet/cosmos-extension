@@ -158,5 +158,6 @@ export const chainIdToChain: Record<string, string> = {
   'centauri-1': 'composable',
   'arctic-1': 'seiDevnet',
   'froopyland_100-1': 'dymension',
+  'dymension_1100-1': 'dymension',
   'indigo-1': 'pryzmtestnet',
 };

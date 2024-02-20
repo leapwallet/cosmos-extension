@@ -1629,20 +1629,7 @@
     cosmjs-types "^0.5.2"
     long "^4.0.0"
 
-"@cosmjs/proto-signing@0.31.3", "@cosmjs/proto-signing@^0.31.0", "@cosmjs/proto-signing@^0.31.3":
-  version "0.31.3"
-  resolved "https://registry.npmjs.org/@cosmjs/proto-signing/-/proto-signing-0.31.3.tgz#20440b7b96fb2cd924256a10e656fd8d4481cdcd"
-  integrity sha512-24+10/cGl6lLS4VCrGTCJeDRPQTn1K5JfknzXzDIHOx8THR31JxA7/HV5eWGHqWgAbudA7ccdSvEK08lEHHtLA==
-  dependencies:
-    "@cosmjs/amino" "^0.31.3"
-    "@cosmjs/crypto" "^0.31.3"
-    "@cosmjs/encoding" "^0.31.3"
-    "@cosmjs/math" "^0.31.3"
-    "@cosmjs/utils" "^0.31.3"
-    cosmjs-types "^0.8.0"
-    long "^4.0.0"
-
-"@cosmjs/proto-signing@^0.30.0", "@cosmjs/proto-signing@^0.30.1":
+"@cosmjs/proto-signing@0.30.1", "@cosmjs/proto-signing@^0.30.0", "@cosmjs/proto-signing@^0.30.1":
   version "0.30.1"
   resolved "https://registry.yarnpkg.com/@cosmjs/proto-signing/-/proto-signing-0.30.1.tgz#f0dda372488df9cd2677150b89b3e9c72b3cb713"
   integrity sha512-tXh8pPYXV4aiJVhTKHGyeZekjj+K9s2KKojMB93Gcob2DxUjfKapFYBMJSgfKPuWUPEmyr8Q9km2hplI38ILgQ==
@@ -1653,6 +1640,19 @@
     "@cosmjs/math" "^0.30.1"
     "@cosmjs/utils" "^0.30.1"
     cosmjs-types "^0.7.1"
+    long "^4.0.0"
+
+"@cosmjs/proto-signing@^0.31.0", "@cosmjs/proto-signing@^0.31.3":
+  version "0.31.3"
+  resolved "https://registry.yarnpkg.com/@cosmjs/proto-signing/-/proto-signing-0.31.3.tgz#20440b7b96fb2cd924256a10e656fd8d4481cdcd"
+  integrity sha512-24+10/cGl6lLS4VCrGTCJeDRPQTn1K5JfknzXzDIHOx8THR31JxA7/HV5eWGHqWgAbudA7ccdSvEK08lEHHtLA==
+  dependencies:
+    "@cosmjs/amino" "^0.31.3"
+    "@cosmjs/crypto" "^0.31.3"
+    "@cosmjs/encoding" "^0.31.3"
+    "@cosmjs/math" "^0.31.3"
+    "@cosmjs/utils" "^0.31.3"
+    cosmjs-types "^0.8.0"
     long "^4.0.0"
 
 "@cosmjs/socket@0.28.13":
@@ -3292,23 +3292,23 @@
     axios "^0.27.2"
     long "^4.0.0"
 
-"@leapwallet/buffer-boba@0.1.8":
-  version "0.1.8"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.8/6c7ac83ffdb8804c011b4f9752df4e9024415e95#6c7ac83ffdb8804c011b4f9752df4e9024415e95"
-  integrity sha512-Q4HlsJSVuuLaGoCwbnfwHyVHFIO02gP/BEQN8VEE1tYsIOLevRojbplKsYvRijjSL3PDiOSAf4BYooCMPPhhnA==
+"@leapwallet/buffer-boba@0.1.6":
+  version "0.1.6"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/buffer-boba/0.1.6/9558ca8a8c2c89ac17430a418f536cf31ddb5491#9558ca8a8c2c89ac17430a418f536cf31ddb5491"
+  integrity sha512-kflZL5tS1bF8OI6D1jTQy5PHy0v9ex6MTsNGTNOvx5i9jH3ZpJldIEGvcGxo3dcavJi+vjCbf+Jf2EGrZeilng==
   dependencies:
-    "@cosmjs/proto-signing" "0.31.3"
+    "@cosmjs/proto-signing" "0.30.1"
     base64js "1.0.1"
-    cosmjs-types "0.9.0"
+    cosmjs-types "0.8.0"
     long "5.2.0"
-    osmojs "16.5.1"
-    protobufjs "7.2.5"
+    osmojs "15.2.1"
+    protobufjs "7.2.3"
     stridejs "0.6.2"
 
-"@leapwallet/elements-core@0.12.0":
-  version "0.12.0"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/elements-core/0.12.0/fa4736d056d826416b639db15b6bed8c0adb7a0b#fa4736d056d826416b639db15b6bed8c0adb7a0b"
-  integrity sha512-iDrUtphF7apiQ/DbdYUd8A4chcvzuVXu4ZC9rRQ5Z3gwHuuBkqNFNXyeZgKGJ40zO6w3r6AwGx7ZlwGlT0NThw==
+"@leapwallet/elements-core@0.12.5":
+  version "0.12.5"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/elements-core/0.12.5/80ddf3c1848a5167a7428c06b46fdcc43a3abb8f#80ddf3c1848a5167a7428c06b46fdcc43a3abb8f"
+  integrity sha512-0vkKHR/eXz8nRM1kIvh5MHUebfQVkrw+klPk9Eg7f+iXF6egGv5dtcYxlrnSbgNrBzjuEL5GZOWQGpUr1vZoJw==
   dependencies:
     "@cosmjs/cosmwasm-stargate" "0.31.0"
     "@cosmjs/encoding" "0.31.0"
@@ -3318,15 +3318,15 @@
     bignumber.js "9.1.1"
     long "5.2.3"
 
-"@leapwallet/elements-hooks@0.12.0":
-  version "0.12.0"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/elements-hooks/0.12.0/850d1b22859ed04f23f5d2304390d899e0962023#850d1b22859ed04f23f5d2304390d899e0962023"
-  integrity sha512-M0aB1zyd/dujKiC4rKvgGB9xWAzGycmDqObu53F9kLhj9pS6RBeLoazZRQxw4zwhnXN30+0qLIM/12aAKUEYfw==
+"@leapwallet/elements-hooks@0.12.5":
+  version "0.12.5"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/elements-hooks/0.12.5/c86851f295703162b91f328c32df014671e7bf65#c86851f295703162b91f328c32df014671e7bf65"
+  integrity sha512-Ix5wZUEwxZ182zJfHTpD6jN5LDYlr2s3Xln8ptjABlvi3q+Qv1EJAo/6Pdaa8cVGqRREMu8ai0fWvpuxWexDBQ==
   dependencies:
     "@cosmjs/cosmwasm-stargate" "0.31.0"
     "@cosmjs/encoding" "0.31.0"
     "@cosmjs/stargate" "0.31.0"
-    "@leapwallet/elements-core" "0.12.0"
+    "@leapwallet/elements-core" "0.12.5"
     "@leapwallet/name-matcha" "1.6.0"
     bech32 "2.0.0"
     bignumber.js "9.1.1"
@@ -3335,6 +3335,15 @@
     react "18.2.0"
     swr "2.1.5"
     wagmi "1.4.12"
+
+"@leapwallet/leap-api-js@0.21.4":
+  version "0.21.4"
+  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-api-js/0.21.4/031031eb31179e35864c42a530fdf99073bc8b2b#031031eb31179e35864c42a530fdf99073bc8b2b"
+  integrity sha512-wYATiolbNRH+lbGxiKcL9aPQpVBv8JluU5160/zAvF3YnMWP7fIZpZPGXdBk7Bd9cjZYfsbP7IpzyY9AAzLGmQ==
+  dependencies:
+    cross-fetch "3.1.5"
+    crypto-js "4.1.1"
+    typedi "0.10.0"
 
 "@leapwallet/leap-keychain@0.2.2":
   version "0.2.2"
@@ -4069,6 +4078,14 @@
     cosmjs-types "0.5.1"
     long "^5.2.0"
     protobufjs "^6.11.3"
+
+"@osmonauts/lcd@^0.10.0":
+  version "0.10.0"
+  resolved "https://registry.yarnpkg.com/@osmonauts/lcd/-/lcd-0.10.0.tgz#c982942dc13d7f6ab2a7873b289c7907e2169b14"
+  integrity sha512-PzmXk9x9MHyLn2fUztpAqWqvDmMiEJaQv/JcAoAOE8VdHrD9Hf/KWnE1RZtamuS2ngQRqvQPD0xotCGXW7eTxA==
+  dependencies:
+    "@babel/runtime" "^7.19.0"
+    axios "0.27.2"
 
 "@osmonauts/lcd@^0.6.0":
   version "0.6.0"
@@ -8606,7 +8623,7 @@ cosmiconfig@^8.2.0:
     parse-json "^5.2.0"
     path-type "^4.0.0"
 
-cosmjs-types@0.5.1, cosmjs-types@0.6.1, cosmjs-types@0.8.0, cosmjs-types@0.9.0, cosmjs-types@^0.4.0, cosmjs-types@^0.5.0, cosmjs-types@^0.5.1, cosmjs-types@^0.5.2, cosmjs-types@^0.7.1, cosmjs-types@^0.8.0:
+cosmjs-types@0.5.1, cosmjs-types@0.6.1, cosmjs-types@0.8.0, cosmjs-types@^0.4.0, cosmjs-types@^0.5.0, cosmjs-types@^0.5.1, cosmjs-types@^0.5.2, cosmjs-types@^0.7.1, cosmjs-types@^0.8.0:
   version "0.8.0"
   resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.8.0.tgz#2ed78f3e990f770229726f95f3ef5bf9e2b6859b"
   integrity sha512-Q2Mj95Fl0PYMWEhA2LuGEIhipF7mQwd9gTQ85DdP9jjjopeoGaDxvmPa5nakNzsq7FnO1DMTatXTAx6bxMH7Lg==
@@ -15263,6 +15280,20 @@ os-tmpdir@~1.0.2:
   resolved "https://registry.yarnpkg.com/os-tmpdir/-/os-tmpdir-1.0.2.tgz#bbe67406c79aa85c5cfec766fe5734555dfa1274"
   integrity sha512-D2FR03Vir7FIu45XBY20mTb+/ZSWB00sjU9jdQXt83gDrI4Ztz5Fs7/yy74g2N5SVQY4xY1qDr4rNddwYRVX0g==
 
+osmojs@15.2.1:
+  version "15.2.1"
+  resolved "https://registry.yarnpkg.com/osmojs/-/osmojs-15.2.1.tgz#d9556d47ea77f95b400656d68f7a4ec69912c15a"
+  integrity sha512-hA4QOlEhs2h0tQPYld5EqH+GhyHVTc9Fye3BAAOlfc9++GQB127pFZdProCGFNvw4kJwHHzhQQtuE98tk1EejA==
+  dependencies:
+    "@babel/runtime" "^7.19.0"
+    "@cosmjs/amino" "0.29.3"
+    "@cosmjs/proto-signing" "0.29.3"
+    "@cosmjs/stargate" "0.29.3"
+    "@cosmjs/tendermint-rpc" "^0.29.3"
+    "@osmonauts/lcd" "^0.10.0"
+    long "^5.2.0"
+    protobufjs "^6.11.3"
+
 osmojs@16.5.1:
   version "16.5.1"
   resolved "https://registry.yarnpkg.com/osmojs/-/osmojs-16.5.1.tgz#38f2fe3cd65dbd4e4b415e9f22f387a24b634155"
@@ -15975,6 +16006,24 @@ property-information@^6.0.0:
   version "6.4.0"
   resolved "https://registry.yarnpkg.com/property-information/-/property-information-6.4.0.tgz#6bc4c618b0c2d68b3bb8b552cbb97f8e300a0f82"
   integrity sha512-9t5qARVofg2xQqKtytzt+lZ4d1Qvj8t5B8fEwXK6qOfgRLgH/b13QlgEyDh033NOS31nXeFbYv7CLUDG1CeifQ==
+
+protobufjs@7.2.3:
+  version "7.2.3"
+  resolved "https://registry.yarnpkg.com/protobufjs/-/protobufjs-7.2.3.tgz#01af019e40d9c6133c49acbb3ff9e30f4f0f70b2"
+  integrity sha512-TtpvOqwB5Gdz/PQmOjgsrGH1nHjAQVCN7JG4A6r1sXRWESL5rNMAiRcBQlCAdKxZcAbstExQePYG8xof/JVRgg==
+  dependencies:
+    "@protobufjs/aspromise" "^1.1.2"
+    "@protobufjs/base64" "^1.1.2"
+    "@protobufjs/codegen" "^2.0.4"
+    "@protobufjs/eventemitter" "^1.1.0"
+    "@protobufjs/fetch" "^1.1.0"
+    "@protobufjs/float" "^1.0.2"
+    "@protobufjs/inquire" "^1.1.0"
+    "@protobufjs/path" "^1.1.2"
+    "@protobufjs/pool" "^1.1.0"
+    "@protobufjs/utf8" "^1.1.0"
+    "@types/node" ">=13.7.0"
+    long "^5.0.0"
 
 protobufjs@7.2.5:
   version "7.2.5"

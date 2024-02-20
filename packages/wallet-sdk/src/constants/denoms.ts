@@ -16,19 +16,18 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
-  "archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n": {
-    "name": "archAXV",
-    "coinDenom": "AXV",
-    "coinMinimalDenom": "archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n",
-    "coinDecimals": 6,
-    "coinGeckoId": "",
-    "icon": "https://assets.leapwallet.io/archaxv.svg",
-    "chain": "archway"
-  },
   udym: {
     coinDenom: 'DYM',
     coinDecimals: 18,
     coinMinimalDenom: 'udym',
+    icon: 'https://assets.leapwallet.io/dymension-logo.svg',
+    chain: 'dymension',
+    coinGeckoId: '',
+  },
+  adym: {
+    coinDenom: 'DYM',
+    coinDecimals: 18,
+    coinMinimalDenom: 'adym',
     icon: 'https://assets.leapwallet.io/dymension-logo.svg',
     chain: 'dymension',
     coinGeckoId: '',

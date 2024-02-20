@@ -334,7 +334,7 @@ export default function Home() {
               imgSrc: NftLogo,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={() => setShowChainSelector(true)}
+            onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
             title={
               <Buttons.Wallet
                 brandLogo={

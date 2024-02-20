@@ -87,7 +87,7 @@ export const feeDenoms: FeeDenoms = {
     bandchain: denoms.uband,
     composable: denoms.ppica,
     seiDevnet: denoms.usei,
-    dymension: denoms.udym,
+    dymension: denoms.adym,
     pryzmtestnet: denoms.upryzm,
     thorchain: denoms.rune,
     odin: denoms.loki,

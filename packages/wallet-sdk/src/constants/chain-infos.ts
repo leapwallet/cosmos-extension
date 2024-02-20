@@ -1356,23 +1356,30 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     cosmosSDK: CosmosSDK.Version_Point_47,
   },
   dymension: {
-    chainId: 'froopyland_100-1',
+    chainId: 'dymension_1100-1',
     key: 'dymension',
-    chainName: 'Dymension Froopyland',
+    chainName: 'Dymension',
     chainRegistryPath: 'dymension',
     testnetChainId: 'froopyland_100-1',
     testnetChainRegistryPath: 'dymension',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/dymension-logo.svg',
     apis: {
+      rpc: 'https://leap-node-proxy.numia.xyz/dymension-rpc',
+      rest: 'https://leap-node-proxy.numia.xyz/dymension-lcd',
       rpcTest: 'https://froopyland.blockpi.network/rpc/v1/0837569d56317f9a6af3c82170a7242ce8319ae4',
       restTest: 'https://froopyland.blockpi.network/lcd/v1/0837569d56317f9a6af3c82170a7242ce8319ae4',
     },
     denom: 'DYM',
     txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://dym.fyi/tx',
+        accountUrl: 'https://dym.fyi/address',
+      },
       testnet: {
-        name: 'Evmos Block Explorer',
-        txUrl: 'https://fl.dym.fyi/tx',
-        accountUrl: 'https://fl.dym.fyi/address',
+        name: 'Mintscan',
+        txUrl: 'https://dym.fyi/tx',
+        accountUrl: 'https://dym.fyi/address',
       },
     },
     bip44: {
@@ -1380,12 +1387,13 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     addressPrefix: 'dym',
     gasPriceStep: {
-      low: 0.25,
-      average: 0.4,
-      high: 0.55,
+      low: 20000000000,
+      average: 20000000000,
+      high: 20000000000,
     },
     ibcChannelIds: {},
     nativeDenoms: {
+      adym: denoms.adym,
       udym: denoms.udym,
     },
     theme: {

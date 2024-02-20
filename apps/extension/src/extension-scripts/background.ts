@@ -182,8 +182,8 @@ const connectRemote = (remotePort: any) => {
                     },
                   })
                   .then(() =>
-                    openPopup('suggestChain').then(async (window) => {
-                      popupWindowId = window.id ?? 0
+                    openPopup('suggestChain').then(async (windowId) => {
+                      popupWindowId = windowId ?? 0
                       windowIdForPayloadId[popupWindowId] = {
                         type: type.toUpperCase(),
                         payloadId: payload.id,
@@ -278,28 +278,13 @@ const connectRemote = (remotePort: any) => {
                   [REDIRECT_REQUEST]: { type: type, msg: { ...msg, validChainIds } },
                 })
 
-                const shouldOpenPopup =
-                  Object.keys(enableAccessRequests).length === 0 ||
-                  !Object.keys(enableAccessRequests).some((key) => key.includes(msg.origin))
-
-                if (shouldOpenPopup) {
-                  delete enableAccessRequests[queryString]
-                  enableAccessRequests[queryString] = popupWindowId
-                  await openPopup('approveConnection')
-                  requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
-                  windowIdForPayloadId[popupWindowId] = {
-                    type: type.toUpperCase(),
-                    payloadId: payload.id,
-                  }
-                } else {
-                  if (!enableAccessRequests[queryString]) {
-                    requestEnableAccess({
-                      origin: msg.origin,
-                      validChainIds,
-                      payloadId: payload.id,
-                    })
-                    enableAccessRequests[queryString] = popupWindowId
-                  }
+                delete enableAccessRequests[queryString]
+                enableAccessRequests[queryString] = popupWindowId
+                await openPopup('approveConnection')
+                requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
+                windowIdForPayloadId[popupWindowId] = {
+                  type: type.toUpperCase(),
+                  payloadId: payload.id,
                 }
 
                 try {
@@ -361,34 +346,16 @@ const connectRemote = (remotePort: any) => {
                 }
 
                 if (isNewChainPresent) {
-                  const shouldOpenPopup =
-                    Object.keys(enableAccessRequests).length === 0 ||
-                    !Object.keys(enableAccessRequests).some((key) => key.includes(msg.origin))
-
-                  if (shouldOpenPopup) {
-                    delete enableAccessRequests[queryString]
-                    enableAccessRequests[queryString] = popupWindowId
-                    const window = await openPopup('approveConnection')
-                    enableAccessRequests[queryString] = window.id ?? 0
-                    windowIdForPayloadId[popupWindowId] = {
-                      type: type.toUpperCase(),
-                      payloadId: payload.id,
-                    }
-                    requestEnableAccess({
-                      origin: msg.origin,
-                      validChainIds,
-                      payloadId: payload.id,
-                    })
-                  } else {
-                    if (!enableAccessRequests[queryString]) {
-                      requestEnableAccess({
-                        origin: msg.origin,
-                        validChainIds,
-                        payloadId: payload.id,
-                      })
-                      enableAccessRequests[queryString] = popupWindowId
-                    }
+                  const windowId = await openPopup('approveConnection')
+                  windowIdForPayloadId[popupWindowId] = {
+                    type: type.toUpperCase(),
+                    payloadId: payload.id,
                   }
+                  requestEnableAccess({
+                    origin: msg.origin,
+                    validChainIds,
+                    payloadId: payload.id,
+                  })
 
                   try {
                     const response = await awaitEnableChainResponse()
@@ -576,8 +543,8 @@ const connectRemote = (remotePort: any) => {
                 },
               })
               .then(async () =>
-                openPopup('add-secret-token').then((window) => {
-                  popupWindowId = window.id ?? 0
+                openPopup('add-secret-token').then((windowId) => {
+                  popupWindowId = windowId ?? 0
                   windowIdForPayloadId[popupWindowId] = {
                     type: eventName,
                     payloadId: payload.id,

@@ -15,8 +15,9 @@ import {
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { useMessages, useRoute, useSKIPGasFeeSWR } from '@leapwallet/elements-hooks'
+import { useMessages, usePriceImpact, useRoute, useSKIPGasFeeSWR } from '@leapwallet/elements-hooks'
 import { useQuery } from '@tanstack/react-query'
+import BigNumber from 'bignumber.js'
 import { calculateFeeAmount } from 'components/gas-price-options'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
@@ -76,8 +77,6 @@ export type SwapsTxType = {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   route: any
-  impactedPriceValue: string
-  setImpactedPriceValue: React.Dispatch<React.SetStateAction<string>>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   refresh: () => Promise<any>
   handleSwitchOrder: () => void
@@ -85,13 +84,14 @@ export type SwapsTxType = {
   slippagePercent: number
   setSlippagePercent: React.Dispatch<React.SetStateAction<number>>
   setInAmount: React.Dispatch<React.SetStateAction<string>>
+  priceImpactWarning: string | undefined
+  priceImpactPercentage: BigNumber
 }
 
 export function useSwapsTx(): SwapsTxType {
   const activeChainInfo = useChainInfo()
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
-  const [impactedPriceValue, setImpactedPriceValue] = useState('')
   const isSwitchedRef = useRef(false)
 
   /**
@@ -230,6 +230,9 @@ export function useSwapsTx(): SwapsTxType {
     destinationChain,
   )
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const { warning: priceImpactWarning, priceImpactPercentage } = usePriceImpact(routeResponse)
   const { userAddresses, userAddressesError } = useAddresses(
     routeResponse?.response.chain_ids as string[],
   )
@@ -429,13 +432,13 @@ export function useSwapsTx(): SwapsTxType {
       messages: messages ?? [],
       userAddresses: userAddresses ?? [],
     },
-    impactedPriceValue,
-    setImpactedPriceValue,
     refresh,
     handleSwitchOrder,
     isSwitchOrderPossible,
     slippagePercent,
     setSlippagePercent,
     setInAmount,
+    priceImpactWarning,
+    priceImpactPercentage,
   }
 }

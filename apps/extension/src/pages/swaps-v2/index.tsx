@@ -15,7 +15,6 @@ import { Colors } from 'theme/colors'
 import {
   FeesView,
   HighPriceImpactWarning,
-  PriceImpactSheet,
   SelectChainSheet,
   SelectTokenSheet,
   SlippageSheet,
@@ -37,7 +36,7 @@ function SwapPage() {
   const counter = useRef(0)
   const intervalTimeout = useRef<NodeJS.Timeout>()
 
-  const [showPriceImpactSheet, setShowPriceImpactSheet] = useState(false)
+  const activeWallet = useActiveWallet()
   const [showTokenSelectSheet, setShowTokenSelectSheet] = useState<boolean>(false)
   const [showSelectSheetFor, setShowSelectSheetFor] = useState<'source' | 'destination' | ''>(
     'source',
@@ -56,7 +55,6 @@ function SwapPage() {
   const [isBlockingUsdValueWarning, setIsBlockingUsdValueWarning] = useState<boolean>(false)
   const [isBlockingUsdValueWarningChecked, setIsBlockingUsdValueWarningChecked] =
     useState<boolean>(false)
-  const activeWallet = useActiveWallet()
 
   const {
     inAmount,
@@ -91,7 +89,6 @@ function SwapPage() {
       Number(amountOut) &&
       ![
         showChainSelectSheet,
-        showPriceImpactSheet,
         showSlippageSheet,
         showTokenSelectSheet,
         showTxPage,
@@ -122,7 +119,6 @@ function SwapPage() {
     amountOut,
     refresh,
     showChainSelectSheet,
-    showPriceImpactSheet,
     showSlippageSheet,
     showTokenSelectSheet,
     showTxPage,
@@ -230,14 +226,11 @@ function SwapPage() {
           ) : (
             <>
               <HighPriceImpactWarning
-                onClick={() => setShowPriceImpactSheet(true)}
-                isBlockingPriceImpactWarning={isBlockingPriceImpactWarning}
                 setIsBlockingPriceImpactWarning={setIsBlockingPriceImpactWarning}
                 isBlockingPriceImpactWarningChecked={isBlockingPriceImpactWarningChecked}
                 onPriceWarningCheckboxClick={() =>
                   setIsBlockingPriceImpactWarningChecked((prev) => !prev)
                 }
-                isBlockingUsdValueWarning={isBlockingUsdValueWarning}
                 setIsBlockingUsdValueWarning={setIsBlockingUsdValueWarning}
                 isBlockingUsdValueWarningChecked={isBlockingUsdValueWarningChecked}
                 onUsdValueWarningCheckboxClick={() =>
@@ -335,11 +328,6 @@ function SwapPage() {
           }}
         />
       ) : null}
-
-      <PriceImpactSheet
-        isOpen={showPriceImpactSheet}
-        onClose={() => setShowPriceImpactSheet(false)}
-      />
 
       <SlippageSheet isOpen={showSlippageSheet} onClose={() => setShowSlippageSheet(false)} />
     </div>

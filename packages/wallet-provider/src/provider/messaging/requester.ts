@@ -49,7 +49,7 @@ export class InExtensionMessageRequester implements MessageRequester {
       name: `${identifier}:inpage`,
       target: `${identifier}:content`,
     });
-    this.inpageStream.setMaxListeners(35);
+    this.inpageStream.setMaxListeners(100);
     this.origin = window.location.origin;
     this.queue = [];
   }

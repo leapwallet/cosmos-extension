@@ -89,7 +89,7 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
                 let ibcChainInfo = {
                   pretty_name: 'transfer',
                   icon: '',
-                  channelId: skipAsset?.denomTracePath?.split('/')[1] ?? '',
+                  channelId: skipAsset?.denom?.split('/')[1] ?? '',
                   name: 'transfer',
                 }
 

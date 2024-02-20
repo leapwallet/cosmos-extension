@@ -202,9 +202,12 @@ export function useExecuteTx({
         },
         feeDenomination: feeDenom.coinMinimalDenom,
         feeQuantity: feeAmount ?? fee?.amount[0].amount,
+        forceWalletAddress: activeWallet?.addresses[sourceChain?.key as SupportedChain],
+        forceChain: String(sourceChain?.key ?? ''),
       })
     },
     [
+      activeWallet?.addresses,
       amountOut,
       destinationChain?.chainId,
       destinationToken?.coinDecimals,
@@ -215,6 +218,7 @@ export function useExecuteTx({
       inAmount,
       route?.response?.chain_ids?.length,
       sourceChain?.chainId,
+      sourceChain?.key,
       sourceToken?.coinDecimals,
       sourceToken?.coinMinimalDenom,
       txPostToDB,

@@ -85,7 +85,7 @@ export namespace Wallet {
         [ENCRYPTED_ACTIVE_WALLET]: null,
         [CONNECTIONS]: null,
         [BETA_CHAINS]: null,
-        [ACTIVE_CHAIN]: ChainInfos.cosmos.key,
+        [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : ChainInfos.cosmos.key,
       })
 
       await setActiveWallet(null)

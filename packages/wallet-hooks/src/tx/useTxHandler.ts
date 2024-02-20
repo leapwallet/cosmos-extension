@@ -33,9 +33,10 @@ export function useTxHandler({
           network === 'testnet' ? chainInfos.injective.apis.restTest : chainInfos.injective.apis.rest,
         );
       } else if (chainInfo.bip44.coinType === '60') {
+        const chainId = selectedNetwork === 'mainnet' ? chainInfo.chainId : chainInfo.testnetChainId;
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        return new EthermintTxHandler(lcdUrl, wallet, chainInfo.chainId);
+        return new EthermintTxHandler(lcdUrl, wallet, chainId);
       } else if (chainInfo.chainId.toLowerCase().includes('atlantic-2')) {
         const _tx = new SeiTxHandler(lcdUrl, rpcUrl ?? '', wallet);
         await _tx.initClient();

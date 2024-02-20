@@ -1,6 +1,5 @@
 export * from './FeesView'
 export * from './HighPriceImpactWarning'
-export * from './PriceImpactSheet'
 export * from './SelectChainSheet'
 export * from './SelectTokenSheet'
 export * from './SlippageSheet'
