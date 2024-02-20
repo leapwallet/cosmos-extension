@@ -1,12 +1,13 @@
 import { GeneratedType, Registry } from '@cosmjs/proto-signing';
 
 import {
-  MsgAddValidator,
+  MsgAddValidators,
   MsgChangeValidatorWeight,
   MsgClaimUndelegatedTokens,
   MsgClearBalance,
   MsgDeleteValidator,
   MsgLiquidStake,
+  MsgLSMLiquidStake,
   MsgRebalanceValidators,
   MsgRedeemStake,
   MsgRegisterHostZone,
@@ -15,11 +16,12 @@ import {
 } from './tx';
 export const registry: ReadonlyArray<[string, unknown]> = [
   ['/stride.stakeibc.MsgLiquidStake', MsgLiquidStake],
+  ['/stride.stakeibc.MsgLSMLiquidStake', MsgLSMLiquidStake],
   ['/stride.stakeibc.MsgRedeemStake', MsgRedeemStake],
   ['/stride.stakeibc.MsgRegisterHostZone', MsgRegisterHostZone],
   ['/stride.stakeibc.MsgClaimUndelegatedTokens', MsgClaimUndelegatedTokens],
   ['/stride.stakeibc.MsgRebalanceValidators', MsgRebalanceValidators],
-  ['/stride.stakeibc.MsgAddValidator', MsgAddValidator],
+  ['/stride.stakeibc.MsgAddValidators', MsgAddValidators],
   ['/stride.stakeibc.MsgChangeValidatorWeight', MsgChangeValidatorWeight],
   ['/stride.stakeibc.MsgDeleteValidator', MsgDeleteValidator],
   ['/stride.stakeibc.MsgRestoreInterchainAccount', MsgRestoreInterchainAccount],
@@ -37,6 +39,13 @@ export const MessageComposer = {
       return {
         typeUrl: '/stride.stakeibc.MsgLiquidStake',
         value: MsgLiquidStake.encode(value).finish(),
+      };
+    },
+
+    lSMLiquidStake(value: MsgLSMLiquidStake) {
+      return {
+        typeUrl: '/stride.stakeibc.MsgLSMLiquidStake',
+        value: MsgLSMLiquidStake.encode(value).finish(),
       };
     },
 
@@ -68,10 +77,10 @@ export const MessageComposer = {
       };
     },
 
-    addValidator(value: MsgAddValidator) {
+    addValidators(value: MsgAddValidators) {
       return {
-        typeUrl: '/stride.stakeibc.MsgAddValidator',
-        value: MsgAddValidator.encode(value).finish(),
+        typeUrl: '/stride.stakeibc.MsgAddValidators',
+        value: MsgAddValidators.encode(value).finish(),
       };
     },
 
@@ -118,6 +127,13 @@ export const MessageComposer = {
       };
     },
 
+    lSMLiquidStake(value: MsgLSMLiquidStake) {
+      return {
+        typeUrl: '/stride.stakeibc.MsgLSMLiquidStake',
+        value,
+      };
+    },
+
     redeemStake(value: MsgRedeemStake) {
       return {
         typeUrl: '/stride.stakeibc.MsgRedeemStake',
@@ -146,9 +162,9 @@ export const MessageComposer = {
       };
     },
 
-    addValidator(value: MsgAddValidator) {
+    addValidators(value: MsgAddValidators) {
       return {
-        typeUrl: '/stride.stakeibc.MsgAddValidator',
+        typeUrl: '/stride.stakeibc.MsgAddValidators',
         value,
       };
     },
@@ -196,6 +212,13 @@ export const MessageComposer = {
       };
     },
 
+    lSMLiquidStake(value: MsgLSMLiquidStake) {
+      return {
+        typeUrl: '/stride.stakeibc.MsgLSMLiquidStake',
+        value: MsgLSMLiquidStake.fromPartial(value),
+      };
+    },
+
     redeemStake(value: MsgRedeemStake) {
       return {
         typeUrl: '/stride.stakeibc.MsgRedeemStake',
@@ -224,10 +247,10 @@ export const MessageComposer = {
       };
     },
 
-    addValidator(value: MsgAddValidator) {
+    addValidators(value: MsgAddValidators) {
       return {
-        typeUrl: '/stride.stakeibc.MsgAddValidator',
-        value: MsgAddValidator.fromPartial(value),
+        typeUrl: '/stride.stakeibc.MsgAddValidators',
+        value: MsgAddValidators.fromPartial(value),
       };
     },
 

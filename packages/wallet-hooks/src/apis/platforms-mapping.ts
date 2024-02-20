@@ -60,7 +60,11 @@ export const platforms: Record<string, Platform> = {
   neutron: Platform.Neutron,
   onomy: Platform.Onomy,
   quicksilver: Platform.QuickSilver,
+  provenance: Platform.Provenance,
+  kichain: Platform.Ki,
 
+  // @ts-ignore
+  aura: 'AURA',
   // @ts-ignore
   seiTestnet2: 'SEI_TESTNET_2',
   // @ts-ignore
@@ -75,7 +79,8 @@ export const platforms: Record<string, Platform> = {
   nomic: 'NOMIC',
   //@ts-ignore
   nibiru: 'NIBIRU',
-
+  //@ts-ignore
+  odin: 'ODIN_CHAIN',
   // @ts-ignore
   mayachain: 'MAYA_CHAIN',
   // @ts-ignore
@@ -87,7 +92,17 @@ export const platforms: Record<string, Platform> = {
   // @ts-ignore
   sge: 'SGE',
   // @ts-ignore
-  celestiatestnet3: 'CELESTIA_TESTNET',
+  celestia: 'CELESTIA',
+  // @ts-ignore
+  xpla: 'XPLA',
+  // @ts-ignore
+  composable: 'COMPOSABLE',
+  // @ts-ignore
+  dymension: 'DYMENSION',
+  // @ts-ignore
+  pryzmtestnet: 'PRYZM',
+  // @ts-ignore
+  thorchain: 'THOR_CHAIN',
 };
 
 export const platformToChain: Record<Platform, string> = {
@@ -139,8 +154,13 @@ export const platformToChain: Record<Platform, string> = {
   [Platform.Kyve]: 'kyve',
   [Platform.Noble]: 'noble',
   [Platform.Migaloo]: 'migaloo',
+  [Platform.Provenance]: 'provenance',
+  [Platform.Ki]: 'kichain',
+  [Platform.Sentinel]: 'sentinel',
+  [Platform.Band]: 'bandchain',
 
   // @ts-ignore
+  AURA: 'aura',
   SEI_TESTNET_2: 'seiTestnet2',
   IMPACT_HUB: 'impacthub',
   JACKAL: 'jackal',
@@ -152,5 +172,11 @@ export const platformToChain: Record<Platform, string> = {
   DYDX: 'dydx',
   GITOPIA: 'gitopia',
   SGE: 'sge',
-  CELESTIA_TESTNET: 'celestiatestnet3',
+  CELESTIA: 'celestia',
+  XPLA: 'xpla',
+  COMPOSABLE: 'composable',
+  DYMENSION: 'dymension',
+  PRYZM: 'pryzmtestnet',
+  THOR_CHAIN: 'thorchain',
+  ODIN_CHAIN: 'odin',
 };

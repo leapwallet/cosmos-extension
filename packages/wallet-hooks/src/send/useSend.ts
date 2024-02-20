@@ -1,8 +1,7 @@
-import { coin, coins } from '@cosmjs/amino';
+import { coins } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, StdFee } from '@cosmjs/stargate';
 import {
-  feeDenoms,
   fromSmall,
   getBlockChainFromAddress,
   getSimulationFee,
@@ -28,7 +27,7 @@ import { Token } from 'types/bank';
 import { LeapWalletApi } from '../apis';
 import { useGetTokenBalances, useSnipGetSnip20TokenBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import { useGetIbcChannelId } from '../ibc';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
@@ -46,18 +45,17 @@ import {
 import { usePendingTxState } from '../store';
 import { useScrtTxHandler, useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
-import { fetchCurrency, useGetGasPrice } from '../utils';
+import { fetchCurrency, useGetGasPrice, useNativeFeeDenom } from '../utils';
 import { sliceAddress } from '../utils';
 import { getMetaDataForIbcTx, getMetaDataForSendTx } from './get-metadata';
 
 export function useSend(toAddress: string) {
   const chainsInfos = useGetChains();
   const denoms = useDenoms();
+  let feeDenom = useNativeFeeDenom();
 
   const [inputAmount, setInputAmount] = useState<string>('');
-
   const [memo, setMemo] = useState<string>('');
-
   const [selectedDenom, setSelectedDenom] = useState<Token>();
 
   const [error, setError] = useState<string>('');
@@ -67,7 +65,7 @@ export function useSend(toAddress: string) {
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
 
-  const { allAssets, nativeTokensStatus, ibcTokensStatus } = useGetTokenBalances();
+  const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenBalances();
   const { snip20Tokens, snip20TokensStatus } = useSnipGetSnip20TokenBalances();
   const selectedNetwork = useSelectedNetwork();
   const activeChain = useActiveChain();
@@ -85,7 +83,7 @@ export function useSend(toAddress: string) {
   const { lcdUrl } = useChainApis();
   const chainInfo = useChainInfo();
   const getGasPrice = useGetGasPrice(activeChain);
-  const gasAdjustment = useGasAdjustment();
+  const gasAdjustment = useGasAdjustmentForChain();
 
   const assets = useMemo(() => {
     if (snip20Tokens && isValidAddressWithPrefix(toAddress, 'secret')) {
@@ -105,7 +103,6 @@ export function useSend(toAddress: string) {
   );
 
   const { data: feeDenomFiatValue } = useQuery(['fee-fiat-value'], async () => {
-    const feeDenom = feeDenoms[selectedNetwork][activeChain];
     return await fetchCurrency(
       fromSmall('1', feeDenom.coinDecimals),
       feeDenom.coinGeckoId,
@@ -115,11 +112,11 @@ export function useSend(toAddress: string) {
   });
 
   useEffect(() => {
-    if (ibcTokensStatus === 'success' && nativeTokensStatus === 'success') {
+    if (s3IbcTokensStatus === 'success' && nativeTokensStatus === 'success') {
       const tokensWithBalance = assets.filter((token) => new BigNumber(token.amount).gt(0));
       setSelectedDenom(tokensWithBalance[0]);
     }
-  }, [ibcTokensStatus, nativeTokensStatus, snip20TokensStatus]);
+  }, [s3IbcTokensStatus, nativeTokensStatus, snip20TokensStatus]);
 
   const getTxData = useCallback(() => {
     const fromAddress = address;
@@ -284,7 +281,6 @@ export function useSend(toAddress: string) {
           return;
         }
 
-        let feeDenom = feeDenoms[selectedNetwork]?.[activeChain];
         if (!feeDenom) {
           feeDenom = Object.values(chainInfo.nativeDenoms)[0];
         }
@@ -405,7 +401,7 @@ export function useSend(toAddress: string) {
     error,
     setError,
     isLoading,
-    loading: ibcTokensStatus !== 'success' && nativeTokensStatus !== 'success',
+    loading: s3IbcTokensStatus !== 'success' && nativeTokensStatus !== 'success',
     showLedgerPopup,
     signingError,
     sendSnip20,

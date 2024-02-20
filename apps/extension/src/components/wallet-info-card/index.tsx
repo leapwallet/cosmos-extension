@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import bech32 from 'bech32'
 import Tooltip from 'components/better-tooltip'
 import Text from 'components/text'
+import { REMOVED_CHAINS_FROM_ONBOARDING } from 'config/constants'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { getChainImage } from 'images/logos'
@@ -60,14 +61,13 @@ function WalletInfoCard({
 
   const { isLoading, error, data } = useQuery<string[]>({
     queryKey: [cosmosAddress],
-    retry: 3,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     queryFn: async () => {
       const { words } = bech32.decode(cosmosAddress)
 
       const promises = Object.values(chainInfos)
-        .filter((c) => !c.beta)
+        .filter((c) => !c.beta && !REMOVED_CHAINS_FROM_ONBOARDING.includes(c.chainId))
         .map((chainInfo) => {
           const accountAddress = bech32.encode(chainInfo.addressPrefix, words)
           const lcdUrl = getRestUrl(chainInfos, chainInfo.key, false)

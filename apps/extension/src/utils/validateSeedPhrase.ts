@@ -38,7 +38,7 @@ export const validateSeedPhrase = ({
       return false
     }
   } else if (!SeedPhrase.validateSeedPhrase(correctedSecret)) {
-    setError('Invalid secret recovery phrase.')
+    setError('Invalid recovery phrase.')
     return false
   }
 

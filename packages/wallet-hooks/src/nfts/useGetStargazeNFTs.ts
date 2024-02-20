@@ -3,7 +3,7 @@ import axios from 'axios';
 
 import { OmniflixNft } from './types';
 
-export function useGetStargazeNFTs(stargazeAddress: string, selectedNetwork: string) {
+export function useGetStargazeNFTs(stargazeAddress: string, selectedNetwork: string, platform?: 'dashboard') {
   const testnetUrl = `https://nft-api.elgafar-1.stargaze-apis.com/api/v1beta/profile/${stargazeAddress}/nfts`;
   const mainnetUrl = `https://nft-api.stargaze-apis.com/api/v1beta/profile/${stargazeAddress}/nfts`;
   const metadataUri = selectedNetwork === 'mainnet' ? mainnetUrl : testnetUrl;
@@ -30,9 +30,16 @@ export function useGetStargazeNFTs(stargazeAddress: string, selectedNetwork: str
                     }
                     name
                     media {
-                      type
-                      url
-                      format
+                      visualAssets {
+                        md {
+                          type
+                          url
+                        }
+                        sm {
+                          url
+                          type
+                        }
+                      }
                     }
                     description
                     tokenUri
@@ -80,7 +87,7 @@ export function useGetStargazeNFTs(stargazeAddress: string, selectedNetwork: str
               },
               description: nftEntry.description ?? '',
               name: nftEntry.name ?? '',
-              image: nftEntry.media.url ?? '',
+              image: nftEntry.media.visualAssets[platform === 'dashboard' ? 'md' : 'sm'].url ?? '',
               tokenId: nftEntry.tokenId ?? '',
               tokenUri: `https://www.stargaze.zone/marketplace/${nftEntry.id ?? ''}`,
             };

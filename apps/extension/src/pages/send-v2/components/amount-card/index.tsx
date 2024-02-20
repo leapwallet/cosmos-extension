@@ -2,7 +2,7 @@ import {
   formatBigNumber,
   Token,
   useformatCurrency,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
   useGetTokenBalances,
   useIsCW20Tx,
   useSnipGetSnip20TokenBalances,
@@ -37,7 +37,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   const [showTokenSelectSheet, setShowTokenSelectSheet] = useState<boolean>(false)
   const [isMaxClicked, setIsMaxClicked] = useState(false)
 
-  const { allAssets, nativeTokensStatus, ibcTokensStatus } = useGetTokenBalances()
+  const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenBalances()
   const { snip20Tokens } = useSnipGetSnip20TokenBalances()
 
   const [formatCurrency] = useformatCurrency()
@@ -63,7 +63,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
     feeDenom,
     sameChain,
   } = useSendContext()
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain()
 
   const handleMaxClick = () => {
     setIsMaxClicked(true)
@@ -90,7 +90,14 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
         setSelectedToken(tokensWithBalance[0])
       }
     }
-  }, [assets, ibcTokensStatus, locationState, nativeTokensStatus, selectedToken, setSelectedToken])
+  }, [
+    assets,
+    s3IbcTokensStatus,
+    locationState,
+    nativeTokensStatus,
+    selectedToken,
+    setSelectedToken,
+  ])
 
   useEffect(() => {
     const isNativeToken =

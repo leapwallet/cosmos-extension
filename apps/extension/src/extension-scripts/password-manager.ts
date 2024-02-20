@@ -21,6 +21,7 @@ export class PasswordManager {
 
   private async init() {
     startAutoLockTimer(this)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const listener = async (message: any, sender: any) => {
       if (sender.id !== browser.runtime.id) return
       if (message.type === 'popup-open') {

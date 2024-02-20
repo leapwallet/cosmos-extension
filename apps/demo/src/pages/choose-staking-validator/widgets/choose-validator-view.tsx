@@ -3,7 +3,7 @@ import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import classNames from 'classnames'
 import currency from 'currency.js'
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 
 import CardDivider from '~/components/card-divider'
 import Text from '~/components/text'
@@ -181,7 +181,6 @@ function ChooseValidatorView({
   fromValidator,
   delegation,
   onClickSortBy,
-  onShuffle,
   setSearchfilter,
   setSelectedValidator,
 }: {

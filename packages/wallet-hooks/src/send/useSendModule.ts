@@ -18,7 +18,7 @@ import { BigNumber } from 'bignumber.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis/LeapWalletApi';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import { useGetIbcChannelId, useGetIBCSupport } from '../ibc';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
@@ -26,16 +26,25 @@ import {
   useAddress,
   useChainApis,
   useDefaultGasEstimates,
+  useGasPriceSteps,
   usePendingTxState,
   useSelectedNetwork,
 } from '../store';
 import { Token, TxCallback } from '../types';
-import { fetchCurrency, GasOptions, getErrorMsg, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import {
+  fetchCurrency,
+  GasOptions,
+  getErrorMsg,
+  getOsmosisGasPriceSteps,
+  useGasRateQuery,
+  useNativeFeeDenom,
+} from '../utils';
 import { useIsCW20Tx } from './useIsCW20Tx';
 import { useSendIbcChains } from './useSendIbcChains';
 import { sendTokensParams, useSimpleSend } from './useSimpleSend';
 
 export type SelectedAddress = {
+  ethAddress?: string;
   avatarIcon: string | undefined;
   chainIcon: string | undefined;
   chainName: string;
@@ -99,6 +108,7 @@ export function useSendModule(): SendModuleType {
   const [preferredCurrency] = useUserPreferredCurrency();
   const fromAddress = useAddress();
   const { lcdUrl } = useChainApis();
+  const allChainsGasPriceSteps = useGasPriceSteps();
   const isCW20Tx = useIsCW20Tx();
 
   /**
@@ -129,24 +139,40 @@ export function useSendModule(): SendModuleType {
   const { isSending, sendTokens, showLedgerPopup } = useSimpleSend();
   const { data: ibcSupportData, isLoading: isIbcSupportDataLoading } = useGetIBCSupport(activeChain);
   const nativeFeeDenom = useNativeFeeDenom();
-  const gasAdjustment = useGasAdjustment(activeChain);
+  const gasAdjustment = useGasAdjustmentForChain(activeChain);
 
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
 
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
-  const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
+  const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
   const displayAccounts = useSendIbcChains();
+
+  useEffect(() => {
+    (async function () {
+      if (feeDenom.coinMinimalDenom === 'uosmo' && activeChain === 'osmosis') {
+        const { low, medium, high } = await getOsmosisGasPriceSteps(lcdUrl ?? '', allChainsGasPriceSteps);
+        setGasPriceOptions({
+          low: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
+          medium: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
+          high: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
+        });
+      }
+    })();
+  }, [feeDenom.coinMinimalDenom, gasOption, gasEstimate, userPreferredGasLimit, userPreferredGasPrice, activeChain]);
 
   /**
    * Ibc Related tx
    */
-  const { data: ibcChannelId } = useQuery(['ibc-channel-id', 'send', selectedAddress?.address], async () => {
-    if (!selectedAddress?.address) return undefined;
-    const ibcChannelIds = await getIbcChannelId(selectedAddress.address);
-    return ibcChannelIds?.[0];
-  });
+  const { data: ibcChannelId } = useQuery(
+    ['ibc-channel-id', 'send', selectedAddress?.address, activeChain, selectedNetwork],
+    async () => {
+      if (!selectedAddress?.address) return undefined;
+      const ibcChannelIds = await getIbcChannelId(selectedAddress.address);
+      return ibcChannelIds?.[0];
+    },
+  );
 
   const isIBCTransfer = useMemo(() => {
     if (selectedAddress && selectedAddress.address) {
@@ -190,9 +216,15 @@ export function useSendModule(): SendModuleType {
 
     const gasAdjustmentValue = gasAdjustment * (selectedToken && isCW20Tx(selectedToken) ? 2 : 1);
     return calculateFee(Math.ceil(_gasLimit * gasAdjustmentValue), _gasPrice);
-
-    // keep feeDenom in the dependency array to update the fee when the denom changes
-  }, [gasPriceOptions, gasOption, gasEstimate, userPreferredGasLimit, userPreferredGasPrice, activeChain]);
+  }, [
+    gasPriceOptions,
+    gasOption,
+    gasEstimate,
+    userPreferredGasLimit,
+    userPreferredGasPrice,
+    activeChain,
+    feeDenom.coinMinimalDenom,
+  ]);
 
   /**
    * Currency Calculation Selected Token
@@ -209,7 +241,7 @@ export function useSendModule(): SendModuleType {
    * Currency Calculation Fee Token
    */
   const { data: feeTokenFiatValue } = useQuery(
-    ['fee-token-fiat-value', selectedToken],
+    ['fee-token-fiat-value', selectedToken, feeDenom],
     async () => {
       return fetchCurrency(
         '1',
@@ -257,7 +289,7 @@ export function useSendModule(): SendModuleType {
       const inputAmountNumber = new BigNumber(inputAmount);
 
       if (
-        !selectedAddress ||
+        !selectedAddress?.address ||
         !selectedToken ||
         inputAmountNumber.isNaN() ||
         inputAmountNumber.lte(0) ||
@@ -270,9 +302,7 @@ export function useSendModule(): SendModuleType {
         .multipliedBy(10 ** (selectedToken?.coinDecimals ?? 6))
         .toFixed(0, BigNumber.ROUND_DOWN);
 
-      let token = isIBCTransfer
-        ? selectedToken.ibcDenom || selectedToken.coinMinimalDenom
-        : selectedToken.coinMinimalDenom;
+      let token = selectedToken.ibcDenom || selectedToken.coinMinimalDenom;
 
       token = isEthAddress(token) ? `erc20/${token}` : token;
       const amountOfCoins = coin(normalizedAmount, token);
@@ -314,14 +344,15 @@ export function useSendModule(): SendModuleType {
     activeChain,
     ChainInfos.chihuahua.key,
     fromAddress,
-    getIbcChannelId,
     ibcChannelId,
     inputAmount,
     isIBCTransfer,
     lcdUrl,
-    selectedAddress,
-    selectedToken,
-    feeDenom,
+    selectedAddress?.address,
+    selectedToken?.ibcDenom,
+    selectedToken?.coinMinimalDenom,
+    feeDenom.ibcDenom,
+    feeDenom.coinMinimalDenom,
   ]);
 
   return {

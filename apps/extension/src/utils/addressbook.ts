@@ -22,6 +22,7 @@ export namespace AddressBook {
     blockchain: SupportedChain
     tnsAddress?: string
     memo?: string
+    ethAddress?: string
   }
 
   export type SavedAddresses = {

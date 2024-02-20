@@ -44,6 +44,8 @@ export function useAddressPrefixes() {
     Object.values(chains).forEach((chain) => {
       prefixMap[chain.addressPrefix] = chain.key;
     });
+
+    prefixMap['sei'] = 'seiTestnet2';
     return prefixMap;
   }, [chains]);
 

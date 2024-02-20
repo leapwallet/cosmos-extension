@@ -27,11 +27,11 @@ export type tokenToTokenPriceArgs = {
   /**
    * The symbol of the token to swap from
    */
-  tokenASymbol: string;
+  tokenAIbcDenom: string;
   /**
    * The symbol of the token to swap to
    */
-  tokenBSymbol: string;
+  tokenBIbcDenom: string;
   /**
    * The amount of token A to swap
    */
@@ -39,27 +39,17 @@ export type tokenToTokenPriceArgs = {
 };
 
 export type SwapTokensArgs = {
-  /**
-   * The symbol of the token to swap from
-   */
   fromTokenSymbol: string;
-  /**
-   * The symbol of the token to swap to
-   */
+  fromTokenDenom: string;
+  fromTokenIbcDenom: string;
+
   targetTokenSymbol: string;
-  /**
-   * The amount of token A to give
-   */
+  targetTokenDenom: string;
+  targetTokenIbcDenom: string;
+
   fromTokenAmount: string;
-  /**
-   * The amount of token B to receive
-   */
   targetTokenAmount: string;
-  /**
-   * The slippage tolerance for the swap 1-5
-   * 1 = 1%
-   * 5 = 5%
-   */
+
   slippage: number;
 };
 

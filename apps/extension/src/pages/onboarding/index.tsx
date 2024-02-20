@@ -4,9 +4,11 @@ import ExtensionPage from 'components/extension-page'
 import { Header } from 'components/Header'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
+import { EventName } from 'config/analytics'
 import { AuthContextType, useAuth } from 'context/auth-context'
 import { usePassword } from 'hooks/settings/usePassword'
 import { Images } from 'images'
+import mixpanel from 'mixpanel-browser'
 import React, { useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
@@ -20,11 +22,18 @@ export default function Onboarding() {
   const { loading, noAccount } = useAuth() as AuthContextType
   const password = usePassword()
 
+  const trackCTAEvent = (methodChosen: string) => {
+    mixpanel.track(EventName.OnboardingMethod, { methodChosen, time: Date.now() / 1000 })
+    localStorage.setItem('onboardingMethodChosen', methodChosen)
+    localStorage.setItem('timeStarted2', new Date().getTime().toString())
+  }
+
   const importWalletData = useMemo(() => {
     const keplrWallet = {
       imgSrc: Images.Logos.Keplr,
       title: 'Keplr',
       'data-testing-id': '',
+      mixpanelMethod: 'existing-keplr',
     }
 
     if (isCompassWallet()) {
@@ -33,6 +42,7 @@ export default function Onboarding() {
           imgSrc: Images.Logos.LeapLogo28,
           title: 'Leap',
           'data-testing-id': '',
+          mixpanelMethod: 'existing-leap',
         },
         Keplr: keplrWallet,
         ...IMPORT_WALLET_DATA,
@@ -44,6 +54,7 @@ export default function Onboarding() {
           imgSrc: Images.Logos.CosmoStation,
           title: 'Cosmostation',
           'data-testing-id': '',
+          mixpanelMethod: 'existing-cosmostation',
         },
         ...IMPORT_WALLET_DATA,
       }
@@ -64,6 +75,20 @@ export default function Onboarding() {
 
   useEffect(() => {
     extension.extension.getViews({ type: 'popup' })
+
+    const timeStarted1 = localStorage.getItem('timeStarted1')
+    if (!timeStarted1) {
+      localStorage.setItem('timeStarted1', new Date().getTime().toString())
+    }
+
+    try {
+      mixpanel.track(EventName.OnboardingStarted, {
+        firstWallet: true,
+        time: Date.now() / 1000,
+      })
+    } catch {
+      //
+    }
   }, [])
 
   return (
@@ -82,7 +107,10 @@ export default function Onboarding() {
             isRounded={true}
             size='xl'
             iconSrc={Images.Misc.RightArrow}
-            onClick={() => navigate('/onboardingCreate')}
+            onClick={() => {
+              navigate('/onboardingCreate')
+              trackCTAEvent('new')
+            }}
             data-testing-id='create-new-wallet'
           />
 
@@ -95,19 +123,23 @@ export default function Onboarding() {
                 key={ind}
                 className='border-[1px] dark:border-gray-800 border-gray-100'
                 imgSrc={val.imgSrc}
-                title={val.title ?? 'Using a Seed phrase'}
+                title={val.title ?? 'Using a recovery phrase'}
                 data-testing-id={val['data-testing-id']}
                 isFilled={true}
                 isRounded={true}
                 iconSrc={Images.Misc.RightArrow}
                 size='sm'
-                onClick={() => navigate(`/onboardingImport?walletName=${val.title ?? ''}`)}
+                onClick={() => {
+                  navigate(`/onboardingImport?walletName=${val.title ?? ''}`)
+                  trackCTAEvent(val?.mixpanelMethod)
+                }}
               />
             ))}
           </div>
           <Link
             className='flex w-full bg-white-100 dark:bg-gray-900 px-[30px] py-[20px] rounded-[16px]'
             to='/onboardingImport?walletName=hardwarewallet'
+            onClick={() => trackCTAEvent('hardware-ledger')}
           >
             <img src={Images.Misc.HardwareWallet} className='mr-4' />
             <Text className='font-bold' size='md'>

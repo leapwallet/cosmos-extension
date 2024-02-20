@@ -1,4 +1,3 @@
-import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { NavCard, SideNavHeader, ThemeName } from '@leapwallet/leap-ui'
 import classnames from 'classnames'
@@ -131,8 +130,6 @@ const SideNav: React.FC<Props> = ({ isShown, toggler }) => {
     ],
     [theme],
   )
-
-  const chainInfo = useChainInfo()
 
   return (
     <div

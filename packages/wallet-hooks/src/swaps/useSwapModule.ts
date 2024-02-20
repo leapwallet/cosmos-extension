@@ -56,14 +56,13 @@ export const useSwapModule = ({
 
   const { data: currentTokenPrice, isLoading: isCurrentTokenPriceLoading } = useQuery<BigNumber>({
     queryKey: ['token-to-token-price', selectedToken?.symbol, selectedTargetToken?.symbol, amountValue],
-    queryFn: () =>
-      swapper.getTokenToTokenPrice({
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        tokenASymbol: selectedToken!.symbol.toUpperCase(),
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        tokenBSymbol: selectedTargetToken!.symbol.toUpperCase(),
+    queryFn: () => {
+      return swapper.getTokenToTokenPrice({
+        tokenAIbcDenom: selectedToken?.ibcDenom?.toUpperCase() ?? '',
+        tokenBIbcDenom: selectedTargetToken?.ibcDenom?.toUpperCase() ?? '',
         tokenAmount: Number(amountValue),
-      }),
+      });
+    },
     enabled: selectedToken !== undefined && selectedTargetToken !== undefined && amountValue !== undefined,
   });
 
@@ -71,8 +70,7 @@ export const useSwapModule = ({
     queryKey: ['swap-route', selectedToken?.symbol, selectedTargetToken?.symbol],
     queryFn: () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return swapper.getDefaultGasAmount(selectedToken!.symbol, selectedTargetToken!.symbol);
+        return swapper.getDefaultGasAmount(selectedToken?.ibcDenom ?? '', selectedTargetToken?.ibcDenom ?? '');
       } catch {
         return 150_000;
       }
@@ -106,9 +104,13 @@ export const useSwapModule = ({
   }, [amountValue, currentTokenPrice, isCurrentTokenPriceLoading]);
 
   const selectedTokenBalance = useMemo(() => {
-    const tokenBalance = allAssets.find(
-      (asset) => asset.symbol.toLowerCase() === selectedToken?.symbol.toLowerCase(),
-    )?.amount;
+    const tokenBalance = allAssets.find((asset) => {
+      if (selectedToken?.ibcDenom && asset?.ibcDenom) {
+        return selectedToken.ibcDenom === asset.ibcDenom;
+      }
+
+      return selectedToken?.denom === asset.coinMinimalDenom;
+    })?.amount;
     return tokenBalance ?? '0';
   }, [allAssets, selectedToken?.symbol]);
 
@@ -157,8 +159,12 @@ export const useSwapModule = ({
         const response = await swapper.swapTokens({
           swap: {
             fromTokenSymbol: selectedToken.symbol,
+            fromTokenDenom: selectedToken.denom,
+            fromTokenIbcDenom: selectedToken.ibcDenom ?? '',
             fromTokenAmount: amountValue,
             targetTokenSymbol: selectedTargetToken.symbol,
+            targetTokenDenom: selectedTargetToken.denom,
+            targetTokenIbcDenom: selectedTargetToken.ibcDenom ?? '',
             targetTokenAmount: currentTokenPrice.toFixed(8),
             slippage: slippagePercentage,
           },

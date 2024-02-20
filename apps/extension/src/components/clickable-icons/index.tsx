@@ -4,7 +4,7 @@ import { ComponentPropsWithoutRef, forwardRef } from 'react'
 
 /** The `'type'` prop will be `'button'` if `undefined`. */
 export type ClickableIconProps = ComponentPropsWithoutRef<'button'> & {
-  readonly image: Pick<HTMLImageElement, 'src' | 'alt'>
+  readonly image: { src: string; alt: string; type?: string }
   readonly darker?: boolean
   readonly disabled?: boolean
 }
@@ -26,10 +26,10 @@ const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
         {...rest}
       >
         <div className={'flex flex-col justify-center items-center'}>
-          {image.alt === 'IBC' ? (
+          {image.type === 'url' ? (
             <img
               src={image.src}
-              alt=''
+              alt={image.alt}
               className={classNames('invert dark:invert-0', {
                 'opacity-30': disabled,
               })}
@@ -48,7 +48,9 @@ const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
         >
           {image.alt}
         </p>
-      ) : null}
+      ) : (
+        <></>
+      )}
     </div>
   ),
 )

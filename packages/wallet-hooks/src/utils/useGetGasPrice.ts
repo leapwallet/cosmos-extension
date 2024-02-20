@@ -13,31 +13,62 @@ import { FeeModel } from '../types/fee-model';
 import { useLowGasPriceStep } from './useLowGasPriceStep';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
 
+function roundOf(value: number, tillDecimal: number) {
+  return Math.round(value * 10 ** tillDecimal) / 10 ** tillDecimal;
+}
+
 async function getCoreumGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
   const coreumGasLcd1 = 'https://full-node.mainnet-1.coreum.dev:1317';
 
   const gasPrice1 = await axios.get<FeeModel>(`${coreumGasLcd1}/coreum/feemodel/v1/min_gas_price`);
   const gasPrice2 = await axios.get<FeeModel>(`${lcdUrl}/coreum/feemodel/v1/min_gas_price`);
+
   const minGasPrice1 = parseFloat(gasPrice1.data.min_gas_price.amount);
   const minGasPrice2 = parseFloat(gasPrice2.data.min_gas_price.amount);
+
   const defaultGasPrice = gasPriceSteps.coreum?.low;
   const minGasPrice = Math.max(minGasPrice1, minGasPrice2, defaultGasPrice);
+
   return isNaN(minGasPrice) ? defaultGasPrice : minGasPrice;
 }
 
-async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: string) {
-  // const seiGasJSON = 'https://raw.githubusercontent.com/sei-protocol/testnet-registry/master/gas.json';
+async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: string, chainKey: SupportedChain) {
   const seiGasJSON = 'https://raw.githubusercontent.com/sei-protocol/chain-registry/main/gas.json';
   const { data } = await axios.get(seiGasJSON);
+
   const minGas = data[chainId]?.min_gas_price;
-  const defaultGasPrice = gasPriceSteps.seiTestnet2?.low;
+  const defaultGasPrice = gasPriceSteps[chainKey]?.low;
+
   return minGas ?? defaultGasPrice;
+}
+
+async function getOsmosisGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
+  const url = `${lcdUrl}/osmosis/txfees/v1beta1/cur_eip_base_fee`;
+  const { data } = await axios.get(url);
+
+  return roundOf(Number(data.base_fee), 4) ?? gasPriceSteps.osmosis.low;
+}
+
+export async function getOsmosisGasPriceSteps(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
+  const minGasPrice = await getOsmosisGasPrice(lcdUrl ?? '', gasPriceSteps);
+
+  const low = Math.max(gasPriceSteps.osmosis.low, minGasPrice);
+  const medium = Math.max(gasPriceSteps.osmosis.average, minGasPrice * 1.1);
+  const high = Math.max(gasPriceSteps.osmosis.high, minGasPrice * 2);
+
+  return { low, medium, high };
 }
 
 export async function getMayaTxFee(lcdUrl: string) {
   const url = `${lcdUrl}/mayachain/mimir`;
   const { data } = await axios.get(url);
   return data.NATIVETRANSACTIONFEE ?? 10000000000;
+}
+
+export async function getThorChainTxFee(lcdUrl: string) {
+  const url = `${lcdUrl}/thorchain/network`;
+  const { data } = await axios.get(url);
+  return data['native_tx_fee_rune'] ?? 2000000;
 }
 
 function getGasPriceStep(chain: ChainInfo, allChainsGasPriceSteps: GasPriceStepsRecord): GasPriceStep {
@@ -53,7 +84,7 @@ function getGasPriceStep(chain: ChainInfo, allChainsGasPriceSteps: GasPriceSteps
 
 export function useGetGasPrice(chain: SupportedChain) {
   const { chains } = useChainsStore();
-  const { lcdUrl } = useChainApis();
+  const { lcdUrl } = useChainApis(chain);
   const gasPriceSteps = useGasPriceSteps();
   const lowGasPriceStep = useLowGasPriceStep(chain);
   const selectedNetwork = useSelectedNetwork();
@@ -71,14 +102,22 @@ export function useGetGasPrice(chain: SupportedChain) {
       if (chain === 'seiTestnet2') {
         const chainId =
           selectedNetwork === 'mainnet' ? chains['seiTestnet2'].chainId : chains['seiTestnet2'].testnetChainId ?? '';
-        gasPrice = await getSeiGasPrice(gasPriceSteps, chainId);
+        gasPrice = await getSeiGasPrice(gasPriceSteps, chainId, 'seiTestnet2');
+      }
+
+      if (chain === 'seiDevnet') {
+        gasPrice = await getSeiGasPrice(gasPriceSteps, chains['seiDevnet'].chainId, 'seiDevnet');
+      }
+
+      if (chain === 'osmosis') {
+        gasPrice = await getOsmosisGasPrice(lcdUrl ?? '', gasPriceSteps);
       }
     } catch {
       gasPrice = gasPriceSteps[chain]?.low ?? lowGasPriceStep;
     }
 
     return GasPrice.fromString(`${gasPrice + feeDenom.coinMinimalDenom}`);
-  }, [chains, chain, lowGasPriceStep, selectedNetwork]);
+  }, [chains, chain, lowGasPriceStep, selectedNetwork, lcdUrl]);
 }
 
 export enum GasOptions {
@@ -111,8 +150,18 @@ export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?:
       if (chainKey === 'seiTestnet2') {
         const chainId =
           selectedNetwork === 'mainnet' ? chains['seiTestnet2'].chainId : chains['seiTestnet2'].testnetChainId ?? '';
-        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chainId);
+        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chainId, 'seiTestnet2');
         setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
+      }
+
+      if (chainKey === 'seiDevnet') {
+        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chains['seiDevnet'].chainId, 'seiDevnet');
+        setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
+      }
+
+      if (chainKey === 'osmosis') {
+        const { low, medium, high } = await getOsmosisGasPriceSteps(lcdUrl ?? '', allChainsGasPriceSteps);
+        setGasPriceStep({ low, medium, high });
       }
     } catch {
       setGasPriceStep({
@@ -121,7 +170,7 @@ export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?:
         high: allChainsGasPriceSteps[chainKey]?.high ?? defaultGasPriceStep.high,
       });
     }
-  }, [allChainsGasPriceSteps, chainKey, selectedNetwork]);
+  }, [allChainsGasPriceSteps, chainKey, selectedNetwork, lcdUrl]);
 
   useEffect(() => {
     setGasPriceStep(getGasPriceStep(chain, allChainsGasPriceSteps));

@@ -7,7 +7,6 @@ import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
 import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type ComingSoonProps = {
   title: string
@@ -42,13 +41,7 @@ export function ComingSoon({ title, bottomNavLabel }: ComingSoonProps) {
                 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={
-              isCompassWallet()
-                ? undefined
-                : function noRefCheck() {
-                    setShowChainSelector(true)
-                  }
-            }
+            onImgClick={() => setShowChainSelector(true)}
             title={title}
             topColor={themeColor}
           />

@@ -1,3 +1,4 @@
+import { OfflineSigner } from '@cosmjs/proto-signing'
 import {
   FeeTokenData,
   GasOptions,
@@ -11,6 +12,8 @@ import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-option
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
+import { LoaderAnimation } from 'components/loader/Loader'
+import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -41,24 +44,65 @@ const VoteOptionsList = [
 ]
 
 type CastVoteSheetProps = {
+  proposalId: string
   // eslint-disable-next-line no-unused-vars
   onSubmitVote: (option: VoteOptions) => void
   setShowFeesSettingSheet: React.Dispatch<React.SetStateAction<boolean>>
   isOpen: boolean
   onCloseHandler: () => void
+  showFeesSettingSheet: boolean
+  gasError: string
+  simulateNtrnVote: (
+    wallet: OfflineSigner,
+    proposalId: number,
+    option: VoteOptions,
+  ) => Promise<void>
 }
 
 function CastVoteSheet({
+  proposalId,
   isOpen,
   setShowFeesSettingSheet,
   onCloseHandler,
   onSubmitVote,
+  showFeesSettingSheet,
+  gasError,
+  simulateNtrnVote,
 }: CastVoteSheetProps) {
   const [selectedOption, setSelectedOption] = useState<VoteOptions | undefined>(undefined)
   const activeChain = useActiveChain()
+  const getWallet = useGetWallet()
+  const [simulateError, setSimulateError] = useState('')
+  const [isSimulating, setIsSimulating] = useState(false)
+
+  useEffect(() => {
+    if (proposalId && selectedOption) {
+      ;(async () => {
+        try {
+          setIsSimulating(true)
+          const wallet = await getWallet()
+          await simulateNtrnVote(wallet, Number(proposalId), selectedOption as VoteOptions)
+        } catch (_error) {
+          const error = _error as Error
+          setSimulateError(error.message)
+        } finally {
+          setIsSimulating(false)
+        }
+      })()
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposalId, selectedOption])
+
+  useCaptureTxError(simulateError)
 
   return (
-    <BottomModal isOpen={isOpen} onClose={onCloseHandler} title='Cast your Vote'>
+    <BottomModal
+      isOpen={isOpen}
+      onClose={onCloseHandler}
+      title='Cast your Vote'
+      closeOnBackdropClick={true}
+    >
       <div className='flex flex-col items-center gap-4'>
         {VoteOptionsList.map((option) => (
           <button
@@ -78,16 +122,18 @@ function CastVoteSheet({
 
       <DisplayFee className='mt-4' setShowFeesSettingSheet={setShowFeesSettingSheet} />
 
+      {gasError && !showFeesSettingSheet ? (
+        <p className='text-red-300 text-sm font-medium mt-2 text-center'>{gasError}</p>
+      ) : null}
+
       <Buttons.Generic
         color={Colors.getChainColor(activeChain)}
         size='normal'
         className='w-[344px] py-3 mt-4'
-        disabled={!selectedOption}
+        disabled={!selectedOption || !!gasError || isSimulating}
         onClick={() => onSubmitVote(selectedOption as VoteOptions)}
       >
-        <div className={'flex justify-center text-white-100 items-center'}>
-          <span>Submit</span>
-        </div>
+        {isSimulating ? <LoaderAnimation color={Colors.white100} /> : 'Approve'}
       </Buttons.Generic>
     </BottomModal>
   )
@@ -119,6 +165,7 @@ export function NtrnCastVote({
     setMemo,
     isVoting,
     handleVote,
+    simulateNtrnVote,
   } = useNtrnGov()
 
   const [selectedVoteOption, setSelectedVoteOption] = useState<VoteOptions | undefined>(undefined)
@@ -187,16 +234,22 @@ export function NtrnCastVote({
         setError={setGasError}
       >
         <CastVoteSheet
+          proposalId={proposalId}
           isOpen={showCastVoteSheet}
           setShowFeesSettingSheet={setShowFeesSettingSheet}
           onCloseHandler={() => setShowCastVoteSheet(false)}
           onSubmitVote={setSelectedVoteOption}
+          showFeesSettingSheet={showFeesSettingSheet}
+          gasError={gasError ?? ''}
+          simulateNtrnVote={simulateNtrnVote}
         />
+
         <FeesSettingsSheet
           showFeesSettingSheet={showFeesSettingSheet}
           onClose={() => setShowFeesSettingSheet(false)}
           gasError={gasError}
         />
+
         <NtrnReviewVoteCast
           isOpen={selectedVoteOption !== undefined}
           proposalId={proposalId}

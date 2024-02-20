@@ -1,5 +1,6 @@
 import {
   ActivityCardContent,
+  ActivityType,
   removeTrailingSlash,
   TxResponse,
   useActiveChain,
@@ -10,11 +11,14 @@ import {
 import { CardDivider } from '@leapwallet/leap-ui'
 import type { ParsedTransaction } from '@leapwallet/parser-parfait'
 import { EmptyCard } from 'components/empty-card'
+import { SearchInput } from 'components/search-input'
+import { PENDING_SWAP_TXS } from 'config/storage-keys'
 import dayjs from 'dayjs'
 import { Images } from 'images'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { sliceSearchWord } from 'utils/strings'
+import Browser from 'webextension-polyfill'
 
 import TokenCardSkeleton from '../../components/Skeletons/TokenCardSkeleton'
 import { SelectedTx } from './Activity'
@@ -23,19 +27,56 @@ import { ActivityCard } from './ActivityCard'
 export type ActivityListProps = {
   txResponse: TxResponse
   setSelectedTx: React.Dispatch<React.SetStateAction<SelectedTx | null>>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setShowSwapTxPageFor: React.Dispatch<any>
 }
 
-export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
+export function ActivityList({
+  txResponse,
+  setSelectedTx,
+  setShowSwapTxPageFor,
+}: ActivityListProps) {
   const chains = useGetChains()
   const selectedNetwork = useSelectedNetwork()
   const activeChain = useActiveChain()
   const activeAddress = useAddress()
 
+  const [pendingSwapTxs, setPendingSwapTxs] = useState([])
+
+  useEffect(() => {
+    async function updatePendingSwapTxs() {
+      const storage = await Browser.storage.local.get([PENDING_SWAP_TXS])
+
+      if (storage[PENDING_SWAP_TXS]) {
+        const pendingTxs = JSON.parse(storage[PENDING_SWAP_TXS])
+        setPendingSwapTxs(pendingTxs)
+      } else {
+        setPendingSwapTxs([])
+      }
+    }
+
+    updatePendingSwapTxs()
+
+    Browser.storage.onChanged.addListener((storage) => {
+      if (storage[PENDING_SWAP_TXS]) {
+        updatePendingSwapTxs()
+      }
+    })
+
+    return Browser.storage.onChanged.removeListener((storage) => {
+      if (storage[PENDING_SWAP_TXS]) {
+        updatePendingSwapTxs()
+      }
+    })
+  }, [])
+
   const { activity } = txResponse
   const [assetFilter, setAssetFilter] = useState<string>('')
-  const explorerAccountLink = `${removeTrailingSlash(
-    chains[activeChain].txExplorer?.[selectedNetwork]?.accountUrl ?? '',
-  )}/${activeAddress}`
+  const explorerAccountLink = chains[activeChain].txExplorer?.[selectedNetwork]?.accountUrl
+    ? `${removeTrailingSlash(
+        chains[activeChain].txExplorer?.[selectedNetwork]?.accountUrl ?? '',
+      )}/${activeAddress}`
+    : ''
 
   const handleFilterChange = (event: React.FormEvent<HTMLInputElement>) => {
     setAssetFilter(event.currentTarget.value.toLowerCase())
@@ -75,15 +116,17 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
           subHeading='Your activity will appear here'
         />
 
-        <a
-          href={explorerAccountLink}
-          target='_blank'
-          className='font-semibold text-base mt-4 text-center'
-          style={{ color: Colors.getChainColor(activeChain) }}
-          rel='noreferrer'
-        >
-          Check on Explorer
-        </a>
+        {explorerAccountLink ? (
+          <a
+            href={explorerAccountLink}
+            target='_blank'
+            className='font-semibold text-base mt-4 text-center'
+            style={{ color: Colors.getChainColor(activeChain) }}
+            rel='noreferrer'
+          >
+            Check on Explorer
+          </a>
+        ) : null}
       </div>
     )
   }
@@ -93,30 +136,69 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
       <div className='flex flex-col h-[350px]'>
         <EmptyCard src={Images.Activity.ActivityIcon} heading='Unable to fetch activity' />
 
-        <a
-          href={explorerAccountLink}
-          target='_blank'
-          className='font-semibold text-base mt-4 text-center'
-          style={{ color: Colors.getChainColor(activeChain) }}
-          rel='noreferrer'
-        >
-          Check on Explorer
-        </a>
+        {explorerAccountLink ? (
+          <a
+            href={explorerAccountLink}
+            target='_blank'
+            className='font-semibold text-base mt-4 text-center'
+            style={{ color: Colors.getChainColor(activeChain) }}
+            rel='noreferrer'
+          >
+            Check on Explorer
+          </a>
+        ) : null}
       </div>
     )
   }
 
   return (
-    <div className=''>
-      <div className='w-[344px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px] mb-7'>
-        <input
-          placeholder='search activity...'
-          className='flex flex-grow text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
-          onChange={handleFilterChange}
-          disabled={txResponse.loading}
-        />
-        <img src={Images.Misc.SearchIcon} />
-      </div>
+    <div>
+      <SearchInput
+        placeholder='Search activity...'
+        onChange={handleFilterChange}
+        value={assetFilter}
+        onClear={() => setAssetFilter('')}
+        inputDisabled={txResponse.loading}
+      />
+
+      {pendingSwapTxs.length > 0 ? (
+        <div className='my-7'>
+          <div className='font-bold text-sm text-gray-600 dark:text-gray-200 mb-2'>
+            Pending Swap Transactions
+          </div>
+          <div className='rounded-2xl overflow-hidden bg-white-100 dark:bg-gray-900'>
+            {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              pendingSwapTxs.map((swapTx: any, index: number) => {
+                const content = {
+                  txType: 'swap' as ActivityType,
+                  title1: `${swapTx.sourceToken.symbol} → ${swapTx.destinationToken.symbol}`,
+                  subtitle1: 'Swap in progress',
+                  img: swapTx.sourceToken.img,
+                  secondaryImg: swapTx.destinationToken.img,
+                  sentAmount: swapTx.inAmount,
+                  receivedAmount: swapTx.amountOut,
+                  sentTokenInfo: { coinDenom: swapTx.sourceToken.symbol },
+                  receivedTokenInfo: { coinDenom: swapTx.destinationToken.symbol },
+                } as ActivityCardContent
+
+                return (
+                  <React.Fragment key={`${swapTx.inAmount}-${index}`}>
+                    {index !== 0 && <CardDivider />}
+
+                    <ActivityCard
+                      showLoader
+                      content={content}
+                      onClick={() => setShowSwapTxPageFor(swapTx)}
+                      isSuccessful={true}
+                    />
+                  </React.Fragment>
+                )
+              })
+            }
+          </div>
+        </div>
+      ) : null}
 
       <div className='pb-24'>
         {txResponse.loading && (
@@ -158,7 +240,7 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
             )
           })}
 
-        {!txResponse.loading && (
+        {!txResponse.loading && explorerAccountLink ? (
           <a
             href={explorerAccountLink}
             target='_blank'
@@ -168,7 +250,7 @@ export function ActivityList({ txResponse, setSelectedTx }: ActivityListProps) {
           >
             Check more on Explorer
           </a>
-        )}
+        ) : null}
       </div>
     </div>
   )

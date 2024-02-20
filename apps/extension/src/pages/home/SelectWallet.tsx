@@ -166,11 +166,15 @@ export default function SelectWallet({
                 wallet.addresses[activeChainInfo.key],
               )}${walletLabel}`
 
+              let disableEdit = false
+
               if (
                 wallet.walletType === WALLETTYPE.LEDGER &&
-                activeChainInfo.bip44.coinType === '60'
+                (activeChainInfo.bip44.coinType === '60' ||
+                  activeChainInfo.bip44.coinType === '931')
               ) {
                 addressText = `Ledger not supported on ${activeChainInfo.chainName}`
+                disableEdit = true
               }
               return (
                 <div className='relative min-h-[56px]' key={wallet.id}>
@@ -199,6 +203,7 @@ export default function SelectWallet({
                         className='flex h-[28px] w-[28px] hover:cursor-pointer justify-center text-gray-400 items-center bg-white-100 dark:bg-gray-900 material-icons-round'
                         onClick={(e) => {
                           e.stopPropagation()
+                          if (disableEdit) return
                           setEditWallet(wallet)
                           setIsEditWalletVisible(true)
                         }}
@@ -240,7 +245,7 @@ export default function SelectWallet({
                 >
                   <span className='material-icons-round text-gray-400 mr-4'>download</span>
                   <Text size='md' className='font-bold'>
-                    Import using seed phrase
+                    Import using recovery phrase
                   </Text>
                 </div>
 

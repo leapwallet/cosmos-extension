@@ -20,6 +20,7 @@ export default function LedgerConfirmationPopup({ showLedgerPopup, onCloseLedger
       isVisible={showLedgerPopup}
       onClose={onCloseLedgerPopup ?? onClose}
       customHeader={() => <Header title={'Confirm on Ledger'} />}
+      closeOnClickBackDrop={false}
     >
       <div className='flex flex-col items-center'>
         <div className='my-10'>

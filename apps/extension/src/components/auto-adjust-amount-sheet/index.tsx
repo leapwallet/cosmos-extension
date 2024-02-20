@@ -72,7 +72,7 @@ const OptionalAutoAdjustAmountSheet: React.FC<
     >
       <div className='rounded-2xl p-4 dark:bg-gray-900 bg-white-100 dark:text-gray-200 text-gray-800'>
         <p>
-          Confirming this transaction may leave you with insufficient {nativeDenom.coinDenom}{' '}
+          Confirming this transaction may leave you with insufficient {nativeDenom?.coinDenom ?? ''}{' '}
           balance for future transaction fees.
         </p>
         <p className='mt-2'>

@@ -1,6 +1,7 @@
 import 'react-loading-skeleton/dist/skeleton.css'
 
 import {
+  useFeatureFlags,
   useGetBannerApi,
   useGetFaucetApi,
   useGetQuickSearchOptions,
@@ -12,6 +13,7 @@ import {
   useInitDisabledCW20Tokens,
   useInitDisabledNFTsCollections,
   useInitFeeDenoms,
+  useInitGasAdjustments,
   useInitGasPriceSteps,
   useInitIbcTraceStore,
   useInitInvestData,
@@ -19,11 +21,12 @@ import {
   useInitNftChains,
   useInitSelectedNetwork,
   useInitSpamProposals,
+  useMobileAppBanner,
+  useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useInitSnipDenoms } from '@leapwallet/cosmos-wallet-hooks/dist/utils/useInitSnipDenoms'
 import { LeapUiTheme } from '@leapwallet/leap-ui'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
-import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
 import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import { useInitFavouriteNFTs, useInitHiddenNFTs, useInitIsCompassWallet } from 'hooks/settings'
 import { useInitiateCurrencyPreference } from 'hooks/settings/useCurrency'
@@ -52,8 +55,6 @@ export default function App() {
   useInitTheme()
   useInitiateCurrencyPreference()
   useInitCoingeckoPrices()
-
-  useInitAnalytics()
 
   useInitHideAssets()
   useInitHideSmallBalances()
@@ -85,6 +86,7 @@ export default function App() {
   useInitDefaultGasEstimates()
 
   useInitGasPriceSteps()
+  useInitGasAdjustments()
   useInitFeeDenoms()
   useInitDisabledCW20Tokens()
   useInitDisabledNFTsCollections()
@@ -99,6 +101,9 @@ export default function App() {
   useInitNodeUrls(setNodeUrlInitialised)
   useGetQuickSearchOptions()
   useNomicBTCDepositConstants()
+  useMobileAppBanner()
+  useFeatureFlags()
+  useTransactionConfigs()
 
   return (
     <LeapUiTheme defaultTheme={theme} forcedTheme={theme}>

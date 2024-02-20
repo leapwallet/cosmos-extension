@@ -9,13 +9,13 @@ export let NODE_URLS: NodeUrls = { rest: null, rpc: null };
 const S3_REST_NMS_ENDPOINT = 'https://assets.leapwallet.io/cosmos-registry/v1/node-management-service/nms-REST.json';
 const S3_RPC_NMS_ENDPOINT = 'https://assets.leapwallet.io/cosmos-registry/v1/node-management-service/nms-RPC.json';
 
-export async function initiateNodeUrls() {
+export async function initiateNodeUrls(restEndpoint?: string, rpcEndpoint?: string) {
   const responses = await Promise.allSettled(
-    [S3_REST_NMS_ENDPOINT, S3_RPC_NMS_ENDPOINT].map(async (endpoint) => {
+    [restEndpoint ?? S3_REST_NMS_ENDPOINT, rpcEndpoint ?? S3_RPC_NMS_ENDPOINT].map(async (endpoint) => {
       const res = await fetch(endpoint);
       const data = await res.json();
 
-      return { data, key: endpoint.endsWith('nms-REST.json') ? 'rest' : 'rpc' };
+      return { data, key: endpoint.includes('REST') ? 'rest' : 'rpc' };
     }),
   );
 

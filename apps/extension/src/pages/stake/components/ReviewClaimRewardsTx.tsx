@@ -1,4 +1,6 @@
 import {
+  GasOptions,
+  getErrorMsg,
   sliceWord,
   useActiveChain,
   useStakeTx,
@@ -171,7 +173,7 @@ export function ReviewClaimRewardsTx({
             </Text>
           ) : null}
 
-          {error ? <ErrorCard text={error} /> : null}
+          {error ? <ErrorCard text={getErrorMsg(error, GasOptions.HIGH, 'claim')} /> : null}
 
           <Buttons.Generic
             color={Colors.getChainColor(activeChain)}

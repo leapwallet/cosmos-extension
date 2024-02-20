@@ -18,10 +18,11 @@ export const useAddressStore = create<AddressState>((set) => ({
 export const useAddress = (forceChain?: SupportedChain) => {
   const activeChain = useActiveChain();
   const activeWallet = useActiveWallet();
+  const chain = forceChain ?? activeChain;
 
   return useMemo(() => {
-    return activeWallet?.addresses[forceChain ?? activeChain] ?? '';
-  }, [activeWallet, activeChain, activeWallet?.addresses]);
+    return activeWallet?.addresses[chain] ?? '';
+  }, [activeWallet, chain, activeWallet?.addresses]);
 };
 
 export const usePrimaryWalletAddress = () => useAddressStore((state) => state.primaryAddress);

@@ -199,7 +199,7 @@ export function AddCollection({ isVisible, onClose }: ManageCollectionsProps) {
         headerTitle='Add Collection'
         onClose={() => {
           onClose()
-          !isCompassWallet() && setSelectedChain('' as SupportedChain)
+          setSelectedChain('' as SupportedChain)
           setEnteredCollection('')
           setNftInfo({})
           setErrors({})
@@ -225,13 +225,8 @@ export function AddCollection({ isVisible, onClose }: ManageCollectionsProps) {
             }
             isRounded={true}
             title2={selectedChain ? 'Chain' : ''}
-            className={isCompassWallet() ? '!cursor-default' : ''}
-            icon={
-              isCompassWallet() ? null : (
-                <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
-              )
-            }
-            onClick={isCompassWallet() ? undefined : () => setShowSelectChain(true)}
+            icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
+            onClick={() => setShowSelectChain(true)}
           />
           {errors?.selectedChain && enteredCollection.length > 0 && (
             <Text size='sm' color='text-red-300 mt-1 mb-2'>

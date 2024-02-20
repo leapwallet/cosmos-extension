@@ -41,7 +41,7 @@ const RequireSeedPhrase: React.FC<PropsType> = ({ incrementStep, setMnemonicAtRo
     setError('')
 
     if (!SeedPhrase.validateSeedPhrase(correctMnemonic(mnemonic))) {
-      setError('Invalid secret recovery phrase.')
+      setError('Invalid recovery phrase.')
       return false
     }
     return true
@@ -70,10 +70,10 @@ const RequireSeedPhrase: React.FC<PropsType> = ({ incrementStep, setMnemonicAtRo
           </div>
         </div>
         <Text size='xxl' className='font-bold'>
-          Enter secret recovery phrase
+          Enter recovery phrase
         </Text>
         <Text size='md' color='text-gray-500 dark:text-gray-300'>
-          To restore your wallet enter your secret recovery phrase
+          To restore your wallet enter your recovery phrase
         </Text>
 
         {/* input box for recovery phase */}
@@ -94,7 +94,7 @@ const RequireSeedPhrase: React.FC<PropsType> = ({ incrementStep, setMnemonicAtRo
               Recommended security practice:
             </Text>
             <Text size='sm' color='text-gray-400'>
-              Type out seed phrase instead of pasting it
+              Type out recovery phrase instead of pasting it
             </Text>
           </div>
         </div>

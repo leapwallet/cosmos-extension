@@ -4,22 +4,35 @@ import { DeepPartial, Long } from '@osmonauts/helpers';
 import * as _m0 from 'protobufjs/minimal';
 
 import { ICAAccountType, ICAAccountTypeSDKType } from './ica_account';
+import { Validator, ValidatorSDKType } from './validator';
 export interface MsgLiquidStake {
   creator: string;
   amount: string;
-
-  /** TODO(TEST-86):- Update Denom -> HostDenom */
   hostDenom: string;
 }
 export interface MsgLiquidStakeSDKType {
   creator: string;
   amount: string;
-
-  /** TODO(TEST-86):- Update Denom -> HostDenom */
   host_denom: string;
 }
 export interface MsgLiquidStakeResponse {}
 export interface MsgLiquidStakeResponseSDKType {}
+export interface MsgLSMLiquidStake {
+  creator: string;
+  amount: string;
+  lsmTokenIbcDenom: string;
+}
+export interface MsgLSMLiquidStakeSDKType {
+  creator: string;
+  amount: string;
+  lsm_token_ibc_denom: string;
+}
+export interface MsgLSMLiquidStakeResponse {
+  transactionComplete: boolean;
+}
+export interface MsgLSMLiquidStakeResponseSDKType {
+  transaction_complete: boolean;
+}
 export interface MsgClearBalance {
   creator: string;
   chainId: string;
@@ -48,7 +61,7 @@ export interface MsgRedeemStakeSDKType {
 }
 export interface MsgRedeemStakeResponse {}
 export interface MsgRedeemStakeResponseSDKType {}
-/** next: 13 */
+/** next: 15 */
 
 export interface MsgRegisterHostZone {
   connectionId: string;
@@ -57,9 +70,12 @@ export interface MsgRegisterHostZone {
   ibcDenom: string;
   creator: string;
   transferChannelId: string;
-  unbondingFrequency: Long;
+  unbondingPeriod: Long;
+  minRedemptionRate: string;
+  maxRedemptionRate: string;
+  lsmLiquidStakeEnabled: boolean;
 }
-/** next: 13 */
+/** next: 15 */
 
 export interface MsgRegisterHostZoneSDKType {
   connection_id: string;
@@ -68,19 +84,12 @@ export interface MsgRegisterHostZoneSDKType {
   ibc_denom: string;
   creator: string;
   transfer_channel_id: string;
-  unbonding_frequency: Long;
+  unbonding_period: Long;
+  min_redemption_rate: string;
+  max_redemption_rate: string;
+  lsm_liquid_stake_enabled: boolean;
 }
-/**
- * TODO(TEST-53):- Remove this pre-launch (no need for clients to create /
- * interact with ICAs)
- */
-
 export interface MsgRegisterHostZoneResponse {}
-/**
- * TODO(TEST-53):- Remove this pre-launch (no need for clients to create /
- * interact with ICAs)
- */
-
 export interface MsgRegisterHostZoneResponseSDKType {}
 export interface MsgClaimUndelegatedTokens {
   creator: string;
@@ -112,24 +121,18 @@ export interface MsgRebalanceValidatorsSDKType {
 }
 export interface MsgRebalanceValidatorsResponse {}
 export interface MsgRebalanceValidatorsResponseSDKType {}
-export interface MsgAddValidator {
+export interface MsgAddValidators {
   creator: string;
   hostZone: string;
-  name: string;
-  address: string;
-  commission: Long;
-  weight: Long;
+  validators: Validator[];
 }
-export interface MsgAddValidatorSDKType {
+export interface MsgAddValidatorsSDKType {
   creator: string;
   host_zone: string;
-  name: string;
-  address: string;
-  commission: Long;
-  weight: Long;
+  validators: ValidatorSDKType[];
 }
-export interface MsgAddValidatorResponse {}
-export interface MsgAddValidatorResponseSDKType {}
+export interface MsgAddValidatorsResponse {}
+export interface MsgAddValidatorsResponseSDKType {}
 export interface MsgChangeValidatorWeight {
   creator: string;
   hostZone: string;
@@ -274,6 +277,114 @@ export const MsgLiquidStakeResponse = {
 
   fromPartial(_: DeepPartial<MsgLiquidStakeResponse>): MsgLiquidStakeResponse {
     const message = createBaseMsgLiquidStakeResponse();
+    return message;
+  },
+};
+
+function createBaseMsgLSMLiquidStake(): MsgLSMLiquidStake {
+  return {
+    creator: '',
+    amount: '',
+    lsmTokenIbcDenom: '',
+  };
+}
+
+export const MsgLSMLiquidStake = {
+  encode(message: MsgLSMLiquidStake, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.creator !== '') {
+      writer.uint32(10).string(message.creator);
+    }
+
+    if (message.amount !== '') {
+      writer.uint32(18).string(message.amount);
+    }
+
+    if (message.lsmTokenIbcDenom !== '') {
+      writer.uint32(26).string(message.lsmTokenIbcDenom);
+    }
+
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgLSMLiquidStake {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMsgLSMLiquidStake();
+
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+
+      switch (tag >>> 3) {
+        case 1:
+          message.creator = reader.string();
+          break;
+
+        case 2:
+          message.amount = reader.string();
+          break;
+
+        case 3:
+          message.lsmTokenIbcDenom = reader.string();
+          break;
+
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+
+    return message;
+  },
+
+  fromPartial(object: DeepPartial<MsgLSMLiquidStake>): MsgLSMLiquidStake {
+    const message = createBaseMsgLSMLiquidStake();
+    message.creator = object.creator ?? '';
+    message.amount = object.amount ?? '';
+    message.lsmTokenIbcDenom = object.lsmTokenIbcDenom ?? '';
+    return message;
+  },
+};
+
+function createBaseMsgLSMLiquidStakeResponse(): MsgLSMLiquidStakeResponse {
+  return {
+    transactionComplete: false,
+  };
+}
+
+export const MsgLSMLiquidStakeResponse = {
+  encode(message: MsgLSMLiquidStakeResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.transactionComplete === true) {
+      writer.uint32(8).bool(message.transactionComplete);
+    }
+
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgLSMLiquidStakeResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMsgLSMLiquidStakeResponse();
+
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+
+      switch (tag >>> 3) {
+        case 1:
+          message.transactionComplete = reader.bool();
+          break;
+
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+
+    return message;
+  },
+
+  fromPartial(object: DeepPartial<MsgLSMLiquidStakeResponse>): MsgLSMLiquidStakeResponse {
+    const message = createBaseMsgLSMLiquidStakeResponse();
+    message.transactionComplete = object.transactionComplete ?? false;
     return message;
   },
 };
@@ -500,7 +611,10 @@ function createBaseMsgRegisterHostZone(): MsgRegisterHostZone {
     ibcDenom: '',
     creator: '',
     transferChannelId: '',
-    unbondingFrequency: Long.UZERO,
+    unbondingPeriod: Long.UZERO,
+    minRedemptionRate: '',
+    maxRedemptionRate: '',
+    lsmLiquidStakeEnabled: false,
   };
 }
 
@@ -530,8 +644,20 @@ export const MsgRegisterHostZone = {
       writer.uint32(82).string(message.transferChannelId);
     }
 
-    if (!message.unbondingFrequency.isZero()) {
-      writer.uint32(88).uint64(message.unbondingFrequency);
+    if (!message.unbondingPeriod.isZero()) {
+      writer.uint32(88).uint64(message.unbondingPeriod);
+    }
+
+    if (message.minRedemptionRate !== '') {
+      writer.uint32(106).string(message.minRedemptionRate);
+    }
+
+    if (message.maxRedemptionRate !== '') {
+      writer.uint32(114).string(message.maxRedemptionRate);
+    }
+
+    if (message.lsmLiquidStakeEnabled === true) {
+      writer.uint32(120).bool(message.lsmLiquidStakeEnabled);
     }
 
     return writer;
@@ -571,7 +697,19 @@ export const MsgRegisterHostZone = {
           break;
 
         case 11:
-          message.unbondingFrequency = reader.uint64() as Long;
+          message.unbondingPeriod = reader.uint64() as Long;
+          break;
+
+        case 13:
+          message.minRedemptionRate = reader.string();
+          break;
+
+        case 14:
+          message.maxRedemptionRate = reader.string();
+          break;
+
+        case 15:
+          message.lsmLiquidStakeEnabled = reader.bool();
           break;
 
         default:
@@ -591,10 +729,13 @@ export const MsgRegisterHostZone = {
     message.ibcDenom = object.ibcDenom ?? '';
     message.creator = object.creator ?? '';
     message.transferChannelId = object.transferChannelId ?? '';
-    message.unbondingFrequency =
-      object.unbondingFrequency !== undefined && object.unbondingFrequency !== null
-        ? Long.fromValue(object.unbondingFrequency as Long)
+    message.unbondingPeriod =
+      object.unbondingPeriod !== undefined && object.unbondingPeriod !== null
+        ? Long.fromValue(object.unbondingPeriod as Long)
         : Long.UZERO;
+    message.minRedemptionRate = object.minRedemptionRate ?? '';
+    message.maxRedemptionRate = object.maxRedemptionRate ?? '';
+    message.lsmLiquidStakeEnabled = object.lsmLiquidStakeEnabled ?? false;
     return message;
   },
 };
@@ -840,19 +981,16 @@ export const MsgRebalanceValidatorsResponse = {
   },
 };
 
-function createBaseMsgAddValidator(): MsgAddValidator {
+function createBaseMsgAddValidators(): MsgAddValidators {
   return {
     creator: '',
     hostZone: '',
-    name: '',
-    address: '',
-    commission: Long.UZERO,
-    weight: Long.UZERO,
+    validators: [],
   };
 }
 
-export const MsgAddValidator = {
-  encode(message: MsgAddValidator, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const MsgAddValidators = {
+  encode(message: MsgAddValidators, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.creator !== '') {
       writer.uint32(10).string(message.creator);
     }
@@ -861,29 +999,17 @@ export const MsgAddValidator = {
       writer.uint32(18).string(message.hostZone);
     }
 
-    if (message.name !== '') {
-      writer.uint32(26).string(message.name);
-    }
-
-    if (message.address !== '') {
-      writer.uint32(34).string(message.address);
-    }
-
-    if (!message.commission.isZero()) {
-      writer.uint32(40).uint64(message.commission);
-    }
-
-    if (!message.weight.isZero()) {
-      writer.uint32(48).uint64(message.weight);
+    for (const v of message.validators) {
+      Validator.encode(v!, writer.uint32(26).fork()).ldelim();
     }
 
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgAddValidator {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgAddValidators {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgAddValidator();
+    const message = createBaseMsgAddValidators();
 
     while (reader.pos < end) {
       const tag = reader.uint32();
@@ -898,19 +1024,7 @@ export const MsgAddValidator = {
           break;
 
         case 3:
-          message.name = reader.string();
-          break;
-
-        case 4:
-          message.address = reader.string();
-          break;
-
-        case 5:
-          message.commission = reader.uint64() as Long;
-          break;
-
-        case 6:
-          message.weight = reader.uint64() as Long;
+          message.validators.push(Validator.decode(reader, reader.uint32()));
           break;
 
         default:
@@ -922,35 +1036,28 @@ export const MsgAddValidator = {
     return message;
   },
 
-  fromPartial(object: DeepPartial<MsgAddValidator>): MsgAddValidator {
-    const message = createBaseMsgAddValidator();
+  fromPartial(object: DeepPartial<MsgAddValidators>): MsgAddValidators {
+    const message = createBaseMsgAddValidators();
     message.creator = object.creator ?? '';
     message.hostZone = object.hostZone ?? '';
-    message.name = object.name ?? '';
-    message.address = object.address ?? '';
-    message.commission =
-      object.commission !== undefined && object.commission !== null
-        ? Long.fromValue(object.commission as Long)
-        : Long.UZERO;
-    message.weight =
-      object.weight !== undefined && object.weight !== null ? Long.fromValue(object.weight as Long) : Long.UZERO;
+    message.validators = object.validators?.map((e) => Validator.fromPartial(e)) || [];
     return message;
   },
 };
 
-function createBaseMsgAddValidatorResponse(): MsgAddValidatorResponse {
+function createBaseMsgAddValidatorsResponse(): MsgAddValidatorsResponse {
   return {};
 }
 
-export const MsgAddValidatorResponse = {
-  encode(_: MsgAddValidatorResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const MsgAddValidatorsResponse = {
+  encode(_: MsgAddValidatorsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgAddValidatorResponse {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgAddValidatorsResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgAddValidatorResponse();
+    const message = createBaseMsgAddValidatorsResponse();
 
     while (reader.pos < end) {
       const tag = reader.uint32();
@@ -965,8 +1072,8 @@ export const MsgAddValidatorResponse = {
     return message;
   },
 
-  fromPartial(_: DeepPartial<MsgAddValidatorResponse>): MsgAddValidatorResponse {
-    const message = createBaseMsgAddValidatorResponse();
+  fromPartial(_: DeepPartial<MsgAddValidatorsResponse>): MsgAddValidatorsResponse {
+    const message = createBaseMsgAddValidatorsResponse();
     return message;
   },
 };

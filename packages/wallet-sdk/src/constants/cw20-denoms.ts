@@ -1,6 +1,6 @@
 import { NativeDenom } from './denoms';
 
-export type CosmWasmChain = 'juno' | 'secret';
+export type CosmWasmChain = 'juno' | 'archway' | 'secret';
 
 export const Cw20Denoms: Record<CosmWasmChain, Record<string, NativeDenom>> = {
   juno: {
@@ -227,6 +227,17 @@ export const Cw20Denoms: Record<CosmWasmChain, Record<string, NativeDenom>> = {
       coinGeckoId: 'nride',
       icon: 'https://assets.leapwallet.io/cosmos/cw20/images/nride.svg',
       chain: 'juno',
+    },
+  },
+  archway: {
+    archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n: {
+      name: 'archAXV',
+      coinDenom: 'AXV',
+      coinMinimalDenom: 'archway1ecjefhcf8r60wtfnhwefrxhj9caeqa90fj58cqsaafqveawn6cjs5znd2n',
+      coinDecimals: 6,
+      coinGeckoId: '',
+      icon: 'https://assets.leapwallet.io/archaxv.svg',
+      chain: 'archway',
     },
   },
   secret: {

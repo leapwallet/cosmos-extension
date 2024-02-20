@@ -16,7 +16,7 @@ import { useCallback, useState } from 'react';
 import { LeapWalletApi } from '../apis';
 import { useGetTokenBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
-import { useGasAdjustment } from '../fees';
+import { useGasAdjustmentForChain } from '../fees';
 import { currencyDetail, useformatCurrency, useUserPreferredCurrency } from '../settings';
 import {
   useActiveChain,
@@ -91,7 +91,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
   const [currencyFormatter] = useformatCurrency();
   const { lcdUrl } = useChainApis();
   const getGasPrice = useGetGasPrice(activeChain);
-  const gasAdjustment = useGasAdjustment();
+  const gasAdjustment = useGasAdjustmentForChain();
 
   const clearError = useCallback(() => {
     setError(undefined);

@@ -1,10 +1,12 @@
-import { coin } from '@cosmjs/amino'
 import { calculateFee } from '@cosmjs/stargate'
 import {
   FeeTokenData,
   GasOptions,
+  getOsmosisGasPriceSteps,
+  useChainApis,
   useDefaultGasEstimates,
-  useGasAdjustment,
+  useGasAdjustmentForChain,
+  useGasPriceSteps,
   useGetChains,
   useGov,
   useNativeFeeDenom,
@@ -14,6 +16,7 @@ import {
 import {
   CosmosSDK,
   DefaultGasEstimates,
+  GasPrice,
   getSimulationFee,
   NativeDenom,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -61,8 +64,11 @@ export const CastVote: React.FC<CastVoteProps> = ({
     useGov({
       proposalId,
     })
+
+  const { lcdUrl } = useChainApis()
+  const allChainsGasPriceSteps = useGasPriceSteps()
   const nativeFeeDenom = useNativeFeeDenom()
-  const gasAdjustment = useGasAdjustment()
+  const gasAdjustment = useGasAdjustmentForChain()
 
   const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
   const [gasError, setGasError] = useState<string | null>(null)
@@ -80,9 +86,48 @@ export const CastVote: React.FC<CastVoteProps> = ({
   const simulateVote = useSimulateVote()
   const firstTime = useRef(true)
 
+  useEffect(() => {
+    ;(async function () {
+      if (feeDenom.coinMinimalDenom === 'uosmo' && activeChain === 'osmosis') {
+        const { low, medium, high } = await getOsmosisGasPriceSteps(
+          lcdUrl ?? '',
+          allChainsGasPriceSteps,
+        )
+
+        switch (gasPriceOption.option) {
+          case GasOptions.LOW: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+
+          case GasOptions.MEDIUM: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+
+          case GasOptions.HIGH: {
+            setGasPriceOption((prev) => ({
+              ...prev,
+              gasPrice: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
+            }))
+            break
+          }
+        }
+      }
+    })()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChain, gasLimit, feeDenom.coinMinimalDenom, gasPriceOption.option])
+
   const customFee = useMemo(() => {
     const gasEstimate = Math.ceil(Number(gasLimit) * gasAdjustment)
-    return calculateFee(gasEstimate, gasPriceOption.gasPrice)
+    return calculateFee(gasEstimate, gasPriceOption.gasPrice as unknown as string)
   }, [gasAdjustment, gasLimit, gasPriceOption.gasPrice])
 
   const handleGasPriceOptionChange = useCallback(
@@ -163,6 +208,8 @@ export const CastVote: React.FC<CastVoteProps> = ({
     return () => {
       cancelled = true
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChainInfo.cosmosSDK, proposalId, simulateVote])
 
   useEffect(() => {
@@ -177,7 +224,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
       <GasPriceOptions
         recommendedGasLimit={recommendedGasLimit}
         gasLimit={gasLimit}
-        setGasLimit={(value) => setGasLimit(value.toString())}
+        setGasLimit={(value: number) => setGasLimit(value.toString())}
         gasPriceOption={gasPriceOption}
         onGasPriceOptionChange={handleGasPriceOptionChange}
         error={gasError}
@@ -187,6 +234,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
           isOpen={showCastVoteSheet && !showLedgerPopup}
           onClose={() => setShowCastVoteSheet(false)}
           title='Cast your Vote'
+          closeOnBackdropClick={true}
         >
           <CastVoteSheet
             feeDenom={feeDenom}
@@ -220,6 +268,7 @@ export const CastVote: React.FC<CastVoteProps> = ({
           refetchCurrVote={refetchVote}
           onCloseHandler={handleCloseReviewVoteCastSheet}
           showLedgerPopup={showLedgerPopup}
+          gasOption={gasPriceOption.option}
         />
       </GasPriceOptions>
     </div>

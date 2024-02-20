@@ -71,6 +71,7 @@ export class Validator {
   uptime?: number;
   profile?: Profile;
   delegations?: ValidatorDelegations;
+  custom_attributes?: { priority?: number };
 
   constructor(validator: any) {
     this.moniker = '';

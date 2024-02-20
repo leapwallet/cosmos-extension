@@ -69,6 +69,16 @@ export function useRestake() {
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
 
   const { lcdUrl } = useChainApis(activeChain);
+  const {
+    data: validatorsData,
+    status: validatorsStatus,
+    refetch: refetchValidators,
+  } = useQuery(['validators', activeChain], async () => {
+    const res = await axios.get(
+      `https://validators.cosmos.directory/chains/${ChainInfos[activeChain].chainRegistryPath}`,
+    );
+    return res?.data?.validators;
+  });
 
   const {
     data: restakeData,
@@ -77,17 +87,14 @@ export function useRestake() {
   } = useQuery(
     ['restake', selectedValidator?.operator_address, activeChain],
     async () => {
-      const res = await axios.get(
-        `https://validators.cosmos.directory/chains/${ChainInfos[activeChain].chainRegistryPath}`,
-      );
-      const validator = res.data.validators.find(
+      const validator = validatorsData.find(
         (v: any) =>
           v?.operator_address === selectedValidator?.operator_address ||
           v?.address === selectedValidator?.operator_address,
       );
       return validator?.restake;
     },
-    { enabled: !!selectedValidator },
+    { enabled: !!selectedValidator && validatorsStatus === 'success' },
   );
 
   const canRestake = useMemo(() => !!restakeData, [restakeData]);
@@ -114,7 +121,7 @@ export function useRestake() {
         ) ?? false
       );
     },
-    { enabled: canRestake },
+    { enabled: canRestake && restakeDataStatus === 'success' && !!restakeData && !!selectedValidator },
   );
 
   const hasGrant = useMemo(() => !!grantData, [grantData]);

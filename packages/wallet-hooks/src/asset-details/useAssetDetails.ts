@@ -55,7 +55,7 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
         try {
           const date = new Date();
           date.setDate(1);
-          date.setMonth(1);
+          date.setMonth(0);
           date.setFullYear(date.getFullYear());
 
           const YTD = differenceInDays(new Date(), date);

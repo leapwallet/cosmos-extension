@@ -27,6 +27,18 @@ export interface StridePeriodicVestingAccount {
   vestingPeriods: Period[];
 }
 
+function createBaseVestingAccount(): BaseVestingAccount {
+  return {
+    //eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //@ts-ignore
+    baseAccount: undefined,
+    originalVesting: [],
+    delegatedFree: [],
+    delegatedVesting: [],
+    endTime: Long.ZERO,
+  };
+}
+
 export const BaseVestingAccount = {
   encode(message: BaseVestingAccount, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.baseAccount !== undefined) {
@@ -52,29 +64,33 @@ export const BaseVestingAccount = {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): BaseAccount {
+  decode(input: _m0.Reader | Uint8Array, length?: number): BaseVestingAccount {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseBaseAccount();
+    const message = createBaseVestingAccount();
 
     while (reader.pos < end) {
       const tag = reader.uint32();
 
       switch (tag >>> 3) {
         case 1:
-          message.address = reader.string();
+          message.baseAccount = BaseAccount.decode(reader, reader.uint32());
           break;
 
         case 2:
-          message.pubKey = Any.decode(reader, reader.uint32());
+          message.originalVesting.push(Coin.decode(reader, reader.uint32()));
           break;
 
         case 3:
-          message.accountNumber = reader.uint64() as Long;
+          message.delegatedFree.push(Coin.decode(reader, reader.uint32()));
           break;
 
         case 4:
-          message.sequence = reader.uint64() as Long;
+          message.delegatedVesting.push(Coin.decode(reader, reader.uint32()));
+          break;
+
+        case 5:
+          message.endTime = reader.int64() as Long;
           break;
 
         default:

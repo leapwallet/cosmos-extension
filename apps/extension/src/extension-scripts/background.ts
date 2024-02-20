@@ -154,6 +154,8 @@ const connectRemote = (remotePort: any) => {
             .then((_chains) => {
               const supportedChains = Object.values(_chains)
 
+              // added temporarily to add coreum chain with 118 cointype on leap
+
               const allowCoreumFromLeap =
                 payload.origin === 'https://suggest-chain-leap.netlify.app' &&
                 payload.chainInfo.chainId === 'coreum-mainnet-1' &&
@@ -654,6 +656,25 @@ const connectRemote = (remotePort: any) => {
 }
 
 browser.runtime.onConnect.addListener(connectRemote)
+
+// function setOnTabRemovedListener(
+//  sendResponse: (type: string, payload: any, payloadId: number) => void,
+// ) {
+//   browser.windows.onRemoved.addListener((windowId) => {
+//     const closingWindowId = windowId
+//     const enableAccessEntry = Object.entries(enableAccessRequests).find((entry) => {
+//       return entry[1] === closingWindowId
+//     })
+//     if (enableAccessEntry) {
+//       delete enableAccessRequests[enableAccessEntry[0]]
+//     }
+//     if (windowIdForPayloadId[closingWindowId]) {
+//       const { type, payloadId } = windowIdForPayloadId[closingWindowId]
+//       delete windowIdForPayloadId[closingWindowId]
+//       sendResponse(`on${type}`, { error: 'User closed the popup' }, payloadId)
+//     }
+//   })
+// }
 
 async function getKey(_chain: string) {
   let { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])

@@ -8,6 +8,7 @@ export interface OptionPlatformConfig {
 export interface QuickSearchOption {
   action_name: string;
   action_icon_url: string;
+  action_light_icon_url: string;
   visible_on: {
     platforms: ('All' | 'Extension' | 'Mobile' | 'Dashboard')[];
     chains: ('All' | SupportedChain)[];

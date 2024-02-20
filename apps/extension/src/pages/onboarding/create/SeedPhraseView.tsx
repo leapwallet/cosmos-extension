@@ -16,7 +16,7 @@ export type SeedPhraseViewProps = {
 export function SeedPhraseView({ onProceed, mnemonic }: SeedPhraseViewProps) {
   return (
     <PhraseView
-      heading='Secret Recovery Phrase'
+      heading='Recovery Phrase'
       subHeading='These words are the keys to your wallet. Please write them down or store it somewhere safe.'
     >
       <CanvasTextBox text={mnemonic} noSpace={false} />
@@ -36,7 +36,7 @@ export function SeedPhraseView({ onProceed, mnemonic }: SeedPhraseViewProps) {
             Recommended security practice:
           </Text>
           <Text size='xs' color='text-gray-400'>
-            Write down seed phrase instead of copying it
+            Write down recovery phrase instead of copying it
           </Text>
         </div>
       </div>

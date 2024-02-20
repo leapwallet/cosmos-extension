@@ -15,6 +15,7 @@ import {
   Favourites,
   Filter,
   Hidden,
+  LoadAuraNft,
   LoadNftData,
   LoadOmniflixNft,
   LoadStargazeNft,
@@ -115,6 +116,8 @@ export function ShowNfts() {
                     return <LoadOmniflixNft key={_index} index={_index} nftChain={nftChain} />
                   } else if (forceContractsListChain === 'stargaze') {
                     return <LoadStargazeNft key={_index} index={_index} nftChain={nftChain} />
+                  } else if (forceContractsListChain === 'aura') {
+                    return <LoadAuraNft key={_index} index={_index} nftChain={nftChain} />
                   }
 
                   return <LoadNftData key={_index} index={_index} nftChain={nftChain} />

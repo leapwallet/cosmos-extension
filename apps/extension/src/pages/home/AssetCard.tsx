@@ -1,11 +1,4 @@
-import {
-  convertSecretDenom,
-  isTerraClassic,
-  useActiveChain,
-  useDenoms,
-  useSecretTokenStore,
-} from '@leapwallet/cosmos-wallet-hooks'
-import { isValidAddressWithPrefix } from '@leapwallet/cosmos-wallet-sdk'
+import { isTerraClassic } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import { TokenCard } from 'components/token-card/TokenCard'
 import React from 'react'
@@ -15,29 +8,12 @@ import { Token } from 'types/bank'
 type AssetCardProps = { isLast: boolean; asset: Token }
 
 const AssetCard: React.FC<AssetCardProps> = ({ isLast, asset }) => {
-  const { symbol, amount, usdValue, img, ibcChainInfo, coinMinimalDenom } = asset
-
+  const { symbol, amount, usdValue, img, ibcChainInfo, coinMinimalDenom, name, chain } = asset
   const navigate = useNavigate()
-  const { secretTokens } = useSecretTokenStore()
-  const activeChain = useActiveChain()
-  const denoms = useDenoms()
-
-  let denom = denoms[coinMinimalDenom.length > 0 ? coinMinimalDenom : symbol]
-  if (isValidAddressWithPrefix(coinMinimalDenom, 'secret') && secretTokens[coinMinimalDenom]) {
-    const secretToken = secretTokens[coinMinimalDenom]
-
-    denom = convertSecretDenom(secretToken, coinMinimalDenom)
-  }
-
-  let tokenChain = denom?.chain?.replace('cosmoshub', 'cosmos')
-  if (activeChain === 'noble' && coinMinimalDenom === 'uusdc') {
-    tokenChain = activeChain
-    denom = denoms['usdc']
-  }
+  let tokenChain = chain?.replace('cosmoshub', 'cosmos')
 
   if (isTerraClassic(ibcChainInfo?.pretty_name ?? '') && coinMinimalDenom === 'uluna') {
     tokenChain = 'terra-classic'
-    denom = denoms['lunc']
   }
 
   const handleCardClick = () => {
@@ -54,7 +30,7 @@ const AssetCard: React.FC<AssetCardProps> = ({ isLast, asset }) => {
   return (
     <React.Fragment key={symbol + ibcChainInfo?.channelId}>
       <TokenCard
-        title={denom?.name ?? symbol.toLowerCase()}
+        title={name ?? symbol}
         ibcChainInfo={ibcChainInfo}
         usdValue={usdValue}
         amount={amount}
