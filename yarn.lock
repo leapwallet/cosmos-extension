@@ -8623,50 +8623,10 @@ cosmiconfig@^8.2.0:
     parse-json "^5.2.0"
     path-type "^4.0.0"
 
-cosmjs-types@0.5.1:
-  version "0.5.1"
-  resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.5.1.tgz#f9bc35e78c32b687fb6018dc573eb454b3ae2587"
-  integrity sha512-NcC58xUIVLlKdIimWWQAmSlmCjiMrJnuHf4i3LiD8PCextfHR0fT3V5/WlXZZreyMgdmh6ML1zPUfGTbbo3Z5g==
-  dependencies:
-    long "^4.0.0"
-    protobufjs "~6.11.2"
-
-cosmjs-types@0.6.1:
-  version "0.6.1"
-  resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.6.1.tgz#4944e83d0fa87880243a11813bdff0e313d39a68"
-  integrity sha512-fRz6yzElHHBULDyLArF/G1UkkTWW4r3RondBUGnmSsZWYI5NpfDn32MVa5aRmpaaf4tJI2cbnXHs9fykwU7Ttg==
-  dependencies:
-    long "^4.0.0"
-    protobufjs "~6.11.2"
-
-cosmjs-types@0.8.0, cosmjs-types@^0.8.0:
+cosmjs-types@0.5.1, cosmjs-types@0.6.1, cosmjs-types@0.8.0, cosmjs-types@^0.4.0, cosmjs-types@^0.5.0, cosmjs-types@^0.5.1, cosmjs-types@^0.5.2, cosmjs-types@^0.7.1, cosmjs-types@^0.8.0:
   version "0.8.0"
   resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.8.0.tgz#2ed78f3e990f770229726f95f3ef5bf9e2b6859b"
   integrity sha512-Q2Mj95Fl0PYMWEhA2LuGEIhipF7mQwd9gTQ85DdP9jjjopeoGaDxvmPa5nakNzsq7FnO1DMTatXTAx6bxMH7Lg==
-  dependencies:
-    long "^4.0.0"
-    protobufjs "~6.11.2"
-
-cosmjs-types@^0.4.0:
-  version "0.4.1"
-  resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.4.1.tgz#3b2a53ba60d33159dd075596ce8267cfa7027063"
-  integrity sha512-I7E/cHkIgoJzMNQdFF0YVqPlaTqrqKHrskuSTIqlEyxfB5Lf3WKCajSXVK2yHOfOFfSux/RxEdpMzw/eO4DIog==
-  dependencies:
-    long "^4.0.0"
-    protobufjs "~6.11.2"
-
-cosmjs-types@^0.5.0, cosmjs-types@^0.5.1, cosmjs-types@^0.5.2:
-  version "0.5.2"
-  resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.5.2.tgz#2d42b354946f330dfb5c90a87fdc2a36f97b965d"
-  integrity sha512-zxCtIJj8v3Di7s39uN4LNcN3HIE1z0B9Z0SPE8ZNQR0oSzsuSe1ACgxoFkvhkS7WBasCAFcglS11G2hyfd5tPg==
-  dependencies:
-    long "^4.0.0"
-    protobufjs "~6.11.2"
-
-cosmjs-types@^0.7.1:
-  version "0.7.2"
-  resolved "https://registry.yarnpkg.com/cosmjs-types/-/cosmjs-types-0.7.2.tgz#a757371abd340949c5bd5d49c6f8379ae1ffd7e2"
-  integrity sha512-vf2uLyktjr/XVAgEq0DjMxeAWh1yYREe7AMHDKd7EiHVqxBPCaBS+qEEQUkXbR9ndnckqr1sUG8BQhazh4X5lA==
   dependencies:
     long "^4.0.0"
     protobufjs "~6.11.2"

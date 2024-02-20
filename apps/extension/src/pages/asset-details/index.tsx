@@ -41,6 +41,7 @@ import {
 import { Colors } from 'theme/colors'
 import { Token } from 'types/bank'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize, formatTokenAmount, trim } from 'utils/strings'
 
 export default function AssetDetails() {
