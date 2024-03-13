@@ -1,7 +1,7 @@
-import { Currency } from '@leapwallet/leap-api-js';
 import { useQuery } from '@tanstack/react-query';
 
 import { LeapWalletApi } from '../apis';
+import { Currency } from '../connectors';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import { getCoingeckoPricesStoreSnapshot, useCoingeckoPricesStore } from '../store';
 

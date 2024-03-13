@@ -1,6 +1,6 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { Currency } from '@leapwallet/leap-api-js';
 
+import { Currency } from '../connectors';
 import { fetchCurrency } from './findUSDValue';
 
 export async function getTxnLogAmountValue(amount: string, denom: { coinGeckoId: string; chain: SupportedChain }) {
