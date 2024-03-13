@@ -2,7 +2,6 @@ import { axiosWrapper, DenomsRecord, NativeDenom, SupportedChain } from '@leapwa
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
-import { useMemo } from 'react';
 
 import { useGetTokenBalances } from '../bank';
 import { useChainApis, useDenoms } from '../store';
@@ -31,7 +30,7 @@ export const getOsmosisFeeTokens = async ({
   restUrl: string;
   allAssets: Token[];
 }): Promise<FeeTokenData[]> => {
-  const nativeFeeTokenIbcDenom = nativeDenom.coinMinimalDenom.toLowerCase().startsWith('ibc/')
+  const nativeFeeTokenIbcDenom = nativeDenom?.coinMinimalDenom.toLowerCase().startsWith('ibc/')
     ? nativeDenom.coinMinimalDenom
     : undefined;
 
@@ -116,7 +115,7 @@ export const getChainFeeTokens = async ({
   nativeDenom,
   denoms,
 }: getChainFeeTokensFnArgs): Promise<FeeTokenData[]> => {
-  const nativeFeeTokenIbcDenom = nativeDenom.coinMinimalDenom.toLowerCase().startsWith('ibc/')
+  const nativeFeeTokenIbcDenom = nativeDenom?.coinMinimalDenom.toLowerCase().startsWith('ibc/')
     ? nativeDenom.coinMinimalDenom
     : undefined;
 
@@ -185,13 +184,9 @@ export const useFeeTokens = (chain: SupportedChain, forceNetwork?: 'mainnet' | '
   const { lcdUrl } = useChainApis(chain, forceNetwork);
 
   // hardcoded
-  const _baseDenom = useNativeFeeDenom(chain, forceNetwork);
-  // hardcoded
+  const baseDenom = useNativeFeeDenom(chain, forceNetwork);
   const gasPriceStep = useGasPriceStepForChain(chain, forceNetwork);
   const { allAssets } = useGetTokenBalances(chain, forceNetwork);
-
-  // fetched ?? hardcoded
-  const baseDenom = useMemo(() => denoms[_baseDenom.coinMinimalDenom] ?? _baseDenom, [_baseDenom, denoms]);
 
   return useQuery<FeeTokenData[]>({
     queryKey: ['fee-tokens', chain, gasPriceStep, baseDenom, allAssets],
@@ -207,7 +202,7 @@ export const useFeeTokens = (chain: SupportedChain, forceNetwork?: 'mainnet' | '
     initialData: [
       {
         denom: baseDenom,
-        ibcDenom: baseDenom.coinMinimalDenom,
+        ibcDenom: baseDenom?.coinMinimalDenom,
         gasPriceStep,
       },
     ],

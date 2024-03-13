@@ -1,5 +1,6 @@
 import {
-  formatBigNumber,
+  formatTokenAmount,
+  sliceWord,
   Token,
   useformatCurrency,
   useGasAdjustmentForChain,
@@ -7,13 +8,15 @@ import {
   useIsCW20Tx,
   useSnipGetSnip20TokenBalances,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { isValidAddressWithPrefix } from '@leapwallet/cosmos-wallet-sdk'
+import { isValidAddressWithPrefix, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import { BigNumber } from 'bignumber.js'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import { calculateFeeAmount } from 'components/gas-price-options'
 import Text from 'components/text'
 import { motion } from 'framer-motion'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
@@ -36,6 +39,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
 
   const [showTokenSelectSheet, setShowTokenSelectSheet] = useState<boolean>(false)
   const [isMaxClicked, setIsMaxClicked] = useState(false)
+  const [assetChain, setAssetChain] = useState<any>(null)
 
   const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenBalances()
   const { snip20Tokens } = useSnipGetSnip20TokenBalances()
@@ -62,6 +66,11 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
     fee,
     feeDenom,
     sameChain,
+    transferData,
+    pfmEnabled,
+    setPfmEnabled,
+    setSelectedAddress,
+    isIbcUnwindingDisabled,
   } = useSendContext()
   const gasAdjustment = useGasAdjustmentForChain()
 
@@ -110,11 +119,15 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
     if (isMaxClicked && isNativeToken) {
       const feeValue = parseFloat(allGasOptions[gasOption])
 
-      setInputAmount(
-        new BigNumber(selectedToken?.amount ?? 0)
-          .minus(new BigNumber(feeValue))
-          .toFixed(6, BigNumber.ROUND_DOWN),
-      )
+      if (new BigNumber(selectedToken?.amount ?? 0).isGreaterThan(new BigNumber(feeValue))) {
+        setInputAmount(
+          new BigNumber(selectedToken?.amount ?? 0)
+            .minus(new BigNumber(feeValue))
+            .toFixed(6, BigNumber.ROUND_DOWN),
+        )
+      } else {
+        setInputAmount(new BigNumber(selectedToken?.amount ?? 0).toFixed(6, BigNumber.ROUND_DOWN))
+      }
     }
 
     if (isMaxClicked && !isNativeToken) {
@@ -127,7 +140,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   useEffect(() => {
     const check = () => {
       if (selectedAddress?.address && !sameChain && selectedToken && isCW20Tx(selectedToken)) {
-        return 'IBC not supported for cw20 tokens'
+        return 'IBC transfers not supported for cw20 tokens.'
       }
 
       if (inputAmount === '') {
@@ -182,47 +195,91 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
     gasAdjustment,
   ])
 
+  const { data: skipSupportedChains } = useSkipSupportedChains()
+
+  // checking if the token selected is pfmEnbled
+  useEffect(() => {
+    if (transferData?.isSkipTransfer && transferData?.routeResponse) {
+      const _skipChain = skipSupportedChains?.find(
+        (d) => d.chainId === transferData?.messages?.[1]?.chain_id,
+      )
+      setAssetChain(
+        _skipChain?.addressPrefix === 'sei'
+          ? {
+              ..._skipChain,
+              addressPrefix: 'seiTestnet2',
+            }
+          : _skipChain,
+      )
+      setPfmEnabled(_skipChain?.pfmEnabled === false ? false : true)
+    } else {
+      setAssetChain(null)
+      setPfmEnabled(true)
+    }
+    return () => {
+      setPfmEnabled(true)
+    }
+  }, [skipSupportedChains, transferData])
+
+  // getting the wallet address from the assets for auto fill
+  const wallet = useActiveWallet().activeWallet
+  const asssetChainKey = Object.values(chainInfos).find(
+    (chain) => chain.chainId === assetChain?.chainId,
+  )?.key
+  const autoFillAddress = wallet?.addresses?.[asssetChainKey as SupportedChain]
+
+  const onAutoFillAddress = () => {
+    setSelectedAddress({
+      address: autoFillAddress,
+      name: autoFillAddress?.slice(0, 5) + '...' + autoFillAddress?.slice(-5),
+      avatarIcon: assetChain?.icon,
+      emoji: undefined,
+      chainIcon: assetChain?.icon,
+      chainName: assetChain?.addressPrefix,
+      selectionType: 'notSaved',
+      information: { autofill: true },
+    })
+  }
+
   return (
-    <motion.div className='card-container'>
-      <Text size='sm' className='text-gray-600 dark:text-gray-200 font-bold mb-3'>
-        Amount to Send
-      </Text>
+    <motion.div className='card-container' style={{ overflow: 'hidden' }}>
+      <div className='flex w-full items-center justify-between mb-3'>
+        <Text size='sm' className='text-gray-600 dark:text-gray-200 font-bold'>
+          Amount to Send
+        </Text>
+        {nativeTokensStatus === 'success' ? (
+          selectedToken && (
+            <button
+              className='bg-gray-50 dark:bg-gray-800 rounded-full flex items-center py-2 pl-3 pr-2 cursor-pointer'
+              onClick={() => {
+                setShowTokenSelectSheet(true)
+              }}
+            >
+              <img
+                src={selectedToken.img ?? defaultTokenLogo}
+                onError={imgOnError(defaultTokenLogo)}
+                className='h-5 w-5 mr-1'
+              />
+              <div className='text-black-100 dark:text-white-100 font-bold text-sm'>
+                {sliceWord(selectedToken.symbol)}
+              </div>
+              <img src={Images.Misc.ArrowDown} className='ml-2' />
+            </button>
+          )
+        ) : (
+          <div className='w-24 z-0'>
+            <Skeleton className='rounded-full h-9 w-24 bg-gray-50 dark:bg-gray-800' />
+          </div>
+        )}
+      </div>
+
       {nativeTokensStatus === 'success' ? (
         <>
           {selectedToken ? (
             <>
-              <div className='flex items-center justify-between w-full mb-3'>
-                <button
-                  className='bg-gray-50 dark:bg-gray-800 rounded-full flex items-center py-2 pl-3 pr-2 cursor-pointer'
-                  onClick={() => {
-                    setShowTokenSelectSheet(true)
-                  }}
-                >
-                  <img
-                    src={selectedToken.img ?? defaultTokenLogo}
-                    onError={imgOnError(defaultTokenLogo)}
-                    className='h-6 w-6 mr-1'
-                  />
-                  <div className='text-black-100 dark:text-white-100 font-bold text-base'>
-                    {selectedToken.symbol}
-                  </div>
-                  <img src={Images.Misc.ArrowDown} className='ml-2' />
-                </button>
-                <p
-                  className='text-sm text-gray-700 dark:text-gray-400 font-bold'
-                  title={`${new BigNumber(selectedToken.amount).decimalPlaces(
-                    selectedToken?.coinDecimals ?? 6,
-                  )} ${selectedToken.symbol}`}
-                  data-testing-id='send-amount-token-balance'
-                >
-                  Balance: {formatBigNumber(new BigNumber(selectedToken.amount))}{' '}
-                  {selectedToken.symbol}
-                </p>
-              </div>
-
               <ActionInputWithPreview
                 action={inputAmount ? 'none' : 'max'}
-                buttonText='MAX'
+                buttonText='Max'
                 buttonTextColor={themeColor}
                 value={inputAmount}
                 rightElement={
@@ -255,6 +312,14 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
                   {amountError}
                 </p>
               ) : null}
+
+              <p
+                className='text-xs text-gray-700 dark:text-gray-400 font-medium ml-1 mt-2'
+                title={formatTokenAmount(selectedToken.amount, selectedToken.symbol)}
+                data-testing-id='send-amount-token-balance'
+              >
+                Balance: {formatTokenAmount(selectedToken.amount, selectedToken.symbol)}
+              </p>
             </>
           ) : (
             <p className='text-sm text-red-300 font-bold' data-testing-id='send-no-tokens-ele'>
@@ -264,13 +329,29 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
         </>
       ) : (
         <div className='w-full z-0'>
-          <div className='flex w-full justify-between items-center'>
-            <Skeleton className='rounded-full h-10 w-20 bg-gray-50 dark:bg-gray-800' />
-            <Skeleton className='rounded-full h-5 w-32 bg-gray-50 dark:bg-gray-800' />
+          <Skeleton className='rounded-lg h-10 bg-gray-50 dark:bg-gray-800 w-full' />
+          <div className='w-24'>
+            <Skeleton className='rounded-lg h-5 w-24 bg-gray-50 dark:bg-gray-800 mt-2' />
           </div>
-          <Skeleton className='rounded-lg h-10 bg-gray-50 dark:bg-gray-800 w-full mt-3' />
         </div>
       )}
+
+      {/* warning to show if PFM is not enabled on the chain */}
+      {!pfmEnabled && !isIbcUnwindingDisabled ? (
+        <div
+          className='py-2 px-4 bg-[#FFEDD1] items-center flex gap-2'
+          style={{ margin: '20px -16px -16px' }}
+        >
+          <span className='material-icons-round text-[#704400]'>info</span>
+          <p className='text-xs text-[#422800] font-medium'>
+            You will have to send this token to {assetChain?.chainName} first to able to use
+            it.&nbsp;
+            <span className='font-bold cursor-pointer' onClick={onAutoFillAddress}>
+              Autofill {assetChain?.chainName} address
+            </span>
+          </p>
+        </div>
+      ) : null}
 
       <SelectTokenSheet
         isOpen={showTokenSelectSheet}

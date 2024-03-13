@@ -20,7 +20,7 @@ export type PendingTx = {
   sentTokenInfo?: NativeDenom;
   receivedTokenInfo?: NativeDenom;
   receivedAmount?: string;
-  sentUsdValue?: string;
+  sentUsdValue?: string | number;
   receivedUsdValue?: string;
   feeAmount?: string;
   txStatus: TxStatus;
@@ -31,6 +31,7 @@ export type PendingTx = {
   txHash?: string;
   voteOption?: VoteOption;
   proposalId?: number;
+  txnLogAmount?: number;
 };
 
 export type PendingTxState = {

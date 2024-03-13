@@ -34,17 +34,15 @@ import {
   useDefaultGasEstimates,
   useGetChains,
   usePendingTxState,
-  useTxMetadata,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
-import { fetchCurrency, formatTokenAmount, sliceAddress, useLowGasPriceStep } from '../utils';
+import { fetchCurrency, formatTokenAmount, getMetaDataForRestakeTx, sliceAddress, useLowGasPriceStep } from '../utils';
 
 export function useRestake() {
   // HOOKS
   const chainInfos = useGetChains();
   const activeChain = useActiveChain();
-  const txMetadata = useTxMetadata();
   const getTxHandler = useTxHandler({ forceChain: activeChain });
   const { activeWallet } = useActiveWalletStore();
   const address = useAddress();
@@ -69,11 +67,7 @@ export function useRestake() {
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
 
   const { lcdUrl } = useChainApis(activeChain);
-  const {
-    data: validatorsData,
-    status: validatorsStatus,
-    refetch: refetchValidators,
-  } = useQuery(['validators', activeChain], async () => {
+  const { data: validatorsData, status: validatorsStatus } = useQuery(['validators', activeChain], async () => {
     const res = await axios.get(
       `https://validators.cosmos.directory/chains/${ChainInfos[activeChain].chainRegistryPath}`,
     );
@@ -256,23 +250,17 @@ export function useRestake() {
         if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
           setShowLedgerPopup(true);
         }
+
         /** do not support restake for sei atlantic 2 yet till restake support is added */
         if (tx instanceof SeiTxHandler) {
           return;
         }
+
         const txHash = mode === 'grant' ? await executeGrantTx(fee, tx) : await executeRevokeTx(fee, tx);
         const metadata =
           mode === 'grant'
-            ? {
-                ...txMetadata,
-                grantee: restakeData.address,
-                type: ['/cosmos.staking.v1beta1.StakeAuthorization'],
-              }
-            : {
-                ...txMetadata,
-                grantee: restakeData.address,
-                type: ['/cosmos.staking.v1beta1.MsgDelegate'],
-              };
+            ? getMetaDataForRestakeTx(restakeData.address, ['/cosmos.staking.v1beta1.StakeAuthorization'])
+            : getMetaDataForRestakeTx(restakeData.address, ['/cosmos.staking.v1beta1.MsgDelegate']);
 
         await txPostToDB({
           txHash,

@@ -3,12 +3,12 @@ import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
 import { DefaultGasEstimates, fromSmall, NativeDenom, NTRN_GOV_CONTRACT_ADDRESS } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/tx/nft-transfer/contract';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
 
 import { LeapWalletApi } from '../apis';
-import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { sendTokensReturnType } from '../send';
 import {
@@ -22,7 +22,7 @@ import {
 } from '../store';
 import { useCW20TxHandler } from '../tx';
 import { TxCallback, VoteOptions } from '../types';
-import { GasOptions, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import { GasOptions, getMetaDataForGovVoteTx, useGasRateQuery, useNativeFeeDenom } from '../utils';
 import { getVoteNum } from './useGov';
 
 export function useNtrnGov() {
@@ -131,10 +131,7 @@ export function useNtrnGov() {
         data: {
           txHash,
           txType: CosmosTxType.GovVote,
-          metadata: {
-            option: getVoteNum(voteOption),
-            proposalId: proposalId,
-          },
+          metadata: getMetaDataForGovVoteTx(String(proposalId), getVoteNum(voteOption)),
           feeDenomination: fee?.amount[0].denom ?? '',
           feeQuantity: fee?.amount[0].amount ?? '',
         },

@@ -13,7 +13,6 @@ export function FeesView() {
     sourceChain,
     setFeeDenom,
     setGasOption,
-    feeDenom,
     gasOption,
     gasEstimate,
     userPreferredGasLimit,
@@ -26,7 +25,6 @@ export function FeesView() {
 
   const defaultGasPrice = useDefaultGasPrice({
     activeChain: sourceChain?.key,
-    feeDenom,
   })
 
   const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
@@ -42,6 +40,8 @@ export function FeesView() {
     (value: GasPriceOptionValue, feeTokenData: FeeTokenData) => {
       setGasPriceOption(value)
       setFeeDenom({ ...feeTokenData.denom, ibcDenom: feeTokenData.ibcDenom })
+      setGasOption(value.option)
+      setUserPreferredGasPrice(value.gasPrice)
     },
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -53,16 +53,11 @@ export function FeesView() {
       option: GasOptions.LOW,
       gasPrice: defaultGasPrice.gasPrice,
     })
+    setGasOption(GasOptions.LOW)
+    setUserPreferredGasPrice(defaultGasPrice.gasPrice)
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceChain, defaultGasPrice.gasPrice.denom])
-
-  useEffect(() => {
-    setGasOption(gasPriceOption.option)
-    setUserPreferredGasPrice(gasPriceOption.gasPrice)
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gasPriceOption])
+  }, [defaultGasPrice.gasPrice.amount.toString(), defaultGasPrice.gasPrice.denom])
 
   return (
     <div>

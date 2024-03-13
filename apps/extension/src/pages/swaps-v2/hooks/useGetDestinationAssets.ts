@@ -1,6 +1,7 @@
 import {
   currencyDetail,
   getCoingeckoPricesStoreSnapshot,
+  getKeyToUseForDenoms,
   LeapWalletApi,
   sortTokenBalances,
   useDenoms,
@@ -15,33 +16,41 @@ import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { SourceChain, SourceToken } from 'types/swap'
 
+import { QUERY_GET_DESTINATION_ASSETS_SWAP } from './useInvalidateSwapAssetsQueries'
+
 export function useGetDestinationAssets(destinationChain: SourceChain | undefined) {
-  const { allAssets } = useGetTokenBalances((destinationChain?.key ?? '') as SupportedChain)
-  const { data: destinationAssets } = useSkipAssets((destinationChain?.chainId ?? '') as string)
+  const { allAssets, refetchBalances } = useGetTokenBalances(
+    (destinationChain?.key ?? '') as SupportedChain,
+  )
+  const { data: destinationAssets } = useSkipAssets((destinationChain?.chainId ?? '') as string, {
+    includeCW20Assets: true,
+  })
   const [preferredCurrency] = useUserPreferredCurrency()
   const denoms = useDenoms()
   const { ibcTraceData } = useIbcTraceStore()
 
   return useQuery(
     [
-      'get-destination-assets-swap',
+      `${destinationChain?.key}-${QUERY_GET_DESTINATION_ASSETS_SWAP}`,
       destinationAssets,
       preferredCurrency,
       allAssets,
       denoms,
       destinationChain,
       ibcTraceData,
+      refetchBalances,
     ],
     async function () {
       if (destinationAssets && destinationAssets.success && destinationAssets.assets.length > 0) {
         const _destinationAssets: SourceToken[] = []
+        const preferredCurrencyPointer = currencyDetail[preferredCurrency].currencyPointer
         const coingeckoPrices = await getCoingeckoPricesStoreSnapshot()
         const needToFetchUsdPriceFor: { [key: string]: string[] } = {}
         const needToFetchIbcSourceChainsFor: { denom: string; chain_id: string }[] = []
 
         for (const skipAsset of destinationAssets.assets) {
           const token = allAssets.find((asset) =>
-            [asset.ibcDenom, asset.coinMinimalDenom].includes(skipAsset.denom),
+            [asset.ibcDenom, asset.coinMinimalDenom].includes(skipAsset.denom.replace('cw20:', '')),
           )
 
           if (token) {
@@ -50,7 +59,8 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
               skipAsset,
             })
           } else {
-            const denomInfo = denoms[skipAsset.originDenom]
+            const _baseDenom = getKeyToUseForDenoms(skipAsset.originDenom, skipAsset.originChainId)
+            const denomInfo = denoms[_baseDenom]
 
             if (denomInfo) {
               if (denomInfo?.coinDecimals === undefined) {
@@ -60,8 +70,13 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
               let usdPrice = '0'
 
               if (denomInfo?.coinGeckoId) {
-                if (coingeckoPrices[denomInfo.coinGeckoId]) {
-                  usdPrice = String(coingeckoPrices[denomInfo.coinGeckoId])
+                if (
+                  coingeckoPrices[preferredCurrencyPointer] &&
+                  coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId]
+                ) {
+                  usdPrice = String(
+                    coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId],
+                  )
                 } else {
                   if (needToFetchUsdPriceFor[denomInfo.chain]) {
                     needToFetchUsdPriceFor[denomInfo.chain].push(denomInfo.coinGeckoId)
@@ -133,7 +148,7 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
 
         const marketPrices = await LeapWalletApi.operateMarketPricesV2(
           platformTokenAddresses,
-          currencyDetail[preferredCurrency].currencyPointer,
+          preferredCurrencyPointer,
         )
 
         _destinationAssets.forEach((asset) => {
@@ -168,10 +183,13 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
           captureException(error)
         }
 
-        return sortTokenBalances(_destinationAssets) as SourceToken[]
+        return {
+          assets: sortTokenBalances(_destinationAssets) as SourceToken[],
+          refetchBalances,
+        }
       }
 
-      return []
+      return { assets: [], refetchBalances }
     },
   )
 }

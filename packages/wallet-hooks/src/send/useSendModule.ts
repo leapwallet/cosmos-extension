@@ -26,6 +26,7 @@ import {
   useAddress,
   useChainApis,
   useDefaultGasEstimates,
+  useDenoms,
   useGasPriceSteps,
   usePendingTxState,
   useSelectedNetwork,
@@ -36,6 +37,7 @@ import {
   GasOptions,
   getErrorMsg,
   getOsmosisGasPriceSteps,
+  getTxnLogAmountValue,
   useGasRateQuery,
   useNativeFeeDenom,
 } from '../utils';
@@ -110,6 +112,7 @@ export function useSendModule(): SendModuleType {
   const { lcdUrl } = useChainApis();
   const allChainsGasPriceSteps = useGasPriceSteps();
   const isCW20Tx = useIsCW20Tx();
+  const denoms = useDenoms();
 
   /**
    * Local State Variables
@@ -266,9 +269,22 @@ export function useSendModule(): SendModuleType {
         ...args,
         ibcChannelId: args.ibcChannelId ?? customIbcChannelId ?? ibcChannelId ?? '',
       });
+
       if (result.success === true) {
-        if (result.data) txPostToDB(result.data);
-        setPendingTx({ ...result.pendingTx, toAddress: args?.toAddress });
+        const txLogAmountDenom = {
+          coinGeckoId: denoms[selectedToken?.coinMinimalDenom ?? '']?.coinGeckoId,
+          chain: selectedToken?.chain as SupportedChain,
+        };
+
+        const txLogAmountValue = await getTxnLogAmountValue(inputAmount, txLogAmountDenom);
+
+        if (result.data) txPostToDB({ ...result.data, amount: txLogAmountValue });
+        setPendingTx({
+          ...result.pendingTx,
+          toAddress: args?.toAddress,
+          txnLogAmount: txLogAmountValue,
+        });
+
         callback('success');
       } else {
         if (result.errors.includes('txDeclined')) {
@@ -277,7 +293,7 @@ export function useSendModule(): SendModuleType {
         setTxError(getErrorMsg(result.errors.join(',\n'), gasOption, 'send'));
       }
     },
-    [activeChain, gasEstimate, sendTokens, setPendingTx, txPostToDB, ibcChannelId, customIbcChannelId],
+    [activeChain, gasEstimate, sendTokens, setPendingTx, txPostToDB, ibcChannelId, customIbcChannelId, denoms],
   );
 
   const clearTxError = useCallback(() => {

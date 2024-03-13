@@ -1,11 +1,13 @@
 import create from 'zustand';
 
+type CoingeckoPricesData = { [key: string]: { [key: string]: number } };
+
 type CoingeckoPrices = {
-  coingeckoPrices: { [key: string]: number };
-  setCoingeckoPrices: (coingeckoPrices: { [key: string]: number }) => void;
+  coingeckoPrices: CoingeckoPricesData;
+  setCoingeckoPrices: (coingeckoPrices: CoingeckoPricesData) => void;
 };
 
-export const getCoingeckoPricesStoreSnapshot = (): Promise<{ [key: string]: number }> => {
+export const getCoingeckoPricesStoreSnapshot = (): Promise<CoingeckoPricesData> => {
   const currentState = useCoingeckoPricesStore.getState().coingeckoPrices;
 
   if (currentState === null) {

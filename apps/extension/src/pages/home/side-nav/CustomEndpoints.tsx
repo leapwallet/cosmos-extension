@@ -1,5 +1,5 @@
 import { removeTrailingSlash, useChainApis } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { initiateNodeUrls, NODE_URLS, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import axios from 'axios'
 import classNames from 'classnames'
@@ -193,8 +193,26 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
     }
   }
 
-  const handleResetClick = () => {
-    setCustomEndpoints({ rpc: rpcUrl ?? '', lcd: lcdUrl ?? '' })
+  const handleResetClick = async () => {
+    const storage = await Browser.storage.local.get([CUSTOM_ENDPOINTS])
+    if (storage[CUSTOM_ENDPOINTS]) {
+      await initiateNodeUrls()
+
+      const _customEndpoints = JSON.parse(storage[CUSTOM_ENDPOINTS])
+      delete _customEndpoints[selectedChain]
+      await Browser.storage.local.set({
+        [CUSTOM_ENDPOINTS]: JSON.stringify(_customEndpoints),
+      })
+
+      const selectedChainInfo = chainInfos[selectedChain]
+      setCustomEndpoints({
+        rpc: NODE_URLS.rpc?.[selectedChainInfo.chainId][0].nodeUrl ?? rpcUrl ?? '',
+        lcd: NODE_URLS.rest?.[selectedChainInfo.chainId][0].nodeUrl ?? lcdUrl ?? '',
+      })
+    } else {
+      setCustomEndpoints({ rpc: rpcUrl ?? '', lcd: lcdUrl ?? '' })
+    }
+
     setErrors({})
   }
 

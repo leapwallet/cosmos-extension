@@ -81,10 +81,17 @@ const AddChainForm = ({
       if (!chain) {
         return
       }
-      const baseURL = 'https://chains.cosmos.directory'
-      const { data } = await axios.get(`${baseURL}/${chain}`)
+      const mainnetBaseURL = 'https://chains.cosmos.directory'
+      const { data: mainnetData }: any = await axios
+        .get(`${mainnetBaseURL}/${chain}`)
+        .catch(() => ({}))
 
-      const info = data.chain
+      const testnetBaseURL = 'https://chains.testcosmos.directory'
+      const { data: testnetData }: any = mainnetData
+        ? { data: null }
+        : await axios.get(`${testnetBaseURL}/${chain}`).catch(() => ({}))
+
+      const info = mainnetData?.chain || testnetData?.chain
       if (!info) {
         return
       }
@@ -116,7 +123,11 @@ const AddChainForm = ({
     if (value) {
       if (['coinType', 'decimals'].includes(name) && isNotValidNumber(value)) {
         error = `Invalid ${name} provided`
-      } else if (['rpcUrl', 'restUrl', 'explorerUrl'].includes(name) && isNotValidURL(value)) {
+      } else if (
+        ['rpcUrl', 'restUrl', 'explorerUrl'].includes(name) &&
+        isNotValidURL(value.replace(/ /g, '')) &&
+        value.replace(/ /g, '')?.length > 0
+      ) {
         error = `Invalid ${name} provided`
       } else if (
         name === 'chainName' &&
@@ -141,7 +152,11 @@ const AddChainForm = ({
       setErrors(errors)
     }
 
-    setChainInfo((s) => ({ ...s, [name]: value }))
+    if (['rpcUrl', 'restUrl', 'explorerUrl'].includes(name)) {
+      setChainInfo((s) => ({ ...s, [name]: value.replace(/ /g, '') }))
+    } else {
+      setChainInfo((s) => ({ ...s, [name]: value }))
+    }
   }
 
   const handleSubmit = async (event: FormEvent) => {

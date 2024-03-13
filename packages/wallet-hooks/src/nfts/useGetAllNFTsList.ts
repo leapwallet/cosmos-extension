@@ -70,7 +70,16 @@ export const useLoadNFTContractsList = (
         }
 
         const newData = data.filter(({ address }: { address: string }) => !betaNFTsCollections.includes(address));
-        return [...newData, ...betaCollections];
+
+        const allCollections = [...newData, ...betaCollections].reduce((acc, curr) => {
+          if (!acc.find((v: { address: string }) => v.address === curr.address)) {
+            acc.push(curr);
+          }
+
+          return acc;
+        }, []);
+
+        return allCollections;
       }
     },
     ...options,

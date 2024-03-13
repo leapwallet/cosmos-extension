@@ -1,13 +1,13 @@
 import {
   OwnedCollectionTokenInfo,
   sliceSearchWord,
+  sortStringArr,
   useDisabledNFTsCollections,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { EmptyCard } from 'components/empty-card'
 import { Images } from 'images'
 import React, { useMemo } from 'react'
-import { sortStringArr } from 'utils/strings'
 
 import { useNftContext } from '../context'
 import { AllNftsHidden, ChainHeaderCollectionCard, Favourites } from './index'

@@ -114,7 +114,7 @@ export async function checkConnection(chainIds: [string], msg: any) {
   return await checkChainConnections(chainIds, connections, msg, activeWallet)
 }
 const popupIds: Record<string, number> = {}
-const pendingPromises: Array<Promise<any>> = []
+const pendingPromises: Record<string, Promise<browser.Windows.Window>> = {}
 
 type Page = 'approveConnection' | 'suggestChain' | 'sign' | 'add-secret-token' | 'login'
 
@@ -154,14 +154,18 @@ export async function openPopup(page: Page, queryString?: string) {
     url,
   }
 
-  if (pendingPromises.length > 0) {
-    await pendingPromises[0]
-    return
-  }
-
-  if (popupIds[url]) {
+  if (popupIds[url] || !!pendingPromises[url]) {
     try {
-      const existingPopup = await browser.windows.get(popupIds[url], { populate: true })
+      let popupId = popupIds[url]
+      if (!popupId) {
+        const popup = await pendingPromises[url]
+        if (popup.id) {
+          popupId = popup.id
+        }
+      }
+
+      const existingPopup = await browser.windows.get(popupId, { populate: true })
+
       if (existingPopup.tabs?.length) {
         const [tab] = existingPopup.tabs
         if (tab?.id) {
@@ -175,26 +179,28 @@ export async function openPopup(page: Page, queryString?: string) {
     } catch {
       try {
         const promise = browser.windows.create(popup)
-        pendingPromises.push(promise)
-        const windowId = (await promise).id
-        if (windowId) {
-          popupIds[url] = windowId
+        pendingPromises[url] = promise
+
+        const window = await promise
+        if (window.id) {
+          popupIds[url] = window.id
         }
       } finally {
-        pendingPromises.pop()
+        delete pendingPromises[url]
       }
     }
   } else {
     try {
       const promise = browser.windows.create(popup)
-      pendingPromises.push(promise)
-      const windowId = (await promise).id
-      if (windowId) {
-        popupIds[url] = windowId
+
+      pendingPromises[url] = promise
+      const window = await promise
+      if (window.id) {
+        popupIds[url] = window.id
       }
-      return windowId
+      return window.id
     } finally {
-      pendingPromises.pop()
+      delete pendingPromises[url]
     }
   }
 }

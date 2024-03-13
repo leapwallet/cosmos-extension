@@ -11,7 +11,6 @@ import { Images } from 'images'
 import React, { ChangeEventHandler, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
-import { formatWalletName } from 'utils/formatWalletName'
 import { sliceAddress } from 'utils/strings'
 
 import BottomSheet from '../../components/bottom-sheet/BottomSheet'

@@ -1,4 +1,5 @@
-import { MarketChartPrice, useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
+import { useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
+import { MarketChartPrice } from '@leapwallet/leap-api-js'
 import { BigNumber } from 'bignumber.js'
 import React, { useEffect, useState } from 'react'
 import {
@@ -46,9 +47,10 @@ export function TokensChart({
     () =>
       setFormattedChartData(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        chartData?.map((val: { price: any; date: any }, index: any) => {
+        chartData?.map((val: { price: any; date: any }) => {
           return {
             data: val.price,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             key: new Date((val as any).timestamp),
             metadata: val.date,
           }
@@ -93,6 +95,7 @@ export function TokensChart({
                   fontSize={8}
                   className={'font-medium !leading-[8px] text-gray-500 dark:text-gray-500'}
                   fontFamily={'Satoshi'}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   format={(data: any) => {
                     let price = data + minMax[0].price
                     try {

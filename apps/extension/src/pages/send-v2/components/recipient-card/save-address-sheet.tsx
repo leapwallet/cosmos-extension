@@ -71,7 +71,7 @@ export default function SaveAddressSheet({
     }
   }, [address, addressPrefixes])
 
-  const chainIcon = chainInfos[chain].chainSymbolImageUrl ?? defaultTokenLogo
+  const chainIcon = chainInfos[chain]?.chainSymbolImageUrl ?? defaultTokenLogo
 
   useEffect(() => {
     if (existingContact) {
@@ -127,7 +127,7 @@ export default function SaveAddressSheet({
         emoji: emoji,
         name: name,
         avatarIcon: undefined ?? '',
-        chainName: chainInfos[chain].chainName,
+        chainName: chainInfos[chain]?.chainName,
         selectionType: 'saved',
       })
       onClose()

@@ -6,12 +6,14 @@ import {
   useFetchStakeUndelegations,
   useFetchStakeValidators,
   useGetNtrnProposals,
+  useInitCustomChains,
   useInitGovProposals,
 } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
-import { useFillBetaCW20Tokens } from 'hooks/settings'
+import { useFillBetaCW20Tokens, useFillBetaNativeTokens } from 'hooks/settings'
+import { ManageTokens } from 'pages/manage-tokens'
 import { lazy, Suspense } from 'react'
 import React from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
@@ -62,10 +64,12 @@ export default function AppRoutes(): JSX.Element {
   const showLedgerPopup = useRecoilValue(ledgerPopupState)
   useFetchCW20Tokens()
   useFillBetaCW20Tokens()
+  useFillBetaNativeTokens()
   useFetchERC20Tokens()
 
   useInitAnalytics()
   useInitGovProposals()
+  useInitCustomChains()
   useGetNtrnProposals()
   useFetchStakeClaimRewards()
   useFetchStakeDelegations()
@@ -271,6 +275,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <PendingTx />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='manage-tokens'
+              element={
+                <RequireAuth>
+                  <ManageTokens />
                 </RequireAuth>
               }
             />

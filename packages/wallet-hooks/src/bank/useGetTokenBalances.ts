@@ -6,6 +6,7 @@ import {
   fetchERC20Balances,
   fromSmall,
   getBlockChainFromAddress,
+  NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +24,7 @@ import {
   useActiveChain,
   useAddress,
   useBetaCW20Tokens,
+  useBetaNativeTokens,
   useChainApis,
   useChainsStore,
   useCW20Tokens,
@@ -32,29 +34,34 @@ import {
   useERC20Tokens,
   useGetChains,
   useIbcTraceStore,
+  useInteractedTokensStore,
   useSelectedNetwork,
 } from '../store';
 import {
   balanceCalculator,
   fetchCurrency,
   getCoreumHybridTokenInfo,
-  isTerraClassic,
+  getKeyToUseForDenoms,
   sortTokenBalances,
   useSetDisabledCW20InStorage,
+  useSetInteractedTokensInStorage,
 } from '../utils';
 import { bankQueryIds } from './queryIds';
 
 export function useInvalidateTokenBalances() {
   const queryClient = useQueryClient();
-  return useCallback(() => {
-    queryClient.invalidateQueries([bankQueryIds.nativeTokenBalances]);
-    queryClient.invalidateQueries([bankQueryIds.ibcTokensBalance]);
-    queryClient.invalidateQueries([bankQueryIds.rawBalances]);
-    queryClient.invalidateQueries([bankQueryIds.cw20TokenBalances]);
-    queryClient.invalidateQueries([bankQueryIds.cw20TokenBalancesRaw]);
-    queryClient.invalidateQueries([bankQueryIds.erc20TokenBalances]);
-    queryClient.invalidateQueries([bankQueryIds.erc20TokenBalancesRaw]);
-  }, [queryClient]);
+  return useCallback(
+    (activeChain: SupportedChain) => {
+      queryClient.invalidateQueries([`${activeChain}-${bankQueryIds.nativeTokenBalances}`]);
+      queryClient.invalidateQueries([`${activeChain}-${bankQueryIds.ibcTokensBalance}`]);
+      queryClient.invalidateQueries([`${activeChain}-${bankQueryIds.rawBalances}`]);
+      queryClient.invalidateQueries([`${activeChain}-${bankQueryIds.cw20TokenBalances}`]);
+      queryClient.invalidateQueries([`${activeChain}-${bankQueryIds.cw20TokenBalancesRaw}`]);
+      queryClient.invalidateQueries([`${activeChain}-${bankQueryIds.erc20TokenBalances}`]);
+      queryClient.invalidateQueries([`${activeChain}-${bankQueryIds.erc20TokenBalancesRaw}`]);
+    },
+    [queryClient],
+  );
 }
 
 function getQueryFn(
@@ -121,6 +128,7 @@ function getQueryFn(
             ibcDenom: '',
             usdPrice,
             coinDecimals: denom?.coinDecimals,
+            coinGeckoId: denom?.coinGeckoId,
           };
         });
 
@@ -128,15 +136,24 @@ function getQueryFn(
       allTokens = allTokens.filter((token) => !!token);
 
       if (allTokens?.length === 0 && !isCW20Balances && !isERC20Balances) {
-        const denoms = Object.values(chainInfos[activeChain].nativeDenoms);
+        const _denom = Object.values(chainInfos[activeChain].nativeDenoms)[0];
+        const denom = denoms[_denom.coinMinimalDenom] ?? _denom;
+
+        const usdPrice = denom?.coinGeckoId
+          ? await fetchCurrency('1', denom.coinGeckoId, denom?.chain as unknown as SupportedChain, currencyPreferred)
+          : '0';
+
         const placeHolderBalance = {
-          chain: denoms[0]?.chain ?? '',
+          chain: denom?.chain ?? '',
           amount: '0',
-          symbol: denoms[0].coinDenom,
+          symbol: denom.coinDenom,
           usdValue: '0',
-          coinMinimalDenom: denoms[0].coinMinimalDenom,
-          img: chainInfos[activeChain].chainSymbolImageUrl ?? '',
+          coinMinimalDenom: denom.coinMinimalDenom,
+          img: denom?.icon ?? chainInfos[activeChain].chainSymbolImageUrl ?? '',
+          usdPrice,
+          coinGeckoId: denom?.coinGeckoId ?? '',
         };
+
         allTokens.push(placeHolderBalance);
       }
       const allTokensData = allTokens.sort((tokenA, tokenB) =>
@@ -181,9 +198,14 @@ export function useGetNativeTokensBalances(
   const chainInfos = useGetChains();
   const _activeChain = useActiveChain();
   const _selectedNetwork = useSelectedNetwork();
+  const betaNativeTokens = useBetaNativeTokens();
 
   const activeChain = forceChain ?? _activeChain;
   const selectedNetwork = forceNetwork ?? _selectedNetwork;
+
+  const { chains } = useChainsStore();
+  const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
+  const retry = isApiUnavailable ? false : 10;
 
   const address = useAddress(activeChain);
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
@@ -215,10 +237,33 @@ export function useGetNativeTokensBalances(
     },
   );
 
+  const { data: _balances, status: _balancesStatus } = useQuery(
+    ['fill-beta-native-balances', address, balances, Object.keys(denoms).length, betaNativeTokens],
+    async () => {
+      const betaNativeWithBalance = Object.values(betaNativeTokens).reduce(
+        (acc: Array<{ denom: string; amount: BigNumber }>, token: NativeDenom) => {
+          if (balances.some((balance) => balance.denom === token.coinMinimalDenom)) {
+            return acc;
+          }
+
+          return [...acc, { denom: token.coinMinimalDenom, amount: new BigNumber(0) }];
+        },
+        [],
+      );
+
+      return [...balances, ...betaNativeWithBalance];
+    },
+  );
+
   return useQuery(
-    [bankQueryIds.nativeTokenBalances, address, balances, currencyPreferred, Object.keys(denoms).length],
-    getQueryFn(balances, currencyPreferred, activeChain, chainInfos, _denoms ?? denoms),
-    { enabled: enabled && denomsStatus === 'success', staleTime: 60 * 1000, retry: 10, retryDelay: 1000 },
+    [bankQueryIds.nativeTokenBalances, address, _balances, balances, currencyPreferred, Object.keys(denoms).length],
+    getQueryFn(_balances ?? balances, currencyPreferred, activeChain, chainInfos, _denoms ?? denoms),
+    {
+      enabled: enabled && denomsStatus === 'success' && _balancesStatus === 'success',
+      staleTime: 60 * 1000,
+      retry: 10,
+      retryDelay: 1000,
+    },
   );
 }
 
@@ -231,11 +276,16 @@ function useGetCW20TokenBalances(currencyPreferred: Currency) {
   const { chains } = useChainsStore();
   const denoms = useDenoms();
 
+  const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
+  const retry = isApiUnavailable ? false : 10;
+
   const { disabledCW20Tokens: storedDisabledCW20Tokens } = useDisabledCW20TokensStore();
+  const { interactedTokens: storedInteractedTokens } = useInteractedTokensStore();
   const setDisabledCW20InStorage = useSetDisabledCW20InStorage();
+  const setInteractedTokensInStorage = useSetInteractedTokensInStorage();
 
   const { data, status: rawBalancesStatus } = useQuery(
-    [bankQueryIds.cw20TokenBalancesRaw, activeChain, address, cw20TokenAddresses?.length],
+    [`${activeChain}-${bankQueryIds.cw20TokenBalancesRaw}`, activeChain, address, cw20TokenAddresses?.length],
     async () => {
       if (cw20TokenAddresses.length) {
         return await fetchCW20Balances(`${rpcUrl}/`, address, cw20TokenAddresses);
@@ -243,15 +293,18 @@ function useGetCW20TokenBalances(currencyPreferred: Currency) {
         return [];
       }
     },
-    { staleTime: 60 * 1000, retry: 10, retryDelay: 1000 },
+    { staleTime: 60 * 1000, retry, retryDelay: 1000 },
   );
 
   useQuery(
     ['fill-disabled-cw20', address, activeChain],
     async () => {
-      if ((storedDisabledCW20Tokens ?? {})[address] === undefined && data) {
+      if (data) {
+        const _interactedTokens = (storedInteractedTokens ?? {})[address] ?? [];
+        const _disabledCW20Tokens = (storedDisabledCW20Tokens ?? {})[address] ?? [];
+
         const zeroAmountDenoms = data.reduce((acc: string[], denom) => {
-          if (String(denom.amount) === '0') {
+          if (String(denom.amount) === '0' && !_interactedTokens.includes(denom.denom)) {
             return [...acc, denom.denom];
           }
 
@@ -259,7 +312,8 @@ function useGetCW20TokenBalances(currencyPreferred: Currency) {
         }, []);
 
         if (zeroAmountDenoms.length > 0) {
-          await setDisabledCW20InStorage(zeroAmountDenoms);
+          await setDisabledCW20InStorage([..._disabledCW20Tokens, ...zeroAmountDenoms]);
+          await setInteractedTokensInStorage([..._interactedTokens, ...zeroAmountDenoms]);
         }
       }
     },
@@ -267,9 +321,17 @@ function useGetCW20TokenBalances(currencyPreferred: Currency) {
   );
 
   return useQuery(
-    [bankQueryIds.cw20TokenBalances, activeChain, denoms, data, chains, address, cw20TokenAddresses?.length],
+    [
+      `${activeChain}-${bankQueryIds.cw20TokenBalances}`,
+      activeChain,
+      denoms,
+      data,
+      chains,
+      address,
+      cw20TokenAddresses?.length,
+    ],
     getQueryFn(data ?? [], currencyPreferred, activeChain, chains, denoms, true),
-    { enabled: rawBalancesStatus === 'success', staleTime: 60 * 1000, retry: 10, retryDelay: 1000 },
+    { enabled: rawBalancesStatus === 'success', staleTime: 60 * 1000, retry, retryDelay: 1000 },
   );
 }
 
@@ -282,8 +344,11 @@ function useGetERC20TokenBalances(currencyPreferred: Currency) {
   const denoms = useDenoms();
   const { chains } = useChainsStore();
 
+  const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
+  const retry = isApiUnavailable ? false : 10;
+
   const { data, status: rawBalancesStatus } = useQuery(
-    [bankQueryIds.erc20TokenBalancesRaw, activeChain, address, erc20TokenAddresses?.length],
+    [`${activeChain}-${bankQueryIds.erc20TokenBalancesRaw}`, activeChain, address, erc20TokenAddresses?.length],
     async () => {
       if (erc20TokenAddresses.length && evmJsonRpc) {
         return await fetchERC20Balances(evmJsonRpc, address, erc20TokenAddresses);
@@ -293,18 +358,26 @@ function useGetERC20TokenBalances(currencyPreferred: Currency) {
     },
     {
       staleTime: 60 * 1000,
-      retry: 10,
+      retry,
       retryDelay: 1000,
     },
   );
 
   return useQuery(
-    [bankQueryIds.erc20TokenBalances, activeChain, denoms, data, chains, address, erc20TokenAddresses?.length],
+    [
+      `${activeChain}-${bankQueryIds.erc20TokenBalances}`,
+      activeChain,
+      denoms,
+      data,
+      chains,
+      address,
+      erc20TokenAddresses?.length,
+    ],
     getQueryFn(data ?? [], currencyPreferred, activeChain, chains, denoms, false, true),
     {
       enabled: rawBalancesStatus === 'success',
       staleTime: 60 * 1000,
-      retry: 10,
+      retry,
       retryDelay: 1000,
     },
   );
@@ -385,12 +458,15 @@ function useIbcTokensBalances(
   const activeChain = forceChain ?? _activeChain;
   const selectedNetwork = forceNetwork ?? _selectedNetwork;
 
+  const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
+  const retry = isApiUnavailable ? false : 10;
+
   const address = useAddress(activeChain);
   const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
 
   return useQuery(
-    [bankQueryIds.ibcTokensBalance, activeChain, address, balances, currencyPreferred],
+    [`${activeChain}-${bankQueryIds.ibcTokensBalance}`, activeChain, address, balances, currencyPreferred],
     async () => {
       const formattedBalances: Promise<{
         formattedBalance: FormattedBalance;
@@ -413,11 +489,7 @@ function useIbcTokensBalances(
           channelId: trace.channelId,
         };
 
-        let _baseDenom = baseDenom.includes('cw20:') ? baseDenom.replace('cw20:', '') : baseDenom;
-        _baseDenom = isTerraClassic(trace?.originChainId) ? 'lunc' : _baseDenom;
-        _baseDenom =
-          ['noble-1', 'grand-1'].includes(trace?.originChainId) && _baseDenom === 'uusdc' ? 'usdc' : _baseDenom;
-
+        const _baseDenom = getKeyToUseForDenoms(baseDenom, trace?.originChainId);
         const denomInfo = denoms[_baseDenom];
         const qty = fromSmall(new BigNumber(amount).toString(), denomInfo?.coinDecimals);
 
@@ -459,8 +531,8 @@ function useIbcTokensBalances(
 
           if (!chain || !coinGeckoId) return acc;
 
-          if (coingeckoPrices[coinGeckoId]) {
-            const usdValue = coingeckoPrices[coinGeckoId];
+          if (coingeckoPrices[currencyPreferred] && coingeckoPrices[currencyPreferred][coinGeckoId]) {
+            const usdValue = coingeckoPrices[currencyPreferred][coinGeckoId];
 
             // if we don't have a price, set the usd value to empty string so it doesn't show up as $0 on the UI
             asset.usdValue = usdValue ? String(Number(usdValue) * Number(asset.amount)) : '';
@@ -516,7 +588,7 @@ function useIbcTokensBalances(
         return acc;
       }, []);
     },
-    { enabled: enabled, staleTime: 60 * 1000, retry: 3, retryDelay: 1000 },
+    { enabled: enabled, staleTime: 60 * 1000, retry, retryDelay: 1000 },
   );
 }
 
@@ -526,19 +598,23 @@ function useGetRawBalances(forceChain?: SupportedChain, forceNetwork?: 'mainnet'
 
   const activeChain = forceChain ?? _activeChain;
   const selectedNetwork = forceNetwork ?? _selectedNetwork;
+  const { chains } = useChainsStore();
+
+  const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
+  const retry = isApiUnavailable ? false : 10;
 
   const address = useAddress(activeChain);
   const { lcdUrl, rpcUrl } = useChainApis(activeChain, selectedNetwork);
   const queryClient = useQueryClient();
 
   const { data, status, refetch } = useQuery(
-    [bankQueryIds.rawBalances, address, lcdUrl],
+    [`${activeChain}-${bankQueryIds.rawBalances}`, address, lcdUrl],
     async () => {
       const balances = await fetchAllBalancesRestApi(lcdUrl ?? '', address, rpcUrl);
-      queryClient.setQueryData([bankQueryIds.rawBalances, address, lcdUrl], balances);
+      queryClient.setQueryData([`${activeChain}-${bankQueryIds.rawBalances}`, address, lcdUrl], balances);
       return balances;
     },
-    { enabled: !!activeChain && !!address, staleTime: 60 * 1000, retry: 10, retryDelay: 1000 },
+    { enabled: !!activeChain && !!address, staleTime: 60 * 1000, retry, retryDelay: 1000 },
   );
 
   return { data, status, refetch };
@@ -546,6 +622,7 @@ function useGetRawBalances(forceChain?: SupportedChain, forceNetwork?: 'mainnet'
 
 export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const [preferredCurrency] = useUserPreferredCurrency();
+  const disabledCW20Tokens = useDisabledCW20Tokens();
 
   const {
     data: rawBalancesData,
@@ -563,6 +640,11 @@ export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 
     currencyDetail[preferredCurrency].currencyPointer,
     forceChain,
     forceNetwork,
+  );
+
+  const _nativeTokensBalance = useMemo(
+    () => nativeTokensBalance?.filter((token) => !disabledCW20Tokens.includes(token.coinMinimalDenom)),
+    [nativeTokensBalance, disabledCW20Tokens],
   );
 
   const {
@@ -601,7 +683,6 @@ export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 
     refetch: refetchCW20TokensBalance,
   } = useGetCW20TokenBalances(currencyDetail[preferredCurrency].currencyPointer);
 
-  const disabledCW20Tokens = useDisabledCW20Tokens();
   const _cw20TokensBalances = useMemo(
     () => cw20TokensBalances?.filter((token) => !disabledCW20Tokens.includes(token.coinMinimalDenom)),
     [cw20TokensBalances, disabledCW20Tokens],
@@ -609,8 +690,8 @@ export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 
 
   const totalUSDValueNativeDenoms = useMemo(() => {
     if (nativeTokensStatus === 'loading') return new BigNumber(0);
-    return nativeTokensBalance ? balanceCalculator(nativeTokensBalance) : new BigNumber(0);
-  }, [nativeTokensBalance]);
+    return _nativeTokensBalance ? balanceCalculator(_nativeTokensBalance) : new BigNumber(0);
+  }, [_nativeTokensBalance]);
 
   const totalUSDValueS3IBCDenoms = useMemo(() => {
     if (s3IbcTokensStatus === 'loading') return new BigNumber(0);
@@ -640,19 +721,19 @@ export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 
 
   const allAssets = useMemo(() => {
     if (rawBalancesData?.length === 0) {
-      return nativeTokensBalance ?? [];
+      return _nativeTokensBalance ?? [];
     } else {
       const factoryNativeTokens = sortTokenBalances(
-        nativeTokensBalance?.filter((token) => token.coinMinimalDenom.includes('factory/')) ?? [],
+        _nativeTokensBalance?.filter((token) => token.coinMinimalDenom.includes('factory/')) ?? [],
       );
 
       // in case of mainCoreum
       const coreumHybridTokens = sortTokenBalances(
-        nativeTokensBalance?.filter((token) => token.coinMinimalDenom.includes('-')) ?? [],
+        _nativeTokensBalance?.filter((token) => token.coinMinimalDenom.includes('-')) ?? [],
       );
 
       const nativeTokens = sortTokenBalances(
-        nativeTokensBalance?.filter(
+        _nativeTokensBalance?.filter(
           (token) => !token.coinMinimalDenom.includes('factory/') && !token.coinMinimalDenom.includes('-'),
         ) ?? [],
       );
@@ -670,7 +751,7 @@ export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 
         sortedErc20TokensBalances,
       );
     }
-  }, [nativeTokensBalance, s3IbcTokensBalances, nonS3IbcTokensBalances, _cw20TokensBalances, rawBalancesData]);
+  }, [_nativeTokensBalance, s3IbcTokensBalances, nonS3IbcTokensBalances, _cw20TokensBalances, rawBalancesData]);
 
   const refetchBalances = () =>
     Promise.all([

@@ -16,11 +16,13 @@ import {
   useInitGasAdjustments,
   useInitGasPriceSteps,
   useInitIbcTraceStore,
+  useInitInteractedTokens,
   useInitInvestData,
   useInitIteratedUriNftContracts,
   useInitNftChains,
   useInitSelectedNetwork,
   useInitSpamProposals,
+  useInitTxMetadata,
   useMobileAppBanner,
   useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -37,6 +39,7 @@ import { useInitNodeUrls } from 'hooks/useInitNodeUrls'
 import React from 'react'
 import { useState } from 'react'
 import { SkeletonTheme } from 'react-loading-skeleton'
+import Browser from 'webextension-polyfill'
 
 import { useInitSecretTokens } from './hooks/secret/useInitSecretTokens'
 import { useInitSecretViewingKeys } from './hooks/secret/useInitSecretViewingKeys'
@@ -68,6 +71,7 @@ export default function App() {
   // initialize chains and default user preferences
   useManageChains()
   useInitNftChains()
+  useInitTxMetadata({ appVersion: Browser.runtime.getManifest().version })
 
   useInitFavouriteNFTs()
   useInitHiddenNFTs()
@@ -89,6 +93,7 @@ export default function App() {
   useInitGasAdjustments()
   useInitFeeDenoms()
   useInitDisabledCW20Tokens()
+  useInitInteractedTokens()
   useInitDisabledNFTsCollections()
 
   useInitBetaNFTsCollections()

@@ -5,6 +5,8 @@ export enum NumiaTrackAction {
   CLICKED = 'clicked',
 }
 
+export const ALL_CHAIN_BANNERS = 'ALL_CHAIN_BANNERS';
+
 export type NumiaBannerAttribute = {
   campaign_id: number;
   campaign_name: string;
@@ -23,6 +25,7 @@ export type BannerAD = {
   start_date: string;
   end_date: string;
   position_id?: string;
+  display_position?: string;
   attributes?: NumiaBannerAttribute;
 };
 

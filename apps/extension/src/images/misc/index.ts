@@ -36,6 +36,7 @@ import Data from './data.svg'
 import DefaultWebsiteIcon from './default-website-icon.svg'
 import Delete from './delete.svg'
 import DeleteRed from './delete-red.svg'
+import DeleteTokenSheetBin from './delete-token-sheet-bin.svg'
 import DownArrow from './down-arrow.svg'
 import dropUpDarkModeIcon from './drop-up-dark-mode.svg'
 import dropUpLightModeIcon from './drop-up-light-mode.svg'
@@ -188,6 +189,7 @@ export {
   DefaultWebsiteIcon,
   Delete,
   DeleteRed,
+  DeleteTokenSheetBin,
   DownArrow,
   dropUpDarkModeIcon,
   dropUpLightModeIcon,

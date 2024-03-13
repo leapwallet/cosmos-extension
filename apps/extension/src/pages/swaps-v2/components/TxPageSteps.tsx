@@ -37,7 +37,7 @@ export function TxPageSteps({ route, txStatus }: TxPageStepsProps) {
                       action={action}
                       isFirst={index === 0}
                       isLast={index === value.length - 1}
-                      response={txStatus[txIndex].responses[responseIndex]}
+                      response={txStatus?.[txIndex]?.responses?.[responseIndex]}
                     />
                   )
                 })}

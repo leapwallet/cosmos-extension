@@ -16,7 +16,7 @@ export function Key({ children }: KeyProps) {
 
 export function Value({ children }: KeyProps) {
   return (
-    <Text size='xs' color='text-gray-300 -mt-1 break-all'>
+    <Text size='xs' color='text-gray-700 dark:text-gray-300 -mt-1 break-all'>
       {children}
     </Text>
   )

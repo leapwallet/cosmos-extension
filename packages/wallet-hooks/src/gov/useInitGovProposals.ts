@@ -1,4 +1,5 @@
 import { axiosWrapper, CosmosSDK, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import axios from 'axios';
 import qs from 'qs';
 import { useEffect, useRef } from 'react';
 
@@ -10,7 +11,7 @@ import {
   useSelectedNetwork,
   useSpamProposals,
 } from '../store';
-import { Proposal, Proposal2 } from '../types';
+import { Proposal, Proposal2, ProposalApi } from '../types';
 import { formatProposal } from './formatProposal';
 
 export function useInitGovProposals(
@@ -28,7 +29,9 @@ export function useInitGovProposals(
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const spamProposals = useSpamProposals();
   const paginationKeyRef = useRef('');
-  const { setGovernanceData, setGovernanceStatus, setGovernanceFetchMore } = useGovProposalsStore();
+  const paginationCountRef = useRef(0);
+  const { shouldUseFallback, setShouldUseFallback, setGovernanceData, setGovernanceStatus, setGovernanceFetchMore } =
+    useGovProposalsStore();
 
   const filterSpamProposals = (proposal: any) => {
     if (spamProposals[activeChain] && spamProposals[activeChain].includes(Number(proposal.proposal_id))) {
@@ -36,8 +39,42 @@ export function useInitGovProposals(
     }
 
     return !['airdrop', 'air drop', 'a i r d r o p'].some((text) =>
-      (proposal.content.title ?? '').toLowerCase().trim().includes(text),
+      (proposal?.title ?? proposal.content?.title ?? '').toLowerCase().trim().includes(text),
     );
+  };
+
+  const fetchProposalsFromApi = async (paginationKey = 0, previousData: ProposalApi[] = []) => {
+    try {
+      const query = qs.stringify({
+        timestamp: Date.now(),
+        count: paginationLimit,
+        offset: Number(paginationKey ?? 0),
+      });
+
+      const { data } = await axios.post(
+        `${process.env.LEAP_WALLET_BACKEND_API_URL}/gov/proposals/${activeChainInfo.chainId}?${query}`,
+      );
+      paginationCountRef.current = data?.key;
+
+      const proposals = data?.proposals?.sort((a: any, b: any) => Number(b.proposal_id) - Number(a.proposal_id));
+      const updatedProposals = [
+        ...previousData,
+        ...(proposals ?? [])
+          .filter((proposal: any) => filterSpamProposals(proposal))
+          .sort((a: any, b: any) => Number(b.proposal_id) - Number(a.proposal_id)),
+      ];
+      if (updatedProposals?.length === 0) {
+        throw new Error('No proposals found in API');
+      }
+
+      setGovernanceData(updatedProposals);
+      setGovernanceStatus('success');
+    } catch (error) {
+      setGovernanceData([]);
+      setGovernanceStatus('loading');
+      setShouldUseFallback(true);
+      console.log(error);
+    }
   };
 
   const fetchGovProposals = async (paginationKey = '', previousData: Proposal[] = []) => {
@@ -110,6 +147,25 @@ export function useInitGovProposals(
   };
 
   useEffect(() => {
+    if (shouldUseFallback) {
+      setGovernanceFetchMore(async () => {
+        setGovernanceStatus('fetching-more');
+        if (paginationKeyRef.current) {
+          await fetchGovProposals(paginationKeyRef.current, useGovProposalsStore.getState().data as Proposal[]);
+        } else {
+          setGovernanceStatus('success');
+        }
+      });
+      paginationKeyRef.current = '';
+      fetchGovProposals();
+    }
+  }, [shouldUseFallback]);
+
+  useEffect(() => {
+    setShouldUseFallback(false);
+  }, [activeChain, selectedNetwork]);
+
+  useEffect(() => {
     if (
       activeChainInfo?.comingSoonFeatures?.includes('governance') ||
       activeChainInfo?.notSupportedFeatures?.includes('governance')
@@ -122,16 +178,20 @@ export function useInitGovProposals(
     if (lcdUrl && activeChain && selectedNetwork) {
       setTimeout(() => {
         setGovernanceStatus('loading');
+        setShouldUseFallback(false);
         setGovernanceFetchMore(async () => {
           setGovernanceStatus('fetching-more');
-          if (paginationKeyRef.current) {
-            await fetchGovProposals(paginationKeyRef.current, useGovProposalsStore.getState().data);
+          if (paginationCountRef.current) {
+            await fetchProposalsFromApi(
+              paginationCountRef.current,
+              useGovProposalsStore.getState().data as ProposalApi[],
+            );
           } else {
             setGovernanceStatus('success');
           }
         });
-        paginationKeyRef.current = '';
-        fetchGovProposals();
+        paginationCountRef.current = 0;
+        fetchProposalsFromApi();
       }, 0);
     }
   }, [activeChain, lcdUrl, selectedNetwork, activeChainInfo]);

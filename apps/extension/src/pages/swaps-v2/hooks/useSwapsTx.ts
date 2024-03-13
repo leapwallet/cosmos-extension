@@ -15,12 +15,19 @@ import {
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { useMessages, usePriceImpact, useRoute, useSKIPGasFeeSWR } from '@leapwallet/elements-hooks'
+import {
+  SwapVenue,
+  useMessages,
+  usePriceImpact,
+  useRoute,
+  useSkipGasFeeSWR,
+} from '@leapwallet/elements-hooks'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import { calculateFeeAmount } from 'components/gas-price-options'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import {
   useAddresses,
@@ -85,8 +92,12 @@ export type SwapsTxType = {
   setSlippagePercent: React.Dispatch<React.SetStateAction<number>>
   setInAmount: React.Dispatch<React.SetStateAction<string>>
   priceImpactWarning: string | undefined
-  priceImpactPercentage: BigNumber
+  priceImpactPercentage: BigNumber | undefined
+  refetchSourceBalances: (() => void) | undefined
+  refetchDestinationBalances: (() => void) | undefined
 }
+
+const SEI_ASTROPORT_SWAP_VENUE: SwapVenue = { chain_id: 'pacific-1', name: 'sei-astroport' }
 
 export function useSwapsTx(): SwapsTxType {
   const activeChainInfo = useChainInfo()
@@ -104,13 +115,15 @@ export function useSwapsTx(): SwapsTxType {
   const [destinationToken, setDestinationToken] = useState<SourceToken | null>(null)
   const [slippagePercent, setSlippagePercent] = useState(0.5)
 
+  const [refetchSourceBalances, setRefetchSourceBalances] = useState<() => void>()
+  const [refetchDestinationBalances, setRefetchDestinationBalances] = useState<() => void>()
+
   /**
    * custom hooks
    */
   const chainsToShow = useGetChainsToShow()
-  const { data: sourceAssets = [], isLoading: loadingSourceAssets } =
-    useGetSourceAssets(sourceChain)
-  const { data: destinationAssets = [], isLoading: loadingDestinationAssets } =
+  const { data: sourceAssetsData, isLoading: loadingSourceAssets } = useGetSourceAssets(sourceChain)
+  const { data: destinationAssetsData, isLoading: loadingDestinationAssets } =
     useGetDestinationAssets(destinationChain)
 
   /**
@@ -127,6 +140,17 @@ export function useSwapsTx(): SwapsTxType {
   const nativeFeeDenom = useNativeFeeDenom(sourceChain?.key)
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom)
   const gasAdjustment = useGasAdjustmentForChain(sourceChain?.key ?? '')
+
+  /**
+   * set refetch balances
+   */
+  useEffect(() => {
+    sourceAssetsData?.refetchBalances &&
+      setRefetchSourceBalances(sourceAssetsData?.refetchBalances as () => void)
+
+    destinationAssetsData?.refetchBalances &&
+      setRefetchDestinationBalances(destinationAssetsData?.refetchBalances as () => void)
+  }, [destinationAssetsData?.refetchBalances, sourceAssetsData?.refetchBalances])
 
   /**
    * set source chain and destination chain
@@ -164,7 +188,11 @@ export function useSwapsTx(): SwapsTxType {
       if (firstNotActiveChainToShow) {
         setDestinationChain(firstNotActiveChainToShow)
       } else {
-        setDestinationChain(chainsToShow[1])
+        if (isCompassWallet()) {
+          setDestinationChain(chainsToShow[0])
+        } else {
+          setDestinationChain(chainsToShow[1])
+        }
       }
     }
   }, [activeChainInfo.chainId, chainsToShow, destinationChain, sourceChain])
@@ -173,6 +201,8 @@ export function useSwapsTx(): SwapsTxType {
    * set source token
    */
   useEffect(() => {
+    const sourceAssets = sourceAssetsData?.assets ?? []
+
     if (sourceAssets && sourceAssets.length > 0 && !isSwitchedRef.current) {
       if (sourceChain) {
         const sourceToken = sourceAssets.find(
@@ -189,13 +219,31 @@ export function useSwapsTx(): SwapsTxType {
 
       setSourceToken(sourceAssets[0])
     }
-  }, [sourceAssets.length, sourceAssets, sourceChain])
+  }, [sourceChain, sourceAssetsData?.assets, sourceAssetsData?.assets?.length])
 
   /**
    * set destination token
    */
   useEffect(() => {
+    const destinationAssets = destinationAssetsData?.assets ?? []
+
     if (destinationAssets && destinationAssets.length > 0 && !isSwitchedRef.current) {
+      if (isCompassWallet()) {
+        const destinationToken = destinationAssets.find(
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          (asset) =>
+            asset.coinMinimalDenom ===
+            'sei1hrndqntlvtmx2kepr0zsfgr7nzjptcc72cr4ppk4yav58vvy7v3s4er8ed',
+        )
+        if (destinationToken) {
+          setDestinationToken(destinationToken)
+          return
+        }
+        setDestinationToken(destinationAssets[1])
+        return
+      }
+
       if (destinationChain) {
         const destinationToken = destinationAssets.find(
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -211,7 +259,7 @@ export function useSwapsTx(): SwapsTxType {
 
       setDestinationToken(destinationAssets[0])
     }
-  }, [destinationAssets.length, destinationAssets, destinationChain])
+  }, [destinationChain, destinationAssetsData?.assets, destinationAssetsData?.assets?.length])
 
   /**
    * element hooks
@@ -228,10 +276,11 @@ export function useSwapsTx(): SwapsTxType {
     sourceChain,
     destinationToken?.skipAsset,
     destinationChain,
+    true,
+    undefined,
+    isCompassWallet() ? SEI_ASTROPORT_SWAP_VENUE : undefined,
   )
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
   const { warning: priceImpactWarning, priceImpactPercentage } = usePriceImpact(routeResponse)
   const { userAddresses, userAddressesError } = useAddresses(
     routeResponse?.response.chain_ids as string[],
@@ -244,7 +293,7 @@ export function useSwapsTx(): SwapsTxType {
   }, [slippagePercent])
 
   const { messages } = useMessages(userAddresses, routeResponse?.response, options)
-  const { data: skipGasFee } = useSKIPGasFeeSWR(messages, userAddresses)
+  const { data: skipGasFee } = useSkipGasFeeSWR(messages, userAddresses, true)
 
   /**
    * set gas estimate
@@ -398,13 +447,13 @@ export function useSwapsTx(): SwapsTxType {
     sourceToken,
     sourceChain,
     handleInAmountChange,
-    sourceAssets,
+    sourceAssets: sourceAssetsData?.assets ?? [],
     chainsToShow,
     amountExceedsBalance,
     amountOut,
     destinationToken,
     destinationChain,
-    destinationAssets,
+    destinationAssets: destinationAssetsData?.assets ?? [],
     errorMsg,
     loadingMsg,
     reviewBtnDisabled,
@@ -439,6 +488,8 @@ export function useSwapsTx(): SwapsTxType {
     setSlippagePercent,
     setInAmount,
     priceImpactWarning,
-    priceImpactPercentage,
+    priceImpactPercentage: priceImpactPercentage as BigNumber | undefined,
+    refetchSourceBalances,
+    refetchDestinationBalances,
   }
 }

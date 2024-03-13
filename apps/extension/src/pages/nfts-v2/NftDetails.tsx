@@ -1,4 +1,4 @@
-import { Key, NftAttribute } from '@leapwallet/cosmos-wallet-hooks'
+import { Key, NftAttribute, NftPage } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
@@ -21,7 +21,7 @@ import { sessionGetItem, sessionRemoveItem } from 'utils/sessionStorage'
 
 import { Chip, NftCard } from './components'
 import { SendNftCard } from './components/send-nft'
-import { NftPage, useNftContext } from './context'
+import { useNftContext } from './context'
 
 type MenuProps = {
   handleProfileClick: VoidFunction

@@ -1,5 +1,10 @@
-import { useChainInfo, useStakeTx, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import {
+  sliceWord,
+  useChainInfo,
+  useStakeTx,
+  useValidatorImage,
+} from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import {
   UnbondingDelegation,
   UnbondingDelegationEntry,
@@ -35,7 +40,6 @@ import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { capitalize, sliceWord } from 'utils/strings'
 import { useTxCallBack } from 'utils/txCallback'
 
 function ValidatorHeading({ validator }: { validator: Validator }) {
@@ -115,7 +119,6 @@ function DetailsView({
   validator,
   unBoundingdelegation,
   activeChain,
-  displayFeeText,
   simulationError,
   onClick,
 }: {
@@ -194,7 +197,6 @@ export default function CancelUndelegationPage() {
   const {
     validators = {},
     validatorAddress = '',
-    unBoundingdelegation = {},
     unBoundingdelegationEntry = {},
   } = state as CancleUndelegationProps
 
@@ -209,26 +211,21 @@ export default function CancelUndelegationPage() {
   const activeChainInfo = useChainInfo()
 
   const {
-    recommendedGasLimit,
-    amount,
     error,
-    clearError,
-    memo,
     onReviewTransaction,
-    setMemo,
     setAmount,
     setCreationHeight,
     displayFeeText,
     simulationError,
-    showLedgerPopup,
     isLoading,
     setLedgerError,
-    ledgerError,
   } = useStakeTx('CANCEL_UNDELEGATION', validator, undefined)
 
   useEffect(() => {
     setCreationHeight((unBoundingdelegationEntry as UnbondingDelegationEntry).creation_height)
     setAmount((unBoundingdelegationEntry as UnbondingDelegationEntry).balance)
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setAmount])
 
   const onSubmit = useCallback(async () => {

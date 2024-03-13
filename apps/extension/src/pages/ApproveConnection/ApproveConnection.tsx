@@ -112,6 +112,7 @@ const ApproveConnection = () => {
       type: string
       payload: { origin: string; chainId?: string; validChainIds?: string[]; payloadId: string }
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sender: any,
   ) {
     if (sender.id !== browser.runtime.id) return

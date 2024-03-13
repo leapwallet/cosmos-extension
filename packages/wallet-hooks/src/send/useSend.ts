@@ -45,9 +45,8 @@ import {
 import { usePendingTxState } from '../store';
 import { useScrtTxHandler, useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
-import { fetchCurrency, useGetGasPrice, useNativeFeeDenom } from '../utils';
+import { fetchCurrency, getMetaDataForIbcTx, getMetaDataForSendTx, useGetGasPrice, useNativeFeeDenom } from '../utils';
 import { sliceAddress } from '../utils';
-import { getMetaDataForIbcTx, getMetaDataForSendTx } from './get-metadata';
 
 export function useSend(toAddress: string) {
   const chainsInfos = useGetChains();
@@ -183,9 +182,11 @@ export function useSend(toAddress: string) {
         const { fromAddress, amount, isIBCTx } = getTxData();
         const _tx = await getTxHandler(wallet);
         const inputUsdValue = new BigNumber(inputAmount).multipliedBy(denomFiatValue ?? 0).toString();
+
         if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
           setShowLedgerPopup(true);
         }
+
         const ibcChannelId = isIBCTx ? await getIbcChannelId(toAddress) : '';
         if (!_tx) {
           throw new Error('Something went wrong. Please try again.');

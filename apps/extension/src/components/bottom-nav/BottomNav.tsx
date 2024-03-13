@@ -1,8 +1,12 @@
 /* eslint-disable no-unused-vars */
-import { useChainsStore, useSelectedNetwork } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useChainsStore,
+  useFeatureFlags,
+  useSelectedNetwork,
+} from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -27,6 +31,12 @@ export default function BottomNav({ label, disabled }: BottomNavProps) {
   const { chains } = useChainsStore()
   const activeChainInfo = chains[activeChain]
   const selectedNetwork = useSelectedNetwork()
+  const { data: featureFlags } = useFeatureFlags()
+
+  const govRedirectHandler = useCallback(() => {
+    const redirectUrl = `https://cosmos.leapwallet.io/portfolio/gov?chain=${activeChainInfo?.key}`
+    window.open(redirectUrl, '_blank')
+  }, [activeChainInfo?.key])
 
   const bottomNavItems = useMemo(
     () => [
@@ -40,7 +50,9 @@ export default function BottomNav({ label, disabled }: BottomNavProps) {
         label: BottomNavLabel.Governance,
         icon: 'insert_chart',
         path: '/gov',
-        show: !isCompassWallet(),
+        show: !isCompassWallet() && featureFlags?.gov?.extension !== 'disabled',
+        shouldRedirect: featureFlags?.gov?.extension === 'redirect',
+        redirectHandler: govRedirectHandler,
       },
       {
         label: BottomNavLabel.NFTs,
@@ -67,19 +79,28 @@ export default function BottomNav({ label, disabled }: BottomNavProps) {
         show: true,
       },
     ],
-    [activeChainInfo?.disableStaking, selectedNetwork],
+    [
+      activeChainInfo?.disableStaking,
+      featureFlags?.gov?.extension,
+      govRedirectHandler,
+      selectedNetwork,
+    ],
   )
 
   return (
     <div className='flex absolute justify-around bottom-0 h-[60px] bg-white-100 dark:bg-gray-900 w-full rounded-b-lg z-[0]'>
       {bottomNavItems
         .filter(({ show }) => show)
-        .map(({ label, icon, path }, idx) => {
+        .map(({ label, icon, path, shouldRedirect, redirectHandler }, idx) => {
           return (
             <div
               key={`${label}_${idx}`}
               onClick={() => {
                 if (disabled) return
+                if (shouldRedirect === true && redirectHandler) {
+                  redirectHandler()
+                  return
+                }
                 setSelected(label)
                 navigate(path)
               }}

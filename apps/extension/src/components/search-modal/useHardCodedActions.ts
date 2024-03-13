@@ -38,6 +38,15 @@ export function useHardCodedActions() {
     }
   }
 
+  function handleNftsClick(_redirectUrl?: string) {
+    if (featureFlags?.nfts?.extension === 'redirect') {
+      const redirectUrl = _redirectUrl ?? 'https://cosmos.leapwallet.io/portfolio/nfts'
+      window.open(redirectUrl, '_blank')
+    } else {
+      navigate('/nfts')
+    }
+  }
+
   function handleConnectLedgerClick() {
     const views = Browser.extension.getViews({ type: 'popup' })
     if (views.length === 0) {
@@ -78,5 +87,6 @@ export function useHardCodedActions() {
     handleHideBalancesClick,
     handleLockWalletClick,
     handleSettingsClick,
+    handleNftsClick,
   }
 }

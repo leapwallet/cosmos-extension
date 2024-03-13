@@ -8,7 +8,7 @@ import {
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { getEthereumAddress } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Buttons,
   CardDivider,
@@ -29,9 +29,10 @@ import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
+import WarningCard from 'components/WarningCard'
 import { EventName, PageName } from 'config/analytics'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX, ON_RAMP_SUPPORT_CHAINS } from 'config/config'
-import { SHOW_ETH_ADDRESS_CHAINS, walletLabels } from 'config/constants'
+import { walletLabels } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -41,6 +42,7 @@ import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
 import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
@@ -63,7 +65,7 @@ import { CopyAddressSheet } from './CopyAddressSheet'
 import { BitcoinDeposit, DepositBTCBanner } from './DepositBTCBanner'
 import FundBanners from './FundBanners'
 import GlobalBannersAD from './GlobalBannersAD'
-import { ManageTokens, SecretManageTokens } from './manage-tokens'
+import { SecretManageTokens } from './manage-tokens'
 import NftV2Header from './NftV2Header'
 import RequestFaucet from './RequestFaucet'
 import SelectChain from './SelectChain'
@@ -80,6 +82,10 @@ const initialFaucetResp: InitialFaucetResp = {
   status: null,
 }
 
+interface ChainInfoProp extends ChainInfo {
+  apiStatus?: boolean
+}
+
 export default function Home() {
   usePageView(PageName.Home)
 
@@ -94,7 +100,7 @@ export default function Home() {
 
   const navigate = useNavigate()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
-  const { handleSwapClick } = useHardCodedActions()
+  const { handleSwapClick, handleNftsClick } = useHardCodedActions()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -104,7 +110,7 @@ export default function Home() {
 
   const [showFaucetResp, setShowFaucetResp] = useState<InitialFaucetResp>(initialFaucetResp)
   const [showErrorMessage, setShowErrorMessage] = useState<boolean>(!!txDeclined)
-  const [showManageTokens, setShowManageTokens] = useState<boolean>(false)
+  const [showSecretManageTokens, setShowSecretManageTokens] = useState<boolean>(false)
   const [scrtToken, setScrtToken] = useState<SecretToken & { contractAddr: string }>()
 
   const selectedNetwork = useSelectedNetwork()
@@ -136,7 +142,6 @@ export default function Home() {
     nonS3IbcTokensStatus,
     nativeTokensStatus,
     cw20TokensStatus,
-    cw20TokensBalances,
     erc20TokensStatus,
   } = useGetTokenBalances()
 
@@ -153,9 +158,10 @@ export default function Home() {
   const [showCopyAddressSheet, setShowCopyAddressSheet] = useState(false)
   const { activeWallet } = useActiveWallet()
 
-  const chain = chainInfos[activeChain]
+  const chain: ChainInfoProp = chainInfos[activeChain]
 
   const isTestnet = useSelectedNetwork() === 'testnet'
+  const walletAddresses = useGetWalletAddresses()
 
   const walletAvatar = useMemo(() => {
     if (activeWallet?.avatar) {
@@ -216,16 +222,6 @@ export default function Home() {
     op: 'homePageLoad',
     description: 'loading state on home page',
   })
-
-  const walletAddresses = useMemo(() => {
-    if (
-      activeWallet?.walletType !== WALLETTYPE.LEDGER &&
-      SHOW_ETH_ADDRESS_CHAINS.includes(activeChain)
-    ) {
-      return [getEthereumAddress(address), address]
-    }
-    return [address]
-  }, [activeChain, address, activeWallet])
 
   const [assets, smallBalanceAssets] = useMemo(() => {
     let assetsToShow = allAssets
@@ -313,6 +309,15 @@ export default function Home() {
     })
   }
 
+  const onSendIBCClick = (type: 'send' | 'ibc') => {
+    if (featureFlags?.ibc?.extension === 'redirect' && type === 'ibc') {
+      const redirectUrl = `https://cosmos.leapwallet.io/transact/send?sourceChainId=${activeChainInfo.chainId}`
+      window.open(redirectUrl, '_blank')
+    } else {
+      navigate(`/${type}`)
+    }
+  }
+
   return (
     <div className='relative w-[400px] overflow-clip'>
       <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
@@ -330,8 +335,9 @@ export default function Home() {
                 : '',
             }}
             nftAction={{
-              onClick: () => navigate('/nfts'),
+              onClick: () => handleNftsClick(),
               imgSrc: NftLogo,
+              disabled: featureFlags?.nfts?.extension === 'disabled',
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
@@ -486,13 +492,15 @@ export default function Home() {
                 />
                 <ClickableIcon
                   image={{ src: 'file_upload', alt: 'Send' }}
-                  onClick={() => navigate('/send')}
-                  disabled={walletCtaDisabled}
+                  onClick={() => onSendIBCClick('send')}
+                  disabled={walletCtaDisabled || chain?.apiStatus === false}
                 />
                 <ClickableIcon
                   image={{ src: Images.Misc.IbcUnion, alt: 'IBC', type: 'url' }}
-                  onClick={() => navigate('/ibc')}
-                  disabled={walletCtaDisabled || sendIbcChains.length === 0}
+                  onClick={() => onSendIBCClick('ibc')}
+                  disabled={
+                    walletCtaDisabled || sendIbcChains.length === 0 || chain?.apiStatus === false
+                  }
                 />
                 <ClickableIcon
                   image={{ src: Images.Misc.BridgeRoute, alt: 'Bridge', type: 'url' }}
@@ -512,7 +520,7 @@ export default function Home() {
                 />
               </div>
             ) : (
-              <div className='flex justify-between mb-6 w-full'>
+              <div className='flex justify-between mb-6 w-full gap-2'>
                 <Buttons.Generic
                   size='sm'
                   disabled={disabled || isNomicChain}
@@ -544,6 +552,22 @@ export default function Home() {
                     <span>Send</span>
                   </div>
                 </Buttons.Generic>
+                {activeChainInfo.chainId === 'pacific-1' && (
+                  <Buttons.Generic
+                    size='sm'
+                    disabled={disabled || featureFlags?.all_chains?.swap === 'disabled'}
+                    color={darkTheme ? undefined : Colors.white100}
+                    onClick={() => {
+                      handleSwapClick()
+                    }}
+                    data-testing-id='home-generic-swap-btn'
+                  >
+                    <div className={'flex justify-center text-black-100  items-center'}>
+                      <span className='mr-2 material-icons-round'>swap_horiz</span>
+                      <span>Swap</span>
+                    </div>
+                  </Buttons.Generic>
+                )}
               </div>
             )}
           </div>
@@ -582,7 +606,11 @@ export default function Home() {
             />
           )}
 
-          {!isCompassWallet() && !isWalletHasFunds && !atLeastOneTokenIsLoading ? (
+          {atLeastOneTokenIsLoading && chain?.apiStatus === false ? (
+            <WarningCard
+              text={`The ${chain.chainName} network is currently experiencing issues. Please try again later.`}
+            />
+          ) : !isCompassWallet() && !isWalletHasFunds && !atLeastOneTokenIsLoading ? (
             <FundBanners />
           ) : (
             <div className='rounded-2xl dark:bg-gray-900 bg-white-100 mx-7'>
@@ -656,7 +684,13 @@ export default function Home() {
               {!atLeastOneTokenIsLoading && cw20TokensStatus === 'success' && (
                 <div
                   className='px-4 py-3 border-t-[1px] dark:border-gray-800 border-gray-100 cursor-pointer'
-                  onClick={() => setShowManageTokens(true)}
+                  onClick={() => {
+                    if (activeChain === 'secret' && selectedNetwork === 'mainnet') {
+                      setShowSecretManageTokens(true)
+                    } else {
+                      navigate('/manage-tokens')
+                    }
+                  }}
                 >
                   <Text
                     size='md'
@@ -683,17 +717,11 @@ export default function Home() {
 
       {activeChain === 'secret' && selectedNetwork === 'mainnet' ? (
         <SecretManageTokens
-          isVisible={showManageTokens}
-          onClose={() => setShowManageTokens(false)}
+          isVisible={showSecretManageTokens}
+          onClose={() => setShowSecretManageTokens(false)}
           token={scrtToken}
         />
-      ) : (
-        <ManageTokens
-          isVisible={showManageTokens}
-          onClose={() => setShowManageTokens(false)}
-          tokens={cw20TokensBalances}
-        />
-      )}
+      ) : null}
 
       <ReceiveToken
         isVisible={showReceiveSheet}

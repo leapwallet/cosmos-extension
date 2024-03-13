@@ -1,7 +1,8 @@
-import { axiosWrapper, NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
+import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
 
 import { LeapWalletApi } from '../apis/LeapWalletApi';
 import { getDenomStoreSnapshot } from '../store';
+import { getKeyToUseForDenoms } from './getKeyToUseForDenoms';
 
 class DenomFetcher {
   // ibc denom -> minimal denom
@@ -12,40 +13,43 @@ class DenomFetcher {
 
   public async fetchDenomTrace(denom: string, restUrl: string, chainId: string): Promise<NativeDenom | undefined> {
     const denoms = await getDenomStoreSnapshot();
+    const _baseDenom = getKeyToUseForDenoms(denom, chainId);
 
-    const basicMatch = denoms[denom];
+    const basicMatch = denoms[_baseDenom];
     if (basicMatch) {
       return basicMatch;
     }
-    const cacheMatch = this.denomMatcherCache[denom];
+
+    const cacheMatch = this.denomMatcherCache[_baseDenom];
     if (cacheMatch) {
       return denoms[cacheMatch];
     }
-    if (this.activePromises[denom] !== undefined) {
-      const trace = await this.activePromises[denom];
-      if (trace.baseDenom) {
-        const _symbol = denoms[trace.baseDenom];
-        this.denomMatcherCache[denom] = _symbol?.coinMinimalDenom;
-        return _symbol;
-      } else {
-        return undefined;
-      }
+
+    if (this.activePromises[_baseDenom] !== undefined) {
+      const trace = await this.activePromises[_baseDenom];
+      return getDenom(trace, this.denomMatcherCache);
     }
+
     try {
       const tracePromise = LeapWalletApi.getIbcDenomData(denom, restUrl, chainId);
+      this.activePromises[_baseDenom] = tracePromise;
 
-      this.activePromises[denom] = tracePromise;
       const trace = await tracePromise;
+      return getDenom(trace, this.denomMatcherCache);
+    } catch {
+      return undefined;
+    }
 
+    function getDenom(trace: any, denomMatcherCache: Record<string, string>) {
       if (trace.baseDenom) {
-        const _symbol = denoms[trace.baseDenom];
-        this.denomMatcherCache[denom] = _symbol?.coinMinimalDenom;
-        return _symbol;
+        const baseDenom = getKeyToUseForDenoms(trace.baseDenom, trace.originChainId);
+        const _denom = denoms[baseDenom];
+
+        denomMatcherCache[_baseDenom] = baseDenom;
+        return _denom;
       } else {
         return undefined;
       }
-    } catch {
-      return undefined;
     }
   }
 }

@@ -98,6 +98,8 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
         setError(null)
       }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feeToken, feeValues, disableBalanceCheck])
 
   if (

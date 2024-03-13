@@ -56,6 +56,10 @@ export function QuickSearchOptions({
             return null
           }
 
+          if (action_name === 'View NFTs' && featureFlags?.nfts?.extension === 'disabled') {
+            return null
+          }
+
           return (
             <li
               key={`${action_name}-${index}`}

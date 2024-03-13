@@ -47,12 +47,17 @@ import {
   useStakeDelegations,
   useStakeUndelegations,
   useStakeValidators,
-  useTxMetadata,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
 import { STAKE_MODE } from '../types';
-import { useGetGasPrice } from '../utils';
+import {
+  getMetaDataForClaimRewardsTx,
+  getMetaDataForDelegateTx,
+  getMetaDataForRedelegateTx,
+  getTxnLogAmountValue,
+  useGetGasPrice,
+} from '../utils';
 import { fetchCurrency } from '../utils/findUSDValue';
 import { getNativeDenom } from '../utils/getNativeDenom';
 import { capitalize, formatTokenAmount } from '../utils/strings';
@@ -220,7 +225,6 @@ export function useStakeTx(
 ) {
   // HOOKS
   const denoms = useDenoms();
-  const txMetadata = useTxMetadata();
   const chainInfos = useGetChains();
   const getTxHandler = useTxHandler();
   const activeChain = useActiveChain();
@@ -255,6 +259,26 @@ export function useStakeTx(
   const { lcdUrl } = useChainApis();
   const getGasPrice = useGetGasPrice(activeChain);
   const gasAdjustment = useGasAdjustmentForChain();
+
+  /**
+   * Currency Calculation Selected Token
+   */
+  const { data: tokenFiatValue } = useQuery(['use-staking-native-denom-fiat-value', denom], async () => {
+    const _denom = denoms[denom.coinMinimalDenom];
+
+    if (_denom.coinGeckoId) {
+      const price = await fetchCurrency(
+        '1',
+        _denom.coinGeckoId,
+        _denom.chain as SupportedChain,
+        currencyDetail[preferredCurrency].currencyPointer,
+      );
+
+      return price;
+    }
+
+    return;
+  });
 
   // FUNCTIONS
   const handleSimulationError = (errorMsg: string) => {
@@ -516,51 +540,40 @@ export function useStakeTx(
         if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
           setShowLedgerPopup(true);
         }
+
         const txHash = await executeTx(amt, fee, tx, creationHeight);
         const txType = getStakeTxType(mode);
         let metadata = {};
+
         if (mode === 'REDELEGATE') {
-          metadata = {
-            ...txMetadata,
-            fromValidator: fromValidator?.address,
-            toValidator: toValidator?.address,
-            token: {
-              amount: amt.amount,
-              denom: amt.denom,
-            },
-          };
+          metadata = getMetaDataForRedelegateTx(fromValidator?.address ?? '', toValidator?.address ?? '', {
+            amount: amt.amount,
+            denom: amt.denom,
+          });
         } else if (mode === 'DELEGATE' || mode === 'UNDELEGATE' || mode === 'CANCEL_UNDELEGATION') {
-          metadata = {
-            ...txMetadata,
-            validatorAddress: toValidator?.address,
-            token: {
-              amount: amt.amount,
-              denom: amt.denom,
-            },
-          };
+          metadata = getMetaDataForDelegateTx(toValidator?.address ?? '', { amount: amt.amount, denom: amt.denom });
         } else if (mode === 'CLAIM_REWARDS') {
-          metadata = {
-            ...txMetadata,
-            validators:
-              (toValidator
-                ? [toValidator.operator_address]
-                : delegations?.map((d) => d.delegation.validator_address)) ?? [],
-            token: {
-              amount: toSmall(amount.toString(), denom?.coinDecimals ?? 6),
-              denom: amt?.denom,
-            },
-          };
+          metadata = getMetaDataForClaimRewardsTx(
+            (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
+              [],
+            { amount: toSmall(amount.toString(), denom?.coinDecimals ?? 6), denom: amt?.denom },
+          );
         }
 
+        const txnLogAmountValue = await getTxnLogAmountValue(amount, {
+          coinGeckoId: denoms?.[denom.coinMinimalDenom]?.coinGeckoId,
+          chain: denoms?.[denom.coinMinimalDenom]?.chain as SupportedChain,
+        });
         await txPostToDB({
           txHash,
           txType,
           metadata,
           feeDenomination: fee.amount[0].denom,
           feeQuantity: fee.amount[0].amount,
+          amount: txnLogAmountValue,
         });
-        const txResult = tx.pollForTx(txHash);
 
+        const txResult = tx.pollForTx(txHash);
         if (txResult) onTxSuccess(txResult, txHash, callback);
         setError(undefined);
       }
@@ -644,6 +657,7 @@ export function useStakeTx(
     setLedgerError,
     ledgerError,
     recommendedGasLimit,
+    tokenFiatValue,
   };
 }
 

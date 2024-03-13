@@ -1,10 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react/no-children-prop */
-import { useChainApis, useChainsStore, useGetProposal } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useChainApis,
+  useChainInfo,
+  useChainsStore,
+  useGetProposal,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { axiosWrapper, ChainInfo, CoinType, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider, Header, HeaderActionType, LineDivider } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
+import axios from 'axios'
 import classNames from 'classnames'
 import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import PopupLayout from 'components/layout/popup-layout'
@@ -29,6 +35,7 @@ export type ProposalDetailsProps = {
   selectedProp: string | undefined
   onBack: () => void
   proposalList: any[]
+  shouldUseFallback: boolean
 }
 
 export function convertTime(seconds: number) {
@@ -261,7 +268,7 @@ function VoteDetails({
             </div>
 
             <div className='flex flex-col justify-center gap-3 p-4'>
-              {voteRatio(proposal.final_tally_result).map((values) => (
+              {voteRatio(proposal.tally || proposal.final_tally_result).map((values) => (
                 <div key={values.label} className='flex rounded-2xl relative overflow-clip'>
                   <div
                     className={classNames(
@@ -365,13 +372,19 @@ const activeProposalStatusTypes = [
   ProposalStatus.PROPOSAL_STATUS_DEPOSIT_PERIOD,
 ]
 
-function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetailsProps) {
+function ProposalDetails({
+  selectedProp,
+  onBack,
+  proposalList,
+  shouldUseFallback,
+}: ProposalDetailsProps) {
   const { chains } = useChainsStore()
   const activeChain = useActiveChain()
   const address = useAddress()
+  const activeChainInfo = useChainInfo()
 
   const chain = chains[activeChain]
-  const { lcdUrl } = useChainApis()
+  const { lcdUrl, txUrl } = useChainApis()
 
   const [showCastVoteSheet, setShowCastVoteSheet] = useState<boolean>(false)
 
@@ -391,24 +404,32 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
     async (): Promise<string | undefined> => {
       if (activeChain) {
         try {
-          const data = await axiosWrapper(
-            {
-              baseURL: lcdUrl ?? '',
-              method: 'get',
-              url: `/cosmos/gov/v1beta1/proposals/${selectedProp}/votes/${address}`,
-            },
-            1,
-            'proposals-votes',
+          const { data } = await axios.post(
+            `${process.env.LEAP_WALLET_BACKEND_API_URL}/gov/vote/${activeChainInfo.chainId}/${selectedProp}`,
+            { userAddress: address },
           )
-
-          const voteOption = data.data.vote.options[0].option
-          return voteOption.replace('VOTE_OPTION_', '')
+          return data
         } catch (error: any) {
-          if (error.response.data.code === 3 || error.response.data.error?.code === -32700) {
-            return 'NO_VOTE'
-          } else {
-            captureException(error)
-            throw new Error(error)
+          try {
+            const data = await axiosWrapper(
+              {
+                baseURL: lcdUrl ?? '',
+                method: 'get',
+                url: `/cosmos/gov/v1beta1/proposals/${selectedProp}/votes/${address}`,
+              },
+              1,
+              'proposals-votes',
+            )
+
+            const voteOption = data.data.vote.options[0].option
+            return voteOption.replace('VOTE_OPTION_', '')
+          } catch (error: any) {
+            if (error.response.data.code === 3 || error.response.data.error?.code === -32700) {
+              return 'NO_VOTE'
+            } else {
+              captureException(error)
+              throw new Error(error)
+            }
           }
         }
       }
@@ -421,8 +442,12 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
     },
   )
 
-  const { data: _proposalVotes, status } = useGetProposal(proposal.proposal_id, true)
-  const { yes, no, abstain, no_with_veto } = (_proposalVotes || proposal.final_tally_result) as any
+  // eslint-disable-next-line prefer-const
+  let { data: _proposalVotes, status } = useGetProposal(proposal.proposal_id, shouldUseFallback)
+  status = shouldUseFallback ? status : 'success'
+  const { yes, no, abstain, no_with_veto } = (proposal.tally ||
+    _proposalVotes ||
+    proposal.final_tally_result) as any
   const totalVotes = [yes, no, abstain, no_with_veto].reduce((sum, val) => sum + Number(val), 0)
 
   const dataMock = useMemo(() => {
@@ -460,11 +485,40 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
     return [
       {
         label: 'Turnout',
-        value: (totalVotes / (_proposalVotes as any)?.bonded_tokens) * 100,
+        value: !shouldUseFallback
+          ? proposal.turnout
+          : (totalVotes / (_proposalVotes as any)?.bonded_tokens) * 100,
       },
-      { label: 'Quorum', value: (_proposalVotes as any)?.quorum * 100 },
+      {
+        label: 'Quorum',
+        value: !shouldUseFallback ? proposal.quorum : (_proposalVotes as any)?.quorum * 100,
+      },
     ]
-  }, [_proposalVotes, totalVotes])
+  }, [_proposalVotes, proposal.quorum, proposal.turnout, shouldUseFallback, totalVotes])
+
+  const proposer = useMemo(() => {
+    if (!shouldUseFallback) {
+      return {
+        address: proposal?.proposer?.address,
+        url:
+          proposal?.proposer?.url ??
+          `${txUrl?.replace('txs', 'account')}/${proposal?.proposer?.address}`,
+      }
+    }
+    return _proposalVotes?.proposer?.depositor
+      ? {
+          address: _proposalVotes?.proposer?.depositor as string,
+          url: _proposalVotes?.proposerTxUrl as string | undefined,
+        }
+      : undefined
+  }, [
+    _proposalVotes?.proposer?.depositor,
+    _proposalVotes?.proposerTxUrl,
+    proposal?.proposer?.address,
+    proposal?.proposer?.url,
+    shouldUseFallback,
+    txUrl,
+  ])
 
   return (
     <div className='relative w-[400px] overflow-clip'>
@@ -482,7 +536,7 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
             <Status status={proposal.status as unknown as ProposalStatus} />
           </div>
           <div className='text-black-100 dark:text-white-100 font-bold text-xl break-words'>
-            {proposal.content.title}
+            {proposal?.title ?? proposal?.content?.title}
           </div>
 
           <VoteDetails
@@ -542,12 +596,9 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
                   <Text size='md' color='font-bold dark:text-white-100 text-gray-800'>
                     Proposer
                   </Text>
-                  {_proposalVotes?.proposer ? (
+                  {proposer ? (
                     <Text size='xs' color='font-medium text-gray-400'>
-                      {`${_proposalVotes.proposer.depositor.slice(
-                        0,
-                        5,
-                      )}...${_proposalVotes.proposer.depositor.slice(-6)}`}
+                      {`${proposer.address.slice(0, 5)}...${proposer.address.slice(-6)}`}
                     </Text>
                   ) : (
                     <Skeleton count={1} height='16px' width='150px' className='z-0' />
@@ -555,10 +606,10 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
                 </div>
               </div>
 
-              {_proposalVotes?.proposerTxUrl && (
+              {proposer?.url && (
                 <button
                   className='flex items-center justify-center px-1'
-                  onClick={() => window.open(_proposalVotes?.proposerTxUrl, '_blank')}
+                  onClick={() => window.open(proposer?.url, '_blank')}
                 >
                   <span className='material-icons-round text-gray-400 text-[18px]'>
                     open_in_new
@@ -572,9 +623,9 @@ function ProposalDetails({ selectedProp, onBack, proposalList }: ProposalDetails
             <LineDivider size='sm' />
           </div>
 
-          {proposal.content.description && (
+          {(proposal?.description || proposal?.content?.description) && (
             <ProposalDescription
-              description={proposal.content.description}
+              description={proposal?.description || proposal?.content?.description}
               title='Description'
               btnColor={Colors.getChainColor(activeChain, chain)}
             />

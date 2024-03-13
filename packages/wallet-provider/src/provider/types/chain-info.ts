@@ -31,6 +31,7 @@ export interface ChainInfo {
     high: number;
   };
   readonly features?: string[];
+  readonly apiStatus?: boolean;
   readonly beta?: boolean;
   readonly image?: string;
   readonly theme?: {

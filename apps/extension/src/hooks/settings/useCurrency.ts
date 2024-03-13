@@ -124,6 +124,7 @@ export const useFormatCurrency = () => {
           style: 'currency',
           currency: currencyDetail[preferredCurrency].ISOname,
           maximumFractionDigits: 2,
+          notation: 'compact',
         }).format(amount.toNumber())
       }
       if (isNaN(currencyValue.toNumber()) || currencyValue.toNumber() === 0) {

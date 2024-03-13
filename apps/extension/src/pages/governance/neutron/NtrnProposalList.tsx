@@ -21,6 +21,7 @@ import { sliceSearchWord } from 'utils/strings'
 import { ProposalListProps } from '../ProposalList'
 import { NtrnStatus } from './index'
 import { NtrnProposalStatus } from './NtrnStatus'
+import { getId, getStatus, getTitle } from './utils'
 
 const FILTERS = [
   { key: 'all', label: 'All Proposals' },
@@ -33,6 +34,7 @@ export function NtrnProposalList({
   proposalList: _proposalList,
   proposalListStatus,
   onClick,
+  shouldPreferFallback,
 }: Omit<ProposalListProps, 'fetchMore'>) {
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -56,17 +58,22 @@ export function NtrnProposalList({
       if (filter === 'all') {
         if (!propFilter) acc.push(curr)
         else if (
-          curr.proposal.title.toLowerCase().includes(propFilter) ||
+          getTitle(curr, shouldPreferFallback ?? false)
+            .toLowerCase()
+            .includes(propFilter) ||
           String(curr.id) === propFilter
         ) {
           acc.push(curr)
         }
       } else {
-        if (!propFilter && curr.proposal.status === filter) {
+        if (!propFilter && getStatus(curr, shouldPreferFallback ?? false) === filter) {
           acc.push(curr)
         } else if (
-          curr.proposal.status === filter &&
-          (curr.proposal.title.toLowerCase().includes(propFilter) || String(curr.id) === propFilter)
+          getStatus(curr, shouldPreferFallback ?? false) === filter &&
+          (getTitle(curr, shouldPreferFallback ?? false)
+            .toLowerCase()
+            .includes(propFilter) ||
+            String(curr.id) === propFilter)
         ) {
           acc.push(curr)
         }
@@ -74,7 +81,7 @@ export function NtrnProposalList({
 
       return acc
     }, [])
-  }, [_proposalList, filter, propFilter])
+  }, [_proposalList, filter, propFilter, shouldPreferFallback])
 
   return (
     <div className='relative w-[400px] overflow-clip'>
@@ -156,16 +163,22 @@ export function NtrnProposalList({
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               filteredProposalList?.map((proposal: any, index: number) => {
                 return (
-                  <div key={proposal.id} className='w-full'>
-                    <div className='p-4 cursor-pointer' onClick={() => onClick(proposal.id)}>
+                  <div key={getId(proposal, shouldPreferFallback ?? false)} className='w-full'>
+                    <div
+                      className='p-4 cursor-pointer'
+                      onClick={() => onClick(getId(proposal, shouldPreferFallback ?? false))}
+                    >
                       <div className='flex items-center justify-between'>
                         <div className='w-[272px]'>
                           <div className='flex flex-col'>
                             <div className='text-black-100 dark:text-white-100 font-bold text-base break-words'>
-                              {proposal.proposal.title}
+                              {getTitle(proposal, shouldPreferFallback ?? false)}
                             </div>
                             <div className='text-gray-600 dark:text-gray-200 text-xs'>
-                              #{proposal.id} · <NtrnStatus status={proposal.proposal.status} />
+                              #{getId(proposal, shouldPreferFallback ?? false)} ·{' '}
+                              <NtrnStatus
+                                status={getStatus(proposal, shouldPreferFallback ?? false)}
+                              />
                             </div>
                           </div>
                         </div>

@@ -29,12 +29,9 @@ import {
 
 const isWindows = () => navigator.platform.indexOf('Win') > -1;
 
-let transport: Transport | undefined;
-
 export async function getLedgerTransport() {
-  if (transport) {
-    return transport;
-  }
+  let transport;
+
   if (isWindows()) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     //@ts-ignore
@@ -63,12 +60,13 @@ export async function getLedgerTransport() {
 }
 
 export class LeapLedgerSigner extends LedgerSigner {
-  constructor(transport: Transport, options: LedgerConnectorOptions) {
+  constructor(private transport: Transport, options: LedgerConnectorOptions) {
     super(transport, options);
   }
 
   handleError(e: any) {
-    transport = undefined;
+    this.transport.close();
+
     if (e.message.includes(bolosErrorMessage)) {
       return bolosError;
     } else if (e.message.includes(ledgerDisconnectMessage)) {
@@ -86,9 +84,13 @@ export class LeapLedgerSigner extends LedgerSigner {
     }
   }
 
-  async getAccounts(): Promise<readonly AccountData[]> {
+  async getAccounts(closeTransport?: boolean): Promise<readonly AccountData[]> {
     try {
-      return await super.getAccounts();
+      const res = await super.getAccounts();
+      if (closeTransport) {
+        await this.transport.close();
+      }
+      return res;
     } catch (e) {
       throw this.handleError(e);
     }
@@ -96,7 +98,9 @@ export class LeapLedgerSigner extends LedgerSigner {
 
   async signAmino(signerAddress: string, signDoc: StdSignDoc): Promise<AminoSignResponse> {
     try {
-      return await super.signAmino(signerAddress, signDoc);
+      const res = await super.signAmino(signerAddress, signDoc);
+      await this.transport.close();
+      return res;
     } catch (e) {
       throw this.handleError(e);
     }
@@ -104,7 +108,9 @@ export class LeapLedgerSigner extends LedgerSigner {
 
   async showAddress(path?: HdPath): Promise<AddressAndPubkey> {
     try {
-      return await super.showAddress(path);
+      const res = await super.showAddress(path);
+      await this.transport.close();
+      return res;
     } catch (e) {
       throw this.handleError(e);
     }
@@ -166,16 +172,17 @@ export class LeapLedgerSigner extends LedgerSigner {
 */
 
 export async function importLedgerAccount(indexes?: Array<number>, primaryChain?: SupportedChain) {
+  let transport;
   try {
     const addressIndexes = indexes ?? [0, 1, 2, 3];
-    const transport = await getLedgerTransport();
+    transport = await getLedgerTransport();
     const hdPaths = addressIndexes.map((adIdx) => makeCosmoshubPath(adIdx));
     const ledgerSigner = new LeapLedgerSigner(transport, {
       hdPaths,
       prefix: ChainInfos[primaryChain ?? 'cosmos'].addressPrefix,
     });
 
-    const primaryChainAccount = await ledgerSigner.getAccounts();
+    const primaryChainAccount = await ledgerSigner.getAccounts(true);
     const chainWiseAddresses: Record<string, Array<{ address: string; pubKey: Uint8Array }>> = {};
     const enabledChains = Object.entries(ChainInfos).filter(
       (chain) => chain[1].enabled && chain[1].bip44.coinType !== '60' && chain[1].bip44.coinType !== '931',
@@ -193,7 +200,6 @@ export async function importLedgerAccount(indexes?: Array<number>, primaryChain?
       }
     }
 
-    await transport.close();
     return { primaryChainAccount, chainWiseAddresses };
   } catch (e) {
     transport = undefined;

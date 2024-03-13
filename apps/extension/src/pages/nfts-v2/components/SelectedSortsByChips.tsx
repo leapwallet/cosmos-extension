@@ -1,10 +1,9 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { sortStringArr, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import React from 'react'
 import { getChainName } from 'utils/getChainName'
-import { sortStringArr } from 'utils/strings'
 
 import { Chip } from './index'
 

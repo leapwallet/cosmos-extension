@@ -53,10 +53,15 @@ export function useInitChainInfos() {
           {},
         )
 
-        const _chains = {
-          ...betaChains,
-          ...enabledChains,
-        }
+        const allChains = { ...betaChains, ...enabledChains }
+        const sortedChains = Object.keys(allChains).sort((a, b) =>
+          a.toLowerCase().localeCompare(b.toLowerCase()),
+        )
+
+        const _chains: Record<string, any> = {}
+        sortedChains.map((key) => {
+          _chains[key] = allChains[key]
+        })
 
         const customEndpoints = JSON.parse(resp[CUSTOM_ENDPOINTS] ?? '{}')
 
@@ -112,8 +117,6 @@ export function useInitChainInfos() {
         }
       })
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }
 

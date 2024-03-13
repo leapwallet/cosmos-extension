@@ -48,7 +48,7 @@ export const SelectedAddressPreview: React.FC<SelectedAddressPreviewProps> = ({
           className='bg-gray-200 dark:bg-gray-800 !h-8 !w-8'
         />
         <Text size='md' className='text-gray-800 dark:text-gray-200 ml-2'>
-          {selectedAddress.ethAddress
+          {selectedAddress.ethAddress && selectedAddress.chainName !== 'injective'
             ? sliceAddress(selectedAddress.ethAddress)
             : selectedAddress.name}
         </Text>

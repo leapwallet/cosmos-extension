@@ -19,31 +19,43 @@ export function useInitDenoms() {
   const storage = useGetStorageLayer();
   const { setDenoms } = useDenomsStore();
 
-  const setResource = useCallback(async (resouce: any) => {
+  const setResource = useCallback(async (resource: any) => {
     const betaCW20Tokens = await storage.get(BETA_CW20_TOKENS);
     const betaNativeTokens = await storage.get(BETA_NATIVE_TOKENS);
 
     if (betaCW20Tokens) {
       let allBetaCW20Tokens = {};
       for (const chain in betaCW20Tokens) {
+        for (const coinMinimalDenom in betaCW20Tokens[chain]) {
+          if (resource[coinMinimalDenom]) {
+            delete betaCW20Tokens[chain][coinMinimalDenom];
+          }
+        }
+
         allBetaCW20Tokens = { ...allBetaCW20Tokens, ...betaCW20Tokens[chain] };
       }
 
-      setDenoms({ ...resouce, ...allBetaCW20Tokens });
-      return;
+      await storage.set(BETA_CW20_TOKENS, betaCW20Tokens);
+      resource = { ...resource, ...allBetaCW20Tokens };
     }
 
     if (betaNativeTokens) {
       let allBetaNativeTokens = {};
       for (const chain in betaNativeTokens) {
+        for (const coinMinimalDenom in betaNativeTokens[chain]) {
+          if (resource[coinMinimalDenom]) {
+            delete betaNativeTokens[chain][coinMinimalDenom];
+          }
+        }
+
         allBetaNativeTokens = { ...allBetaNativeTokens, ...betaNativeTokens[chain] };
       }
 
-      setDenoms({ ...resouce, ...allBetaNativeTokens });
-      return;
+      await storage.set(BETA_NATIVE_TOKENS, betaNativeTokens);
+      resource = { ...resource, ...allBetaNativeTokens };
     }
 
-    setDenoms(resouce);
+    setDenoms(resource);
   }, []);
 
   useEffect(() => {

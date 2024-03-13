@@ -4,12 +4,13 @@ import Text from '../text'
 
 type AlertStripProps = {
   message: React.ReactNode
-  bgColor: string
+  bgColor?: string
   alwaysShow?: boolean
   onHide?: VoidFunction
   className?: string
   timeOut?: number
   'data-testing-id'?: string
+  textClassName?: string
 }
 
 export default function AlertStrip({
@@ -19,6 +20,7 @@ export default function AlertStrip({
   onHide,
   className,
   timeOut = 8000,
+  textClassName,
   ...rest
 }: AlertStripProps) {
   const [show, setShow] = useState<boolean>(true)
@@ -52,7 +54,7 @@ export default function AlertStrip({
     >
       <Text
         size='sm'
-        className='font-bold text-white-100 text-center'
+        className={`font-bold text-center' ${textClassName ?? 'text-black-100'}`}
         data-testing-id={rest['data-testing-id']}
       >
         {message}

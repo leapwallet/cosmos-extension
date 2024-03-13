@@ -36,10 +36,11 @@ export function useSetActiveChain() {
   const queryClient = useQueryClient()
 
   return async (chain: SupportedChain, chainInfo?: ChainInfo) => {
-    if (isCompassWallet()) {
-      setActiveChain(chainInfos.seiTestnet2.key)
-      return
-    }
+    // if (isCompassWallet()) {
+    //   setActiveChain(chainInfos.seiTestnet2.key)
+    //   return
+    // }
+
     const storage = await browser.storage.local.get(['networkMap', KEYSTORE])
     const keystore = storage[KEYSTORE]
     if (keystore) {
@@ -79,16 +80,17 @@ export function useInitActiveChain() {
   const setActiveChain = useSetActiveChainWalletHooks()
   useEffect(() => {
     browser.storage.local.get(ACTIVE_CHAIN).then((storage) => {
-      if (isCompassWallet()) {
-        setActiveChain(chainInfos.seiTestnet2.key)
-        return
-      } else {
-        let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
-        if (!activeChain) {
-          activeChain = chainInfos.cosmos.key
-        }
-        setActiveChain(activeChain)
+      let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
+      const defaultActiveChain = isCompassWallet()
+        ? chainInfos.seiTestnet2.key
+        : chainInfos.cosmos.key
+      if (!activeChain) {
+        activeChain = defaultActiveChain
       }
+      if (isCompassWallet() && activeChain !== chainInfos.seiTestnet2.key) {
+        activeChain = defaultActiveChain
+      }
+      setActiveChain(activeChain)
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

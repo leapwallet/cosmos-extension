@@ -6,6 +6,7 @@ import {
   getOsmosisGasPriceSteps,
   useChainApis,
   useChainInfo,
+  useformatCurrency,
   useGasAdjustmentForChain,
   useGasPriceSteps,
   useGetTokenBalances,
@@ -104,9 +105,11 @@ export default function InputStakeAmountView({
     isLoading,
     setLedgerError,
     ledgerError,
+    tokenFiatValue,
   } = useStakeTx(mode, toValidator, fromValidator, [delegation as Delegation])
   const [gasLimit, setGasLimit] = useState<string>(recommendedGasLimit)
 
+  const [formatCurrency] = useformatCurrency()
   const gasAdjustment = useGasAdjustmentForChain()
 
   useEffect(() => {
@@ -246,6 +249,11 @@ export default function InputStakeAmountView({
         )}
         {token && mode === 'DELEGATE' && (
           <StakeInput
+            usdValue={
+              amount && tokenFiatValue
+                ? formatCurrency(new BigNumber(tokenFiatValue).times(amount))
+                : token.symbol
+            }
             name={token.symbol}
             amount={amount}
             stakeAllText={capitalize(mode.toLowerCase())}
@@ -259,6 +267,11 @@ export default function InputStakeAmountView({
         )}
         {delegation && mode !== 'DELEGATE' && (
           <StakeInput
+            usdValue={
+              amount && tokenFiatValue
+                ? formatCurrency(new BigNumber(tokenFiatValue).times(amount))
+                : activeChainInfo.denom
+            }
             name={activeChainInfo.denom}
             amount={amount}
             setAmount={setAmount}

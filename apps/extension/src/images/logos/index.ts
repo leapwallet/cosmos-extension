@@ -23,6 +23,7 @@ import NftLogo from './nft-logo.svg'
 import NomicFullnameLogo from './nomic-fullname-logo.svg'
 import Osmosis from './osmosis.svg'
 import Playstore from './playstore.svg'
+import SNS from './sns.svg'
 import SpaceId from './space-id.svg'
 import StargazeNames from './stargaze-names.svg'
 import TerraStation from './terra-station.svg'
@@ -140,6 +141,8 @@ export const getNameServiceLogo = (name: string) => {
       return ArchId
     case 'spaceIds':
       return SpaceId
+    case 'sns':
+      return SNS
     default:
       return GenericLight
   }
@@ -168,6 +171,7 @@ export {
   NftLogo,
   NomicFullnameLogo,
   Playstore,
+  SNS,
   StargazeNames,
   TerraStation,
   XLogo,

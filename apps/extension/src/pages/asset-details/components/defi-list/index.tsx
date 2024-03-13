@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useInvestData } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import { BigNumber } from 'bignumber.js'
@@ -26,8 +27,8 @@ function sortByDefiApr(a: any, b: any) {
 function DefiList({ tokenName }: { tokenName: string }) {
   const [selectedSortBy, setSelectedSortBy] = useState<string>('apr')
   const [sortingDirection, setSortingDirection] = useState<string>('dsc')
-  const [searchInput, setSearchInput] = useState<string>(tokenName)
-  const [filterList, setFilterList] = useState<string>('all')
+  const [searchInput] = useState<string>(tokenName)
+  const [filterList] = useState<string>('all')
 
   const investData: any = useInvestData()
 
@@ -67,6 +68,8 @@ function DefiList({ tokenName }: { tokenName: string }) {
         }
         return sortingDirection === 'asc' ? -1 * sortOrder : sortOrder
       })
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filterList, searchInput, selectedSortBy, sortingDirection])
 
   if (!investData?.data || sortedTokens.length === 0) return null

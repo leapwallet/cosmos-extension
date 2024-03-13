@@ -58,6 +58,7 @@ export function SearchModal() {
     handleLockWalletClick,
     handleSettingsClick,
     handleSwapClick,
+    handleNftsClick,
   } = useHardCodedActions()
 
   const activeSuggestions = useMemo(() => {
@@ -237,7 +238,12 @@ export function SearchModal() {
       }
 
       case 'redirect-internal': {
-        navigate(config.redirect_url ?? '')
+        if (actionName === 'View NFTs') {
+          handleNftsClick()
+        } else {
+          navigate(config.redirect_url ?? '')
+        }
+
         break
       }
     }

@@ -1,4 +1,4 @@
-import nameMatcha, { allowedTopLevelDomains } from '@leapwallet/name-matcha'
+import { allowedTopLevelDomains, registry } from '@leapwallet/name-matcha'
 import { useDebounceCallback } from 'hooks/useDebounceCallback'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -11,8 +11,11 @@ export const useNameServiceResolver = (queryAddress: string, network: 'mainnet' 
     async (queryAddress: string) => {
       try {
         setLoading(true)
-        nameMatcha.setNetwork(network)
-        const data = await nameMatcha.resolveAll(queryAddress, allowedTopLevelDomains)
+        registry.setNetwork(network)
+        const options = {
+          allowedTopLevelDomains,
+        }
+        const data = await registry.resolveAll(queryAddress, options)
         setData(data)
         // eslint-disable-next-line no-empty
       } catch (err) {
@@ -41,4 +44,5 @@ export const nameServices: Record<string, string> = {
   stargazeNames: 'Stargaze Names',
   archIds: 'Arch ID',
   spaceIds: 'Space ID',
+  sns: 'SNS',
 }

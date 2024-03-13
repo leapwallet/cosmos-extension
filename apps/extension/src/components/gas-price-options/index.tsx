@@ -19,7 +19,6 @@ import {
   useLowGasPriceStep,
   useNativeFeeDenom,
   useSelectedNetwork,
-  useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   DefaultGasEstimates,
@@ -27,7 +26,6 @@ import {
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { useChains } from '@leapwallet/elements-hooks'
 import { captureException } from '@sentry/react'
 import * as Sentry from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
@@ -48,19 +46,25 @@ import { imgOnError } from 'utils/imgOnError'
 import { GasPriceOptionsContext, GasPriceOptionsContextType, useGasPriceContext } from './context'
 import { SelectTokenModal } from './select-token-modal'
 
+type ExtendedNativeDenom = NativeDenom & { ibcDenom?: string }
+
 export const useDefaultGasPrice = (options?: {
   activeChain?: SupportedChain
   selectedNetwork?: 'mainnet' | 'testnet'
-  feeDenom?: NativeDenom
+  feeDenom?: ExtendedNativeDenom
 }) => {
   const lowGasPriceStep = useLowGasPriceStep(options?.activeChain)
   const nativeFeeDenom = useNativeFeeDenom(options?.activeChain, options?.selectedNetwork)
 
   const defaultPrice = useMemo(() => {
-    const feeDenom = options?.feeDenom ?? nativeFeeDenom
+    const feeDenom = options?.feeDenom ?? (nativeFeeDenom as ExtendedNativeDenom)
+
     const amount = new BigNumber(lowGasPriceStep)
     return {
-      gasPrice: GasPrice.fromUserInput(amount.toString(), feeDenom?.coinMinimalDenom ?? ''),
+      gasPrice: GasPrice.fromUserInput(
+        amount.toString(),
+        feeDenom?.ibcDenom ?? feeDenom?.coinMinimalDenom ?? '',
+      ),
     }
   }, [options, nativeFeeDenom, lowGasPriceStep])
 
@@ -114,7 +118,6 @@ const GasPriceOptions = ({
   const _selectedNetwork = useSelectedNetwork()
   const selectedNetwork = network ?? _selectedNetwork
   const nonNativeTokenGasLimitMultiplier = useRef<number>(1)
-  const { data: transactionConfig } = useTransactionConfigs()
 
   useEffect(() => {
     if (activeChain === 'osmosis') {
@@ -175,10 +178,14 @@ const GasPriceOptions = ({
     const fn = async () => {
       const dappFeeDenomData = feeTokensList.find((a) => a.ibcDenom === initialFeeDenom)
       const feeTokenData = dappFeeDenomData ?? chainNativeFeeTokenData
-      if (activeChain === 'osmosis' && feeTokenData && feeTokenData.ibcDenom !== 'uosmo') {
+      if (
+        activeChain === 'osmosis' &&
+        feeTokenData &&
+        ![feeTokenData.ibcDenom, feeTokenData.denom.coinMinimalDenom].includes('uosmo')
+      ) {
         const gasPriceStep = await getGasPricesForOsmosisFee(
           lcdUrl ?? '',
-          feeTokenData.ibcDenom ?? feeTokenData.denom.coinMinimalDenom,
+          feeTokenData.ibcDenom ?? '',
           baseGasPriceStep,
         )
         setFeeTokenData(() => ({ ...feeTokenData, gasPriceStep }))
@@ -742,7 +749,9 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
     if (
       activeChain === 'osmosis' &&
       selectedFeeTokenData &&
-      selectedFeeTokenData.ibcDenom !== 'uosmo'
+      ![selectedFeeTokenData.ibcDenom, selectedFeeTokenData.denom.coinMinimalDenom].includes(
+        'uosmo',
+      )
     ) {
       try {
         const gasPriceStep = await getGasPricesForOsmosisFee(

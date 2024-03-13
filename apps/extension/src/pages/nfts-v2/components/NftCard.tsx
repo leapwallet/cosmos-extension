@@ -63,6 +63,7 @@ export function NftCard({
             className={classNames('rounded', imgClassName)}
             onLoadedData={() => setImageIsLoading(false)}
             onError={() => setErrorInLoadingMP4NFT(true)}
+            controls
           >
             <source type='video/mp4' src={imgSrc} />
             Your browser does not support this video player.
