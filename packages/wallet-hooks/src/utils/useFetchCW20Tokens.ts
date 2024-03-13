@@ -2,11 +2,20 @@ import { CosmWasmChain, Cw20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/co
 import { useQuery } from '@tanstack/react-query';
 
 import { useActiveChain, useCW20TokensStore } from '../store';
-import { useGetStorageLayer } from './global-vars';
+import { cachedRemoteDataWithLastModified } from './cached-remote-data';
+import { storage, useGetStorageLayer } from './global-vars';
 import { initResourceFromS3 } from './initResourceFromS3';
 
 const CW20_TOKENS = 'cw20-tokens';
 const CW20_TOKENS_LAST_UPDATED_AT = 'cw20-tokens-last-updated-at';
+
+export function getCw20TokensSupportedChains(storage: storage): Promise<{ chains: string[] }> {
+  return cachedRemoteDataWithLastModified({
+    remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/denoms/cw20-chains.json',
+    storageKey: 'cw20-tokens-supported-chains',
+    storage,
+  });
+}
 
 export function useFetchCW20Tokens() {
   const activeChain = useActiveChain();
@@ -15,8 +24,10 @@ export function useFetchCW20Tokens() {
 
   useQuery(
     ['fetch-cw20-tokens', activeChain],
-    () => {
-      if (activeChain) {
+    async () => {
+      const { chains: cw20TokensSupportedChains } = await getCw20TokensSupportedChains(storage);
+
+      if (cw20TokensSupportedChains.includes(activeChain)) {
         const resourceKey = `${activeChain}-${CW20_TOKENS}`;
         const resourceURL = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${activeChain}/cw20.json`;
 

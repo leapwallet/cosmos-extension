@@ -80,6 +80,7 @@ export class SuggestChainInfoMsg extends Message<void> {
       currencies: result.currencies,
       feeCurrencies: result.feeCurrencies,
       features: result.features,
+      apiStatus: result?.apiStatus,
       theme: result.theme,
       image: result.image,
       chainRegistryPath: result.chainRegistryPath ?? result.bech32Config.bech32PrefixAccAddr,

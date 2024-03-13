@@ -21,8 +21,8 @@ import { sliceSearchWord } from 'utils/strings'
 import Browser from 'webextension-polyfill'
 
 import TokenCardSkeleton from '../../components/Skeletons/TokenCardSkeleton'
-import { SelectedTx } from './Activity'
 import { ActivityCard } from './ActivityCard'
+import { SelectedTx } from './ActivityLandingPage'
 
 export type ActivityListProps = {
   txResponse: TxResponse

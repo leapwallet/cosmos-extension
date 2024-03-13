@@ -123,9 +123,18 @@ export default function OnboardingSuccess() {
     },
   ]
 
+  const checkIsPinned = async () => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const userSettings = await chrome.action.getUserSettings()
+    setIsPinned(userSettings?.isOnToolbar)
+  }
+
   useEffect(() => {
     const checkPinned = setInterval(checkIsPinned, 2000)
     return () => clearInterval(checkPinned)
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chrome])
 
   const activeWalletCosmosAddress = useAddress('cosmos')
@@ -152,13 +161,6 @@ export default function OnboardingSuccess() {
       localStorage.removeItem('onboardingMethodChosen')
     }
   }, [activeWalletCosmosAddress])
-
-  const checkIsPinned = async () => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const userSettings = await chrome.action.getUserSettings()
-    setIsPinned(userSettings?.isOnToolbar)
-  }
 
   if (isCompassWallet()) {
     return (

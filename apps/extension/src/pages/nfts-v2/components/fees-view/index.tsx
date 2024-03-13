@@ -20,7 +20,7 @@ export const FeesView: React.FC<FeesViewProps> = ({
   nftDetails: NftDetailsType
   fee: StdFee
 }) => {
-  const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
+  const [showFeesSettingSheet] = useState(false)
   const defaultGasPrice = useDefaultGasPrice()
 
   const chainInfos = useChainInfos()
@@ -57,7 +57,9 @@ export const FeesView: React.FC<FeesViewProps> = ({
           //
         }}
         gasPriceOption={gasPriceOption}
-        onGasPriceOptionChange={() => {}}
+        onGasPriceOptionChange={() => {
+          //
+        }}
         error={gasError}
         setError={setGasError}
       >

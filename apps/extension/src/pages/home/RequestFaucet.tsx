@@ -128,7 +128,7 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
   const handleSubmit = async () => {
     try {
       if (getBlockChainFromAddress(address) === 'sei') {
-        window.open('https://app.sei.io/faucet', '_blank')
+        window.open('https://atlantic-2.app.sei.io/faucet', '_blank')
         return
       }
 
@@ -175,7 +175,7 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
         }
 
         if (faucetResponse.status === 200 && data?.status !== 'fail') {
-          invalidateBalances()
+          invalidateBalances(activeChain)
           setShowFaucetResp({
             status: 'success',
             msg: 'Your wallet will receive the tokens shortly',

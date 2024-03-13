@@ -17,14 +17,14 @@ import { motion } from 'framer-motion'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
 import { Images } from 'images'
-import { IBCSettings } from 'pages/send-v2/components/ibc-banner'
-import { SecondaryActionButton } from 'pages/send-v2/components/secondary-action-button'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
 
+import { IBCSettings } from '../ibc-banner'
+import { SecondaryActionButton } from '../secondary-action-button'
 import { ContactsSheet } from './contacts-sheet'
 import { ContactsMatchList, NameServiceMatchList } from './match-lists'
 import { MyWalletSheet } from './my-wallet-sheet'
@@ -152,6 +152,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     const allowedTopLevelDomains = [
       ...Object.keys(addressPrefixes), // for ibcdomains, icns, stargazenames
       'arch', // for archId
+      'sol', // for injective .sol domains by SNS
     ]
     // ex: leap.arch --> name = leap, domain = arch
     const [, domain] = recipientInputValue.split('.')
@@ -185,6 +186,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
       }
     }
     return undefined
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingContactMatch, recipientInputValue, selectedAddress, setSelectedAddress])
 
   const showContactsList = recipientInputValue.trim().length > 0 && contactsToShow.length > 0
@@ -341,8 +344,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
 
     // check if destination chain is supported
     if (destinationChain && ibcSupportData !== undefined) {
-      const destChainRegistryPath = chains[destinationChain as SupportedChain].chainRegistryPath
-
       if (customIbcChannelId) {
         setAddressError('')
       } else {

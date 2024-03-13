@@ -4,9 +4,10 @@ import {
   isValidAddressWithPrefix,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { useTransferReturnType } from '@leapwallet/elements-hooks/dist/use-transfer'
 import { useSecretWallet } from 'hooks/wallet/useScrtWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { assert } from 'utils/assert'
 import { useTxCallBack } from 'utils/txCallback'
 
@@ -19,6 +20,12 @@ export type SendContextType = Readonly<
       args: Omit<sendTokensParams, 'gasEstimate' | 'getWallet'>,
     ) => Promise<void>
     sameChain: boolean
+    transferData: useTransferReturnType | null
+    setTransferData: (val: useTransferReturnType) => void
+    isIbcUnwindingDisabled: boolean
+    setIsIbcUnwindingDisabled: (val: boolean) => void
+    pfmEnabled: boolean
+    setPfmEnabled: (val: boolean) => void
     ethAddress: string
     setEthAddress: React.Dispatch<React.SetStateAction<string>>
   } & ReturnType<typeof useSendModule>
@@ -37,6 +44,9 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
   const getWallet = useGetWallet()
   const currentWalletAddress = useAddress()
   const getSscrtWallet = useSecretWallet()
+  const [transferData, setTransferData] = useState<useTransferReturnType | null>(null)
+  const [isIbcUnwindingDisabled, setIsIbcUnwindingDisabled] = useState<boolean>(false)
+  const [pfmEnabled, setPfmEnabled] = useState<boolean>(true)
   const [ethAddress, setEthAddress] = useState('')
 
   const confirmSendTx = useCallback(
@@ -61,6 +71,10 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
     [confirmSend, getSscrtWallet, getWallet, selectedToken?.coinMinimalDenom, txCallback],
   )
 
+  useEffect(() => {
+    setIsIbcUnwindingDisabled(false)
+  }, [selectedToken, rest?.selectedAddress])
+
   const value = useMemo(() => {
     const fromChain = getBlockChainFromAddress(currentWalletAddress)
     const { selectedAddress } = rest
@@ -76,6 +90,12 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
       selectedToken,
       confirmSend: confirmSendTx,
       sameChain,
+      transferData,
+      setTransferData,
+      isIbcUnwindingDisabled,
+      setIsIbcUnwindingDisabled,
+      pfmEnabled,
+      setPfmEnabled,
       ...rest,
     } as const
   }, [
@@ -86,6 +106,12 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
     rest,
     selectedToken,
     tokenFiatValue,
+    transferData,
+    setTransferData,
+    isIbcUnwindingDisabled,
+    setIsIbcUnwindingDisabled,
+    pfmEnabled,
+    setPfmEnabled,
   ])
 
   return <SendContext.Provider value={value}>{children}</SendContext.Provider>

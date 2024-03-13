@@ -11,17 +11,18 @@ import { ComingSoon } from 'components/coming-soon'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
-import { NtrnProposalDetails, NtrnProposalList } from './neutron'
+import { NtrnProposalDetails, NtrnProposalList, NtrnProposalStatus } from './neutron'
 import ProposalDetails from './ProposalDetails'
 import ProposalList from './ProposalList'
+import { ProposalStatus } from './Status'
 
 function GeneralProposals() {
   usePageView(PageName.Governance)
 
   const [selectedProposal, setSelectedProposal] = useState<string | undefined>()
-  const { data: proposalsList, status, fetchMore } = useGovProposals()
+  const { data: proposalsList, status, fetchMore, shouldUseFallback } = useGovProposals()
 
   usePerformanceMonitor({
     page: 'governance',
@@ -42,6 +43,7 @@ function GeneralProposals() {
       selectedProp={selectedProposal}
       onBack={() => setSelectedProposal(undefined)}
       proposalList={proposalsList}
+      shouldUseFallback={shouldUseFallback}
     />
   )
 }
@@ -49,7 +51,7 @@ function GeneralProposals() {
 function NeutronProposals() {
   const [selectedProposal, setSelectedProposal] = useState<string | undefined>()
   const [allProposalsList, setAllProposalsList] = useState<Proposal[]>([])
-  const { data: proposalsList, status } = useGetNtrnProposals()
+  const { data: proposalsList, status, shouldPreferFallback } = useGetNtrnProposals()
 
   usePerformanceMonitor({
     page: 'governance',
@@ -58,25 +60,53 @@ function NeutronProposals() {
     description: 'loading state on governance page',
   })
 
-  useEffect(() => {
-    if (proposalsList) {
-      setAllProposalsList((prev) =>
-        [...prev, ...proposalsList].sort((a, b) => Number(b.proposal_id) - Number(a.proposal_id)),
-      )
+  const formatProposalStatus = (proposal: any): any => {
+    let status = proposal?.status
+    switch (proposal?.status) {
+      case ProposalStatus.PROPOSAL_STATUS_EXECUTED: {
+        status = NtrnProposalStatus.EXECUTED
+        break
+      }
+      case ProposalStatus.PROPOSAL_STATUS_REJECTED: {
+        status = NtrnProposalStatus.REJECTED
+        break
+      }
+      case ProposalStatus.PROPOSAL_STATUS_PASSED: {
+        status = NtrnProposalStatus.PASSED
+        break
+      }
+      case ProposalStatus.PROPOSAL_STATUS_IN_PROGRESS:
+      case ProposalStatus.PROPOSAL_STATUS_VOTING_PERIOD: {
+        status = NtrnProposalStatus.OPEN
+        break
+      }
     }
-  }, [proposalsList])
+    return {
+      ...proposal,
+      status,
+    }
+  }
+
+  const allProposals = useMemo(() => {
+    if (shouldPreferFallback) {
+      return proposalsList
+    }
+    return proposalsList?.map((proposal: any) => formatProposalStatus(proposal))
+  }, [proposalsList, shouldPreferFallback])
 
   return selectedProposal === undefined ? (
     <NtrnProposalList
       proposalListStatus={status}
-      proposalList={allProposalsList}
+      proposalList={allProposals}
+      shouldPreferFallback={shouldPreferFallback}
       onClick={(id) => setSelectedProposal(id)}
     />
   ) : (
     <NtrnProposalDetails
       selectedProp={selectedProposal}
       onBack={() => setSelectedProposal(undefined)}
-      proposalList={allProposalsList}
+      proposalList={allProposals}
+      shouldUseFallback={shouldPreferFallback}
     />
   )
 }

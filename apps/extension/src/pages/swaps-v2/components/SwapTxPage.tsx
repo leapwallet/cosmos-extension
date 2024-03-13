@@ -22,6 +22,8 @@ export function SwapTxPage({ onClose, setLedgerError }: SwapTxPageProps) {
     gasEstimate,
     feeDenom,
     gasOption,
+    refetchSourceBalances,
+    refetchDestinationBalances,
   } = useSwapContext()
 
   return (
@@ -40,6 +42,8 @@ export function SwapTxPage({ onClose, setLedgerError }: SwapTxPageProps) {
       feeDenom={feeDenom}
       gasOption={gasOption}
       setLedgerError={setLedgerError}
+      refetchSourceBalances={refetchSourceBalances}
+      refetchDestinationBalances={refetchDestinationBalances}
     />
   )
 }

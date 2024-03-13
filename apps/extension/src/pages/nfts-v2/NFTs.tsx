@@ -1,3 +1,4 @@
+import { NftPage } from '@leapwallet/cosmos-wallet-hooks'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
 import React, { useState } from 'react'
@@ -7,7 +8,6 @@ import {
   CollectionDetails,
   NftContextProvider,
   NftDetails,
-  NftPage,
   ShowNfts,
 } from './index'
 

@@ -7,7 +7,7 @@ export const useGetIBCSupport = (chain: SupportedChain) => {
   const { chains } = useChainsStore();
 
   const chainInfo = chains[chain];
-  const path = chainInfo.chainRegistryPath;
+  const path = chainInfo?.chainRegistryPath;
 
   return useQuery<Record<string, boolean>>({
     queryKey: ['ibc-support-data', path],

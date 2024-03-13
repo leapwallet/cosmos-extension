@@ -36,6 +36,7 @@ export namespace LeapWalletApi {
     readonly forcePrimaryAddress?: string;
     readonly forceWalletAddress?: string;
     readonly forceChain?: string;
+    readonly amount?: number; // $value of in-amount
   };
 
   export type OperateCosmosTx = (info: LogInfo) => Promise<void>;
@@ -151,9 +152,10 @@ export namespace LeapWalletApi {
   ): Promise<MarketPricesResponse> {
     try {
       const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
+      currencySelected = currencySelected ?? Currency.Usd;
 
-      if (coingeckoPrices[tokens[0]]) {
-        return { [tokens[0]]: coingeckoPrices[tokens[0]] };
+      if (coingeckoPrices[currencySelected] && coingeckoPrices[currencySelected][tokens[0]]) {
+        return { [tokens[0]]: coingeckoPrices[currencySelected][tokens[0]] };
       } else {
         if (!platforms[chain]) {
           throw new Error();
@@ -357,7 +359,7 @@ export namespace LeapWalletApi {
       thorchain: 'THOR_CHAIN' as CosmosBlockchain,
       odin: 'ODIN_CHAIN' as CosmosBlockchain,
     };
-    return blockchains[activeChain] ?? activeChain.toUpperCase();
+    return blockchains[activeChain] ?? activeChain?.toUpperCase();
   }
 
   export function sanitizeUrl(url: string) {
@@ -404,6 +406,7 @@ export namespace LeapWalletApi {
         forcePrimaryAddress,
         forceWalletAddress,
         forceChain,
+        amount,
       }) => {
         const walletAddress = forceWalletAddress || address;
         const wallet = forcePrimaryAddress || (primaryAddress ?? address);
@@ -424,6 +427,12 @@ export namespace LeapWalletApi {
           feeDenomination,
           feeQuantity,
         } as CosmosTxRequest;
+
+        if (amount !== undefined) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          logReq.amount = amount;
+        }
 
         try {
           if (isCompassWallet) {

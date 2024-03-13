@@ -4,8 +4,6 @@ import {
   useChainApis,
   useFeeTokens,
   useTransactionConfigs,
-  validateCosmosFee,
-  validateOsmosisFee,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   denoms,
@@ -99,6 +97,8 @@ export function useFeeValidation(chain: SupportedChain): UseFeeValidationReturn 
       if (!isFeeValid) onValidationFailed(feeDenomData, isFeeValid)
       return isFeeValid
     },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [feeTokens, txConfig, status, lcdUrl],
   )
 }

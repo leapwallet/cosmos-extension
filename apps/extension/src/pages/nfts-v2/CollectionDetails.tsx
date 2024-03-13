@@ -1,4 +1,5 @@
 import {
+  Collection,
   OwnedCollectionTokenInfo,
   TokensListByCollection,
   useGetOwnedCollection,
@@ -14,7 +15,7 @@ import { Colors } from 'theme/colors'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 
 import { ChainHeaderCollectionCard, CollectionAvatar } from './components'
-import { Collection, useNftContext } from './context'
+import { useNftContext } from './context'
 
 type OwnedCollectionDetailsProps = {
   collection: Collection
@@ -26,7 +27,7 @@ function OwnedCollectionDetails({ collection, nfts }: OwnedCollectionDetailsProp
   const hiddenNfts = useHiddenNFTs()
 
   const { data, status, fetchMore } = useGetOwnedCollection(
-    collection.tokensListByCollection as TokensListByCollection,
+    (collection.tokensListByCollection ?? []) as TokensListByCollection,
     {
       forceChain: collection.forceChain as SupportedChain,
       forceNetwork: collection.forceNetwork as 'mainnet' | 'testnet',

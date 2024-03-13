@@ -33,7 +33,9 @@ import Browser from 'webextension-polyfill'
 import { useNftContext } from '../context'
 import { ManageCollectionsProps, NftAvatar, NftToggleCard, Text as NftText } from './index'
 
-export function AddCollection({ isVisible, onClose }: ManageCollectionsProps) {
+type AddCollectionProps = Omit<ManageCollectionsProps, 'openAddCollectionSheet'>
+
+export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
   const activeNetwork = useSelectedNetwork()
@@ -44,7 +46,7 @@ export function AddCollection({ isVisible, onClose }: ManageCollectionsProps) {
   const [showSelectChain, setShowSelectChain] = useState(false)
   const [enteredCollection, setEnteredCollection] = useState('')
   const [selectedChain, setSelectedChain] = useState<SupportedChain>(
-    isCompassWallet() ? 'seiTestnet2' : ('' as SupportedChain),
+    isCompassWallet() ? activeChain : ('' as SupportedChain),
   )
   const [nftInfo, setNftInfo] = useState<{ [key: string]: any }>({})
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
@@ -64,6 +66,10 @@ export function AddCollection({ isVisible, onClose }: ManageCollectionsProps) {
 
   const activeAddress = activeWallet?.addresses[selectedChain] ?? ''
   const { rpcUrl } = useChainApis(chain, forceNetwork)
+
+  useEffect(() => {
+    setSelectedChain(isCompassWallet() ? activeChain : ('' as SupportedChain))
+  }, [activeChain])
 
   useEffect(() => {
     if (enteredCollection.length !== 0 && rpcUrl && selectedChain) {
@@ -275,6 +281,7 @@ export function AddCollection({ isVisible, onClose }: ManageCollectionsProps) {
       </BottomSheet>
 
       <SelectChainSheet
+        chainsToShow={isCompassWallet() ? [chainInfos[activeChain].chainRegistryPath] : undefined}
         onPage='AddCollection'
         isVisible={showSelectChain}
         onClose={() => setShowSelectChain(false)}

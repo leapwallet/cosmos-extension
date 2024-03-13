@@ -38,12 +38,10 @@ import {
   ParsedMessageType,
 } from '@leapwallet/parser-parfait'
 import { captureException } from '@sentry/react'
-import * as Sentry from '@sentry/react'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
 import { ErrorCard } from 'components/ErrorCard'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
-import { useGasPriceContext } from 'components/gas-price-options/context'
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
@@ -52,7 +50,7 @@ import { Tabs } from 'components/tabs'
 import Text from 'components/text'
 import { walletLabels } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
-import { BG_RESPONSE, SIGN_REQUEST } from 'config/storage-keys'
+import { BG_RESPONSE } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
@@ -66,7 +64,6 @@ import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
-import { DEBUG } from 'utils/debug'
 import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
 import { trim } from 'utils/strings'
@@ -488,8 +485,6 @@ const SignTransaction = ({
           throw new Error('Could not sign transaction')
         }
 
-        const bgResponse = JSON.stringify(data)
-
         isApprovedRef.current = true
         logDirectTx(
           data as DirectSignResponse,
@@ -655,8 +650,6 @@ const SignTransaction = ({
         } catch (_) {
           //
         }
-
-        const bgResponse = JSON.stringify(data)
 
         isApprovedRef.current = true
 
@@ -1099,7 +1092,7 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
 
     const [txnData, setTxnData] = useState<any | null>(null)
     const [chainId, setChainId] = useState<string>()
-    const [error, setError] = useState<{
+    const [error] = useState<{
       message: string
       code: string
     } | null>(null)
@@ -1146,6 +1139,8 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
       return () => {
         browser.runtime.onMessage.removeListener(signTxEventHandler)
       }
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     if (chain === activeChain && txnData && chainId) {

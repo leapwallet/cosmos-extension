@@ -1,8 +1,10 @@
 import { Buttons, LineDivider } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
+import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { ReactElement } from 'react'
 import { ReactNode } from 'react'
+import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 export enum HeaderActionType {
@@ -43,6 +45,7 @@ export type NftAction = {
   readonly onClick: () => void
   readonly imgSrc: string
   readonly 'data-testing-id'?: string
+  readonly disabled?: boolean
 }
 
 export type HeaderProps = {
@@ -60,6 +63,7 @@ export type HeaderProps = {
 
 export default function NftV2Header(props: HeaderProps): ReactElement {
   const { title, action, imgSrc, size = 'normal', topColor, onImgClick, nftAction } = props
+  const defaultTokenLogo = useDefaultTokenLogo()
 
   return (
     <>
@@ -85,8 +89,16 @@ export default function NftV2Header(props: HeaderProps): ReactElement {
                 </div>
                 <div className='border border-gray-100 dark:border-gray-800 border-[0.25px] h-[25px]' />
                 <button
+                  disabled={nftAction?.disabled}
                   onClick={nftAction?.onClick}
-                  className='h-[40px] w-[41px] py-2 pr-4 pl-2 flex cursor-pointer border-none items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800'
+                  className={classNames(
+                    'h-[40px] w-[41px] py-2 pr-4 pl-2 flex border-none items-center justify-center',
+                    {
+                      'hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer':
+                        !nftAction?.disabled,
+                      'bg-gray-400 dark:bg-[#14100f] cursor-not-allowed': nftAction?.disabled,
+                    },
+                  )}
                 >
                   <img className='invert dark:invert-0' src={nftAction?.imgSrc} alt='NFTs' />
                 </button>
@@ -109,6 +121,7 @@ export default function NftV2Header(props: HeaderProps): ReactElement {
               <img
                 src={imgSrc}
                 className={classNames('h-7 w-7', { 'w-[20px] h-[20px]': onImgClick })}
+                onError={imgOnError(defaultTokenLogo)}
               />
               {onImgClick !== undefined && (
                 <img src={Images.Misc.FilledArrowDown} className='h-1.5 w-1.5 ml-2.5' />

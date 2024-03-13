@@ -52,7 +52,8 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:serve": "vitepress serve docs",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "6.5.0",
@@ -70,7 +71,9 @@
     "npm-run-all": "4.1.5",
     "prettier": "2.7.1",
     "vitepress": "1.0.0-alpha.29",
-    "vue": "3.3.4"
+    "vue": "3.3.4" ,
+    "patch-package": "8.0.0",
+    "postinstall-postinstall": "2.1.0"
   },
   "dependencies": {
     "axios": "1.2.1",
@@ -85,7 +88,6 @@
     "snakecase-keys": "5.4.1",
     "typescript": "5.3.3",
     "@types/react": "17.0.2",
-    "@types/react-dom": "17.0.2",
-    "cosmjs-types": "0.8.0"
+    "@types/react-dom": "17.0.2"
   }
 }

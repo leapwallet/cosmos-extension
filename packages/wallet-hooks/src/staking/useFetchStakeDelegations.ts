@@ -52,14 +52,17 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
 
       const denomFiatValue = await fetchCurrency(
         '1',
-        denom.coinGeckoId,
-        denom.chain as SupportedChain,
+        denom?.coinGeckoId,
+        denom?.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
       );
 
-      delegation_responses.map(
-        (r) => (r.balance.amount = fromSmall(r.balance.amount, denoms[r.balance.denom]?.coinDecimals ?? 6)),
-      );
+      delegation_responses.forEach((delegation) => {
+        const _denom = delegation.balance.denom;
+        const decimals = denoms[_denom]?.coinDecimals ?? activeChainInfo.nativeDenoms?.[_denom]?.coinDecimals ?? 6;
+
+        delegation.balance.amount = fromSmall(delegation.balance.amount, decimals);
+      });
 
       const rawDelegations: Record<string, Delegation> = delegation_responses.reduce(
         (a, v) => ({ ...a, [v.delegation.validator_address]: v }),

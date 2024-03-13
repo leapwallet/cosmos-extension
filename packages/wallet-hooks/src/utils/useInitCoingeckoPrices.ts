@@ -1,8 +1,9 @@
+import { Currency } from '@leapwallet/leap-api-js';
 import { useQuery } from '@tanstack/react-query';
 
 import { LeapWalletApi } from '../apis';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
-import { useCoingeckoPricesStore } from '../store';
+import { getCoingeckoPricesStoreSnapshot, useCoingeckoPricesStore } from '../store';
 
 export function useInitCoingeckoPrices() {
   const [preferredCurrency] = useUserPreferredCurrency();
@@ -12,8 +13,22 @@ export function useInitCoingeckoPrices() {
   useQuery(
     ['query-init-coingecko-prices', selectedCurrency],
     async function () {
-      const { data } = await LeapWalletApi.getEcosystemMarketPrices(selectedCurrency);
-      setCoingeckoPrices(data);
+      const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
+
+      if (Object.keys(coingeckoPrices).length && coingeckoPrices[selectedCurrency]) {
+        let newCoingeckoPrices = { ...coingeckoPrices };
+
+        for (const currency in coingeckoPrices) {
+          if (currency !== selectedCurrency && currency !== Currency.Usd) continue;
+          const { data } = await LeapWalletApi.getEcosystemMarketPrices(currency as Currency);
+          newCoingeckoPrices = { ...newCoingeckoPrices, [currency]: data };
+        }
+
+        setCoingeckoPrices(newCoingeckoPrices);
+      } else {
+        const { data } = await LeapWalletApi.getEcosystemMarketPrices(selectedCurrency);
+        setCoingeckoPrices({ ...coingeckoPrices, [selectedCurrency]: data });
+      }
     },
     { refetchOnWindowFocus: true },
   );

@@ -3,7 +3,10 @@ import {
   useActiveChain,
   useChainApis,
   useDenoms,
+  useGetChains,
   useSelectedNetwork,
+  useSetBetaCW20Tokens,
+  useSetBetaNativeTokens,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { isEthAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { getChainInfo } from '@leapwallet/cosmos-wallet-sdk'
@@ -11,7 +14,6 @@ import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { InputComponent } from 'components/input-component/InputComponent'
 import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
-import { useSetBetaCW20Tokens, useSetBetaNativeTokens } from 'hooks/useSetBetaCW20Tokens'
 import { Images } from 'images'
 import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -24,6 +26,7 @@ function AddTokenForm() {
   const navigate = useNavigate()
   const locationState = useLocation().state as null | { coinMinimalDenom: string }
   const activeChain = useActiveChain()
+  const chains = useGetChains()
 
   const denoms = useDenoms()
   const selectedNetwork = useSelectedNetwork()
@@ -40,6 +43,8 @@ function AddTokenForm() {
     chain: activeChain,
   })
   const [isAddingCw20Token, setIsAddingCw20Token] = useState(false)
+  const [foundAsset, setFoundAsset] = useState(false)
+  const [fetchingTokenInfo, setFetchingTokenInfo] = useState(false)
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [loading, setLoading] = useState(false)
@@ -48,36 +53,46 @@ function AddTokenForm() {
   const coinMinimalDenomRef = useRef<HTMLInputElement>(null)
 
   const fetchTokenInfo = async (event: ChangeEvent<HTMLInputElement>) => {
-    const coinMinimalDenom = event.currentTarget.value.trim()
-    if (!coinMinimalDenom) {
+    let coinMinimalDenom = event.currentTarget.value.trim()
+    if (!coinMinimalDenom && coinMinimalDenom.toLowerCase().startsWith('ibc/')) {
       return
     }
 
+    setFetchingTokenInfo(true)
+    setIsAddingCw20Token(false)
     let foundAsset = false
+
     try {
       const chain = await getChainInfo(activeChain, selectedNetwork === 'testnet')
 
       if (chain && chain.assets) {
         for (const asset of chain.assets) {
-          let _denom = asset.denom
-          let _coinMinimalDenom = coinMinimalDenom
+          let _denom = asset.denom.trim()
+          let isCw20 = false
 
           if (!_denom) {
             continue
           }
 
-          if (_denom.includes('cw20:')) {
+          if (_denom.startsWith('cw20:')) {
+            isCw20 = true
             _denom = _denom.slice(5)
           }
 
-          if (_coinMinimalDenom.includes('cw20:')) {
-            _coinMinimalDenom = _coinMinimalDenom.slice(5)
+          if (coinMinimalDenom.startsWith('cw20:')) {
+            coinMinimalDenom = coinMinimalDenom.slice(5)
           }
 
-          if (_denom === _coinMinimalDenom) {
+          if (_denom.toLowerCase() === coinMinimalDenom.toLowerCase()) {
             const { name, symbol, image, decimals, coingecko_id } = asset
-
             foundAsset = true
+
+            if (isCw20) {
+              setIsAddingCw20Token(true)
+            } else {
+              setIsAddingCw20Token(false)
+            }
+
             setTokenInfo((prevValue) => ({
               ...prevValue,
               name: name,
@@ -102,6 +117,8 @@ function AddTokenForm() {
 
         if (typeof result !== 'string' && result.symbol) {
           foundAsset = true
+          setIsAddingCw20Token(true)
+
           setTokenInfo((prevValue) => ({
             ...prevValue,
             name: result.name,
@@ -109,9 +126,11 @@ function AddTokenForm() {
             coinDecimals: result.decimals,
             coinMinimalDenom,
           }))
+        } else {
+          setIsAddingCw20Token(false)
         }
       } catch (_) {
-        //
+        setIsAddingCw20Token(false)
       }
     }
 
@@ -130,6 +149,9 @@ function AddTokenForm() {
         //
       }
     }
+
+    setFoundAsset(foundAsset)
+    setFetchingTokenInfo(false)
   }
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -143,6 +165,8 @@ function AddTokenForm() {
           error = 'Token with same minimal denom already exists'
         } else if (_value.startsWith('erc20/') || isEthAddress(_value)) {
           error = "We don't support adding erc20 token yet."
+        } else if (_value.startsWith('ibc/')) {
+          error = "We don't support adding ibc token yet."
         }
       } else if (name === 'coinDecimals' && isNotValidNumber(value)) {
         error = 'Incorrect decimal value'
@@ -198,24 +222,42 @@ function AddTokenForm() {
     navigate('/')
   }
 
-  const disableSubmit = !coinDenom || !coinMinimalDenom || !coinDecimals
+  const showWarning =
+    !fetchingTokenInfo && !foundAsset && coinMinimalDenom && !errors.coinMinimalDenom
+  const disableAddToken =
+    !coinDenom ||
+    !coinMinimalDenom ||
+    !coinDecimals ||
+    loading ||
+    fetchingTokenInfo ||
+    !!errors.coinMinimalDenom ||
+    !!errors.coinDenom ||
+    !!errors.coinDecimals ||
+    !!errors.coinGeckoId ||
+    !!errors.name ||
+    !!errors.icon
 
   return (
     <form className='mx-auto w-[344px] mb-5' onSubmit={handleSubmit}>
       <InputComponent
-        placeholder={`Coin Minimal Denom (Ex: ${
+        placeholder={`Coin minimal denom (ex: ${
           isCompassWallet() ? 'sei16...xx00' : 'juno1...5awr'
         })`}
         value={coinMinimalDenom}
         name='coinMinimalDenom'
         onChange={handleChange}
         error={errors.coinMinimalDenom}
+        warning={
+          showWarning
+            ? `Make sure the coin minimal denom is correct and it belongs to ${chains[activeChain].chainName} chain`
+            : ''
+        }
         onBlur={fetchTokenInfo}
         ref={coinMinimalDenomRef}
       />
 
       <InputComponent
-        placeholder={`Coin Denom (Ex: ${isCompassWallet() ? 'ECLIP' : 'NETA'})`}
+        placeholder={`Coin denom (ex: ${isCompassWallet() ? 'ECLIP' : 'NETA'})`}
         value={coinDenom}
         name='coinDenom'
         onChange={handleChange}
@@ -223,7 +265,7 @@ function AddTokenForm() {
       />
 
       <InputComponent
-        placeholder='Coin Decimals (Ex: 6)'
+        placeholder='Coin decimals (ex: 6)'
         value={coinDecimals}
         name='coinDecimals'
         onChange={handleChange}
@@ -231,7 +273,7 @@ function AddTokenForm() {
       />
 
       <InputComponent
-        placeholder='Token Name (Optional)'
+        placeholder='Token name (optional)'
         value={name}
         name='name'
         onChange={handleChange}
@@ -239,7 +281,7 @@ function AddTokenForm() {
       />
 
       <InputComponent
-        placeholder='Coin Gecko ID (Optional)'
+        placeholder='Coin gecko id (optional)'
         value={coinGeckoId}
         name='coinGeckoId'
         onChange={handleChange}
@@ -247,26 +289,18 @@ function AddTokenForm() {
       />
 
       <InputComponent
-        placeholder='Icon URL (Optional)'
+        placeholder='Icon url (optional)'
         value={icon}
         name='icon'
         onChange={handleChange}
         error={errors.icon}
       />
 
-      <label
-        className='cursor-pointer flex flex-row items-center mb-4 text-base text-gray-400'
-        htmlFor='cw20-checkbox'
-      >
-        <input
-          type='checkbox'
-          id='cw20-checkbox'
-          className='mr-2 h-4 w-4 bg-black-50'
-          checked={isAddingCw20Token}
-          onChange={(e) => setIsAddingCw20Token(e.target.checked)}
-        />
-        Are you adding a cw20 token?
-      </label>
+      {fetchingTokenInfo ? (
+        <p className='font-bold text-gray-900 dark:text-gray-50 text-center mb-2'>
+          Finding token info...
+        </p>
+      ) : null}
 
       <div className='flex gap-x-4 mt-3'>
         <Buttons.Generic
@@ -282,7 +316,7 @@ function AddTokenForm() {
           className='rounded-2xl w-full font-bold py-3 text-gray-900 dark:text-white-100 relative h-12'
           style={{ backgroundColor: Colors.getChainColor(activeChain), boxShadow: 'none' }}
           type='submit'
-          disabled={loading || disableSubmit}
+          disabled={disableAddToken}
         >
           Add Token
         </Buttons.Generic>
@@ -319,7 +353,7 @@ export function AddToken() {
                 Caution:
               </Text>
               <Text size='sm' color='font-bold dark:text-white-100 text-gray-900'>
-                Only add token you trust.
+                Only add tokens you trust.
               </Text>
             </div>
           </div>

@@ -3,8 +3,11 @@ dist
 build.zip
 yalc.lock
 .env.production
+.env.canary
 .env.development
 .env.production.compass
+.env.canary.compass
 builds
+canary-builds
 builds.zip
 coverage

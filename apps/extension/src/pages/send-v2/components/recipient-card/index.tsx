@@ -1,9 +1,13 @@
 import {
   SelectedAddress,
+  sliceWord,
   useActiveChain,
+  useActiveWallet,
   useAddress,
   useAddressPrefixes,
   useChainsStore,
+  useFeatureFlags,
+  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getBech32Address,
@@ -11,10 +15,13 @@ import {
   isValidAddress,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { Asset, useChains, useSkipDestinationChains } from '@leapwallet/elements-hooks'
 import bech32 from 'bech32'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import Text from 'components/text'
+import { LEDGER_DISABLED_COINTYPES } from 'config/config'
 import { motion } from 'framer-motion'
+import { useManageChainData } from 'hooks/settings/useManageChains'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -26,12 +33,12 @@ import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
 
-import { IBCSettings } from '../ibc-banner'
-import { SecondaryActionButton } from '../secondary-action-button'
 import { ContactsSheet } from './contacts-sheet'
-import { ContactsMatchList, NameServiceMatchList } from './match-lists'
+import { IBCSettings } from './ibc-banner'
+import { NameServiceMatchList } from './match-lists'
 import { MyWalletSheet } from './my-wallet-sheet'
 import SaveAddressSheet from './save-address-sheet'
+import { SecondaryActionButton } from './secondary-action-button'
 import { SelectedAddressPreview } from './selected-address-preview'
 
 type RecipientCardProps = {
@@ -52,22 +59,25 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     ethAddress,
     selectedAddress,
     setSelectedAddress,
-    ibcSupportData,
     addressError,
     setAddressError,
     isIBCTransfer,
     setMemo,
-    customIbcChannelId,
     setCustomIbcChannelId,
     setEthAddress,
+    selectedToken,
+    isIbcUnwindingDisabled,
   } = useSendContext()
 
   const { chains } = useChainsStore()
+  const [manageChains] = useManageChainData()
   const currentWalletAddress = useAddress()
   const addressPrefixes = useAddressPrefixes()
   const activeChain = useActiveChain()
   const activeNetwork = useSelectedNetwork()
   const activeChainInfo = chains[activeChain]
+  const { data: elementsChains } = useChains()
+  const { data: featureFlags } = useFeatureFlags()
 
   const recipientValueToShow = useMemo(() => {
     if (ethAddress) {
@@ -81,10 +91,15 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const existingContactMatch = AddressBook.useGetContact(recipientValueToShow)
   const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
   const defaultTokenLogo = useDefaultTokenLogo()
+  const activeWallet = useActiveWallet()
 
   const fillRecipientInputValue = useCallback(
     (value: string) => {
-      if (Number(activeChainInfo.bip44.coinType) === 60 && value.toLowerCase().startsWith('0x')) {
+      if (
+        Number(activeChainInfo.bip44.coinType) === 60 &&
+        value.toLowerCase().startsWith('0x') &&
+        activeChainInfo.key !== 'injective'
+      ) {
         try {
           setAddressError(undefined)
           const bech32Address = getBech32Address(activeChainInfo.addressPrefix, value)
@@ -185,6 +200,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     const allowedTopLevelDomains = [
       ...Object.keys(addressPrefixes), // for ibcdomains, icns, stargazenames
       'arch', // for archId
+      'sol', // for injective .sol domains by SNS
     ]
     // ex: leap.arch --> name = leap, domain = arch
     const [, domain] = recipientInputValue.split('.')
@@ -233,6 +249,40 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     setSelectedAddress,
   ])
 
+  const asset: Asset = {
+    denom: selectedToken?.ibcDenom || selectedToken?.coinMinimalDenom || '',
+    symbol: selectedToken?.symbol || '',
+    logoUri: selectedToken?.img || '',
+    decimals: selectedToken?.coinDecimals || 0,
+    originDenom: selectedToken?.coinMinimalDenom || '',
+    denomTracePath: selectedToken?.ibcChainInfo
+      ? `transfer/${selectedToken.ibcChainInfo?.channelId}`
+      : '',
+  }
+
+  const sourceChain = elementsChains?.find((chain) => chain.chainId === chains[activeChain].chainId)
+
+  const { data: skipSupportedDestinationChains } =
+    featureFlags?.ibc?.extension === 'active'
+      ? useSkipDestinationChains(asset, sourceChain, activeNetwork === 'mainnet')
+      : { data: null }
+  const skipSupportedDestinationChainsIDs: string[] =
+    skipSupportedDestinationChains
+      ?.filter((chain) => {
+        if (
+          (activeWallet?.walletType === WALLETTYPE.LEDGER &&
+            LEDGER_DISABLED_COINTYPES.includes(chain.coinType)) ||
+          !activeWallet?.addresses[chain.key as SupportedChain]
+        ) {
+          return false
+        } else {
+          return true
+        }
+      })
+      .map((chain) => {
+        return chain.chainId
+      }) || []
+
   const showContactsList = recipientInputValue.trim().length > 0 && contactsToShow.length > 0
   const isSavedContactSelected =
     selectedAddress?.address === recipientInputValue && selectedAddress?.selectionType === 'saved'
@@ -243,7 +293,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     !existingContactMatch &&
     recipientInputValue !== currentWalletAddress &&
     !ownWalletMatch &&
-    !showNameServiceResults
+    !showNameServiceResults &&
+    !addressError?.includes('IBC transfers not supported between')
   const showContactsButton =
     !isSavedContactSelected &&
     !showAddToContacts &&
@@ -276,6 +327,11 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   }, [currentWalletAddress, recipientInputValue, setAddressError, showNameServiceResults])
 
   useEffect(() => {
+    // Autofill of recipientInputValue if passed in information
+    if (selectedAddress?.information?.autofill) {
+      setRecipientInputValue(selectedAddress?.address || '')
+      return
+    }
     if (recipientInputValue === selectedAddress?.address) {
       return
     }
@@ -314,7 +370,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   ])
 
   useEffect(() => {
-    if (existingContactMatch) {
+    if (existingContactMatch && selectedAddress) {
       const shouldUpdate =
         existingContactMatch.ethAddress !== selectedAddress?.ethAddress ||
         existingContactMatch.address !== selectedAddress?.address ||
@@ -389,46 +445,63 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
     // ibc not supported on testnet
     if (isIBC && activeNetwork === 'testnet') {
-      setAddressError(`IBC not supported on testnet`)
+      setAddressError(`IBC transfers not supported on testnet.`)
       return
     }
 
-    if (isIBC && destinationChain && isCompassWallet() && activeChain === 'seiTestnet2') {
-      setAddressError(
-        `IBC not supported between ${chains[destinationChain as SupportedChain].chainName} and Sei`,
-      )
-      return
+    if (isIBC && destinationChain && isCompassWallet()) {
+      const compassChains = manageChains.filter((chain) => chain.chainName !== 'cosmos')
+
+      if (!compassChains.find((chain) => chain.chainName === destinationChain)) {
+        const destinationChainName = chains[destinationChain as SupportedChain].chainName
+        const sourceChainName = chains[activeChain].chainName
+
+        setAddressError(`IBC not supported between ${destinationChainName} and ${sourceChainName}`)
+        return
+      }
     }
 
     // check if destination chain is supported
-    if (destinationChain && ibcSupportData !== undefined) {
-      const destChainRegistryPath = chains[destinationChain as SupportedChain].chainRegistryPath
+    if (
+      !isIbcUnwindingDisabled &&
+      chains[destinationChain as SupportedChain]?.apiStatus === false
+    ) {
+      setAddressError(
+        `IBC transfers not supported between ${
+          chains[destinationChain as SupportedChain]?.chainName || 'this address'
+        } and ${chains[activeChain].chainName}.`,
+      )
+      return
+    } else {
+      setAddressError(undefined)
+    }
 
-      if (
-        ibcSupportData[destChainRegistryPath] ||
-        ibcSupportData[destinationChain] ||
-        customIbcChannelId
-      ) {
-        setAddressError(undefined)
-      } else {
-        setAddressError(
-          `IBC not supported between ${chains[destinationChain as SupportedChain].chainName} and ${
-            chains[activeChain].chainName
-          }`,
-        )
-      }
+    if (
+      !isIbcUnwindingDisabled &&
+      skipSupportedDestinationChainsIDs?.length > 0 &&
+      !skipSupportedDestinationChainsIDs.includes(
+        chains[destinationChain as SupportedChain]?.chainId,
+      )
+    ) {
+      setAddressError(
+        `IBC transfers not supported between ${
+          chains[destinationChain as SupportedChain]?.chainName || 'this address'
+        } and ${chains[activeChain].chainName} for ${sliceWord(selectedToken?.symbol)} token.`,
+      )
+    } else {
+      setAddressError(undefined)
     }
   }, [
     activeChain,
     activeNetwork,
     activeChainInfo,
-    ibcSupportData,
     selectedAddress,
     setAddressError,
     currentWalletAddress,
-    customIbcChannelId,
     chains,
     addressPrefixes,
+    skipSupportedDestinationChainsIDs,
+    manageChains,
   ])
 
   useEffect(() => {
@@ -443,16 +516,73 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
   return (
     <div>
-      <motion.div
-        className={`card-container ${isIBCTransfer && !isCompassWallet() ? '!rounded-b-none' : ''}`}
-      >
-        <Text
-          size='sm'
-          className='text-gray-600 dark:text-gray-200 font-bold mb-3'
-          data-testing-id='send-recipient-card'
-        >
-          Recipient
-        </Text>
+      <motion.div className={`card-container`}>
+        <div className='flex w-full items-center justify-between mb-3'>
+          <Text
+            size='sm'
+            className='text-gray-600 dark:text-gray-200 font-bold'
+            data-testing-id='send-recipient-card'
+          >
+            Recipient
+          </Text>
+
+          <div className='flex flex-wrap space-x-1 gap-2'>
+            {showSecondaryActions ? (
+              <>
+                {showContactsButton ? (
+                  <SecondaryActionButton
+                    leftIcon={'perm_contact_calendar'}
+                    onClick={() => setIsContactsSheetVisible(true)}
+                    actionLabel='Open Contacts Sheet'
+                  >
+                    <Text
+                      size='xs'
+                      className='text-black-100 dark:text-white-100 whitespace-nowrap font-bold'
+                    >
+                      Contacts
+                    </Text>
+                  </SecondaryActionButton>
+                ) : null}
+                {showMyWalletButton ? (
+                  <SecondaryActionButton
+                    leftIcon={'account_balance_wallet'}
+                    onClick={() => setIsMyWalletSheetVisible(true)}
+                    actionLabel='Show My Wallets on Other Chains'
+                  >
+                    <Text
+                      size='xs'
+                      className='text-black-100 dark:text-white-100 whitespace-nowrap font-bold'
+                    >
+                      My Wallet
+                    </Text>
+                  </SecondaryActionButton>
+                ) : null}
+                {showAddToContacts ? (
+                  <SecondaryActionButton
+                    onClick={handleAddContact}
+                    actionLabel='Add Contact to Address Book'
+                    leftIcon={'person_add'}
+                    iconClassName={'[transform:rotateY(180deg)]'}
+                  >
+                    <Text
+                      size='xs'
+                      className='text-black-100 dark:text-white-100 whitespace-nowrap font-bold'
+                    >
+                      Add Contact
+                    </Text>
+                  </SecondaryActionButton>
+                ) : null}
+              </>
+            ) : null}
+            {isIBCTransfer && !isCompassWallet() && activeNetwork === 'mainnet' && destChainInfo ? (
+              <IBCSettings
+                className='rounded-b-2xl'
+                targetChain={destChainInfo.key}
+                onSelectChannel={setCustomIbcChannelId}
+              />
+            ) : null}
+          </div>
+        </div>
 
         <ActionInputWithPreview
           invalid={!!addressError}
@@ -482,48 +612,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           </Text>
         ) : null}
 
-        {showSecondaryActions ? (
-          <div className='flex flex-wrap space-x-1 gap-2 mt-4'>
-            {showContactsButton ? (
-              <SecondaryActionButton
-                leftIcon={Images.Misc.Contacts}
-                onClick={() => setIsContactsSheetVisible(true)}
-                actionLabel='Open Contacts Sheet'
-              >
-                <Text size='sm' className='text-gray-600 dark:text-gray-200 whitespace-nowrap'>
-                  Contacts
-                </Text>
-              </SecondaryActionButton>
-            ) : null}
-            {showMyWalletButton ? (
-              <SecondaryActionButton
-                leftIcon={Images.Misc.WalletIcon2}
-                onClick={() => setIsMyWalletSheetVisible(true)}
-                actionLabel='Show My Wallets on Other Chains'
-              >
-                <Text size='sm' className='text-gray-600 dark:text-gray-200 whitespace-nowrap'>
-                  My Wallet
-                </Text>
-              </SecondaryActionButton>
-            ) : null}
-            {showAddToContacts ? (
-              <SecondaryActionButton
-                onClick={handleAddContact}
-                actionLabel='Add Contact to Address Book'
-                leftIcon={Images.Misc.AddContact}
-              >
-                <Text size='sm' className='text-gray-600 dark:text-gray-200 whitespace-nowrap'>
-                  Add Contact
-                </Text>
-              </SecondaryActionButton>
-            ) : null}
-          </div>
-        ) : null}
-
-        {showContactsList ? (
-          <ContactsMatchList contacts={contactsToShow} handleContactSelect={handleContactSelect} />
-        ) : null}
-
         {showNameServiceResults ? (
           <NameServiceMatchList
             address={recipientInputValue}
@@ -541,6 +629,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           isOpen={isMyWalletSheetVisible}
           setSelectedAddress={handleWalletSelect}
           onClose={() => setIsMyWalletSheetVisible(false)}
+          skipSupportedDestinationChainsIDs={skipSupportedDestinationChainsIDs}
         />
 
         <SaveAddressSheet
@@ -551,14 +640,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           ethAddress={ethAddress}
         />
       </motion.div>
-
-      {isIBCTransfer && !isCompassWallet() && activeNetwork === 'mainnet' && destChainInfo ? (
-        <IBCSettings
-          className='rounded-b-2xl'
-          targetChain={destChainInfo.key}
-          onSelectChannel={setCustomIbcChannelId}
-        />
-      ) : null}
     </div>
   )
 }

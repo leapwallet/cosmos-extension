@@ -13,7 +13,7 @@ export type ManageChainSettings = {
   preferenceOrder: number
   denom: string
   id: number
-  beta: boolean
+  beta: boolean | undefined
 }
 
 // creating a recoil atom
@@ -105,7 +105,7 @@ export const useManageChains = () => {
               id: index,
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
-              beta: chain.beta ?? false,
+              beta: chainInfos[chain]?.beta ?? false,
             }
           })
         browser.storage.local.set({ [MANAGE_CHAIN_SETTINGS]: manageChainObject })

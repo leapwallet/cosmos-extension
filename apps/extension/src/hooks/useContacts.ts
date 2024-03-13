@@ -12,9 +12,20 @@ export const useContacts = () => {
     AddressBook.subscribe(setContacts)
 
     const fn = async () => {
-      const s = await AddressBook.getAllEntries()
+      const allEntries = await AddressBook.getAllEntries()
       if (cancel) return
-      setContacts(s)
+
+      const contactsToShow = Object.entries(allEntries)
+        .filter(([key, contact]) => {
+          if (contact.blockchain !== 'injective') return true
+          if (contact.blockchain === 'injective' && contact.ethAddress === '') return true
+          return false
+        })
+        .reduce((acc: AddressBook.SavedAddresses, [key, contact]) => {
+          acc[key] = contact
+          return acc
+        }, {})
+      setContacts(contactsToShow)
       setLoading(false)
     }
 

@@ -28,11 +28,16 @@ import {
   useGetChains,
   useLSStrideEnabledDenoms,
   usePendingTxState,
-  useTxMetadata,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { ActivityType, TxCallback, WALLETTYPE } from '../types';
-import { fetchCurrency, formatTokenAmount, useNativeFeeDenom } from '../utils';
+import {
+  fetchCurrency,
+  formatTokenAmount,
+  getMetaDataForLsStakeTx,
+  getMetaDataForLsUnstakeTx,
+  useNativeFeeDenom,
+} from '../utils';
 
 type txMode = 'delegate' | 'undelegate';
 
@@ -44,7 +49,6 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
   const defaultGasEstimates = useDefaultGasEstimates();
   const chainInfos = useGetChains();
   const getTxHandler = useTxHandler({ forceChain: 'stride' });
-  const txMetadata = useTxMetadata();
   const { activeWallet } = useActiveWalletStore();
   const [preferredCurrency] = useUserPreferredCurrency();
   const [formatCurrency] = useformatCurrency();
@@ -236,26 +240,18 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
           mode === 'delegate'
             ? await executeStakeTx(amt.amount, fee, strideTx)
             : await executeUnstakeTx(amt.amount, fee, strideTx);
+
         const metadata =
           mode === 'delegate'
-            ? {
-                ...txMetadata,
-                provider: 'stride',
-                creator: strideAddress,
-                token: {
-                  amount: amt.amount,
-                  denom: amt.denom,
-                },
-              }
-            : {
-                ...txMetadata,
-                provider: 'stride',
-                hostChain: supportedDenoms[selectedDenom.coinMinimalDenom],
-                creator: strideAddress,
-                conversionRate: strideData.redemption_rate,
-                receiverAddress: hostZoneAddress,
-                amount: amt.amount,
-              };
+            ? getMetaDataForLsStakeTx('stride', strideAddress, { amount: amt.amount, denom: amt.denom })
+            : getMetaDataForLsUnstakeTx(
+                'stride',
+                supportedDenoms[selectedDenom.coinMinimalDenom],
+                amt.amount,
+                strideData.redemption_rate,
+                hostZoneAddress,
+                strideAddress,
+              );
 
         await txPostToDB({
           txHash,

@@ -31,9 +31,8 @@ import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
 import { Token } from '../types/bank';
-import { convertScientificNotation } from '../utils';
+import { convertScientificNotation, getMetaDataForIbcTx, getMetaDataForSendTx } from '../utils';
 import { sliceAddress } from '../utils/strings';
-import { getMetaDataForIbcTx, getMetaDataForSendTx } from './get-metadata';
 import { useIsCW20Tx } from './useIsCW20Tx';
 
 type _TokenDenom = {
@@ -364,13 +363,16 @@ export const useSimpleSend = () => {
               errors: [`No active IBC channels from ${srcChainName} to ${destChainName}`],
             };
           }
+
           const response = await validateIbcChannelId(ibcChannelId, srcChainKey, destChainKey);
+
           if (!response.success) {
             return {
               success: false,
               errors: [response.message],
             };
           }
+
           txHash = await _tx.sendIBCTokens(
             fromAddress,
             toAddress,
@@ -382,6 +384,7 @@ export const useSimpleSend = () => {
             fees,
             memo,
           );
+
           metadata = getMetaDataForIbcTx(ibcChannelId, toAddress, {
             denom: selectedDenom.coinMinimalDenom,
             amount: normalizedAmount,
@@ -480,16 +483,25 @@ export const useSimpleSend = () => {
       }
 
       let result: sendTokensReturnType;
-      const selectedDenomData =
-        denoms[selectedToken.coinMinimalDenom as keyof typeof denoms] ??
-        Object.values(chainInfo.nativeDenoms).find(
-          (denom) => denom.coinMinimalDenom === selectedToken.coinMinimalDenom,
-        );
 
-      if (!selectedDenomData) {
+      const _nativeDenom = Object.values(chainInfo.nativeDenoms).find(
+        (denom) => denom.coinMinimalDenom === selectedToken.coinMinimalDenom,
+      );
+      const isDenomSupported = denoms[selectedToken.coinMinimalDenom] ?? _nativeDenom;
+
+      if (!isDenomSupported) {
         return {
           success: false,
           errors: ['We do not support transferring this token yet'],
+        };
+      }
+
+      let selectedDenomData = _nativeDenom as NativeDenom;
+      if (denoms[selectedToken.coinMinimalDenom]) {
+        selectedDenomData = {
+          ...denoms[selectedToken.coinMinimalDenom],
+          coinDenom: selectedToken.symbol ?? denoms[selectedToken.coinMinimalDenom].coinDenom,
+          name: selectedToken.name ?? denoms[selectedToken.coinMinimalDenom].name,
         };
       }
 

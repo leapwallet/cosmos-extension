@@ -27,7 +27,7 @@ export function SortingButton({
   label: string
   showEmptySymbolArea?: boolean
 }) {
-  const [isHovered, setisHovered] = useState<boolean>(false)
+  const [isHovered] = useState<boolean>(false)
   const symbol = useMemo(() => {
     if (sortBy === sortName) {
       if (sortDir === 'asc') {

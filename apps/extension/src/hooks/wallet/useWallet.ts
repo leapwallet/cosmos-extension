@@ -11,6 +11,7 @@ import {
 import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/utils/get-hdpath'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { encrypt } from '@leapwallet/leap-keychain'
+import { LEDGER_DISABLED_COINTYPES } from 'config/config'
 import {
   ACTIVE_CHAIN,
   ACTIVE_WALLET,
@@ -461,7 +462,10 @@ export namespace Wallet {
           _chain = chain
         }
         const prefix = chainInfos[_chain].addressPrefix
-        if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
+        if (
+          activeWallet?.walletType === WALLETTYPE.LEDGER &&
+          !LEDGER_DISABLED_COINTYPES.includes(chainInfos[_chain].bip44.coinType)
+        ) {
           const hdPaths = [makeCosmoshubPath(activeWallet.addressIndex)]
           const ledgerTransport = await getLedgerTransport()
           return new LeapLedgerSigner(ledgerTransport, {
@@ -470,7 +474,7 @@ export namespace Wallet {
             hdPaths,
             prefix,
           }) as unknown as OfflineSigner
-        } else {
+        } else if (activeWallet?.walletType !== WALLETTYPE.LEDGER) {
           const walletId = activeWallet?.id
           const signer = await KeyChain.getSigner(
             walletId as string,
@@ -479,6 +483,8 @@ export namespace Wallet {
             chainInfos[_chain].bip44.coinType,
           )
           return signer as unknown as OfflineSigner
+        } else {
+          throw new Error('Unable to get signer')
         }
       },
       [activeChain, activeWallet, password, chainInfos],

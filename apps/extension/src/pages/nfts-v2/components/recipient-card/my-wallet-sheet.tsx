@@ -46,8 +46,6 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
     if (addresses && !isIbcSupportDataLoading && ibcSupportData) {
       return Object.entries(addresses).filter(([chain]) => {
         const chainInfo = chainInfos[chain as SupportedChain]
-        const chainRegistryPath = chainInfo?.chainRegistryPath
-
         return chainInfo?.enabled && chain.includes(trimmedQuery)
       })
     }

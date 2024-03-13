@@ -27,11 +27,10 @@ import {
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
-  useTxMetadata,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback, VoteOptions, WALLETTYPE } from '../types';
-import { fetchCurrency, formatTokenAmount, useGetGasPrice, useNativeFeeDenom } from '../utils';
+import { fetchCurrency, formatTokenAmount, getMetaDataForGovVoteTx, useGetGasPrice, useNativeFeeDenom } from '../utils';
 import { getNativeDenom } from '../utils/getNativeDenom';
 
 export const getVoteNum = (voteOptions: VoteOptions): VoteOption => {
@@ -85,7 +84,6 @@ export function useGov({ proposalId }: { proposalId: string }) {
 
   const defaultGasEstimates = useDefaultGasEstimates();
   const [preferredCurrency] = useUserPreferredCurrency();
-  const txMetadata = useTxMetadata();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
   const [currencyFormatter] = useformatCurrency();
@@ -218,11 +216,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
             }
 
             const promise = _tx.pollForTx(txHash);
-            const metadata = {
-              ...txMetadata,
-              option: voteOption,
-              proposalId,
-            };
+            const metadata = getMetaDataForGovVoteTx(proposalId, voteOption);
 
             await txPostToDB({
               txHash: txHash,
@@ -267,7 +261,6 @@ export function useGov({ proposalId }: { proposalId: string }) {
       address,
       getTxHandler,
       chainInfos,
-      txMetadata,
       memo,
       proposalId,
       txPostToDB,

@@ -1,4 +1,8 @@
-import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useChainApis,
+  useSetBetaCW20Tokens,
+  useSetBetaSnip20Tokens,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provider/messaging/requester'
 import { ChainInfo, Sscrt, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard } from '@leapwallet/leap-ui'
@@ -13,7 +17,6 @@ import { BG_RESPONSE, SUGGEST_TOKEN } from 'config/storage-keys'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useCreateViewingKey, verifyViewingKey } from 'hooks/secret/useCreateViewingKey'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { useSetBetaCW20Tokens, useSetBetaSnip20Tokens } from 'hooks/useSetBetaCW20Tokens'
 import React, { useEffect, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { getContractInfo } from 'utils/getContractInfo'

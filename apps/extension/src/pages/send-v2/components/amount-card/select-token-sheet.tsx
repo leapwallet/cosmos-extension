@@ -1,4 +1,4 @@
-import { Token, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { Token, useActiveChain, useChainInfo, useDenoms } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
@@ -25,12 +25,25 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
 }) => {
   const activeChain = useActiveChain()
   const [searchQuery, setSearchQuery] = useState('')
+  const denoms = useDenoms()
+  const activeChainInfo = useChainInfo()
+
+  const _assets = useMemo(() => {
+    return assets.filter((token) => {
+      return (
+        denoms[token.coinMinimalDenom as keyof typeof denoms] ??
+        Object.values(activeChainInfo.nativeDenoms).find(
+          (_denom) => _denom.coinMinimalDenom === token.coinMinimalDenom,
+        )
+      )
+    })
+  }, [activeChainInfo.nativeDenoms, assets, denoms])
 
   const transferableTokens = useMemo(() => {
-    return assets.filter((asset) =>
-      asset.symbol.toLowerCase().includes(searchQuery.trim().toLowerCase()),
-    )
-  }, [assets, searchQuery])
+    return _assets.filter((asset) => {
+      return asset.symbol.toLowerCase().includes(searchQuery.trim().toLowerCase())
+    })
+  }, [_assets, searchQuery])
 
   const handleSelectToken = (token: Token) => {
     onTokenSelect(token)

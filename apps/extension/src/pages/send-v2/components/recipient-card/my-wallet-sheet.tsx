@@ -19,19 +19,20 @@ import { SendContextType, useSendContext } from '../../context'
 type MyWalletSheetProps = {
   isOpen: boolean
   onClose: () => void
-  // eslint-disable-next-line no-unused-vars
   setSelectedAddress: (address: SelectedAddress) => void
+  skipSupportedDestinationChainsIDs: string[]
 }
 
 export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   isOpen,
   onClose,
   setSelectedAddress,
+  skipSupportedDestinationChainsIDs,
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const trimmedQuery = searchQuery.trim()
 
-  const { displayAccounts: _displayAccounts, isIbcSupportDataLoading } =
+  const { displayAccounts: _displayMyAccounts, isIbcSupportDataLoading } =
     useSendContext() as SendContextType
 
   const {
@@ -42,6 +43,20 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   const activeChain = useActiveChain()
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const activeWallet = useActiveWallet()
+
+  const _displaySkipAccounts: any[][] = []
+  Object.keys(chainInfos).map((chain) => {
+    if (skipSupportedDestinationChainsIDs?.includes(chainInfos[chain as SupportedChain]?.chainId)) {
+      _displaySkipAccounts.push([
+        chain,
+        activeWallet?.activeWallet?.addresses?.[chain as SupportedChain],
+      ])
+    }
+  })
+
+  const _displayAccounts =
+    _displaySkipAccounts.length > 0 ? _displaySkipAccounts : _displayMyAccounts
 
   const displayAccounts = useMemo(
     () =>

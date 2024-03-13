@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { useMemo } from 'react';
 
 import {
+  ALL_CHAIN_BANNERS,
   BannerAD,
   BannerADType,
   BannerData,
@@ -12,20 +14,24 @@ import {
 import { getNumiaBannerBearer, storage, useGetStorageLayer } from '../utils';
 import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
 
-const NUMIA_BASE_URL = 'https://auxo.numia.xyz';
+const NUMIA_BASE_URL = 'https://filament.numia.xyz';
+
+export const getBannerDetailsData = (storage: storage): Promise<BannerData> => {
+  return cachedRemoteDataWithLastModified({
+    remoteUrl: 'https://assets.leapwallet.io/banner/banner-v2.json',
+    storageKey: 'banner-ad-data',
+    storage,
+  });
+};
 
 export function useGetBannerApi() {
-  return useQuery<BannerData>(
-    ['banner-ad-data'],
-    async () => {
-      const res = await fetch('https://assets.leapwallet.io/banner/banner.json');
-      const data: BannerData = await res.json();
-      return data;
-    },
-    {
-      retry: 2,
-    },
-  );
+  const storage = useGetStorageLayer();
+
+  return useQuery<BannerData>(['banner-ad-data'], async () => getBannerDetailsData(storage), {
+    retry: 2,
+    cacheTime: 1000 * 10, // 10 seconds
+    staleTime: 0,
+  });
 }
 
 export type BannerConfig = {
@@ -134,5 +140,20 @@ export async function postNumiaEvent(address: string, action: NumiaTrackAction, 
 
 export function useGetBannerData(chain: string) {
   const { data } = useQuery<BannerData>(['banner-ad-data']);
-  return data?.[chain] as BannerAD[];
+
+  /*
+   * We want to display banners in the following order:
+   * 1. Banners for the current chain
+   * 2. Banners for all chains
+   */
+  const combinedBannerDataToDisplay = useMemo(() => {
+    const chainData = (data?.[chain] as BannerAD[]) ?? [];
+    const allChainData = (data?.[ALL_CHAIN_BANNERS] as BannerAD[]) ?? [];
+
+    return [...chainData, ...allChainData].sort((a, b) =>
+      (String(a?.display_position) ?? '0') > (String(b?.display_position) ?? '0') ? 1 : -1,
+    );
+  }, [data, chain]);
+
+  return combinedBannerDataToDisplay;
 }

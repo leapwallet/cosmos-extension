@@ -182,6 +182,16 @@ input[type='number']::-webkit-outer-spin-button {
   @apply transform scale-110 translate-x-5;
 }
 
+#toggle-switch2::after {
+  content: '';
+  @apply h-4 w-4 absolute left-0.5 top-0.5 bg-white-100 rounded-full transition duration-200;
+}
+
+#toggle-switch2:checked:after {
+  content: '';
+  @apply translate-x-4;
+}
+
 .material-icons-round {
   font-family: 'Material Icons Round';
   font-weight: normal;

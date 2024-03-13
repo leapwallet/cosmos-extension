@@ -2,6 +2,8 @@ import { isDeliverTxSuccess } from '@cosmjs/stargate'
 import {
   CosmosTxType,
   formatTokenAmount,
+  getMetaDataForSecretTokenTransfer,
+  getMetaDataForSendTx,
   LeapWalletApi,
   MobileAppBanner,
   sliceAddress,
@@ -13,7 +15,6 @@ import {
   usePendingTxState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { getMetaDataForSendTx } from '@leapwallet/cosmos-wallet-hooks/dist/send/get-metadata'
 import { Buttons, GenericCard, Header } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import classnames from 'classnames'
@@ -73,7 +74,7 @@ export function PendingTx() {
 
   useEffect(() => {
     const invalidateQueries = () => {
-      invalidateBalances()
+      invalidateBalances(activeChain)
       invalidateDelegations()
       invalidateActivity()
     }
@@ -106,11 +107,12 @@ export function PendingTx() {
             txPostToDB({
               txHash: _result.transactionHash,
               txType: CosmosTxType.SecretTokenTransaction,
-              metadata: {
-                contract: pendingTx.sentTokenInfo?.coinMinimalDenom,
-              },
+              metadata: getMetaDataForSecretTokenTransfer(
+                pendingTx.sentTokenInfo?.coinMinimalDenom ?? '',
+              ),
               feeQuantity,
               feeDenomination: 'uscrt',
+              amount: pendingTx.txnLogAmount,
             })
           }
 
@@ -128,6 +130,7 @@ export function PendingTx() {
               }),
               feeQuantity: pendingTx.feeQuantity,
               feeDenomination: pendingTx.feeDenomination,
+              amount: pendingTx.txnLogAmount,
             })
           }
 

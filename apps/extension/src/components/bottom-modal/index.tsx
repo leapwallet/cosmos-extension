@@ -85,7 +85,9 @@ const BottomModal: React.FC<BottomModalProps> = ({
                 <Buttons.Cancel onClick={onActionButtonClick ?? handleCloseAction} />
               </div>
             )}
-            <h3 className='text-xl font-semibold dark:text-gray-50 text-gray-900'>{title}</h3>
+            <h3 className='text-xl font-semibold dark:text-gray-50 text-gray-900 h-[28px]'>
+              {title}
+            </h3>
           </div>
           <div className={classNames('p-7', className)}>{children}</div>
         </Sheet.Content>

@@ -4,7 +4,6 @@ import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomModal from 'components/bottom-modal'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
-import { ComingSoon } from 'components/coming-soon'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
@@ -32,6 +31,7 @@ export type ProposalListProps = {
   proposalList: any[]
   proposalListStatus: 'success' | 'error' | 'loading' | 'fetching-more'
   fetchMore: () => void
+  shouldPreferFallback?: boolean
 }
 
 const filters = [
@@ -72,7 +72,8 @@ function ProposalList({
           if (filter === 'all') {
             if (!propFilter) acc.push(cur)
             else if (
-              cur.content.title.toLowerCase().includes(propFilter) ||
+              cur.content?.title.toLowerCase().includes(propFilter) ||
+              cur.title.toLowerCase().includes(propFilter) ||
               cur.proposal_id.toLowerCase().includes(propFilter)
             ) {
               acc.push(cur)
@@ -83,6 +84,7 @@ function ProposalList({
             } else if (
               cur.status === filter &&
               (cur.content.title.toLowerCase().includes(propFilter) ||
+                cur.title.toLowerCase().includes(propFilter) ||
                 cur.proposal_id.toLowerCase().includes(propFilter))
             ) {
               acc.push(cur)
@@ -210,14 +212,13 @@ function ProposalList({
                           <div className='w-[272px]'>
                             <div className='flex flex-col'>
                               <div className='text-black-100 dark:text-white-100 font-bold text-base break-words'>
-                                {prop.content.title}
+                                {prop?.title ?? prop?.content?.title}
                               </div>
                               <div className='text-gray-600 dark:text-gray-200 text-xs'>
                                 #{prop.proposal_id} ·{' '}
                                 <Status status={prop.status as unknown as ProposalStatus} />
                               </div>
                             </div>
-                            <img className='ml-5' src={Images.Misc.RightArrow} />
                           </div>
                           <img className='ml-5' src={Images.Misc.RightArrow} />
                         </div>

@@ -9,6 +9,7 @@ import { FilledArrowDown } from 'images/misc'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 type TokenInputCardProps = {
   readOnly?: boolean
@@ -100,25 +101,27 @@ export function TokenInputCard({
       )}
       key={balanceAmount}
     >
-      <div
-        className={classNames(
-          'rounded-full bg-gray-50 dark:bg-gray-800 py-2 px-3 flex flex-row gap-2 items-center justify-center self-start cursor-pointer',
-          {
-            'opacity-50 pointer-events-none': selectChainDisabled,
-          },
-        )}
-        onClick={onChainSelectSheet}
-      >
-        <img
-          src={chainLogo}
-          className='w-[24px] h-[24px] rounded-full border-[0.5px] border-gray-700'
-          onError={imgOnError(defaultTokenLogo)}
-        />
-        <p className='dark:text-white-100 text-base'>{chainName}</p>
-        <img src={FilledArrowDown} className='w-[6px] h-[6px]' />
-      </div>
+      {!isCompassWallet() && (
+        <div
+          className={classNames(
+            'rounded-full bg-gray-50 dark:bg-gray-800 py-2 px-3 flex flex-row gap-2 items-center justify-center self-start cursor-pointer',
+            {
+              'opacity-50 pointer-events-none': selectChainDisabled,
+            },
+          )}
+          onClick={onChainSelectSheet}
+        >
+          <img
+            src={chainLogo}
+            className='w-[24px] h-[24px] rounded-full border-[0.5px] border-gray-700'
+            onError={imgOnError(defaultTokenLogo)}
+          />
+          <p className='dark:text-white-100 text-base'>{chainName}</p>
+          <img src={FilledArrowDown} className='w-[6px] h-[6px]' />
+        </div>
+      )}
 
-      {showFor === 'source' ? (
+      {showFor === 'source' && !isCompassWallet() ? (
         <img
           src={Images.Misc.Settings}
           className='absolute right-[16px] top-[28px] w-[18px] h-[18px] cursor-pointer'

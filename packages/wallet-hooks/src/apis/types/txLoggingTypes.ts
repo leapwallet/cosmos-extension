@@ -11,11 +11,13 @@ export type NFTToken = {
 export type SendTransaction = {
   toAddress?: string;
   token?: Token;
+  appVersion?: string;
 };
 
 export type NFTSendTransaction = {
   toAddress: string;
   token: NFTToken;
+  appVersion?: string;
 };
 
 export type IBCSendTransaction = {
@@ -23,6 +25,7 @@ export type IBCSendTransaction = {
   toChain?: string;
   toAddress?: string;
   token?: Token;
+  appVersion?: string;
 };
 
 export type SwapTransaction = {
@@ -40,46 +43,55 @@ export type SwapTransaction = {
 export type GovVoteTransaction = {
   option?: number;
   proposalId?: number;
+  appVersion?: string;
 };
 
 export type StakeDelegateTransaction = {
   validatorAddress?: string;
   token?: Token;
+  appVersion?: string;
 };
 
 export type StakeCancelUndelegateTransaction = {
   validatorAddress?: string;
   token?: Token;
+  appVersion?: string;
 };
 
 export type StakeUndelegateTransaction = {
   validatorAddress?: string;
   token?: Token;
+  appVersion?: string;
 };
 
 export type StakeRedelegateTransaction = {
   fromValidator?: string;
   toValidator?: string;
   token?: Token;
+  appVersion?: string;
 };
 
 export type StakeClaimTransaction = {
-  validatorAddress?: string;
+  validators?: string[];
   token?: Token;
+  appVersion?: string;
 };
 
 export type SecretTokenTransaction = {
   contract?: string;
+  appVersion?: string;
 };
 
 export type AuthzRevokeTransaction = {
   grantee?: string;
   type?: string[];
+  appVersion?: string;
 };
 
 export type AuthzGrantTransaction = {
   grantee?: string;
   type?: string[];
+  appVersion?: string;
 };
 
 export type LsStakeTransaction = {
@@ -88,6 +100,7 @@ export type LsStakeTransaction = {
   amount?: string;
   conversionRate?: string;
   receiverAddress?: string;
+  appVersion?: string;
 };
 
 export type LsUnstakeTransaction = {
@@ -96,6 +109,7 @@ export type LsUnstakeTransaction = {
   amount?: string;
   conversionRate?: string;
   receiverAddress?: string;
+  appVersion?: string;
 };
 
 export type IBCSwapTransaction = {
@@ -113,6 +127,7 @@ export type IBCSwapTransaction = {
     amount: string;
     denom: string;
   };
+  appVersion: string;
 };
 
 export enum DAPP_SOURCE {

@@ -15,10 +15,9 @@ type SelectedAddressPreviewProps = {
 export const SelectedAddressPreview: React.FC<SelectedAddressPreviewProps> = ({
   selectedAddress,
   showEditMenu,
-  onDelete,
 }) => {
   const defaultTokenLogo = useDefaultTokenLogo()
-  const [showContactDetailsSheet, setShowContactDetailsSheet] = useState(false)
+  const [, setShowContactDetailsSheet] = useState(false)
 
   const handleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
     e.stopPropagation()

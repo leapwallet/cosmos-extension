@@ -4,6 +4,7 @@ import { Images } from 'images'
 import React from 'react'
 import { imgOnError } from 'utils/imgOnError'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function DefiRow({ token }: { token: any }) {
   const formatter = Intl.NumberFormat('en', { notation: 'compact' })
   const productName = token?.productName

@@ -11,6 +11,7 @@ export type Token = {
   usdPrice?: string;
   coinDecimals?: number;
   invalidKey?: boolean;
+  chain?: string;
 };
 
 export type IbcChainInfo = {

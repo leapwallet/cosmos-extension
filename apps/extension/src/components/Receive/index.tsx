@@ -12,6 +12,7 @@ import BottomSheet from 'components/bottom-sheet/BottomSheet'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
 import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { Images } from 'images'
 import kadoDarkLogo from 'images/logos/Kado-dark.svg'
 import kadoLightLogo from 'images/logos/Kado-light.svg'
@@ -28,7 +29,7 @@ function BtcButton({ handleBtcBannerClick }: { handleBtcBannerClick?: () => void
   const { data: nomicBtcDeposit } = useNomicBTCDepositConstants()
   const activeChainInfo = useChainInfo()
 
-  return nomicBtcDeposit && nomicBtcDeposit.ibcChains.includes(activeChainInfo.key) ? (
+  return nomicBtcDeposit && nomicBtcDeposit.ibcChains.includes(activeChainInfo?.key) ? (
     <div className='mt-2' onClick={handleBtcBannerClick}>
       <OnboardCard
         imgSrc={nBtcSymbol}
@@ -57,14 +58,18 @@ export default function ReceiveToken({
   const wallet = useActiveWallet().activeWallet
   const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
-  const address = wallet?.addresses[activeChainInfo.key]
+
+  const address = wallet?.addresses[activeChainInfo?.key]
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
+  const walletAddress = useGetWalletAddresses()
+
   const QrCodeProps = {
     height: 250,
     width: 250,
     data: address ?? '',
   }
+
   if (isCompassWallet()) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -87,17 +92,24 @@ export default function ReceiveToken({
           <div className='inline-block mt-[16px] mb-[12px] text-black-100 dark:text-white-100 font-Satoshi24px text-[28px] leading-[36px] font-black'>
             {formatWalletName(wallet.name)}
           </div>
-          <Buttons.CopyWalletAddress
-            color={Colors.getChainColor(activeChain)}
-            walletAddress={sliceAddress(address)}
-            data-testing-id='copy-wallet-address'
-            onCopy={() => {
-              if (!address) return
-              UserClipboard.copyText(address)
-            }}
-          />
 
-          {ON_RAMP_SUPPORT_CHAINS.includes(activeChainInfo.key) && (
+          {walletAddress.map((address, index) => (
+            <>
+              {index !== 0 && <div className='mt-2' />}
+              <Buttons.CopyWalletAddress
+                color={Colors.getChainColor(activeChain)}
+                walletAddress={sliceAddress(address)}
+                data-testing-id='copy-wallet-address'
+                onCopy={() => {
+                  if (!address) return
+                  UserClipboard.copyText(address)
+                }}
+                key={address}
+              />
+            </>
+          ))}
+
+          {ON_RAMP_SUPPORT_CHAINS.includes(activeChainInfo?.key) && (
             <div
               className='mt-2'
               onClick={() => {
@@ -111,7 +123,7 @@ export default function ReceiveToken({
                 isRounded
                 size='lg'
                 title={`Buy ${
-                  activeChainInfo.key === 'osmosis' ? 'AxlUSDC' : 'Crypto'
+                  activeChainInfo?.key === 'osmosis' ? 'AxlUSDC' : 'Crypto'
                 } with Kado Ramp`}
               />
             </div>

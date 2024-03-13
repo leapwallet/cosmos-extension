@@ -8,16 +8,16 @@ import {
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { Coin } from '@leapwallet/parser-parfait';
 import { useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
-import { useActiveChain, useAddress, useChainApis, useGetChains, usePendingTxState, useTxMetadata } from '../store';
+import { useActiveChain, useAddress, useChainApis, useGetChains, usePendingTxState } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback } from '../types';
-import { GasOptions, Grant, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import { GasOptions, getMetaDataForAuthzTx, Grant, useGasRateQuery, useNativeFeeDenom } from '../utils';
 
 const GAS_ESTIMATE = 240_000;
 
@@ -59,7 +59,6 @@ export function useAuthzTx() {
   const chainInfos = useGetChains();
   const { setPendingTx } = usePendingTxState();
   const activeChain = useActiveChain();
-  const txMetadata = useTxMetadata();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
   const [memo, setMemo] = useState<string>('Revoke authz grant via Leap');
@@ -177,16 +176,10 @@ export function useAuthzTx() {
         memo,
       );
 
-      const metadata = {
-        ...txMetadata,
-        grantee: showAuthzDetailsFor?.grantee ?? '',
-        type: [msgType],
-      };
-
       await txPostToDB({
         txHash,
         txType: CosmosTxType.AuthZRevoke,
-        metadata,
+        metadata: getMetaDataForAuthzTx(showAuthzDetailsFor?.grantee ?? '', [msgType]),
         feeDenomination: fee?.amount[0].denom,
         feeQuantity: fee?.amount[0].amount,
       });

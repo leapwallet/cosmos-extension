@@ -326,6 +326,7 @@ export type ChainInfo = {
   readonly cosmosSDK?: string;
   readonly notSupportedFeatures?: string[];
   readonly comingSoonFeatures?: string[];
+  apiStatus?: boolean;
 };
 
 export const ChainInfos: Record<SupportedChain, ChainInfo> = {
@@ -2387,7 +2388,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(99, 0, 255, 0.32) 0%, rgba(99, 0, 255, 0) 100%)',
     },
     enabled: true,
-    comingSoonFeatures: ['stake', 'governance'],
+    comingSoonFeatures: ['stake', 'governance', 'activity'],
   },
   odin: {
     chainId: 'odin-mainnet-freya',

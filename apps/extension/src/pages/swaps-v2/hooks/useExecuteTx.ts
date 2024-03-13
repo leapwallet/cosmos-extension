@@ -17,10 +17,14 @@ import {
 } from '@cosmjs/stargate'
 import {
   CosmosTxType,
+  getMetaDataForIbcSwapTx,
+  getMetaDataForIbcTx,
+  getTxnLogAmountValue,
   LeapWalletApi,
   useActiveWallet,
   useGasAdjustmentForChain,
   useGasRateQuery,
+  useInvalidateTokenBalances,
   useIsCW20Tx,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -52,6 +56,7 @@ import { SourceChain, SwapTxnStatus } from 'types/swap'
 import { TxPageProps } from '../components'
 import { getPublicKey, sendTrackingRequest } from '../utils'
 import { useGetChainsToShow } from './useGetChainsToShow'
+import { useInvalidateSwapAssetsQueries } from './useInvalidateSwapAssetsQueries'
 
 class TxnError extends Error {
   constructor(message: string) {
@@ -83,6 +88,8 @@ export function useExecuteTx({
   amountOut,
   setFeeAmount,
   feeAmount,
+  refetchDestinationBalances,
+  refetchSourceBalances,
 }: ExecuteTxParams) {
   const isCW20Tx = useIsCW20Tx()
   const getWallet = Wallet.useGetWallet()
@@ -94,6 +101,9 @@ export function useExecuteTx({
   const [timeoutError, setTimeoutError] = useState(false)
   const [firstTxnError, setFirstTxnError] = useState<string>()
   const [unableToTrackError, setUnableToTrackError] = useState<string | null>(null)
+  const invalidateBalances = useInvalidateTokenBalances()
+  const invalidateSwapAssets = useInvalidateSwapAssetsQueries()
+
   const [txStatus, setTxStatus] = useState<SwapTxnStatus[]>(() =>
     Array.from({ length: route?.transactionCount || 1 }, () => ({
       status: TXN_STATUS.INIT,
@@ -181,45 +191,91 @@ export function useExecuteTx({
   }, [])
 
   const logTxToDB = useCallback(
-    (txHash: string, msgType: string) => {
+    async (txHash: string, msgType: string) => {
+      const isIBCSendTx = !route?.response?.does_swap ?? false
+      const txnLogAmountValue = await getTxnLogAmountValue(inAmount, {
+        coinGeckoId: sourceToken?.coinGeckoId ?? '',
+        chain: (sourceToken?.chain ?? '') as SupportedChain,
+      })
+
+      const metadata = isIBCSendTx
+        ? getMetaDataForIbcTx(
+            route?.operations?.[0]?.transfer?.channel,
+            activeWallet?.addresses?.[destinationChain?.key as SupportedChain] ?? '',
+            {
+              denom: destinationToken?.coinMinimalDenom ?? '',
+              amount: String(Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0)),
+            },
+            'skip_api',
+            (route?.response?.chain_ids?.length ?? 1) - 1,
+          )
+        : getMetaDataForIbcSwapTx(
+            msgType,
+            'skip_api',
+            (route?.response?.chain_ids?.length ?? 1) - 1,
+            String(sourceChain?.chainId ?? ''),
+            {
+              denom: sourceToken?.coinMinimalDenom ?? '',
+              amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
+            },
+            String(destinationChain?.chainId ?? ''),
+            {
+              denom: destinationToken?.coinMinimalDenom ?? '',
+              amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
+            },
+          )
+
       txPostToDB({
         txHash,
-        txType: CosmosTxType.Swap,
-        metadata: {
-          msgType,
-          provider: 'skip_api',
-          hops: route?.response?.chain_ids?.length ?? 1 - 1,
-          fromChain: String(sourceChain?.chainId ?? ''),
-          fromToken: {
-            denom: sourceToken?.coinMinimalDenom ?? '',
-            amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
-          },
-          toChain: String(destinationChain?.chainId ?? ''),
-          toToken: {
-            denom: destinationToken?.coinMinimalDenom ?? '',
-            amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
-          },
-        },
+        txType: isIBCSendTx ? CosmosTxType.IbcSend : CosmosTxType.IBCSwap,
+        amount: txnLogAmountValue,
+        metadata,
         feeDenomination: feeDenom.coinMinimalDenom,
         feeQuantity: feeAmount ?? fee?.amount[0].amount,
-        forceWalletAddress: activeWallet?.addresses[sourceChain?.key as SupportedChain],
+        forceWalletAddress: activeWallet?.addresses?.[sourceChain?.key as SupportedChain],
         forceChain: String(sourceChain?.key ?? ''),
       })
+
+      const timerId = setTimeout(() => {
+        invalidateBalances(sourceChain?.key as SupportedChain)
+        invalidateBalances(destinationChain?.key as SupportedChain)
+
+        try {
+          refetchSourceBalances && refetchSourceBalances()
+          refetchDestinationBalances && refetchDestinationBalances()
+        } catch (_) {
+          //
+        }
+
+        invalidateSwapAssets(sourceChain?.key as SupportedChain)
+        invalidateSwapAssets(destinationChain?.key as SupportedChain)
+
+        clearTimeout(timerId)
+      }, 2000)
     },
     [
       activeWallet?.addresses,
       amountOut,
       destinationChain?.chainId,
+      destinationChain?.key,
       destinationToken?.coinDecimals,
       destinationToken?.coinMinimalDenom,
       fee?.amount,
       feeAmount,
       feeDenom.coinMinimalDenom,
       inAmount,
+      invalidateBalances,
+      invalidateSwapAssets,
+      refetchDestinationBalances,
+      refetchSourceBalances,
+      route?.operations,
       route?.response?.chain_ids?.length,
+      route?.response?.does_swap,
       sourceChain?.chainId,
       sourceChain?.key,
+      sourceToken?.chain,
       sourceToken?.coinDecimals,
+      sourceToken?.coinGeckoId,
       sourceToken?.coinMinimalDenom,
       txPostToDB,
     ],

@@ -21,6 +21,7 @@ export enum EventName {
 export enum ButtonType {
   HOME = 'home',
   ADD_FUNDS = 'zero balance wallet - add funds',
+  CHAIN_MANAGEMENT = 'chain management',
 }
 
 export enum ButtonName {
@@ -36,6 +37,9 @@ export enum ButtonName {
   EXPLORE_TOKENS = 'explore tokens',
   LAUNCH_EXTENSION = 'launch extension',
   FOLLOW_LEAP = 'follow Leap on X',
+  ADD_CHAIN_FROM_STORE = 'add chain from store',
+  ADD_NEW_CHAIN = 'add new chain',
+  MANAGE_CHAIN = 'manage chain',
 }
 
 export enum PageName {

@@ -15,7 +15,6 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/tx/nft-transfer/contract';
 import { Coin } from '@leapwallet/parser-parfait';
-import { NFTSendTransaction } from 'apis/types/txLoggingTypes';
 import { BigNumber } from 'bignumber.js';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useMemo, useState } from 'react';
@@ -35,7 +34,7 @@ import {
 import { useChainInfo } from '../store/useChainInfo';
 import { ActivityCardContent } from '../types/activity';
 import { Token } from '../types/bank';
-import { GasOptions, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import { GasOptions, getMetaDataForNFTSendTx, useGasRateQuery, useNativeFeeDenom } from '../utils';
 import { sliceAddress } from '../utils/strings';
 
 export type JsonObject = any;
@@ -251,13 +250,10 @@ export const useSendNft = (forceChain?: SupportedChain) => {
               data: {
                 txHash,
                 txType: CosmosTxType.NFTSend,
-                metadata: {
-                  toAddress: toAddress,
-                  token: {
-                    tokenId: tokenId,
-                    collectionId: collectionId,
-                  },
-                } as NFTSendTransaction,
+                metadata: getMetaDataForNFTSendTx(toAddress, {
+                  tokenId,
+                  collectionId,
+                }),
                 feeDenomination: fees.amount[0].denom,
                 feeQuantity: fees.amount[0].amount,
               },

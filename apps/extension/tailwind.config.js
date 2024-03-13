@@ -89,6 +89,9 @@ module.exports = {
         500: '#FF9F0A',
         600: '#D17F00',
       },
+      teal: {
+        500: '#0AB8FF',
+      },
       transparent: 'transparent',
       current: 'currentColor',
     },

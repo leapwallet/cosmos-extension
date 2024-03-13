@@ -15,8 +15,10 @@ export const useNativeFeeDenom = (forceChain?: string, forceNetwork?: 'mainnet' 
 
   const nativeFeeDenom = useMemo(() => {
     if (chains[activeChain].beta && chains[activeChain].nativeDenoms) {
-      return Object.values(chains[activeChain].nativeDenoms)[0];
+      const nativeDenom = Object.values(chains[activeChain].nativeDenoms)[0];
+      return denoms[nativeDenom.coinMinimalDenom] ?? nativeDenom;
     }
+
     return feeDenoms[selectedNetwork][activeChain]
       ? denoms[feeDenoms[selectedNetwork][activeChain]]
       : fallbackFeeDenoms[selectedNetwork][activeChain];

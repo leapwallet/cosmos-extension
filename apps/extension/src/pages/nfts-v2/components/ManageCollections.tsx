@@ -12,14 +12,19 @@ import React, { useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 
 import { useNftContext } from '../context'
-import { AddCollection, NftAvatar, NftToggleCard, NoCollectionCard, Text } from './index'
+import { NftAvatar, NftToggleCard, NoCollectionCard, Text } from './index'
 
 export type ManageCollectionsProps = {
   isVisible: boolean
   onClose: VoidFunction
+  openAddCollectionSheet: () => void
 }
 
-export function ManageCollections({ isVisible, onClose }: ManageCollectionsProps) {
+export function ManageCollections({
+  isVisible,
+  onClose,
+  openAddCollectionSheet,
+}: ManageCollectionsProps) {
   const { collectionData } = useNftContext()
   const activeChain = useActiveChain()
   const collections = useMemo(
@@ -30,7 +35,6 @@ export function ManageCollections({ isVisible, onClose }: ManageCollectionsProps
   const [searchedText, setSearchedText] = useState('')
   const disabledNFTsCollections = useDisabledNFTsCollections()
   const setDisabledNFTsCollections = useSetDisabledNFTsInStorage()
-  const [showAddCollectionSheet, setShowAddCollectionSheet] = useState(false)
 
   const filteredCollections = useMemo(() => {
     return (
@@ -98,7 +102,7 @@ export function ManageCollections({ isVisible, onClose }: ManageCollectionsProps
               <img src={Images.Misc.SearchIcon} />
             </div>
 
-            <button className='mb-4 ml-2' onClick={() => setShowAddCollectionSheet(true)}>
+            <button className='mb-4 ml-2' onClick={openAddCollectionSheet}>
               <img src={Images.Misc.PlusIcon} alt='add token' />
             </button>
           </div>
@@ -122,7 +126,7 @@ export function ManageCollections({ isVisible, onClose }: ManageCollectionsProps
                         <button
                           className='border-none bg-transparent hover:underline cursor-pointer font-bold text-sm'
                           style={{ color: Colors.getChainColor(activeChain) }}
-                          onClick={() => setShowAddCollectionSheet(true)}
+                          onClick={openAddCollectionSheet}
                         >
                           here
                         </button>
@@ -156,10 +160,6 @@ export function ManageCollections({ isVisible, onClose }: ManageCollectionsProps
           </div>
         </div>
       </BottomSheet>
-      <AddCollection
-        isVisible={showAddCollectionSheet}
-        onClose={() => setShowAddCollectionSheet(false)}
-      />
     </>
   )
 }

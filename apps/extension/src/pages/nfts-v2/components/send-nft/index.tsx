@@ -57,6 +57,8 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
   useEffect(() => {
     if (isSending || isProcessing) return
     simulate()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddress])
 
   const handleSendNft = async () => {

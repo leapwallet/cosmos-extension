@@ -1,6 +1,8 @@
 import { useActiveWallet, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
+import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
@@ -8,7 +10,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { NamedSkip } from 'images/logos'
 import { SwapVert } from 'images/misc'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 
@@ -43,8 +45,10 @@ function SwapPage() {
   )
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
 
-  const [showChainSelectSheet, setShowChainSelectSheet] = useState<boolean>(false)
   const [showTxReviewSheet, setShowTxReviewSheet] = useState<boolean>(false)
+  const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
+
+  const [showChainSelectSheet, setShowChainSelectSheet] = useState<boolean>(false)
   const [showTxPage, setShowTxPage] = useState<boolean>(false)
   const [showSlippageSheet, setShowSlippageSheet] = useState(false)
   const [ledgerError, setLedgerError] = useState<string>()
@@ -82,7 +86,14 @@ function SwapPage() {
     handleSwitchOrder,
     isSwitchOrderPossible,
     setInAmount,
+    displayFee,
+    feeDenom,
   } = useSwapContext()
+
+  const uncheckWarnings = useCallback(() => {
+    setIsBlockingPriceImpactWarningChecked(false)
+    setIsBlockingUsdValueWarningChecked(false)
+  }, [])
 
   useEffect(() => {
     if (
@@ -99,6 +110,8 @@ function SwapPage() {
         if (counter.current === 10) {
           counter.current = 0
           setIsRefreshing(true)
+          uncheckWarnings()
+
           try {
             await refresh()
           } catch (_) {
@@ -123,6 +136,7 @@ function SwapPage() {
     showTokenSelectSheet,
     showTxPage,
     showTxReviewSheet,
+    uncheckWarnings,
   ])
 
   const _chainsToShow = useMemo(() => {
@@ -161,16 +175,21 @@ function SwapPage() {
               token={sourceToken}
               chainName={sourceChain?.chainName ?? 'Select chain'}
               chainLogo={sourceChain?.icon ?? defaultTokenLogo}
-              onChange={handleInAmountChange}
+              onChange={(event) => {
+                handleInAmountChange(event)
+                uncheckWarnings()
+              }}
               selectTokenDisabled={sourceAssets.length === 0 || !sourceChain}
               selectChainDisabled={_chainsToShow.length === 0}
               onTokenSelectSheet={() => {
                 setShowTokenSelectSheet(true)
                 setShowSelectSheetFor('source')
+                uncheckWarnings()
               }}
               onChainSelectSheet={() => {
                 setShowChainSelectSheet(true)
                 setShowSelectSheetFor('source')
+                uncheckWarnings()
               }}
               amountError={amountExceedsBalance ? 'Insufficient balance' : undefined}
               showFor='source'
@@ -199,10 +218,12 @@ function SwapPage() {
               onTokenSelectSheet={() => {
                 setShowTokenSelectSheet(true)
                 setShowSelectSheetFor('destination')
+                uncheckWarnings()
               }}
               onChainSelectSheet={() => {
                 setShowChainSelectSheet(true)
                 setShowSelectSheetFor('destination')
+                uncheckWarnings()
               }}
             />
           </div>
@@ -244,7 +265,7 @@ function SwapPage() {
                   className='w-full'
                   color={activeChainInfo.theme.primaryColor ?? Colors.cosmosPrimary}
                   disabled={reviewDisabled}
-                  onClick={() => setShowTxReviewSheet(true)}
+                  onClick={() => setCheckForAutoAdjust(true)}
                 >
                   Review
                 </Buttons.Generic>
@@ -305,6 +326,23 @@ function SwapPage() {
           setShowSelectSheetFor('')
         }}
       />
+
+      {checkForAutoAdjust && displayFee && sourceToken && inAmount && (
+        <AutoAdjustAmountSheet
+          amount={inAmount}
+          setAmount={setInAmount}
+          selectedToken={{
+            amount: sourceToken.amount,
+            coinMinimalDenom: sourceToken.coinMinimalDenom,
+          }}
+          fee={{
+            amount: toSmall(String(displayFee.value), feeDenom.coinDecimals),
+            denom: feeDenom.coinMinimalDenom,
+          }}
+          setShowReviewSheet={setShowTxReviewSheet}
+          closeAdjustmentSheet={() => setCheckForAutoAdjust(false)}
+        />
+      )}
 
       <TxReviewSheet
         isOpen={showTxReviewSheet}

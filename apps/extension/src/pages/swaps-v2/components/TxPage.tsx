@@ -33,6 +33,8 @@ export type TxPageProps = {
   }
   gasOption: GasOptions
   feeAmount?: string
+  refetchSourceBalances?: () => void
+  refetchDestinationBalances?: () => void
 }
 
 export function TxPage({
@@ -51,6 +53,8 @@ export function TxPage({
   feeDenom,
   gasOption,
   feeAmount,
+  refetchSourceBalances,
+  refetchDestinationBalances,
 }: TxPageProps) {
   const activeChainInfo = useChainInfo()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
@@ -83,6 +87,8 @@ export function TxPage({
     amountOut,
     setFeeAmount,
     feeAmount,
+    refetchDestinationBalances,
+    refetchSourceBalances,
   })
 
   const [_sourceToken] = useState(sourceToken)
@@ -91,6 +97,7 @@ export function TxPage({
   const [_destinationChain] = useState(destinationChain)
   const [_inAmount] = useState(inAmount)
   const [_amountOut] = useState(amountOut)
+  const [_route] = useState(route)
 
   const [isSuccessFull, setIsSuccessFull] = useState(false)
 
@@ -226,20 +233,24 @@ export function TxPage({
 
             <div className='w-full bg-white-100 dark:bg-gray-900 rounded-2xl flex flex-col p-4 gap-4 mb-4'>
               <TxPageAmount
-                amount={inAmount}
-                token={sourceToken}
-                chain={sourceChain}
+                amount={_inAmount}
+                token={_sourceToken}
+                chain={_sourceChain}
                 isFirst={true}
               />
-              <TxPageSteps route={route} txStatus={txStatus} />
-              <TxPageAmount amount={amountOut} token={destinationToken} chain={destinationChain} />
+              <TxPageSteps route={_route} txStatus={txStatus} />
+              <TxPageAmount
+                amount={_amountOut}
+                token={_destinationToken}
+                chain={_destinationChain}
+              />
             </div>
 
-            {firstTxnError ? <SwapError errorMsg={firstTxnError} /> : null}
-            {timeoutError ? <SwapError errorMsg='Request timed out' /> : null}
+            {firstTxnError ? <SwapError errorMsg={firstTxnError} className='mb-4' /> : null}
+            {timeoutError ? <SwapError errorMsg='Request timed out' className='mb-4' /> : null}
 
             {unableToTrackError ? (
-              <div className='w-full bg-white-100 dark:bg-gray-900 dark:text-red-300 flex gap-2 items-center p-2 rounded-lg border border-red-300 mx-auto'>
+              <div className='w-full bg-white-100 dark:bg-gray-900 dark:text-red-300 flex gap-2 items-center p-2 rounded-lg border border-red-300 mx-auto mb-4'>
                 <img src={Images.Misc.FilledExclamationMark} />
                 <span dangerouslySetInnerHTML={{ __html: unableToTrackError }} />
               </div>

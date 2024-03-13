@@ -67,7 +67,7 @@ export function useGetAsteroidTokens(
 
   const address = useAddress(activeChain);
   const chainId =
-    selectedNetwork === 'mainnet' ? chainInfos[activeChain].chainId : chainInfos[activeChain].testnetChainId;
+    selectedNetwork === 'mainnet' ? chainInfos[activeChain]?.chainId : chainInfos[activeChain]?.testnetChainId;
 
   return useQuery<{ asteroidTokens: Token[]; currencyInFiatValue: BigNumber }>(
     ['query-get-asteroid-tokens', address, chainId, activeChain, uAtomToken, selectedNetwork],
