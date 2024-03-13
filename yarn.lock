@@ -3336,15 +3336,6 @@
     swr "2.1.5"
     wagmi "1.4.12"
 
-"@leapwallet/leap-api-js@0.21.4":
-  version "0.21.4"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-api-js/0.21.4/031031eb31179e35864c42a530fdf99073bc8b2b#031031eb31179e35864c42a530fdf99073bc8b2b"
-  integrity sha512-wYATiolbNRH+lbGxiKcL9aPQpVBv8JluU5160/zAvF3YnMWP7fIZpZPGXdBk7Bd9cjZYfsbP7IpzyY9AAzLGmQ==
-  dependencies:
-    cross-fetch "3.1.5"
-    crypto-js "4.1.1"
-    typedi "0.10.0"
-
 "@leapwallet/leap-keychain@0.2.2":
   version "0.2.2"
   resolved "https://npm.pkg.github.com/download/@leapwallet/leap-keychain/0.2.2/f58cb6a2138eeb3f34c78795c3f10a9c615a8358#f58cb6a2138eeb3f34c78795c3f10a9c615a8358"

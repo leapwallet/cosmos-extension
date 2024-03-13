@@ -1116,6 +1116,7 @@ export enum Currency {
 export enum CosmosTxType {
   Send = 'SEND',
   IbcSend = 'IBC_SEND',
+  IBCSwap = 'IBC_SWAP',
   Swap = 'SWAP',
   GovVote = 'GOV_VOTE',
   StakeDelegate = 'STAKE_DELEGATE',
