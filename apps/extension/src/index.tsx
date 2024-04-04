@@ -67,33 +67,34 @@ initCrypto()
 //    },
 //  },
 //})
-
-Sentry.init(
-  createSentryConfig({
-    dsn: process.env.SENTRY_DSN,
-    environment: `${process.env.NODE_ENV}`,
-    ignoreErrors: [
-      'AxiosError: Network Error',
-      'AxiosError: Request aborted',
-      'AbortError: Aborted',
-    ],
-    release: `${browser.runtime.getManifest().version}`,
-    integrations: [
-      new BrowserTracing({
-        routingInstrumentation: Sentry.reactRouterV6Instrumentation(
-          React.useEffect,
-          useLocation,
-          useNavigationType,
-          createRoutesFromChildren,
-          matchRoutes,
-        ),
-      }),
-    ],
-    sampleRate: 0.3,
-    tracesSampleRate: 0.1,
-    enabled: process.env.NODE_ENV === 'production',
-  }),
-)
+if (process.env.SENTRY_DSN) {
+  Sentry.init(
+    createSentryConfig({
+      dsn: process.env.SENTRY_DSN,
+      environment: `${process.env.NODE_ENV}`,
+      ignoreErrors: [
+        'AxiosError: Network Error',
+        'AxiosError: Request aborted',
+        'AbortError: Aborted',
+      ],
+      release: `${browser.runtime.getManifest().version}`,
+      integrations: [
+        new BrowserTracing({
+          routingInstrumentation: Sentry.reactRouterV6Instrumentation(
+            React.useEffect,
+            useLocation,
+            useNavigationType,
+            createRoutesFromChildren,
+            matchRoutes,
+          ),
+        }),
+      ],
+      sampleRate: 0.3,
+      tracesSampleRate: 0.1,
+      enabled: process.env.NODE_ENV === 'production',
+    }),
+  )
+}
 
 mixpanel.init(process.env.MIXPANEL_TOKEN as string, {
   ip: false,
