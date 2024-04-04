@@ -22,6 +22,14 @@ export const REMOVED_CHAINS_FROM_ONBOARDING = [
   'odin-mainnet-freya',
   'gravity-bridge-3',
 ]
+export const ETHERMINT_CHAINS = [
+  'evmos_9001-2',
+  'dymension_1100-1',
+  'blumbus_111-1',
+  'canto_7700-1',
+  'dimension_37-1',
+  'planq_7070-2',
+]
 
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']
 

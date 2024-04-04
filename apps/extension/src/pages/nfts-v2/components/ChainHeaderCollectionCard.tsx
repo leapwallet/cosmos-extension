@@ -106,7 +106,7 @@ export function ChainHeaderCollectionCard({
                 <NftCard
                   mediaType={nft.media_type}
                   chain={chain as SupportedChain}
-                  imgSrc={normalizeImageSrc(nft.image)}
+                  imgSrc={normalizeImageSrc(nft.image ?? '')}
                   textNft={{
                     name: nft?.domain ?? '',
                     description:

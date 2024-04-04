@@ -1,8 +1,9 @@
 import {
-  GasOptions,
+  FeeTokenData,
   getErrorMsg,
   sliceWord,
   useActiveChain,
+  useActiveStakingDenom,
   useStakeTx,
   useStaking,
   useValidatorImage,
@@ -11,14 +12,17 @@ import { Validator } from '@leapwallet/cosmos-wallet-sdk'
 import BottomModal from 'components/bottom-modal'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import { Wallet } from 'hooks/wallet/useWallet'
-import React, { useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import useGetWallet = Wallet.useGetWallet
 import { Avatar, Buttons, Card, Memo } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import { ErrorCard } from 'components/ErrorCard'
+import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
+import { GasPriceOptionValue } from 'components/gas-price-options/context'
+import { DisplayFee } from 'components/gas-price-options/display-fee'
+import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import { LoaderAnimation } from 'components/loader/Loader'
-import Text from 'components/text'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
@@ -40,28 +44,41 @@ export function ReviewClaimRewardsTx({
   const txCallback = useTxCallBack()
   const activeChain = useActiveChain()
   const { data: imgUrl } = useValidatorImage(validator)
+  const defaultGasPrice = useDefaultGasPrice()
 
   const [formatCurrency] = useFormatCurrency()
   const { formatHideBalance } = useHideAssets()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const [activeStakingDenom] = useActiveStakingDenom()
 
-  const { delegations, refetchDelegatorRewards, totalRewards, totalRewardsDollarAmt, rewards } =
-    useStaking()
+  const { delegations, refetchDelegatorRewards, totalRewardsDollarAmt, rewards } = useStaking()
   const {
     showLedgerPopup,
     onReviewTransaction,
     isLoading,
     error,
-    displayFeeText,
     memo,
     setMemo,
     setAmount,
+    recommendedGasLimit,
+    userPreferredGasLimit,
+    setUserPreferredGasLimit,
+    gasOption,
+    userPreferredGasPrice,
+    setFeeDenom,
   } = useStakeTx(
     'CLAIM_REWARDS',
     validator as Validator,
     undefined,
     Object.values(delegations ?? {}),
   )
+
+  const [showFeesSettingSheet, setShowFeesSettingSheet] = useState<boolean>(false)
+  const [gasError, setGasError] = useState<string | null>(null)
+  const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
+    option: gasOption,
+    gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
+  })
 
   const rewardTokens = useMemo(() => {
     if (reward?.reward) {
@@ -91,24 +108,27 @@ export function ReviewClaimRewardsTx({
     }`
   }, [rewardTokens])
 
-  const _totalRewards = useMemo(() => {
-    if (reward?.reward) {
-      return reward.reward
-        .reduce((a, v) => {
-          return a + +v.amount
-        }, 0)
-        .toString()
-    }
-
-    return totalRewards
-  }, [reward?.reward, totalRewards])
+  const nativeTokenReward = useMemo(() => {
+    return rewardTokens?.find((token) => token.denom === activeStakingDenom.coinMinimalDenom)
+      ?.amount
+  }, [activeStakingDenom.coinMinimalDenom, rewardTokens])
 
   useCaptureTxError(error)
   useEffect(() => {
-    setAmount(_totalRewards ?? '')
+    setAmount(nativeTokenReward ?? '')
+  }, [nativeTokenReward, setAmount])
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [_totalRewards])
+  const onGasPriceOptionChange = useCallback(
+    (value: GasPriceOptionValue, feeBaseDenom: FeeTokenData) => {
+      setGasPriceOption(value)
+      setFeeDenom(feeBaseDenom.denom)
+    },
+    [setFeeDenom],
+  )
+
+  const handleCloseFeeSettingSheet = useCallback(() => {
+    setShowFeesSettingSheet(false)
+  }, [])
 
   if (showLedgerPopup) {
     return <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />
@@ -128,64 +148,81 @@ export function ReviewClaimRewardsTx({
   }
 
   return (
-    <BottomModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title='Review Transaction'
-      closeOnBackdropClick={true}
+    <GasPriceOptions
+      recommendedGasLimit={recommendedGasLimit}
+      gasLimit={userPreferredGasLimit?.toString() ?? recommendedGasLimit}
+      setGasLimit={(value: number) => setUserPreferredGasLimit(Number(value.toString()))}
+      gasPriceOption={gasPriceOption}
+      onGasPriceOptionChange={onGasPriceOptionChange}
+      error={gasError}
+      setError={setGasError}
     >
-      <div>
-        <div className='flex flex-col items-center w-full gap-y-4'>
-          <CardWithHeading title='Staking Rewards'>
-            <Card
-              avatar={
-                <Avatar
-                  avatarImage={
-                    (isCompassWallet() ? Images.Misc.CompassReward : Images.Misc.LeapReward) ??
-                    defaultTokenLogo
-                  }
-                  chainIcon={
-                    validator ? imgUrl ?? validator.image ?? Images.Misc.Validator : undefined
-                  }
-                  avatarOnError={imgOnError(defaultTokenLogo)}
-                  size='sm'
-                />
-              }
-              isRounded
-              size='md'
-              subtitle={formatHideBalance(
-                totalRewardsDollarAmt ? formatCurrency(new BigNumber(totalRewardsDollarAmt)) : '-',
-              )}
-              title={titleText ?? ''}
+      <BottomModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title='Review Transaction'
+        closeOnBackdropClick={true}
+      >
+        <div>
+          <div className='flex flex-col items-center w-full gap-y-4'>
+            <CardWithHeading title='Staking Rewards'>
+              <Card
+                avatar={
+                  <Avatar
+                    avatarImage={
+                      (isCompassWallet() ? Images.Misc.CompassReward : Images.Misc.LeapReward) ??
+                      defaultTokenLogo
+                    }
+                    chainIcon={
+                      validator ? imgUrl ?? validator.image ?? Images.Misc.Validator : undefined
+                    }
+                    avatarOnError={imgOnError(defaultTokenLogo)}
+                    size='sm'
+                  />
+                }
+                isRounded
+                size='md'
+                subtitle={formatHideBalance(
+                  totalRewardsDollarAmt
+                    ? formatCurrency(new BigNumber(totalRewardsDollarAmt))
+                    : '-',
+                )}
+                title={titleText ?? ''}
+              />
+            </CardWithHeading>
+
+            <Memo
+              value={memo}
+              onChange={(e) => {
+                setMemo(e.target.value)
+              }}
             />
-          </CardWithHeading>
 
-          <Memo
-            value={memo}
-            onChange={(e) => {
-              setMemo(e.target.value)
-            }}
-          />
+            <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
 
-          {!error && !!displayFeeText ? (
-            <Text size='sm' color='text-gray-400 dark:text-gray-600' className='justify-center'>
-              {displayFeeText}
-            </Text>
-          ) : null}
+            {error ? <ErrorCard text={getErrorMsg(error, gasOption, 'claim')} /> : null}
+            {gasError && !showFeesSettingSheet ? (
+              <p className='text-red-300 text-sm font-medium text-center'>{gasError}</p>
+            ) : null}
 
-          {error ? <ErrorCard text={getErrorMsg(error, GasOptions.HIGH, 'claim')} /> : null}
-
-          <Buttons.Generic
-            color={Colors.getChainColor(activeChain)}
-            size='normal'
-            disabled={isLoading || !!error || showLedgerPopup}
-            className='w-[344px]'
-            onClick={onClaimRewardsClick}
-          >
-            {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Claim Rewards'}
-          </Buttons.Generic>
+            <Buttons.Generic
+              color={Colors.getChainColor(activeChain)}
+              size='normal'
+              disabled={isLoading || !!error || !!gasError || showLedgerPopup}
+              className='w-[344px]'
+              onClick={onClaimRewardsClick}
+            >
+              {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Claim Rewards'}
+            </Buttons.Generic>
+          </div>
         </div>
-      </div>
-    </BottomModal>
+      </BottomModal>
+
+      <FeesSettingsSheet
+        showFeesSettingSheet={showFeesSettingSheet}
+        onClose={handleCloseFeeSettingSheet}
+        gasError={gasError}
+      />
+    </GasPriceOptions>
   )
 }

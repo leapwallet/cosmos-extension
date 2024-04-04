@@ -1,19 +1,28 @@
 import { coin } from '@cosmjs/proto-signing'
+import { TxClient as InjectiveTxClient } from '@injectivelabs/sdk-ts'
 import {
   CosmosTxType,
+  getChainId,
+  getMetaDataForIbcTx,
+  getMetaDataForSendTx,
   getTxnLogAmountValue,
   LeapWalletApi,
   sliceAddress,
   useChainsStore,
   useDenoms,
+  useGetChains,
   usePendingTxState,
   useTxMetadata,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
-  getMetaDataForIbcTx,
-  getMetaDataForSendTx,
-} from '@leapwallet/cosmos-wallet-hooks/dist/send/get-metadata'
-import { sleep, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+  ChainInfos,
+  EthermintTxHandler,
+  getClientState,
+  getErrorMessageFromCode,
+  InjectiveTx,
+  sleep,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
 import {
   Account,
   getMessageMetadataForSigning,
@@ -23,7 +32,11 @@ import {
   TxClient,
 } from '@leapwallet/elements-core'
 import { useChains } from '@leapwallet/elements-hooks'
+import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
+import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useWalletClient } from 'hooks/useWalletClient'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { useSendContext } from 'pages/send-v2/context'
 import { useState } from 'react'
 import { useTxCallBack } from 'utils/txCallback'
@@ -41,6 +54,9 @@ export const useExecuteSkipTx = () => {
   const txMetadata = useTxMetadata()
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
   const [showLedgerPopupSkipTx, setShowLedgerPopup] = useState(false)
+  const getWallet = Wallet.useGetWallet()
+  const chainInfos = useGetChains()
+  const selectedNetwork = useSelectedNetwork()
 
   const { selectedToken, selectedAddress, fee, inputAmount, isIBCTransfer, transferData, memo } =
     useSendContext()
@@ -77,10 +93,11 @@ export const useExecuteSkipTx = () => {
         return
       }
 
-      const { senderAddress, encodedMessage } = getMessageMetadataForSigning(
+      const { senderAddress, encodedMessage: transferMessage } = getMessageMetadataForSigning(
         multiHopMsg.msg_type_url,
         msgJSON,
       )
+      const encodedMessage = transferMessage as { typeUrl: string; value: MsgTransfer }
 
       const messageChain = elementsChains?.find((chain) => chain.chainId === multiHopMsg.chain_id)
 
@@ -102,6 +119,7 @@ export const useExecuteSkipTx = () => {
         setTxnProcessing(false)
         return
       }
+      let txBytesString: string | undefined = undefined
 
       const tx = new TxClient(
         String(messageChain.chainId),
@@ -111,9 +129,70 @@ export const useExecuteSkipTx = () => {
         account,
       )
 
-      let txBytesString: string | undefined = undefined
       try {
-        txBytesString = await tx.sign(senderAddress, [encodedMessage], fee, memo)
+        if (!LEDGER_ENABLED_EVM_CHAINS.includes(messageChain.key as SupportedChain)) {
+          txBytesString = await tx.sign(senderAddress, [encodedMessage], fee, memo)
+        } else {
+          if (messageChain.key === 'injective') {
+            const wallet = await getWallet(messageChain.key)
+
+            const injectiveTx = new InjectiveTx(false, wallet as any, messageChain.restUrl)
+
+            const channelIdData = await getClientState(
+              messageChain.restUrl,
+              encodedMessage.value.sourceChannel,
+              'transfer',
+            )
+
+            const latest_height =
+              channelIdData.data.identified_client_state.client_state.latest_height
+
+            const height = {
+              revisionHeight: latest_height.revision_height + 150,
+              revisionNumber: latest_height.revision_number,
+            }
+            const newEncodedMessage = {
+              ...encodedMessage,
+              value: {
+                memo: encodedMessage.value.memo,
+                receiver: encodedMessage.value.receiver,
+                sender: encodedMessage.value.sender,
+                amount: encodedMessage.value.token,
+                height: height,
+                timeout: encodedMessage.value.timeoutTimestamp,
+                port: encodedMessage.value.sourcePort,
+                channelId: encodedMessage.value.sourceChannel,
+              },
+            }
+            const txRaw = await injectiveTx.signTx(senderAddress, [newEncodedMessage], fee, memo)
+            txBytesString = InjectiveTxClient.encode(txRaw)
+          } else if (messageChain.key === 'dymension' || messageChain.key === 'evmos') {
+            const wallet = await getWallet(messageChain.key)
+            const ethermintTx = new EthermintTxHandler(
+              messageChain.restUrl,
+              wallet as any,
+              ChainInfos[messageChain.key].chainId,
+              ChainInfos[messageChain.key].evmChainId,
+            )
+            const msgValue = encodedMessage.value as MsgTransfer
+            if (!msgValue.token) {
+              throw new Error('Invalid token')
+            }
+
+            txBytesString = await ethermintTx.signIbcTx({
+              fromAddress: msgValue.sender,
+              toAddress: msgValue.receiver,
+              transferAmount: msgValue.token,
+              sourcePort: msgValue.sourcePort,
+              sourceChannel: msgValue.sourceChannel,
+              timeoutTimestamp: undefined,
+              timeoutHeight: undefined,
+              fee,
+              memo: memo || '',
+              txMemo: msgValue.memo,
+            })
+          }
+        }
       } catch (e: any) {
         const err = e as Error
         if (err?.message?.includes('rejected') || err?.message?.includes('declined')) {
@@ -130,12 +209,30 @@ export const useExecuteSkipTx = () => {
       }
 
       try {
-        const { success, response } = await tx.submitTx(
-          String(messageChain.chainId),
-          txBytesString!,
-        )
-
-        if (!success) setError('SubmitTx Failed')
+        let txHash: string = ''
+        let success: boolean = false
+        try {
+          const submitResponse = await tx.submitTx(
+            String(messageChain.chainId),
+            txBytesString! as string,
+          )
+          success = submitResponse.success
+          if (!success) throw new Error('SubmitTx Failed')
+          txHash = submitResponse.response.tx_hash
+        } catch (e: any) {
+          if (e.message === 'SubmitTx Failed') {
+            const { transactionHash, code, codespace } = await tx.broadcastTx(
+              txBytesString! as string,
+            )
+            txHash = transactionHash
+            if (code !== 0) {
+              throw new Error(`BroadcastTx Failed ${getErrorMessageFromCode(code, codespace)}`)
+            }
+            success = true
+          } else {
+            throw new Error(`BroadcastTx Failed ${getErrorMessageFromCode(e.code, e.codespace)}`)
+          }
+        }
 
         const getTxStatus = async () => {
           let index = 0
@@ -143,7 +240,7 @@ export const useExecuteSkipTx = () => {
           while (index <= max) {
             const txnStatus = await SkipAPI.getTxnStatus({
               chain_id: multiHopMsg.chain_id,
-              tx_hash: response.tx_hash,
+              tx_hash: txHash,
             })
             if (txnStatus.success) {
               const { state, error } = txnStatus.response
@@ -174,15 +271,19 @@ export const useExecuteSkipTx = () => {
           title1: `Sent ${selectedToken?.symbol || selectedToken?.name}`,
           txStatus: 'loading',
           txType: isIBCTransfer ? 'ibc/transfer' : 'send',
-          txHash: response.tx_hash,
+          txHash,
           promise: getTxStatus(),
         }
 
         const toAddress = selectedAddress?.address || ''
         const denom = selectedToken?.coinMinimalDenom || selectedToken?.ibcDenom || ''
 
+        const denomChainInfo =
+          chainInfos[(denoms[selectedToken?.coinMinimalDenom ?? '']?.chain ?? '') as SupportedChain]
         const txnLogAmountValue = await getTxnLogAmountValue(inputAmount, {
           coinGeckoId: denoms[selectedToken?.coinMinimalDenom ?? '']?.coinGeckoId,
+          coinMinimalDenom: selectedToken?.coinMinimalDenom ?? '',
+          chainId: getChainId(denomChainInfo, selectedNetwork),
           chain: (selectedToken?.chain ?? '') as SupportedChain,
         })
 
@@ -196,7 +297,7 @@ export const useExecuteSkipTx = () => {
         metadata = { ...metadata, ...txMetadata }
 
         await txPostToDB({
-          txHash: response?.tx_hash,
+          txHash,
           txType: isIBCTransfer ? CosmosTxType.IbcSend : CosmosTxType.Send,
           amount: txnLogAmountValue,
           metadata,

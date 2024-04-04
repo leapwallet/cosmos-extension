@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
-import { Any } from 'cosmjs-types/google/protobuf/any';
 import Long from 'long';
 import * as _m0 from 'protobufjs/minimal';
 
@@ -12,15 +11,6 @@ export type BaseVestingAccount = {
   delegatedVesting: Coin[];
   endTime: Long;
 };
-
-function createBaseBaseAccount(): BaseAccount {
-  return {
-    address: '',
-    pubKey: undefined,
-    accountNumber: Long.UZERO,
-    sequence: Long.UZERO,
-  };
-}
 
 export interface StridePeriodicVestingAccount {
   baseVestingAccount: BaseVestingAccount;

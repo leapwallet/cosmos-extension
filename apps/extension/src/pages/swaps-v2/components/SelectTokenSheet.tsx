@@ -122,6 +122,7 @@ export function SelectTokenSheet({
                       amount={token.amount}
                       symbol={token.symbol}
                       isIconVisible={isSelected}
+                      hideAmount={token.amount === '0'}
                       iconSrc={
                         Images.Misc.ChainChecks[activeChain] ?? Images.Misc.ChainChecks['cosmos']
                       }

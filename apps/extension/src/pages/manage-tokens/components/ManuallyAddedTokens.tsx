@@ -2,13 +2,16 @@ import {
   capitalize,
   sliceWord,
   useBetaCW20Tokens,
+  useChainInfo,
   useDisabledCW20Tokens,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
+import { DenomsRecord, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider } from '@leapwallet/leap-ui'
-import React from 'react'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
+import React, { useMemo } from 'react'
 
 import { CustomToggleCard, TokenType } from './index'
+import { TokenTitle } from './TokenTitle'
 
 type ManuallyAddedTokensProps = {
   tokens: NativeDenom[]
@@ -25,6 +28,15 @@ export function ManuallyAddedTokens({
 }: ManuallyAddedTokensProps) {
   const betaCw20Tokens = useBetaCW20Tokens()
   const disabledCW20Tokens = useDisabledCW20Tokens()
+
+  const activeChainInfo = useChainInfo()
+  const selectedNetwork = useSelectedNetwork()
+
+  const explorerURL = useMemo(() => {
+    if (!activeChainInfo) return undefined
+    if (!activeChainInfo.txExplorer) return undefined
+    return activeChainInfo.txExplorer?.[selectedNetwork]?.accountUrl
+  }, [activeChainInfo, selectedNetwork])
 
   return (
     <div>
@@ -46,10 +58,21 @@ export function ManuallyAddedTokens({
             _TokenType = <TokenType type='factory' className='bg-[#0AB8FF1A] text-teal-500' />
           }
 
+          const handleRedirectionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation()
+            window.open(`${explorerURL}/${token.coinMinimalDenom}`, '_blank')
+          }
+
           return (
             <React.Fragment key={`${token.coinMinimalDenom}-${index}`}>
               <CustomToggleCard
-                title={title}
+                title={
+                  <TokenTitle
+                    title={title}
+                    showRedirection={!!betaCw20Tokens[token.coinMinimalDenom] && !!explorerURL}
+                    handleRedirectionClick={handleRedirectionClick}
+                  />
+                }
                 subtitle={subTitle}
                 isRounded={isLast}
                 imgSrc={token.icon}

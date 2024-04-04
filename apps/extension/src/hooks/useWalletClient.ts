@@ -1,7 +1,10 @@
+import { fromBase64 } from '@cosmjs/encoding'
 import { useActiveChain, useChainsStore, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { SignAminoMethod, SignDirectMethod, Signer } from '@leapwallet/elements-core'
 import { WalletClient } from '@leapwallet/elements-hooks'
+import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
+import { decodeChainIdToChain } from 'extension-scripts/utils'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useMemo } from 'react'
@@ -50,15 +53,16 @@ export const useWalletClient = () => {
     return {
       enable: async (chainIds: string | string[]) => {},
       getAccount: async (chainId: string) => {
-        const chainKey = Object.values(chains).find((chain) => chain.chainId === chainId)?.key
-        const wallet = await getWallet(
-          ((chainKey || chains[activeChain]?.key) ?? '') as SupportedChain,
-        )
-        const accounts = await wallet!.getAccounts!()
-        const account = accounts[0]
+        if (!activeWallet) throw new Error('No active wallet')
+        const chainIdToChain = await decodeChainIdToChain()
+        const chainKey = chainIdToChain[chainId] ?? activeChain
+
+        const address = activeWallet.addresses[chainKey as SupportedChain]
+        const pubKey = activeWallet.pubKeys?.[chainKey as SupportedChain]
+        if (!address || !pubKey) throw new Error('No address or pubKey')
         return {
-          bech32Address: account.address,
-          pubKey: account.pubkey,
+          bech32Address: address,
+          pubKey: fromBase64(pubKey),
           isNanoLedger: isLedgerTypeWallet,
         }
       },
@@ -66,7 +70,7 @@ export const useWalletClient = () => {
         return signer
       },
     }
-  }, [])
+  }, [activeWallet])
 
   return { walletClient }
 }

@@ -12,7 +12,9 @@ import {
   useInitDenoms,
   useInitDisabledCW20Tokens,
   useInitDisabledNFTsCollections,
+  useInitEnabledCW20Tokens,
   useInitFeeDenoms,
+  useInitFractionalizedNftContracts,
   useInitGasAdjustments,
   useInitGasPriceSteps,
   useInitIbcTraceStore,
@@ -22,6 +24,7 @@ import {
   useInitNftChains,
   useInitSelectedNetwork,
   useInitSpamProposals,
+  useInitStakingDenoms,
   useInitTxMetadata,
   useMobileAppBanner,
   useTransactionConfigs,
@@ -67,6 +70,7 @@ export default function App() {
   useInitActiveWallet()
   useInitSelectedNetwork()
   useInitIteratedUriNftContracts()
+  useInitFractionalizedNftContracts()
 
   // initialize chains and default user preferences
   useManageChains()
@@ -93,6 +97,7 @@ export default function App() {
   useInitGasAdjustments()
   useInitFeeDenoms()
   useInitDisabledCW20Tokens()
+  useInitEnabledCW20Tokens()
   useInitInteractedTokens()
   useInitDisabledNFTsCollections()
 
@@ -109,6 +114,8 @@ export default function App() {
   useMobileAppBanner()
   useFeatureFlags()
   useTransactionConfigs()
+
+  useInitStakingDenoms()
 
   return (
     <LeapUiTheme defaultTheme={theme} forcedTheme={theme}>

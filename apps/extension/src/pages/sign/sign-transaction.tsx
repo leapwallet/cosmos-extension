@@ -22,6 +22,7 @@ import {
   chainIdToChain,
   ChainInfos,
   ethSign,
+  ethSignEip712,
   GasPrice,
   LedgerError,
   NativeDenom,
@@ -163,12 +164,13 @@ const SignTransaction = ({
       : formatWalletName(activeWallet.name)
   }, [activeWallet.addressIndex, activeWallet.name, activeWallet.walletType])
 
-  const { isAmino, isAdr36, ethSignType, signOptions } = useMemo(() => {
+  const { isAmino, isAdr36, ethSignType, signOptions, eip712Types } = useMemo(() => {
     const isAmino = !!txnSigningRequest?.isAmino
     const isAdr36 = !!txnSigningRequest?.isAdr36
     const ethSignType = txnSigningRequest?.ethSignType
+    const eip712Types = txnSigningRequest?.eip712Types
     const signOptions = txnSigningRequest?.signOptions
-    return { isAmino, isAdr36, ethSignType, signOptions }
+    return { isAmino, isAdr36, ethSignType, signOptions, eip712Types }
   }, [txnSigningRequest])
 
   const [allowSetFee, messages, txnDoc, signDoc, fee, defaultFee, defaultMemo]: [
@@ -538,7 +540,7 @@ const SignTransaction = ({
         }, 10)
       } catch (e) {
         if (e instanceof Error) {
-          if (e.message === transactionDeclinedError.message) {
+          if (e.message === transactionDeclinedError) {
             handleCancel()
           } else {
             setSigningError(e.message)
@@ -585,6 +587,9 @@ const SignTransaction = ({
         if (activeWallet.walletType === WALLETTYPE.LEDGER) {
           setShowLedgerPopup(true)
         }
+        const walletAccounts = await wallet.getAccounts()
+        const publicKey = walletAccounts[0].pubkey
+
         const data = await (async () => {
           try {
             if (ethSignType) {
@@ -593,6 +598,14 @@ const SignTransaction = ({
                 wallet as unknown as EthWallet,
                 signDoc as StdSignDoc,
                 ethSignType,
+              )
+            }
+            if (eip712Types) {
+              return ethSignEip712(
+                activeAddress,
+                wallet as unknown as EthWallet,
+                signDoc as StdSignDoc,
+                eip712Types,
               )
             }
             return wallet.signAmino(activeAddress, signDoc as StdSignDoc, {
@@ -609,10 +622,6 @@ const SignTransaction = ({
         if (!data) {
           throw new Error('Could not sign transaction')
         }
-
-        const walletAccounts = await wallet.getAccounts()
-
-        const publicKey = walletAccounts[0].pubkey
 
         try {
           await logSignAmino(
@@ -672,11 +681,9 @@ const SignTransaction = ({
         if (e instanceof Error) {
           if (e instanceof LedgerError) {
             setLedgerError(e.message)
-            e.message === transactionDeclinedError.message && handleCancel()
+            e.message === transactionDeclinedError && handleCancel()
           } else {
-            e.message === transactionDeclinedError.message
-              ? handleCancel()
-              : setSigningError(e.message)
+            e.message === transactionDeclinedError ? handleCancel() : setSigningError(e.message)
           }
         }
       } finally {
@@ -994,7 +1001,12 @@ const SignTransaction = ({
               </pre>
             )}
 
-            {signingError ?? ledgerError ? <ErrorCard text={signingError ?? ledgerError} /> : null}
+            <div className='mt-3'>
+              {signingError ?? ledgerError ? (
+                <ErrorCard text={signingError ?? ledgerError} />
+              ) : null}
+            </div>
+
             <LedgerConfirmationModal
               showLedgerPopup={showLedgerPopup}
               onClose={() => {

@@ -64,7 +64,7 @@ const base_config = {
       {
         test: /\.tsx?$/,
         loader: 'esbuild-loader',
-        exclude: /node_modules/,
+        exclude: /node_modules\/(?!@injectivelabs)/,
         options: {
           loader: 'tsx',
           target: 'es2020',
@@ -150,9 +150,10 @@ const base_config = {
       crypto: require.resolve('crypto-browserify'),
       path: require.resolve('path-browserify'),
       assert: require.resolve('assert'),
-      http: false,
-      https: false,
+      http: require.resolve('stream-http'),
+      https: require.resolve('https-browserify'),
       url: require.resolve('url'),
+      vm: false,
     },
   },
 }
@@ -188,7 +189,10 @@ module.exports = (env, argv) => {
     config = Object.assign({}, base_config, {
       mode: 'production',
       output: {
-        path: path.join(__dirname, isCompassBuild ? 'staging-builds/compass-build' : 'staging-builds/cosmos-build'),
+        path: path.join(
+          __dirname,
+          isCompassBuild ? 'staging-builds/compass-build' : 'staging-builds/cosmos-build',
+        ),
         filename: '[name].js',
         clean: true,
       },

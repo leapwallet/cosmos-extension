@@ -256,6 +256,40 @@ export class RequestSignAminoMsg extends Message<AminoSignResponse> {
   }
 }
 
+export class RequestExperimentalSignEip712Message extends Message<AminoSignResponse> {
+  constructor(
+    public readonly chainId: string,
+    public readonly signer: string,
+    public readonly eip712: {
+      types: Record<string, { name: string; type: string }[] | undefined>;
+      domain: Record<string, any>;
+      primaryType: string;
+    },
+    public readonly signDoc: StdSignDoc,
+    public readonly signOptions: LeapSignOptions,
+  ) {
+    super();
+  }
+
+  public static type() {
+    return 'request-experimental-eip-712-message';
+  }
+
+  validateBasic(): void {
+    if (!this.chainId) {
+      throw new Error('Chain id not set');
+    }
+
+    if (!this.signer) {
+      throw new Error('Signer not set');
+    }
+  }
+
+  type(): string {
+    return RequestExperimentalSignEip712Message.type();
+  }
+}
+
 export class RequestSignDirectMsg extends Message<{
   readonly signed: {
     bodyBytes: Uint8Array;

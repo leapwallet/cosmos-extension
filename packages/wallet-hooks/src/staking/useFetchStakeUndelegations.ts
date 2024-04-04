@@ -13,12 +13,13 @@ import {
   useActiveChain,
   useAddress,
   useChainApis,
+  useChainId,
   useDenoms,
   useGetChains,
   useSelectedNetwork,
   useStakeUndelegationsStore,
 } from '../store';
-import { fetchCurrency, formatTokenAmount } from '../utils';
+import { fetchCurrency, formatTokenAmount, useActiveStakingDenom } from '../utils';
 
 export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const _activeChain = useActiveChain();
@@ -35,7 +36,9 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
 
   const denoms = useDenoms();
   const chainInfos = useGetChains();
+  const [activeStakingDenom] = useActiveStakingDenom();
   const activeChainInfo = chainInfos[activeChain];
+  const chainId = useChainId(activeChain, selectedNetwork);
 
   const fetchStakeUndelegations = async () => {
     try {
@@ -51,6 +54,7 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
         denom.coinGeckoId,
         denom.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
+        `${chainId}-${denom.coinMinimalDenom}`,
       );
 
       const { unbonding_responses } = res.data as UnbondingDelegationResponse;
@@ -70,7 +74,7 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
 
       Object.values(uDelegations).map(async (r) => {
         r.entries.map((e) => {
-          e.formattedBalance = formatTokenAmount(e.balance, activeChainInfo.denom, 6);
+          e.formattedBalance = formatTokenAmount(e.balance, activeStakingDenom.coinDenom, 6);
           e.currencyBalance = new BigNumber(e.balance).multipliedBy(denomFiatValue ?? '0').toString();
         });
       });

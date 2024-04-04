@@ -22,6 +22,7 @@ export enum ButtonType {
   HOME = 'home',
   ADD_FUNDS = 'zero balance wallet - add funds',
   CHAIN_MANAGEMENT = 'chain management',
+  AIRDROPS = 'airdrops',
 }
 
 export enum ButtonName {
@@ -40,6 +41,9 @@ export enum ButtonName {
   ADD_CHAIN_FROM_STORE = 'add chain from store',
   ADD_NEW_CHAIN = 'add new chain',
   MANAGE_CHAIN = 'manage chain',
+  RETRY_AIRDROP = 'retry airdrop',
+  CLAIM_AIRDROP = 'claim airdrop',
+  GO_TO_LEAPBOARD = 'go to leapboard',
 }
 
 export enum PageName {
@@ -52,4 +56,5 @@ export enum PageName {
   Earn = 'Earn',
   NFT = 'NFT Collections',
   SyncWithMobileApp = 'Sync with Mobile App',
+  Airdrops = 'Airdrops',
 }

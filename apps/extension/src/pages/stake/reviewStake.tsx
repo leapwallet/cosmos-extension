@@ -3,6 +3,8 @@ import {
   GasOptions,
   getErrorMsg,
   useActiveChain,
+  useActiveStakingDenom,
+  useChainId,
   useChainInfo,
   useformatCurrency,
   useValidatorImage,
@@ -109,10 +111,14 @@ export default function ReviewStakeTransaction({
   const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain()
   const [preferredCurrency] = useUserPreferredCurrency()
+  const chainId = useChainId()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [currencyValue, setCurrencyValue] = useState<string>('')
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
+
+  const [activeStakingDenom] = useActiveStakingDenom()
+  const denom = activeStakingDenom.coinDenom
 
   useCaptureTxError(gasError ?? undefined)
   useCaptureTxError(error)
@@ -120,23 +126,30 @@ export default function ReviewStakeTransaction({
   useEffect(() => {
     const fn = async () => {
       if (amount === '') return
+
       try {
-        const _denom = Object.values(activeChainInfo.nativeDenoms)[0]
         const coinValue = await fetchCurrency(
           amount,
-          _denom.coinGeckoId,
-          _denom.chain as unknown as SupportedChain,
+          activeStakingDenom.coinGeckoId,
+          activeStakingDenom.chain as unknown as SupportedChain,
           currencyDetail[preferredCurrency].currencyPointer,
+          `${chainId}-${activeStakingDenom.coinMinimalDenom}`,
         )
+
         if (coinValue) setCurrencyValue(coinValue)
       } catch (e) {
         DEBUG('Cur Val Err', '', e)
       }
     }
     fn()
-  }, [amount, preferredCurrency, activeChainInfo])
-
-  const denom = activeChainInfo.denom
+  }, [
+    amount,
+    preferredCurrency,
+    activeStakingDenom.coinGeckoId,
+    activeStakingDenom.chain,
+    chainId,
+    activeStakingDenom.coinMinimalDenom,
+  ])
 
   const { buttonText, mainTitle, validators, validatorText } = useMemo(() => {
     switch (type) {

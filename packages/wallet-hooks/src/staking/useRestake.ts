@@ -31,6 +31,7 @@ import {
   useActiveWalletStore,
   useAddress,
   useChainApis,
+  useChainId,
   useDefaultGasEstimates,
   useGetChains,
   usePendingTxState,
@@ -54,6 +55,7 @@ export function useRestake() {
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
   const denom = Object.values(ChainInfos[activeChain].nativeDenoms)[0];
+  const chainId = useChainId();
 
   // STATES
   const [memo, setMemo] = useState<string>('');
@@ -237,6 +239,7 @@ export function useRestake() {
           denom.coinGeckoId,
           denom.chain as unknown as SupportedChain,
           currencyDetail[preferredCurrency].currencyPointer,
+          `${chainId}-${denom.coinMinimalDenom}`,
         );
         setCurrencyFees(feeCurrencyValue ?? '0');
         setFees(fee);
@@ -275,7 +278,7 @@ export function useRestake() {
         setError('');
       }
     } catch (e: any) {
-      if (e.message === transactionDeclinedError.message) {
+      if (e.message === transactionDeclinedError) {
         callback && callback('txDeclined');
       }
       setError(e.message.toString());

@@ -1,11 +1,4 @@
-import {
-  axiosWrapper,
-  Delegation,
-  DelegationResponse,
-  fromSmall,
-  SupportedChain,
-  SupportedDenoms,
-} from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper, Delegation, DelegationResponse, fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 import { useEffect } from 'react';
 
@@ -14,12 +7,13 @@ import {
   useActiveChain,
   useAddress,
   useChainApis,
+  useChainId,
   useDenoms,
   useGetChains,
   useSelectedNetwork,
   useStakeDelegationsStore,
 } from '../store';
-import { fetchCurrency, formatTokenAmount } from '../utils';
+import { fetchCurrency, formatTokenAmount, useActiveStakingDenom } from '../utils';
 
 export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const _activeChain = useActiveChain();
@@ -35,7 +29,9 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
 
   const denoms = useDenoms();
   const chainInfos = useGetChains();
+  const [activeStakingDenom] = useActiveStakingDenom();
   const activeChainInfo = chainInfos[activeChain];
+  const chainId = useChainId(activeChain, selectedNetwork);
 
   const fetchStakeDelegations = async () => {
     try {
@@ -45,23 +41,20 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
         url: '/cosmos/staking/v1beta1/delegations/' + address,
       });
       const { delegation_responses } = res.data as DelegationResponse;
-      const denomKey = Object.keys(activeChainInfo.nativeDenoms).find(
-        (d) => d === delegation_responses[0].balance.denom,
-      );
-      const denom = denoms[denomKey as SupportedDenoms];
+      let denomFiatValue: string | undefined = undefined;
 
-      const denomFiatValue = await fetchCurrency(
-        '1',
-        denom?.coinGeckoId,
-        denom?.chain as SupportedChain,
-        currencyDetail[preferredCurrency].currencyPointer,
-      );
+      if (activeStakingDenom.coinGeckoId) {
+        denomFiatValue = await fetchCurrency(
+          '1',
+          activeStakingDenom.coinGeckoId,
+          activeStakingDenom?.chain as SupportedChain,
+          currencyDetail[preferredCurrency].currencyPointer,
+          `${chainId}-${activeStakingDenom?.coinMinimalDenom} `,
+        );
+      }
 
       delegation_responses.forEach((delegation) => {
-        const _denom = delegation.balance.denom;
-        const decimals = denoms[_denom]?.coinDecimals ?? activeChainInfo.nativeDenoms?.[_denom]?.coinDecimals ?? 6;
-
-        delegation.balance.amount = fromSmall(delegation.balance.amount, decimals);
+        delegation.balance.amount = fromSmall(delegation.balance.amount, activeStakingDenom.coinDecimals);
       });
 
       const rawDelegations: Record<string, Delegation> = delegation_responses.reduce(
@@ -73,14 +66,14 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
         .filter(([, d]) => new BigNumber(d.balance.amount).gt(0))
         .reduce((formattedDelegations, [validator, d]) => {
           d.balance.currenyAmount = new BigNumber(d.balance.amount).multipliedBy(denomFiatValue ?? '0').toString();
-          d.balance.formatted_amount = formatTokenAmount(d.balance.amount, activeChainInfo.denom, 6);
+          d.balance.formatted_amount = formatTokenAmount(d.balance.amount, activeStakingDenom.coinDenom, 6);
           return { [validator]: d, ...formattedDelegations };
         }, {});
 
       const tda = Object.values(rawDelegations)
         .reduce((acc, v) => acc.plus(v.balance.amount), new BigNumber(0))
         .toString();
-      const totalDelegationAmount = formatTokenAmount(tda, activeChainInfo.denom);
+      const totalDelegationAmount = formatTokenAmount(tda, activeStakingDenom.coinDenom);
       const currencyAmountDelegation = new BigNumber(tda).multipliedBy(denomFiatValue ?? '0').toString();
 
       setStakeDelegationInfo({ delegations, totalDelegationAmount, currencyAmountDelegation });
@@ -93,8 +86,8 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
 
   useEffect(() => {
     if (
-      activeChainInfo?.comingSoonFeatures?.includes('governance') ||
-      activeChainInfo?.notSupportedFeatures?.includes('governance')
+      activeChainInfo?.comingSoonFeatures?.includes('stake') ||
+      activeChainInfo?.notSupportedFeatures?.includes('stake')
     ) {
       setTimeout(() => {
         setStakeDelegationLoading(false);

@@ -10,7 +10,7 @@ import { imgOnError } from 'utils/imgOnError'
 
 import { Chip } from './index'
 
-type NftCardProps = {
+export type NftCardProps = {
   chain: SupportedChain
   imgSrc?: string
   textNft?: {

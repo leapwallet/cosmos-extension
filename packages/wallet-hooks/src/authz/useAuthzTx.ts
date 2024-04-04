@@ -8,11 +8,11 @@ import {
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { Coin } from '@leapwallet/parser-parfait';
 import { useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { useActiveChain, useAddress, useChainApis, useGetChains, usePendingTxState } from '../store';
 import { useTxHandler } from '../tx';
@@ -188,7 +188,7 @@ export function useAuthzTx() {
       if (txResult) onTxSuccess(txResult, txHash, callback);
       setError('');
     } catch (e: any) {
-      if (e.message === transactionDeclinedError.message) {
+      if (e.message === transactionDeclinedError) {
         callback && callback('txDeclined');
       }
       setError(e.message.toString());

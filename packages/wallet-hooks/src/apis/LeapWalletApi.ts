@@ -358,6 +358,13 @@ export namespace LeapWalletApi {
       pryzmtestnet: 'PRYZM' as CosmosBlockchain,
       thorchain: 'THOR_CHAIN' as CosmosBlockchain,
       odin: 'ODIN_CHAIN' as CosmosBlockchain,
+      ['8ball']: 'EIGHT_BALL' as CosmosBlockchain,
+      ['Dora Vota']: 'DORAVOTA' as CosmosBlockchain,
+      ['f(x)Core']: 'FX_CORE' as CosmosBlockchain,
+      ['Humans.ai']: 'HUMANS_AI' as CosmosBlockchain,
+      ['union Testnet']: 'UNION' as CosmosBlockchain,
+      ['Cronos POS Chain']: 'CRYPTO_ORG_CHAIN' as CosmosBlockchain,
+      ['Haqq Network']: 'HAQQ_NETWORK' as CosmosBlockchain,
     };
     return blockchains[activeChain] ?? activeChain?.toUpperCase();
   }
@@ -467,7 +474,6 @@ export namespace LeapWalletApi {
             app: getPlatform(),
             txHash,
             blockchain: getCosmosNetwork(chain),
-            // is set to true since we do not support dapp transactions for testnet
             isMainnet: chainId ? !testnetChainIds.includes(chainId) : selectedNetwork === 'mainnet',
             wallet: primaryAddress ?? address,
             walletAddress: address,

@@ -84,7 +84,7 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
     sourceChain: elementsChains?.find((chain) => chain.chainId === chains[activeChain].chainId),
     userAddress: userAddress ?? '',
     walletClient: walletClient,
-    enabled: isIBCTransfer && featureFlags?.ibc?.extension === 'active',
+    enabled: isIBCTransfer && featureFlags?.ibc?.extension !== 'disabled',
     isMainnet: activeNetwork === 'mainnet',
   })
 

@@ -25,7 +25,12 @@ export type FeatureFlags = {
     extension: FeatureFlagState;
   };
   ibc: {
-    extension: 'active' | 'redirect' | 'disabled';
+    mobile: FeatureFlagState;
+    extension: FeatureFlagState;
+  };
+  airdrops: {
+    mobile: FeatureFlagState;
+    extension: FeatureFlagState;
   };
 };
 

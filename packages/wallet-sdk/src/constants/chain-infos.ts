@@ -326,6 +326,8 @@ export type ChainInfo = {
   readonly cosmosSDK?: string;
   readonly notSupportedFeatures?: string[];
   readonly comingSoonFeatures?: string[];
+  readonly evmChainId?: string;
+  readonly evmChainIdTestnet?: string;
   apiStatus?: boolean;
 };
 
@@ -1357,11 +1359,13 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     cosmosSDK: CosmosSDK.Version_Point_47,
   },
   dymension: {
+    evmChainId: '1100',
+    evmChainIdTestnet: '100',
     chainId: 'dymension_1100-1',
     key: 'dymension',
     chainName: 'Dymension',
     chainRegistryPath: 'dymension',
-    testnetChainId: 'froopyland_100-1',
+    testnetChainId: 'blumbus_111-1',
     testnetChainRegistryPath: 'dymension',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/dymension-logo.svg',
     apis: {
@@ -1488,6 +1492,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     cosmosSDK: CosmosSDK.Version_Point_47,
   },
   evmos: {
+    evmChainId: '9001',
     chainId: 'evmos_9001-2',
     key: 'evmos',
     chainName: 'Evmos',
@@ -1641,6 +1646,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   injective: {
     chainId: 'injective-1',
     testnetChainId: 'injective-888',
+    evmChainId: '1',
+    evmChainIdTestnet: '888',
     key: 'injective',
     chainName: 'Injective',
     chainRegistryPath: 'injective',
@@ -2233,7 +2240,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     chainId: 'cataclysm-1',
     testnetChainId: 'nibiru-testnet-1',
     key: 'nibiru',
-    chainName: 'Nibiru chain',
+    chainName: 'Nibiru Chain',
     chainRegistryPath: 'nibiru',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/nibiru.png',
     apis: {

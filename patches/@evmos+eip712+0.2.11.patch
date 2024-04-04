@@ -1,0 +1,178 @@
+diff --git a/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.d.ts b/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.d.ts
+index 2e5f94a..64eadb1 100644
+--- a/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.d.ts
++++ b/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.d.ts
+@@ -1,33 +1,45 @@
+ export declare const IBC_MSG_TRANSFER_TYPES: {
+-    MsgValue: {
+-        name: string;
+-        type: string;
+-    }[];
+-    TypeToken: {
+-        name: string;
+-        type: string;
+-    }[];
+-    TypeTimeoutHeight: {
+-        name: string;
+-        type: string;
+-    }[];
+-};
+-export declare function createIBCMsgTransfer(receiver: string, sender: string, sourceChannel: string, sourcePort: string, revisionHeight: number, revisionNumber: number, timeoutTimestamp: string, amount: string, denom: string): {
++  MsgValue: {
++    name: string;
++    type: string;
++  }[];
++  TypeToken: {
++    name: string;
++    type: string;
++  }[];
++  TypeTimeoutHeight: {
++    name: string;
+     type: string;
+-    value: {
+-        receiver: string;
+-        sender: string;
+-        source_channel: string;
+-        source_port: string;
+-        timeout_height: {
+-            revision_height: string;
+-            revision_number: string;
+-        };
+-        timeout_timestamp: string;
+-        token: {
+-            amount: string;
+-            denom: string;
+-        };
++  }[];
++};
++export declare function createIBCMsgTransfer(
++  receiver: string,
++  sender: string,
++  sourceChannel: string,
++  sourcePort: string,
++  revisionHeight: number,
++  revisionNumber: number,
++  timeoutTimestamp: string,
++  amount: string,
++  denom: string,
++  memo: string,
++): {
++  type: string;
++  value: {
++    receiver: string;
++    sender: string;
++    source_channel: string;
++    source_port: string;
++    timeout_height: {
++      revision_height: string;
++      revision_number: string;
++    };
++    timeout_timestamp: string;
++    token: {
++      amount: string;
++      denom: string;
+     };
++    memo: string;
++  };
+ };
+ //# sourceMappingURL=ibcMsgTransfer.d.ts.map
+diff --git a/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.js b/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.js
+index 99abc44..691657f 100644
+--- a/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.js
++++ b/node_modules/@evmos/eip712/dist/messages/ibcMsgTransfer.js
+@@ -1,44 +1,57 @@
+-"use strict";
+-Object.defineProperty(exports, "__esModule", { value: true });
++'use strict';
++Object.defineProperty(exports, '__esModule', { value: true });
+ exports.createIBCMsgTransfer = exports.IBC_MSG_TRANSFER_TYPES = void 0;
+ exports.IBC_MSG_TRANSFER_TYPES = {
+-    MsgValue: [
+-        { name: 'source_port', type: 'string' },
+-        { name: 'source_channel', type: 'string' },
+-        { name: 'token', type: 'TypeToken' },
+-        { name: 'sender', type: 'string' },
+-        { name: 'receiver', type: 'string' },
+-        { name: 'timeout_height', type: 'TypeTimeoutHeight' },
+-        { name: 'timeout_timestamp', type: 'uint64' },
+-    ],
+-    TypeToken: [
+-        { name: 'denom', type: 'string' },
+-        { name: 'amount', type: 'string' },
+-    ],
+-    TypeTimeoutHeight: [
+-        { name: 'revision_number', type: 'uint64' },
+-        { name: 'revision_height', type: 'uint64' },
+-    ],
++  MsgValue: [
++    { name: 'source_port', type: 'string' },
++    { name: 'source_channel', type: 'string' },
++    { name: 'token', type: 'TypeToken' },
++    { name: 'sender', type: 'string' },
++    { name: 'receiver', type: 'string' },
++    { name: 'timeout_height', type: 'TypeTimeoutHeight' },
++    { name: 'timeout_timestamp', type: 'uint64' },
++    { name: 'memo', type: 'string' },
++  ],
++  TypeToken: [
++    { name: 'denom', type: 'string' },
++    { name: 'amount', type: 'string' },
++  ],
++  TypeTimeoutHeight: [
++    { name: 'revision_number', type: 'uint64' },
++    { name: 'revision_height', type: 'uint64' },
++  ],
+ };
+-function createIBCMsgTransfer(receiver, sender, sourceChannel, sourcePort, revisionHeight, revisionNumber, timeoutTimestamp, amount, denom) {
+-    return {
+-        type: 'cosmos-sdk/MsgTransfer',
+-        value: {
+-            receiver,
+-            sender,
+-            source_channel: sourceChannel,
+-            source_port: sourcePort,
+-            timeout_height: {
+-                revision_height: revisionHeight.toString(),
+-                revision_number: revisionNumber.toString(),
+-            },
+-            timeout_timestamp: timeoutTimestamp,
+-            token: {
+-                amount,
+-                denom,
+-            },
+-        },
+-    };
++function createIBCMsgTransfer(
++  receiver,
++  sender,
++  sourceChannel,
++  sourcePort,
++  revisionHeight,
++  revisionNumber,
++  timeoutTimestamp,
++  amount,
++  denom,
++  memo,
++) {
++  return {
++    type: 'cosmos-sdk/MsgTransfer',
++    value: {
++      receiver,
++      sender,
++      source_channel: sourceChannel,
++      source_port: sourcePort,
++      timeout_height: {
++        revision_height: revisionHeight.toString(),
++        revision_number: revisionNumber.toString(),
++      },
++      timeout_timestamp: timeoutTimestamp,
++      token: {
++        amount,
++        denom,
++      },
++      memo,
++    },
++  };
+ }
+ exports.createIBCMsgTransfer = createIBCMsgTransfer;
+ //# sourceMappingURL=ibcMsgTransfer.js.map

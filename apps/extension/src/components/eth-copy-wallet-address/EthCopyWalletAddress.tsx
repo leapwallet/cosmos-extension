@@ -2,6 +2,7 @@ import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { Images } from 'images'
 import React, { MouseEventHandler, useState } from 'react'
+import browser from 'webextension-polyfill'
 
 type EthCopyWalletAddressProps = {
   readonly type?: 'button' | 'submit' | 'reset'
@@ -32,12 +33,22 @@ export function EthCopyWalletAddress({
     useTheme().theme === ThemeName.DARK ? Images.Misc.CopyGray200 : Images.Misc.CopyGray600
 
   const handleClick: MouseEventHandler<HTMLDivElement | HTMLButtonElement> = async (event) => {
+    if (!text) {
+      event.stopPropagation()
+      redirectOnboarding()
+      return
+    }
+
     onTextClick && event.stopPropagation()
 
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
 
     onCopy && (await onCopy())
+  }
+
+  const redirectOnboarding = () => {
+    window.open(browser.runtime.getURL('index.html#/onboardEvmLedger'))
   }
 
   const handleTextClick: MouseEventHandler<HTMLDivElement> = (event) => {

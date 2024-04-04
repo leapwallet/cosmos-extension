@@ -23,6 +23,7 @@ import {
   useActiveWalletStore,
   useAddress,
   useChainApis,
+  useChainId,
   useDefaultGasEstimates,
   useGetChains,
   usePendingTxState,
@@ -81,6 +82,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
   const address = useAddress();
   const { setPendingTx } = usePendingTxState();
   const nativeFeeDenom = useNativeFeeDenom();
+  const chainId = useChainId();
 
   const defaultGasEstimates = useDefaultGasEstimates();
   const [preferredCurrency] = useUserPreferredCurrency();
@@ -183,6 +185,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
                 feeDenom.coinGeckoId,
                 activeChain,
                 currencyDetail[preferredCurrency].currencyPointer,
+                `${chainId}-${feeDenom.coinMinimalDenom}`,
               );
               setFeeUsdValue(feesFiatVal ?? '0');
               const feeTokenAmount = formatTokenAmount(

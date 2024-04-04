@@ -2,7 +2,9 @@ import {
   currencyDetail,
   fetchCurrency,
   useChainApis,
+  useChainId,
   useFeeTokens,
+  useSelectedNetwork,
   useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -12,6 +14,7 @@ import {
   SupportedChain,
   SupportedDenoms,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import Long from 'long'
 import { useCallback } from 'react'
 
@@ -59,9 +62,12 @@ type UseFeeValidationReturn = (
 
 export function useFeeValidation(chain: SupportedChain): UseFeeValidationReturn {
   const { data: txConfig } = useTransactionConfigs()
+  const selectedNetwork = useSelectedNetwork()
 
-  const { data: feeTokens, status } = useFeeTokens(chain, 'mainnet')
+  const { data: feeTokens, status } = useFeeTokens(chain, selectedNetwork ?? 'mainnet')
   const { lcdUrl } = useChainApis(chain)
+  const activeChain = useActiveChain()
+  const chainId = useChainId()
 
   return useCallback(
     async (feeValidationParams, onValidationFailed) => {
@@ -78,12 +84,13 @@ export function useFeeValidation(chain: SupportedChain): UseFeeValidationReturn 
       }
 
       let usdValue
-      if (feeDenomData?.coinGeckoId && feeDenomData?.chain) {
+      if (feeDenomData?.chain) {
         usdValue = await fetchCurrency(
           '1',
           feeDenomData.coinGeckoId,
           feeDenomData.chain as SupportedChain,
           currencyDetail.US.currencyPointer,
+          `${chainId}-${feeDenomData.coinMinimalDenom}`,
         )
       }
 

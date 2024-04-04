@@ -8,7 +8,7 @@ let lastPopupPing = Date.now()
 
 const DEFAULT_AUTOLOCK_TIME = 1440
 const WORKER_RESET_MESSAGE = 'WORKER_RESET_MESSAGE'
-
+// listening to this message so that the service worker stays active
 browser.runtime.onMessage.addListener((message, sender) => {
   if (sender.id !== browser.runtime.id) return
 
@@ -36,9 +36,12 @@ async function checkAutoLock(passwordManager: PasswordManager) {
 
   const lat = dayjs(lastPopupPing).add(autoLockTime ?? DEFAULT_AUTOLOCK_TIME, 'minutes')
 
-  if (startOfMinute.isAfter(lat)) {
-    passwordManager.clearPassword()
-    browser.runtime.sendMessage({ type: 'auto-lock' })
+  if (startOfMinute.isAfter(lat) && passwordManager.getPassword()) {
+    await passwordManager.lockWallet()
+    const windows = await browser.windows.getAll()
+    if (windows?.length > 0) {
+      browser.runtime.sendMessage({ type: 'auto-lock' })
+    }
   }
 }
 

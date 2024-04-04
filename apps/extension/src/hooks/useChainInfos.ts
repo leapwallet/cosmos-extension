@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainsStore, useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { chainInfosState } from 'atoms/chains'
 import { BETA_CHAINS, CUSTOM_ENDPOINTS } from 'config/storage-keys'
@@ -11,11 +11,35 @@ import browser from 'webextension-polyfill'
 export function useInitChainInfos() {
   const setChains = useChainsStore((store) => store.setChains)
   const setChainInfos = useSetRecoilState(chainInfosState)
+  const customChains = useCustomChains()
 
   useEffect(() => {
     function getBetaChains() {
       browser.storage.local.get([BETA_CHAINS, CUSTOM_ENDPOINTS]).then(async (resp) => {
-        const betaChains = isCompassWallet() ? {} : JSON.parse(resp[BETA_CHAINS] ?? '{}')
+        const _allChains: any = {}
+        for (let i = 0; i < customChains?.length; i++) {
+          if (
+            !isCompassWallet() &&
+            !!resp[BETA_CHAINS] &&
+            Object.keys(JSON.parse(resp[BETA_CHAINS])).includes(customChains[i].chainName)
+          ) {
+            const existingChain = JSON.parse(resp[BETA_CHAINS])[customChains[i]?.chainName]
+            _allChains[customChains[i]?.chainName] = {
+              ...customChains[i],
+              chainId: existingChain.chainId,
+              bip44: existingChain.bip44,
+              addressPrefix: existingChain.addressPrefix,
+              chainRegistryPath: existingChain.chainRegistryPath,
+              testnetChainRegistryPath: existingChain.testnetChainRegistryPath,
+            }
+          }
+        }
+
+        const betaChains = isCompassWallet()
+          ? {}
+          : Object.keys(_allChains).length > 0
+          ? _allChains
+          : JSON.parse(resp[BETA_CHAINS] ?? '{}')
 
         if (!isCompassWallet()) {
           for (const chainName in betaChains) {
@@ -117,7 +141,7 @@ export function useInitChainInfos() {
         }
       })
     }
-  }, [])
+  }, [customChains])
 }
 
 export function useChainInfos() {

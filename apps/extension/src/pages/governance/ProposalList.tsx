@@ -3,7 +3,6 @@ import { Proposal } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomModal from 'components/bottom-modal'
-import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
@@ -14,8 +13,8 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
-import SideNav from 'pages/home/side-nav'
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -52,11 +51,11 @@ function ProposalList({
   const handleFilterChange = (event: React.FormEvent<HTMLInputElement>) => {
     setPropFilter(event.currentTarget.value.toLowerCase())
   }
+  const navigate = useNavigate()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showFilter, setShowFilter] = useState(false)
   const [filter, setFilter] = useState('all')
-  const [showSideNav, setShowSideNav] = useState(false)
   const [showSelectedChainAlert, setShowSelectedChainAlert] =
     useRecoilState(selectedChainAlertState)
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -128,14 +127,8 @@ function ProposalList({
         header={
           <Header
             action={{
-              onClick: function noRefCheck() {
-                setShowSideNav(true)
-              },
-              type: HeaderActionType.NAVIGATION,
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              className:
-                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
+              onClick: () => navigate(-1),
+              type: HeaderActionType.BACK,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={() => setShowChainSelector(true)}
@@ -144,8 +137,6 @@ function ProposalList({
           />
         }
       >
-        <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-
         <>
           {showSelectedChainAlert && !isCompassWallet() && (
             <AlertStrip
@@ -188,7 +179,7 @@ function ProposalList({
             </div>
           </div>
 
-          <div id='governance-list' className='pb-20'>
+          <div id='governance-list' className='pb-8'>
             <div className='rounded-2xl flex flex-col items-center w-[344px] m-auto justify-center dark:bg-gray-900 bg-white-100'>
               {loading ? (
                 <GovCardSkeleton />
@@ -242,8 +233,6 @@ function ProposalList({
       </PopupLayout>
 
       <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
-
-      <BottomNav label={BottomNavLabel.Governance} />
 
       <BottomModal isOpen={showFilter} onClose={() => setShowFilter(false)} title={'Filter by'}>
         <div className='rounded-2xl flex flex-col items-center w-full justify-center dark:bg-gray-900 bg-white-100'>

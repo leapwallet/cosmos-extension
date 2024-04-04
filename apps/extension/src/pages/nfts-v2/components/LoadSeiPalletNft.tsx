@@ -11,13 +11,13 @@ import { LoadNftDataProps } from './LoadNftData'
 export function LoadSeiPalletNft({ nftChain, index }: LoadNftDataProps) {
   const { forceContractsListChain, forceNetwork } = nftChain
   const walletAddress = useAddress(forceContractsListChain)
-  const { status, data, error } = useGetSeiPalletNFTs(walletAddress, forceNetwork)
+  const { status, data } = useGetSeiPalletNFTs(walletAddress, forceNetwork)
   const { setIsLoading, setCollectionData, nftChains } = useNftContext()
 
   useCollectEndpointNfts({
     index,
     status,
-    data: error ? [] : data,
+    data,
     chain: forceContractsListChain,
     setIsLoading,
     setCollectionData,

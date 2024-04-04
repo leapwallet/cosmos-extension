@@ -1,5 +1,6 @@
 import {
   Token,
+  useActiveStakingDenom,
   useChainInfo,
   useGetTokenBalances,
   useValidatorImage,
@@ -124,18 +125,16 @@ export function CurrentValidatorCard({
 
 function ValidatorCard({
   validator,
-  activeChain,
   apys,
   onClick,
 }: {
   validator: Validator
-  activeChain: SupportedChain
   apys: Record<string, number>
   onClick: () => void
 }) {
-  const chainInfos = useChainInfos()
   const [showInfo, setShowInfo] = useState<boolean>(false)
   const { data: keybaseImageUrl } = useValidatorImage(validator)
+  const [activeStakingDenom] = useActiveStakingDenom()
 
   return (
     <>
@@ -196,7 +195,7 @@ function ValidatorCard({
               Voting power
             </Text>
             <Text size='xs' className='font-bold mt-1'>
-              {formatTokenAmount(validator.tokens as string, chainInfos[activeChain].denom, 2)}
+              {formatTokenAmount(validator.tokens as string, activeStakingDenom.coinDenom, 2)}
             </Text>
           </div>
           <div className='flex flex-col grow'>
@@ -216,12 +215,10 @@ function ValidatorCard({
 function ValidatorList({
   validators,
   apys,
-  activeChain,
   onShuffleClick,
   onSelectValidator,
 }: {
   validators: Validator[]
-  activeChain: SupportedChain
   apys: Record<string, number>
   onShuffleClick?: () => void
   // eslint-disable-next-line no-unused-vars
@@ -254,27 +251,23 @@ function ValidatorList({
       {validators.map((v, index) => (
         <React.Fragment key={`validator-${index}-${v.address}`}>
           {index !== 0 && <CardDivider />}
-          <ValidatorCard
-            onClick={() => onSelectValidator(v)}
-            activeChain={activeChain}
-            apys={apys}
-            validator={v}
-          />
+          <ValidatorCard onClick={() => onSelectValidator(v)} apys={apys} validator={v} />
         </React.Fragment>
       ))}
     </div>
   )
 }
 
-function Heading({ chainName }: { chainName: SupportedChain }) {
-  const chainInfos = useChainInfos()
+function Heading() {
+  const [activeStakingDenom] = useActiveStakingDenom()
+
   return (
     <div className='flex flex-col pb-6'>
       <Text size='xxl' className='text-[28px] mb-1 font-black'>
         Choose a Validator
       </Text>
       <Text size='sm' color='dark:text-gray-400 text-gray-600' className='font-bold'>
-        To delegate {'(stake)'} your {chainInfos[chainName].denom} token, please select a validator
+        To delegate {'(stake)'} your {activeStakingDenom.coinDenom} token, please select a validator
         from the list of active validators below:
       </Text>
     </div>
@@ -284,7 +277,6 @@ function Heading({ chainName }: { chainName: SupportedChain }) {
 function ChooseValidatorView({
   validators,
   apys,
-  activeChain,
   searchfilter,
   fromValidator,
   delegation,
@@ -295,7 +287,6 @@ function ChooseValidatorView({
   validators: Validator[]
   fromValidator?: Validator
   delegation?: Delegation
-  activeChain: SupportedChain
   searchfilter: string
   // eslint-disable-next-line no-unused-vars
   setSearchfilter: (s: string) => void
@@ -307,7 +298,7 @@ function ChooseValidatorView({
 }) {
   return (
     <>
-      {!(fromValidator && delegation) && <Heading chainName={activeChain} />}
+      {!(fromValidator && delegation) && <Heading />}
       <div className='flex flex-col gap-y-4 mb-8'>
         {fromValidator && delegation && (
           <CurrentValidatorCard fromValidator={fromValidator} delegation={delegation} />
@@ -341,7 +332,6 @@ function ChooseValidatorView({
         ) : (
           <ValidatorList
             onSelectValidator={setSelectedValidator}
-            activeChain={activeChain}
             validators={validators}
             apys={apys}
           />
@@ -368,12 +358,13 @@ export default function ChooseValidator() {
   const { allAssets } = useGetTokenBalances()
 
   const activeChainInfo = chainInfos[activeChain]
+  const [activeStakingDenom] = useActiveStakingDenom()
 
   const { validators, apy, mode, fromValidator, fromDelegation, unstakingPeriod } =
     state as ChooseValidatorProps
 
   const token = useMemo(() => {
-    let _token = allAssets?.find((e) => e.symbol === activeChainInfo.denom)
+    let _token = allAssets?.find((e) => e.symbol === activeStakingDenom.coinDenom)
 
     if (!_token) {
       const denom = Object.values(activeChainInfo.nativeDenoms)[0]
@@ -388,7 +379,12 @@ export default function ChooseValidator() {
     }
 
     return _token
-  }, [activeChainInfo, allAssets])
+  }, [
+    activeChainInfo.chainSymbolImageUrl,
+    activeChainInfo.nativeDenoms,
+    activeStakingDenom.coinDenom,
+    allAssets,
+  ])
 
   const [showSideNav, setShowSideNav] = useState(false)
   const [sortBy, setSortBy] = useState<STAKE_SORT_BY>('Random')
@@ -474,7 +470,9 @@ export default function ChooseValidator() {
             title={
               <>
                 <Text size='lg' className='font-bold'>
-                  {mode === 'REDELEGATE' ? 'Switch Validator' : `Stake ${activeChainInfo.denom}`}
+                  {mode === 'REDELEGATE'
+                    ? 'Switch Validator'
+                    : `Stake ${activeStakingDenom.coinDenom}`}
                 </Text>
               </>
             }
@@ -485,7 +483,6 @@ export default function ChooseValidator() {
         <div className='flex flex-col p-7 overflow-scroll'>
           {!selectedValidator && validators && (
             <ChooseValidatorView
-              activeChain={activeChain}
               validators={filterValidators}
               apys={apy}
               searchfilter={searchfilter}

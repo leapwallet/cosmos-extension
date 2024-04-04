@@ -83,6 +83,7 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
             denom.coingeckoId,
             denom.chain as unknown as SupportedChain,
             currencyDetail[preferredCurrency].currencyPointer,
+            `${chainId}-${contract}`,
           );
           if (_fiatValue !== null) {
             fiatValue = _fiatValue ?? '';

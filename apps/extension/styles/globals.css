@@ -278,3 +278,52 @@ input[type='number']::-webkit-outer-spin-button {
 .markdown a {
   color: #726fdc;
 }
+
+
+
+.ripple-loader button {
+  position: absolute;
+  border-radius: 100%;
+  border: none;
+  background-color: #eff2f5;
+  box-shadow: inset 10px 10px 20px #fff;
+  opacity: 0;
+  z-index: 1;
+}
+
+.ripple-loader button:nth-child(1) {
+  animation: ripple 4s infinite ease;
+}
+
+.ripple-loader button:nth-child(2) {
+  animation: ripple 4s infinite ease;
+  animation-delay: 200ms;
+}
+
+@keyframes ripple {
+  0% {
+    width: 0px;
+    height: 0px;
+    opacity: 0.5;
+  }
+  50% {
+    width: 72px;
+    height: 72px;
+    opacity: 0;
+  }
+}
+
+.select-wallets::-webkit-scrollbar {
+  width: 4px;
+}
+
+.select-wallets::-webkit-scrollbar-track {
+  background: #212121;
+  border-radius: 6px;
+}
+
+.select-wallets::-webkit-scrollbar-thumb {
+  background-color: #696969;
+  border-radius: 2px;
+  /* border: 3px solid #212121; */
+}

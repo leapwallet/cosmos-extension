@@ -498,12 +498,14 @@ function ProposalDetails({
 
   const proposer = useMemo(() => {
     if (!shouldUseFallback) {
-      return {
-        address: proposal?.proposer?.address,
-        url:
-          proposal?.proposer?.url ??
-          `${txUrl?.replace('txs', 'account')}/${proposal?.proposer?.address}`,
-      }
+      return proposal?.proposer?.address
+        ? {
+            address: proposal?.proposer?.address,
+            url:
+              proposal?.proposer?.url ??
+              `${txUrl?.replace('txs', 'account')}/${proposal?.proposer?.address}`,
+          }
+        : undefined
     }
     return _proposalVotes?.proposer?.depositor
       ? {
@@ -570,7 +572,7 @@ function ProposalDetails({
             </>
           )}
 
-          {activeProposalStatusTypes.includes(proposal.status) && (
+          {activeProposalStatusTypes.includes(proposal.status) && proposer?.address && (
             <div
               className={`rounded-2xl ${
                 ProposalStatus.PROPOSAL_STATUS_DEPOSIT_PERIOD === proposal.status ? '' : 'mt-6'

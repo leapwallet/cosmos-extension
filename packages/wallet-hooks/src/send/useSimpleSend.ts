@@ -194,7 +194,7 @@ export const useSimpleSend = () => {
           },
         };
       } catch (e: any) {
-        if (e.message === transactionDeclinedError.message) {
+        if (e.message === transactionDeclinedError) {
           return {
             success: false,
             errors: [txDeclinedErrorUser.message],
@@ -421,7 +421,7 @@ export const useSimpleSend = () => {
           },
         };
       } catch (e: any) {
-        if (e.message === transactionDeclinedError.message) {
+        if (e.message === transactionDeclinedError) {
           return {
             success: false,
             errors: [txDeclinedErrorUser.message],

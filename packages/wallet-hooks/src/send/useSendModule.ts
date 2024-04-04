@@ -25,6 +25,7 @@ import {
   useActiveChain,
   useAddress,
   useChainApis,
+  useChainId,
   useDefaultGasEstimates,
   useDenoms,
   useGasPriceSteps,
@@ -35,6 +36,7 @@ import { Token, TxCallback } from '../types';
 import {
   fetchCurrency,
   GasOptions,
+  getChainId,
   getErrorMsg,
   getOsmosisGasPriceSteps,
   getTxnLogAmountValue,
@@ -113,6 +115,7 @@ export function useSendModule(): SendModuleType {
   const allChainsGasPriceSteps = useGasPriceSteps();
   const isCW20Tx = useIsCW20Tx();
   const denoms = useDenoms();
+  const chainId = useChainId();
 
   /**
    * Local State Variables
@@ -251,6 +254,7 @@ export function useSendModule(): SendModuleType {
         feeDenom.coinGeckoId,
         feeDenom.chain as unknown as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
+        `${chainId}-${feeDenom.coinMinimalDenom}`,
       );
     },
     { enabled: !!selectedToken },
@@ -271,9 +275,12 @@ export function useSendModule(): SendModuleType {
       });
 
       if (result.success === true) {
+        const denomChainInfo = ChainInfos[denoms[selectedToken?.coinMinimalDenom ?? '']?.chain as SupportedChain];
         const txLogAmountDenom = {
           coinGeckoId: denoms[selectedToken?.coinMinimalDenom ?? '']?.coinGeckoId,
           chain: selectedToken?.chain as SupportedChain,
+          chainId: getChainId(denomChainInfo, selectedNetwork),
+          coinMinimalDenom: selectedToken?.coinMinimalDenom,
         };
 
         const txLogAmountValue = await getTxnLogAmountValue(inputAmount, txLogAmountDenom);
@@ -293,7 +300,17 @@ export function useSendModule(): SendModuleType {
         setTxError(getErrorMsg(result.errors.join(',\n'), gasOption, 'send'));
       }
     },
-    [activeChain, gasEstimate, sendTokens, setPendingTx, txPostToDB, ibcChannelId, customIbcChannelId, denoms],
+    [
+      activeChain,
+      gasEstimate,
+      sendTokens,
+      setPendingTx,
+      txPostToDB,
+      ibcChannelId,
+      customIbcChannelId,
+      denoms,
+      inputAmount,
+    ],
   );
 
   const clearTxError = useCallback(() => {
@@ -323,12 +340,13 @@ export function useSendModule(): SendModuleType {
       token = isEthAddress(token) ? `erc20/${token}` : token;
       const amountOfCoins = coin(normalizedAmount, token);
 
-      setGasEstimate(
-        isIBCTransfer
-          ? defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ?? DefaultGasEstimates.DEFAULT_GAS_IBC
-          : (defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER) *
-              (selectedToken && isCW20Tx(selectedToken) ? 2 : 1),
-      );
+      const defaultIbcGasEstimate =
+        defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ?? DefaultGasEstimates.DEFAULT_GAS_IBC;
+      const defaultNonIbcGasEstimate =
+        (defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER) *
+        (selectedToken && isCW20Tx(selectedToken) ? 2 : 1);
+
+      setGasEstimate(isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
 
       const channelId = customIbcChannelId ?? ibcChannelId ?? '';
 

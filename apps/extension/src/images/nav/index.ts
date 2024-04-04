@@ -1,3 +1,5 @@
+import ActionButton from './action-button'
+import BottomNav from './bottom-nav'
 import ChildFriendly from './child-friendly.svg'
 import CurrencyIcon from './currency.svg'
 import CustomEndpoints from './custom-endpoints.svg'
@@ -24,6 +26,8 @@ import ThemeIcon from './theme.svg'
 import Twitter from './twitter-icon.svg'
 
 export {
+  ActionButton,
+  BottomNav,
   ChildFriendly,
   CurrencyIcon,
   CustomEndpoints,

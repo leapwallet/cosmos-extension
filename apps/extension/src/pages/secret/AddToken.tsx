@@ -1,6 +1,7 @@
 import {
   getCoreumHybridTokenInfo,
   useActiveChain,
+  useAutoFetchedCW20Tokens,
   useChainApis,
   useDenoms,
   useGetChains,
@@ -29,6 +30,8 @@ function AddTokenForm() {
   const chains = useGetChains()
 
   const denoms = useDenoms()
+  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
+  const combinedDenoms = { ...denoms, ...autoFetchedCW20Tokens }
   const selectedNetwork = useSelectedNetwork()
   const setBetaCW20Tokens = useSetBetaCW20Tokens()
   const setBetaNativeTokens = useSetBetaNativeTokens()
@@ -161,7 +164,7 @@ function AddTokenForm() {
     if (value) {
       if (name === 'coinMinimalDenom') {
         const _value = value.trim().toLowerCase()
-        if (Object.keys(denoms).includes(_value)) {
+        if (Object.keys(combinedDenoms).includes(_value)) {
           error = 'Token with same minimal denom already exists'
         } else if (_value.startsWith('erc20/') || isEthAddress(_value)) {
           error = "We don't support adding erc20 token yet."

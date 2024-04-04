@@ -1,12 +1,16 @@
 import {
+  useAutoFetchedCW20Tokens,
   useBetaCW20Tokens,
   useBetaNativeTokens,
   useChainApis,
+  useCW20Tokens,
   useDisabledCW20Tokens,
+  useEnabledCW20Tokens,
   useGetTokenBalances,
   useInteractedTokens,
   useSetBetaCW20Tokens,
   useSetDisabledCW20InStorage,
+  useSetEnabledCW20InStorage,
   useSetInteractedTokensInStorage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
@@ -25,15 +29,21 @@ import {
   DeleteTokenSheet,
   ManageTokensEmptyCard,
   ManuallyAddedTokens,
+  SupportedToken,
   SupportedTokens,
 } from './components'
+import { sortBySymbols } from './utils'
 
 export function ManageTokens() {
   const betaNativeTokens = useBetaNativeTokens()
   const betaCw20Tokens = useBetaCW20Tokens()
   const disabledCW20Tokens = useDisabledCW20Tokens()
+  const enabledCW20Tokens = useEnabledCW20Tokens()
+  const cw20Tokens = useCW20Tokens()
+
   const interactedTokens = useInteractedTokens()
   const setDisabledCW20Tokens = useSetDisabledCW20InStorage()
+  const setEnabledCW20Tokens = useSetEnabledCW20InStorage()
   const setInteractedTokens = useSetInteractedTokensInStorage()
   const activeChain = useActiveChain()
 
@@ -42,6 +52,7 @@ export function ManageTokens() {
   const setBetaCW20Tokens = useSetBetaCW20Tokens()
   const { lcdUrl } = useChainApis()
   const { cw20TokensBalances } = useGetTokenBalances()
+  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
 
   const [showDeleteSheet, setShowDeleteSheet] = useState(false)
   const [tokenToDelete, setTokenToDelete] = useState<NativeDenom>()
@@ -51,8 +62,6 @@ export function ManageTokens() {
   const [fetchingContract, setFetchingContract] = useState(false)
   const timeoutIdRef = useRef<NodeJS.Timeout>()
   const [manuallyAddedTokens, setManuallyAddedTokens] = useState<NativeDenom[]>([])
-  const [supportedTokens, setSupportedTokens] = useState<NativeDenom[]>([])
-
   /**
    * Initialize manually added tokens
    */
@@ -73,33 +82,35 @@ export function ManageTokens() {
   /**
    * Initialize supported tokens
    */
-  useEffect(() => {
-    let _supportedTokens: NativeDenom[] = []
+  const supportedTokens = useMemo(() => {
+    let _supportedTokens: SupportedToken[] = []
 
-    if (cw20TokensBalances && betaCw20Tokens) {
-      const _betaCw20Token = Object.values(betaCw20Tokens)
-      const _cw20TokensBalances = cw20TokensBalances.filter((token) =>
-        _betaCw20Token.every((betaToken) => betaToken.coinMinimalDenom !== token.coinMinimalDenom),
-      )
+    const _nativeCW20Tokens =
+      Object.values(cw20Tokens).map((token) => {
+        const tokenBalance = cw20TokensBalances?.find(
+          (balance) => balance.coinMinimalDenom === token.coinMinimalDenom,
+        )
+        return {
+          ...token,
+          enabled:
+            String(tokenBalance?.amount) === '0'
+              ? enabledCW20Tokens?.includes(token.coinMinimalDenom)
+              : !disabledCW20Tokens?.includes(token.coinMinimalDenom),
+          verified: true,
+        }
+      }) ?? []
 
-      _supportedTokens = [
-        ..._supportedTokens,
-        ..._cw20TokensBalances.map((token) => ({
-          chain: '',
-          coinDenom: token.symbol,
-          coinMinimalDenom: token.coinMinimalDenom,
-          coinDecimals: token.coinDecimals ?? 6,
-          icon: token.img,
-          coinGeckoId: '',
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          name: token?.name ?? '',
-        })),
-      ]
-    }
+    const _autoFetchedCW20Tokens =
+      Object.values(autoFetchedCW20Tokens)?.map((token) => ({
+        ...token,
+        enabled: enabledCW20Tokens.includes(token.coinMinimalDenom),
+        verified: false,
+      })) ?? []
 
-    setSupportedTokens(_supportedTokens)
-  }, [betaCw20Tokens, betaNativeTokens, cw20TokensBalances])
+    _supportedTokens = [..._supportedTokens, ..._nativeCW20Tokens, ..._autoFetchedCW20Tokens]
+
+    return _supportedTokens
+  }, [autoFetchedCW20Tokens, cw20Tokens, cw20TokensBalances, disabledCW20Tokens, enabledCW20Tokens])
 
   /**
    * Remove disabled tokens from fetched tokens
@@ -162,21 +173,32 @@ export function ManageTokens() {
           return false
         })
         ?.sort((tokenA, tokenB) => {
-          const symbolA = tokenA.coinDenom.toUpperCase()
-          const symbolB = tokenB.coinDenom.toUpperCase()
+          const isEnabledA = tokenA.enabled
+          const isEnabledB = tokenB.enabled
 
-          if (symbolA < symbolB) return -1
-          if (symbolA < symbolB) return 1
-          return 0
+          if (isEnabledA && !isEnabledB) return -1
+          if (!isEnabledA && isEnabledB) return 1
+
+          const isNativeCW20A = !!cw20Tokens?.[tokenA.coinMinimalDenom]
+          const isNativeCW20B = !!cw20Tokens?.[tokenB.coinMinimalDenom]
+
+          if (isNativeCW20A && !isNativeCW20B) return -1
+          if (!isNativeCW20A && isNativeCW20B) return 1
+
+          return sortBySymbols(tokenA, tokenB)
         }) ?? []
     )
-  }, [supportedTokens, searchedText])
+  }, [supportedTokens, searchedText, cw20Tokens])
 
   /**
    * Fetch contract info from the chain
    */
   useEffect(() => {
-    if (searchedText.length !== 0 && filteredManuallyAddedTokens.length === 0) {
+    if (
+      searchedText.length !== 0 &&
+      filteredSupportedTokens.length === 0 &&
+      filteredManuallyAddedTokens.length === 0
+    ) {
       clearTimeout(timeoutIdRef.current)
 
       timeoutIdRef.current = setTimeout(async () => {
@@ -206,7 +228,13 @@ export function ManageTokens() {
         }
       }, 100)
     }
-  }, [searchedText, filteredManuallyAddedTokens.length, lcdUrl, activeChain])
+  }, [
+    searchedText,
+    filteredManuallyAddedTokens.length,
+    lcdUrl,
+    activeChain,
+    filteredSupportedTokens.length,
+  ])
 
   /**
    * Handle add new token click
@@ -234,10 +262,12 @@ export function ManageTokens() {
     }
 
     let _disabledCW20Tokens: string[] = []
+    let _enabledCW20Tokens: string[] = []
     let hasToUpdateBetaCW20Tokens = false
 
     if (isEnabled) {
       _disabledCW20Tokens = disabledCW20Tokens.filter((token) => token !== coinMinimalDenom)
+      _enabledCW20Tokens = [...enabledCW20Tokens, coinMinimalDenom]
 
       const tokenInfo = manuallyAddedTokens.find(
         (token) => token.coinMinimalDenom === coinMinimalDenom,
@@ -247,9 +277,11 @@ export function ManageTokens() {
       }
     } else {
       _disabledCW20Tokens = [...disabledCW20Tokens, coinMinimalDenom]
+      _enabledCW20Tokens = enabledCW20Tokens.filter((token) => token !== coinMinimalDenom)
     }
 
     await setDisabledCW20Tokens(_disabledCW20Tokens)
+    await setEnabledCW20Tokens(_enabledCW20Tokens)
     if (hasToUpdateBetaCW20Tokens) {
       const tokenInfo = manuallyAddedTokens.find(
         (token) => token.coinMinimalDenom === coinMinimalDenom,
@@ -289,18 +321,23 @@ export function ManageTokens() {
         }
       >
         <div className='w-full flex flex-col justify-center py-[28px] items-center px-7 gap-[16px]'>
-          <div className='flex items-center justify-between'>
-            <div className='w-[344px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
+          <div className='w-full flex items-center justify-between gap-[10px]'>
+            <div className='w-[296px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
               <input
-                placeholder='search tokens'
+                placeholder='Search by token or paste address...'
                 className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
                 onChange={(event) => setSearchedText(event.target.value)}
               />
               <img src={Images.Misc.SearchIcon} />
             </div>
 
-            <button className='ml-2' onClick={() => handleAddNewTokenClick()}>
-              <img src={Images.Misc.PlusIcon} alt='add token' />
+            <button
+              className='h-10 bg-white-100 dark:bg-gray-900 w-10 flex justify-center items-center rounded-full'
+              onClick={() => handleAddNewTokenClick()}
+            >
+              <span className='material-icons-round !text-lg text-gray-400 dark:text-gray-400'>
+                add
+              </span>
             </button>
           </div>
 

@@ -85,6 +85,7 @@ export function useGetAsteroidTokens(
                 uAtomToken.coinGeckoId,
                 uAtomToken?.chain as SupportedChain,
                 currencyDetail[preferredCurrency].currencyPointer,
+                `${chainId}-${uAtomToken?.coinMinimalDenom}`,
               )
             : undefined;
 

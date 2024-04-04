@@ -8,9 +8,10 @@
 import './fetch-preserver'
 
 import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provider/messaging/requester'
-import { ChainInfo, ChainInfos, SupportedChain, getRestUrl } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { getRestUrl } from '@leapwallet/cosmos-wallet-sdk/dist/utils'
 
-import { decrypt, initCrypto, initStorage } from '@leapwallet/leap-keychain'
+import { decrypt, initCrypto, initStorage, WALLETTYPE } from '@leapwallet/leap-keychain'
 import {
   ACTIVE_WALLET,
   AUTO_LOCK_TIME,
@@ -57,7 +58,7 @@ import {
 import { EncryptionUtilsImpl } from '@leapwallet/cosmos-wallet-sdk/dist/secret/encryptionutil'
 import { PasswordManager } from './password-manager'
 import { storageMigrationV77 } from './migrations/v77'
-import { getChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { getChains } from '@leapwallet/cosmos-wallet-hooks'
 import { storageMigrationV80 } from './migrations/v80'
 import { formatWalletName } from 'utils/formatWalletName'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
@@ -335,70 +336,89 @@ const connectRemote = (remotePort: any) => {
             }
           }
 
-          browser.storage.local.get([CONNECTIONS, ACTIVE_WALLET]).then(async (store) => {
-            checkChainConnections(chainIds, store[CONNECTIONS], msg, store[ACTIVE_WALLET]).then(
-              async ({ validChainIds, isNewChainPresent }) => {
-                if (validChainIds.length === 0) {
-                  sendResponse(eventName, { error: 'Invalid chain id' }, payload.id)
-                  return
-                }
+          const store = await browser.storage.local.get([CONNECTIONS, ACTIVE_WALLET])
+          const activeWallet = store[ACTIVE_WALLET]
+          const connections = store[CONNECTIONS]
 
-                if (isNewChainPresent) {
-                  const windowId = await openPopup('approveConnection')
-                  windowIdForPayloadId[popupWindowId] = {
-                    type: type.toUpperCase(),
-                    payloadId: payload.id,
-                  }
-                  requestEnableAccess({
-                    origin: msg.origin,
-                    validChainIds,
-                    payloadId: payload.id,
-                  })
+          const { validChainIds, isNewChainPresent } = await checkChainConnections(
+            chainIds,
+            connections,
+            msg,
+            activeWallet,
+          )
 
-                  try {
-                    const response = await awaitEnableChainResponse()
-                    if (response) {
-                      if (type === 'get-key') {
-                        getKey(validChainIds[0]).then((key) => {
-                          sendResponse(eventName, { key }, payload.id)
-                        })
-                      } else {
-                        getKeys(validChainIds).then((keys) => {
-                          sendResponse(eventName, { keys }, payload.id)
-                        })
-                      }
-                      delete enableAccessRequests[queryString]
-                    }
-                  } catch (e) {
-                    sendResponse(eventName, { error: 'Request rejected' }, payload.id)
-                    delete enableAccessRequests[queryString]
-                  }
-                } else {
-                  if (type === 'get-key') {
-                    getKey(validChainIds[0])
-                      .then((key) => {
-                        sendResponse(eventName, { key }, payload.id)
-                        delete enableAccessRequests[queryString]
-                      })
-                      .catch(() => {
-                        sendResponse(eventName, { error: 'Invalid chain Id' }, payload.id)
-                        delete enableAccessRequests[queryString]
-                      })
-                  } else {
-                    getKeys(validChainIds)
-                      .then((keys) => {
-                        sendResponse(eventName, { keys }, payload.id)
-                        delete enableAccessRequests[queryString]
-                      })
-                      .catch(() => {
-                        sendResponse(eventName, { error: 'Invalid chain Id' }, payload.id)
-                        delete enableAccessRequests[queryString]
-                      })
-                  }
-                }
-              },
+          if (validChainIds.length === 0) {
+            sendResponse(eventName, { error: 'Invalid chain id' }, payload.id)
+            return
+          }
+          const chainIdToChain = await decodeChainIdToChain()
+          const requestedChainKeys = validChainIds
+            .map((chainId) => chainIdToChain[chainId])
+            .filter((chainKey) => {
+              return !!activeWallet.addresses[chainKey]
+            })
+          if (requestedChainKeys.length === 0) {
+            sendResponse(
+              eventName,
+              { error: `No public key for ${validChainIds.join(',')}` },
+              payload.id,
             )
-          })
+            return
+          }
+
+          if (isNewChainPresent) {
+            const windowId = await openPopup('approveConnection')
+            windowIdForPayloadId[popupWindowId] = {
+              type: type.toUpperCase(),
+              payloadId: payload.id,
+            }
+            requestEnableAccess({
+              origin: msg.origin,
+              validChainIds,
+              payloadId: payload.id,
+            })
+
+            try {
+              const response = await awaitEnableChainResponse()
+              if (response) {
+                if (type === 'get-key') {
+                  getKey(validChainIds[0]).then((key) => {
+                    sendResponse(eventName, { key }, payload.id)
+                  })
+                } else {
+                  getKeys(validChainIds).then((keys) => {
+                    sendResponse(eventName, { keys }, payload.id)
+                  })
+                }
+                delete enableAccessRequests[queryString]
+              }
+            } catch (e) {
+              sendResponse(eventName, { error: 'Request rejected' }, payload.id)
+              delete enableAccessRequests[queryString]
+            }
+          } else {
+            if (type === 'get-key') {
+              getKey(validChainIds[0])
+                .then((key) => {
+                  sendResponse(eventName, { key }, payload.id)
+                  delete enableAccessRequests[queryString]
+                })
+                .catch(() => {
+                  sendResponse(eventName, { error: 'Invalid chain Id' }, payload.id)
+                  delete enableAccessRequests[queryString]
+                })
+            } else {
+              getKeys(validChainIds)
+                .then((keys) => {
+                  sendResponse(eventName, { keys }, payload.id)
+                  delete enableAccessRequests[queryString]
+                })
+                .catch(() => {
+                  sendResponse(eventName, { error: 'Invalid chain Id' }, payload.id)
+                  delete enableAccessRequests[queryString]
+                })
+            }
+          }
         }
         break
 
@@ -436,6 +456,7 @@ const connectRemote = (remotePort: any) => {
           isADR36WithString: msg.signOptions.isAdr36WithString,
           ethSignType: msg.signOptions.ethSignType,
           signOptions: msg.signOptions,
+          eip712Types: msg.eip712,
         })
 
         await openPopup('sign')

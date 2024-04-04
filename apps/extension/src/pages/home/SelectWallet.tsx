@@ -22,6 +22,7 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Colors } from 'theme/colors'
 import { formatWalletName } from 'utils/formatWalletName'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 import { walletLabels } from '../../config/constants'
 
@@ -170,10 +171,17 @@ export default function SelectWallet({
 
               if (
                 wallet.walletType === WALLETTYPE.LEDGER &&
-                (activeChainInfo.bip44.coinType === '60' ||
-                  activeChainInfo.bip44.coinType === '931')
+                !isLedgerEnabled(activeChainInfo.key, activeChainInfo.bip44.coinType)
               ) {
                 addressText = `Ledger not supported on ${activeChainInfo.chainName}`
+                disableEdit = true
+              }
+              if (
+                wallet.walletType === WALLETTYPE.LEDGER &&
+                isLedgerEnabled(activeChainInfo.key, activeChainInfo.bip44.coinType) &&
+                !wallet.addresses[activeChainInfo.key]
+              ) {
+                addressText = `Please import EVM wallet`
                 disableEdit = true
               }
               return (

@@ -3,6 +3,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { LeapWalletApi } from '../apis/LeapWalletApi';
 import { Currency, MarketPricesResponse } from '../connectors';
+import { getCoingeckoPricesStoreSnapshot } from '../store';
 
 /**
  * @function currencyFetcher
@@ -15,11 +16,33 @@ import { Currency, MarketPricesResponse } from '../connectors';
  */
 export async function fetchCurrency(
   quantity: string,
-  token: string,
+  token: string | undefined,
   chain: SupportedChain,
   currencySelected: Currency,
+  alternatePriceKey?: string,
 ): Promise<string | undefined> {
   if (quantity === '0') return '0';
+
+  if (alternatePriceKey) {
+    /**
+     * Above condition is so that we can roll out this change in non-breaking manner
+     */
+    const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
+    if (coingeckoPrices) {
+      let tokenPrice;
+      if (token) {
+        tokenPrice = coingeckoPrices?.[currencySelected]?.[token];
+      }
+      if (!tokenPrice) {
+        tokenPrice = coingeckoPrices?.[currencySelected]?.[alternatePriceKey];
+      }
+      if (tokenPrice) {
+        return new BigNumber(quantity).times(tokenPrice).toString();
+      }
+    }
+  }
+
+  if (!token) return undefined;
 
   const rate: MarketPricesResponse = await Promise.race([
     LeapWalletApi.operateMarketPrices([token], chain, currencySelected),

@@ -1,16 +1,10 @@
 import { SecretToken } from '@leapwallet/cosmos-wallet-hooks'
-import {
-  CardDivider,
-  GenericCard,
-  HeaderActionType,
-  ThemeName,
-  useTheme,
-} from '@leapwallet/leap-ui'
+import { CardDivider, GenericCard, HeaderActionType } from '@leapwallet/leap-ui'
+import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React from 'react'
 
 import BottomSheet from '../../../components/bottom-sheet/BottomSheet'
 import Text from '../../../components/text'
-import { Images } from '../../../images'
 
 type AddTokenSheetProps = {
   isVisible: boolean
@@ -29,8 +23,7 @@ export function AddTokenSheet({
   onUpdateViewingKey,
   onImportViewingKey,
 }: AddTokenSheetProps) {
-  const darkTheme = useTheme().theme === ThemeName.DARK
-  const defaultLogo = darkTheme ? Images.Logos.GenericDark : Images.Logos.GenericDark
+  const defaultLogo = useDefaultTokenLogo()
 
   return (
     <BottomSheet

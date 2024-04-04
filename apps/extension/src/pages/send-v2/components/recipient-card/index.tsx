@@ -31,6 +31,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import { sliceAddress } from 'utils/strings'
 
 import { ContactsSheet } from './contacts-sheet'
@@ -114,7 +115,13 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       setEthAddress('')
       setRecipientInputValue(value)
     },
-    [activeChainInfo.addressPrefix, activeChainInfo.bip44.coinType, setAddressError, setEthAddress],
+    [
+      activeChainInfo.addressPrefix,
+      activeChainInfo.bip44.coinType,
+      activeChainInfo.key,
+      setAddressError,
+      setEthAddress,
+    ],
   )
 
   const handleOnChange = useCallback(
@@ -263,29 +270,34 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const sourceChain = elementsChains?.find((chain) => chain.chainId === chains[activeChain].chainId)
 
   const { data: skipSupportedDestinationChains } =
-    featureFlags?.ibc?.extension === 'active'
+    featureFlags?.ibc?.extension !== 'disabled'
       ? useSkipDestinationChains(asset, sourceChain, activeNetwork === 'mainnet')
       : { data: null }
-  const skipSupportedDestinationChainsIDs: string[] =
-    skipSupportedDestinationChains
-      ?.filter((chain) => {
-        if (
-          (activeWallet?.walletType === WALLETTYPE.LEDGER &&
-            LEDGER_DISABLED_COINTYPES.includes(chain.coinType)) ||
-          !activeWallet?.addresses[chain.key as SupportedChain]
-        ) {
-          return false
-        } else {
-          return true
-        }
-      })
-      .map((chain) => {
-        return chain.chainId
-      }) || []
+
+  const skipSupportedDestinationChainsIDs: string[] = useMemo(() => {
+    return (
+      skipSupportedDestinationChains
+        ?.filter((chain) => {
+          if (
+            (activeWallet?.walletType === WALLETTYPE.LEDGER &&
+              !isLedgerEnabled(chain.key as SupportedChain, chain.coinType)) ||
+            !activeWallet?.addresses[chain.key as SupportedChain]
+          ) {
+            return false
+          } else {
+            return true
+          }
+        })
+        .map((chain) => {
+          return chain.chainId
+        }) || []
+    )
+  }, [skipSupportedDestinationChains, activeWallet])
 
   const showContactsList = recipientInputValue.trim().length > 0 && contactsToShow.length > 0
   const isSavedContactSelected =
     selectedAddress?.address === recipientInputValue && selectedAddress?.selectionType === 'saved'
+
   const showAddToContacts =
     !showContactsList &&
     recipientInputValue.length > 0 &&
@@ -332,14 +344,17 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       setRecipientInputValue(selectedAddress?.address || '')
       return
     }
+
     if (recipientInputValue === selectedAddress?.address) {
       return
     }
+
     const cleanInputValue = recipientInputValue.trim()
     if (selectedAddress && cleanInputValue !== selectedAddress.address) {
       setSelectedAddress(null)
       return
     }
+
     try {
       const { prefix } = bech32.decode(cleanInputValue)
       const _chain = addressPrefixes[prefix] as SupportedChain
@@ -409,14 +424,17 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     if (!selectedAddress?.address) {
       return null
     }
+
     const destChainAddrPrefix = getBlockChainFromAddress(selectedAddress.address)
     if (!destChainAddrPrefix) {
       return null
     }
+
     const destinationChainKey = addressPrefixes[destChainAddrPrefix] as SupportedChain | undefined
     if (!destinationChainKey) {
       return null
     }
+
     // we are sure that the key is there in the chains object due to previous checks
     return chains[destinationChainKey]
   }, [addressPrefixes, chains, selectedAddress?.address])
@@ -502,6 +520,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     addressPrefixes,
     skipSupportedDestinationChainsIDs,
     manageChains,
+    isIbcUnwindingDisabled,
+    selectedToken?.symbol,
   ])
 
   useEffect(() => {
@@ -543,6 +563,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
                     </Text>
                   </SecondaryActionButton>
                 ) : null}
+
                 {showMyWalletButton ? (
                   <SecondaryActionButton
                     leftIcon={'account_balance_wallet'}
@@ -557,6 +578,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
                     </Text>
                   </SecondaryActionButton>
                 ) : null}
+
                 {showAddToContacts ? (
                   <SecondaryActionButton
                     onClick={handleAddContact}
@@ -574,6 +596,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
                 ) : null}
               </>
             ) : null}
+
             {isIBCTransfer && !isCompassWallet() && activeNetwork === 'mainnet' && destChainInfo ? (
               <IBCSettings
                 className='rounded-b-2xl'

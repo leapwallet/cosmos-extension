@@ -70,16 +70,20 @@ export class PasswordManager {
       }
 
       if (message.type === 'lock') {
-        if (this.password) {
-          const storage = await browser.storage.local.get([ACTIVE_WALLET])
-          if (storage[ACTIVE_WALLET]) {
-            await KeyChain.encrypt(this.password)
-          }
-          this.password = undefined
-        }
+        await this.lockWallet()
       }
     }
     browser.runtime.onMessage.addListener(listener)
+  }
+
+  async lockWallet() {
+    if (this.password) {
+      const storage = await browser.storage.local.get([ACTIVE_WALLET])
+      if (storage[ACTIVE_WALLET]) {
+        await KeyChain.encrypt(this.password)
+      }
+      this.password = undefined
+    }
   }
 
   clearPassword() {

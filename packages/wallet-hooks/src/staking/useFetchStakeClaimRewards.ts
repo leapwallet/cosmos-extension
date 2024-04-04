@@ -12,7 +12,7 @@ import {
   useSelectedNetwork,
   useStakeClaimRewardsStore,
 } from '../store';
-import { fetchCurrency, formatTokenAmount, useGetIbcDenomInfo } from '../utils';
+import { fetchCurrency, formatTokenAmount, getChainId, useActiveStakingDenom, useGetIbcDenomInfo } from '../utils';
 
 export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const _activeChain = useActiveChain();
@@ -29,6 +29,7 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
 
   const denoms = useDenoms();
   const chainInfos = useGetChains();
+  const [activeStakingDenom] = useActiveStakingDenom();
   const activeChainInfo = chainInfos[activeChain];
 
   const fetchClaimRewards = async () => {
@@ -49,13 +50,17 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
           const amount = fromSmall(_amount, denomInfo?.coinDecimals ?? 6);
 
           let denomFiatValue = '0';
-          if (denomInfo?.coinGeckoId) {
+          if (denomInfo) {
+            const denomChainInfo = chainInfos?.[denomInfo.chain as SupportedChain];
+            const _chainId = getChainId(denomChainInfo, selectedNetwork);
+
             denomFiatValue =
               (await fetchCurrency(
                 '1',
                 denomInfo.coinGeckoId,
                 denomInfo.chain as SupportedChain,
                 currencyDetail[preferredCurrency].currencyPointer,
+                `${_chainId}-${denomInfo.coinMinimalDenom}`,
               )) ?? '0';
           }
 
@@ -134,9 +139,9 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
           .toString();
       }
 
-      let formattedTotalRewardsAmt = formatTokenAmount(totalRewardsAmt, activeChainInfo.denom, 4);
+      let formattedTotalRewardsAmt = formatTokenAmount(totalRewardsAmt, activeStakingDenom.coinDenom, 4);
       if (formattedTotalRewardsAmt === 'NaN') {
-        formattedTotalRewardsAmt = '0 ' + activeChainInfo.denom;
+        formattedTotalRewardsAmt = '0 ' + activeStakingDenom.coinDenom;
       }
 
       setClaimRewards({

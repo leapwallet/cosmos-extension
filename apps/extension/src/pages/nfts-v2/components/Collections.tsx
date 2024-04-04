@@ -1,4 +1,7 @@
-import { useDisabledNFTsCollections } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useDisabledNFTsCollections,
+  useFractionalizedNftContracts,
+} from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -18,6 +21,7 @@ export function Collections({ setShowManageCollections }: CollectionsProps) {
   const activeChain = useActiveChain()
   const chainInfos = useChainInfos()
 
+  const fractionalizedNftContracts = useFractionalizedNftContracts()
   const { collectionData, setActivePage, setShowCollectionDetailsFor } = useNftContext()
   const disabledNftsCollections = useDisabledNFTsCollections()
 
@@ -47,6 +51,15 @@ export function Collections({ setShowManageCollections }: CollectionsProps) {
       <div>
         {sortedCollections?.map((collection, index, array) => {
           const { chain, name, image, totalNfts, address } = collection
+          let nftCount = totalNfts
+
+          if (fractionalizedNftContracts.includes(address)) {
+            const fractionalizedNft = collectionData?.nfts?.[chain].filter(
+              (nft) => nft.collection.contractAddress === address,
+            )
+
+            nftCount = fractionalizedNft?.length ?? nftCount
+          }
 
           if (disabledNftsCollections.includes(address)) return null
           const chainInfo = chainInfos[chain]
@@ -77,7 +90,7 @@ export function Collections({ setShowManageCollections }: CollectionsProps) {
                   className='border dark:border-gray-900 rounded-2xl py-[2px] px-[12px] text-[12px] mt-[1px]'
                   style={{ color: chainInfos[activeChain].theme.primaryColor }}
                 >
-                  {totalNfts} item{(totalNfts ?? 1) > 1 ? 's' : ''}
+                  {nftCount} item{(nftCount ?? 1) > 1 ? 's' : ''}
                 </div>
               </div>
 

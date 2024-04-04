@@ -6,6 +6,7 @@ import {
   generateWalletFromMnemonic,
   getLedgerTransport,
   LeapLedgerSigner,
+  LeapLedgerSignerEth,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/utils/get-hdpath'
@@ -20,7 +21,9 @@ import {
   ENCRYPTED_ACTIVE_WALLET,
   ENCRYPTED_KEY_STORE,
   KEYSTORE,
+  NETWORK_MAP,
   PRIMARY_WALLET_ADDRESS,
+  SELECTED_NETWORK,
 } from 'config/storage-keys'
 import { useAuth } from 'context/auth-context'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -28,6 +31,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { getChainInfosList } from 'utils/getChainInfosList'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import browser from 'webextension-polyfill'
 import extension from 'webextension-polyfill'
 
@@ -87,6 +91,8 @@ export namespace Wallet {
         [CONNECTIONS]: null,
         [BETA_CHAINS]: null,
         [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : ChainInfos.cosmos.key,
+        [NETWORK_MAP]: null,
+        [SELECTED_NETWORK]: 'mainnet',
       })
 
       await setActiveWallet(null)
@@ -464,16 +470,22 @@ export namespace Wallet {
         const prefix = chainInfos[_chain].addressPrefix
         if (
           activeWallet?.walletType === WALLETTYPE.LEDGER &&
-          !LEDGER_DISABLED_COINTYPES.includes(chainInfos[_chain].bip44.coinType)
+          isLedgerEnabled(_chain, chainInfos[_chain].bip44.coinType)
         ) {
-          const hdPaths = [makeCosmoshubPath(activeWallet.addressIndex)]
-          const ledgerTransport = await getLedgerTransport()
-          return new LeapLedgerSigner(ledgerTransport, {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            hdPaths,
-            prefix,
-          }) as unknown as OfflineSigner
+          if (chainInfos[_chain].bip44.coinType === '60') {
+            const hdPaths = [`m/44'/60'/0'/0/${activeWallet.addressIndex}`]
+            const ledgerTransport = await getLedgerTransport()
+            return new LeapLedgerSignerEth(ledgerTransport, { hdPaths, prefix })
+          } else {
+            const hdPaths = [`m/44'/118'/0'/0/${activeWallet.addressIndex}`]
+            const ledgerTransport = await getLedgerTransport()
+            return new LeapLedgerSigner(ledgerTransport, {
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              hdPaths,
+              prefix,
+            }) as unknown as OfflineSigner
+          }
         } else if (activeWallet?.walletType !== WALLETTYPE.LEDGER) {
           const walletId = activeWallet?.id
           const signer = await KeyChain.getSigner(

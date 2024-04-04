@@ -15,11 +15,11 @@ export function getDisabledKeySetter({
   objectKey,
   storage,
 }: SetDisabledKeyInStorage) {
-  return async function (_disabledValue: string[]) {
+  return async function (disabledValue: string[]) {
     if (Object.keys(defaultResourceData ?? {}).length > 0) {
-      setResource({ ...(defaultResourceData ?? {}), [objectKey]: _disabledValue });
+      setResource({ ...(defaultResourceData ?? {}), [objectKey]: disabledValue });
     } else {
-      setResource({ [objectKey]: _disabledValue });
+      setResource({ [objectKey]: disabledValue });
     }
 
     const disabledCW20Tokens = await storage.get(storageKey);
@@ -29,11 +29,11 @@ export function getDisabledKeySetter({
         storageKey,
         JSON.stringify({
           ...storedDisabledCW20Tokens,
-          [objectKey]: _disabledValue,
+          [objectKey]: disabledValue,
         }),
       );
     } else {
-      await storage.set(storageKey, JSON.stringify({ [objectKey]: _disabledValue }));
+      await storage.set(storageKey, JSON.stringify({ [objectKey]: disabledValue }));
     }
   };
 }

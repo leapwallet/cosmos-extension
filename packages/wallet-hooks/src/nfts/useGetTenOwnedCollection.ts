@@ -1,32 +1,13 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-import { Dict, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 
-import { useActiveChain, useChainApis, useIteratedUriEnabledNftContracts } from '../store';
-import { CosmWasmClientHandler, defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
-import {
-  NFTDisplayInformation,
-  NFTInfo,
-  OwnedCollectionInfo,
-  TokensListByCollection,
-  TokenUriModifierFn,
-} from './types';
+import { useActiveChain, useAddress, useChainApis, useIteratedUriEnabledNftContracts } from '../store';
+import { CosmWasmClientHandler, defaultQueryOptions, QueryOptions } from '../utils';
+import { OwnedCollectionInfo, OwnedCollectionOptions, OwnedCollectionTokenInfo, TokensListByCollection } from './types';
+import { getNftTokensInfo, getNonTeritoriTokensInfo, getTeritoriTokensInfo } from './utils';
 
-/**
- * This hook is used to load all the tokens of a collection
- *
- * @param tokensListByCollection
- * @param tokenUriModifier Modify the tokenUri field before making the request
- * @param customQueryOptions query options
- */
 export const useGetTenOwnedCollection = (
   tokensListByCollection: TokensListByCollection,
-  options?: {
-    tokenUriModifier?: TokenUriModifierFn;
-    forceChain?: SupportedChain;
-    forceNetwork?: 'mainnet' | 'testnet';
-  },
+  options?: OwnedCollectionOptions,
   customQueryOptions: QueryOptions<OwnedCollectionInfo> = defaultQueryOptions,
 ) => {
   const _chain = useActiveChain();
@@ -34,125 +15,46 @@ export const useGetTenOwnedCollection = (
 
   const iteratedUriNftContracts = useIteratedUriEnabledNftContracts();
   const { rpcUrl } = useChainApis(chain, options?.forceNetwork);
+  const walletAddress = useAddress(chain);
+
   if (!rpcUrl) {
     throw new Error(`Invalid rpc URL for chain ${chain}`);
   }
 
-  return useQuery<OwnedCollectionInfo>({
-    queryKey: ['get-ten-owned-collection', rpcUrl, tokensListByCollection],
-    queryFn: async () => {
+  return useQuery<OwnedCollectionInfo>(
+    ['get-ten-owned-collection', rpcUrl, tokensListByCollection],
+    async function () {
       const client = await CosmWasmClientHandler.getClient(rpcUrl);
       if (!client || !tokensListByCollection.collection.address) {
         throw new Error('useGetTenOwnedCollection: Invalid state');
       }
 
+      const collectionName = tokensListByCollection?.collection?.name ?? '';
+      const collectionAddress = tokensListByCollection?.collection?.address ?? '';
+
       const allTokensInfo = await Promise.all(
-        /**
-         * Get 10 NFTs
-         */
-        tokensListByCollection.tokens.slice(0, 10).map(async (tokenId) => {
-          try {
-            const nftInfo: NFTInfo = await client.queryContractSmart(tokensListByCollection.collection.address, {
-              nft_info: { token_id: tokenId },
-            });
-
-            if (iteratedUriNftContracts.includes(tokensListByCollection.collection.address)) {
-              return {
-                tokenUri: `${nftInfo.token_uri ?? ''}/${tokenId}`,
-                extension: nftInfo.extension as Dict,
-                tokenId: tokenId ?? '',
-              };
-            }
-
-            return {
-              tokenUri: nftInfo.token_uri ?? '',
-              extension: nftInfo.extension as Dict,
-              tokenId: tokenId ?? '',
-            };
-          } catch (_) {
-            //
-          }
-        }),
+        tokensListByCollection.tokens
+          .slice(0, 10)
+          .map(async (tokenId) =>
+            getNftTokensInfo({ client, tokenId, collectionAddress, iteratedUriNftContracts, walletAddress }),
+          ),
       );
 
+      let resolvedInfo;
       const collection = {
-        name: tokensListByCollection.collection.name ?? '',
-        contractAddress: tokensListByCollection.collection.address ?? '',
+        name: collectionName,
+        contractAddress: collectionAddress,
       };
 
-      let resolvedInfo;
-
       if (chain === 'teritori') {
-        resolvedInfo = allTokensInfo.map((tokensInfo) => {
-          if (!tokensInfo) {
-            return null;
-          }
-
-          const { tokenId, extension } = tokensInfo;
-
-          if (extension.public_name && tokenId.includes('.')) {
-            return {
-              name: extension.public_name ?? '',
-              domain: tokenId ?? '',
-              collection,
-              extension,
-            };
-          }
-
-          return {
-            extension,
-            collection,
-            name: extension.name,
-            image: extension.image,
-            tokenId,
-            tokenUri: `https://app.teritori.com/nft/tori-${collection.contractAddress}-${tokenId}`,
-          };
-        });
+        resolvedInfo = allTokensInfo.map((tokensInfo) =>
+          getTeritoriTokensInfo({ tokensInfo: tokensInfo ?? null, collection }),
+        );
       } else {
         resolvedInfo = await Promise.all(
-          allTokensInfo.map(async ({ tokenUri, tokenId, extension }) => {
-            try {
-              const res = await fetch(options?.tokenUriModifier?.(tokenUri) ?? tokenUri);
-              //The below fix is to fetch details properly on android, the request was made but when we do res.json(), it results into a parse error. Due to some object structure
-              let nftDisplayInfo: NFTDisplayInformation = await JSON.parse((await res.text()).trim());
-
-              // for one of the collection on Sei, we get name and image in properties property
-              if ([nftDisplayInfo.name, nftDisplayInfo.image].includes(undefined) && nftDisplayInfo?.properties) {
-                nftDisplayInfo = {
-                  name: nftDisplayInfo.properties?.name?.description ?? '',
-                  image: nftDisplayInfo.properties?.image?.description ?? '',
-                };
-              }
-
-              // for Zen on Injective, we get NFT Image in media property
-              if ([nftDisplayInfo.name, nftDisplayInfo.image].includes(undefined) && nftDisplayInfo?.media) {
-                nftDisplayInfo = {
-                  image: nftDisplayInfo.media ?? '',
-                  name: nftDisplayInfo.title ?? nftDisplayInfo.name ?? '',
-                };
-              }
-
-              return {
-                ...nftDisplayInfo,
-                tokenUri,
-                tokenId,
-                collection,
-                extension,
-              };
-            } catch (_) {
-              //
-            }
-
-            // For domain name nfts
-            if (extension && extension.name && extension.domain) {
-              return {
-                name: extension.name ?? '',
-                domain: extension.domain ?? '',
-                collection,
-                extension,
-              };
-            }
-          }),
+          allTokensInfo.map(async (tokensInfo) =>
+            getNonTeritoriTokensInfo({ tokensInfo: tokensInfo ?? null, collection, options }),
+          ),
         );
       }
 
@@ -162,10 +64,12 @@ export const useGetTenOwnedCollection = (
           name: tokensListByCollection.collection.name ?? '',
           image: resolvedInfo[0]?.image ?? '',
         },
-        tokens: resolvedInfo,
+        tokens: resolvedInfo as OwnedCollectionTokenInfo[],
       };
     },
-    enabled: customQueryOptions.enabled !== false && !!tokensListByCollection,
-    ...customQueryOptions,
-  });
+    {
+      enabled: customQueryOptions.enabled !== false && !!tokensListByCollection,
+      ...customQueryOptions,
+    },
+  );
 };

@@ -13,6 +13,7 @@ import {
 } from '../store';
 import { Proposal, Proposal2, ProposalApi } from '../types';
 import { formatProposal } from './formatProposal';
+import { proposalHasContentMessages } from './utils';
 
 export function useInitGovProposals(
   paginationLimit = 30,
@@ -106,7 +107,10 @@ export function useInitGovProposals(
 
       switch (activeChainInfo.cosmosSDK) {
         case CosmosSDK.Version_Point_46: {
-          const proposalsWithMetadata = data.proposals.filter((proposal: { metadata: string }) => proposal.metadata);
+          const proposalsWithMetadata = data.proposals.filter(
+            (proposal: { metadata: string; messages?: any }) =>
+              proposal.metadata || proposalHasContentMessages(proposal),
+          );
           const formattedProposals = await Promise.all(
             proposalsWithMetadata.map(
               async (proposal: Proposal2.Proposal) => await formatProposal(CosmosSDK.Version_Point_46, proposal),

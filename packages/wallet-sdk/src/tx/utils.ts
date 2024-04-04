@@ -191,3 +191,27 @@ export async function pollForPacketAck(
 export function getSimulationFee(denom: string, amount = '100') {
   return [coin(amount, denom)];
 }
+
+export function fromEthSignature(signature: { v: number | string; r: string; s: string }): Uint8Array {
+  const r = Buffer.from(signature.r.replace('0x', ''), 'hex');
+  const s = Buffer.from(signature.s.replace('0x', ''), 'hex');
+
+  if (r.length !== 32 || s.length !== 32) {
+    throw new Error('Invalid Signature');
+  }
+
+  const v = typeof signature.v === 'string' ? parseInt(signature.v, 16) : signature.v;
+
+  if (!Number.isInteger(v) || v < 27) {
+    throw new Error('Invalid Signature');
+  }
+
+  const vBuffer = Buffer.from([v % 256]);
+
+  const formattedSignature = Buffer.concat([r, s, vBuffer]);
+  if (formattedSignature.length !== 65) {
+    throw new Error('Formatted signature has an invalid length');
+  }
+
+  return formattedSignature;
+}

@@ -1,4 +1,5 @@
 import {
+  useFetchAutoFetchedCW20Tokens,
   useFetchCW20Tokens,
   useFetchERC20Tokens,
   useFetchStakeClaimRewards,
@@ -13,8 +14,11 @@ import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
 import { useFillBetaCW20Tokens, useFillBetaNativeTokens } from 'hooks/settings'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { useAirdropsData } from 'hooks/useAirdropsData'
 import { ManageTokens } from 'pages/manage-tokens'
-import { lazy, Suspense } from 'react'
+import { AddEvmLedger } from 'pages/onboarding/import/AddEvmLedger'
+import { lazy, Suspense, useEffect } from 'react'
 import React from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
@@ -47,6 +51,8 @@ const ChooseValidator = React.lazy(() => import('pages/stake/chooseValidator'))
 const ValidatorDetails = React.lazy(() => import('pages/stake/validatorDetails'))
 const AddChain = React.lazy(() => import('pages/suggestChain/addChain'))
 const SuggestChain = React.lazy(() => import('pages/suggestChain/suggestChain'))
+const Airdrops = React.lazy(() => import('pages/airdrops'))
+const AirdropsDetails = React.lazy(() => import('pages/airdrops/AirdropsDetails'))
 
 // For named exports, using dynamic import
 const PendingTx = React.lazy(() =>
@@ -62,7 +68,11 @@ const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
 export default function AppRoutes(): JSX.Element {
   const showLedgerPopup = useRecoilValue(ledgerPopupState)
+  const { activeWallet } = useActiveWallet()
+  const fetchAirdropsData = useAirdropsData()
+
   useFetchCW20Tokens()
+  useFetchAutoFetchedCW20Tokens()
   useFillBetaCW20Tokens()
   useFillBetaNativeTokens()
   useFetchERC20Tokens()
@@ -75,6 +85,12 @@ export default function AppRoutes(): JSX.Element {
   useFetchStakeDelegations()
   useFetchStakeUndelegations()
   useFetchStakeValidators()
+
+  useEffect(() => {
+    if (activeWallet) {
+      fetchAirdropsData()
+    }
+  }, [activeWallet?.id])
 
   return (
     <Suspense fallback={<AppInitLoader />}>
@@ -110,6 +126,14 @@ export default function AppRoutes(): JSX.Element {
 
             <Route path='forgotPassword' element={<ForgotPassword />} />
 
+            <Route
+              path='onboardEvmLedger'
+              element={
+                <RequireAuth>
+                  <AddEvmLedger />
+                </RequireAuth>
+              }
+            />
             <Route
               path='stakeChooseValidator'
               element={
@@ -283,6 +307,22 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <ManageTokens />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='airdrops'
+              element={
+                <RequireAuth>
+                  <Airdrops />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='airdropsDetails'
+              element={
+                <RequireAuth>
+                  <AirdropsDetails />
                 </RequireAuth>
               }
             />

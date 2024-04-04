@@ -14,6 +14,7 @@ export namespace Colors {
   export const gray900 = '#212121'
   export const gray400 = '#9E9E9E'
   export const gray300 = '#B8B8B8'
+  export const gray100 = '#E8E8E8'
   export const gray800 = '#383838'
   export const green600 = '#29A874'
 

@@ -1,27 +1,21 @@
-import { calculateFee } from '@cosmjs/stargate'
 import {
   FeeTokenData,
   formatTokenAmount,
-  GasOptions,
-  getOsmosisGasPriceSteps,
-  useChainApis,
+  useActiveStakingDenom,
   useChainInfo,
   useformatCurrency,
-  useGasAdjustmentForChain,
-  useGasPriceSteps,
   useGetTokenBalances,
-  useNativeFeeDenom,
   useStakeTx,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import { Avatar, Buttons, GenericCard, StakeInput } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import { ErrorCard } from 'components/ErrorCard'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
-import { GasPriceOptionValue } from 'components/gas-price-options/context'
+import { DisplayFeeValue, GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import Text from 'components/text'
@@ -41,7 +35,6 @@ import ReviewStakeTransaction, {
 } from './reviewStake'
 
 import useGetWallet = Wallet.useGetWallet
-import { GasPrice } from '@leapwallet/cosmos-wallet-sdk'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import { Colors } from 'theme/colors'
 
@@ -69,28 +62,20 @@ export default function InputStakeAmountView({
   unstakingPeriod: string
   mode: STAKE_MODE
 }) {
-  const activeChainInfo = useChainInfo()
   const getWallet = useGetWallet()
   const txCallback = useTxCallBack()
   const defaultGasPrice = useDefaultGasPrice()
-  const nativeFeeDenom = useNativeFeeDenom()
+  const [activeStakingDenom] = useActiveStakingDenom()
 
+  const activeChainInfo = useChainInfo()
   const { allAssets } = useGetTokenBalances()
-  const { lcdUrl } = useChainApis()
-  const allChainsGasPriceSteps = useGasPriceSteps()
+  const [formatCurrency] = useformatCurrency()
+  const { data: toKeybaseImageUrl } = useValidatorImage(toValidator)
 
   const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
-  const [feeDenom, setFeeDenom] = useState<NativeDenom>(nativeFeeDenom)
   const [showReviewTransactionSheet, setReviewTransactionSheet] = useState<boolean>(false)
-  const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
-    gasPrice: defaultGasPrice.gasPrice,
-    option: GasOptions.LOW,
-  })
-  const [gasError, setGasError] = useState<string | null>(null)
   const [showFeesSettingSheet, setShowFeesSettingSheet] = useState<boolean>(false)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [displayFeeValue, setDisplayFeeValue] = useState<any>(null)
-  const { data: toKeybaseImageUrl } = useValidatorImage(toValidator)
+  const [displayFeeValue, setDisplayFeeValue] = useState<DisplayFeeValue>()
 
   const {
     recommendedGasLimit,
@@ -106,59 +91,24 @@ export default function InputStakeAmountView({
     setLedgerError,
     ledgerError,
     tokenFiatValue,
+    userPreferredGasPrice,
+    gasOption,
+    userPreferredGasLimit,
+    setUserPreferredGasLimit,
+    feeDenom,
+    setFeeDenom,
+    customFee,
   } = useStakeTx(mode, toValidator, fromValidator, [delegation as Delegation])
-  const [gasLimit, setGasLimit] = useState<string>(recommendedGasLimit)
 
-  const [formatCurrency] = useformatCurrency()
-  const gasAdjustment = useGasAdjustmentForChain()
-
-  useEffect(() => {
-    ;(async function () {
-      if (feeDenom.coinMinimalDenom === 'uosmo' && activeChainInfo.key === 'osmosis') {
-        const { low, medium, high } = await getOsmosisGasPriceSteps(
-          lcdUrl ?? '',
-          allChainsGasPriceSteps,
-        )
-
-        switch (gasPriceOption.option) {
-          case GasOptions.LOW: {
-            setGasPriceOption((prev) => ({
-              ...prev,
-              gasPrice: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
-            }))
-            break
-          }
-
-          case GasOptions.MEDIUM: {
-            setGasPriceOption((prev) => ({
-              ...prev,
-              gasPrice: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
-            }))
-            break
-          }
-
-          case GasOptions.HIGH: {
-            setGasPriceOption((prev) => ({
-              ...prev,
-              gasPrice: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
-            }))
-            break
-          }
-        }
-      }
-    })()
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feeDenom.coinMinimalDenom, activeChainInfo.key, gasPriceOption.option, gasLimit])
+  const [gasError, setGasError] = useState<string | null>(null)
+  const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
+    option: gasOption,
+    gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
+  })
 
   const selectedToken = useMemo(() => {
-    return allAssets.find((asset) => asset.symbol === activeChainInfo.denom)
-  }, [allAssets, activeChainInfo.denom])
-
-  const customFee = useMemo(() => {
-    const gasEstimate = Math.ceil(Number(gasLimit) * gasAdjustment)
-    return calculateFee(gasEstimate, gasPriceOption.gasPrice as unknown as string)
-  }, [gasAdjustment, gasLimit, gasPriceOption.gasPrice])
+    return allAssets.find((asset) => asset.symbol === activeStakingDenom.coinDenom)
+  }, [allAssets, activeStakingDenom.coinDenom])
 
   const handleCloseFeeSettingSheet = useCallback(() => {
     setShowFeesSettingSheet(false)
@@ -169,7 +119,7 @@ export default function InputStakeAmountView({
       setGasPriceOption(value)
       setFeeDenom(feeBaseDenom.denom)
     },
-    [],
+    [setFeeDenom],
   )
 
   const onSubmit = useCallback(async () => {
@@ -179,16 +129,15 @@ export default function InputStakeAmountView({
         stdFee: customFee,
         feeDenom: feeDenom,
       })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) {
-      setLedgerError(e.message)
+    } catch (error: unknown) {
+      const _error = error as Error
+      setLedgerError(_error.message)
+
       setTimeout(() => {
         setLedgerError('')
       }, 6000)
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customFee, feeDenom, getWallet, onReviewTransaction, txCallback])
+  }, [customFee, feeDenom, getWallet, onReviewTransaction, setLedgerError, txCallback])
 
   const showAdjustmentSheet = useCallback(() => {
     setCheckForAutoAdjust(true)
@@ -198,12 +147,15 @@ export default function InputStakeAmountView({
     setCheckForAutoAdjust(false)
   }, [])
 
+  // initialize gasPriceOption with correct defaultGasPrice.gasPrice
   useEffect(() => {
     setGasPriceOption({
+      option: gasOption,
       gasPrice: defaultGasPrice.gasPrice,
-      option: GasOptions.LOW,
     })
-  }, [defaultGasPrice])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultGasPrice.gasPrice])
 
   if (token?.amount) token.amount = (+token.amount).toFixed(7)
   const inputAmountError = useMemo(() => {
@@ -229,8 +181,8 @@ export default function InputStakeAmountView({
   return (
     <GasPriceOptions
       recommendedGasLimit={recommendedGasLimit}
-      gasLimit={gasLimit}
-      setGasLimit={(value: number) => setGasLimit(value.toString())}
+      gasLimit={userPreferredGasLimit?.toString() ?? recommendedGasLimit}
+      setGasLimit={(value: number) => setUserPreferredGasLimit(Number(value.toString()))}
       gasPriceOption={gasPriceOption}
       onGasPriceOptionChange={onGasPriceOptionChange}
       error={gasError}
@@ -240,6 +192,7 @@ export default function InputStakeAmountView({
         {fromValidator && delegation && mode === 'REDELEGATE' && (
           <CurrentValidatorCard delegation={delegation} fromValidator={fromValidator} />
         )}
+
         {!token && !delegation && (
           <div className='flex flex-col dark:bg-gray-900 h-[252px] w-[344px] justify-center items-center p-4 bg-white-100 rounded-2xl overflow-clip '>
             <Skeleton circle count={1} className='my-8' height={80} width={80} />
@@ -247,6 +200,7 @@ export default function InputStakeAmountView({
             <Skeleton count={1} width={300} />
           </div>
         )}
+
         {token && mode === 'DELEGATE' && (
           <StakeInput
             usdValue={
@@ -265,14 +219,15 @@ export default function InputStakeAmountView({
             }}
           />
         )}
+
         {delegation && mode !== 'DELEGATE' && (
           <StakeInput
             usdValue={
               amount && tokenFiatValue
                 ? formatCurrency(new BigNumber(tokenFiatValue).times(amount))
-                : activeChainInfo.denom
+                : activeStakingDenom.coinDenom
             }
-            name={activeChainInfo.denom}
+            name={activeStakingDenom.coinDenom}
             amount={amount}
             setAmount={setAmount}
             stakeAllText={capitalize(mode.toLowerCase())}
@@ -281,9 +236,11 @@ export default function InputStakeAmountView({
             onStakeAllClick={() => setAmount(delegation.balance.amount)}
           />
         )}
+
         {inputAmountError ? (
           <p className='text-sm font-bold text-red-300 my-1 px-2'>{inputAmountError}</p>
         ) : null}
+
         <GenericCard
           isRounded={true}
           img={
@@ -305,11 +262,17 @@ export default function InputStakeAmountView({
             </p>
           }
         />
+
         <DisplayFee
           setDisplayFeeValue={setDisplayFeeValue}
           setShowFeesSettingSheet={setShowFeesSettingSheet}
         />
+
         {(error ?? ledgerError) && <ErrorCard text={error ?? ledgerError} />}
+        {gasError && !showFeesSettingSheet ? (
+          <p className='text-red-300 text-sm font-medium text-center'>{gasError}</p>
+        ) : null}
+
         <Buttons.Generic
           color={Colors.getChainColor(activeChain)}
           size='normal'
@@ -327,11 +290,13 @@ export default function InputStakeAmountView({
           Review
         </Buttons.Generic>
       </div>
+
       <FeesSettingsSheet
         showFeesSettingSheet={showFeesSettingSheet}
         onClose={handleCloseFeeSettingSheet}
         gasError={gasError}
       />
+
       {mode === 'DELEGATE' && selectedToken && customFee && checkForAutoAdjust ? (
         <AutoAdjustAmountSheet
           amount={amount}
@@ -342,6 +307,7 @@ export default function InputStakeAmountView({
           closeAdjustmentSheet={hideAdjustmentSheet}
         />
       ) : null}
+
       <ReviewStakeTransaction
         gasError={gasError}
         error={error}

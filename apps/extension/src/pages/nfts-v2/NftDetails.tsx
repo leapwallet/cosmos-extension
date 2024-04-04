@@ -1,10 +1,14 @@
-import { Key, NftAttribute, NftPage } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  FractionalizedNftInformation,
+  Key,
+  NftPage,
+  useFractionalizedNftContracts,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import PopupLayout from 'components/layout/popup-layout'
-import { ProposalDescription } from 'components/proposal-description'
 import { useFavNFTs, useHiddenNFTs, useModifyFavNFTs, useModifyHiddenNFTs } from 'hooks/settings'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -19,59 +23,21 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 import { sessionGetItem, sessionRemoveItem } from 'utils/sessionStorage'
 
-import { Chip, NftCard } from './components'
+import {
+  Chip,
+  FractionalizedNftDescription,
+  NftCardCarousel,
+  NftDetailsMenu,
+  NonFractionalizedNftDescription,
+} from './components'
 import { SendNftCard } from './components/send-nft'
 import { useNftContext } from './context'
-
-type MenuProps = {
-  handleProfileClick: VoidFunction
-  isInProfile: boolean
-  showProfileOption: boolean
-  handleHideNftClick: VoidFunction
-  isInHiddenNfts: boolean
-}
-
-function Menu({
-  handleProfileClick,
-  isInProfile,
-  showProfileOption,
-  handleHideNftClick,
-  isInHiddenNfts,
-}: MenuProps) {
-  return (
-    <div className='absolute w-[344px] rounded-2xl border border-[0.5px] border-gray-50 dark:border-gray-100 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white-100'>
-      {showProfileOption && (
-        <div className='flex px-3 py-4 cursor-pointer' onClick={handleProfileClick}>
-          <img className='mr-3 invert dark:invert-0' src={Images.Misc.NftProfile} alt='profile' />
-          {isInProfile ? 'Remove from' : 'Set as'} profile avatar
-        </div>
-      )}
-
-      <div className='flex px-3 py-4 cursor-pointer' onClick={handleHideNftClick}>
-        {isInHiddenNfts ? (
-          <>
-            <img
-              className='mr-3 invert dark:invert-0'
-              src={Images.Misc.UnhideNft}
-              alt='unhide nft'
-            />
-            Unhide NFT
-          </>
-        ) : (
-          <>
-            <img className='mr-3 invert dark:invert-0' src={Images.Misc.HideNft} alt='hide nft' />
-            Hide NFT
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
 
 export function NftDetails() {
   const activeChain = useActiveChain()
   const chainInfos = useChainInfos()
   const activeChainInfo = chainInfos[activeChain]
+  const fractionalizedNftContracts = useFractionalizedNftContracts()
 
   const navigate = useNavigate()
   const color = Colors.getChainColor(activeChain, activeChainInfo)
@@ -87,6 +53,19 @@ export function NftDetails() {
   const hiddenNfts = useHiddenNFTs()
   const { addFavNFT, removeFavNFT } = useModifyFavNFTs()
   const { addHiddenNFT, removeHiddenNFT } = useModifyHiddenNFTs()
+
+  const isFractionalizedNft = useMemo(() => {
+    return fractionalizedNftContracts.includes(nftDetails?.collection.contractAddress ?? '')
+  }, [fractionalizedNftContracts, nftDetails?.collection.contractAddress])
+
+  const nftImages = useMemo(() => {
+    if (isFractionalizedNft) {
+      const _nftDetails = nftDetails as unknown as FractionalizedNftInformation
+      return _nftDetails.Images.map((image) => normalizeImageSrc(image))
+    }
+
+    return [normalizeImageSrc(nftDetails?.image ?? '')]
+  }, [isFractionalizedNft, nftDetails])
 
   const nftIndex = useMemo(() => {
     return `${nftDetails?.collection.contractAddress ?? nftDetails?.collection.address ?? ''}-${
@@ -201,9 +180,8 @@ export function NftDetails() {
             />
           )}
 
-          <NftCard
+          <NftCardCarousel
             chain={(nftDetails?.chain ?? '') as SupportedChain}
-            imgSrc={normalizeImageSrc(nftDetails?.image ?? '')}
             mediaType={nftDetails?.media_type}
             textNft={{
               name: nftDetails?.domain ?? '',
@@ -217,6 +195,7 @@ export function NftDetails() {
             })}
             handleExpandClick={() => setCoverImage(!coverImage)}
             showExpand={true}
+            images={nftImages}
           />
 
           <div className='my-4 flex items-center justify-between'>
@@ -269,7 +248,7 @@ export function NftDetails() {
                 disabled={!nftDetails?.tokenUri}
               >
                 <img className='mr-2 invert dark:invert-0' src={Images.Misc.OpenLink} alt='open' />{' '}
-                View on marketplace
+                {isFractionalizedNft ? 'View details' : 'View on marketplace'}
               </button>
 
               {isCompassWallet() && (
@@ -309,7 +288,7 @@ export function NftDetails() {
             <>
               <CardDivider />
               {showMenu && (
-                <Menu
+                <NftDetailsMenu
                   handleProfileClick={handleProfileClick}
                   isInProfile={isInProfile}
                   showProfileOption={showProfileOption}
@@ -318,45 +297,10 @@ export function NftDetails() {
                 />
               )}
 
-              <ProposalDescription
-                title={`About ${nftDetails?.name ?? ''}`}
-                description={
-                  nftDetails?.description ??
-                  nftDetails?.extension?.description ??
-                  `${nftDetails?.collection?.name ?? ''} - ${nftDetails?.name}`
-                }
-                btnColor={color}
-                className='my-4'
-              />
-
-              {nftDetails?.attributes && nftDetails.attributes.length && (
-                <>
-                  <CardDivider />
-                  <h3 className='w-100 font-bold text-left text-gray-400 text-sm mt-6 mb-2'>
-                    Features
-                  </h3>
-                  <div className='flex flex-wrap gap-[10px]'>
-                    {nftDetails.attributes.map((m: NftAttribute, index: number) => {
-                      if (!m.trait_type || !m.value) {
-                        return null
-                      }
-
-                      return (
-                        <div
-                          key={index}
-                          className='rounded-xl px-3 py-2 dark:bg-gray-900 bg-gray-100 mr-2 min-w-[80px]'
-                        >
-                          <div className=' text-gray-400 text-sm capitalize'>
-                            {(m.trait_type ?? '').toLowerCase()}
-                          </div>
-                          <div className=' text-gray-900 text-sm dark:text-white-100 font-bold'>
-                            {m.value ?? ''}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </>
+              {isFractionalizedNft ? (
+                <FractionalizedNftDescription nftDetails={nftDetails} color={color} />
+              ) : (
+                <NonFractionalizedNftDescription nftDetails={nftDetails} color={color} />
               )}
             </>
           )}

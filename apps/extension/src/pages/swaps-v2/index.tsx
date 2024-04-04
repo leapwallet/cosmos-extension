@@ -1,5 +1,5 @@
 import { useActiveWallet, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { toSmall } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
@@ -13,6 +13,7 @@ import { SwapVert } from 'images/misc'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
+import { isLedgerEnabled, isLedgerEnabledChainId } from 'utils/isLedgerEnabled'
 
 import {
   FeesView,
@@ -64,6 +65,7 @@ function SwapPage() {
     inAmount,
     sourceToken,
     sourceChain,
+    sourceTokenBalanceStatus,
     handleInAmountChange,
     sourceAssets,
     chainsToShow,
@@ -71,6 +73,7 @@ function SwapPage() {
     amountOut,
     destinationToken,
     destinationChain,
+    destinationTokenBalancesStatus,
     destinationAssets,
     errorMsg,
     loadingMsg,
@@ -141,7 +144,14 @@ function SwapPage() {
 
   const _chainsToShow = useMemo(() => {
     if (activeWallet && activeWallet.walletType === WALLETTYPE.LEDGER) {
-      return chainsToShow.filter((chain) => chain.coinType !== '60' && chain.coinType !== '931')
+      return chainsToShow.filter((chain) => {
+        const chainInfo = Object.values(ChainInfos).find(
+          (chainInfo) => chainInfo.chainId === chain.chainId,
+        )
+        if (!chainInfo) return false
+        const hasAddress = activeWallet.addresses[chainInfo.key]
+        return isLedgerEnabledChainId(chain.chainId as string, chain.coinType) && hasAddress
+      })
     }
     return chainsToShow
   }, [chainsToShow, activeWallet])
@@ -173,6 +183,7 @@ function SwapPage() {
               value={inAmount}
               placeholder='0'
               token={sourceToken}
+              balanceStatus={sourceTokenBalanceStatus}
               chainName={sourceChain?.chainName ?? 'Select chain'}
               chainLogo={sourceChain?.icon ?? defaultTokenLogo}
               onChange={(event) => {
@@ -211,6 +222,7 @@ function SwapPage() {
               value={amountOut ? Number(amountOut).toFixed(5) : amountOut}
               placeholder='0'
               token={destinationToken}
+              balanceStatus={destinationTokenBalancesStatus}
               chainName={destinationChain?.chainName ?? 'Select chain'}
               chainLogo={destinationChain?.icon ?? defaultTokenLogo}
               selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}

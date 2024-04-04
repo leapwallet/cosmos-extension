@@ -3,7 +3,7 @@ import {
   BETA_NFT_CHAINS,
   BETA_NFTS_COLLECTIONS,
   NftChain,
-  useActiveWallet,
+  useAddress,
   useBetaNFTsCollectionsStore,
   useChainApis,
   useDisabledNFTsCollections,
@@ -52,7 +52,6 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [fetchingCollectionInfo, setFetchingCollectionInfo] = useState(false)
 
-  const activeWallet = useActiveWallet()
   const nftChains = useNftChains()
   const disabledNFTsCollections = useDisabledNFTsCollections()
   const setDisabledNFTsCollections = useSetDisabledNFTsInStorage()
@@ -64,7 +63,7 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
     chainInfos[chain].chainId === chainInfos[chain].testnetChainId ? 'testnet' : 'mainnet'
   forceNetwork = isCompassWallet() ? activeNetwork : forceNetwork
 
-  const activeAddress = activeWallet?.addresses[selectedChain] ?? ''
+  const activeAddress = useAddress(selectedChain)
   const { rpcUrl } = useChainApis(chain, forceNetwork)
 
   useEffect(() => {

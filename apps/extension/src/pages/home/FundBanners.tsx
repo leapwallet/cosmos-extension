@@ -8,6 +8,7 @@ import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import React, { useEffect, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 export default function FundBanners() {
   const address = useAddress()
@@ -49,7 +50,7 @@ export default function FundBanners() {
         if (!activeWallet) return
         if (
           activeWallet.walletType === WALLETTYPE.LEDGER &&
-          LEDGER_DISABLED_COINTYPES.includes(chain.bip44.coinType)
+          isLedgerEnabled(chain.key, chain.bip44.coinType)
         ) {
           return
         }

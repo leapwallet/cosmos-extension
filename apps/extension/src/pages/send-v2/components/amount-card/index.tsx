@@ -18,6 +18,7 @@ import { motion } from 'framer-motion'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
+import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
@@ -48,6 +49,8 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   const chainInfos = useChainInfos()
   const isCW20Tx = useIsCW20Tx()
   const activeChain = useActiveChain()
+
+  const assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
 
   const {
     inputAmount,
@@ -91,7 +94,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   }, [allAssets, isSecretChainTargetAddress, snip20Tokens])
 
   useEffect(() => {
-    if (!selectedToken) {
+    if (!selectedToken && !assetCoinDenom) {
       if (locationState && (locationState as Token).coinMinimalDenom) {
         setSelectedToken(locationState as Token)
       } else if (assets.length > 0) {
@@ -107,6 +110,16 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
     selectedToken,
     setSelectedToken,
   ])
+
+  useEffect(() => {
+    if (assetCoinDenom) {
+      const tokenFromParams: Token | null =
+        assets.find((asset) => asset.ibcDenom === assetCoinDenom) ||
+        assets.find((asset) => asset.coinMinimalDenom === assetCoinDenom) ||
+        null
+      setSelectedToken(tokenFromParams)
+    }
+  }, [assetCoinDenom, activeChain])
 
   useEffect(() => {
     const isNativeToken =
