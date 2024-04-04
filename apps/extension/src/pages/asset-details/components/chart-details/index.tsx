@@ -185,7 +185,11 @@ function TokensDetails() {
     loadingChartsCGTokens,
   ])
 
-  const { price, details, priceChange } = info ?? {
+  const { price, details, priceChange } = {
+    price: info?.price,
+    details: info?.details,
+    priceChange: info?.priceChange,
+  } ?? {
     price: cgToken?.current_price ?? undefined,
     details: undefined,
     priceChange: cgToken?.price_change_percentage_24h ?? undefined,
@@ -196,11 +200,13 @@ function TokensDetails() {
 
   const { chartData, minMax } = chartsData ?? { chartData: undefined, minMax: undefined }
 
-  const totalHoldingsInUsd = portfolio.usdValue
+  const totalHoldingsInUsd = portfolio?.usdValue
 
   const filteredChartDays = ChartDays
 
   const displayChain = chainInfos[tokenChain as SupportedChain]?.chainName ?? tokenChain
+
+  const defaultIconLogo = useDefaultTokenLogo()
 
   return (
     <div className='relative w-[400px] overflow-clip'>
@@ -231,8 +237,8 @@ function TokensDetails() {
                   ) : (
                     <img
                       className='h-[34px] w-[34px] rounded-full'
-                      src={denomInfo?.icon ?? cgToken?.image ?? Images.Logos.GenericDark}
-                      onError={imgOnError(Images.Logos.GenericDark)}
+                      src={denomInfo?.icon ?? cgToken?.image ?? defaultIconLogo}
+                      onError={imgOnError(defaultIconLogo)}
                       alt={'token-info'}
                     />
                   )}
@@ -362,16 +368,17 @@ function TokensDetails() {
                     Token Balance
                   </div>
                   <div className='flex flex-row gap-1 justify-center items-center'>
-                    <div className='text-md font-bold !leading-[24px] text-black-100 dark:text-white-100'>
-                      {totalHoldingsInUsd
-                        ? formatCurrency(new BigNumber(totalHoldingsInUsd))
-                        : 'NA'}
-                    </div>
+                    {totalHoldingsInUsd ? (
+                      <div className='text-md font-bold !leading-[24px] text-black-100 dark:text-white-100'>
+                        {formatCurrency(new BigNumber(totalHoldingsInUsd))}
+                      </div>
+                    ) : null}
+
                     <div className='text-sm font-medium !leading-[16px] text-gray-500 dark:text-gray-500'>
-                      {`(`}
+                      {totalHoldingsInUsd ? `(` : ''}
                       {formatTokenAmount(portfolio?.amount?.toString() ?? '')}{' '}
                       {sliceWord(denomInfo?.coinDenom ?? portfolio?.symbol, 5, 4)}
-                      {`)`}
+                      {totalHoldingsInUsd ? `)` : ''}
                     </div>
                   </div>
                 </div>
@@ -404,7 +411,7 @@ function TokensDetails() {
               </div>
             </div>
 
-            <DefiList tokenName={denomInfo?.name ?? portfolio.symbol} />
+            <DefiList tokenName={denomInfo?.name ?? portfolio?.symbol} />
 
             {!loadingPrice && details && (
               <div>

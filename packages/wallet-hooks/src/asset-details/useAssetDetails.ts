@@ -8,7 +8,15 @@ import { useMemo, useState } from 'react';
 import { useActivity } from '../activity';
 import { LeapWalletApi } from '../apis';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
-import { useActiveChain, useDenoms, useSecretTokenStore } from '../store';
+import {
+  getCoingeckoPricesStoreSnapshot,
+  useActiveChain,
+  useAutoFetchedCW20Tokens,
+  useChainInfo,
+  useDenoms,
+  useSecretTokenStore,
+  useSelectedNetwork,
+} from '../store';
 import { Activity, ActivityCardContent } from '../types';
 import { convertSecretDenom, getDenomInfo } from '../utils';
 
@@ -23,6 +31,16 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
   const [preferredCurrency] = useUserPreferredCurrency();
   const { secretTokens } = useSecretTokenStore();
   const denoms = useDenoms();
+  const chainInfo = useChainInfo(tokenChain);
+  const selectedNetwork = useSelectedNetwork();
+  const chainId = selectedNetwork === 'mainnet' ? chainInfo.chainId : chainInfo.testnetChainId;
+  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens();
+  const combinedDenoms = useMemo(() => {
+    return {
+      ...denoms,
+      ...autoFetchedCW20Tokens,
+    };
+  }, [denoms, autoFetchedCW20Tokens]);
 
   const { txResponse } = useActivity(tokenChain ? tokenChain : undefined);
 
@@ -41,7 +59,7 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
       return convertSecretDenom(secretTokens[denom], denom);
     }
 
-    return getDenomInfo(denom, tokenChain, denoms);
+    return getDenomInfo(denom, tokenChain, combinedDenoms);
   });
 
   const {
@@ -86,7 +104,10 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
   } = useQuery(
     ['assetData', denom],
     async () => {
-      if (denom && denomInfo?.coinGeckoId) {
+      if (!denom) {
+        return;
+      }
+      if (denomInfo?.coinGeckoId) {
         try {
           const response = await LeapWalletApi.getAssetDetails(
             denomInfo.coinGeckoId,
@@ -106,6 +127,13 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
         } catch (_) {
           //
         }
+      } else if (denomInfo?.coinMinimalDenom) {
+        const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
+        const alternatePricesKey = `${chainId}-${denomInfo?.coinMinimalDenom}`;
+        const price = coingeckoPrices?.[currencyDetail[preferredCurrency].currencyPointer]?.[alternatePricesKey];
+        return {
+          price,
+        };
       }
     },
     { enabled: !!denomInfo, retry: 2 },

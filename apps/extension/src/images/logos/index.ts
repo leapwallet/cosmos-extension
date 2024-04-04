@@ -10,6 +10,8 @@ import GenericDark from './generic-dark.svg'
 import GenericLight from './generic-light.svg'
 import IBCDomains from './ibc-domains.svg'
 import ICNS from './icns.svg'
+import ImgNotAvailableDark from './img-not-available-dark.svg'
+import ImgNotAvailableLight from './img-not-available-light.svg'
 import JunoSwap from './juno-swap.svg'
 import Keplr from './keplr.svg'
 import LeapCosmos from './leap-cosmos.svg'
@@ -17,6 +19,7 @@ import LeapDarkMode from './leap-custom-dark-mode.svg'
 import LeapLightMode from './leap-custom-light-mode.svg'
 import LeapLogo from './leap-logo.svg'
 import LeapLogo28 from './leap-logo-28.svg'
+import LedgerEvmChains from './ledger-evm-chains.svg'
 import Metamask from './metamask.svg'
 import NamedSkip from './named-skip.svg'
 import NftLogo from './nft-logo.svg'
@@ -159,6 +162,8 @@ export {
   GenericLight,
   IBCDomains,
   ICNS,
+  ImgNotAvailableDark,
+  ImgNotAvailableLight,
   JunoSwap,
   Keplr,
   LeapCosmos,
@@ -166,6 +171,7 @@ export {
   LeapLightMode,
   LeapLogo,
   LeapLogo28,
+  LedgerEvmChains,
   Metamask,
   NamedSkip,
   NftLogo,

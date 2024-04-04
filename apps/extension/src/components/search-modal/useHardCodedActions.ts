@@ -7,6 +7,13 @@ import {
 import { showSideNavFromSearchModalState } from 'atoms/search-modal'
 import { useAuth } from 'context/auth-context'
 import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
+import { useGetKadoAssets, useGetKadoChains } from 'hooks/useGetKadoDetails'
+import {
+  BuyUrlFuncParams,
+  getBuyUrl,
+  OriginWalletSourceEnum,
+  ServiceProviderEnum,
+} from 'pages/home/utils'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useSetRecoilState } from 'recoil'
@@ -27,6 +34,29 @@ export function useHardCodedActions() {
   const [alertMessage, setAlertMessage] = useState('')
   const setShowSideNav = useSetRecoilState(showSideNavFromSearchModalState)
 
+  const walletAddress = useAddress()
+  const activeWalletCosmosAddress = useAddress('cosmos')
+  const { data: kadoSupportedChainId = [] } = useGetKadoChains()
+  const { data: kadoSupportedAssets = [] } = useGetKadoAssets()
+  const isKadoSupported =
+    kadoSupportedChainId.includes(activeChainInfo.chainId) &&
+    kadoSupportedAssets.includes(activeChainInfo.denom)
+
+  const handleBuyClick = (type: 'leap' | 'compass') => {
+    const buyUrlArgs: BuyUrlFuncParams = {
+      serviceProvider: ServiceProviderEnum.KADO,
+      originWalletSource:
+        type === 'leap' ? OriginWalletSourceEnum.LEAP : OriginWalletSourceEnum.COMPASS,
+      walletAddress: isKadoSupported ? walletAddress : activeWalletCosmosAddress,
+      providerApiKey: process.env.KADO_API_KEY as string,
+      activeChain: isKadoSupported ? activeChainInfo.chainName.toUpperCase() : 'COSMOS HUB',
+      denom: isKadoSupported ? activeChainInfo.denom : 'ATOM',
+    }
+
+    const buyUrl = getBuyUrl(buyUrlArgs)
+    window.open(buyUrl, '_blank')
+  }
+
   function handleSwapClick(_redirectUrl?: string) {
     if (featureFlags?.all_chains?.swap === 'redirect') {
       const redirectUrl =
@@ -44,6 +74,26 @@ export function useHardCodedActions() {
       window.open(redirectUrl, '_blank')
     } else {
       navigate('/nfts')
+    }
+  }
+
+  function handleVoteClick(_redirectUrl?: string) {
+    if (featureFlags?.gov?.extension === 'redirect') {
+      const redirectUrl = _redirectUrl ?? 'https://cosmos.leapwallet.io/portfolio/gov'
+      window.open(redirectUrl, '_blank')
+    } else {
+      navigate('/gov')
+    }
+  }
+
+  function onSendClick(_redirectUrl?: string) {
+    if (featureFlags?.ibc?.extension === 'redirect') {
+      const redirectUrl =
+        _redirectUrl ??
+        `https://cosmos.leapwallet.io/transact/send?sourceChainId=${activeChainInfo.chainId}`
+      window.open(redirectUrl, '_blank')
+    } else {
+      navigate(`/send`)
     }
   }
 
@@ -77,6 +127,7 @@ export function useHardCodedActions() {
   }
 
   return {
+    handleBuyClick,
     handleSwapClick,
     handleConnectLedgerClick,
     showAlert,
@@ -88,5 +139,7 @@ export function useHardCodedActions() {
     handleLockWalletClick,
     handleSettingsClick,
     handleNftsClick,
+    handleVoteClick,
+    onSendClick,
   }
 }

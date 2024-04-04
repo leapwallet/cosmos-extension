@@ -2,6 +2,7 @@ import {
   Collection,
   OwnedCollectionTokenInfo,
   TokensListByCollection,
+  useFractionalizedNftContracts,
   useGetOwnedCollection,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -25,6 +26,7 @@ type OwnedCollectionDetailsProps = {
 function OwnedCollectionDetails({ collection, nfts }: OwnedCollectionDetailsProps) {
   const [allData, setAllData] = useState(nfts)
   const hiddenNfts = useHiddenNFTs()
+  const fractionalizedNftContracts = useFractionalizedNftContracts()
 
   const { data, status, fetchMore } = useGetOwnedCollection(
     (collection.tokensListByCollection ?? []) as TokensListByCollection,
@@ -86,11 +88,23 @@ function OwnedCollectionDetails({ collection, nfts }: OwnedCollectionDetailsProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collection?.address, status])
 
+  const isFractionalizedNft = useMemo(() => {
+    return fractionalizedNftContracts.includes(collection.address ?? '')
+  }, [collection.address, fractionalizedNftContracts])
+
+  const nftsCount = useMemo(() => {
+    if (isFractionalizedNft) {
+      return allData.length ?? collection.totalNfts
+    }
+
+    return collection.totalNfts ?? allData.length
+  }, [allData.length, collection.totalNfts, isFractionalizedNft])
+
   return (
     <ChainHeaderCollectionCard
       chain={collection.chain}
       nfts={allData}
-      nftsCount={collection.totalNfts ?? allData.length}
+      nftsCount={nftsCount}
       haveToShowLoader={true}
       isFetchingMore={['fetching-more', 'loading'].includes(status)}
     />

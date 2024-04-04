@@ -1,18 +1,44 @@
-import { capitalize, sliceWord, useDisabledCW20Tokens } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  capitalize,
+  sliceWord,
+  useAutoFetchedCW20Tokens,
+  useChainInfo,
+  useCW20Tokens,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
-import { CardDivider, ToggleCard } from '@leapwallet/leap-ui'
+import { CardDivider, GenericCard, Toggle } from '@leapwallet/leap-ui'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import React from 'react'
-import { imgOnError as imgError } from 'utils/imgOnError'
+import { Images } from 'images'
+import React, { useMemo } from 'react'
+import { imgOnError } from 'utils/imgOnError'
+
+import { TokenTitle } from './TokenTitle'
+
+export type SupportedToken = NativeDenom & { enabled: boolean; verified: boolean }
 
 type SupportedTokensProps = {
-  tokens: NativeDenom[]
+  tokens: SupportedToken[]
   handleToggleChange: (isEnabled: boolean, coinMinimalDenom: string) => Promise<void>
 }
 
 export function SupportedTokens({ tokens, handleToggleChange }: SupportedTokensProps) {
   const defaultTokenLogo = useDefaultTokenLogo()
-  const disabledCW20Tokens = useDisabledCW20Tokens()
+  const cw20Tokens = useCW20Tokens()
+  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
+  const activeChainInfo = useChainInfo()
+  const selectedNetwork = useSelectedNetwork()
+
+  const combinedCW20Tokens = useMemo(
+    () => ({ ...cw20Tokens, ...autoFetchedCW20Tokens }),
+    [cw20Tokens, autoFetchedCW20Tokens],
+  )
+
+  const explorerURL = useMemo(() => {
+    if (!activeChainInfo) return undefined
+    if (!activeChainInfo.txExplorer) return undefined
+    return activeChainInfo.txExplorer?.[selectedNetwork]?.accountUrl
+  }, [activeChainInfo, selectedNetwork])
 
   return (
     <div>
@@ -27,18 +53,57 @@ export function SupportedTokens({ tokens, handleToggleChange }: SupportedTokensP
           const title = sliceWord(token?.name ?? capitalize(token.coinDenom.toLowerCase()), 7, 4)
           const subTitle = sliceWord(token.coinDenom, 4, 4)
 
+          const handleRedirectionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation()
+            window.open(`${explorerURL}/${token.coinMinimalDenom}`, '_blank')
+          }
+
           return (
             <React.Fragment key={`${token.coinMinimalDenom}-${index}`}>
-              <ToggleCard
-                title={title}
+              <GenericCard
+                title={
+                  <TokenTitle
+                    title={title}
+                    showRedirection={
+                      !!combinedCW20Tokens?.[token?.coinMinimalDenom] && !!explorerURL
+                    }
+                    handleRedirectionClick={handleRedirectionClick}
+                  />
+                }
                 subtitle={subTitle}
                 isRounded={isLast}
                 size='md'
-                imgSrc={token.icon ?? defaultTokenLogo}
-                imgOnError={imgError(defaultTokenLogo)}
-                imgClassName='h-8 w-8 mr-3'
-                isEnabled={!disabledCW20Tokens.includes(token.coinMinimalDenom)}
-                onClick={(isEnabled) => handleToggleChange(isEnabled, token.coinMinimalDenom)}
+                img={
+                  <div className='relative mr-3'>
+                    <img
+                      src={token.icon ?? defaultTokenLogo}
+                      className='h-7 w-7'
+                      onError={imgOnError(defaultTokenLogo)}
+                    />
+                    {token.verified && (
+                      <div className='absolute group -bottom-[5px] -right-[5px]'>
+                        <img
+                          src={Images.Misc.VerifiedWithBgStar}
+                          alt='verified-token'
+                          className='h-4 w-4'
+                        />
+                        <div className='group-hover:!block hidden absolute bottom-0 right-0 translate-x-full bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-xs dark:text-white-100'>
+                          Whitelisted
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                }
+                icon={
+                  <div className='flex items-center gap-[8px]'>
+                    <Toggle
+                      checked={token.enabled}
+                      onChange={(isEnabled) =>
+                        handleToggleChange(isEnabled, token.coinMinimalDenom)
+                      }
+                    />
+                  </div>
+                }
               />
 
               {!isLast ? <CardDivider /> : null}

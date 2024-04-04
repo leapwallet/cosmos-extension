@@ -147,7 +147,7 @@ export default function SuggestChain() {
               {Divider}
               <Key>Network URL</Key>
               <Value>
-                {newChain?.chainInfo?.apis?.rest ?? newChain?.chainInfo?.apis?.restTest ?? ''}
+                {newChain?.chainInfo?.apis?.rest || newChain?.chainInfo?.apis?.restTest || ''}
               </Value>
               {Divider}
               <Key>Chain ID</Key>

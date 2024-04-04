@@ -3,7 +3,6 @@ import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { selectedChainAlertState } from 'atoms/selected-chain-alert'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomModal from 'components/bottom-modal'
-import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { SearchInput } from 'components/search-input'
@@ -12,8 +11,8 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
-import SideNav from 'pages/home/side-nav'
 import React, { Fragment, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { sliceSearchWord } from 'utils/strings'
@@ -36,7 +35,6 @@ export function NtrnProposalList({
   onClick,
   shouldPreferFallback,
 }: Omit<ProposalListProps, 'fetchMore'>) {
-  const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
   const [showSelectedChainAlert, setShowSelectedChainAlert] =
@@ -48,6 +46,7 @@ export function NtrnProposalList({
   const activeChain = useActiveChain()
   const defaultTokenLogo = useDefaultTokenLogo()
   const isTestnet = useSelectedNetwork() === 'testnet'
+  const navigate = useNavigate()
 
   const loading = proposalListStatus === 'loading'
   const activeChainInfo = chainInfos[activeChain]
@@ -89,14 +88,8 @@ export function NtrnProposalList({
         header={
           <Header
             action={{
-              onClick: function noRefCheck() {
-                setShowSideNav(true)
-              },
-              type: HeaderActionType.NAVIGATION,
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              className:
-                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
+              onClick: () => navigate(-1),
+              type: HeaderActionType.BACK,
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={() => setShowChainSelector(true)}
@@ -105,8 +98,6 @@ export function NtrnProposalList({
           />
         }
       >
-        <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-
         {showSelectedChainAlert && (
           <AlertStrip
             message={`You are on ${activeChainInfo.chainName}${
@@ -196,7 +187,6 @@ export function NtrnProposalList({
       </PopupLayout>
 
       <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
-      <BottomNav label={BottomNavLabel.Governance} />
 
       <BottomModal isOpen={showFilter} onClose={() => setShowFilter(false)} title='Filter by'>
         <div className='rounded-2xl flex flex-col items-center w-full justify-center dark:bg-gray-900 bg-white-100'>

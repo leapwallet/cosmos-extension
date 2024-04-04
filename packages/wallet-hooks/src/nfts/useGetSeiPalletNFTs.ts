@@ -93,7 +93,7 @@ export function useGetSeiPalletNFTs(seiAddress: string, selectedNetwork: 'mainne
 
         return palletNfts;
       } catch (_) {
-        throw 'Pallet API is down. You might not see all your Sei NFTs';
+        return [];
       }
     }
   });

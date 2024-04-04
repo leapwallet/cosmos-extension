@@ -4,11 +4,13 @@ import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
 import { motion } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
+import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
+import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -25,6 +27,7 @@ const Send = () => {
   const location = useLocation()
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
+  const setActiveChain = useSetActiveChain()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showChainSelector, setShowChainSelector] = useState<boolean>(false)
@@ -34,6 +37,15 @@ const Send = () => {
     () => chainInfos[activeChain]?.chainSymbolImageUrl ?? defaultTokenLogo,
     [activeChain, chainInfos, defaultTokenLogo],
   )
+
+  const chainId = useQuery().get('chainId') ?? undefined
+
+  useEffect(() => {
+    if (chainId) {
+      const chainKey = Object.values(chainInfos).find((chain) => chain.chainId === chainId)?.key
+      chainKey && setActiveChain(chainKey)
+    }
+  }, [chainId])
 
   return (
     <div>

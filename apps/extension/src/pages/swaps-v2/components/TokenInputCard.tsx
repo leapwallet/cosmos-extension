@@ -1,4 +1,5 @@
 import { formatTokenAmount, sliceWord, useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
+import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
@@ -7,6 +8,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { FilledArrowDown } from 'images/misc'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import Skeleton from 'react-loading-skeleton'
 import { SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -16,6 +18,7 @@ type TokenInputCardProps = {
   value?: string
   placeholder?: string
   token?: SourceToken | null
+  balanceStatus?: QueryStatus
   chainName?: string
   chainLogo?: string
   // eslint-disable-next-line no-unused-vars
@@ -36,6 +39,7 @@ export function TokenInputCard({
   token,
   chainName,
   chainLogo,
+  balanceStatus,
   onChange,
   onTokenSelectSheet,
   selectTokenDisabled,
@@ -181,7 +185,14 @@ export function TokenInputCard({
           {amountError ? (
             <span className='text-red-300'>{amountError}</span>
           ) : (
-            <span>Balance: {balanceAmount}</span>
+            <span>
+              Balance:{' '}
+              {!balanceStatus || balanceStatus === 'success' ? (
+                balanceAmount
+              ) : (
+                <Skeleton width={50} />
+              )}
+            </span>
           )}
 
           <span>{dollarAmount}</span>

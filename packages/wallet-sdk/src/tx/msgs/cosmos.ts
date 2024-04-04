@@ -1,5 +1,4 @@
 import { Coin } from '@cosmjs/stargate';
-import { longify } from '@cosmjs/stargate/build/queryclient';
 import { MsgGrant, MsgRevoke } from 'cosmjs-types/cosmos/authz/v1beta1/tx.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { MsgBeginRedelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
@@ -53,7 +52,7 @@ export function getVoteMsg(option: VoteOption, proposalId: string, fromAddress: 
     typeUrl: '/cosmos.gov.v1beta1.MsgVote',
     value: {
       option: option,
-      proposalId: longify(proposalId),
+      proposalId: Long.fromString(proposalId),
       voter: fromAddress,
     },
   };
@@ -94,7 +93,7 @@ export function getCancelUnDelegationMsg(
     typeUrl: '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
     value: {
       amount: amount,
-      creationHeight: longify(creationHeight),
+      creationHeight: Long.fromString(creationHeight),
       delegatorAddress: delegatorAddress,
       validatorAddress: validatorAddress,
     },
@@ -169,7 +168,7 @@ export function buildGrantMsg(type: string, granter: string, grantee: string, au
 
   return {
     typeUrl: '/cosmos.authz.v1beta1.MsgGrant',
-    value: MsgGrant.fromPartial(value),
+    value: MsgGrant.encode(MsgGrant.fromPartial(value)).finish(),
   };
 }
 
@@ -182,6 +181,6 @@ export function buildRevokeMsg(type: string, granter: string, grantee: string) {
 
   return {
     typeUrl: '/cosmos.authz.v1beta1.MsgRevoke',
-    value: MsgRevoke.fromPartial(value),
+    value: MsgRevoke.encode(MsgRevoke.fromPartial(value)).finish(),
   };
 }

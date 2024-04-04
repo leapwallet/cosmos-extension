@@ -18,6 +18,7 @@ import {
   LeapIntereactionOptions,
   LeapMode,
   LeapSignOptions,
+  RequestExperimentalSignEip712Message,
   RequestSignAminoMsg,
   RequestSignDirectMsg,
   RequestVerifyADR36AminoSignDoc,
@@ -173,6 +174,27 @@ export class Leap implements ILeap {
 
     const returnSignature = Buffer.from(signature.signature, 'base64');
     return new Uint8Array(returnSignature);
+  }
+
+  async experimentalSignEIP712CosmosTx_v0(
+    chainId: string,
+    signer: string,
+    eip712: {
+      types: Record<string, { name: string; type: string }[] | undefined>;
+      domain: Record<string, any>;
+      primaryType: string;
+    },
+    signDoc: StdSignDoc,
+    signOptions: LeapSignOptions = {},
+  ): Promise<AminoSignResponse> {
+    const message = new RequestExperimentalSignEip712Message(
+      chainId,
+      signer,
+      eip712,
+      signDoc,
+      deepmerge(this.defaultOptions.sign ?? {}, signOptions),
+    );
+    return await requester.experimentalSignEIP712CosmosTx_v0(message);
   }
 
   getOfflineSigner(chainId: string, signOptions?: LeapSignOptions): OfflineSigner & OfflineDirectSigner {

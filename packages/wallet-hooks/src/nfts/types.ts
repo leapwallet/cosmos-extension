@@ -1,31 +1,45 @@
-import { Dict } from '@leapwallet/cosmos-wallet-sdk';
-import type { UseQueryOptions } from '@tanstack/react-query';
-
-export type QueryOptions<T> = Omit<UseQueryOptions<T, unknown>, 'queryFn' | 'queryKey'>;
-
-export const defaultQueryOptions: QueryOptions<any> = {
-  retry: 3,
-  retryDelay: 0,
-  networkMode: 'always',
-};
+import { Dict, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 
 export type TokensListByCollection = { collection: { address: string; name: string }; tokens: string[] };
 
+export type NftInfoInvestor = {
+  address: string;
+  allocations: number;
+};
+
 export type NFTInfo = {
   token_uri: string;
-  extension: unknown;
+  extension: Record<string, unknown>;
+  investors?: NftInfoInvestor[];
+};
+
+export type NFTInfoWithTokenId = {
+  tokenUri: string;
+  extension: Record<string, unknown>;
+  tokenId: string;
 };
 
 export type NFTDisplayInformation = {
   name: string;
   image: string;
-  properties?: unknown;
+  properties?: { name: { description: string }; image: { description: string } };
+  title?: string;
   media?: string;
+};
+
+export type FractionalizedNftInformation = {
+  'Tower Name': string;
+  Address: string;
+  Size: string;
+  'Number of Bedrooms': string;
+  'Number of Bathrooms': string;
+  'Additional Features': string[];
+  Images: string[];
 };
 
 export type CollectionInfo = {
   name: string;
-  symbol: string;
+  contractAddress: string;
 };
 
 export type NFTDetailedInformation = {
@@ -41,12 +55,12 @@ export type NFTDetailedInformation = {
 export type TokenUriModifierFn = (_: string) => string;
 
 export type OwnedCollectionTokenInfo = {
-  image: string;
   name: string;
-  tokenUri: string;
-  tokenId: string;
-  description?: string;
   extension: Dict | null;
+  image?: string;
+  tokenUri?: string;
+  tokenId?: string;
+  description?: string;
   collection: {
     name: string;
     contractAddress: string;
@@ -84,4 +98,17 @@ export type OmniflixNft = {
   tokenUri: string;
   attributes?: NftAttribute[];
   media_type?: string;
+};
+
+export type NftQuery =
+  | { all_tokens: unknown }
+  | { tokens: { owner: string; limit: number; start_after?: string } }
+  | { nft_info: { token_id: string } }
+  | { all_nft_info: { token_id: string } };
+
+export type OwnedCollectionOptions = {
+  tokenUriModifier?: TokenUriModifierFn;
+  forceChain?: SupportedChain;
+  forceNetwork?: 'mainnet' | 'testnet';
+  paginationLimit?: number;
 };

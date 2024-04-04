@@ -1,9 +1,9 @@
 import { SupportedChain } from './chain-infos';
 
-type Network = 'mainnet' | 'testnet';
+export type ChainNetwork = 'mainnet' | 'testnet';
 type FeeDenom = Record<SupportedChain, string>;
 
-export type FeeDenoms = Record<Network, FeeDenom>;
+export type FeeDenoms = Record<ChainNetwork, FeeDenom>;
 
 export const nativeFeeDenoms: FeeDenoms = {
   mainnet: {

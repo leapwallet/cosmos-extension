@@ -1,37 +1,27 @@
 import {
   SecretToken,
-  useFeatureFlags,
   useGetAsteroidTokens,
   useGetTokenBalances,
-  useSendIbcChains,
   useSnipDenomsStore,
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
-import {
-  Buttons,
-  CardDivider,
-  GenericCard,
-  HeaderActionType,
-  ThemeName,
-  useTheme,
-} from '@leapwallet/leap-ui'
+import { Buttons, CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { QueryStatus } from '@tanstack/react-query'
 import { selectedChainAlertState } from 'atoms/selected-chain-alert'
+import classNames from 'classnames'
 import AlertStrip from 'components/alert-strip/AlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
-import ClickableIcon from 'components/clickable-icons'
 import { EmptyCard } from 'components/empty-card'
 import { EthCopyWalletAddress } from 'components/eth-copy-wallet-address'
 import PopupLayout from 'components/layout/popup-layout'
 import ReceiveToken from 'components/Receive'
-import { useHardCodedActions } from 'components/search-modal'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
 import WarningCard from 'components/WarningCard'
 import { EventName, PageName } from 'config/analytics'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX, ON_RAMP_SUPPORT_CHAINS } from 'config/config'
+import { LEDGER_ENABLED_EVM_CHAIN_IDS, LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { walletLabels } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
@@ -47,7 +37,6 @@ import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
 import { Images } from 'images'
-import { NftLogo } from 'images/logos'
 import mixpanel from 'mixpanel-browser'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
@@ -57,16 +46,19 @@ import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import { sliceAddress, trim } from 'utils/strings'
+import Browser from 'webextension-polyfill'
 
 import { searchModalState } from '../../atoms/search-modal'
 import AssetCard from './AssetCard'
+import { HomeButtons } from './components'
+import { WalletNotConnected } from './components/WalletNotConnected'
 import { CopyAddressSheet } from './CopyAddressSheet'
 import { BitcoinDeposit, DepositBTCBanner } from './DepositBTCBanner'
 import FundBanners from './FundBanners'
 import GlobalBannersAD from './GlobalBannersAD'
 import { SecretManageTokens } from './manage-tokens'
-import NftV2Header from './NftV2Header'
 import RequestFaucet from './RequestFaucet'
 import SelectChain from './SelectChain'
 import SelectWallet from './SelectWallet'
@@ -89,7 +81,6 @@ interface ChainInfoProp extends ChainInfo {
 export default function Home() {
   usePageView(PageName.Home)
 
-  const { data: featureFlags } = useFeatureFlags()
   const chainInfos = useChainInfos()
   const txDeclined = useQuery().get('txDeclined') ?? undefined
   const walletAvatarChanged = useQuery().get('walletAvatarChanged') ?? undefined
@@ -99,8 +90,6 @@ export default function Home() {
   )
 
   const navigate = useNavigate()
-  const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
-  const { handleSwapClick, handleNftsClick } = useHardCodedActions()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -132,7 +121,6 @@ export default function Home() {
     useRecoilState(selectedChainAlertState)
   const setShowSearchModal = useSetRecoilState(searchModalState)
   const [showBitcoinDepositSheet, setShowBitcoinDepositSheet] = useState(false)
-  const sendIbcChains = useSendIbcChains()
 
   const {
     isWalletHasFunds,
@@ -273,10 +261,7 @@ export default function Home() {
 
   const disabled =
     activeWallet.walletType === WALLETTYPE.LEDGER &&
-    (chain?.bip44.coinType === '60' || chain?.bip44.coinType === '931')
-
-  const isNomicChain = activeChain === 'nomic'
-  const walletCtaDisabled = isNomicChain || disabled
+    !isLedgerEnabled(activeChain, chain?.bip44.coinType)
 
   const walletName =
     activeWallet.walletType === WALLETTYPE.LEDGER &&
@@ -309,13 +294,24 @@ export default function Home() {
     })
   }
 
-  const onSendIBCClick = (type: 'send' | 'ibc') => {
-    if (featureFlags?.ibc?.extension === 'redirect' && type === 'ibc') {
-      const redirectUrl = `https://cosmos.leapwallet.io/transact/send?sourceChainId=${activeChainInfo.chainId}`
-      window.open(redirectUrl, '_blank')
-    } else {
-      navigate(`/${type}`)
-    }
+  const noAddress = !activeWallet.addresses[activeChain]
+  const apiUnavailable = atLeastOneTokenIsLoading && chain?.apiStatus === false
+  const showDisabledCard = noAddress || apiUnavailable
+  const connectEVMLedger =
+    noAddress &&
+    LEDGER_ENABLED_EVM_CHAIN_IDS.includes(chain.chainId) &&
+    activeWallet.walletType === WALLETTYPE.LEDGER
+  const ledgerNoSupported =
+    noAddress &&
+    !LEDGER_ENABLED_EVM_CHAIN_IDS.includes(chain.chainId) &&
+    activeWallet.walletType === WALLETTYPE.LEDGER
+  let disabledCardMessage = ''
+  if (connectEVMLedger) {
+    disabledCardMessage = `Please import your ${chain.chainName} wallet by connecting EVM Ledger app.`
+  } else if (ledgerNoSupported) {
+    disabledCardMessage = `Ledger support coming soon for ${chain.chainName}`
+  } else if (apiUnavailable) {
+    disabledCardMessage = `The ${chain.chainName} network is currently experiencing issues. Please try again later.`
   }
 
   return (
@@ -323,21 +319,15 @@ export default function Home() {
       <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
       <PopupLayout
         header={
-          <NftV2Header
+          <Header
             action={{
               onClick: () => setShowSideNav(true),
               type: HeaderActionType.NAVIGATION,
               'data-testing-id': 'home-sidenav-hamburger-btn',
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
-              className: isCompassWallet()
-                ? 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full'
-                : '',
-            }}
-            nftAction={{
-              onClick: () => handleNftsClick(),
-              imgSrc: NftLogo,
-              disabled: featureFlags?.nfts?.extension === 'disabled',
+              className:
+                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
@@ -360,7 +350,12 @@ export default function Home() {
           />
         }
       >
-        <div className='w-full flex flex-col justify-center items-center mb-20'>
+        <WalletNotConnected chain={chain} visible={connectEVMLedger} />
+        <div
+          className={classNames('w-full flex flex-col justify-center items-center mb-20', {
+            hidden: connectEVMLedger,
+          })}
+        >
           {isCompassWallet() && isTestnet && (
             <AlertStrip
               message='You are on Sei Testnet'
@@ -439,6 +434,25 @@ export default function Home() {
                 <span className='material-icons-round text-white-100 mr-[5px]'>error</span>{' '}
                 <Text size='xs'>Ledger not supported for {chain?.chainName}</Text>
               </div>
+            ) : !walletAddresses?.[0]?.length ? (
+              <div className='mb-[24px]'>
+                <Text size='md' className='mb-3'>
+                  EVM wallets not connected
+                </Text>
+
+                <div
+                  onClick={() =>
+                    window.open(Browser.runtime.getURL('index.html#/onboardEvmLedger'))
+                  }
+                >
+                  <Text
+                    size='sm'
+                    className='font-bold bg-gray-800 rounded-2xl py-1 px-3 w-fit mx-auto cursor-pointer'
+                  >
+                    Connect EVM wallet
+                  </Text>
+                </div>
+              </div>
             ) : (
               <div className='flex justify-center items-start mb-6'>
                 <EthCopyWalletAddress
@@ -476,100 +490,10 @@ export default function Home() {
               </div>
             )}
 
-            {!isCompassWallet() && (
+            {!isCompassWallet() ? (
               <DepositBTCBanner handleClick={() => setShowBitcoinDepositSheet(true)} />
-            )}
-
-            {!isTestnet && !isCompassWallet() ? (
-              <div className='flex flex-row justify-evenly mb-6 w-full'>
-                <ClickableIcon
-                  image={{
-                    src: 'download',
-                    alt: ON_RAMP_SUPPORT_CHAINS.includes(activeChain) ? 'Deposit' : 'Receive',
-                  }}
-                  onClick={() => setShowReceiveSheet(true)}
-                  disabled={walletCtaDisabled}
-                />
-                <ClickableIcon
-                  image={{ src: 'file_upload', alt: 'Send' }}
-                  onClick={() => onSendIBCClick('send')}
-                  disabled={walletCtaDisabled || chain?.apiStatus === false}
-                />
-                <ClickableIcon
-                  image={{ src: Images.Misc.IbcUnion, alt: 'IBC', type: 'url' }}
-                  onClick={() => onSendIBCClick('ibc')}
-                  disabled={
-                    walletCtaDisabled || sendIbcChains.length === 0 || chain?.apiStatus === false
-                  }
-                />
-                <ClickableIcon
-                  image={{ src: Images.Misc.BridgeRoute, alt: 'Bridge', type: 'url' }}
-                  onClick={() => {
-                    const baseUrl = 'https://cosmos.leapwallet.io/transact/bridge'
-                    window.open(
-                      `${baseUrl}?destinationChainId=${activeChainInfo.chainId}`,
-                      '_blank',
-                    )
-                  }}
-                  disabled={walletCtaDisabled}
-                />
-                <ClickableIcon
-                  image={{ src: 'swap_horiz', alt: 'Swap' }}
-                  disabled={walletCtaDisabled || featureFlags?.all_chains?.swap === 'disabled'}
-                  onClick={() => handleSwapClick()}
-                />
-              </div>
-            ) : (
-              <div className='flex justify-between mb-6 w-full gap-2'>
-                <Buttons.Generic
-                  size='sm'
-                  disabled={disabled || isNomicChain}
-                  color={darkTheme ? undefined : Colors.white100}
-                  onClick={() => {
-                    setShowReceiveSheet(true)
-                  }}
-                >
-                  <div className={'flex justify-center text-black-100  items-center'}>
-                    <span className='mr-2 material-icons-round'>download</span>
-                    {ON_RAMP_SUPPORT_CHAINS.includes(activeChain) ? (
-                      <span>Deposit</span>
-                    ) : (
-                      <span>Receive</span>
-                    )}
-                  </div>
-                </Buttons.Generic>
-                <Buttons.Generic
-                  size='sm'
-                  disabled={disabled || isNomicChain}
-                  color={darkTheme ? undefined : Colors.white100}
-                  onClick={() => {
-                    navigate('/send')
-                  }}
-                  data-testing-id='home-generic-send-btn'
-                >
-                  <div className={'flex justify-center text-black-100  items-center'}>
-                    <span className='mr-2 material-icons-round'>file_upload</span>
-                    <span>Send</span>
-                  </div>
-                </Buttons.Generic>
-                {activeChainInfo.chainId === 'pacific-1' && (
-                  <Buttons.Generic
-                    size='sm'
-                    disabled={disabled || featureFlags?.all_chains?.swap === 'disabled'}
-                    color={darkTheme ? undefined : Colors.white100}
-                    onClick={() => {
-                      handleSwapClick()
-                    }}
-                    data-testing-id='home-generic-swap-btn'
-                  >
-                    <div className={'flex justify-center text-black-100  items-center'}>
-                      <span className='mr-2 material-icons-round'>swap_horiz</span>
-                      <span>Swap</span>
-                    </div>
-                  </Buttons.Generic>
-                )}
-              </div>
-            )}
+            ) : null}
+            <HomeButtons setShowReceiveSheet={() => setShowReceiveSheet(true)} />
           </div>
 
           {showQuickOptionDiv && !isCompassWallet() ? (
@@ -606,10 +530,8 @@ export default function Home() {
             />
           )}
 
-          {atLeastOneTokenIsLoading && chain?.apiStatus === false ? (
-            <WarningCard
-              text={`The ${chain.chainName} network is currently experiencing issues. Please try again later.`}
-            />
+          {showDisabledCard ? (
+            <WarningCard text={disabledCardMessage} />
           ) : !isCompassWallet() && !isWalletHasFunds && !atLeastOneTokenIsLoading ? (
             <FundBanners />
           ) : (
@@ -741,7 +663,9 @@ export default function Home() {
         onClose={() => setShowCopyAddressSheet(false)}
         walletAddresses={walletAddresses}
       />
-      <BottomNav label={BottomNavLabel.Home} disabled={disabled} />
+      {!connectEVMLedger ? (
+        <BottomNav label={BottomNavLabel.Home} disabled={!activeWallet.addresses[activeChain]} />
+      ) : null}
     </div>
   )
 }

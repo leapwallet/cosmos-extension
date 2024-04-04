@@ -16,6 +16,7 @@ import { EventName } from 'config/analytics'
 import { DISABLE_BANNER_ADS } from 'config/storage-keys'
 import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Browser from 'webextension-polyfill'
 
 // session storage key for storing the numia banner impression info
@@ -56,11 +57,17 @@ function BannerAdCard({
   onClose: (bannerId: string, index: number) => void
   handleBtcBannerClick: () => void
 }) {
+  const navigate = useNavigate()
+
   const handleClick = useCallback(() => {
     if (bannerData.id.trim().toLowerCase().includes('nbtc-banner')) {
       handleBtcBannerClick()
+    } else if (bannerData.banner_type === 'redirect-interanlly') {
+      navigate(bannerData.redirect_url)
     } else {
-      window.open(bannerData.redirect_url)
+      if (bannerData?.redirect_url && bannerData?.redirect_url !== '#') {
+        window.open(bannerData.redirect_url)
+      }
     }
 
     onClick(bannerData.id, index)

@@ -9,6 +9,7 @@ import {
   GetKeyMsg,
   GetKeysMsg,
   GetSupportedChainsMsg,
+  RequestExperimentalSignEip712Message,
   RequestSignAminoMsg,
   RequestSignDirectMsg,
   RequestVerifyADR36AminoSignDoc,
@@ -38,6 +39,7 @@ export enum SUPPORTED_METHODS {
   REQUEST_ENCRYPT_MSG = 'request-encrypt-msg',
   REQUEST_DECRYPT_MSG = 'request-decrypt-msg',
   REQUEST_VERIFY_ADR36_AMINO_SIGN_DOC = 'request-verify-adr36-amino-sign-doc',
+  REQUEST_SIGN_EIP712 = 'request-sign-eip712',
 }
 
 export class InExtensionMessageRequester implements MessageRequester {
@@ -245,5 +247,10 @@ export class InExtensionMessageRequester implements MessageRequester {
   async enigmaDecrypt(chainId: string, ciphertext: Uint8Array, nonce: Uint8Array) {
     const resp = await this.requestWrapper(SUPPORTED_METHODS.REQUEST_DECRYPT_MSG, { chainId, ciphertext, nonce });
     return new Uint8Array(Object.values(resp.payload));
+  }
+
+  async experimentalSignEIP712CosmosTx_v0(message: RequestExperimentalSignEip712Message) {
+    const data = await this.requestWrapper(SUPPORTED_METHODS.REQUEST_SIGN_AMINO, message);
+    return data?.payload?.aminoSignResponse;
   }
 }

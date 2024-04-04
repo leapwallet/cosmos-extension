@@ -44,7 +44,8 @@ type WalletInfoCardPrps = {
   onClick: () => void
   isExistingAddress: boolean
   isChosen: boolean
-  hidden: boolean
+  hidden?: boolean
+  showDerivationPath?: boolean
 }
 
 function WalletInfoCard({
@@ -54,6 +55,7 @@ function WalletInfoCard({
   isExistingAddress,
   isChosen,
   hidden,
+  showDerivationPath = false,
   ...rest
 }: PropsWithoutRef<WalletInfoCardPrps>) {
   const chainInfos = useChainInfos()
@@ -102,9 +104,14 @@ function WalletInfoCard({
     },
   })
 
-  const copiedIcon = isCompassWallet() ? Images.Misc.CompassCopied : Images.Misc.Copied
+  const copiedIcon = isCompassWallet() ? Images.Misc.CompassCopied : Images.Misc.CheckBox
   const iconSrc = useMemo(
-    () => (isChosen || isExistingAddress ? copiedIcon : Images.Misc.RadioButtonUnchecked),
+    () =>
+      isExistingAddress
+        ? Images.Misc.CheckCircle
+        : isChosen
+        ? copiedIcon
+        : Images.Misc.CheckBoxOutlineBlank,
     [copiedIcon, isChosen, isExistingAddress],
   )
 
@@ -117,25 +124,38 @@ function WalletInfoCard({
   error && captureException(error)
 
   return (
-    <div className={`rounded-xl w-[376px] shrink-0 ${hidden ? 'hidden' : ''}`}>
+    <div className={`rounded-xl w-[360px] shrink-0 ${hidden ? 'hidden' : ''}`}>
       <Card
         imgSrc={imgSrc}
         title={'Wallet ' + (id + 1)}
-        subTitle={sliceAddress(cosmosAddress)}
+        subTitle={
+          <div className='flex items-center gap-2 mb-1'>
+            {showDerivationPath && (
+              <Text
+                size='xs'
+                className='font-medium py-1 px-[6px] rounded bg-gray-200 dark:bg-gray-800'
+              >
+                {/* add derivation path  */}
+                0/&apos;0/1
+              </Text>
+            )}
+            {sliceAddress(cosmosAddress)}
+          </div>
+        }
         isRounded={false}
         size={'lg'}
         onClick={onClick}
         iconSrc={iconSrc}
-        className={`rounded-t-lg ${!isLoading && !data ? 'rounded-b-lg' : ''}`}
+        className={`w-full rounded-t-lg ${!isLoading && !data ? 'rounded-b-lg' : ''}`}
         {...rest}
       />
 
       {!isCompassWallet() && !error && (
         <>
           <div className='h-[1px] bg-gray-100 dark:bg-gray-600' />
-          <div className='w-[376px] bg-white-100 dark:bg-gray-900 px-6 py-2 rounded-b-lg'>
+          <div className='w-[360px] bg-white-100 dark:bg-gray-900 px-6 py-2 rounded-b-lg'>
             {isLoading ? (
-              <Skeleton className='light:bg-gray-200 bg-gray-800' />
+              <Skeleton className='light:bg-gray-200 bg-gray-800 z-0' />
             ) : (
               data && (
                 <div className='flex rounded-b-lg'>

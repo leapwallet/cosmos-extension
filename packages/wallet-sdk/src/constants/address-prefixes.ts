@@ -53,7 +53,6 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   nomic: 'nomic',
   octa: 'octa',
   odin: 'odin',
-  orai: 'oraichain',
   osmo: 'osmosis',
   panacea: 'panacea',
   pb: 'provenance',

@@ -52,11 +52,17 @@ import { useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
 import { STAKE_MODE } from '../types';
 import {
+  GasOptions,
+  getChainId,
   getMetaDataForClaimRewardsTx,
   getMetaDataForDelegateTx,
   getMetaDataForRedelegateTx,
+  getOsmosisGasPriceSteps,
   getTxnLogAmountValue,
+  useActiveStakingDenom,
+  useGasRateQuery,
   useGetGasPrice,
+  useNativeFeeDenom,
 } from '../utils';
 import { fetchCurrency } from '../utils/findUSDValue';
 import { getNativeDenom } from '../utils/getNativeDenom';
@@ -87,8 +93,6 @@ export function useInvalidateDelegations() {
 }
 
 export function useStaking() {
-  const chainInfos = useGetChains();
-  const activeChain = useActiveChain();
   const { allAssets } = useGetTokenBalances();
   const isTestnet = useSelectedNetwork() === 'testnet';
 
@@ -98,8 +102,8 @@ export function useStaking() {
     useStakeUndelegations();
   const { validatorData, validatorDataStatus, refetchNetwork } = useStakeValidators();
 
-  const activeChainInfo = chainInfos[activeChain];
-  const token = allAssets?.find((e) => e.symbol === activeChainInfo.denom);
+  const [activeStakingDenom] = useActiveStakingDenom();
+  const token = allAssets?.find((e) => e.symbol === activeStakingDenom.coinDenom);
 
   const networkData = useMemo(() => {
     if (validatorData?.chainData && validatorData?.validators)
@@ -152,27 +156,27 @@ export function useSimulateStakeTx(
   delegations?: Delegation[],
 ) {
   const address = useAddress();
-  const selectedNetwork = useSelectedNetwork();
-  const activeChain = useActiveChain();
-  const { chains } = useChainsStore();
   const { lcdUrl } = useChainApis();
+  const [activeStakingDenom] = useActiveStakingDenom();
 
   const getAmount = useCallback(
     (amount: string) => {
-      const denom = getNativeDenom(chains, activeChain, selectedNetwork);
       switch (mode) {
         case 'REDELEGATE':
-          return coin(toSmall(amount, denom?.coinDecimals), delegations?.[0].balance.denom ?? '');
+          return coin(toSmall(amount, activeStakingDenom.coinDecimals), delegations?.[0].balance.denom ?? '');
+
         case 'DELEGATE':
         case 'UNDELEGATE':
-          return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
+          return coin(toSmall(amount, activeStakingDenom.coinDecimals), activeStakingDenom.coinMinimalDenom);
+
         case 'CANCEL_UNDELEGATION':
-          return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
+          return coin(toSmall(amount, activeStakingDenom.coinDecimals), activeStakingDenom.coinMinimalDenom);
+
         default:
-          return coin(toSmall('0'), denom.coinMinimalDenom);
+          return coin(toSmall('0'), activeStakingDenom.coinMinimalDenom);
       }
     },
-    [mode, activeChain, delegations, chains],
+    [mode, delegations, activeStakingDenom.coinDecimals, activeStakingDenom.coinMinimalDenom],
   );
 
   const simulateTx = useCallback(
@@ -236,6 +240,7 @@ export function useStakeTx(
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const defaultGasEstimates = useDefaultGasEstimates();
   const gasPriceSteps = useGasPriceSteps();
+  const [activeStakingDenom] = useActiveStakingDenom();
 
   // STATES
   const [memo, setMemo] = useState<string>('');
@@ -258,7 +263,56 @@ export function useStakeTx(
   const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
   const { lcdUrl } = useChainApis();
   const getGasPrice = useGetGasPrice(activeChain);
+
+  /**
+   * Fee calculation
+   */
+
   const gasAdjustment = useGasAdjustmentForChain();
+  const nativeFeeDenom = useNativeFeeDenom();
+  const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
+
+  const [feeDenom, setFeeDenom] = useState<NativeDenom>(nativeFeeDenom);
+  const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
+  const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
+  const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
+  const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
+
+  useEffect(() => {
+    (async function () {
+      if (feeDenom.coinMinimalDenom === 'uosmo' && activeChain === 'osmosis') {
+        const { low, medium, high } = await getOsmosisGasPriceSteps(lcdUrl ?? '', gasPriceSteps);
+        setGasPriceOptions({
+          low: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
+          medium: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
+          high: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
+        });
+      }
+    })();
+  }, [
+    feeDenom.coinMinimalDenom,
+    gasOption,
+    recommendedGasLimit,
+    userPreferredGasLimit,
+    userPreferredGasPrice,
+    activeChain,
+  ]);
+
+  const customFee = useMemo(() => {
+    const _gasLimit = userPreferredGasLimit ?? Number(recommendedGasLimit);
+    const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption];
+    if (!_gasPrice) return;
+
+    return calculateFee(Math.ceil(_gasLimit * gasAdjustment), _gasPrice);
+  }, [
+    gasPriceOptions,
+    gasOption,
+    recommendedGasLimit,
+    userPreferredGasLimit,
+    userPreferredGasPrice,
+    activeChain,
+    feeDenom.coinMinimalDenom,
+  ]);
 
   /**
    * Currency Calculation Selected Token
@@ -266,12 +320,15 @@ export function useStakeTx(
   const { data: tokenFiatValue } = useQuery(['use-staking-native-denom-fiat-value', denom], async () => {
     const _denom = denoms[denom.coinMinimalDenom];
 
-    if (_denom.coinGeckoId) {
+    if (_denom) {
+      const denomChainInfo = chainInfos[_denom.chain as SupportedChain];
+      const _chainId = getChainId(denomChainInfo, selectedNetwork);
       const price = await fetchCurrency(
         '1',
         _denom.coinGeckoId,
         _denom.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
+        `${_chainId}-${_denom.coinMinimalDenom}`,
       );
 
       return price;
@@ -337,10 +394,10 @@ export function useStakeTx(
     setError(undefined);
   }, []);
 
-  const setLedgerError = (error?: string) => {
+  const setLedgerError = useCallback((error?: string) => {
     setLedgerErrorMsg(error);
     setShowLedgerPopup(false);
-  };
+  }, []);
 
   const simulateTx = useCallback(
     (amount: Coin, feeDenom: string, creationHeight?: string) => {
@@ -422,20 +479,22 @@ export function useStakeTx(
 
   const getAmount = useCallback(
     (amount: string) => {
-      const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
       switch (mode) {
         case 'REDELEGATE':
-          return coin(toSmall(amount, denom?.coinDecimals), delegations?.[0].balance.denom ?? '');
+          return coin(toSmall(amount, activeStakingDenom.coinDecimals), delegations?.[0].balance.denom ?? '');
+
         case 'DELEGATE':
         case 'UNDELEGATE':
-          return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
+          return coin(toSmall(amount, activeStakingDenom.coinDecimals), activeStakingDenom.coinMinimalDenom);
+
         case 'CANCEL_UNDELEGATION':
-          return coin(toSmall(amount, denom?.coinDecimals), denom.coinMinimalDenom);
+          return coin(toSmall(amount, activeStakingDenom.coinDecimals), activeStakingDenom.coinMinimalDenom);
+
         default:
-          return coin(toSmall('0'), denom.coinMinimalDenom);
+          return coin(toSmall('0'), activeStakingDenom.coinMinimalDenom);
       }
     },
-    [mode, activeChain, delegations, chainInfos],
+    [mode, activeStakingDenom.coinDecimals, activeStakingDenom.coinMinimalDenom, delegations],
   );
 
   const executeDelegateTx = async ({
@@ -448,7 +507,7 @@ export function useStakeTx(
     callback?: TxCallback;
     isSimulation: boolean;
     customFee?: {
-      stdFee: StdFee;
+      stdFee: StdFee | undefined;
       feeDenom: NativeDenom;
     };
   }) => {
@@ -485,7 +544,7 @@ export function useStakeTx(
       let fee: StdFee;
       let feeDenom: NativeDenom;
 
-      if (customFee !== undefined) {
+      if (customFee !== undefined && customFee.stdFee) {
         fee = customFee.stdFee;
         feeDenom = customFee.feeDenom;
       } else {
@@ -523,11 +582,14 @@ export function useStakeTx(
       }
 
       if (isSimulation) {
+        const denomChainInfo = chainInfos[feeDenom.chain as SupportedChain];
+        const _chainId = getChainId(denomChainInfo, selectedNetwork);
         const feeCurrencyValue = await fetchCurrency(
           fromSmall(fee.amount[0].amount, feeDenom.coinDecimals),
           feeDenom.coinGeckoId,
           feeDenom.chain as SupportedChain,
           currencyDetail[preferredCurrency].currencyPointer,
+          `${_chainId}-${feeDenom.coinMinimalDenom}`,
         );
         setCurrencyFees(feeCurrencyValue ?? '0');
         setFees(fee);
@@ -560,9 +622,13 @@ export function useStakeTx(
           );
         }
 
+        const denomChainInfo = chainInfos[feeDenom.chain as SupportedChain];
+
         const txnLogAmountValue = await getTxnLogAmountValue(amount, {
           coinGeckoId: denoms?.[denom.coinMinimalDenom]?.coinGeckoId,
           chain: denoms?.[denom.coinMinimalDenom]?.chain as SupportedChain,
+          coinMinimalDenom: denom.coinMinimalDenom,
+          chainId: getChainId(denomChainInfo, selectedNetwork),
         });
         await txPostToDB({
           txHash,
@@ -594,7 +660,7 @@ export function useStakeTx(
     callback: TxCallback,
     isSimulation: boolean,
     customFee?: {
-      stdFee: StdFee;
+      stdFee: StdFee | undefined;
       feeDenom: NativeDenom;
     },
   ) => {
@@ -658,6 +724,15 @@ export function useStakeTx(
     ledgerError,
     recommendedGasLimit,
     tokenFiatValue,
+    gasOption,
+    setGasOption,
+    userPreferredGasLimit,
+    userPreferredGasPrice,
+    setUserPreferredGasLimit,
+    setUserPreferredGasPrice,
+    feeDenom,
+    setFeeDenom,
+    customFee,
   };
 }
 

@@ -49,7 +49,7 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
       collectionId: nftDetails?.collection.address ?? nftDetails.collection.contractAddress,
       fromAddress: address,
       toAddress: selectedAddress?.address,
-      tokenId: nftDetails?.tokenId,
+      tokenId: nftDetails?.tokenId ?? '',
       memo: memo,
     })
   }
@@ -79,7 +79,7 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
       collectionId: nftDetails?.collection.address ?? nftDetails.collection.contractAddress,
       fromAddress: address,
       toAddress: selectedAddress?.address,
-      tokenId: nftDetails?.tokenId,
+      tokenId: nftDetails?.tokenId ?? '',
       memo: memo,
       fees: fee,
     })

@@ -1,3 +1,4 @@
+import { isLedgerUnlocked } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { Buttons, ProgressBar, TextArea } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
@@ -21,7 +22,10 @@ import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 import browser from 'webextension-polyfill'
 
 import { IMPORT_WALLET_DATA } from '../constants'
+import ImportEvmModal from './ImportEvmModal'
 import ImportLedgerView from './ImportLedgerView'
+import SelectLedgerWalletView from './SelectLedgerWalletView'
+import { LEDGER_CONNECTION_STEP } from './types'
 
 type SeedPhraseViewProps = {
   readonly walletName: string
@@ -374,7 +378,7 @@ function SelectWalletView({
 
 export default function OnboardingImportWallet() {
   const walletName = useQuery().get('walletName') ?? undefined
-  const isLedger = walletName === 'hardwarewallet'
+  const isLedger = ['hardwarewallet', 'evmhardwarewallet'].includes(walletName || '')
   const isPrivateKey = walletName?.toLowerCase().includes('private')
   const { noAccount } = useAuth() as AuthContextType
 
@@ -383,8 +387,10 @@ export default function OnboardingImportWallet() {
   const [error, setError] = useState('')
   const savedPassword = usePassword()
   const [loading, setLoading] = useState(false)
+  const [importEvmLedgerStep, setImportEvmLedgerStep] = useState(false)
 
   const [currentStep, setCurrentStep] = useState(1)
+  const [ledgerConnectionStatus, setLedgerConnectionStatus] = useState(LEDGER_CONNECTION_STEP.step0)
   const navigate = useNavigate()
   const totalSteps = 4
   const [privateKeyError, setPrivateKeyError] = useState('')
@@ -395,6 +401,7 @@ export default function OnboardingImportWallet() {
     getLedgerAccountDetails,
     onOnboardingComplete,
     onBoardingCompleteLedger,
+    getEvmLedgerAccountDetails,
   } = useOnboarding()
 
   const onOnboardingCompleted = async (password: string) => {
@@ -477,22 +484,38 @@ export default function OnboardingImportWallet() {
     }
   }
 
-  const importLedger = () => {
+  const importLedger = async (fn: (flag: boolean) => Promise<void>) => {
     if (isLedger) {
-      setError('')
-      getLedgerAccountDetails()
-        .then(moveToNextStep)
-        .catch((e) => {
-          setError(e.message)
-        })
+      try {
+        setError('')
+        setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step2)
+        await fn(false)
+        setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step3)
+        await moveToNextStep()
+      } catch {
+        setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step1)
+      }
     }
   }
 
   useEffect(() => {
-    importLedger()
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    let timeout: NodeJS.Timeout
+    const fn = async () => {
+      isLedgerUnlocked('Cosmos').then((unlocked) => {
+        if (unlocked) {
+          setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step1)
+          clearTimeout(timeout)
+        } else {
+          timeout = setTimeout(async () => {
+            await fn()
+          }, 1000)
+        }
+      })
+    }
+    if (isLedger) {
+      fn()
+    }
+  }, [isLedger])
 
   if (loading) {
     return (
@@ -515,6 +538,8 @@ export default function OnboardingImportWallet() {
       </ExtensionPage>
     )
   }
+
+  const showImportLedgerView = (currentStep === 1 && isLedger) || importEvmLedgerStep
 
   return (
     <ExtensionPage
@@ -541,13 +566,44 @@ export default function OnboardingImportWallet() {
           setPrivateKeyError={setPrivateKeyError}
         />
       )}
-      {currentStep === 1 && isLedger && <ImportLedgerView retry={importLedger} error={error} />}
-      {currentStep === 2 && (
+      {showImportLedgerView && currentStep !== 3 && (
+        <ImportLedgerView
+          retry={() => importLedger(getLedgerAccountDetails)}
+          error={error}
+          onNext={async () => {
+            if (importEvmLedgerStep) {
+              await importLedger(getEvmLedgerAccountDetails)
+            } else {
+              await importLedger(getLedgerAccountDetails)
+              if (!isCompassWallet()) {
+                setImportEvmLedgerStep(false)
+              }
+            }
+          }}
+          onSkip={moveToNextStep}
+          status={ledgerConnectionStatus}
+          isEvmLedger={importEvmLedgerStep}
+        />
+      )}
+      {currentStep === 2 && !isLedger && (
         <SelectWalletView
           selectedIds={selectedIds}
           setSelectedIds={setSelectedIds}
           accountsData={walletAccounts as { address: string; index: number }[]}
           onProceed={moveToNextStep}
+        />
+      )}
+      {currentStep === 2 && isLedger && !showImportLedgerView && (
+        <SelectLedgerWalletView
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+          accountsData={walletAccounts as { address: string; index: number }[]}
+          onProceed={moveToNextStep}
+          onEVMConnect={() => {
+            setError('')
+            setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step1)
+            setImportEvmLedgerStep(true)
+          }}
         />
       )}
       {currentStep === 3 && !savedPassword && (

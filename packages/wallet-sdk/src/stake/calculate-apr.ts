@@ -1,3 +1,4 @@
+import { estimateStakingAPR, getQueryClient } from '@sei-js/core';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { isNumber } from 'lodash';
@@ -7,6 +8,12 @@ import { ChainInfo, ChainInfos, NativeDenom, SupportedChain } from '../constants
 import { axiosWrapper } from '../healthy-nodes';
 import { ChainData } from '../types';
 import { getRestUrl } from '../utils';
+
+export async function getAprSei(restUrl: string) {
+  const queryClient = await getQueryClient(restUrl);
+  const apr = await estimateStakingAPR(queryClient);
+  return apr;
+}
 
 export async function getAprCrescent() {
   const url = 'https://apigw-v3.crescent.network/stake/live';
@@ -30,6 +37,8 @@ export async function getApr(
   }
 
   if (chain === 'crescent') return getAprCrescent();
+  const lcd = getRestUrl(chainInfos ?? ChainInfos, chain, testnet);
+  if (['seiTestnet2', 'seiDevnet'].includes(chain)) return getAprSei(lcd);
 
   if (isNumber(chainData.params?.calculated_apr)) {
     return chainData.params?.calculated_apr ?? 0;
@@ -42,7 +51,6 @@ export async function getApr(
    * apr = new_coins_per_yr / total_bonded_tokens
    */
 
-  const lcd = getRestUrl(chainInfos ?? ChainInfos, chain, testnet);
   const denom = Object.values((chainInfos ?? ChainInfos)[chain].nativeDenoms)[0];
   return await getAprFromLcd(lcd, denom);
 }

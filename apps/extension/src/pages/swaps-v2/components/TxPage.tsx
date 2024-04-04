@@ -35,6 +35,7 @@ export type TxPageProps = {
   feeAmount?: string
   refetchSourceBalances?: () => void
   refetchDestinationBalances?: () => void
+  callbackPostTx?: () => void
 }
 
 export function TxPage({
@@ -55,6 +56,7 @@ export function TxPage({
   feeAmount,
   refetchSourceBalances,
   refetchDestinationBalances,
+  callbackPostTx,
 }: TxPageProps) {
   const activeChainInfo = useChainInfo()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
@@ -87,6 +89,7 @@ export function TxPage({
     amountOut,
     setFeeAmount,
     feeAmount,
+    callbackPostTx,
     refetchDestinationBalances,
     refetchSourceBalances,
   })

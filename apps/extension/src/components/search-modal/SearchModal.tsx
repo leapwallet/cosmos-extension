@@ -19,6 +19,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 import {
   searchModalActiveOptionState,
@@ -165,7 +166,7 @@ export function SearchModal() {
         if (!activeWallet) return
         if (
           activeWallet.walletType === WALLETTYPE.LEDGER &&
-          LEDGER_DISABLED_COINTYPES.includes(chain.bip44.coinType)
+          isLedgerEnabled(chain.key, chain.bip44.coinType)
         ) {
           break
         }

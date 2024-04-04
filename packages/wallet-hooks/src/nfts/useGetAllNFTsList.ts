@@ -12,10 +12,11 @@ import {
   useIsCompassWallet,
   useSelectedNetwork,
 } from '../store';
-import { useSetDisabledNFTsInStorage } from '../utils';
+import { transformUrlQueryPath, useSetDisabledNFTsInStorage } from '../utils';
 import { defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
 import { CosmWasmClientHandler } from '../utils/useCosmWasmClient';
 import type { TokensListByCollection } from './types';
+import { getTokensQuery } from './utils';
 
 const getNFTContracts = (network: 'mainnet' | 'testnet', chain: SupportedChain, isCompassWallet?: boolean) => {
   return `https://assets.leapwallet.io/cosmos-registry/v1/nft-contracts${
@@ -138,21 +139,20 @@ export const useGetAllNFTsList = (
 
         const fetchResponse = async (
           collectionAddress: string,
-          start_after?: string,
+          startAfter?: string,
           tokens: string[] = [],
         ): Promise<string[]> => {
-          const query = { tokens: { owner: walletAddress, limit: 50, start_after } };
           let _response;
+          const query = await getTokensQuery({ walletAddress, limit: 50, startAfter, collectionAddress });
 
           if (chain === 'teritori') {
+            const transformedQuery = transformUrlQueryPath(query, 'base64');
+
             _response = await axiosWrapper({
               baseURL: lcdUrl,
               method: 'get',
-              url: `/cosmwasm/wasm/v1/contract/${collectionAddress}/smart/${Buffer.from(JSON.stringify(query)).toString(
-                'base64',
-              )}`,
+              url: `/cosmwasm/wasm/v1/contract/${collectionAddress}/smart/${transformedQuery}`,
             });
-
             _response = _response.data.data;
           } else {
             _response = await client.queryContractSmart(collectionAddress, query);

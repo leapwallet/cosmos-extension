@@ -28,7 +28,7 @@ export type TransferTxAction = {
   amount: string | BigNumber
 }
 
-export type SourceChain = ChainData & { key: SupportedChain; coinType: string }
+export type SourceChain = ChainData & { key: SupportedChain; coinType: string; restUrl: string }
 export type SourceToken = Token & { skipAsset: Asset; coinGeckoId?: string }
 
 type Packet = {

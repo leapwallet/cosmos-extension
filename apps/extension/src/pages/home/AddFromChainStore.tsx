@@ -120,7 +120,7 @@ export default function AddFromChainStore({
             <Value>{newAddChain?.chainName ?? ''}</Value>
             {Divider}
             <Key>Network URL</Key>
-            <Value>{newAddChain?.apis?.rest ?? newAddChain?.apis?.restTest ?? ''}</Value>
+            <Value>{newAddChain?.apis?.rest || newAddChain?.apis?.restTest || ''}</Value>
             {Divider}
             <Key>Chain ID</Key>
             <Value>{newAddChain?.chainId ?? ''}</Value>

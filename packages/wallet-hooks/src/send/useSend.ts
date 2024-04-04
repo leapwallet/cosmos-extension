@@ -17,6 +17,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import { transactionDeclinedError } from '@leapwallet/cosmos-wallet-sdk';
 import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/constants/default-gasprice-step';
+import { useChains } from '@leapwallet/elements-hooks';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import currency from 'currency.js';
@@ -35,6 +36,7 @@ import {
   useActiveWalletStore,
   useAddress,
   useChainApis,
+  useChainId,
   useChainInfo,
   useDefaultGasEstimates,
   useDenoms,
@@ -83,6 +85,7 @@ export function useSend(toAddress: string) {
   const chainInfo = useChainInfo();
   const getGasPrice = useGetGasPrice(activeChain);
   const gasAdjustment = useGasAdjustmentForChain();
+  const chainId = useChainId();
 
   const assets = useMemo(() => {
     if (snip20Tokens && isValidAddressWithPrefix(toAddress, 'secret')) {
@@ -107,6 +110,7 @@ export function useSend(toAddress: string) {
       feeDenom.coinGeckoId,
       feeDenom.chain as unknown as SupportedChain,
       currencyDetail[preferredCurrency].currencyPointer,
+      `${chainId}-${feeDenom.coinMinimalDenom}`,
     );
   });
 
@@ -157,7 +161,7 @@ export function useSend(toAddress: string) {
         });
         callback('success');
       } catch (e: any) {
-        if (e.message === transactionDeclinedError.message) {
+        if (e.message === transactionDeclinedError) {
           callback('txDeclined');
           // navigate('/home?txDeclined=true');
         } else {
@@ -245,7 +249,7 @@ export function useSend(toAddress: string) {
         // navigate('/activity', { state: { fromTx: true } });
         setSigningError('');
       } catch (e: any) {
-        if (e.message === transactionDeclinedError.message) {
+        if (e.message === transactionDeclinedError) {
           callback('txDeclined');
           // navigate('/home?txDeclined=true');
         } else {

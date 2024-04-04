@@ -1,6 +1,7 @@
 import {
   currencyDetail,
   fetchCurrency,
+  useChainId,
   useformatCurrency,
   useGasAdjustmentForChain,
   useUserPreferredCurrency,
@@ -31,6 +32,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
   const [preferredCurrency] = useUserPreferredCurrency()
 
   const { gasLimit, value, feeTokenData, activeChain } = useGasPriceContext()
+  const chainId = useChainId()
   const chainGasAdjustment = useGasAdjustmentForChain(activeChain)
 
   const { data: feeTokenFiatValue } = useQuery(
@@ -41,6 +43,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
         feeTokenData.denom.coinGeckoId,
         feeTokenData.denom.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
+        `${chainId}-${feeTokenData.denom.coinMinimalDenom}`,
       )
     },
   )

@@ -2,6 +2,7 @@ import {
   currencyDetail,
   fetchCurrency,
   useActiveChain,
+  useChainId,
   useDefaultGasEstimates,
   useFeeTokens,
   useformatCurrency,
@@ -51,6 +52,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
   const { allAssets, nativeTokensStatus, s3IbcTokensStatus, nonS3IbcTokensStatus } =
     useGetTokenBalances()
   const activeChain = useActiveChain()
+  const chainId = useChainId()
 
   const { data: feeTokensList, isFetching } = useFeeTokens(activeChain)
 
@@ -78,6 +80,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
         feeToken?.denom?.coinGeckoId ?? '',
         feeToken?.denom?.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
+        `${chainId}-${feeToken?.denom?.coinMinimalDenom}`,
       )
     },
   )

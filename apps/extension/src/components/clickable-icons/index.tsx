@@ -1,4 +1,6 @@
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
+import { Images } from 'images'
 import React from 'react'
 import { ComponentPropsWithoutRef, forwardRef } from 'react'
 
@@ -10,49 +12,53 @@ export type ClickableIconProps = ComponentPropsWithoutRef<'button'> & {
 }
 
 const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
-  ({ type, image, darker, disabled, ...rest }, ref) => (
-    <div className='flex flex-col text-center justify-center'>
-      <button
-        className={classNames('mx-auto h-12 w-12 rounded-full border-none text-center', {
-          'bg-gray-400 dark:bg-[#14100f] text-[#6c6867] cursor-not-allowed': disabled,
-          'bg-white-100 dark:bg-gray-900 text-gray-900 dark:text-white-100 cursor-pointer':
-            (darker !== undefined || !darker) && !disabled,
-          'bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white-100 cursor-pointer':
-            darker && !disabled,
+  ({ type, image, darker, disabled, ...rest }, ref) => {
+    const { theme } = useTheme()
+    const isDark = theme === ThemeName.DARK
+
+    return (
+      <div
+        className={classNames('flex flex-col text-center justify-center', {
+          'opacity-40': disabled,
         })}
-        disabled={disabled}
-        ref={ref}
-        type={type ?? 'button'}
-        {...rest}
       >
-        <div className={'flex flex-col justify-center items-center'}>
-          {image.type === 'url' ? (
-            <img
-              src={image.src}
-              alt={image.alt}
-              className={classNames('invert dark:invert-0', {
-                'opacity-30': disabled,
-              })}
-            />
-          ) : (
-            <span className='material-icons-round'>{image.src}</span>
+        <button
+          className={classNames(
+            'mx-auto relative h-11 w-11 text-center text-black-100 dark:text-white-100 cursor-pointer',
+            {
+              '!cursor-not-allowed': disabled,
+            },
           )}
-        </div>
-      </button>
-      {image.alt !== '' ? (
-        <p
-          className={classNames('font-bold text-sm pt-[4px]', {
-            'text-[#6c6867]': disabled,
-            'text-gray-900 dark:text-white-100': !disabled,
-          })}
+          disabled={disabled}
+          ref={ref}
+          type={type ?? 'button'}
+          {...rest}
         >
-          {image.alt}
-        </p>
-      ) : (
-        <></>
-      )}
-    </div>
-  ),
+          <Images.Nav.ActionButton
+            fill={isDark ? 'white' : 'black'}
+            color={isDark ? 'white' : ''}
+            className='absolute top-0'
+          />
+          <div className={'flex flex-col justify-center items-center'}>
+            {image.type === 'url' ? (
+              <img src={image.src} alt={image.alt} className='invert dark:invert-0 w-4 h-4' />
+            ) : (
+              <span className='material-icons-round' style={{ fontSize: 20 }}>
+                {image.src}
+              </span>
+            )}
+          </div>
+        </button>
+        {image.alt !== '' ? (
+          <p className='font-medium text-xs pt-3 tracking-wide text-black-100 dark:text-white-100'>
+            {image.alt}
+          </p>
+        ) : (
+          <></>
+        )}
+      </div>
+    )
+  },
 )
 
 ClickableIcon.displayName = 'ClickableIcon'

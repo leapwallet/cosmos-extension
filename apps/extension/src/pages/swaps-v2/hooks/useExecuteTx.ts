@@ -1,22 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { makeSignDoc as createSignAminoDoc, OfflineAminoSigner } from '@cosmjs/amino'
-import { createWasmAminoConverters } from '@cosmjs/cosmwasm-stargate'
 import { fromBase64 } from '@cosmjs/encoding'
-import { Int53 } from '@cosmjs/math'
-import {
-  makeAuthInfoBytes,
-  OfflineDirectSigner,
-  Registry,
-  type TxBodyEncodeObject,
-} from '@cosmjs/proto-signing'
-import {
-  AminoTypes,
-  calculateFee,
-  createDefaultAminoConverters,
-  defaultRegistryTypes,
-} from '@cosmjs/stargate'
+import { OfflineDirectSigner } from '@cosmjs/proto-signing'
+import { calculateFee } from '@cosmjs/stargate'
 import {
   CosmosTxType,
+  getChainId,
   getMetaDataForIbcSwapTx,
   getMetaDataForIbcTx,
   getTxnLogAmountValue,
@@ -24,12 +12,15 @@ import {
   useActiveWallet,
   useGasAdjustmentForChain,
   useGasRateQuery,
+  useGetChains,
   useInvalidateTokenBalances,
   useIsCW20Tx,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getErrorMessageFromCode,
+  LeapLedgerSigner,
+  LeapLedgerSignerEth,
   LedgerError,
   sleep,
   SupportedChain,
@@ -45,16 +36,21 @@ import {
   TxClient,
   TXN_STATUS,
 } from '@leapwallet/elements-core'
-import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing'
+import { LEDGER_ENABLED_EVM_CHAIN_IDS } from 'config/config'
+import { ETHERMINT_CHAINS } from 'config/constants'
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
-import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx'
+import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SourceChain, SwapTxnStatus } from 'types/swap'
 
 import { TxPageProps } from '../components'
-import { getPublicKey, sendTrackingRequest } from '../utils'
+import { handleCosmosTx } from '../tx/cosmosTxHandler'
+import { handleEthermintTx } from '../tx/ethermintTxHandler'
+import { handleInjectiveTx } from '../tx/injectiveTxHandler'
+import { sendTrackingRequest } from '../utils'
 import { useGetChainsToShow } from './useGetChainsToShow'
 import { useInvalidateSwapAssetsQueries } from './useInvalidateSwapAssetsQueries'
 
@@ -87,6 +83,7 @@ export function useExecuteTx({
   inAmount,
   amountOut,
   setFeeAmount,
+  callbackPostTx,
   feeAmount,
   refetchDestinationBalances,
   refetchSourceBalances,
@@ -96,6 +93,8 @@ export function useExecuteTx({
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
   const activeWallet = useActiveWallet()
   const chainsToShow = useGetChainsToShow()
+  const chainInfos = useGetChains()
+  const selectedNetwork = useSelectedNetwork()
 
   const [isLoading, setIsLoading] = useState(false)
   const [timeoutError, setTimeoutError] = useState(false)
@@ -193,8 +192,11 @@ export function useExecuteTx({
   const logTxToDB = useCallback(
     async (txHash: string, msgType: string) => {
       const isIBCSendTx = !route?.response?.does_swap ?? false
+      const denomChainInfo = chainInfos[(sourceToken?.chain ?? '') as SupportedChain]
       const txnLogAmountValue = await getTxnLogAmountValue(inAmount, {
         coinGeckoId: sourceToken?.coinGeckoId ?? '',
+        coinMinimalDenom: sourceToken?.coinMinimalDenom ?? '',
+        chainId: getChainId(denomChainInfo, selectedNetwork) ?? String(sourceChain?.chainId ?? ''),
         chain: (sourceToken?.chain ?? '') as SupportedChain,
       })
 
@@ -247,6 +249,12 @@ export function useExecuteTx({
           //
         }
 
+        try {
+          callbackPostTx && callbackPostTx()
+        } catch (_) {
+          //
+        }
+
         invalidateSwapAssets(sourceChain?.key as SupportedChain)
         invalidateSwapAssets(destinationChain?.key as SupportedChain)
 
@@ -254,30 +262,33 @@ export function useExecuteTx({
       }, 2000)
     },
     [
-      activeWallet?.addresses,
-      amountOut,
-      destinationChain?.chainId,
-      destinationChain?.key,
-      destinationToken?.coinDecimals,
-      destinationToken?.coinMinimalDenom,
-      fee?.amount,
-      feeAmount,
-      feeDenom.coinMinimalDenom,
-      inAmount,
-      invalidateBalances,
-      invalidateSwapAssets,
-      refetchDestinationBalances,
-      refetchSourceBalances,
-      route?.operations,
-      route?.response?.chain_ids?.length,
       route?.response?.does_swap,
-      sourceChain?.chainId,
-      sourceChain?.key,
+      route?.response?.chain_ids?.length,
+      route?.operations,
+      chainInfos,
       sourceToken?.chain,
-      sourceToken?.coinDecimals,
       sourceToken?.coinGeckoId,
       sourceToken?.coinMinimalDenom,
+      sourceToken?.coinDecimals,
+      inAmount,
+      selectedNetwork,
+      sourceChain?.chainId,
+      sourceChain?.key,
+      activeWallet?.addresses,
+      destinationChain?.key,
+      destinationChain?.chainId,
+      destinationToken?.coinMinimalDenom,
+      destinationToken?.coinDecimals,
+      amountOut,
       txPostToDB,
+      feeDenom.coinMinimalDenom,
+      feeAmount,
+      fee?.amount,
+      invalidateBalances,
+      invalidateSwapAssets,
+      refetchSourceBalances,
+      refetchDestinationBalances,
+      callbackPostTx,
     ],
   )
 
@@ -347,90 +358,45 @@ export function useExecuteTx({
         let txBytesString: string
 
         try {
-          // @ts-ignore
-          const accountDetails = await fetchAccountDetails(messageChain.restUrl, senderAddress)
-
           let txRaw
 
           if (isLedgerTypeWallet) {
-            const aminoTypes = new AminoTypes({
-              ...createDefaultAminoConverters(),
-              ...createWasmAminoConverters(),
-            })
-
-            const msgs = [aminoTypes.toAmino(encodedMessage)]
-
-            //@ts-ignore
-            if (encodedMessage.value.memo) {
-              //@ts-ignore
-              msgs[0].value.memo = encodedMessage.value.memo
+            if (
+              sourceChain &&
+              LEDGER_ENABLED_EVM_CHAIN_IDS.includes(sourceChain?.chainId as string)
+            ) {
+              if (messageChain.key === 'injective') {
+                ;({ txRaw, txBytesString } = await handleInjectiveTx(
+                  wallet as unknown as LeapLedgerSignerEth,
+                  messageChain,
+                  encodedMessage as { typeUrl: string; value: MsgTransfer },
+                  senderAddress,
+                  fee,
+                  { typeUrl: message.msg_type_url, message: messageJson },
+                ))
+              } else {
+                txBytesString = await handleEthermintTx(
+                  messageChain,
+                  wallet as unknown as LeapLedgerSignerEth,
+                  encodedMessage as { typeUrl: string; value: MsgTransfer },
+                  fee,
+                )
+              }
+            } else {
+              ;({ txRaw, txBytesString } = await handleCosmosTx(
+                encodedMessage as { typeUrl: string; value: MsgTransfer },
+                fee,
+                messageChain,
+                wallet as unknown as LeapLedgerSigner,
+                senderAddress,
+              ))
             }
-
-            const signAminoDoc = createSignAminoDoc(
-              msgs,
-              fee,
-              String(messageChain.chainId),
-              '',
-              accountDetails.accountNumber,
-              accountDetails.sequence,
-            )
-
-            const signedAminoDoc = await (wallet as OfflineAminoSigner).signAmino(
-              senderAddress,
-              signAminoDoc,
-            )
             if (isLedgerTypeWallet) {
               setShowLedgerPopup(false)
             }
-
-            if ('signed' in signedAminoDoc && 'signature' in signedAminoDoc) {
-              const signedTxBody = {
-                messages: signedAminoDoc.signed.msgs.map((msg) => aminoTypes.fromAmino(msg)),
-                memo: signedAminoDoc.signed.memo,
-              }
-
-              if (msgs[0].value.memo) {
-                signedTxBody.messages[0].value.memo = msgs[0].value.memo
-              }
-
-              const signedTxBodyEncodeObject: TxBodyEncodeObject = {
-                typeUrl: '/cosmos.tx.v1beta1.TxBody',
-                value: signedTxBody,
-              }
-              const registry = new Registry(defaultRegistryTypes)
-              registry.register('/cosmwasm.wasm.v1.MsgExecuteContract', MsgExecuteContract)
-              const signedTxBodyBytes = registry.encode(signedTxBodyEncodeObject)
-
-              const signedGasLimit = Int53.fromString(signedAminoDoc.signed.fee.gas).toNumber()
-              const signedSequence = Int53.fromString(signedAminoDoc.signed.sequence).toNumber()
-
-              const signMode = SignMode.SIGN_MODE_LEGACY_AMINO_JSON
-
-              const pubkey = getPublicKey({
-                chainId: String(messageChain.chainId),
-                // @ts-ignore
-                coinType: messageChain.coinType,
-                key: walletAccounts[0].pubkey,
-              })
-
-              const signedAuthInfoBytes = makeAuthInfoBytes(
-                [{ pubkey, sequence: signedSequence }],
-                signedAminoDoc.signed.fee.amount,
-                signedGasLimit,
-                signedAminoDoc.signed.fee.granter,
-                signedAminoDoc.signed.fee.payer,
-                signMode,
-              )
-              txRaw = TxRaw.fromPartial({
-                bodyBytes: signedTxBodyBytes,
-                authInfoBytes: signedAuthInfoBytes,
-                signatures: [fromBase64(signedAminoDoc.signature.signature)],
-              })
-            } else {
-              txRaw = signedAminoDoc
-            }
           } else {
             const binaryMessage = getDecodedMessageMetadataForSigning(encodedMessage)
+            const accountDetails = await fetchAccountDetails(messageChain.restUrl, senderAddress)
 
             const signDoc = createSignDoc(
               String(messageChain.chainId),
@@ -459,10 +425,9 @@ export function useExecuteTx({
               authInfoBytes: signedDoc.signed.authInfoBytes,
               signatures: [fromBase64(signedDoc.signature.signature)],
             })
+            const txBytes = TxRaw.encode(txRaw).finish()
+            txBytesString = Buffer.from(txBytes).toString('base64')
           }
-
-          const txBytes = TxRaw.encode(txRaw).finish()
-          txBytesString = Buffer.from(txBytes).toString('base64')
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
@@ -477,7 +442,7 @@ export function useExecuteTx({
         try {
           const { success, response } = await txClient.submitTx(
             String(messageChain.chainId),
-            txBytesString,
+            txBytesString as string,
           )
 
           if (!success) throw new Error('Submit txn failed')
@@ -492,7 +457,7 @@ export function useExecuteTx({
               transactionHash,
               code: txCode,
               codespace,
-            } = await txClient.broadcastTx(txBytesString)
+            } = await txClient.broadcastTx(txBytesString as string)
 
             txHash = transactionHash
 

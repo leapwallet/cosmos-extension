@@ -22,10 +22,11 @@ import {
   useRoute,
   useSkipGasFeeSWR,
 } from '@leapwallet/elements-hooks'
-import { useQuery } from '@tanstack/react-query'
+import { QueryStatus, useQuery as reactUseQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import { calculateFeeAmount } from 'components/gas-price-options'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import useQuery from 'hooks/useQuery'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -37,17 +38,21 @@ import {
   useGetInfoMsg,
   useGetSourceAssets,
 } from './index'
+import { useEnableToken } from './useEnableToken'
+import { useTokenWithBalances } from './useTokenWithBalances'
 
 export type SwapsTxType = {
   inAmount: string
   sourceToken: SourceToken | null
   sourceChain: SourceChain | undefined
   handleInAmountChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+  sourceTokenBalanceStatus: QueryStatus
   sourceAssets: SourceToken[]
   chainsToShow: SourceChain[]
   amountExceedsBalance: boolean
   amountOut: string
   destinationToken: SourceToken | null
+  destinationTokenBalancesStatus: QueryStatus
   destinationChain: SourceChain | undefined
   destinationAssets: SourceToken[]
   errorMsg: string
@@ -57,6 +62,7 @@ export type SwapsTxType = {
   setDestinationToken: React.Dispatch<React.SetStateAction<SourceToken | null>>
   setSourceChain: React.Dispatch<React.SetStateAction<SourceChain | undefined>>
   setDestinationChain: React.Dispatch<React.SetStateAction<SourceChain | undefined>>
+  callbackPostTx: () => void
   infoMsg: string
   redirectUrl: string
   isMoreThanOneStepTransaction: boolean
@@ -141,6 +147,21 @@ export function useSwapsTx(): SwapsTxType {
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom)
   const gasAdjustment = useGasAdjustmentForChain(sourceChain?.key ?? '')
 
+  const sourceChainId = useQuery().get('sourceChainId') ?? undefined
+  const destinationChainId = useQuery().get('destinationChainId') ?? undefined
+  const sourceTokenValue = useQuery().get('sourceToken') ?? undefined
+  const destinationTokenValue = useQuery().get('destinationToken') ?? undefined
+
+  /**
+   * Function to enable a disabled token
+   */
+  const { enableToken: enableSourceToken } = useEnableToken(sourceChain, sourceToken)
+  const { enableToken: enableDestinationToken } = useEnableToken(destinationChain, destinationToken)
+
+  const callbackPostTx = useCallback(() => {
+    enableDestinationToken()
+    enableSourceToken()
+  }, [enableDestinationToken, enableSourceToken])
   /**
    * set refetch balances
    */
@@ -157,6 +178,10 @@ export function useSwapsTx(): SwapsTxType {
    */
   useEffect(() => {
     if (chainsToShow.length > 0 && (!sourceChain || !destinationChain)) {
+      const sourceChainParams = chainsToShow.find((chain) => chain.chainId === sourceChainId)
+      const destinationChainParams = chainsToShow.find(
+        (chain) => chain.chainId === destinationChainId,
+      )
       const activeChainToShow = chainsToShow.find(
         (chain) => chain.chainId === activeChainInfo.chainId,
       )
@@ -179,13 +204,17 @@ export function useSwapsTx(): SwapsTxType {
         return chain.chainId === ChainInfos.osmosis.chainId
       })
 
-      if (activeChainToShow) {
+      if (sourceChainParams) {
+        setSourceChain(sourceChainParams)
+      } else if (activeChainToShow) {
         setSourceChain(activeChainToShow)
       } else {
         setSourceChain(chainsToShow[0])
       }
 
-      if (firstNotActiveChainToShow) {
+      if (destinationChainParams) {
+        setDestinationChain(destinationChainParams)
+      } else if (firstNotActiveChainToShow) {
         setDestinationChain(firstNotActiveChainToShow)
       } else {
         if (isCompassWallet()) {
@@ -195,7 +224,14 @@ export function useSwapsTx(): SwapsTxType {
         }
       }
     }
-  }, [activeChainInfo.chainId, chainsToShow, destinationChain, sourceChain])
+  }, [
+    activeChainInfo.chainId,
+    chainsToShow,
+    destinationChain,
+    sourceChain,
+    sourceChainId,
+    destinationChainId,
+  ])
 
   /**
    * set source token
@@ -211,7 +247,15 @@ export function useSwapsTx(): SwapsTxType {
           (asset) => asset.coinMinimalDenom === sourceChain.baseDenom,
         )
 
-        if (sourceToken) {
+        const sourceTokenParams = sourceAssets.find(
+          (asset) =>
+            asset.ibcDenom === sourceTokenValue || asset.coinMinimalDenom === sourceTokenValue,
+        )
+
+        if (sourceTokenParams) {
+          setSourceToken(sourceTokenParams)
+          return
+        } else if (sourceToken) {
           setSourceToken(sourceToken)
           return
         }
@@ -219,7 +263,7 @@ export function useSwapsTx(): SwapsTxType {
 
       setSourceToken(sourceAssets[0])
     }
-  }, [sourceChain, sourceAssetsData?.assets, sourceAssetsData?.assets?.length])
+  }, [sourceChain, sourceAssetsData?.assets, sourceAssetsData?.assets?.length, sourceTokenValue])
 
   /**
    * set destination token
@@ -236,6 +280,7 @@ export function useSwapsTx(): SwapsTxType {
             asset.coinMinimalDenom ===
             'sei1hrndqntlvtmx2kepr0zsfgr7nzjptcc72cr4ppk4yav58vvy7v3s4er8ed',
         )
+
         if (destinationToken) {
           setDestinationToken(destinationToken)
           return
@@ -244,7 +289,16 @@ export function useSwapsTx(): SwapsTxType {
         return
       }
 
-      if (destinationChain) {
+      const destinationTokenParams = destinationAssets.find(
+        (asset) =>
+          asset.ibcDenom === destinationTokenValue ||
+          asset.coinMinimalDenom === destinationTokenValue,
+      )
+
+      if (destinationTokenParams) {
+        setDestinationToken(destinationTokenParams)
+        return
+      } else if (destinationChain) {
         const destinationToken = destinationAssets.find(
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
@@ -259,7 +313,18 @@ export function useSwapsTx(): SwapsTxType {
 
       setDestinationToken(destinationAssets[0])
     }
-  }, [destinationChain, destinationAssetsData?.assets, destinationAssetsData?.assets?.length])
+  }, [
+    destinationChain,
+    destinationAssetsData?.assets,
+    destinationAssetsData?.assets?.length,
+    destinationTokenValue,
+  ])
+
+  const { data: sourceTokenWithBalance, status: sourceTokenWithBalanceStatus } =
+    useTokenWithBalances(sourceToken, sourceChain)
+
+  const { data: destinationTokenWithBalance, status: destinationTokenWithBalanceStatus } =
+    useTokenWithBalances(destinationToken, destinationChain)
 
   /**
    * element hooks
@@ -316,7 +381,7 @@ export function useSwapsTx(): SwapsTxType {
   /**
    * fetch fee token fiat value
    */
-  const { data: feeTokenFiatValue } = useQuery(
+  const { data: feeTokenFiatValue } = reactUseQuery(
     ['fee-token-fiat-value', feeDenom],
     async () => {
       return fetchCurrency(
@@ -324,6 +389,7 @@ export function useSwapsTx(): SwapsTxType {
         feeDenom.coinGeckoId,
         feeDenom.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
+        `${sourceChain?.chainId}-${feeDenom.coinMinimalDenom}`,
       )
     },
     { enabled: !!feeDenom },
@@ -394,12 +460,12 @@ export function useSwapsTx(): SwapsTxType {
    * amount exceeds balance
    */
   const amountExceedsBalance = useMemo(() => {
-    if (sourceToken && Number(inAmount) > Number(sourceToken.amount)) {
+    if (sourceTokenWithBalance && Number(inAmount) > Number(sourceTokenWithBalance.amount)) {
       return true
     }
 
     return false
-  }, [inAmount, sourceToken])
+  }, [inAmount, sourceTokenWithBalance])
 
   /**
    * review button disabled
@@ -444,16 +510,18 @@ export function useSwapsTx(): SwapsTxType {
 
   return {
     inAmount,
-    sourceToken,
+    sourceToken: sourceTokenWithBalance,
+    sourceTokenBalanceStatus: sourceTokenWithBalanceStatus,
     sourceChain,
     handleInAmountChange,
     sourceAssets: sourceAssetsData?.assets ?? [],
     chainsToShow,
     amountExceedsBalance,
     amountOut,
-    destinationToken,
+    destinationToken: destinationTokenWithBalance,
     destinationChain,
     destinationAssets: destinationAssetsData?.assets ?? [],
+    destinationTokenBalancesStatus: destinationTokenWithBalanceStatus,
     errorMsg,
     loadingMsg,
     reviewBtnDisabled,
@@ -473,6 +541,7 @@ export function useSwapsTx(): SwapsTxType {
     gasEstimate,
     setUserPreferredGasLimit,
     setUserPreferredGasPrice,
+    callbackPostTx,
     setGasOption,
     setFeeDenom,
     displayFee,

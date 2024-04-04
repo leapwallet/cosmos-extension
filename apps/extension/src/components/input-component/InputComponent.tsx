@@ -12,6 +12,7 @@ type InputProps = {
   error?: string
   // eslint-disable-next-line no-unused-vars
   onBlur?: (event: ChangeEvent<HTMLInputElement>) => void
+  className?: string
 }
 
 const InputComponent = forwardRef<HTMLInputElement, InputProps>(

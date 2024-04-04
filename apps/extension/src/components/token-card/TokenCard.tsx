@@ -29,6 +29,7 @@ type TokenCardProps = {
   readonly size?: 'sm' | 'md' | 'lg'
   readonly ibcChainInfo?: IbcChainInfo | undefined
   readonly hasToShowIbcTag?: boolean
+  readonly hideAmount?: boolean
 }
 
 export function TokenCard({
@@ -45,6 +46,7 @@ export function TokenCard({
   iconSrc,
   size,
   hasToShowIbcTag,
+  hideAmount = false,
 }: TokenCardProps) {
   const [formatCurrency] = useFormatCurrency()
   const { formatHideBalance } = useHideAssets()
@@ -84,16 +86,18 @@ export function TokenCard({
         )
       }
       subtitle2={
-        <p className='whitespace-nowrap text-gray-400 font-medium text-xs'>
-          {formatHideBalance(
-            formatTokenAmount(
-              amount,
-              sliceWord(symbol, 4, 4),
-              3,
-              currencyDetail[preferredCurrency].locale,
-            ),
-          )}
-        </p>
+        hideAmount === false && (
+          <p className='whitespace-nowrap text-gray-400 font-medium text-xs'>
+            {formatHideBalance(
+              formatTokenAmount(
+                amount,
+                sliceWord(symbol, 4, 4),
+                3,
+                currencyDetail[preferredCurrency].locale,
+              ),
+            )}
+          </p>
+        )
       }
       img={
         <img

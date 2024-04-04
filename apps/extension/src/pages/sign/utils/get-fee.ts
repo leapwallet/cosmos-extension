@@ -2,12 +2,12 @@ import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate'
 import { Fee } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 
 export function getStdFee(gasLimit: string, gasPrice: GasPrice) {
-  return calculateFee(Number(gasLimit), gasPrice)
+  return calculateFee(parseInt(gasLimit), gasPrice)
 }
 
 export function getFee(rawFee: Fee | StdFee, gasPrice: GasPrice, gasLimit: string) {
   const stdFee = calculateFee(
-    Number(gasLimit || ('gasLimit' in rawFee ? rawFee.gasLimit : rawFee.gas)),
+    parseInt(gasLimit || ('gasLimit' in rawFee ? rawFee.gasLimit : rawFee.gas).toString()),
     gasPrice,
   )
 

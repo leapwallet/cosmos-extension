@@ -10,9 +10,13 @@ import Blockchain from './blockchain.svg'
 import BridgeRoute from './bridge-route.svg'
 import CardDividerDarkMode from './card-divider-dark-mode.svg'
 import CardDividerLightMode from './card-divider-light-mode.svg'
+import CheckBox from './check_box.svg'
+import CheckBoxOutlineBlank from './check_box_outline_blank.svg'
+import CheckCircle from './check_circle.svg'
 import CheckCompass from './check-compass.svg'
 import CheckCosmos from './check-cosmos.svg'
 import CheckGreen from './check-green.svg'
+import CheckGreenNew from './check-green-new.svg'
 import CheckJuno from './check-juno.svg'
 import CheckOsmosis from './check-osmosis.svg'
 import CheckRed from './check-red.svg'
@@ -22,6 +26,7 @@ import CompassCopied from './compass-copied.svg'
 import CompassNftVerifiedCollection from './compass-nft-verified-collection.svg'
 import CompassPinExtension from './compass-pin-extension.png'
 import CompassReward from './compass-reward.svg'
+import ConnectLedgerSteps from './connect-ledger-steps.svg'
 import ConnectedSitesIcon from './connected-sites.svg'
 import Contacts from './contacts.svg'
 import CopiedSvg from './copied'
@@ -50,6 +55,9 @@ import FilledKey from './filled-key.svg'
 import FilledPen from './filled-pen.svg'
 import FilledRoundedSquareCheckMark from './filled-rounded-square-check-mark.svg'
 import FlashOn from './flash-on.svg'
+import FrogHappy from './frog-happy.svg'
+import FrogPanic from './frog-panic.svg'
+import FrogSad from './frog-sad.svg'
 import Gear from './gear.svg'
 import Globe from './globe.svg'
 import GreenTick from './green-tick.svg'
@@ -63,6 +71,7 @@ import IBC from './ibc.svg'
 import IbcProtocol from './ibc-protocol.svg'
 import IbcUnion from './ibc-union.svg'
 import IconRight from './icon-right-gray-400.svg'
+import Info from './info.svg'
 import InfoCircle from './info-circle.svg'
 import InfoFilledExclamationMark from './info-filled-exclamation-mark.svg'
 import InfoFilledExclamationRedMark from './info-filled-exclamation-red-mark.svg'
@@ -112,6 +121,7 @@ import Tick from './tick.svg'
 import Timer from './timer.svg'
 import UnhideNft from './unhide-nft.svg'
 import Validator from './validator.svg'
+import VerifiedWithBgStar from './verified.png'
 import Verified from './verified.svg'
 import VerticalDots from './vertical-dots.svg'
 import VisibilityOffIcon from './visibility-off.svg'
@@ -166,9 +176,13 @@ export {
   BridgeRoute,
   CardDividerDarkMode,
   CardDividerLightMode,
+  CheckBox,
+  CheckBoxOutlineBlank,
+  CheckCircle,
   CheckCompass,
   CheckCosmos,
   CheckGreen,
+  CheckGreenNew,
   CheckRed,
   CMDShiftL,
   CompassCopied,
@@ -176,6 +190,7 @@ export {
   CompassPinExtension,
   CompassReward,
   ConnectedSitesIcon,
+  ConnectLedgerSteps,
   Contacts,
   Copied,
   CopiedSvg,
@@ -203,6 +218,9 @@ export {
   FilledPen,
   FilledRoundedSquareCheckMark,
   FlashOn,
+  FrogHappy,
+  FrogPanic,
+  FrogSad,
   Gear,
   Globe,
   GreenTick,
@@ -216,6 +234,7 @@ export {
   IbcProtocol,
   IbcUnion,
   IconRight,
+  Info,
   InfoCircle,
   InfoFilledExclamationMark,
   InfoFilledExclamationRedMark,
@@ -266,6 +285,7 @@ export {
   UnhideNft,
   Validator,
   Verified,
+  VerifiedWithBgStar,
   VerticalDots,
   VisibilityOff,
   VisibilityOffIcon,

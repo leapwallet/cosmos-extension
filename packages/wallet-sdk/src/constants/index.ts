@@ -9,3 +9,4 @@ export * from './gas-price-steps';
 export * from './native-fee-denoms';
 export * from './networks';
 export * from './snip20-denoms';
+export * from './staking-denoms';

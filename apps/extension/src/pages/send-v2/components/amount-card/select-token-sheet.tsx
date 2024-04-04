@@ -1,4 +1,10 @@
-import { Token, useActiveChain, useChainInfo, useDenoms } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  Token,
+  useActiveChain,
+  useAutoFetchedCW20Tokens,
+  useChainInfo,
+  useDenoms,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
@@ -26,18 +32,26 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
   const activeChain = useActiveChain()
   const [searchQuery, setSearchQuery] = useState('')
   const denoms = useDenoms()
+  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
+  const combinedDenoms = useMemo(() => {
+    return {
+      ...denoms,
+      ...autoFetchedCW20Tokens,
+    }
+  }, [denoms, autoFetchedCW20Tokens])
   const activeChainInfo = useChainInfo()
 
   const _assets = useMemo(() => {
     return assets.filter((token) => {
       return (
-        denoms[token.coinMinimalDenom as keyof typeof denoms] ??
-        Object.values(activeChainInfo.nativeDenoms).find(
-          (_denom) => _denom.coinMinimalDenom === token.coinMinimalDenom,
-        )
+        String(token.amount) !== '0' &&
+        (combinedDenoms[token.coinMinimalDenom as keyof typeof denoms] ??
+          Object.values(activeChainInfo.nativeDenoms).find(
+            (_denom) => _denom.coinMinimalDenom === token.coinMinimalDenom,
+          ))
       )
     })
-  }, [activeChainInfo.nativeDenoms, assets, denoms])
+  }, [activeChainInfo.nativeDenoms, assets, combinedDenoms])
 
   const transferableTokens = useMemo(() => {
     return _assets.filter((asset) => {

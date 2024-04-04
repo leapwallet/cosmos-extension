@@ -1,4 +1,9 @@
-import { ChainInfo, ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  addressPrefixes as ADDRESS_PREFIXES,
+  ChainInfo,
+  ChainInfos,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { useMemo } from 'react';
 import create from 'zustand';
 
@@ -42,7 +47,11 @@ export function useAddressPrefixes() {
   const addressPrefixes = useMemo(() => {
     const prefixMap: Record<string, string> = {};
     Object.values(chains).forEach((chain) => {
-      prefixMap[chain.addressPrefix] = chain.key;
+      if (ADDRESS_PREFIXES[chain.addressPrefix]) {
+        prefixMap[chain.addressPrefix] = ADDRESS_PREFIXES[chain.addressPrefix];
+      } else {
+        prefixMap[chain.addressPrefix] = chain.key;
+      }
     });
 
     prefixMap['sei'] = 'seiTestnet2';

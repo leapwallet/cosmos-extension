@@ -28,12 +28,14 @@ import {
   useGetChains,
   useLSStrideEnabledDenoms,
   usePendingTxState,
+  useSelectedNetwork,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { ActivityType, TxCallback, WALLETTYPE } from '../types';
 import {
   fetchCurrency,
   formatTokenAmount,
+  getChainId,
   getMetaDataForLsStakeTx,
   getMetaDataForLsUnstakeTx,
   useNativeFeeDenom,
@@ -56,6 +58,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
   const strideAddress = forceStrideAddress ?? address;
   const { setPendingTx } = usePendingTxState();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
+  const selectedNetwork = useSelectedNetwork();
 
   const denom = useNativeFeeDenom('stride');
 
@@ -217,11 +220,15 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
       const fee = calculateFee(Math.round((gasEstimate ?? defaultGasStake) * 1.5), gasPrice);
 
       if (isSimulation) {
+        const denomChainInfo = chainInfos[denom.chain as SupportedChain];
+        const _chainId = getChainId(denomChainInfo, selectedNetwork);
+
         const feeCurrencyValue = await fetchCurrency(
           fromSmall(fee.amount[0].amount, denom?.coinDecimals),
           denom.coinGeckoId,
           denom.chain as unknown as SupportedChain,
           currencyDetail[preferredCurrency].currencyPointer,
+          `${_chainId}-${denom.coinMinimalDenom}`,
         );
         setCurrencyFees(feeCurrencyValue ?? '0');
         setFees(fee);
@@ -266,7 +273,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
         setError('');
       }
     } catch (e: any) {
-      if (e.message === transactionDeclinedError.message) {
+      if (e.message === transactionDeclinedError) {
         callback && callback('txDeclined');
       }
       setError(e.message.toString());

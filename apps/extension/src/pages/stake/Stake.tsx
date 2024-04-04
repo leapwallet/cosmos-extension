@@ -1,4 +1,5 @@
 import {
+  useActiveStakingDenom,
   useIsCancleUnstakeSupported,
   useStaking,
   useValidatorImage,
@@ -205,6 +206,7 @@ function DepositAmountCard({
   const navigate = useNavigate()
   const chainInfos = useChainInfos()
   const activeChainInfo = chainInfos[activeChain]
+  const [activeStakingDenom] = useActiveStakingDenom()
 
   return (
     <div className='dark:bg-gray-900 rounded-2xl bg-white-100 pt-4'>
@@ -229,7 +231,7 @@ function DepositAmountCard({
               {formatHideBalance(currencyAmountDelegation === '-' ? '-' : currencyAmountDelegation)}
             </Text>
             <Text size='xs' className='font-semibold'>
-              {formatHideBalance(totalDelegations ?? `0.00 ${activeChainInfo.denom}`)}
+              {formatHideBalance(totalDelegations ?? `0.00 ${activeStakingDenom.coinDenom}`)}
             </Text>
           </div>
           <div className='flex shrink  h-[48px] w-[121px]'>
@@ -440,6 +442,7 @@ function StakeHeading({
 }) {
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const [activeStakingDenom] = useActiveStakingDenom()
 
   const minApyValue = minApy
     ? currency((minApy * 100).toString(), { precision: 2, symbol: '' }).format()
@@ -478,7 +481,7 @@ function StakeHeading({
           />
         </div>
         <Text size='xxl' className='font-black'>
-          Stake {chainInfos[chainName].denom}
+          Stake {activeStakingDenom.coinDenom}
         </Text>
       </div>
       {isLoading ? <Skeleton count={1} width={200} /> : apyText}
@@ -501,6 +504,7 @@ export default function Stake() {
     useRecoilState(selectedChainAlertState)
 
   const defaultTokenLogo = useDefaultTokenLogo()
+  const [activeStakingDenom] = useActiveStakingDenom()
 
   const {
     isTestnet,
@@ -577,7 +581,7 @@ export default function Stake() {
           {isCompassWallet() && isTestnet && (
             <AlertStrip
               message='You are on Sei Testnet'
-              bgColor={Colors.getChainColor(activeChain)}
+              bgColor={themeColor}
               alwaysShow={isTestnet}
             />
           )}
@@ -587,7 +591,7 @@ export default function Stake() {
               message={`You are on ${activeChainInfo.chainName}${
                 isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
               }`}
-              bgColor={Colors.getChainColor(activeChain)}
+              bgColor={themeColor}
               alwaysShow={isTestnet}
               onHide={() => {
                 setShowSelectedChainAlert(false)
@@ -674,19 +678,19 @@ export default function Stake() {
                   className='p-[4px] font-bold '
                   color='text-gray-600 dark:text-gray-400'
                 >
-                  {`About Staking ${activeChainInfo.denom}`}
+                  {`About Staking ${activeStakingDenom.coinDenom}`}
                 </Text>
                 <div className='flex flex-col px-[4px] pt-[4px]'>
                   <ReadMoreText
                     textProps={{ size: 'md', className: 'font-medium  flex flex-column' }}
                     readMoreColor={themeColor}
                   >
-                    {`Staking is the process of locking up a digital asset non custodially (${activeChainInfo.denom} in the case of the ${activeChainInfo.chainName} Network) to provide economic security.
+                    {`Staking is the process of locking up a digital asset non custodially (${activeStakingDenom.coinDenom}} in the case of the ${activeChainInfo.chainName} Network) to provide economic security.
                      When the staking transaction is complete, rewards will start to be generated immediately. At any time, stakers can send a transaction to claim their accumulated rewards, using a wallet.
-                     Staking rewards are generated and distributed to staked ${activeChainInfo.denom} holders in two ways: Transaction fees collected on the ${activeChainInfo.chainName} are distributed to staked ${activeChainInfo.denom} holders. and secondly
-                     from newly created ${activeChainInfo.denom}. The total supply of ${activeChainInfo.denom} is inflated to reward stakers. ${activeChainInfo.denom} holders that do not stake do not receive rewards, meaning their ${activeChainInfo.denom} get diluted over time.
-                     The yearly inflation rate of ${activeChainInfo.denom} is available on most explorers.
-                     Staking ${activeChainInfo.denom} is not risk-free. If a validator has downtime or underperforms, a percentage of ${activeChainInfo.denom} delegated to them may be forfeited. To mitigate these risks, it is recommended that ${activeChainInfo.denom} holders delegate to multiple validators.
+                     Staking rewards are generated and distributed to staked ${activeStakingDenom.coinDenom}} holders in two ways: Transaction fees collected on the ${activeChainInfo.chainName} are distributed to staked ${activeStakingDenom.coinDenom}} holders. and secondly
+                     from newly created ${activeStakingDenom.coinDenom}}. The total supply of ${activeStakingDenom.coinDenom}} is inflated to reward stakers. ${activeStakingDenom.coinDenom}} holders that do not stake do not receive rewards, meaning their ${activeStakingDenom.coinDenom}} get diluted over time.
+                     The yearly inflation rate of ${activeStakingDenom.coinDenom}} is available on most explorers.
+                     Staking ${activeStakingDenom.coinDenom} is not risk-free. If a validator has downtime or underperforms, a percentage of ${activeStakingDenom.coinDenom}} delegated to them may be forfeited. To mitigate these risks, it is recommended that ${activeStakingDenom.coinDenom}} holders delegate to multiple validators.
                      Upon unstaking, tokens are locked for a period of ${unstakingPeriod} post which you will automatically get them back in your wallet.
                      `}
                   </ReadMoreText>

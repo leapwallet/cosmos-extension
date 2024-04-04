@@ -8,9 +8,10 @@ import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
+import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { formatWalletName } from 'utils/formatWalletName'
 import { capitalize } from 'utils/strings'
 
@@ -66,6 +67,28 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
       }),
     [_displayAccounts, chainInfos, trimmedQuery],
   )
+
+  const toChainId = useQuery().get('toChainId') ?? undefined
+
+  useEffect(() => {
+    if (toChainId && displayAccounts?.length > 0) {
+      const chainKey = Object.values(chainInfos).find((chain) => chain.chainId === toChainId)?.key
+      const toChain = displayAccounts.filter(([_chain]) => _chain === chainKey)?.[0]
+      const img = chainInfos[chainKey as SupportedChain]?.chainSymbolImageUrl ?? defaultTokenLogo
+
+      setSelectedAddress({
+        address: toChain?.[1],
+        avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex),
+        chainIcon: img ?? '',
+        chainName: toChain?.[0],
+        emoji: undefined,
+        name: `${name.length > 12 ? `${name.slice(0, 12)}...` : name} - ${capitalize(
+          toChain?.[0],
+        )}`,
+        selectionType: 'currentWallet',
+      })
+    }
+  }, [toChainId, displayAccounts?.length > 0, activeChain])
 
   return (
     <BottomModal

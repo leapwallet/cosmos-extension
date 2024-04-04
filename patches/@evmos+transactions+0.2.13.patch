@@ -1,0 +1,160 @@
+diff --git a/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.d.ts b/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.d.ts
+index a0b4a25..e3d17f9 100644
+--- a/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.d.ts
++++ b/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.d.ts
+@@ -1,36 +1,43 @@
+ import { Chain, Fee, Sender } from './common';
+ export interface MessageIBCMsgTransfer {
+-    sourcePort: string;
+-    sourceChannel: string;
+-    amount: string;
+-    denom: string;
+-    receiver: string;
+-    revisionNumber: number;
+-    revisionHeight: number;
+-    timeoutTimestamp: string;
++  sourcePort: string;
++  sourceChannel: string;
++  amount: string;
++  denom: string;
++  receiver: string;
++  revisionNumber: number;
++  revisionHeight: number;
++  timeoutTimestamp: string;
++  memo: string;
+ }
+-export declare function createTxIBCMsgTransfer(chain: Chain, sender: Sender, fee: Fee, memo: string, params: MessageIBCMsgTransfer): {
+-    signDirect: {
+-        body: import("@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx").cosmos.tx.v1beta1.TxBody;
+-        authInfo: import("@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx").cosmos.tx.v1beta1.AuthInfo;
+-        signBytes: string;
+-    };
+-    legacyAmino: {
+-        body: import("@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx").cosmos.tx.v1beta1.TxBody;
+-        authInfo: import("@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx").cosmos.tx.v1beta1.AuthInfo;
+-        signBytes: string;
+-    };
+-    eipToSign: {
+-        types: object;
+-        primaryType: string;
+-        domain: {
+-            name: string;
+-            version: string;
+-            chainId: number;
+-            verifyingContract: string;
+-            salt: string;
+-        };
+-        message: object;
++export declare function createTxIBCMsgTransfer(
++  chain: Chain,
++  sender: Sender,
++  fee: Fee,
++  memo: string,
++  params: MessageIBCMsgTransfer,
++): {
++  signDirect: {
++    body: import('@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx').cosmos.tx.v1beta1.TxBody;
++    authInfo: import('@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx').cosmos.tx.v1beta1.AuthInfo;
++    signBytes: string;
++  };
++  legacyAmino: {
++    body: import('@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx').cosmos.tx.v1beta1.TxBody;
++    authInfo: import('@evmos/proto/dist/proto/cosmos/tx/v1beta1/tx').cosmos.tx.v1beta1.AuthInfo;
++    signBytes: string;
++  };
++  eipToSign: {
++    types: object;
++    primaryType: string;
++    domain: {
++      name: string;
++      version: string;
++      chainId: number;
++      verifyingContract: string;
++      salt: string;
+     };
++    message: object;
++  };
+ };
+ //# sourceMappingURL=ibcMsgTransfer.d.ts.map
+diff --git a/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.js b/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.js
+index f73307b..9277ae9 100644
+--- a/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.js
++++ b/node_modules/@evmos/transactions/dist/messages/ibcMsgTransfer.js
+@@ -1,21 +1,61 @@
+-"use strict";
+-Object.defineProperty(exports, "__esModule", { value: true });
++'use strict';
++Object.defineProperty(exports, '__esModule', { value: true });
+ exports.createTxIBCMsgTransfer = void 0;
+-const proto_1 = require("@evmos/proto");
+-const eip712_1 = require("@evmos/eip712");
++const proto_1 = require('@evmos/proto');
++const eip712_1 = require('@evmos/eip712');
+ function createTxIBCMsgTransfer(chain, sender, fee, memo, params) {
+-    const feeObject = (0, eip712_1.generateFee)(fee.amount, fee.denom, fee.gas, sender.accountAddress);
+-    const types = (0, eip712_1.generateTypes)(eip712_1.IBC_MSG_TRANSFER_TYPES);
+-    const msg = (0, eip712_1.createIBCMsgTransfer)(params.receiver, sender.accountAddress, params.sourceChannel, params.sourcePort, params.revisionHeight, params.revisionNumber, params.timeoutTimestamp, params.amount, params.denom);
+-    const messages = (0, eip712_1.generateMessage)(sender.accountNumber.toString(), sender.sequence.toString(), chain.cosmosChainId, memo, feeObject, msg);
+-    const eipToSign = (0, eip712_1.createEIP712)(types, chain.chainId, messages);
+-    const msgCosmos = (0, proto_1.createIBCMsgTransfer)(params.sourcePort, params.sourceChannel, params.amount, params.denom, sender.accountAddress, params.receiver, params.revisionNumber, params.revisionHeight, params.timeoutTimestamp);
+-    const tx = (0, proto_1.createTransaction)(msgCosmos, memo, fee.amount, fee.denom, parseInt(fee.gas, 10), 'ethsecp256', sender.pubkey, sender.sequence, sender.accountNumber, chain.cosmosChainId);
+-    return {
+-        signDirect: tx.signDirect,
+-        legacyAmino: tx.legacyAmino,
+-        eipToSign,
+-    };
++  const feeObject = (0, eip712_1.generateFee)(fee.amount, fee.denom, fee.gas, sender.accountAddress);
++  const types = (0, eip712_1.generateTypes)(eip712_1.IBC_MSG_TRANSFER_TYPES);
++  const msg = (0, eip712_1.createIBCMsgTransfer)(
++    params.receiver,
++    sender.accountAddress,
++    params.sourceChannel,
++    params.sourcePort,
++    params.revisionHeight,
++    params.revisionNumber,
++    params.timeoutTimestamp,
++    params.amount,
++    params.denom,
++    params.memo,
++  );
++  const messages = (0, eip712_1.generateMessage)(
++    sender.accountNumber.toString(),
++    sender.sequence.toString(),
++    chain.cosmosChainId,
++    memo,
++    feeObject,
++    msg,
++  );
++  const eipToSign = (0, eip712_1.createEIP712)(types, chain.chainId, messages);
++  const msgCosmos = (0, proto_1.createIBCMsgTransfer)(
++    params.sourcePort,
++    params.sourceChannel,
++    params.amount,
++    params.denom,
++    sender.accountAddress,
++    params.receiver,
++    params.revisionNumber,
++    params.revisionHeight,
++    params.timeoutTimestamp,
++    params.memo,
++  );
++  const tx = (0, proto_1.createTransaction)(
++    msgCosmos,
++    memo,
++    fee.amount,
++    fee.denom,
++    parseInt(fee.gas, 10),
++    'ethsecp256',
++    sender.pubkey,
++    sender.sequence,
++    sender.accountNumber,
++    chain.cosmosChainId,
++  );
++  return {
++    signDirect: tx.signDirect,
++    legacyAmino: tx.legacyAmino,
++    eipToSign,
++  };
+ }
+ exports.createTxIBCMsgTransfer = createTxIBCMsgTransfer;
+ //# sourceMappingURL=ibcMsgTransfer.js.map

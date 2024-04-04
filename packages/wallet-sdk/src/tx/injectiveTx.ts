@@ -11,13 +11,21 @@ import {
   StdFee,
 } from '@cosmjs/stargate';
 import { longify } from '@cosmjs/stargate/build/queryclient';
-import { arrayify, concat, splitSignature } from '@ethersproject/bytes';
+import { arrayify, concat, joinSignature, SignatureLike, splitSignature } from '@ethersproject/bytes';
 import {
   ChainRestAuthApi,
+  ChainRestTendermintApi,
+  createSignDocFromTransaction,
+  createTransaction,
+  createTxRawEIP712,
   createTxRawFromSigResponse,
+  createWeb3Extension,
   DEFAULT_STD_FEE,
+  getEip712TypedData,
   MsgBeginRedelegate,
   MsgDelegate,
+  MsgExecuteContract,
+  MsgExecuteContractCompat,
   MsgGrant,
   MsgRevoke,
   MsgSend,
@@ -25,8 +33,10 @@ import {
   MsgUndelegate,
   MsgVote,
   MsgWithdrawDelegatorReward,
+  SIGN_AMINO,
+  TxClient,
+  TxRestClient,
 } from '@injectivelabs/sdk-ts';
-import { createCosmosSignDocFromTransaction, createTransaction, TxRestClient } from '@injectivelabs/sdk-ts';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import BigNumber from 'bignumber.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
@@ -36,9 +46,11 @@ import { keccak256 } from 'ethereumjs-util';
 
 import { AccountDetails, fetchAccountDetails, InjectiveAccountRestResponse } from '../accounts';
 import { ChainInfos } from '../constants';
-import { getClientState, getRestUrl } from '../utils';
-import { sleep } from '../utils';
+import { axiosWrapper } from '../healthy-nodes';
+import { LeapLedgerSignerEth } from '../ledger';
+import { getClientState, getRestUrl, sleep } from '../utils';
 import { buildGrantMsg } from './msgs/cosmos';
+
 enum MsgTypes {
   GRANT = '/cosmos.authz.v1beta1.MsgGrant',
   REVOKE = '/cosmos.authz.v1beta1.MsgRevoke',
@@ -49,6 +61,7 @@ enum MsgTypes {
   UNDELEGAGE = '/cosmos.staking.v1beta1.MsgUndelegate',
   REDELEGATE = '/cosmos.staking.v1beta1.MsgBeginRedelegate',
   WITHDRAW_REWARD = '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward',
+  MSG_EXECUTE_CONTRACT = '/cosmwasm.wasm.v1.MsgExecuteContract',
 }
 
 export class InjectiveTx {
@@ -59,11 +72,17 @@ export class InjectiveTx {
   options?: {
     gasPrice: GasPrice;
   };
+  chainId: string;
+  evmChainId: number;
 
-  constructor(private testnet: boolean, private wallet: EthWallet, restEndpoint?: string) {
+  constructor(private testnet: boolean, private wallet: EthWallet | LeapLedgerSignerEth, restEndpoint?: string) {
     this.restEndpoint = restEndpoint ?? getRestUrl(ChainInfos, 'injective', testnet);
     this.chainRestAuthApi = new ChainRestAuthApi(this.restEndpoint);
     this.txRestClient = new TxRestClient(this.restEndpoint);
+    this.chainId = testnet ? ChainInfos.injective.testnetChainId ?? 'injective-888' : 'injective-1';
+    this.evmChainId = testnet
+      ? parseInt(ChainInfos.injective.evmChainIdTestnet ?? '888')
+      : parseInt(ChainInfos.injective.evmChainId ?? '1');
   }
 
   async grantRestake(
@@ -557,8 +576,17 @@ export class InjectiveTx {
 
   async broadcastTx(txRaw: any, retry = 3): Promise<string> {
     try {
-      const txResponse: any = await this.txRestClient.broadcast(txRaw);
-      return txResponse.txHash;
+      const response = await axiosWrapper({
+        baseURL: this.restEndpoint,
+        url: 'cosmos/tx/v1beta1/txs',
+        method: 'post',
+        data: {
+          tx_bytes: TxClient.encode(txRaw),
+          mode: 2,
+        },
+      });
+      const txResponse = response.data.tx_response;
+      return txResponse.txhash;
     } catch (error: any) {
       if (error && error.toString().includes("Cannot read properties of undefined (reading 'code')") && retry > 0) {
         await sleep(1000);
@@ -571,13 +599,24 @@ export class InjectiveTx {
   async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = '') {
     try {
       const usedFee = await this.getFees(signerAddress, msgs, fee);
+      if (this.wallet instanceof LeapLedgerSignerEth) {
+        const wallet = this.wallet as LeapLedgerSignerEth;
+        const { eip712Tx, txRaw } = await this.createEip712Tx(signerAddress, msgs, usedFee, memo);
+        const signature = await wallet.signEip712(signerAddress, eip712Tx);
+        const signatureStr = joinSignature(signature as SignatureLike);
+        const signatureBuffer = Buffer.from(signatureStr.replace('0x', ''), 'hex');
+        const web3Extension = createWeb3Extension({ ethereumChainId: this.testnet ? 888 : 1 });
+        const txRawEip712 = createTxRawEIP712(txRaw, web3Extension);
+        txRawEip712.signatures.push(signatureBuffer);
+        return txRawEip712;
+      }
       const { txRaw, signBytes, signDoc } = await this.createTx(signerAddress, msgs, usedFee, memo);
 
       if (!(this.wallet instanceof EthWallet)) {
-        const _signDoc = createCosmosSignDocFromTransaction({
+        const _signDoc = createSignDocFromTransaction({
           txRaw,
-          chainId: signDoc.getChainId(),
-          accountNumber: signDoc.getAccountNumber(),
+          chainId: signDoc.chainId,
+          accountNumber: parseInt(signDoc.accountNumber),
         });
 
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -591,7 +630,7 @@ export class InjectiveTx {
         const rawSignature = await this.wallet?.sign(signerAddress, keccak256(signBytes));
         const _splitSignature = splitSignature(rawSignature);
         const signature = arrayify(concat([_splitSignature.r, _splitSignature.s]));
-        txRaw.setSignaturesList([signature]);
+        txRaw.signatures.push(signature);
         return txRaw;
       }
     } catch (e: any) {
@@ -640,6 +679,116 @@ export class InjectiveTx {
     };
   }
 
+  async createEip712Tx(signerAddress: string, msgs: EncodeObject[], _fee: StdFee, memo = '') {
+    const accountDetails = await fetchAccountDetails(this.restEndpoint, signerAddress);
+    const chainRestTendermintApi = new ChainRestTendermintApi(this.restEndpoint);
+    const latestBlock = await chainRestTendermintApi.fetchLatestBlock();
+    const latestHeight = latestBlock.header.height;
+    const formatIbcMessage = (msg: EncodeObject) => {
+      return {
+        ...msg.value,
+        timeout: '8446744073709551615',
+        height: {
+          revisionHeight: parseInt(msg.value.height.revisionHeight),
+          revisionNumber: parseInt(msg.value.height.revisionNumber),
+        },
+      };
+    };
+
+    const fee = {
+      amount: _fee.amount.map((amt) => {
+        return {
+          amount: amt.amount,
+          denom: amt.denom,
+        };
+      }),
+      gas: _fee.gas,
+    };
+
+    const messages = msgs.map((msg) => {
+      switch (msg.typeUrl) {
+        case MsgTypes.IBCTRANSFER:
+          return MsgTransfer.fromJSON(formatIbcMessage(msg));
+        case MsgTypes.MSG_EXECUTE_CONTRACT:
+          return MsgExecuteContractCompat.fromJSON(msg.value);
+        case MsgTypes.GOV:
+          return MsgVote.fromJSON({ ...msg.value, proposalId: msg.value.proposalId.toInt() });
+        case MsgTypes.DELEGATE:
+          return MsgDelegate.fromJSON(msg.value);
+        case MsgTypes.UNDELEGAGE:
+          return MsgUndelegate.fromJSON(msg.value);
+        case MsgTypes.REDELEGATE:
+          return MsgBeginRedelegate.fromJSON(msg.value);
+        case MsgTypes.WITHDRAW_REWARD:
+          return MsgWithdrawDelegatorReward.fromJSON(msg.value);
+        case MsgTypes.GRANT:
+          return MsgGrant.fromJSON(msg.value);
+        case MsgTypes.REVOKE:
+          return MsgRevoke.fromJSON(msg.value);
+        default:
+          return MsgSend.fromJSON(msg.value);
+      }
+    });
+
+    const timeoutHeight = new BigNumber(latestHeight).plus(90);
+
+    const eip712Tx = getEip712TypedData({
+      msgs: messages,
+      tx: {
+        accountNumber: accountDetails.accountNumber.toString(),
+        sequence: accountDetails.sequence.toString(),
+        chainId: this.chainId,
+        timeoutHeight: timeoutHeight.toString(),
+        memo,
+      },
+      fee,
+      ethereumChainId: this.evmChainId,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //@ts-ignore
+    const index = eip712Tx.types.MsgValue.findIndex((value) => value.name === 'timeout_timestamp');
+    if (index > -1) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //@ts-ignore
+      eip712Tx.types.MsgValue[index].type = 'uint64';
+    }
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //@ts-ignore
+    const memoIndex = eip712Tx.types.MsgValue.findIndex((value) => value.name === 'memo');
+    if (!eip712Tx.message.msgs.every((msg) => msg.value.memo) && memoIndex > -1) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //@ts-ignore
+      eip712Tx.types.MsgValue.splice(memoIndex, 1);
+    }
+
+    const signerData: SignerData = {
+      accountNumber: parseInt(accountDetails.accountNumber, 10),
+      chainId: ChainInfos.injective.chainId,
+      sequence: parseInt(accountDetails.sequence, 10),
+    };
+
+    const wallet = this.wallet as unknown as LeapLedgerSignerEth;
+    const accounts = await wallet.getAccounts();
+
+    const pubKey = toBase64(Secp256k1.compressPubkey(accounts[0].pubkey));
+
+    const { txRaw } = createTransaction({
+      message: messages,
+      memo,
+      signMode: SIGN_AMINO,
+      pubKey,
+      sequence: signerData.sequence,
+      timeoutHeight: timeoutHeight.toNumber(),
+      accountNumber: signerData.accountNumber,
+      chainId: this.chainId,
+      fee,
+    });
+
+    return { eip712Tx, txRaw };
+  }
+
   async createTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee, memo = '') {
     const accountDetails = await fetchAccountDetails(this.restEndpoint, signerAddress);
 
@@ -648,7 +797,7 @@ export class InjectiveTx {
     const walletAccount = !(this.wallet instanceof EthWallet)
       ? // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         //@ts-ignore
-        await this.wallet.getAccounts(this.testnet ? 'injective-888' : 'injective-1')
+        await this.wallet.getAccounts(this.chainId)
       : this.wallet.getAccounts();
     const pubkey = walletAccount[0].pubkey;
 
@@ -661,23 +810,25 @@ export class InjectiveTx {
     const message = msgs.map((msg) => {
       switch (msg.typeUrl) {
         case MsgTypes.IBCTRANSFER:
-          return new MsgTransfer(msg.value).toDirectSign();
+          return new MsgTransfer(msg.value);
+        case MsgTypes.MSG_EXECUTE_CONTRACT:
+          return new MsgExecuteContract(msg.value);
         case MsgTypes.GOV:
-          return new MsgVote(msg.value).toDirectSign();
+          return new MsgVote(msg.value);
         case MsgTypes.DELEGATE:
-          return new MsgDelegate(msg.value).toDirectSign();
+          return new MsgDelegate(msg.value);
         case MsgTypes.UNDELEGAGE:
-          return new MsgUndelegate(msg.value).toDirectSign();
+          return new MsgUndelegate(msg.value);
         case MsgTypes.REDELEGATE:
-          return new MsgBeginRedelegate(msg.value).toDirectSign();
+          return new MsgBeginRedelegate(msg.value);
         case MsgTypes.WITHDRAW_REWARD:
-          return new MsgWithdrawDelegatorReward(msg.value).toDirectSign();
+          return new MsgWithdrawDelegatorReward(msg.value);
         case MsgTypes.GRANT:
-          return new MsgGrant(msg.value).toDirectSign();
+          return new MsgGrant(msg.value);
         case MsgTypes.REVOKE:
-          return new MsgRevoke(msg.value).toDirectSign();
+          return new MsgRevoke(msg.value);
         default:
-          return new MsgSend(msg.value).toDirectSign();
+          return new MsgSend(msg.value);
       }
     });
 
@@ -686,7 +837,7 @@ export class InjectiveTx {
     const tx = createTransaction({
       memo,
       pubKey: pubKey,
-      chainId: this.testnet ? 'injective-888' : 'injective-1',
+      chainId: this.chainId,
       message,
       sequence: signerData.sequence,
       fee: fee as StdFee,

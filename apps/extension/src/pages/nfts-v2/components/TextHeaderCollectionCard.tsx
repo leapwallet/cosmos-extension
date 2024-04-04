@@ -88,7 +88,7 @@ export function TextHeaderCollectionCard({
               <NftCard
                 mediaType={nft.media_type}
                 chain={nft.chain}
-                imgSrc={normalizeImageSrc(nft.image)}
+                imgSrc={normalizeImageSrc(nft.image ?? '')}
                 textNft={{
                   name: nft?.domain ?? '',
                   description:

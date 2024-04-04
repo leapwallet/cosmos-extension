@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 
 export const LEAP_API_BASEURL = 'https://staging-api.leapwallet.io'
 export const DEFAULT_GAS_IBC = 180000
@@ -31,3 +31,17 @@ export const QUICK_SEARCH_DISABLED_PAGES = [
 
 export const RECAPTCHA_CHAINS = ['pryzmtestnet']
 export const LEDGER_DISABLED_COINTYPES = ['60', '931']
+export const LEDGER_ENABLED_EVM_CHAINS = [
+  ChainInfos.injective.key,
+  ChainInfos.evmos.key,
+  ChainInfos.dymension.key,
+]
+
+export const LEDGER_ENABLED_EVM_CHAIN_IDS = [
+  ChainInfos.injective.chainId,
+  ChainInfos.evmos.chainId,
+  ChainInfos.dymension.chainId,
+  ChainInfos.injective.testnetChainId,
+  ChainInfos.evmos.testnetChainId,
+  ChainInfos.dymension.testnetChainId,
+]

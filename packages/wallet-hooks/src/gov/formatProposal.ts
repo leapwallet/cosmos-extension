@@ -1,6 +1,6 @@
 import { CosmosSDK } from '@leapwallet/cosmos-wallet-sdk';
 
-import { normalizeImageSrc } from '../utils';
+import { fetchProposalMetadataFromLink, getContentFromMessages, proposalHasMetadataLink } from './utils';
 
 export async function formatProposal(version: CosmosSDK, proposal: any) {
   switch (version) {
@@ -8,12 +8,22 @@ export async function formatProposal(version: CosmosSDK, proposal: any) {
       let content;
 
       try {
-        if (proposal.metadata.startsWith('ipfs://')) {
-          const res = await fetch(normalizeImageSrc(proposal.metadata));
-          const data = await res.json();
-          content = { title: data.title, description: data.summary };
+        if (proposalHasMetadataLink(proposal)) {
+          content = await fetchProposalMetadataFromLink(proposal);
         } else {
           content = JSON.parse(proposal.metadata);
+          content = {
+            title: content?.title,
+            description: content?.summary ?? content?.description,
+          };
+        }
+      } catch (_) {
+        content = {};
+      }
+
+      try {
+        if (!content?.title && proposal.messages) {
+          content = getContentFromMessages(proposal, content);
         }
       } catch (_) {
         content = {};

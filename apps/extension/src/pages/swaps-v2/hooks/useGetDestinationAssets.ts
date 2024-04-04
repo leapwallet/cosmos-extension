@@ -4,6 +4,7 @@ import {
   getKeyToUseForDenoms,
   LeapWalletApi,
   sortTokenBalances,
+  useAutoFetchedCW20Tokens,
   useDenoms,
   useGetTokenBalances,
   useIbcTraceStore,
@@ -14,8 +15,12 @@ import { useSkipAssets } from '@leapwallet/elements-hooks'
 import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
+import { useChainInfos } from 'hooks/useChainInfos'
 import { SourceChain, SourceToken } from 'types/swap'
 
+import { getSortFnBasedOnWhiteListing } from '../utils'
+import { useInitializeCW20TokensForChain } from './useInitializeCW20TokensForChain'
 import { QUERY_GET_DESTINATION_ASSETS_SWAP } from './useInvalidateSwapAssetsQueries'
 
 export function useGetDestinationAssets(destinationChain: SourceChain | undefined) {
@@ -25,9 +30,14 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
   const { data: destinationAssets } = useSkipAssets((destinationChain?.chainId ?? '') as string, {
     includeCW20Assets: true,
   })
-  const [preferredCurrency] = useUserPreferredCurrency()
   const denoms = useDenoms()
+  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens(destinationChain?.key ?? undefined)
+  const combinedDenoms = { ...denoms, ...autoFetchedCW20Tokens }
+  const [preferredCurrency] = useUserPreferredCurrency()
   const { ibcTraceData } = useIbcTraceStore()
+  const chainInfos = useChainInfos()
+  const selectedNetwork = useSelectedNetwork()
+  useInitializeCW20TokensForChain(destinationChain)
 
   return useQuery(
     [
@@ -35,7 +45,7 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
       destinationAssets,
       preferredCurrency,
       allAssets,
-      denoms,
+      combinedDenoms,
       destinationChain,
       ibcTraceData,
       refetchBalances,
@@ -60,7 +70,7 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
             })
           } else {
             const _baseDenom = getKeyToUseForDenoms(skipAsset.originDenom, skipAsset.originChainId)
-            const denomInfo = denoms[_baseDenom]
+            const denomInfo = combinedDenoms[_baseDenom]
 
             if (denomInfo) {
               if (denomInfo?.coinDecimals === undefined) {
@@ -69,15 +79,26 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
 
               let usdPrice = '0'
 
-              if (denomInfo?.coinGeckoId) {
+              if (denomInfo) {
+                const _chainId =
+                  selectedNetwork === 'mainnet'
+                    ? chainInfos[denomInfo.chain as SupportedChain]?.chainId
+                    : chainInfos[denomInfo.chain as SupportedChain]?.testnetChainId
+                const alternatePriceKey = `${_chainId}-${denomInfo.coinMinimalDenom}`
+
                 if (
                   coingeckoPrices[preferredCurrencyPointer] &&
-                  coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId]
+                  (coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId] ||
+                    coingeckoPrices[preferredCurrencyPointer][alternatePriceKey])
                 ) {
-                  usdPrice = String(
-                    coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId],
-                  )
-                } else {
+                  if (coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId]) {
+                    usdPrice = String(
+                      coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId],
+                    )
+                  } else {
+                    usdPrice = String(coingeckoPrices[preferredCurrencyPointer][alternatePriceKey])
+                  }
+                } else if (denomInfo.coinGeckoId) {
                   if (needToFetchUsdPriceFor[denomInfo.chain]) {
                     needToFetchUsdPriceFor[denomInfo.chain].push(denomInfo.coinGeckoId)
                   } else {
@@ -182,9 +203,12 @@ export function useGetDestinationAssets(destinationChain: SourceChain | undefine
         } catch (error) {
           captureException(error)
         }
+        const autoFetchedTokensList = Object.keys(autoFetchedCW20Tokens)
 
         return {
-          assets: sortTokenBalances(_destinationAssets) as SourceToken[],
+          assets: sortTokenBalances(_destinationAssets).sort(
+            getSortFnBasedOnWhiteListing(autoFetchedTokensList),
+          ) as SourceToken[],
           refetchBalances,
         }
       }

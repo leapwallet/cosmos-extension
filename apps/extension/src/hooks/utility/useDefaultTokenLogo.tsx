@@ -4,7 +4,9 @@ import { useMemo } from 'react'
 import { Images } from '../../images'
 
 export function getDefaultTokenLogo(darkTheme: boolean) {
-  const defaultLogo = darkTheme ? Images.Logos.GenericDark : Images.Logos.GenericDark
+  const defaultLogo = darkTheme
+    ? Images.Logos.ImgNotAvailableDark
+    : Images.Logos.ImgNotAvailableLight
   return defaultLogo
 }
 

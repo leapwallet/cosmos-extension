@@ -1,9 +1,10 @@
 import {
+  useActiveStakingDenom,
   useChainInfo,
   useGetTokenBalances,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { Delegation, Reward } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import {
@@ -236,7 +237,9 @@ export default function ValidatorDetails() {
 
   const activeChain = useActiveChain()
   const { allAssets } = useGetTokenBalances()
-  const token = allAssets?.find((e) => e.symbol === (ChainInfos[activeChain]?.denom ?? ''))
+  const [activeStakingDenom] = useActiveStakingDenom()
+
+  const token = allAssets?.find((e) => e.symbol === (activeStakingDenom.coinDenom ?? ''))
   const [showInputAmount, setShowInputAmount] = useState<STAKE_MODE>()
   const [showYourRewardsSheet, setShowYourRewardsSheet] = useState(false)
 
@@ -267,7 +270,7 @@ export default function ValidatorDetails() {
               <>
                 <Text size='lg' className='font-bold'>
                   {!showInputAmount || showInputAmount === 'DELEGATE' ? 'Stake' : 'Unstake'}{' '}
-                  {capitalize((ChainInfos[activeChain]?.denom ?? '').toLowerCase())}
+                  {capitalize((activeStakingDenom.coinDenom ?? '').toLowerCase())}
                 </Text>
               </>
             }

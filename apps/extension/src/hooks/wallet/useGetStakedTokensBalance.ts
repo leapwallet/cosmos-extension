@@ -1,11 +1,11 @@
 import {
   currencyDetail,
   useChainApis,
+  useChainId,
   useDenoms,
   usePreferredCurrencyStore,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { getDelegations } from '@leapwallet/cosmos-wallet-sdk'
+import { getDelegations, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { captureException } from '@sentry/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BigNumber } from 'bignumber.js'
@@ -25,6 +25,7 @@ export function useGetStakedTokensBalance() {
   const { preferredCurrency } = usePreferredCurrencyStore()
   const chainInfos = useChainInfos()
   const denoms = useDenoms()
+  const chainId = useChainId()
 
   const { data, status, error } = useQuery(
     ['delegations', activeChain, address, lcdUrl, denoms],
@@ -56,6 +57,7 @@ export function useGetStakedTokensBalance() {
           (denom?.coinGeckoId ?? '') as string,
           (denom?.chain ?? '') as unknown as SupportedChain,
           currencyDetail[preferredCurrency].currencyPointer,
+          `${chainId}-${denom?.coinMinimalDenom}`,
         )
       } else {
         return '0'

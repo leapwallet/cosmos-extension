@@ -1,4 +1,9 @@
-import { formatTokenAmount, sliceWord, useStaking } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  formatTokenAmount,
+  sliceWord,
+  useActiveStakingDenom,
+  useStaking,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { Amount, Reward, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
@@ -7,7 +12,6 @@ import BottomModal from 'components/bottom-modal'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React, { useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -26,9 +30,9 @@ export type YourRewardsSheetProps = {
 export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRewardsSheetProps) {
   const [formatCurrency] = useFormatCurrency()
   const activeChain = useActiveChain()
-  const chainInfos = useChainInfos()
-  const activeChainInfo = chainInfos[activeChain]
-  const activeDenom = activeChainInfo.denom
+
+  const [activeStakingDenom] = useActiveStakingDenom()
+  const activeDenom = activeStakingDenom.coinDenom
 
   const { formatHideBalance } = useHideAssets()
   const defaultTokenLogo = useDefaultTokenLogo()

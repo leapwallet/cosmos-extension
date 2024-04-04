@@ -9,6 +9,7 @@ import {
   getGasPricesForOsmosisFee,
   useActiveChain,
   useChainApis,
+  useChainId,
   useChainInfo,
   useChainsStore,
   useDefaultGasEstimates,
@@ -26,8 +27,8 @@ import {
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { captureException } from '@sentry/react'
 import * as Sentry from '@sentry/react'
+import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -440,6 +441,7 @@ GasPriceOptions.Selector = function Selector({
 }) {
   const { value, onChange, gasLimit, feeTokenData, considerGasAdjustment, activeChain } =
     useGasPriceContext()
+  const chainId = useChainId()
 
   const defaultGasEstimates = useDefaultGasEstimates()
   const [formatCurrency, preferredCurrency] = useFormatCurrency()
@@ -453,6 +455,7 @@ GasPriceOptions.Selector = function Selector({
         feeTokenData.denom.coinGeckoId,
         feeTokenData.denom.chain as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
+        `${chainId}-${feeTokenData.denom.coinMinimalDenom}`,
       )
     },
   )
