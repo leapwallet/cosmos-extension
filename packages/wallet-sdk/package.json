@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-sdk",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "description": "TypeScript library to create and manage non-custodial wallets for cosmos blockchains.",
   "main": "dist/index.js",
   "scripts": {
@@ -13,7 +13,9 @@
     "prettier:write": "prettier -w ./src",
     "prepublish": "yarn build"
   },
-  "files": ["dist/**/*"],
+  "files": [
+    "dist/**/*"
+  ],
   "repository": {
     "url": "git@github.com:leapwallet/leap-cosmos.git"
   },
@@ -32,13 +34,15 @@
     "@cosmjs/stargate": "0.29.5",
     "@cosmjs/tendermint-rpc": "0.29.5",
     "@cosmos-client/core": "0.47.4",
+    "@ethersproject/abi": "5.7.0",
     "@ethersproject/bytes": "5.7.0",
     "@ethersproject/hash": "5.7.0",
+    "@ethersproject/providers": "5.7.2",
     "@ethersproject/transactions": "5.7.0",
     "@ethersproject/wallet": "5.6.2",
     "@injectivelabs/networks": "1.14.6",
     "@injectivelabs/sdk-ts": "1.14.7",
-    "@leapwallet/leap-keychain": "0.2.2",
+    "@leapwallet/leap-keychain": "0.2.3",
     "@ledgerhq/hw-app-eth": "6.29.3",
     "@ledgerhq/hw-transport-webhid": "6.27.15",
     "@ledgerhq/hw-transport-webusb": "6.27.15",
@@ -71,7 +75,8 @@
     "parse-duration": "1.0.2",
     "secretjs": "1.12.0",
     "secure-random": "1.1.2",
-    "tslib": "2.4.0"
+    "tslib": "2.4.0",
+    "viem": "2.5.0"
   },
   "devDependencies": {
     "@babel/node": "7.19.1",

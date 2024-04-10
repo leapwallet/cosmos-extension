@@ -1,9 +1,5 @@
 /* eslint-disable no-unused-vars */
-import {
-  useChainsStore,
-  useFeatureFlags,
-  useSelectedNetwork,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useChainsStore, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -34,24 +30,20 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
   const activeChain = useActiveChain()
   const { chains } = useChainsStore()
   const activeChainInfo = chains[activeChain]
-  const selectedNetwork = useSelectedNetwork()
   const { data: featureFlags } = useFeatureFlags()
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
-  const walletCtaDisabled = activeChain === 'nomic'
-
-  const govRedirectHandler = useCallback(() => {
-    const redirectUrl = `https://cosmos.leapwallet.io/portfolio/gov?chain=${activeChainInfo?.key}`
-    window.open(redirectUrl, '_blank')
-  }, [activeChainInfo?.key])
 
   const airdropRedirectHandler = useCallback(() => {
     const redirectUrl = `https://cosmos.leapwallet.io/airdrops`
     window.open(redirectUrl, '_blank')
   }, [])
 
-  const bottomNavItems = useMemo(
-    () => [
+  const bottomNavItems = useMemo(() => {
+    const isSwapDisabled =
+      featureFlags?.swaps?.extension === 'disabled' || ['nomic', 'seiDevnet'].includes(activeChain)
+
+    return [
       {
         label: BottomNavLabel.Home,
         icon: 'account_balance_wallet',
@@ -70,7 +62,7 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
         icon: 'sync_alt',
         path: '/swap',
         show: true,
-        disabled: featureFlags?.swaps?.extension === 'disabled' || walletCtaDisabled,
+        disabled: isSwapDisabled,
       },
       {
         label: BottomNavLabel.NFTs,
@@ -92,16 +84,14 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
         path: '/activity',
         show: true,
       },
-    ],
-    [
-      activeChainInfo?.disableStaking,
-      featureFlags?.swaps?.extension,
-      featureFlags?.airdrops?.extension,
-      govRedirectHandler,
-      selectedNetwork,
-      walletCtaDisabled,
-    ],
-  )
+    ]
+  }, [
+    activeChainInfo?.disableStaking,
+    featureFlags?.swaps?.extension,
+    featureFlags?.airdrops?.extension,
+    activeChain,
+    airdropRedirectHandler,
+  ])
 
   return (
     <div className='flex absolute justify-around bottom-0 h-[65px] w-full rounded-b-lg z-[0] shadow-[0_-8px_20px_0px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_20px_0px_rgba(0,0,0,0.26)]'>

@@ -6,13 +6,14 @@ import {
   fetchERC20Balances,
   fromSmall,
   getBlockChainFromAddress,
+  getEthereumAddress,
+  getSeiEvmAddressToShow,
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useMemo } from 'react';
-import { Token } from 'types/bank';
 
 import { LeapWalletApi } from '../apis';
 import { Currency } from '../connectors';
@@ -22,6 +23,7 @@ import {
   getCoingeckoPricesStoreSnapshot,
   IbcDenomData,
   useActiveChain,
+  useActiveWallet,
   useAddress,
   useAutoFetchedCW20Tokens,
   useBetaCW20Tokens,
@@ -38,6 +40,7 @@ import {
   useIbcTraceStore,
   useSelectedNetwork,
 } from '../store';
+import { Token } from '../types';
 import {
   balanceCalculator,
   fetchCurrency,
@@ -222,8 +225,6 @@ export function useGetNativeTokensBalances(
   const selectedNetwork = forceNetwork ?? _selectedNetwork;
 
   const { chains } = useChainsStore();
-  const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
-  const retry = isApiUnavailable ? false : 10;
 
   const address = useAddress(activeChain);
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
@@ -366,6 +367,7 @@ function useGetERC20TokenBalances(currencyPreferred: Currency) {
   const { evmJsonRpc } = useChainApis();
   const erc20TokenAddresses = useGetERC20TokenAddresses();
 
+  const activeWallet = useActiveWallet();
   const activeChain = useActiveChain();
   const address = useAddress();
   const denoms = useDenoms();
@@ -375,10 +377,24 @@ function useGetERC20TokenBalances(currencyPreferred: Currency) {
   const retry = isApiUnavailable ? false : 10;
 
   const { data, status: rawBalancesStatus } = useQuery(
-    [`${activeChain}-${bankQueryIds.erc20TokenBalancesRaw}`, activeChain, address, erc20TokenAddresses?.length],
+    [
+      `${activeChain}-${bankQueryIds.erc20TokenBalancesRaw}`,
+      activeChain,
+      address,
+      erc20TokenAddresses?.length,
+      activeWallet?.pubKeys?.seiDevnet,
+    ],
     async () => {
       if (erc20TokenAddresses.length && evmJsonRpc) {
-        return await fetchERC20Balances(evmJsonRpc, address, erc20TokenAddresses);
+        const isSeiEvm = activeChain === 'seiDevnet';
+        const ethWalletAddress = isSeiEvm
+          ? getSeiEvmAddressToShow(activeWallet?.pubKeys?.seiDevnet)
+          : getEthereumAddress(address);
+
+        if (ethWalletAddress.startsWith('0x')) {
+          const erc20Balances = await fetchERC20Balances(evmJsonRpc, ethWalletAddress, erc20TokenAddresses);
+          return erc20Balances.filter((balance) => balance.amount.gt(0));
+        }
       }
 
       return [];
@@ -793,7 +809,14 @@ export function useGetTokenBalances(forceChain?: SupportedChain, forceNetwork?: 
 
       return sortedNativeTokensBalance.concat(sortNonNativeTokens);
     }
-  }, [_nativeTokensBalance, s3IbcTokensBalances, nonS3IbcTokensBalances, _cw20TokensBalances, rawBalancesData]);
+  }, [
+    _nativeTokensBalance,
+    s3IbcTokensBalances,
+    nonS3IbcTokensBalances,
+    _cw20TokensBalances,
+    rawBalancesData,
+    erc20TokensBalances,
+  ]);
 
   const refetchBalances = () =>
     Promise.all([

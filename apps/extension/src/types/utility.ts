@@ -6,3 +6,5 @@ export type Dict = {
 export type StrictDict<T> = {
   [key: string | number | symbol]: T
 }
+
+export type TransactionStatus = 'loading' | 'success' | 'error' | 'idle'

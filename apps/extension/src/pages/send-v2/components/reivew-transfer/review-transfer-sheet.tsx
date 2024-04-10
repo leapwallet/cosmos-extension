@@ -5,7 +5,10 @@ import {
   useformatCurrency,
   useGasAdjustmentForChain,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfos, isEthAddress } from '@leapwallet/cosmos-wallet-sdk'
+import { EthWallet } from '@leapwallet/leap-keychain'
 import { Avatar, Buttons, Card, CardDivider } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import BigNumber from 'bignumber.js'
 import Badge from 'components/badge/Badge'
 import BottomModal from 'components/bottom-modal'
@@ -17,6 +20,7 @@ import Text from 'components/text'
 import { FIXED_FEE_CHAINS } from 'config/constants'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useMemo } from 'react'
 import { Colors } from 'theme/colors'
@@ -40,6 +44,7 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
   const [formatCurrency] = useformatCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
   const activeChain = useActiveChain()
+  const getWallet = Wallet.useGetWallet()
 
   const {
     memo,
@@ -55,6 +60,7 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
     isIBCTransfer,
     sendDisabled,
     confirmSend,
+    confirmSendEth,
     clearTxError,
     userPreferredGasPrice,
     userPreferredGasLimit,
@@ -109,11 +115,22 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
     if (!fee || !selectedAddress?.address) {
       return
     }
+
     try {
-      // If skiptranfer is supported and ibc unwinding in not disabled and it is ibc transfer
-      // we use Skip API for transfer or
-      // else we use default Cosmos API
-      if (transferData?.isSkipTransfer && !isIbcUnwindingDisabled && isIBCTransfer) {
+      if (isEthAddress(selectedAddress.address) && activeChain === 'seiDevnet') {
+        const wallet = await getWallet(ChainInfos.seiDevnet.key, true)
+
+        await confirmSendEth(
+          selectedAddress.address,
+          inputAmount,
+          userPreferredGasLimit ?? gasEstimate,
+          wallet as unknown as EthWallet,
+        )
+      } else if (transferData?.isSkipTransfer && !isIbcUnwindingDisabled && isIBCTransfer) {
+        // If skiptranfer is supported and ibc unwinding in not disabled and it is ibc transfer
+        // we use Skip API for transfer or
+        // else we use default Cosmos API
+
         confirmSkipTx()
       } else {
         await confirmSend({
@@ -124,24 +141,26 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
           fees: fee,
         })
       }
-    } catch (err: any) {
-      //
+    } catch (err: unknown) {
+      captureException(err)
     }
   }, [
+    activeChain,
     clearTxError,
     confirmSend,
+    confirmSendEth,
+    confirmSkipTx,
     fee,
+    gasEstimate,
+    getWallet,
     inputAmount,
-    memo,
-    selectedAddress,
-    selectedToken,
-    isIbcUnwindingDisabled,
-    transferData?.isSkipTransfer,
-    // @ts-ignore
-    transferData?.messages,
-    // @ts-ignore
-    transferData?.routeResponse,
     isIBCTransfer,
+    isIbcUnwindingDisabled,
+    memo,
+    selectedAddress?.address,
+    selectedToken,
+    transferData?.isSkipTransfer,
+    userPreferredGasLimit,
   ])
 
   useCaptureTxError(txError)

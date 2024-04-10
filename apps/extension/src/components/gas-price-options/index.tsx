@@ -16,9 +16,11 @@ import {
   useFeeTokens,
   useGasAdjustmentForChain,
   useGasPriceStepForChain,
+  useGetSeiEvmBalance,
   useGetTokenBalances,
   useLowGasPriceStep,
   useNativeFeeDenom,
+  useSeiLinkedAddressState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -36,6 +38,7 @@ import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import Tooltip from 'components/better-tooltip'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import Long from 'long'
 import { useFeeValidation } from 'pages/sign/fee-validation'
@@ -91,6 +94,7 @@ export type GasPriceOptionsProps = React.PropsWithChildren<any> & {
   fee?: StdFee
   validateFee?: boolean
   onInvalidFees?: (feeData: NativeDenom, isFeesValid: boolean | null) => void
+  isSelectedTokenEvm?: boolean
 }
 
 const GasPriceOptions = ({
@@ -111,6 +115,7 @@ const GasPriceOptions = ({
   validateFee = false,
   fee,
   onInvalidFees,
+  isSelectedTokenEvm,
 }: GasPriceOptionsProps) => {
   const [viewAdditionalOptions, setViewAdditionalOptions] = useState(false)
   const _activeChain = useActiveChain()
@@ -198,14 +203,33 @@ const GasPriceOptions = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feeTokensList])
 
+  const getWallet = Wallet.useGetWallet()
+  const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+  const { data: seiEvmBalance, status: seiEvmStatus } = useGetSeiEvmBalance()
   const {
-    allAssets: allTokens,
+    allAssets: _allTokens,
     s3IbcTokensStatus,
     nativeTokensStatus,
   } = useGetTokenBalances(activeChain, selectedNetwork)
 
+  const allTokens = useMemo(() => {
+    let allTokens = _allTokens
+
+    if (isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) {
+      allTokens = [...allTokens, ...(seiEvmBalance?.seiEvmBalance ?? [])].filter((token) =>
+        new BigNumber(token.amount).gt(0),
+      )
+    }
+
+    return allTokens
+  }, [_allTokens, addressLinkState, isSelectedTokenEvm, seiEvmBalance?.seiEvmBalance])
+
   const feeTokenAsset = useMemo(() => {
     return allTokens.find((token) => {
+      if (isSelectedTokenEvm && token?.isEvm) {
+        return token.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
+      }
+
       if (token.ibcDenom) {
         if (chainInfo?.beta) {
           return Object.values(chainInfo.nativeDenoms).find(
@@ -222,17 +246,32 @@ const GasPriceOptions = ({
         return token.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
       }
     })
-  }, [allTokens, chainInfo?.beta, chainInfo?.nativeDenoms, feeTokenData])
+  }, [
+    allTokens,
+    chainInfo?.beta,
+    chainInfo.nativeDenoms,
+    feeTokenData?.denom.coinMinimalDenom,
+    feeTokenData?.ibcDenom,
+    isSelectedTokenEvm,
+  ])
 
   const allTokensStatus = useMemo(() => {
     if (nativeTokensStatus === 'success' && s3IbcTokensStatus === 'success') {
       return 'success'
     }
+    if (isSelectedTokenEvm && addressLinkState !== 'done' && seiEvmStatus === 'success') {
+      return 'success'
+    }
+
     if (nativeTokensStatus === 'loading' || s3IbcTokensStatus === 'loading') {
       return 'loading'
     }
+    if (isSelectedTokenEvm && addressLinkState !== 'done' && seiEvmStatus === 'loading') {
+      return 'loading'
+    }
+
     return 'error'
-  }, [s3IbcTokensStatus, nativeTokensStatus])
+  }, [nativeTokensStatus, s3IbcTokensStatus, isSelectedTokenEvm, addressLinkState, seiEvmStatus])
 
   const [finalRecommendedGasLimit, setFinalRecommendedGasLimit] = useState(() => {
     return (

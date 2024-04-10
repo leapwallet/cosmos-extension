@@ -24,6 +24,7 @@ import browser from 'webextension-polyfill'
 type AddFromChainStoreProps = {
   readonly isVisible: boolean
   readonly onClose: VoidFunction
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   newAddChain: any
 }
 

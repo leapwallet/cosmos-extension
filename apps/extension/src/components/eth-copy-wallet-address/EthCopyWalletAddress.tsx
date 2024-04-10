@@ -32,6 +32,10 @@ export function EthCopyWalletAddress({
   const copyIconSrc: string =
     useTheme().theme === ThemeName.DARK ? Images.Misc.CopyGray200 : Images.Misc.CopyGray600
 
+  const redirectOnboarding = () => {
+    window.open(browser.runtime.getURL('index.html#/onboardEvmLedger'))
+  }
+
   const handleClick: MouseEventHandler<HTMLDivElement | HTMLButtonElement> = async (event) => {
     if (!text) {
       event.stopPropagation()
@@ -45,10 +49,6 @@ export function EthCopyWalletAddress({
     setTimeout(() => setCopied(false), 2000)
 
     onCopy && (await onCopy())
-  }
-
-  const redirectOnboarding = () => {
-    window.open(browser.runtime.getURL('index.html#/onboardEvmLedger'))
   }
 
   const handleTextClick: MouseEventHandler<HTMLDivElement> = (event) => {

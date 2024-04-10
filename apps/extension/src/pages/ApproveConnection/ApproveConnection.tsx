@@ -1,4 +1,5 @@
 import { Key } from '@leapwallet/cosmos-wallet-hooks'
+import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import { Header } from 'components/Header'
@@ -90,7 +91,12 @@ const ApproveConnection = () => {
 
       browser.runtime.sendMessage({
         type: 'chain-approval-rejected',
-        payload: { origin, chainsIds, payloadId: currentApprovalRequest.payloadId },
+        payload: {
+          origin,
+          chainsIds,
+          payloadId: currentApprovalRequest.payloadId,
+          ecosystem: currentApprovalRequest.ecosystem,
+        },
       })
     }
 
@@ -110,7 +116,14 @@ const ApproveConnection = () => {
   async function enableAccessEventHandler(
     message: {
       type: string
-      payload: { origin: string; chainId?: string; validChainIds?: string[]; payloadId: string }
+      payload: {
+        origin: string
+        chainId?: string
+        validChainIds?: string[]
+        payloadId: string
+        ecosystem: LineType
+        ethMethod: string
+      }
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sender: any,
@@ -137,7 +150,13 @@ const ApproveConnection = () => {
       } else {
         await browser.runtime.sendMessage({
           type: 'chain-enabled',
-          payload: { origin, chainsIds: chainIds, payloadId: message.payload.payloadId },
+          payload: {
+            origin,
+            chainsIds: chainIds,
+            payloadId: message.payload.payloadId,
+            ecosystem: message.payload.ecosystem,
+            ethMethod: message.payload.ethMethod,
+          },
         })
         // closeWindow()
       }
@@ -162,7 +181,13 @@ const ApproveConnection = () => {
     await addToConnections(chainsIds, selectedWallets, currentApprovalRequest.origin)
     await sendMessage({
       type: 'chain-enabled',
-      payload: { origin, chainsIds, payloadId: currentApprovalRequest.payloadId },
+      payload: {
+        origin,
+        chainsIds,
+        payloadId: currentApprovalRequest.payloadId,
+        ecosystem: currentApprovalRequest.ecosystem,
+        ethMethod: currentApprovalRequest.ethMethod,
+      },
     })
     setApprovalRequests((prev) => prev.slice(1))
     setRequestedChains((prev) => prev.slice(1))

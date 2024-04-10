@@ -10,7 +10,6 @@ import { Secp256k1Signature } from '@cosmjs/crypto';
 import { Algo } from '@cosmjs/proto-signing';
 import * as bytes from '@ethersproject/bytes';
 import { _TypedDataEncoder as TypedDataEncoder } from '@ethersproject/hash';
-import { verifyTypedData } from '@ethersproject/wallet';
 import { encodeSecp256k1Signature, Secp256k1 } from '@leapwallet/leap-keychain';
 import EthereumApp from '@ledgerhq/hw-app-eth';
 import Transport from '@ledgerhq/hw-transport';

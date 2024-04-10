@@ -4,6 +4,7 @@ import {
   useAutoFetchedCW20Tokens,
   useChainInfo,
   useDenoms,
+  useERC20Tokens,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
@@ -30,16 +31,18 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
   onTokenSelect,
 }) => {
   const activeChain = useActiveChain()
-  const [searchQuery, setSearchQuery] = useState('')
+  const erc20Tokens = useERC20Tokens()
+  const activeChainInfo = useChainInfo()
   const denoms = useDenoms()
+  const [searchQuery, setSearchQuery] = useState('')
   const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
+
   const combinedDenoms = useMemo(() => {
     return {
       ...denoms,
       ...autoFetchedCW20Tokens,
     }
   }, [denoms, autoFetchedCW20Tokens])
-  const activeChainInfo = useChainInfo()
 
   const _assets = useMemo(() => {
     return assets.filter((token) => {
@@ -55,9 +58,13 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
 
   const transferableTokens = useMemo(() => {
     return _assets.filter((asset) => {
+      if (activeChainInfo.key === 'seiDevnet' && erc20Tokens[asset.coinMinimalDenom]) {
+        return false
+      }
+
       return asset.symbol.toLowerCase().includes(searchQuery.trim().toLowerCase())
     })
-  }, [_assets, searchQuery])
+  }, [_assets, activeChainInfo.key, erc20Tokens, searchQuery])
 
   const handleSelectToken = (token: Token) => {
     onTokenSelect(token)
@@ -87,6 +94,9 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
               if (selectedToken?.ibcDenom || asset.ibcDenom) {
                 isSelected = selectedToken?.ibcDenom === asset.ibcDenom
               }
+              if (selectedToken?.isEvm || asset?.isEvm) {
+                isSelected = isSelected && selectedToken?.isEvm === asset?.isEvm
+              }
 
               return (
                 <React.Fragment key={`${asset.symbol}-${index}`}>
@@ -104,6 +114,8 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
                       isRounded={isFirst || isLast}
                       size='md'
                       usdValue={asset.usdValue}
+                      isEvm={asset?.isEvm}
+                      hasToShowEvmTag={asset?.isEvm}
                     />
                   </div>
                   {!isLast && <CardDivider />}

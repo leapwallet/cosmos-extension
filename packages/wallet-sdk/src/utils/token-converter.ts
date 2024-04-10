@@ -12,3 +12,7 @@ export function fromSmall(quantity: string, decimals: number = defaultDecimals):
 export function fromSmallBN(quantity: string, decimals: number = defaultDecimals): BN {
   return new BN(quantity).div(Math.pow(10, decimals));
 }
+
+export function toSmallBN(quantity: string, decimals: number = defaultDecimals): BN {
+  return new BN(quantity).times(Math.pow(10, decimals));
+}

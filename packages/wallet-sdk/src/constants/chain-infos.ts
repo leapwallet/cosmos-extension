@@ -1,5 +1,6 @@
 import { defaultGasPriceStep } from './default-gasprice-step';
 import { denoms, NativeDenom } from './denoms';
+import { ARCTIC_EVM_RPC_URL } from './sei-evm';
 
 /**
  *
@@ -86,7 +87,8 @@ export type SupportedChain =
   | 'dymension'
   | 'pryzmtestnet'
   | 'thorchain'
-  | 'odin';
+  | 'odin'
+  | 'saga';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -165,7 +167,8 @@ export type AddressPrefix =
   | 'dym'
   | 'pryzm'
   | 'thor'
-  | 'odin';
+  | 'odin'
+  | 'saga';
 
 export type Denom =
   | 'JUNO'
@@ -245,7 +248,8 @@ export type Denom =
   | 'DYM'
   | 'PRYZM'
   | 'RUNE'
-  | 'ODIN';
+  | 'ODIN'
+  | 'SAGA';
 
 export type CoinType =
   | '118'
@@ -2740,6 +2744,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     apis: {
       rest: 'https://rest.cosmos.directory/planq',
       rpc: 'https://rpc.cosmos.directory/planq',
+      evmJsonRpc: 'https://evm-rpc.planq.network',
     },
     denom: 'PLQ',
     gasPriceStep: {
@@ -2921,6 +2926,43 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  saga: {
+    chainId: 'ssc-1',
+    chainName: 'Saga',
+    chainRegistryPath: 'saga',
+    key: 'saga',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/saga.svg',
+    bip44: {
+      coinType: '118',
+    },
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/saga/txs',
+        accountUrl: 'https://www.mintscan.io/saga/accounts',
+      },
+    },
+    apis: {
+      rest: 'https://ssc-lcd.sagarpc.io',
+      rpc: 'https://ssc-rpc.sagarpc.io',
+    },
+    denom: 'SAGA',
+    addressPrefix: 'saga',
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      usaga: denoms.usaga,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    enabled: true,
+  },
   secret: {
     chainId: 'secret-4',
     testnetChainId: 'pulsar-3',
@@ -3055,8 +3097,10 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     chainSymbolImageUrl: 'https://assets.leapwallet.io/sei.png',
     apis: {
       // rpc: 'https://rpc.wallet.arctic-1.sei.io',
-      rpc: 'https://rpc.arctic-1.seinetwork.io',
-      rest: 'https://rest.wallet.arctic-1.sei.io',
+      rpc: 'https://rpc-arctic-1.sei-apis.com',
+      // rest: 'https://rest.wallet.arctic-1.sei.io',
+      rest: 'https://rest-arctic-1.sei-apis.com',
+      evmJsonRpc: ARCTIC_EVM_RPC_URL,
     },
     denom: 'SEI',
     txExplorer: {},

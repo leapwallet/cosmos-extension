@@ -39,8 +39,8 @@ export function useHardCodedActions() {
   const { data: kadoSupportedChainId = [] } = useGetKadoChains()
   const { data: kadoSupportedAssets = [] } = useGetKadoAssets()
   const isKadoSupported =
-    kadoSupportedChainId.includes(activeChainInfo.chainId) &&
-    kadoSupportedAssets.includes(activeChainInfo.denom)
+    kadoSupportedChainId.includes(activeChainInfo?.chainId) &&
+    kadoSupportedAssets.includes(activeChainInfo?.denom)
 
   const handleBuyClick = (type: 'leap' | 'compass') => {
     const buyUrlArgs: BuyUrlFuncParams = {

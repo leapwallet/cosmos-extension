@@ -12,4 +12,6 @@ apps/extension/.env.production
 apps/extension/.env.development
 apps/extension/.env.production.compass
 apps/extension/.env.development.compass
+.zed
+.zed
 apps/extension/staging-builds

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useChainsStore, useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
@@ -141,6 +142,8 @@ export function useInitChainInfos() {
         }
       })
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customChains])
 }
 

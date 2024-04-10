@@ -45,3 +45,5 @@ export const LEDGER_ENABLED_EVM_CHAIN_IDS = [
   ChainInfos.evmos.testnetChainId,
   ChainInfos.dymension.testnetChainId,
 ]
+
+export const COMPASS_CHAINS = ['seiTestnet2', 'seiDevnet']

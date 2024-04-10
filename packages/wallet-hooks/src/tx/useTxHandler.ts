@@ -38,7 +38,10 @@ export function useTxHandler({
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         return new EthermintTxHandler(lcdUrl, wallet, chainId, evmChainId);
-      } else if (chainInfo.chainId.toLowerCase().includes('atlantic-2')) {
+      } else if (
+        chainInfo.chainId.toLowerCase().includes('atlantic-2') ||
+        chainInfo.chainId.toLowerCase().includes('arctic-1')
+      ) {
         const _tx = new SeiTxHandler(lcdUrl, rpcUrl ?? '', wallet);
         await _tx.initClient();
         return _tx;

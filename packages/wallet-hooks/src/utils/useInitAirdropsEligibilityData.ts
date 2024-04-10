@@ -1,5 +1,5 @@
 import { fromSmall } from '@leapwallet/cosmos-wallet-sdk';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAirdropsDataStore, useAirdropsEligibilityDataStore, useDenoms } from '../store';
 import { queryAddresses } from './airdropsUtils';
@@ -58,7 +58,7 @@ export function useInitAirdropsEligibilityData() {
   const [data, setData] = useState<Record<string, AirdropEligibilityInfo>>();
   const addresses = useRef<string[]>([]);
 
-  const fetchAirdropsEligibilityData = (receivedAddresses: string[]) => {
+  const fetchAirdropsEligibilityData = useCallback((receivedAddresses: string[]) => {
     addresses.current = receivedAddresses;
     setAirdropsEligibilityData(null);
 
@@ -79,7 +79,7 @@ export function useInitAirdropsEligibilityData() {
       lastUpdatedAtKey: AIRDROPS_DATA_ELIGIBILITY_LAST_UPDATED_AT,
       lastUpdatedAtURL: AIRDROPS_DATA_ELIGIBILITY_LAST_UPDATED_AT_URL,
     });
-  };
+  }, []);
 
   const formatData = async () => {
     const airdropsMetadata: Record<string, AirdropEligibilityInfo> = {};

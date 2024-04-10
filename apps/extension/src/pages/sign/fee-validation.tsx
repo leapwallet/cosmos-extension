@@ -66,7 +66,6 @@ export function useFeeValidation(chain: SupportedChain): UseFeeValidationReturn 
 
   const { data: feeTokens, status } = useFeeTokens(chain, selectedNetwork ?? 'mainnet')
   const { lcdUrl } = useChainApis(chain)
-  const activeChain = useActiveChain()
   const chainId = useChainId()
 
   return useCallback(

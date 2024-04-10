@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable no-use-before-define */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -8,8 +9,18 @@
 import './fetch-preserver'
 
 import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provider/messaging/requester'
-import { ChainInfo, ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import { getRestUrl } from '@leapwallet/cosmos-wallet-sdk/dist/utils'
+import {
+  ChainInfo,
+  ChainInfos,
+  SupportedChain,
+  getRestUrl,
+  getSeiEvmAddressToShow,
+  parseStandardTokenTransactionData,
+  formatEtherValue,
+  ARCTIC_COSMOS_CHAIN_ID,
+  ARCTIC_ETH_CHAIN_ID,
+  encodedUtf8HexToText,
+} from '@leapwallet/cosmos-wallet-sdk'
 
 import { decrypt, initCrypto, initStorage, WALLETTYPE } from '@leapwallet/leap-keychain'
 import {
@@ -21,7 +32,6 @@ import {
   ENCRYPTED_ACTIVE_WALLET,
   KEYSTORE,
   REDIRECT_REQUEST,
-  SIGN_REQUEST,
   V80_KEYSTORE_MIGRATION_COMPLETE,
   VIEWING_KEYS,
 } from 'config/storage-keys'
@@ -64,11 +74,25 @@ import { formatWalletName } from 'utils/formatWalletName'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
 import { listenPendingSwapTx, trackPendingSwapTx } from './pending-swap-tx'
 import { MessageTypes } from 'config/message-types'
+import {
+  ETHEREUM_METHOD_TYPE,
+  ETHEREUM_RPC_ERROR,
+  EthereumRequestMessage,
+  LINE_TYPE,
+  LineType,
+} from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
+import { LeapEvmRpcError } from '@leapwallet/cosmos-wallet-provider/dist/provider/evm-error'
+
+global.window = self
+
 const storageAdapter = getStorageAdapter()
 initStorage(storageAdapter)
 initCrypto()
 
-global.window = self
+type Data = EthereumRequestMessage & {
+  origin: string
+  ecosystem: LineType
+}
 
 const windowIdForPayloadId: { [x: number | string]: { type: string; payloadId: number } } = {}
 
@@ -92,20 +116,74 @@ const connectRemote = (remotePort: any) => {
   browser.runtime.onMessage.addListener(async (message, sender) => {
     if (sender.id !== browser.runtime.id) return
 
-    if (message.type === 'chain-enabled') {
-      sendResponse(
-        `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
-        { success: 'Chain enabled' },
-        message.payload.payloadId,
-      )
-    } else if (message.type === 'chain-approval-rejected') {
-      sendResponse(
-        `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
-        { error: 'Request rejected' },
-        message.payload.payloadId,
-      )
-    } else if (message.type === 'popup-closed') {
-      enableAccessRequests = {}
+    switch (message.type) {
+      case 'chain-enabled':
+        if (message.payload?.ecosystem === LINE_TYPE.ETHEREUM) {
+          const store = await browser.storage.local.get([ACTIVE_WALLET])
+          const seiEvmAddress = getSeiEvmAddressToShow(store[ACTIVE_WALLET].pubKeys?.['seiDevnet'])
+
+          if (seiEvmAddress.startsWith('0x')) {
+            const successResponse =
+              message.payload?.ethMethod === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
+                ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
+                  [
+                    {
+                      id: message.payload?.payloadId,
+                      parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
+                      invoker: message.payload?.origin,
+                      caveats: [
+                        {
+                          type: 'restrictReturnedAccounts',
+                          value: [seiEvmAddress],
+                        },
+                      ],
+                      date: Date.now(),
+                    },
+                  ]
+                : [seiEvmAddress]
+
+            sendResponse(
+              `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
+              { success: successResponse },
+              message.payload.payloadId,
+            )
+          } else {
+            sendResponse(
+              `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
+              { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, seiEvmAddress) },
+              message.payload.payloadId,
+            )
+          }
+        } else {
+          sendResponse(
+            `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
+            { success: 'Chain enabled' },
+            message.payload.payloadId,
+          )
+        }
+
+        break
+
+      case 'chain-approval-rejected':
+        if (message.payload?.ecosystem === LINE_TYPE.ETHEREUM) {
+          sendResponse(
+            `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
+            { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
+            message.payload.payloadId,
+          )
+        } else {
+          sendResponse(
+            `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
+            { error: 'Request rejected' },
+            message.payload.payloadId,
+          )
+        }
+
+        break
+
+      case 'popup-closed':
+        enableAccessRequests = {}
+        break
     }
   })
 
@@ -367,7 +445,7 @@ const connectRemote = (remotePort: any) => {
           }
 
           if (isNewChainPresent) {
-            const windowId = await openPopup('approveConnection')
+            await openPopup('approveConnection')
             windowIdForPayloadId[popupWindowId] = {
               type: type.toUpperCase(),
               payloadId: payload.id,
@@ -669,8 +747,409 @@ const connectRemote = (remotePort: any) => {
     }
   }
 
+  const evmRequestHandler = async (data: Data) => {
+    const { method, ...payload } = data
+    const popupWindowId = 0
+    const sendResponseName = `on${method.toUpperCase()}`
+
+    switch (method) {
+      case ETHEREUM_METHOD_TYPE.ETH__CHAIN_ID: {
+        const payloadId = payload.id as unknown as number
+        sendResponse(
+          sendResponseName,
+          { success: `0x${ARCTIC_ETH_CHAIN_ID.toString(16)}` },
+          payloadId,
+        )
+        break
+      }
+
+      case ETHEREUM_METHOD_TYPE.ETH__SIGN:
+      case ETHEREUM_METHOD_TYPE.PERSONAL_SIGN:
+      case ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4: {
+        const payloadId = payload.id as unknown as number
+        const store = await browser.storage.local.get([ACTIVE_WALLET])
+
+        if (!store[ACTIVE_WALLET]) {
+          try {
+            await openPopup('login', '?close-on-login=true')
+            await awaitUIResponse('user-logged-in')
+          } catch {
+            sendResponse(
+              sendResponseName,
+              { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
+              payloadId,
+            )
+
+            break
+          }
+        }
+
+        const seiEvmAddress = getSeiEvmAddressToShow(store[ACTIVE_WALLET].pubKeys?.['seiDevnet'])
+
+        if (seiEvmAddress.startsWith('0x')) {
+          if (payload.params) {
+            // @ts-ignore
+            let payloadAddress = payload.params[1]
+            // @ts-ignore
+            let data = payload.params[0]
+
+            if (
+              [
+                ETHEREUM_METHOD_TYPE.ETH__SIGN,
+                ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4,
+              ].includes(method)
+            ) {
+              ;[payloadAddress, data] = [data, payloadAddress]
+            }
+
+            if (
+              seiEvmAddress.toLowerCase() !== payloadAddress.toLowerCase() ||
+              !data ||
+              (method !== ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4 && !data?.startsWith('0x'))
+            ) {
+              sendResponse(
+                sendResponseName,
+                { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INVALID_PARAMS) },
+                payloadId,
+              )
+
+              break
+            }
+
+            if (
+              method === ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4 &&
+              data.domain.chainId !== ARCTIC_ETH_CHAIN_ID
+            ) {
+              sendResponse(
+                sendResponseName,
+                {
+                  error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INVALID_PARAMS, 'Invalid chainId.'),
+                },
+                payloadId,
+              )
+
+              break
+            }
+
+            const details: any =
+              method === ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4
+                ? { [data.primaryType]: data.message }
+                : { Message: encodedUtf8HexToText(data) }
+
+            const signTxnData = {
+              payloadAddress,
+              data,
+              methodType: method,
+              details,
+            }
+
+            requestSignTransaction({
+              origin: payload.origin,
+              ecosystem: payload.ecosystem,
+              signTxnData,
+            })
+
+            await openPopup('signSeiEvm')
+
+            try {
+              const response = await awaitSigningResponse(MessageTypes.signSeiEvmResponse)
+              sendResponse(sendResponseName, { success: response }, payloadId)
+            } catch (e) {
+              sendResponse(
+                sendResponseName,
+                { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
+                payloadId,
+              )
+            }
+          }
+        } else {
+          sendResponse(
+            sendResponseName,
+            { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, seiEvmAddress) },
+            payloadId,
+          )
+        }
+
+        break
+      }
+
+      case ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS: {
+        const payloadId = payload.id as unknown as number
+        const store = await browser.storage.local.get([ACTIVE_WALLET])
+
+        if (!store[ACTIVE_WALLET]) {
+          try {
+            await openPopup('login', '?close-on-login=true')
+            await awaitUIResponse('user-logged-in')
+          } catch {
+            sendResponse(
+              sendResponseName,
+              { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
+              payloadId,
+            )
+
+            break
+          }
+        }
+
+        const seiEvmAddress = getSeiEvmAddressToShow(store[ACTIVE_WALLET].pubKeys?.['seiDevnet'])
+
+        if (seiEvmAddress.startsWith('0x')) {
+          sendResponse(sendResponseName, { success: [seiEvmAddress] }, payloadId)
+        } else {
+          sendResponse(
+            sendResponseName,
+            { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, seiEvmAddress) },
+            payloadId,
+          )
+        }
+
+        break
+      }
+
+      case ETHEREUM_METHOD_TYPE.ETH__SEND_TRANSACTION: {
+        const payloadId = payload.id as unknown as number
+
+        if (payload.params) {
+          // @ts-ignore
+          const parsedData = parseStandardTokenTransactionData(payload.params[0].data)
+          let signTxnData = {}
+
+          if (!parsedData) {
+            // @ts-ignore
+            const value = payload.params[0].value
+            // @ts-ignore
+            const to = payload.params[0].to
+            // @ts-ignore
+            const data = payload.params[0].data
+
+            signTxnData = {
+              value: value ? formatEtherValue(value) : '0',
+              to,
+              data,
+              details: {
+                Value: value ? `${value} SEI` : '0',
+                'Contract Interaction': to,
+                'HEX Data': data,
+              },
+            }
+          } else {
+            switch (parsedData.name) {
+              case 'approve': {
+                const value = parsedData.value.toString()
+                // @ts-ignore
+                const to = payload.params[0].to
+                // @ts-ignore
+                const data = payload.params[0].data
+
+                signTxnData = {
+                  value,
+                  to,
+                  data,
+                  spendPermissionCapValue: parsedData.args[1].toString(),
+                  details: {
+                    'Third Party': parsedData.args[0],
+                    Data: {
+                      Function: 'Approve',
+                      HEX: data,
+                    },
+                  },
+                }
+
+                break
+              }
+            }
+          }
+
+          requestSignTransaction({
+            origin: payload.origin,
+            ecosystem: payload.ecosystem,
+            signTxnData,
+          })
+
+          await openPopup('signSeiEvm')
+
+          try {
+            const response = await awaitSigningResponse(MessageTypes.signSeiEvmResponse)
+            sendResponse(sendResponseName, { success: response }, payloadId)
+          } catch (e) {
+            sendResponse(
+              sendResponseName,
+              { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
+              payloadId,
+            )
+          }
+        }
+
+        break
+      }
+
+      case ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS:
+      case ETHEREUM_METHOD_TYPE.ETH__REQUEST_ACCOUNTS: {
+        if (
+          method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS &&
+          // @ts-ignore
+          !Object.keys(payload.params?.[0] ?? {}).includes(ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS)
+        ) {
+          break
+        }
+
+        const msg = payload
+        const payloadId = payload.id as unknown as number
+        const chainIds: [string] = [ARCTIC_COSMOS_CHAIN_ID]
+
+        let queryString = `?origin=${msg?.origin}`
+        chainIds?.forEach((chainId: string) => {
+          queryString += `&chainIds=${chainId}`
+        })
+
+        const store = await browser.storage.local.get([ACTIVE_WALLET])
+
+        if (!store[ACTIVE_WALLET]) {
+          try {
+            await openPopup('login', '?close-on-login=true')
+            await awaitUIResponse('user-logged-in')
+          } catch {
+            sendResponse(
+              sendResponseName,
+              { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
+              payloadId,
+            )
+            break
+          }
+        }
+
+        checkConnection(chainIds, msg)
+          .then(async ({ validChainIds, isNewChainPresent }) => {
+            if (validChainIds.length > 0) {
+              const seiEvmAddress = getSeiEvmAddressToShow(
+                store[ACTIVE_WALLET].pubKeys?.['seiDevnet'],
+              )
+
+              const successResponse =
+                method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
+                  ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
+                    [
+                      {
+                        id: payloadId,
+                        parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
+                        invoker: msg?.origin,
+                        caveats: [
+                          {
+                            type: 'restrictReturnedAccounts',
+                            value: [seiEvmAddress],
+                          },
+                        ],
+                        date: Date.now(),
+                      },
+                    ]
+                  : [seiEvmAddress]
+
+              if (isNewChainPresent) {
+                await browser.storage.local.set({
+                  [REDIRECT_REQUEST]: { type: method, msg: { ...msg, validChainIds } },
+                })
+
+                const shouldOpenPopup =
+                  Object.keys(enableAccessRequests).length === 0 ||
+                  !Object.keys(enableAccessRequests).some((key) => key.includes(msg.origin))
+
+                if (shouldOpenPopup) {
+                  delete enableAccessRequests[queryString]
+                  enableAccessRequests[queryString] = popupWindowId
+                  await openPopup('approveConnection')
+
+                  requestEnableAccess({
+                    origin: msg.origin,
+                    validChainIds,
+                    payloadId: payloadId as unknown as string,
+                    ecosystem: LINE_TYPE.ETHEREUM,
+                    ethMethod: method,
+                  })
+
+                  windowIdForPayloadId[popupWindowId] = {
+                    type: method.toUpperCase(),
+                    payloadId: payloadId,
+                  }
+                } else {
+                  if (!enableAccessRequests[queryString]) {
+                    requestEnableAccess({
+                      origin: msg.origin,
+                      validChainIds,
+                      payloadId: payloadId as unknown as string,
+                      ecosystem: LINE_TYPE.ETHEREUM,
+                      ethMethod: method,
+                    })
+
+                    enableAccessRequests[queryString] = popupWindowId
+                  }
+                }
+
+                try {
+                  await awaitEnableChainResponse()
+
+                  if (seiEvmAddress.startsWith('0x')) {
+                    sendResponse(sendResponseName, { success: successResponse }, payloadId)
+                  } else {
+                    sendResponse(
+                      sendResponseName,
+                      { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, seiEvmAddress) },
+                      payloadId,
+                    )
+                  }
+
+                  delete enableAccessRequests[queryString]
+                } catch (error: any) {
+                  sendResponse(
+                    sendResponseName,
+                    { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, error.error) },
+                    payloadId,
+                  )
+                  delete enableAccessRequests[queryString]
+                }
+              } else {
+                if (seiEvmAddress.startsWith('0x')) {
+                  sendResponse(sendResponseName, { success: successResponse }, payloadId)
+                } else {
+                  sendResponse(
+                    sendResponseName,
+                    { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, seiEvmAddress) },
+                    payloadId,
+                  )
+
+                  delete enableAccessRequests[queryString]
+                }
+              }
+            } else {
+              sendResponse(
+                sendResponseName,
+                { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, 'Invalid chain id') },
+                payloadId,
+              )
+
+              delete enableAccessRequests[queryString]
+            }
+          })
+          .catch(() => {
+            sendResponse(
+              sendResponseName,
+              { error: new LeapEvmRpcError(ETHEREUM_RPC_ERROR.INTERNAL, 'Invalid chain id') },
+              payloadId,
+            )
+
+            delete enableAccessRequests[queryString]
+          })
+        break
+      }
+    }
+  }
+
   portStream.on('data', async (data: any) => {
-    await requestHandler(data)
+    if (data?.ecosystem === LINE_TYPE.ETHEREUM) {
+      await evmRequestHandler(data)
+    } else {
+      await requestHandler(data)
+    }
   })
 }
 
@@ -804,33 +1283,33 @@ if (!browser.action.onClicked.hasListener(openAuthPage)) {
   browser.action.onClicked.addListener(openAuthPage)
 }
 
-function awaitResponse(txType: 'direct' | 'amino') {
-  return new Promise((resolve, reject) => {
-    const directSignResponseListener = (changes: Record<string, Storage.StorageChange>) => {
-      const { newValue } = changes[BG_RESPONSE] || {}
-      if (newValue) {
-        if (newValue.error) {
-          return reject(newValue)
-        }
-        const response = JSON.parse(newValue)
-        if (txType === 'direct') {
-          response.signed.authInfoBytes = new Uint8Array(
-            Object.values(response.signed.authInfoBytes),
-          )
-          response.signed.bodyBytes = new Uint8Array(Object.values(response.signed.bodyBytes))
+// function awaitResponse(txType: 'direct' | 'amino') {
+//   return new Promise((resolve, reject) => {
+//     const directSignResponseListener = (changes: Record<string, Storage.StorageChange>) => {
+//       const { newValue } = changes[BG_RESPONSE] || {}
+//       if (newValue) {
+//         if (newValue.error) {
+//           return reject(newValue)
+//         }
+//         const response = JSON.parse(newValue)
+//         if (txType === 'direct') {
+//           response.signed.authInfoBytes = new Uint8Array(
+//             Object.values(response.signed.authInfoBytes),
+//           )
+//           response.signed.bodyBytes = new Uint8Array(Object.values(response.signed.bodyBytes))
 
-          resolve(response)
-        } else {
-          resolve(response)
-        }
-        browser.storage.local.remove(BG_RESPONSE)
+//           resolve(response)
+//         } else {
+//           resolve(response)
+//         }
+//         browser.storage.local.remove(BG_RESPONSE)
 
-        browser.storage.onChanged.removeListener(directSignResponseListener)
-      }
-    }
-    browser.storage.onChanged.addListener(directSignResponseListener)
-  })
-}
+//         browser.storage.onChanged.removeListener(directSignResponseListener)
+//       }
+//     }
+//     browser.storage.onChanged.addListener(directSignResponseListener)
+//   })
+// }
 
 function awaitEnableChainResponse(): Promise<any> {
   return new Promise((resolve, reject) => {

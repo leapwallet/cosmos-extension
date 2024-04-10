@@ -8,6 +8,7 @@ import { useSetRecoilState } from 'recoil'
 import browser from 'webextension-polyfill'
 
 import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
+import { isCompassWallet } from '../../utils/isCompassWallet'
 
 export type SelectedNetwork = 'mainnet' | 'testnet'
 
@@ -31,7 +32,7 @@ export function useInitNetwork() {
   useEffect(() => {
     browser.storage.local.get(SELECTED_NETWORK).then((storage) => {
       const network = storage[SELECTED_NETWORK]
-      const defaultNetwork = process.env.APP === 'compass' ? 'testnet' : 'mainnet'
+      const defaultNetwork = isCompassWallet() ? 'testnet' : 'mainnet'
       setNetwork(network ?? defaultNetwork)
     })
 

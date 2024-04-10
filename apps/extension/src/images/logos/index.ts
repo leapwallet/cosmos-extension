@@ -108,6 +108,7 @@ const ChainLogos: Record<string, string | undefined> = {
   pryzmtestnet: ChainInfos.pryzmtestnet.chainSymbolImageUrl,
   thorchain: ChainInfos.thorchain.chainSymbolImageUrl,
   odin: ChainInfos.odin.chainSymbolImageUrl,
+  saga: ChainInfos.saga.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {

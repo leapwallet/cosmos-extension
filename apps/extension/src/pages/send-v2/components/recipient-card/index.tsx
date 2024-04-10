@@ -7,6 +7,7 @@ import {
   useAddressPrefixes,
   useChainsStore,
   useFeatureFlags,
+  useSeiLinkedAddressState,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -16,15 +17,16 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Asset, useChains, useSkipDestinationChains } from '@leapwallet/elements-hooks'
+import { captureException } from '@sentry/react'
 import bech32 from 'bech32'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import Text from 'components/text'
-import { LEDGER_DISABLED_COINTYPES } from 'config/config'
 import { motion } from 'framer-motion'
 import { useManageChainData } from 'hooks/settings/useManageChains'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -56,6 +58,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const [isAddContactSheetVisible, setIsAddContactSheetVisible] = useState<boolean>(false)
   const [recipientInputValue, setRecipientInputValue] = useState<string>('')
 
+  const getWallet = Wallet.useGetWallet()
+  const { addressLinkState } = useSeiLinkedAddressState(getWallet)
   const {
     ethAddress,
     selectedAddress,
@@ -67,6 +71,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     setCustomIbcChannelId,
     setEthAddress,
     selectedToken,
+    addressWarning,
+    setAddressWarning,
     isIbcUnwindingDisabled,
   } = useSendContext()
 
@@ -96,7 +102,11 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
   const fillRecipientInputValue = useCallback(
     (value: string) => {
-      if (
+      if (activeChainInfo.key === 'seiDevnet' && value.toLowerCase().startsWith('0x')) {
+        setAddressError(undefined)
+        setEthAddress(value)
+        setRecipientInputValue(value)
+      } else if (
         Number(activeChainInfo.bip44.coinType) === 60 &&
         value.toLowerCase().startsWith('0x') &&
         activeChainInfo.key !== 'injective'
@@ -107,7 +117,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           setEthAddress(value)
           setRecipientInputValue(bech32Address)
           return
-        } catch (_) {
+        } catch (e) {
           setAddressError('Invalid Address')
         }
       }
@@ -327,16 +337,48 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   useEffect(() => {
     if (currentWalletAddress === recipientInputValue) {
       setAddressError('Cannot send to self')
+    } else if (activeChainInfo.key === 'seiDevnet' && recipientInputValue.length) {
+      if (selectedToken?.isEvm && !recipientInputValue.toLowerCase().startsWith('0x')) {
+        setAddressWarning(
+          'To send Sei EVM tokens to Sei address, link your 0x and Sei addresses first.',
+        )
+        return
+      }
+
+      if (recipientInputValue.toLowerCase().startsWith('0x')) {
+        if (
+          !selectedToken?.isEvm &&
+          selectedToken?.coinMinimalDenom === 'usei' &&
+          !['done', 'unknown'].includes(addressLinkState)
+        ) {
+          setAddressWarning(
+            'To send Sei tokens to 0x address, link your 0x and Sei addresses first.',
+          )
+        }
+
+        return
+      }
     } else if (
       recipientInputValue &&
       !isValidAddress(recipientInputValue) &&
       !showNameServiceResults
     ) {
-      setAddressError('Invalid address')
+      setAddressError('Invalid Address')
     } else {
+      setAddressWarning(undefined)
       setAddressError(undefined)
     }
-  }, [currentWalletAddress, recipientInputValue, setAddressError, showNameServiceResults])
+  }, [
+    activeChainInfo.key,
+    addressLinkState,
+    currentWalletAddress,
+    recipientInputValue,
+    selectedToken?.coinMinimalDenom,
+    selectedToken?.isEvm,
+    setAddressError,
+    setAddressWarning,
+    showNameServiceResults,
+  ])
 
   useEffect(() => {
     // Autofill of recipientInputValue if passed in information
@@ -356,6 +398,20 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     }
 
     try {
+      if (activeChainInfo.key === 'seiDevnet' && cleanInputValue.toLowerCase().startsWith('0x')) {
+        const img = activeChainInfo.chainSymbolImageUrl ?? ''
+        setSelectedAddress({
+          ethAddress: cleanInputValue,
+          address: cleanInputValue,
+          name: sliceAddress(cleanInputValue),
+          avatarIcon: activeChainInfo.chainSymbolImageUrl ?? '',
+          emoji: undefined,
+          chainIcon: img ?? '',
+          chainName: activeChainInfo.key,
+          selectionType: 'notSaved',
+        })
+        return
+      }
       const { prefix } = bech32.decode(cleanInputValue)
       const _chain = addressPrefixes[prefix] as SupportedChain
       const img = chains[_chain]?.chainSymbolImageUrl ?? defaultTokenLogo
@@ -371,7 +427,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         selectionType: 'notSaved',
       })
     } catch (err) {
-      //
+      captureException(err)
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -441,7 +497,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
   useEffect(() => {
     let destinationChain: string | undefined
-
+    if (selectedAddress?.chainName === 'seiDevnet' && selectedAddress.address?.startsWith('0x')) {
+      return
+    }
     if (selectedAddress?.address) {
       const destChainAddrPrefix = getBlockChainFromAddress(selectedAddress.address)
 
@@ -609,6 +667,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
         <ActionInputWithPreview
           invalid={!!addressError}
+          warning={!!addressWarning}
           action={action}
           buttonText={action}
           buttonTextColor={themeColor}
@@ -632,6 +691,17 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
             data-testing-id='send-recipient-address-error-ele'
           >
             {addressError}
+          </Text>
+        ) : null}
+
+        {addressWarning ? (
+          <Text
+            size='xs'
+            color='text-yellow-600'
+            className='mt-2 ml-1 font-bold'
+            data-testing-id='send-recipient-address-error-ele'
+          >
+            {addressWarning}
           </Text>
         ) : null}
 

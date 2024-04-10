@@ -6,8 +6,10 @@ yalc.lock
 .env.canary
 .env.development
 .env.production.compass
+.env.canary
 .env.canary.compass
 builds
 canary-builds
+canary-builds.zip
 builds.zip
 coverage

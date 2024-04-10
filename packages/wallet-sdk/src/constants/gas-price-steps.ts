@@ -425,4 +425,5 @@ export const GAS_PRICE_STEPS = {
     high: 0.03,
   },
   dymension: { low: 0.25, average: 0.4, high: 0.55 },
+  saga: { low: 0.01, average: 0.025, high: 0.04 },
 };

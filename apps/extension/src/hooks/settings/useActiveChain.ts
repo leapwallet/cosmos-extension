@@ -1,12 +1,14 @@
 import {
   Key,
   useActiveChain as useActiveChainWalletHooks,
+  useGetChains,
   usePendingTxState,
   useSetActiveChain as useSetActiveChainWalletHooks,
   useSetSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQueryClient } from '@tanstack/react-query'
+import { COMPASS_CHAINS } from 'config/config'
 import { ACTIVE_CHAIN, KEYSTORE } from 'config/storage-keys'
 import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -77,22 +79,27 @@ export function useSetActiveChain() {
 
 export function useInitActiveChain() {
   const chainInfos = useChainInfos()
+  const chains = useGetChains()
   const setActiveChain = useSetActiveChainWalletHooks()
+
   useEffect(() => {
     browser.storage.local.get(ACTIVE_CHAIN).then((storage) => {
       let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
       const defaultActiveChain = isCompassWallet()
         ? chainInfos.seiTestnet2.key
         : chainInfos.cosmos.key
-      if (!activeChain) {
+
+      if (!activeChain || chains[activeChain] === undefined) {
         activeChain = defaultActiveChain
       }
-      if (isCompassWallet() && activeChain !== chainInfos.seiTestnet2.key) {
+
+      if (isCompassWallet() && !COMPASS_CHAINS.includes(activeChain)) {
         activeChain = defaultActiveChain
       }
+
       setActiveChain(activeChain)
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chainInfos])
+  }, [chainInfos, chains])
 }

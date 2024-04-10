@@ -297,6 +297,7 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'pryzmtestnet' },
   { enabled: true, name: 'thorchain' },
   { enabled: true, name: 'odin' },
+  { enabled: true, name: 'saga' },
 ];
 
 export default networkData;

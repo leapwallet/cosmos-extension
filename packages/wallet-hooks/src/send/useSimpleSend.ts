@@ -10,6 +10,7 @@ import {
   isValidAddressWithPrefix,
   MayaTx,
   NativeDenom,
+  SeiEvmTx,
   SigningSscrt,
   SupportedChain,
   ThorTx,
@@ -18,6 +19,7 @@ import {
   Tx,
   txDeclinedErrorUser,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { EthWallet } from '@leapwallet/leap-keychain';
 import * as bech32 from 'bech32';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useState } from 'react';
@@ -25,7 +27,14 @@ import { Wallet } from 'secretjs';
 
 import { CosmosTxType } from '../connectors';
 import { useValidateIbcChannelId } from '../ibc/useValidateIbcChannelId';
-import { useActiveChain, useActiveWalletStore, useAddressPrefixes, useChainsStore, useDenoms } from '../store';
+import {
+  PendingTx,
+  useActiveChain,
+  useActiveWalletStore,
+  useAddressPrefixes,
+  useChainsStore,
+  useDenoms,
+} from '../store';
 import { useChainInfo } from '../store/useChainInfo';
 import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
@@ -278,6 +287,56 @@ export const useSimpleSend = () => {
           success: false,
           errors: ['Failed to send tokens', e.message?.slice(0, 200)],
         };
+      }
+    },
+    [],
+  );
+
+  const sendTokenEth = useCallback(
+    async (
+      fromAddress: string,
+      toAddress: string,
+      value: string,
+      gas: number,
+      wallet: EthWallet,
+      gasPrice?: number,
+    ) => {
+      try {
+        setIsSending(true);
+        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet);
+        const result = await seiEvmTx.sendTransaction(fromAddress, toAddress, value, gas, gasPrice);
+
+        const pendingTx: PendingTx = {
+          txHash: result.hash,
+          img: chainInfo.chainSymbolImageUrl,
+          sentAmount: value.toString(),
+          sentTokenInfo: denoms.usei,
+          sentUsdValue: '',
+          subtitle1: `to ${sliceAddress(toAddress)}`,
+          title1: `Sent Sei`,
+          txStatus: 'success',
+          txType: 'send',
+          promise: new Promise((resolve) => {
+            resolve({ code: 0 } as any);
+          }),
+        };
+
+        return {
+          success: true,
+          pendingTx: pendingTx,
+          data: {
+            txHash: result.hash,
+            txType: 'send',
+            metadata: {},
+          },
+        };
+      } catch (e: any) {
+        return {
+          success: false,
+          errors: [e.message?.slice(0, 200)],
+        };
+      } finally {
+        setIsSending(false);
       }
     },
     [],
@@ -574,6 +633,7 @@ export const useSimpleSend = () => {
   return {
     showLedgerPopup,
     sendTokens,
+    sendTokenEth,
     isSending,
   };
 };

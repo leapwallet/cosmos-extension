@@ -661,7 +661,6 @@ const SignTransaction = ({
         }
 
         isApprovedRef.current = true
-
         await sleep(100)
 
         try {

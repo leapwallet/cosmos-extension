@@ -103,6 +103,8 @@ export const platforms: Record<string, Platform> = {
   pryzmtestnet: 'PRYZM',
   // @ts-ignore
   thorchain: 'THOR_CHAIN',
+  // @ts-ignore
+  saga: 'SAGA',
 };
 
 export const platformToChain: Record<Platform, string> = {
@@ -179,4 +181,5 @@ export const platformToChain: Record<Platform, string> = {
   PRYZM: 'pryzmtestnet',
   THOR_CHAIN: 'thorchain',
   ODIN_CHAIN: 'odin',
+  SAGA: 'saga',
 };

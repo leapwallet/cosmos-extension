@@ -6,6 +6,7 @@ import {
   sliceWord,
   Token,
   useAssetDetails,
+  useERC20Tokens,
   useFeatureFlags,
   useformatCurrency,
   useUserPreferredCurrency,
@@ -27,14 +28,12 @@ import useGetTopCGTokens from 'hooks/explore/useGetTopCGTokens'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize } from 'utils/strings'
 
 import ChartSkeleton from '../chart-skeleton/ChartSkeleton'
@@ -48,6 +47,7 @@ type TokenCTAsProps = {
   onStakeClick: () => void
   onBuyClick: () => void
   isBuyDisabled: boolean
+  isSendDisabled: boolean
 }
 
 function TokenCTAs({
@@ -56,6 +56,7 @@ function TokenCTAs({
   onStakeClick,
   isSwapDisabled,
   isBuyDisabled,
+  isSendDisabled,
   onBuyClick,
 }: TokenCTAsProps) {
   return (
@@ -65,6 +66,7 @@ function TokenCTAs({
         disabled={isBuyDisabled}
         onClick={onBuyClick}
       />
+
       <ClickableIcon
         image={{
           src: 'download',
@@ -72,7 +74,12 @@ function TokenCTAs({
         }}
         onClick={onReceiveClick}
       />
-      <ClickableIcon image={{ src: 'file_upload', alt: 'Send' }} onClick={onSendClick} />
+
+      <ClickableIcon
+        image={{ src: 'file_upload', alt: 'Send' }}
+        onClick={onSendClick}
+        disabled={isSendDisabled}
+      />
 
       <ClickableIcon
         disabled={isSwapDisabled}
@@ -107,6 +114,7 @@ function TokensDetails() {
   const [formatCurrency] = useformatCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
   const { handleSwapClick } = useHardCodedActions()
+  const erc20Tokens = useERC20Tokens()
 
   const {
     info,
@@ -220,7 +228,7 @@ function TokensDetails() {
               type: HeaderActionType.BACK,
             }}
             imgSrc={chainInfos[activeChain].chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
+            onImgClick={() => setShowChainSelector(true)}
             title={<Text size='lg'>Asset details</Text>}
             topColor={Colors.getChainColor(activeChain)}
           />
@@ -395,6 +403,9 @@ function TokensDetails() {
                   onSendClick={() => {
                     navigate('/send', { state })
                   }}
+                  isSendDisabled={
+                    activeChain === 'seiDevnet' && !!erc20Tokens[denomInfo?.coinMinimalDenom ?? '']
+                  }
                   onReceiveClick={() => {
                     setShowReceiveSheet(true)
                   }}

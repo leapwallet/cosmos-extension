@@ -5,6 +5,7 @@ export * from './getBaseAccount';
 export * from './getErrorMessageFromCode';
 export { getRestUrl } from './getRestURL';
 export * from './mathUtil';
+export * from './sei-evm';
 export * from './sleep';
 export * from './token-converter';
 export * from './validate-ibc-channel';

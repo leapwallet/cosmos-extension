@@ -67,7 +67,10 @@ export function ListChains({
       preferenceOrder: 100 + index,
     }))
 
-  const showChains = searchedChain?.length > 0 ? [...chains, ..._customChains] : chains
+  const showChains = useMemo(
+    () => (searchedChain?.length > 0 ? [...chains, ..._customChains] : chains),
+    [_customChains, chains, searchedChain?.length],
+  )
 
   const filteredChains = useMemo(() => {
     return showChains
@@ -233,7 +236,7 @@ export default function SelectChain({ isVisible, onClose }: ChainSelectorProps) 
     if (views.length === 0) navigate('/add-chain', { replace: true })
     else window.open(extension.runtime.getURL('index.html#/add-chain'))
     trackCTAEvent(ButtonName.ADD_NEW_CHAIN, '/add-chain')
-  }, [])
+  }, [navigate])
 
   return (
     <BottomModal

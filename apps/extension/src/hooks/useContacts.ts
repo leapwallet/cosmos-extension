@@ -16,7 +16,7 @@ export const useContacts = () => {
       if (cancel) return
 
       const contactsToShow = Object.entries(allEntries)
-        .filter(([key, contact]) => {
+        .filter(([, contact]) => {
           if (contact.blockchain !== 'injective') return true
           if (contact.blockchain === 'injective' && contact.ethAddress === '') return true
           return false

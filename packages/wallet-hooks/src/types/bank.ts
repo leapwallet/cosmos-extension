@@ -12,6 +12,8 @@ export type Token = {
   coinDecimals?: number;
   invalidKey?: boolean;
   chain?: string;
+  coinGeckoId?: string;
+  isEvm?: boolean;
 };
 
 export type IbcChainInfo = {

@@ -16,6 +16,7 @@ interface ActionInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   className?: string
   preview?: React.ReactNode | undefined
   invalid?: boolean
+  warning?: boolean
   rightElement?: React.ReactNode
   disabled?: boolean
 }
@@ -34,6 +35,7 @@ export const ActionInputWithPreview = React.forwardRef(
       className = '',
       preview,
       invalid = false,
+      warning = false,
       rightElement,
       disabled = false,
       ...props
@@ -70,11 +72,15 @@ export const ActionInputWithPreview = React.forwardRef(
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2, ease: 'linear' }}
               exit={{ opacity: 0.9 }}
-              className={`border rounded-lg transition bg-gray-50 dark:bg-gray-800 outline-none text-gray-800 caret-gray-800 dark:text-white-100 w-full pl-4 pr-12 py-2 ${
-                invalid
-                  ? 'border-red-300 dark:border-red-300'
-                  : 'border-gray-300 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-500'
-              }'}`}
+              className={classNames(
+                'border rounded-lg transition bg-gray-50 dark:bg-gray-800 outline-none text-gray-800 caret-gray-800 dark:text-white-100 w-full pl-4 pr-12 py-2',
+                {
+                  'border-red-300 dark:border-red-300': invalid,
+                  'border-yellow-600 dark:border-yellow-600': warning,
+                  'border-gray-300 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-500':
+                    !invalid && !warning,
+                },
+              )}
               onClick={() => setShowPreview(false)}
             >
               {preview}
@@ -90,13 +96,14 @@ export const ActionInputWithPreview = React.forwardRef(
               ref={ref}
               className={classNames(
                 className,
-                'border rounded-lg transition bg-white-30 dark:bg-black-50 outline-none text-gray-800 caret-gray-800 dark:text-white-100 dark:caret-white-100 disabled:cursor-not-allowed',
-                `w-full pl-4 py-2 ${
-                  invalid
-                    ? 'border-red-300 dark:border-red-300'
-                    : 'border-gray-300 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-500'
-                }}`,
+                'border rounded-lg transition bg-white-30 dark:bg-black-50 outline-none text-gray-800 caret-gray-800 dark:text-white-100 dark:caret-white-100 disabled:cursor-not-allowed w-full pl-4 py-2',
                 `${!rightElement && disabled ? 'pr-4' : 'pr-12'}`,
+                {
+                  'border-red-300 dark:border-red-300': invalid,
+                  'border-yellow-600 dark:border-yellow-600': warning,
+                  'border-gray-300 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-500':
+                    !invalid && !warning,
+                },
               )}
               value={value}
               onChange={onChange}

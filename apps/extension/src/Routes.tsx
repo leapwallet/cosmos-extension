@@ -45,6 +45,7 @@ const OnboardingSuccess = React.lazy(() => import('pages/onboarding/success'))
 const AddSecretToken = React.lazy(() => import('pages/secret/addSecretToken'))
 const Send = React.lazy(() => import('pages/send-v2'))
 const Sign = React.lazy(() => import('pages/sign/sign-transaction'))
+const SignSeiEvm = React.lazy(() => import('pages/sign-sei-evm/SignSeiEvmTransaction'))
 const Stake = React.lazy(() => import('pages/stake'))
 const CancelUndelegationPage = React.lazy(() => import('pages/stake/cancelUndelegation'))
 const ChooseValidator = React.lazy(() => import('pages/stake/chooseValidator'))
@@ -90,7 +91,7 @@ export default function AppRoutes(): JSX.Element {
     if (activeWallet) {
       fetchAirdropsData()
     }
-  }, [activeWallet?.id])
+  }, [activeWallet, activeWallet?.id, fetchAirdropsData])
 
   return (
     <Suspense fallback={<AppInitLoader />}>
@@ -259,6 +260,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth hideBorder={true}>
                   <Sign />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='signSeiEvm'
+              element={
+                <RequireAuth hideBorder={true}>
+                  <SignSeiEvm />
                 </RequireAuth>
               }
             />

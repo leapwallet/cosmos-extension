@@ -12,6 +12,7 @@ import {
   useSpamProposals,
 } from '../store';
 import { Proposal, Proposal2, ProposalApi } from '../types';
+import { getLeapapiBaseUrl } from '../utils';
 import { formatProposal } from './formatProposal';
 import { proposalHasContentMessages } from './utils';
 
@@ -52,9 +53,8 @@ export function useInitGovProposals(
         offset: Number(paginationKey ?? 0),
       });
 
-      const { data } = await axios.post(
-        `${process.env.LEAP_WALLET_BACKEND_API_URL}/gov/proposals/${activeChainInfo.chainId}?${query}`,
-      );
+      const leapApiBaseUrl = getLeapapiBaseUrl();
+      const { data } = await axios.post(`${leapApiBaseUrl}/gov/proposals/${activeChainInfo.chainId}?${query}`);
       paginationCountRef.current = data?.key;
 
       const proposals = data?.proposals?.sort((a: any, b: any) => Number(b.proposal_id) - Number(a.proposal_id));

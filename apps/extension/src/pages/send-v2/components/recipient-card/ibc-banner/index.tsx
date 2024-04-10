@@ -120,11 +120,7 @@ type IBCSettingsProps = {
   onSelectChannel: (channelId: string | undefined) => void
 }
 
-export const IBCSettings: React.FC<IBCSettingsProps> = ({
-  className,
-  targetChain,
-  onSelectChannel,
-}) => {
+export const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, onSelectChannel }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   // this will be null when data is loading
   const [defaultChannelId, setDefaultChannelId] = useState<string | undefined | null>(null)
@@ -151,7 +147,9 @@ export const IBCSettings: React.FC<IBCSettingsProps> = ({
   )
 
   const path: string[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Object.values(groupedTransactions)?.forEach((d: any[], index1: number) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     d.forEach((f: any, index2: number) => {
       if (index1 == 0 && index2 == 0) {
         path.push(f.sourceChain)

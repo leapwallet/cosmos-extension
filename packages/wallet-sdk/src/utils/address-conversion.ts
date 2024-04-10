@@ -1,5 +1,7 @@
+import { fromBase64 } from '@cosmjs/encoding';
+import { Secp256k1 } from '@leapwallet/leap-keychain';
 import bech32 from 'bech32';
-import { Address } from 'ethereumjs-util';
+import { Address, pubToAddress } from 'ethereumjs-util';
 
 function toHex(array: Uint8Array) {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -18,4 +20,19 @@ export function getBech32Address(prefix: string, address: string): string {
   const addressBuffer = Address.fromString(addressHex).toBuffer();
 
   return bech32.encode(prefix, bech32.toWords(addressBuffer));
+}
+
+export function getSeiEvmAddress(decompressedPubKey: Uint8Array): string {
+  const address = pubToAddress(Buffer.from(decompressedPubKey), true);
+  return `0x${address.toString('hex')}`;
+}
+
+export function getSeiEvmAddressToShow(pubKeyString: string | undefined): string {
+  const pubKeyBytes = pubKeyString ? fromBase64(pubKeyString) : null;
+
+  const seiEvmAddress = pubKeyBytes
+    ? getSeiEvmAddress(Secp256k1.publicKeyConvert(pubKeyBytes, false))
+    : 'Unable to show EVM address';
+
+  return seiEvmAddress;
 }

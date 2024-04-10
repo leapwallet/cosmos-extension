@@ -5,6 +5,7 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { useTransferReturnType } from '@leapwallet/elements-hooks/dist/use-transfer'
+import { EthWallet } from '@leapwallet/leap-keychain'
 import { useSecretWallet } from 'hooks/wallet/useScrtWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
@@ -13,8 +14,8 @@ import { useTxCallBack } from 'utils/txCallback'
 
 const useGetWallet = Wallet.useGetWallet
 
-export type SendContextType = Readonly<
-  {
+export type SendContextType = ReturnType<typeof useSendModule> &
+  Readonly<{
     confirmSend: (
       // eslint-disable-next-line no-unused-vars
       args: Omit<sendTokensParams, 'gasEstimate' | 'getWallet'>,
@@ -28,8 +29,14 @@ export type SendContextType = Readonly<
     setPfmEnabled: (val: boolean) => void
     ethAddress: string
     setEthAddress: React.Dispatch<React.SetStateAction<string>>
-  } & ReturnType<typeof useSendModule>
->
+    confirmSendEth: (
+      toAddress: string,
+      value: string,
+      gas: number,
+      wallet: EthWallet,
+      gasPrice?: number,
+    ) => void
+  }>
 
 export const SendContext = createContext<SendContextType | null>(null)
 
@@ -39,7 +46,8 @@ type SendContextProviderProps = {
 } & React.PropsWithChildren<any>
 
 export const SendContextProvider: React.FC<SendContextProviderProps> = ({ children }) => {
-  const { tokenFiatValue, feeTokenFiatValue, confirmSend, selectedToken, ...rest } = useSendModule()
+  const { tokenFiatValue, feeTokenFiatValue, confirmSend, confirmSendEth, selectedToken, ...rest } =
+    useSendModule()
   const txCallback = useTxCallBack()
   const getWallet = useGetWallet()
   const currentWalletAddress = useAddress()
@@ -70,6 +78,16 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
     },
     [confirmSend, getSscrtWallet, getWallet, selectedToken?.coinMinimalDenom, txCallback],
   )
+  const confirmSendTxEth = useCallback(
+    async (toAddress: string, value: string, gas: number, wallet: EthWallet, gasPrice?: number) => {
+      confirmSendEth(toAddress, value, gas, wallet, txCallback, gasPrice)
+    },
+    [confirmSendEth, txCallback],
+  )
+
+  useEffect(() => {
+    setIsIbcUnwindingDisabled(false)
+  }, [selectedToken, rest?.selectedAddress])
 
   useEffect(() => {
     setIsIbcUnwindingDisabled(false)
@@ -89,6 +107,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
       feeTokenFiatValue: feeTokenFiatValue ?? '',
       selectedToken,
       confirmSend: confirmSendTx,
+      confirmSendEth: confirmSendTxEth,
       sameChain,
       transferData,
       setTransferData,
@@ -100,6 +119,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
     } as const
   }, [
     confirmSendTx,
+    confirmSendTxEth,
     currentWalletAddress,
     ethAddress,
     feeTokenFiatValue,
@@ -114,6 +134,8 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
     setPfmEnabled,
   ])
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   return <SendContext.Provider value={value}>{children}</SendContext.Provider>
 }
 

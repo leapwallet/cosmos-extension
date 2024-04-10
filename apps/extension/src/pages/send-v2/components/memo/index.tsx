@@ -1,4 +1,5 @@
 import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import classNames from 'classnames'
 import Text from 'components/text'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useState } from 'react'
@@ -9,7 +10,9 @@ const tokenOnCEX = ['ATOM', 'SEI', 'INJ', 'NTRN', 'USDC', 'TIA', 'OSMO']
 
 export const Memo: React.FC = () => {
   const [showCEXSheet, setShowCEXSheet] = useState<boolean>(false)
-  const { memo, setMemo, selectedAddress, selectedToken, isIBCTransfer } = useSendContext()
+  const { memo, setMemo, selectedAddress, selectedToken, isIBCTransfer, addressWarning } =
+    useSendContext()
+
   const selectedAddressNativeDenoms: string[] = Object.keys(
     ChainInfos[selectedAddress?.chainName as SupportedChain]?.nativeDenoms ?? {},
   )
@@ -21,7 +24,11 @@ export const Memo: React.FC = () => {
 
   return (
     <>
-      <div className='card-container'>
+      <div
+        className={classNames('card-container', {
+          'opacity-50 pointer-events-none': !!addressWarning,
+        })}
+      >
         <div className='flex justify-between w-full mb-4'>
           <p className='font-bold text-sm text-gray-600 dark:text-gray-200'>Memo</p>
           <p

@@ -104,4 +104,5 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   pryzm: 'pryzmtestnet',
   centauri: 'composable',
   dym: 'dymension',
+  saga: 'saga',
 };

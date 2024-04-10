@@ -8,7 +8,6 @@ import { PageName } from 'config/analytics'
 import { motion } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { Images } from 'images'
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
@@ -51,6 +50,8 @@ export default function AirdropsDetails() {
     if (!selectedAirdrop) {
       navigate('/airdrops', { replace: true })
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

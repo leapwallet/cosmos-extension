@@ -33,7 +33,7 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
   const denoms = useDenoms();
   const chainInfo = useChainInfo(tokenChain);
   const selectedNetwork = useSelectedNetwork();
-  const chainId = selectedNetwork === 'mainnet' ? chainInfo.chainId : chainInfo.testnetChainId;
+  const chainId = selectedNetwork === 'mainnet' ? chainInfo?.chainId : chainInfo?.testnetChainId;
   const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens();
   const combinedDenoms = useMemo(() => {
     return {
@@ -102,7 +102,7 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
     isLoading: loadingPrice,
     error: errorInfo,
   } = useQuery(
-    ['assetData', denom],
+    ['assetData', denom, chainId],
     async () => {
       if (!denom) {
         return;

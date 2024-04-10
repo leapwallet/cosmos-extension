@@ -116,4 +116,5 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   pryzmtestnet: DefaultGasEstimates,
   thorchain: DefaultGasEstimates,
   odin: DefaultGasEstimates,
+  saga: DefaultGasEstimates,
 };

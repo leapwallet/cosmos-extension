@@ -7,7 +7,7 @@ type ActiveChainState = {
 };
 
 export const useActiveChainStore = create<ActiveChainState>((set) => ({
-  activeChain: process.env.APP === 'compass' ? 'seiTestnet2' : 'cosmos',
+  activeChain: process.env.APP?.includes('compass') ? 'seiTestnet2' : 'cosmos',
   setActiveChain: (chain: SupportedChain) => set(() => ({ activeChain: chain })),
 }));
 
