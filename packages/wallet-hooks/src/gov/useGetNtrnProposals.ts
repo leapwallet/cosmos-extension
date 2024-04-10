@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ProposalApi } from 'types';
 
 import { useActiveChain, useChainApis, useGetChains, useSpamProposals } from '../store';
+import { getLeapapiBaseUrl } from '../utils';
 
 export function useGetNtrnProposals() {
   const { rpcUrl, lcdUrl } = useChainApis();
@@ -35,6 +36,7 @@ export function useGetNtrnProposals() {
   } = useInfiniteQuery(
     ['neutron-proposals', lcdUrl, chains],
     async ({ pageParam: paginationKey }): Promise<{ proposals: ProposalApi[]; key?: string }> => {
+      const leapApiBaseUrl = getLeapapiBaseUrl();
       const query = qs.stringify({
         timestamp: Date.now(),
 
@@ -42,13 +44,10 @@ export function useGetNtrnProposals() {
         offset: Number(paginationKey ?? 0),
       });
       try {
-        const { data } = await axios.post(
-          `${process.env.LEAP_WALLET_BACKEND_API_URL}/gov/proposals/${chains.neutron.chainId}?${query}`,
-          {
-            lcdUrl,
-            rpcUrl,
-          },
-        );
+        const { data } = await axios.post(`${leapApiBaseUrl}/gov/proposals/${chains.neutron.chainId}?${query}`, {
+          lcdUrl,
+          rpcUrl,
+        });
 
         return {
           proposals: data?.proposals?.sort((a: any, b: any) => Number(b.proposal_id) - Number(a.proposal_id)),

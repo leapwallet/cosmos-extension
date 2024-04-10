@@ -12,7 +12,6 @@ import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { AmountCard } from './components/amount-card'
 import { Memo } from './components/memo'
@@ -45,7 +44,9 @@ const Send = () => {
       const chainKey = Object.values(chainInfos).find((chain) => chain.chainId === chainId)?.key
       chainKey && setActiveChain(chainKey)
     }
-  }, [chainId])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chainId, chainInfos])
 
   return (
     <div>
@@ -58,7 +59,7 @@ const Send = () => {
                 type: HeaderActionType.BACK,
               }}
               imgSrc={chainImage}
-              onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
+              onImgClick={() => setShowChainSelector(true)}
               title={location.pathname === '/ibc' ? 'IBC' : 'Send'}
               topColor={themeColor}
             />

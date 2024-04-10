@@ -8,10 +8,10 @@ type SecondaryActionButtonProps = {
   className?: string
   iconClassName?: string
   actionLabel: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } & React.PropsWithChildren<any>
 
 export const SecondaryActionButton: React.FC<SecondaryActionButtonProps> = ({
-  actionLabel,
   leftIcon,
   onClick,
   children,

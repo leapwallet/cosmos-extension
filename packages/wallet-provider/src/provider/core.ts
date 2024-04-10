@@ -26,7 +26,7 @@ import {
   SuggestChainInfoMsg,
 } from './types';
 
-const requester = new InExtensionMessageRequester(process.env.APP === 'compass' ? 'compass' : 'leap');
+const requester = new InExtensionMessageRequester(process.env.APP?.includes('compass') ? 'compass' : 'leap');
 
 export class Leap implements ILeap {
   public defaultOptions: LeapIntereactionOptions = {};
@@ -47,7 +47,7 @@ export class Leap implements ILeap {
   }
 
   async experimentalSuggestChain(chainInfo: ChainInfo): Promise<void> {
-    if (process.env.APP === 'compass') return;
+    if (process.env.APP?.includes('compass')) return;
     const suggestChainMessage = new SuggestChainInfoMsg(chainInfo);
     return await requester.experimentalSuggestChain(suggestChainMessage);
   }

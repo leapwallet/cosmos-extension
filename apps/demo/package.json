@@ -20,7 +20,7 @@
   "dependencies": {
     "@leapwallet/cosmos-wallet-hooks": "*",
     "@leapwallet/cosmos-wallet-sdk": "*",
-    "@leapwallet/leap-ui": "0.1.9",
+    "@leapwallet/leap-ui": "0.1.35",
     "bignumber.js": "9.0.2",
     "classnames": "2.3.1",
     "dayjs": "1.11.5",

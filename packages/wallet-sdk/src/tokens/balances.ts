@@ -1,7 +1,6 @@
 import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { createProtobufRpcClient, QueryClient, StargateClient } from '@cosmjs/stargate';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
-import { evmosToEth } from '@evmos/address-converter';
 import BigNumber from 'bignumber.js';
 import { QueryClientImpl, QueryDenomTraceResponse } from 'cosmjs-types/ibc/applications/transfer/v1/query';
 import { Contract, ethers } from 'ethers';
@@ -9,6 +8,7 @@ import { Contract, ethers } from 'ethers';
 import { ChainInfo, ChainInfos, SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
 import { BalancesResponse } from '../types/bank';
+import { formatEtherValue } from '../utils';
 
 export type IQueryDenomTraceResponse = QueryDenomTraceResponse;
 
@@ -43,6 +43,12 @@ export async function fetchAllBalances(rpcUrl: string, address: string) {
   });
 }
 
+export async function fetchSeiEvmBalances(evmJsonRpc: string, ethWalletAddress: string) {
+  const provider = new ethers.providers.JsonRpcProvider(evmJsonRpc);
+  const balance = await provider.getBalance(ethWalletAddress);
+  return { denom: 'usei', amount: formatEtherValue(balance.toString()) };
+}
+
 export async function fetchCW20Balances(rpcUrl: string, address: string, cw20Tokens: Array<string>) {
   const client = await CosmWasmClient.connect(rpcUrl);
   const promises = cw20Tokens.map(async (tokenAddress) => {
@@ -65,10 +71,9 @@ export async function fetchCW20Balances(rpcUrl: string, address: string, cw20Tok
   return fulfilledBalances;
 }
 
-export async function fetchERC20Balances(evmJsonRpc: string, walletAddress: string, erc20Tokens: Array<string>) {
+export async function fetchERC20Balances(evmJsonRpc: string, ethWalletAddress: string, erc20Tokens: Array<string>) {
   const provider = new ethers.providers.JsonRpcProvider(evmJsonRpc);
   const contractAbi = ['function balanceOf(address account) view returns (uint256)'];
-  const ethWalletAddress = evmosToEth(walletAddress);
 
   const promises = erc20Tokens.map(async (tokenAddress) => {
     const contract = new Contract(tokenAddress, contractAbi, provider);

@@ -279,8 +279,6 @@ input[type='number']::-webkit-outer-spin-button {
   color: #726fdc;
 }
 
-
-
 .ripple-loader button {
   position: absolute;
   border-radius: 100%;

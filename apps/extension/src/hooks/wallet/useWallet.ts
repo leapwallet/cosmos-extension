@@ -1,4 +1,3 @@
-import { makeCosmoshubPath } from '@cosmjs/amino'
 import { AccountData, DirectSecp256k1HdWallet, OfflineSigner } from '@cosmjs/proto-signing'
 import { Key, useChainsStore, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -462,7 +461,7 @@ export namespace Wallet {
     const { activeWallet } = useActiveWallet()
     const password = usePassword()
     return useCallback(
-      async (chain?: SupportedChain) => {
+      async (chain?: SupportedChain, ethWallet?: boolean) => {
         let _chain = activeChain
         if (chain && chainInfos[chain]) {
           _chain = chain
@@ -488,12 +487,12 @@ export namespace Wallet {
           }
         } else if (activeWallet?.walletType !== WALLETTYPE.LEDGER) {
           const walletId = activeWallet?.id
-          const signer = await KeyChain.getSigner(
-            walletId as string,
-            password as string,
-            chainInfos[_chain].addressPrefix,
-            chainInfos[_chain].bip44.coinType,
-          )
+          const signer = await KeyChain.getSigner(walletId as string, password as string, {
+            addressPrefix: chainInfos[_chain].addressPrefix,
+            coinType: chainInfos[_chain].bip44.coinType,
+            ethWallet,
+            pubKeyBech32Address: ethWallet,
+          })
           return signer as unknown as OfflineSigner
         } else {
           throw new Error('Unable to get signer')

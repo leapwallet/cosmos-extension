@@ -85,6 +85,7 @@ export const stakingDenoms: StakingDenoms = {
     thorchain: ['rune'],
     odin: ['loki'],
     dymension: ['udym'],
+    saga: ['usaga'],
   },
   testnet: {
     akash: ['uakt'],
@@ -166,5 +167,6 @@ export const stakingDenoms: StakingDenoms = {
     thorchain: ['rune'],
     odin: ['loki'],
     dymension: ['udym'],
+    saga: ['usaga'],
   },
 };

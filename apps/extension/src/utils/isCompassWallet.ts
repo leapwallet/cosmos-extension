@@ -1,3 +1,3 @@
 export function isCompassWallet() {
-  return process.env.APP === 'compass'
+  return !!process.env.APP?.includes('compass')
 }

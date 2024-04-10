@@ -16,6 +16,14 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  usaga: {
+    coinDenom: 'SAGA',
+    coinMinimalDenom: 'usaga',
+    coinDecimals: 6,
+    icon: 'https://assets.leapwallet.io/saga.svg',
+    chain: 'saga',
+    coinGeckoId: 'saga-2',
+  },
   udym: {
     coinDenom: 'DYM',
     coinDecimals: 18,
@@ -779,11 +787,11 @@ export const denoms = {
     icon: 'https://assets.leapwallet.io/flix.png',
     chain: 'omniflixhub',
   },
-  uorai: {
+  orai: {
     coinDenom: 'ORAI',
-    coinMinimalDenom: 'uorai',
+    coinMinimalDenom: 'orai',
     coinDecimals: 6,
-    coinGeckoId: 'orai',
+    coinGeckoId: 'oraichain-token',
     icon: 'https://assets.leapwallet.io/orai.svg',
     chain: 'oraichain',
   },

@@ -4,6 +4,7 @@ export * from './injectiveTx';
 export * from './mayaTx';
 export * from './msgs';
 export * from './nft-transfer';
+export * from './seiEvmTx';
 export * from './seiTx';
 export * from './simulate';
 export * from './strideTx';

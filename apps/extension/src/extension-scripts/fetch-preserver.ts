@@ -6,3 +6,4 @@
  *
  * */
 export const originalFetch = fetch
+global.window = self

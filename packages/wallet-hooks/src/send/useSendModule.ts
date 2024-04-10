@@ -1,6 +1,7 @@
 import { coin, StdFee } from '@cosmjs/amino';
 import { calculateFee, GasPrice } from '@cosmjs/stargate';
 import {
+  ARCTICE_EVM_GAS_LIMIT,
   ChainInfos,
   DefaultGasEstimates,
   Dict,
@@ -8,10 +9,12 @@ import {
   getSimulationFee,
   isEthAddress,
   NativeDenom,
+  SeiEvmTx,
   simulateIbcTransfer,
   simulateSend,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { EthWallet } from '@leapwallet/leap-keychain';
 import { useQuery } from '@tanstack/react-query';
 import bech32 from 'bech32';
 import { BigNumber } from 'bignumber.js';
@@ -85,9 +88,13 @@ export type SendModuleType = Readonly<{
   userPreferredGasLimit: number | undefined;
   setUserPreferredGasLimit: React.Dispatch<React.SetStateAction<number | undefined>>;
   addressError: string | undefined;
+  addressWarning: string | undefined;
   amountError: string | undefined;
+  gasError: string | null;
   txError: string | undefined;
   setAddressError: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setAddressWarning: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setGasError: React.Dispatch<React.SetStateAction<string | null>>;
   setAmountError: React.Dispatch<React.SetStateAction<string | undefined>>;
   isIBCTransfer: boolean;
   sendDisabled: boolean;
@@ -99,6 +106,14 @@ export type SendModuleType = Readonly<{
     args: Omit<sendTokensParams, 'gasEstimate'>,
     callback: (status: 'success' | 'txDeclined') => void,
   ) => Promise<void>;
+  confirmSendEth: (
+    toAddress: string,
+    value: string,
+    gas: number,
+    wallet: EthWallet,
+    txCallback: TxCallback,
+    gasPrice?: number,
+  ) => void;
   clearTxError: () => void;
 }>;
 
@@ -129,8 +144,10 @@ export function useSendModule(): SendModuleType {
   const [gasEstimate, setGasEstimate] = useState<number>(
     defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
   );
+  const [gasError, setGasError] = useState<string | null>(null);
 
   const [addressError, setAddressError] = useState<string | undefined>(undefined);
+  const [addressWarning, setAddressWarning] = useState<string | undefined>(undefined);
   const [amountError, setAmountError] = useState<string | undefined>(undefined);
   const [txError, setTxError] = useState<string | undefined>(undefined);
 
@@ -142,7 +159,7 @@ export function useSendModule(): SendModuleType {
   const { setPendingTx } = usePendingTxState();
   const getIbcChannelId = useGetIbcChannelId();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-  const { isSending, sendTokens, showLedgerPopup } = useSimpleSend();
+  const { isSending, sendTokens, showLedgerPopup, sendTokenEth } = useSimpleSend();
   const { data: ibcSupportData, isLoading: isIbcSupportDataLoading } = useGetIBCSupport(activeChain);
   const nativeFeeDenom = useNativeFeeDenom();
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
@@ -313,12 +330,39 @@ export function useSendModule(): SendModuleType {
     ],
   );
 
+  const confirmSendEth = useCallback(
+    async (
+      toAddress: string,
+      value: string,
+      gas: number,
+      wallet: EthWallet,
+      callback: TxCallback,
+      gasPrice?: number,
+    ) => {
+      const result = await sendTokenEth(fromAddress, toAddress, value, gas, wallet, gasPrice);
+      if (result.success) {
+        result.pendingTx && setPendingTx(result.pendingTx);
+        callback('success');
+      } else {
+        result.errors && setTxError(result.errors.join(',\n'));
+      }
+    },
+    [fromAddress],
+  );
+
   const clearTxError = useCallback(() => {
     setTxError(undefined);
   }, []);
 
   useEffect(() => {
     const fn = async () => {
+      const defaultIbcGasEstimate =
+        defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ?? DefaultGasEstimates.DEFAULT_GAS_IBC;
+      const defaultNonIbcGasEstimate =
+        (defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER) *
+        (selectedToken && isCW20Tx(selectedToken) ? 2 : 1);
+
+      setGasEstimate(isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
       const inputAmountNumber = new BigNumber(inputAmount);
 
       if (
@@ -340,19 +384,24 @@ export function useSendModule(): SendModuleType {
       token = isEthAddress(token) ? `erc20/${token}` : token;
       const amountOfCoins = coin(normalizedAmount, token);
 
-      const defaultIbcGasEstimate =
-        defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ?? DefaultGasEstimates.DEFAULT_GAS_IBC;
-      const defaultNonIbcGasEstimate =
-        (defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER) *
-        (selectedToken && isCW20Tx(selectedToken) ? 2 : 1);
-
-      setGasEstimate(isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
-
       const channelId = customIbcChannelId ?? ibcChannelId ?? '';
 
       try {
-        const fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom);
+        if (isEthAddress(selectedAddress.address) && activeChain === 'seiDevnet') {
+          try {
+            const gasUsed = await SeiEvmTx.SimulateTransaction(
+              selectedAddress.address ?? '',
+              inputAmountNumber.toString(),
+            );
+            setGasEstimate(gasUsed);
+          } catch (_) {
+            setGasEstimate(ARCTICE_EVM_GAS_LIMIT);
+          }
 
+          return;
+        }
+
+        const fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom);
         const { gasUsed } = isIBCTransfer
           ? await simulateIbcTransfer(
               lcdUrl ?? '',
@@ -417,6 +466,10 @@ export function useSendModule(): SendModuleType {
     addressError,
     amountError,
     setAddressError,
+    addressWarning,
+    setAddressWarning,
+    gasError,
+    setGasError,
     setAmountError,
     isIBCTransfer,
     sendDisabled,
@@ -427,5 +480,6 @@ export function useSendModule(): SendModuleType {
     clearTxError,
     customIbcChannelId,
     setCustomIbcChannelId,
+    confirmSendEth,
   } as const;
 }

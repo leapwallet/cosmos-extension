@@ -9,14 +9,75 @@ const { DeleteSourceMapsPlugin } = require('webpack-delete-sourcemaps-plugin')
 const { ESBuildMinifyPlugin } = require('esbuild-loader')
 const fs = require('fs')
 
-const defaultEnvFileName =
-  process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development'
+const buildTypes = {
+  production: {
+    type: 'production',
+    defaultEnvFile: '.env.production',
+    compassEnvFile: '.env.production.compass',
+    outDirPath: 'builds',
+    manifestData: {
+      leap: {
+        name: 'Leap Cosmos Wallet',
+        description: 'A crypto wallet for Cosmos blockchains.',
+      },
+      compass: {
+        name: 'Compass Wallet for Sei',
+        description: 'A crypto wallet for Sei Blockchain, brought to you by the Leap Wallet team.',
+      },
+    },
+  },
+  canary: {
+    type: 'canary',
+    defaultEnvFile: '.env.canary',
+    compassEnvFile: '.env.canary.compass',
+    outDirPath: 'canary-builds',
+    manifestData: {
+      leap: {
+        name: 'Leap Cosmos Wallet CANARY BUILD',
+        description:
+          'THIS IS THE CANARY DISTRIBUTION OF THE LEAP COSMOS  EXTENSION, INTENDED FOR DEVELOPERS.',
+      },
+      compass: {
+        name: 'Compass CANARY BUILD',
+        description:
+          'THIS IS THE CANARY DISTRIBUTION OF THE COMPASS EXTENSION, INTENDED FOR DEVELOPERS.',
+      },
+    },
+  },
+  development: {
+    type: 'development',
+    defaultEnvFile: '.env.development',
+    compassEnvFile: '.env.development.compass',
+    manifestData: {
+      leap: {
+        name: 'Leap Cosmos Wallet DEVELOPMENT BUILD',
+        description:
+          'THIS IS THE DEVELOPMENT DISTRIBUTION OF THE LEAP COSMOS  EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.',
+      },
+      compass: {
+        name: 'Compass DEVELOPMENT BUILD',
+        description:
+          'THIS IS THE DEVELOPMENT DISTRIBUTION OF THE COMPASS EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.',
+      },
+    },
+  },
+}
 
-const compassEnvFileName =
-  process.env.NODE_ENV === 'production' ? '.env.production.compass' : '.env.development.compass'
+const buildType = buildTypes[process.env.NODE_ENV]
+const isProdBuild = buildType.type === 'production'
+const isCanaryBuild = buildType.type === 'canary'
+const isDevelopmentBuild = buildType.type === 'development'
+const isCompassBuild = process.env.APP && process.env.APP.includes('compass')
 
-const isProdBuild = process.env.NODE_ENV === 'production'
-const isCompassBuild = process.env.APP === 'compass'
+const defaultEnvFileName = buildType.defaultEnvFile
+
+const compassEnvFileName = buildType.compassEnvFile
+
+let publicDir = isCompassBuild ? 'public/compass' : 'public/leap-cosmos'
+
+if (isCanaryBuild && isCompassBuild) {
+  publicDir = 'public/compass-canary'
+}
 
 const defaultEnvFilePath = path.join(__dirname, defaultEnvFileName)
 const appEnvFilePath = path.join(
@@ -110,13 +171,13 @@ const base_config = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: isCompassBuild ? './public/compass/index.html' : './public/leap-cosmos/index.html',
+      template: `./${publicDir}/index.html`,
       chunks: ['index'],
     }),
     new CopyPlugin({
       patterns: [
         {
-          from: isCompassBuild ? 'public/compass' : 'public/leap-cosmos',
+          from: publicDir,
           to: '.',
           filter: (filepath) => !filepath.endsWith('index.html'),
         },
@@ -165,25 +226,25 @@ module.exports = (env, argv) => {
   let config
 
   const staging = env?.staging === 'true'
+  const canary = env?.canary === 'true'
 
   const baseManifest = fs.readFileSync(path.join(__dirname, 'public/base_manifest.json'), 'utf-8')
 
   // Set values based on the --env.name flag provided in the build command
-  let name, description, publicPath
+  let name, description
+
   if (isCompassBuild) {
-    name = 'Compass Wallet for Sei'
-    description = 'A crypto wallet for Sei Blockchain, brought to you by the Leap Wallet team.'
-    publicPath = 'public/compass'
+    name = buildType.manifestData.compass.name
+    description = buildType.manifestData.compass.description
   } else {
-    name = 'Leap Cosmos Wallet'
-    description = 'A crypto wallet for Cosmos blockchains.'
-    publicPath = 'public/leap-cosmos'
+    name = buildType.manifestData.leap.name
+    description = buildType.manifestData.leap.description
   }
 
   const manifest = baseManifest.replace('__NAME__', name).replace('__DESCRIPTION__', description)
   const manifestObj = JSON.parse(manifest)
   // Write manifest file
-  fs.writeFileSync(path.join(__dirname, `${publicPath}/manifest.json`), manifest)
+  fs.writeFileSync(path.join(__dirname, `./${publicDir}/manifest.json`), manifest)
 
   if (staging) {
     config = Object.assign({}, base_config, {
@@ -213,7 +274,7 @@ module.exports = (env, argv) => {
       },
     })
   } else {
-    if (!isProdBuild) {
+    if (isDevelopmentBuild) {
       config = Object.assign({}, base_config, {
         mode: 'development',
         devtool: 'inline-source-map',
@@ -230,13 +291,15 @@ module.exports = (env, argv) => {
           }),
         ],
       })
-    } else if (isProdBuild) {
+    } else if (isProdBuild || isCanaryBuild) {
       config = Object.assign({}, base_config, {
         mode: 'production',
         output: {
           path: path.join(
             __dirname,
-            isCompassBuild ? 'builds/compass-build' : 'builds/cosmos-build',
+            isCompassBuild
+              ? `${buildType.outDirPath}/compass-build`
+              : `${buildType.outDirPath}/cosmos-build`,
           ),
           filename: '[name].js',
           clean: true,
@@ -252,7 +315,9 @@ module.exports = (env, argv) => {
           new SentryWebpackPlugin({
             org: appEnvConfig.SENTRY_ORG,
             project: appEnvConfig.SENTRY_PROJECT,
-            include: isCompassBuild ? './builds/compass-build' : './builds/cosmos-build',
+            include: isCompassBuild
+              ? `./${buildType.outDirPath}/compass-build`
+              : `./${buildType.outDirPath}/cosmos-build`,
             // Auth tokens can be obtained from https://sentry.io/settings/account/api/auth-tokens/
             // and needs the `project:releases` and `org:read` scopes
             token: envConfig.SENTRY_AUTH_TOKEN,

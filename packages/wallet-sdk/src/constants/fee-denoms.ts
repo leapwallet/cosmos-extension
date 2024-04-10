@@ -91,6 +91,7 @@ export const feeDenoms: FeeDenoms = {
     pryzmtestnet: denoms.upryzm,
     thorchain: denoms.rune,
     odin: denoms.loki,
+    saga: denoms.usaga,
   },
   testnet: {
     akash: denoms.uakt,
@@ -172,5 +173,6 @@ export const feeDenoms: FeeDenoms = {
     pryzmtestnet: denoms.upryzm,
     thorchain: denoms.rune,
     odin: denoms.loki,
+    saga: denoms.usaga,
   },
 };

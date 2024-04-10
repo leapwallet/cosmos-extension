@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  Proposal,
   useActiveChain,
   useGetChains,
   useGetNtrnProposals,
@@ -11,7 +11,7 @@ import { ComingSoon } from 'components/coming-soon'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 
 import { NtrnProposalDetails, NtrnProposalList, NtrnProposalStatus } from './neutron'
 import ProposalDetails from './ProposalDetails'
@@ -50,7 +50,6 @@ function GeneralProposals() {
 
 function NeutronProposals() {
   const [selectedProposal, setSelectedProposal] = useState<string | undefined>()
-  const [allProposalsList, setAllProposalsList] = useState<Proposal[]>([])
   const { data: proposalsList, status, shouldPreferFallback } = useGetNtrnProposals()
 
   usePerformanceMonitor({

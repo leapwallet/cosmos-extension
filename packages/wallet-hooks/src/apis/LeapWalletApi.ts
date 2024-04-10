@@ -365,6 +365,7 @@ export namespace LeapWalletApi {
       ['union Testnet']: 'UNION' as CosmosBlockchain,
       ['Cronos POS Chain']: 'CRYPTO_ORG_CHAIN' as CosmosBlockchain,
       ['Haqq Network']: 'HAQQ_NETWORK' as CosmosBlockchain,
+      saga: 'SAGA' as CosmosBlockchain,
     };
     return blockchains[activeChain] ?? activeChain?.toUpperCase();
   }

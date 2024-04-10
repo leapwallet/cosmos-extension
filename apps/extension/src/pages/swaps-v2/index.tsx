@@ -13,7 +13,7 @@ import { SwapVert } from 'images/misc'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
-import { isLedgerEnabled, isLedgerEnabledChainId } from 'utils/isLedgerEnabled'
+import { isLedgerEnabledChainId } from 'utils/isLedgerEnabled'
 
 import {
   FeesView,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { coin } from '@cosmjs/proto-signing'
 import { TxClient as InjectiveTxClient } from '@injectivelabs/sdk-ts'
 import {
@@ -214,7 +215,7 @@ export const useExecuteSkipTx = () => {
         try {
           const submitResponse = await tx.submitTx(
             String(messageChain.chainId),
-            txBytesString! as string,
+            txBytesString as string,
           )
           success = submitResponse.success
           if (!success) throw new Error('SubmitTx Failed')
@@ -222,7 +223,7 @@ export const useExecuteSkipTx = () => {
         } catch (e: any) {
           if (e.message === 'SubmitTx Failed') {
             const { transactionHash, code, codespace } = await tx.broadcastTx(
-              txBytesString! as string,
+              txBytesString as string,
             )
             txHash = transactionHash
             if (code !== 0) {
@@ -305,6 +306,7 @@ export const useExecuteSkipTx = () => {
           feeQuantity: fee?.amount[0]?.amount,
         })
 
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         setPendingTx(pendingTx)
 

@@ -8,5 +8,6 @@ export * from './gas-adjustments';
 export * from './gas-price-steps';
 export * from './native-fee-denoms';
 export * from './networks';
+export * from './sei-evm';
 export * from './snip20-denoms';
 export * from './staking-denoms';

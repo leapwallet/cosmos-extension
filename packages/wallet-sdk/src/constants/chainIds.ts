@@ -162,4 +162,5 @@ export const chainIdToChain: Record<string, string> = {
   'indigo-1': 'pryzmtestnet',
   'union-testnet-6': 'uniontestnet',
   'blumbus_111-1': 'dymension',
+  'ssc-1': 'saga',
 };

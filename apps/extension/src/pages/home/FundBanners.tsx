@@ -2,7 +2,6 @@ import { useActiveWallet, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wa
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
-import { LEDGER_DISABLED_COINTYPES } from 'config/config'
 import { useAddress } from 'hooks/wallet/useAddress'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'

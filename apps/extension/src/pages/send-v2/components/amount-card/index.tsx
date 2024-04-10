@@ -1,16 +1,20 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
   formatTokenAmount,
   sliceWord,
   Token,
   useformatCurrency,
   useGasAdjustmentForChain,
+  useGetSeiEvmBalance,
   useGetTokenBalances,
   useIsCW20Tx,
+  useSeiLinkedAddressState,
   useSnipGetSnip20TokenBalances,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { isValidAddressWithPrefix, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import { BigNumber } from 'bignumber.js'
+import classNames from 'classnames'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import { calculateFeeAmount } from 'components/gas-price-options'
 import Text from 'components/text'
@@ -20,9 +24,10 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useLocation } from 'react-router'
 import { imgOnError } from 'utils/imgOnError'
@@ -40,8 +45,12 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
 
   const [showTokenSelectSheet, setShowTokenSelectSheet] = useState<boolean>(false)
   const [isMaxClicked, setIsMaxClicked] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assetChain, setAssetChain] = useState<any>(null)
 
+  const getWallet = Wallet.useGetWallet()
+  const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+  const { data: seiEvmBalance, status: seiEvmStatus } = useGetSeiEvmBalance()
   const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenBalances()
   const { snip20Tokens } = useSnipGetSnip20TokenBalances()
 
@@ -69,11 +78,14 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
     fee,
     feeDenom,
     sameChain,
+    setFeeDenom,
+    addressWarning,
     transferData,
     pfmEnabled,
     setPfmEnabled,
     setSelectedAddress,
     isIbcUnwindingDisabled,
+    setGasError,
   } = useSendContext()
   const gasAdjustment = useGasAdjustmentForChain()
 
@@ -87,29 +99,82 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   )
 
   const assets = useMemo(() => {
+    let _assets = allAssets
+
     if (snip20Tokens && isSecretChainTargetAddress) {
-      return allAssets.concat(snip20Tokens)
+      _assets = [..._assets, ...snip20Tokens]
     }
-    return allAssets
-  }, [allAssets, isSecretChainTargetAddress, snip20Tokens])
+
+    if (!['done', 'unknown'].includes(addressLinkState)) {
+      _assets = [..._assets, ...(seiEvmBalance?.seiEvmBalance ?? [])].filter((token) =>
+        new BigNumber(token.amount).gt(0),
+      )
+    }
+
+    return _assets
+  }, [
+    addressLinkState,
+    allAssets,
+    isSecretChainTargetAddress,
+    seiEvmBalance?.seiEvmBalance,
+    snip20Tokens,
+  ])
+
+  const isTokenStatusSuccess = useMemo(() => {
+    let status = nativeTokensStatus === 'success' && s3IbcTokensStatus === 'success'
+
+    if (!['done', 'unknown'].includes(addressLinkState)) {
+      status = status && seiEvmStatus === 'success'
+    }
+
+    return status
+  }, [addressLinkState, nativeTokensStatus, s3IbcTokensStatus, seiEvmStatus])
+
+  const updateSelectedToken = useCallback(
+    (token) => {
+      setSelectedToken(token)
+
+      if (token?.isEvm) {
+        setFeeDenom({
+          coinMinimalDenom: token.coinMinimalDenom,
+          coinDecimals: token.coinDecimals ?? 6,
+          coinDenom: token.symbol,
+          icon: token.img,
+          coinGeckoId: token.coinGeckoId ?? '',
+          chain: token.chain ?? '',
+        })
+      }
+    },
+    [setFeeDenom, setSelectedToken],
+  )
 
   useEffect(() => {
     if (!selectedToken && !assetCoinDenom) {
       if (locationState && (locationState as Token).coinMinimalDenom) {
-        setSelectedToken(locationState as Token)
+        const token = locationState as Token
+        updateSelectedToken(token)
       } else if (assets.length > 0) {
         const tokensWithBalance = assets.filter((token) => new BigNumber(token.amount).gt(0))
-        setSelectedToken(tokensWithBalance[0])
+        const token = tokensWithBalance[0] as Token
+        updateSelectedToken(token)
       }
     }
   }, [
     assets,
-    s3IbcTokensStatus,
     locationState,
-    nativeTokensStatus,
+    isTokenStatusSuccess,
     selectedToken,
-    setSelectedToken,
+    updateSelectedToken,
+    assetCoinDenom,
   ])
+
+  useEffect(() => {
+    if (addressLinkState === 'done' && selectedToken && selectedToken?.isEvm) {
+      const tokensWithBalance = assets.filter((token) => new BigNumber(token.amount).gt(0))
+      const token = tokensWithBalance[0] as Token
+      updateSelectedToken(token)
+    }
+  }, [addressLinkState, assets, selectedToken, updateSelectedToken])
 
   useEffect(() => {
     if (assetCoinDenom) {
@@ -117,11 +182,17 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
         assets.find((asset) => asset.ibcDenom === assetCoinDenom) ||
         assets.find((asset) => asset.coinMinimalDenom === assetCoinDenom) ||
         null
-      setSelectedToken(tokenFromParams)
+
+      updateSelectedToken(tokenFromParams)
     }
-  }, [assetCoinDenom, activeChain])
+  }, [assetCoinDenom, activeChain, assets, updateSelectedToken])
 
   useEffect(() => {
+    if (addressWarning) {
+      setInputAmount('0.0001')
+      return
+    }
+
     const isNativeToken =
       !!chainInfos[activeChain].nativeDenoms[selectedToken?.coinMinimalDenom ?? '']
 
@@ -172,7 +243,11 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
         return 'Insufficient balance'
       }
 
-      const feeDenomValue = allAssets.find((asset) => {
+      const feeDenomValue = assets.find((asset) => {
+        if (selectedToken?.isEvm && asset?.isEvm) {
+          return asset.coinMinimalDenom === feeDenom?.coinMinimalDenom
+        }
+
         return (
           asset.ibcDenom === feeDenom.coinMinimalDenom ||
           asset.coinMinimalDenom === feeDenom.coinMinimalDenom
@@ -199,7 +274,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    allAssets,
+    assets,
     fee?.amount,
     feeDenom?.coinMinimalDenom,
     inputAmount,
@@ -229,10 +304,20 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
       setAssetChain(null)
       setPfmEnabled(true)
     }
+
     return () => {
       setPfmEnabled(true)
     }
-  }, [skipSupportedChains, transferData])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    skipSupportedChains,
+    transferData?.isSkipTransfer,
+    // @ts-ignore
+    transferData?.routeResponse,
+    // @ts-ignore
+    transferData?.messages,
+  ])
 
   // getting the wallet address from the assets for auto fill
   const wallet = useActiveWallet().activeWallet
@@ -255,12 +340,18 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   }
 
   return (
-    <motion.div className='card-container' style={{ overflow: 'hidden' }}>
+    <motion.div
+      className={classNames('card-container', {
+        'opacity-50 pointer-events-none': !!addressWarning,
+      })}
+      style={{ overflow: 'hidden' }}
+    >
       <div className='flex w-full items-center justify-between mb-3'>
         <Text size='sm' className='text-gray-600 dark:text-gray-200 font-bold'>
           Amount to Send
         </Text>
-        {nativeTokensStatus === 'success' ? (
+
+        {isTokenStatusSuccess ? (
           selectedToken && (
             <button
               className='bg-gray-50 dark:bg-gray-800 rounded-full flex items-center py-2 pl-3 pr-2 cursor-pointer'
@@ -286,7 +377,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
         )}
       </div>
 
-      {nativeTokensStatus === 'success' ? (
+      {isTokenStatusSuccess ? (
         <>
           {selectedToken ? (
             <>
@@ -374,7 +465,8 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
           setShowTokenSelectSheet(false)
         }}
         onTokenSelect={(token) => {
-          setSelectedToken(token)
+          updateSelectedToken(token)
+          setGasError('')
           setInputAmount('')
           setIsMaxClicked(false)
           inputRef.current?.focus()

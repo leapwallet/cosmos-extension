@@ -29,6 +29,8 @@ type TokenCardProps = {
   readonly size?: 'sm' | 'md' | 'lg'
   readonly ibcChainInfo?: IbcChainInfo | undefined
   readonly hasToShowIbcTag?: boolean
+  readonly hasToShowEvmTag?: boolean
+  readonly isEvm?: boolean
   readonly hideAmount?: boolean
 }
 
@@ -46,6 +48,8 @@ export function TokenCard({
   iconSrc,
   size,
   hasToShowIbcTag,
+  hasToShowEvmTag,
+  isEvm,
   hideAmount = false,
 }: TokenCardProps) {
   const [formatCurrency] = useFormatCurrency()
@@ -75,6 +79,7 @@ export function TokenCard({
           ) : null}
 
           {ibcChainInfo && hasToShowIbcTag ? <Badge text='IBC' /> : null}
+          {isEvm && hasToShowEvmTag ? <Badge text='EVM' /> : null}
         </div>
       }
       title2={

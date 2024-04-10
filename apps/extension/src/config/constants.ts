@@ -33,4 +33,4 @@ export const ETHERMINT_CHAINS = [
 
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']
 
-export const SHOW_ETH_ADDRESS_CHAINS = ['dymension']
+export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'seiDevnet']

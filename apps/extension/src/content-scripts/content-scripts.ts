@@ -4,6 +4,8 @@ import PortStream from 'extension-port-stream'
 import { DEBUG } from 'utils/debug'
 import browser from 'webextension-polyfill'
 
+import { isCompassWallet } from '../utils/isCompassWallet'
+
 const WORKER_RESET_INTERVAL = 1_000
 const WORKER_RESET_MESSAGE = 'WORKER_RESET_MESSAGE'
 
@@ -136,7 +138,7 @@ function setupExtensionStream() {
 }
 
 function setUpPageStreams() {
-  const identifier = process.env.APP === 'compass' ? 'compass' : 'leap'
+  const identifier = isCompassWallet() ? 'compass' : 'leap'
   pageStream = new WindowPostMessageStream({
     name: `${identifier}:content`,
     target: `${identifier}:inpage`,

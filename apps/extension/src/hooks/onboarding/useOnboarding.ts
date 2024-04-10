@@ -83,6 +83,24 @@ export function useOnboarding() {
     setWalletAccounts(walletAccounts)
   }
 
+  function mergeAddresses(addressesNew: Addresses, addressesOriginal: Addresses) {
+    const addressIndexes = Object.keys(addressesOriginal).map((addressIndex) =>
+      parseInt(addressIndex),
+    )
+    const updatedAddresses = { ...addressesOriginal }
+    for (const addressIndex of addressIndexes) {
+      if (updatedAddresses[addressIndex]) {
+        updatedAddresses[addressIndex] = {
+          ...updatedAddresses[addressIndex],
+          ...addressesNew[addressIndex],
+        }
+      } else {
+        updatedAddresses[addressIndex] = addressesNew[addressIndex]
+      }
+    }
+    return updatedAddresses
+  }
+
   const getEvmLedgerAccountDetails = async () => {
     const useEvmApp = true
     const defaultChainCosmos = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
@@ -94,15 +112,7 @@ export function useOnboarding() {
       LEDGER_ENABLED_EVM_CHAINS,
     )
 
-    // setWalletAccounts(
-    //   primaryChainAccount.map((account, index) => ({
-    //     address: account.address,
-    //     pubkey: account.pubkey,
-    //     index,
-    //   })),
-    // )
     const newAddresses: Addresses = {}
-
     for (const [chain, chainAddresses] of Object.entries(chainWiseAddresses)) {
       let index = 0
       for (const address of chainAddresses) {
@@ -120,24 +130,6 @@ export function useOnboarding() {
     } else {
       setAddresses(newAddresses)
     }
-  }
-
-  function mergeAddresses(addressesNew: Addresses, addressesOriginal: Addresses) {
-    const addressIndexes = Object.keys(addressesOriginal).map((addressIndex) =>
-      parseInt(addressIndex),
-    )
-    const updatedAddresses = { ...addressesOriginal }
-    for (const addressIndex of addressIndexes) {
-      if (updatedAddresses[addressIndex]) {
-        updatedAddresses[addressIndex] = {
-          ...updatedAddresses[addressIndex],
-          ...addressesNew[addressIndex],
-        }
-      } else {
-        updatedAddresses[addressIndex] = addressesNew[addressIndex]
-      }
-    }
-    return updatedAddresses
   }
 
   const getLedgerAccountDetails = async (useEvmApp: boolean) => {

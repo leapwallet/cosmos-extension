@@ -17,10 +17,13 @@ export const FeesView: React.FC = () => {
     gasOption,
     setGasOption,
     setFeeDenom,
+    selectedToken,
+    gasError,
+    setGasError,
+    addressWarning,
   } = useSendContext()
   const defaultGasPrice = useDefaultGasPrice()
 
-  const [gasError, setGasError] = useState<string | null>(null)
   const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
     option: gasOption,
     gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
@@ -63,11 +66,13 @@ export const FeesView: React.FC = () => {
         onGasPriceOptionChange={handleGasPriceOptionChange}
         error={gasError}
         setError={setGasError}
+        isSelectedTokenEvm={selectedToken?.isEvm}
       >
-        <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
+        {addressWarning ? null : <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />}
         {gasError && !showFeesSettingSheet ? (
           <p className='text-red-300 text-sm font-medium mt-2 text-center'>{gasError}</p>
         ) : null}
+
         <FeesSettingsSheet
           showFeesSettingSheet={showFeesSettingSheet}
           onClose={onClose}

@@ -12,7 +12,7 @@ export type ClickableIconProps = ComponentPropsWithoutRef<'button'> & {
 }
 
 const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
-  ({ type, image, darker, disabled, ...rest }, ref) => {
+  ({ type, image, disabled, ...rest }, ref) => {
     const { theme } = useTheme()
     const isDark = theme === ThemeName.DARK
 

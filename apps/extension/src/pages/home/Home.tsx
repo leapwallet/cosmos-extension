@@ -1,7 +1,9 @@
 import {
   SecretToken,
   useGetAsteroidTokens,
+  useGetSeiEvmBalance,
   useGetTokenBalances,
+  useSeiLinkedAddressState,
   useSnipDenomsStore,
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
@@ -36,6 +38,7 @@ import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import React, { useMemo, useState } from 'react'
@@ -131,24 +134,54 @@ export default function Home() {
     nativeTokensStatus,
     cw20TokensStatus,
     erc20TokensStatus,
+    refetchBalances,
   } = useGetTokenBalances()
 
-  const { status: asteroidsTokensStatus, data } = useGetAsteroidTokens()
+  const getWallet = Wallet.useGetWallet()
+  const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+  const { data: seiEvmBalance, status: seiEvmStatus } = useGetSeiEvmBalance()
+  const { status: asteroidsTokensStatus, data: asteroidTokenBalance } = useGetAsteroidTokens()
+
   const allAssets = useMemo(() => {
-    return [..._allAssets, ...(data?.asteroidTokens ?? [])]
-  }, [_allAssets, data?.asteroidTokens])
+    let allAssets = [..._allAssets, ...(asteroidTokenBalance?.asteroidTokens ?? [])]
+
+    if (!['done', 'unknown'].includes(addressLinkState)) {
+      allAssets = [...allAssets, ...(seiEvmBalance?.seiEvmBalance ?? [])]
+    }
+
+    return allAssets
+  }, [
+    _allAssets,
+    addressLinkState,
+    asteroidTokenBalance?.asteroidTokens,
+    seiEvmBalance?.seiEvmBalance,
+  ])
 
   const totalCurrencyInPreferredFiatValue = useMemo(() => {
-    return _allAssetsCurrencyInFiat.plus(data?.currencyInFiatValue ?? 0)
-  }, [_allAssetsCurrencyInFiat, data?.currencyInFiatValue])
+    let totalCurrencyInPreferredFiatValue = _allAssetsCurrencyInFiat.plus(
+      asteroidTokenBalance?.currencyInFiatValue ?? 0,
+    )
+
+    if (!['done', 'unknown'].includes(addressLinkState)) {
+      totalCurrencyInPreferredFiatValue = totalCurrencyInPreferredFiatValue.plus(
+        seiEvmBalance?.currencyInFiatValue ?? 0,
+      )
+    }
+
+    return totalCurrencyInPreferredFiatValue
+  }, [
+    _allAssetsCurrencyInFiat,
+    addressLinkState,
+    asteroidTokenBalance?.currencyInFiatValue,
+    seiEvmBalance?.currencyInFiatValue,
+  ])
 
   const activeChain = useActiveChain()
   const [showCopyAddressSheet, setShowCopyAddressSheet] = useState(false)
   const { activeWallet } = useActiveWallet()
 
-  const chain: ChainInfoProp = chainInfos[activeChain]
-
   const isTestnet = useSelectedNetwork() === 'testnet'
+  const chain: ChainInfoProp = chainInfos[activeChain]
   const walletAddresses = useGetWalletAddresses()
 
   const walletAvatar = useMemo(() => {
@@ -170,7 +203,8 @@ export default function Home() {
       s3IbcTokensStatus !== 'success' &&
       nonS3IbcTokensStatus !== 'success' &&
       nativeTokensStatus !== 'success' &&
-      asteroidsTokensStatus !== 'success'
+      asteroidsTokensStatus !== 'success' &&
+      seiEvmStatus !== 'success'
         ? 'loading'
         : ''
 
@@ -180,7 +214,8 @@ export default function Home() {
       s3IbcTokensStatus === 'success' &&
       nonS3IbcTokensStatus === 'success' &&
       nativeTokensStatus === 'success' &&
-      asteroidsTokensStatus === 'success'
+      asteroidsTokensStatus === 'success' &&
+      seiEvmStatus === 'success'
         ? 'success'
         : status
 
@@ -190,7 +225,8 @@ export default function Home() {
       s3IbcTokensStatus === 'error' &&
       nonS3IbcTokensStatus === 'error' &&
       nativeTokensStatus === 'error' &&
-      asteroidsTokensStatus === 'error'
+      asteroidsTokensStatus === 'error' &&
+      seiEvmStatus === 'error'
         ? 'error'
         : status
 
@@ -202,6 +238,7 @@ export default function Home() {
     nativeTokensStatus,
     nonS3IbcTokensStatus,
     s3IbcTokensStatus,
+    seiEvmStatus,
   ])
 
   usePerformanceMonitor({
@@ -257,7 +294,8 @@ export default function Home() {
     s3IbcTokensStatus !== 'success' &&
     nonS3IbcTokensStatus !== 'success' &&
     nativeTokensStatus !== 'success' &&
-    asteroidsTokensStatus !== 'success'
+    asteroidsTokensStatus !== 'success' &&
+    seiEvmStatus !== 'success'
 
   const disabled =
     activeWallet.walletType === WALLETTYPE.LEDGER &&
@@ -275,7 +313,8 @@ export default function Home() {
     cw20TokensStatus === 'loading' ||
     s3IbcTokensStatus === 'loading' ||
     nonS3IbcTokensStatus === 'loading' ||
-    asteroidsTokensStatus === 'loading'
+    asteroidsTokensStatus === 'loading' ||
+    seiEvmStatus === 'loading'
 
   const activeChainInfo = chainInfos[activeChain]
 
@@ -330,7 +369,7 @@ export default function Home() {
                 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={isCompassWallet() ? undefined : () => setShowChainSelector(true)}
+            onImgClick={() => setShowChainSelector(true)}
             title={
               <Buttons.Wallet
                 brandLogo={
@@ -602,6 +641,7 @@ export default function Home() {
               ) : null}
               {erc20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
               {asteroidsTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
+              {seiEvmStatus !== 'success' ? <TokenCardSkeleton /> : null}
 
               {!atLeastOneTokenIsLoading && cw20TokensStatus === 'success' && (
                 <div
@@ -660,7 +700,12 @@ export default function Home() {
       />
       <CopyAddressSheet
         isVisible={showCopyAddressSheet}
-        onClose={() => setShowCopyAddressSheet(false)}
+        onClose={(refetch?: boolean) => {
+          setShowCopyAddressSheet(false)
+          if (refetch) {
+            refetchBalances()
+          }
+        }}
         walletAddresses={walletAddresses}
       />
       {!connectEVMLedger ? (

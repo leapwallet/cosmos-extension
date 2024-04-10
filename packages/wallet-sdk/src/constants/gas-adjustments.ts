@@ -85,4 +85,5 @@ export const gasAdjustments: GasAdjustments = {
   pryzmtestnet: 1.5,
   thorchain: 1.5,
   odin: 1.5,
+  saga: 1.5,
 };

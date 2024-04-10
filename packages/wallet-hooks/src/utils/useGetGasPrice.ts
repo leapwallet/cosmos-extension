@@ -36,10 +36,10 @@ async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: strin
   const seiGasJSON = 'https://raw.githubusercontent.com/sei-protocol/chain-registry/main/gas.json';
   const { data } = await axios.get(seiGasJSON);
 
-  const minGas = data[chainId]?.min_gas_price;
+  const minGas = data[chainId]?.min_gas_price ?? 0;
   const defaultGasPrice = gasPriceSteps[chainKey]?.low;
 
-  return minGas ?? defaultGasPrice;
+  return Math.max(minGas, defaultGasPrice);
 }
 
 async function getOsmosisGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {

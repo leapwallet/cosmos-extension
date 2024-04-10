@@ -1,23 +1,26 @@
-import { useActiveChain, useAddress, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
-import { getEthereumAddress } from '@leapwallet/cosmos-wallet-sdk'
+import { useActiveChain, useAddress, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { getEthereumAddress, getSeiEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { SHOW_ETH_ADDRESS_CHAINS } from 'config/constants'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useMemo } from 'react'
-import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 export function useGetWalletAddresses() {
+  const { activeWallet } = useActiveWallet()
   const activeChain = useActiveChain()
   const address = useAddress()
-  const { chains } = useChainsStore()
 
   return useMemo(() => {
     if (
-      address &&
-      isLedgerEnabled(activeChain, chains?.[activeChain]?.bip44?.coinType) &&
+      activeWallet &&
+      activeWallet?.walletType !== WALLETTYPE.LEDGER &&
       SHOW_ETH_ADDRESS_CHAINS.includes(activeChain)
     ) {
-      return [getEthereumAddress(address), address]
-    }
+      const seiEvmAddress = getSeiEvmAddressToShow(activeWallet.pubKeys?.['seiDevnet'])
+      const ethereumAddress =
+        activeChain === 'seiDevnet' ? seiEvmAddress : getEthereumAddress(address)
 
+      return [ethereumAddress, address]
+    }
     return [address]
-  }, [activeChain, address, chains])
+  }, [activeChain, address, activeWallet])
 }

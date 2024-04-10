@@ -11,7 +11,6 @@ import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import { createSentryConfig } from '@leapwallet/sentry-config/dist/extension'
 import * as Sentry from '@sentry/react'
 import { BrowserTracing } from '@sentry/tracing'
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { QueryClientProvider } from '@tanstack/react-query'
 import axios from 'axios'
 import ErrorBoundaryFallback from 'components/error-boundary-fallback'
@@ -30,6 +29,7 @@ import browser from 'webextension-polyfill'
 
 import App from './App'
 import { queryClient } from './query-client'
+import { isCompassWallet } from './utils/isCompassWallet'
 import { getStorageAdapter } from './utils/storageAdapter'
 
 axios.defaults.headers.common['x-requested-with'] = 'leap-client'
@@ -39,7 +39,7 @@ setLeapapiBaseUrl(process.env.LEAP_WALLET_BACKEND_API_URL as string)
 setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
 
 // setAppName is for tx logging
-setAppName(process.env.APP === 'compass' ? APP_NAME.Compass : APP_NAME.Cosmos)
+setAppName(isCompassWallet() ? APP_NAME.Compass : APP_NAME.Cosmos)
 const storageAdapter = getStorageAdapter()
 setStorageLayer(storageAdapter)
 
@@ -67,34 +67,33 @@ initCrypto()
 //    },
 //  },
 //})
-if (process.env.SENTRY_DSN) {
-  Sentry.init(
-    createSentryConfig({
-      dsn: process.env.SENTRY_DSN,
-      environment: `${process.env.NODE_ENV}`,
-      ignoreErrors: [
-        'AxiosError: Network Error',
-        'AxiosError: Request aborted',
-        'AbortError: Aborted',
-      ],
-      release: `${browser.runtime.getManifest().version}`,
-      integrations: [
-        new BrowserTracing({
-          routingInstrumentation: Sentry.reactRouterV6Instrumentation(
-            React.useEffect,
-            useLocation,
-            useNavigationType,
-            createRoutesFromChildren,
-            matchRoutes,
-          ),
-        }),
-      ],
-      sampleRate: 0.3,
-      tracesSampleRate: 0.1,
-      enabled: process.env.NODE_ENV === 'production',
-    }),
-  )
-}
+
+Sentry.init(
+  createSentryConfig({
+    dsn: process.env.SENTRY_DSN,
+    environment: `${process.env.NODE_ENV}`,
+    ignoreErrors: [
+      'AxiosError: Network Error',
+      'AxiosError: Request aborted',
+      'AbortError: Aborted',
+    ],
+    release: `${browser.runtime.getManifest().version}`,
+    integrations: [
+      new BrowserTracing({
+        routingInstrumentation: Sentry.reactRouterV6Instrumentation(
+          React.useEffect,
+          useLocation,
+          useNavigationType,
+          createRoutesFromChildren,
+          matchRoutes,
+        ),
+      }),
+    ],
+    sampleRate: 0.3,
+    tracesSampleRate: 0.1,
+    enabled: process.env.NODE_ENV === 'production',
+  }),
+)
 
 mixpanel.init(process.env.MIXPANEL_TOKEN as string, {
   ip: false,

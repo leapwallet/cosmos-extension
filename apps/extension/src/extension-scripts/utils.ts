@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { getChains } from '@leapwallet/cosmos-wallet-hooks'
-import { chainIdToChain, ChainInfo, sleep, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
+import { chainIdToChain, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
 import { MessageTypes } from 'config/message-types'
@@ -116,7 +118,13 @@ export async function checkConnection(chainIds: [string], msg: any) {
 const popupIds: Record<string, number> = {}
 const pendingPromises: Record<string, Promise<browser.Windows.Window>> = {}
 
-type Page = 'approveConnection' | 'suggestChain' | 'sign' | 'add-secret-token' | 'login'
+type Page =
+  | 'approveConnection'
+  | 'suggestChain'
+  | 'sign'
+  | 'signSeiEvm'
+  | 'add-secret-token'
+  | 'login'
 
 async function getPopup() {
   if (popupIds.length === 0) {
@@ -268,7 +276,10 @@ export async function getSeed(password: string) {
   const address = await getWalletAddress('secret-4')
   const storageAdapter = getStorageAdapter()
   initStorage(storageAdapter)
-  const signer = await KeyChain.getSigner(activeWallet.id, password, 'secret', '529')
+  const signer = await KeyChain.getSigner(activeWallet.id, password, {
+    addressPrefix: 'secret',
+    coinType: '529',
+  })
 
   const seed = CryptoJs.SHA256(
     //@ts-ignore
@@ -316,6 +327,8 @@ export function requestEnableAccess(payload: {
   origin: string
   validChainIds: string[]
   payloadId: string
+  ecosystem?: LineType
+  ethMethod?: string
 }) {
   // Store the listener function in a variable so we can remove it later
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -353,11 +366,13 @@ export async function awaitUIResponse(messageType: string) {
 export function requestSignTransaction(payload: any) {
   const listener = (message: any, sender: any) => {
     if (sender.id !== browser.runtime.id) throw new Error('Invalid Sender')
+
     if (message.type === MessageTypes.signingPopupOpen) {
       browser.runtime.sendMessage({ type: MessageTypes.signTransaction, payload })
       browser.runtime.onMessage.removeListener(listener)
     }
   }
+
   browser.runtime.onMessage.addListener(listener)
 }
 
@@ -370,9 +385,11 @@ export async function awaitSigningResponse(messageType: string) {
         } else {
           reject(message.payload.data)
         }
+
         browser.runtime.onMessage.removeListener(listener)
       }
     }
+
     browser.runtime.onMessage.addListener(listener)
   })
 }
