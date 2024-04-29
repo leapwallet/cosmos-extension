@@ -350,9 +350,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'BLD',
     txExplorer: {
       mainnet: {
-        name: 'BigDipper',
-        txUrl: 'https://bigdipper.live/agoric/transactions',
-        accountUrl: 'https://bigdipper.live/agoric/accounts',
+        name: 'Explorers Guru',
+        txUrl: 'https://agoric.explorers.guru/transaction',
+        accountUrl: 'https://agoric.explorers.guru/account',
       },
     },
     bip44: {
@@ -2061,9 +2061,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'LIKE',
     txExplorer: {
       mainnet: {
-        name: 'Big Dipper',
-        txUrl: 'https://likecoin.bigdipper.live/transactions',
-        accountUrl: 'https://likecoin.bigdipper.live/accounts',
+        name: 'Atomscan',
+        txUrl: 'https://atomscan.com/likecoin/transactions',
+        accountUrl: 'https://atomscan.com/likecoin/accounts',
       },
     },
     bip44: {
