@@ -31,7 +31,7 @@ export interface CustomChainsType {
   restTest?: string | undefined;
   chainId: string;
   chainName: string;
-  stakeCurrency: Currency;
+  stakeCurrency?: Currency;
   bip44: {
     coinType: 60 | 118;
   };
@@ -107,7 +107,7 @@ export function formatNewChainInfo(chainInfo: CustomChainsType) {
       primaryColor: '#E18881',
       gradient: 'linear-gradient(180deg, rgba(225, 136, 129, 0.32) 0%, rgba(225, 136, 129, 0) 100%)',
     },
-    enabled: true,
+    enabled: chainInfo.status === 'live',
     beta: true,
     features: chainInfo.features || [],
     apiStatus: chainInfo?.apiStatus,

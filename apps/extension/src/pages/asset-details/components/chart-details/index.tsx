@@ -6,12 +6,12 @@ import {
   sliceWord,
   Token,
   useAssetDetails,
-  useERC20Tokens,
   useFeatureFlags,
   useformatCurrency,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk'
+import { useSkipAssets } from '@leapwallet/elements-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { useQuery as useReactQuery } from '@tanstack/react-query'
 import { BigNumber } from 'bignumber.js'
@@ -25,6 +25,7 @@ import Text from 'components/text'
 import { KADO_BUY_SUPPORT_CHAINS } from 'config/config'
 import { differenceInDays } from 'date-fns'
 import useGetTopCGTokens from 'hooks/explore/useGetTopCGTokens'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -44,16 +45,16 @@ type TokenCTAsProps = {
   isSwapDisabled: boolean
   onReceiveClick: () => void
   onSendClick: () => void
-  onStakeClick: () => void
+  onSwapClick: () => void
   onBuyClick: () => void
   isBuyDisabled: boolean
-  isSendDisabled: boolean
+  isSendDisabled?: boolean
 }
 
 function TokenCTAs({
   onReceiveClick,
   onSendClick,
-  onStakeClick,
+  onSwapClick,
   isSwapDisabled,
   isBuyDisabled,
   isSendDisabled,
@@ -84,7 +85,7 @@ function TokenCTAs({
       <ClickableIcon
         disabled={isSwapDisabled}
         image={{ src: 'swap_horiz', alt: 'Swap' }}
-        onClick={onStakeClick}
+        onClick={onSwapClick}
       />
     </div>
   )
@@ -93,12 +94,18 @@ function TokenCTAs({
 function TokensDetails() {
   const assetType = undefined
   const chainInfos = useChainInfos()
+  const activeChain = useActiveChain()
   const assetsId = useQuery().get('assetName') ?? undefined
   const tokenChain = useQuery().get('tokenChain') ?? undefined
 
   const navigate = useNavigate()
   const { data: cgTokens = [] } = useGetTopCGTokens()
   const { data: featureFlags } = useFeatureFlags()
+
+  const { data: skipAssets } = useSkipAssets((chainInfos?.[activeChain]?.chainId ?? '') as string, {
+    includeCW20Assets: true,
+    includeNoMetadataAssets: false,
+  })
 
   const cgToken = useMemo(() => {
     if (assetType === 'cg') {
@@ -108,13 +115,25 @@ function TokensDetails() {
 
   const state = useLocation().state
   const portfolio: Token = state as Token
+
+  const skipSupportsToken = useMemo(() => {
+    return (
+      skipAssets &&
+      skipAssets?.length > 0 &&
+      !!skipAssets?.find((skipAsset) =>
+        [assetsId, portfolio?.ibcDenom, portfolio?.coinMinimalDenom].includes(
+          skipAsset.denom.replace('cw20:', ''),
+        ),
+      )
+    )
+  }, [assetsId, portfolio?.coinMinimalDenom, portfolio?.ibcDenom, skipAssets])
+
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showReceiveSheet, setShowReceiveSheet] = useState(false)
 
   const [formatCurrency] = useformatCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
   const { handleSwapClick } = useHardCodedActions()
-  const erc20Tokens = useERC20Tokens()
 
   const {
     info,
@@ -127,7 +146,6 @@ function TokensDetails() {
     setSelectedDays,
     selectedDays,
     denomInfo,
-    activeChain,
   } = useAssetDetails({
     denom: assetsId as unknown as SupportedDenoms,
     tokenChain: (tokenChain ?? 'cosmos') as unknown as SupportedChain,
@@ -403,19 +421,16 @@ function TokensDetails() {
                   onSendClick={() => {
                     navigate('/send', { state })
                   }}
-                  isSendDisabled={
-                    activeChain === 'seiDevnet' && !!erc20Tokens[denomInfo?.coinMinimalDenom ?? '']
-                  }
                   onReceiveClick={() => {
                     setShowReceiveSheet(true)
                   }}
                   isSwapDisabled={
-                    !chainInfos[activeChain].nativeDenoms[portfolio?.coinMinimalDenom ?? ''] ||
-                    featureFlags?.all_chains?.swap === 'disabled'
+                    !skipSupportsToken || featureFlags?.all_chains?.swap === 'disabled'
                   }
-                  onStakeClick={() =>
+                  onSwapClick={() =>
                     handleSwapClick(
-                      `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${chainInfos[activeChain].chainId}&sourceAssetDenom=${denomInfo?.coinMinimalDenom}`,
+                      `https://swapfast.app/?sourceChainId=${chainInfos[activeChain].chainId}&sourceAsset=${denomInfo?.coinMinimalDenom}`,
+                      `/swap?sourceChainId=${chainInfos[activeChain].chainId}&sourceToken=${denomInfo?.coinMinimalDenom}&pageSource=assetDetails`,
                     )
                   }
                 />

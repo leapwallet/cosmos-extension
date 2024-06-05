@@ -6,7 +6,7 @@ import { BigNumber } from 'bignumber.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { useGetTokenBalances } from '../bank';
+import { useGetTokenSpendableBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
 import { useActiveWallet, useAddress, useDenoms } from '../store';
 import { WALLETTYPE } from '../types';
@@ -48,7 +48,7 @@ export const useSwapModule = ({
 
   const defaultSwapFee = swapper.defaultSwapFee;
 
-  const { allAssets } = useGetTokenBalances();
+  const { allAssets } = useGetTokenSpendableBalances();
   const { data: supportedTokensForSwap, isLoading: isSupportedTokensForSwapLoading } = useQuery<SwapToken[]>({
     queryKey: ['support-tokens-for-swap', swapper.chain, selectedToken?.symbol],
     queryFn: () => swapper.getTargetCoinOptions(selectedToken?.symbol),

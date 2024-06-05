@@ -8,6 +8,12 @@ import { EncryptionUtilsImpl } from './encryptionutil';
 const DEFAULT_GAS = 135000;
 
 type Query_Permissions = 'balance' | 'history' | 'allowance';
+export type CreateViewingKeyOptions = {
+  key?: string;
+  gasLimit?: number;
+  feeDenom?: string;
+  gasPriceStep?: number;
+};
 
 export class Sscrt {
   constructor(private client: SecretNetworkClient) {
@@ -30,7 +36,7 @@ export class Sscrt {
 
     return await this.client.query.snip20.getBalance({
       contract: { code_hash, address: contract },
-      address: this.client.address,
+      address: this.client.address ?? address,
       auth: { key },
     });
   }
@@ -39,7 +45,7 @@ export class Sscrt {
     const { code_hash = '' } = await this.client.query.snip20.codeHashByContractAddress({ contract_address: contract });
     return await this.client.query.snip20.getBalance({
       contract: { code_hash, address: contract },
-      address: this.client.address,
+      address: this.client.address ?? address,
       auth: { permit },
     });
   }
@@ -167,13 +173,14 @@ export class SigningSscrt {
     senderAddress: string,
     contractAddress: string,
     gasPriceSteps: GasPriceStepsRecord,
-    key?: string,
+    options?: CreateViewingKeyOptions,
   ) {
     const random = Random.getBytes(32);
     const { code_hash = '' } = await this.client.query.snip20.codeHashByContractAddress({
       contract_address: contractAddress,
     });
-    let _key = key;
+
+    let _key = options?.key;
     if (!_key) {
       _key = Buffer.from(random).toString('hex');
     }
@@ -186,8 +193,13 @@ export class SigningSscrt {
           code_hash,
           msg: { set_viewing_key: { key: _key } },
         },
-        { gasLimit: DEFAULT_GAS, gasPriceInFeeDenom: gasPriceSteps.secret.low },
+        {
+          gasLimit: options?.gasLimit ?? DEFAULT_GAS,
+          gasPriceInFeeDenom: options?.gasPriceStep ?? gasPriceSteps.secret.low,
+          feeDenom: options?.feeDenom ?? 'uscrt',
+        },
       );
+
       return { txStatus, viewingKey: _key };
     } catch (e) {
       throw new Error('Unable to set viewing key');

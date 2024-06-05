@@ -1,7 +1,10 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { SelectChainSheet as SelectChain } from 'pages/home/side-nav/CustomEndpoints'
+import { Buttons } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import React, { useMemo } from 'react'
 import { SourceChain } from 'types/swap'
+
+import { ChainsList } from './ChainsList'
 
 type SelectChainSheetProps = {
   isOpen: boolean
@@ -34,12 +37,28 @@ export function SelectChainSheet({
   }
 
   return (
-    <SelectChain
-      isVisible={isOpen}
+    <BottomModal
+      title='Select Chain'
       onClose={onClose}
-      chainsToShow={chainsToList}
-      selectedChain={(selectedChain?.key ?? '') as SupportedChain}
-      onChainSelect={handleOnChainSelect}
-    />
+      isOpen={isOpen}
+      closeOnBackdropClick={true}
+      hideActionButton={true}
+      showSecondaryActionButton={true}
+      containerClassName='!bg-white-100 dark:!bg-gray-950'
+      headerClassName='!bg-white-100 dark:!bg-gray-950'
+      contentClassName='!bg-white-100 dark:!bg-gray-950'
+      className='p-6'
+      secondaryActionButton={
+        <div className='absolute top-1 right-6'>
+          <Buttons.Cancel onClick={onClose} />
+        </div>
+      }
+    >
+      <ChainsList
+        onChainSelect={handleOnChainSelect}
+        selectedChain={(selectedChain?.key ?? '') as SupportedChain}
+        chainsToShow={chainsToList}
+      />
+    </BottomModal>
   )
 }

@@ -1,5 +1,5 @@
 import { ChainInfo } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
-import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 /* eslint-disable @typescript-eslint/no-namespace */
@@ -24,6 +24,7 @@ export namespace Colors {
   export const white100 = '#FFFFFF'
 
   export const red300 = '#FF707E'
+  export const red400 = '#FF3D50'
   export const red600 = '#D10014'
 
   export function getChainColor(

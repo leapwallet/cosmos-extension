@@ -1,8 +1,39 @@
+import qs from 'qs';
+
 import { ChainInfo, ChainInfos, SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
 import { ChainValidator } from '../types/validators';
 import { fromSmall, getRestUrl } from '../utils';
 import { getInjectiveValidatorLogo } from './injective/getInjectiveValidators';
+
+async function fetchAllValidators(baseURL: string, urlPath: string, chain: SupportedChain, paginationKey?: string) {
+  if (chain !== 'initia') {
+    return await axiosWrapper({
+      baseURL,
+      method: 'get',
+      url: urlPath,
+    });
+  }
+
+  const params = {
+    'pagination.limit': 500,
+    'pagination.key': paginationKey,
+  };
+  const query = qs.stringify(params);
+
+  const res = await axiosWrapper({
+    baseURL,
+    method: 'get',
+    url: `${urlPath}?${query}`,
+  });
+
+  if (res.data?.pagination?.next_key) {
+    const nextRes = await fetchAllValidators(baseURL, urlPath, chain, res.data.pagination.next_key);
+    res.data.validators = res.data.validators.concat(nextRes.data.validators);
+  }
+
+  return res;
+}
 
 export async function getValidatorsList(
   chain: SupportedChain,
@@ -17,12 +48,11 @@ export async function getValidatorsList(
     queryURL = `${queryURL}&status=BOND_STATUS_BONDED`;
   }
 
-  const res = await axiosWrapper({
-    baseURL,
-    method: 'get',
-    url: queryURL,
-  });
+  if (chain === 'initia') {
+    queryURL = `initia/mstaking/v1/validators`;
+  }
 
+  const res = await fetchAllValidators(baseURL, queryURL, chain);
   const decimals = Object.values((chainInfos ?? ChainInfos)[chain].nativeDenoms)[0].coinDecimals;
 
   const result = new ChainValidator(res?.data);

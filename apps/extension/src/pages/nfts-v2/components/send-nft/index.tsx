@@ -1,11 +1,18 @@
-import { useSendNft } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useActiveChain,
+  useIsSeiEvmChain,
+  useSendNft,
+  UseSendNftReturnType,
+} from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfos, getSeiEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import { useQueryClient } from '@tanstack/react-query'
-import useActiveWallet from 'hooks/settings/useActiveWallet'
+import assert from 'assert'
+import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useThemeColor } from 'hooks/utility/useThemeColor'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { SelectedAddress } from 'pages/send-v2/types'
-import React, { useState } from 'react'
+import React, { createContext, useContext, useMemo, useState } from 'react'
 import { useEffect } from 'react'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { useTxCallBack } from 'utils/txCallback'
@@ -15,74 +22,124 @@ import { FeesView } from '../fees-view'
 import { RecipientCard } from '../recipient-card'
 import { ReviewNFTTransferSheet } from './review-transfer-sheet'
 
+const SHOW_LEDGER_POPUP = false
+const SendNftCardContext = createContext<UseSendNftReturnType | null>(null)
+
+export function useSendNftCardContext() {
+  const context = useContext(SendNftCardContext)
+  assert(context !== null, 'SendNftCardContext must be used within SendNftCard')
+  return context
+}
+
 export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
   const themeColor = useThemeColor()
   const [showReviewSheet, setShowReviewSheet] = useState(false)
   const [addressError, setAddressError] = useState<string>()
-  const { activeWallet } = useActiveWallet()
-  const address = nftDetails?.chain ? activeWallet?.addresses[nftDetails?.chain] : undefined
   const queryClient = useQueryClient()
 
+  const isSeiEvmChain = useIsSeiEvmChain()
+  const walletAddresses = useGetWalletAddresses(nftDetails?.chain)
   const [selectedAddress, setSelectedAddress] = useState<SelectedAddress | null>(null)
-
-  const { isSending, transferNFTContract, fee, simulateTransferNFTContract } = useSendNft()
   const [isProcessing, setIsProcessing] = useState(false)
+
+  const [txError, setTxError] = useState('')
   const [memo, setMemo] = useState('')
-
-  const showLedgerPopup = false
-
   const txCallback = useTxCallBack()
+  const activeChain = useActiveChain()
   const getWallet = Wallet.useGetWallet()
 
-  const simulate = async () => {
-    if (
-      !nftDetails ||
-      !(nftDetails?.collection.address ?? nftDetails.collection.contractAddress) ||
-      !selectedAddress?.address ||
-      !address
-    ) {
-      return
+  const collectionAddress = useMemo(() => {
+    return nftDetails?.collection.address ?? nftDetails?.collection.contractAddress ?? ''
+  }, [nftDetails?.collection.address, nftDetails?.collection.contractAddress])
+
+  const fromAddress = useMemo(() => {
+    let address = walletAddresses[0]
+    if (isSeiEvmChain && !collectionAddress.toLowerCase().startsWith('0x')) {
+      address = walletAddresses[1]
     }
-    const wallet = await getWallet()
-    await simulateTransferNFTContract({
-      wallet: wallet,
-      collectionId: nftDetails?.collection.address ?? nftDetails.collection.contractAddress,
-      fromAddress: address,
-      toAddress: selectedAddress?.address,
-      tokenId: nftDetails?.tokenId ?? '',
-      memo: memo,
-    })
-  }
+
+    return address
+  }, [collectionAddress, isSeiEvmChain, walletAddresses])
+
+  const sendNftReturn = useSendNft(collectionAddress)
+  const {
+    isSending,
+    fee,
+    transferNFTContract,
+    simulateTransferNFTContract,
+    fetchAccountDetailsStatus,
+    fetchAccountDetailsData,
+  } = sendNftReturn
 
   useEffect(() => {
-    if (isSending || isProcessing) return
-    simulate()
+    ;(async function () {
+      if (
+        isSending ||
+        isProcessing ||
+        !nftDetails ||
+        !collectionAddress ||
+        !selectedAddress?.address ||
+        !walletAddresses.length
+      ) {
+        return
+      }
+
+      const wallet = await getWallet()
+      await simulateTransferNFTContract({
+        wallet: wallet,
+        collectionId: collectionAddress,
+        fromAddress,
+        toAddress: selectedAddress?.address,
+        tokenId: nftDetails?.tokenId ?? '',
+        memo: memo,
+      })
+    })()
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAddress])
+  }, [
+    fromAddress,
+    collectionAddress,
+    isProcessing,
+    isSending,
+    memo,
+    nftDetails,
+    selectedAddress,
+    walletAddresses.length,
+  ])
 
   const handleSendNft = async () => {
-    if (
-      !nftDetails ||
-      !(nftDetails?.collection.address ?? nftDetails.collection.contractAddress) ||
-      !selectedAddress?.address ||
-      !address ||
-      !fee
-    ) {
+    if (!nftDetails || !collectionAddress || !selectedAddress?.address || !fromAddress || !fee) {
       return
     }
-    setIsProcessing(true)
-    const wallet = await getWallet()
+
+    // setIsProcessing(true)
+    // setTxError('')
+    let wallet
+    let toAddress = selectedAddress?.address
+
+    if (collectionAddress.toLowerCase().startsWith('0x')) {
+      wallet = await getWallet(nftDetails.chain, true)
+
+      if (
+        toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
+        fetchAccountDetailsData?.pubKey.key
+      ) {
+        toAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+      }
+    } else {
+      wallet = await getWallet()
+    }
 
     const res = await transferNFTContract({
       wallet: wallet,
-      collectionId: nftDetails?.collection.address ?? nftDetails.collection.contractAddress,
-      fromAddress: address,
-      toAddress: selectedAddress?.address,
+      collectionId: collectionAddress,
+      fromAddress,
+      toAddress,
       tokenId: nftDetails?.tokenId ?? '',
       memo: memo,
       fees: fee,
     })
+
     await queryClient.invalidateQueries([
       'nft-records',
       'nft-contracts-list',
@@ -98,11 +155,22 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
 
     if (res?.success) {
       txCallback(res.success ? 'success' : 'txDeclined')
+    } else {
+      setIsProcessing(false)
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      setTxError(res?.errors?.[0])
     }
   }
 
+  const isReviewDisabled =
+    !selectedAddress || !!addressError || ['loading', 'error'].includes(fetchAccountDetailsStatus)
+  const handleReviewTransferClick = () => {
+    setShowReviewSheet(true)
+  }
+
   return (
-    <>
+    <SendNftCardContext.Provider value={sendNftReturn}>
       <div className='my-2 flex'></div>
       <RecipientCard
         themeColor={themeColor}
@@ -110,19 +178,19 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
         setSelectedAddress={setSelectedAddress}
         addressError={addressError}
         setAddressError={setAddressError}
+        collectionAddress={collectionAddress}
       />
 
       <div className='my-2 flex'></div>
       {!!fee && <FeesView fee={fee} nftDetails={nftDetails} />}
       <div className='my-2 flex'></div>
+
       <Buttons.Generic
         size='normal'
         color={themeColor}
-        onClick={() => {
-          setShowReviewSheet(true)
-        }}
+        onClick={handleReviewTransferClick}
         className='w-[344px]'
-        disabled={!selectedAddress || !!addressError}
+        disabled={isReviewDisabled}
         data-testing-id='send-review-transfer-btn'
       >
         Review Transfer
@@ -141,12 +209,14 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
           loading={isProcessing || isSending}
           fee={fee}
           onConfirm={handleSendNft}
-          showLedgerPopup={showLedgerPopup}
+          showLedgerPopup={SHOW_LEDGER_POPUP}
           onClose={() => {
             setShowReviewSheet(false)
           }}
+          showMemo={!collectionAddress.toLowerCase().startsWith('0x')}
+          txError={txError}
         />
       )}
-    </>
+    </SendNftCardContext.Provider>
   )
 }

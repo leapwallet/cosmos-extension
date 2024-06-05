@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Coin } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, coin, StdFee } from '@cosmjs/stargate';
@@ -20,14 +21,14 @@ import {
   Validator,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { DEFAULT_GAS_REDELEGATE, NativeDenom } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
-import Network from '@leapwallet/cosmos-wallet-sdk/dist/stake/network';
+import { DEFAULT_GAS_REDELEGATE, NativeDenom } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants';
+import Network from '@leapwallet/cosmos-wallet-sdk/dist/browser/stake/network';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { useGetTokenBalances } from '../bank';
+import { useGetTokenSpendableBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { currencyDetail, useformatCurrency, useUserPreferredCurrency } from '../settings';
@@ -68,6 +69,25 @@ import { fetchCurrency } from '../utils/findUSDValue';
 import { getNativeDenom } from '../utils/getNativeDenom';
 import { capitalize, formatTokenAmount } from '../utils/strings';
 
+type StakeTxHandler = Tx | InjectiveTx | EthermintTxHandler | SeiTxHandler;
+
+function getTypeUrl(mode: STAKE_MODE, chain: SupportedChain) {
+  if (chain === 'initia') {
+    switch (mode) {
+      case 'DELEGATE':
+        return '/initia.mstaking.v1.MsgDelegate';
+      case 'UNDELEGATE':
+        return '/initia.mstaking.v1.MsgUndelegate';
+      case 'REDELEGATE':
+        return '/initia.mstaking.v1.MsgBeginRedelegate';
+      case 'CANCEL_UNDELEGATION':
+        return '/initia.mstaking.v1.MsgCancelUnbondingDelegation';
+    }
+  }
+
+  return;
+}
+
 function getStakeTxType(mode: STAKE_MODE): CosmosTxType {
   switch (mode) {
     case 'DELEGATE':
@@ -93,7 +113,7 @@ export function useInvalidateDelegations() {
 }
 
 export function useStaking() {
-  const { allAssets } = useGetTokenBalances();
+  const { allAssets } = useGetTokenSpendableBalances();
   const isTestnet = useSelectedNetwork() === 'testnet';
 
   const { rewards, loadingRewardsStatus, isFetchingRewards, refetchDelegatorRewards } = useStakeClaimRewards();
@@ -132,6 +152,7 @@ export function useStaking() {
     network: networkData,
     minMaxApy: networkData?.minMaxApy,
     delegations: delegationInfo?.delegations,
+    totalDelegation: delegationInfo?.totalDelegation,
     token,
     totalDelegationAmount: delegationInfo?.totalDelegationAmount,
     currencyAmountDelegation: delegationInfo?.currencyAmountDelegation,
@@ -157,6 +178,7 @@ export function useSimulateStakeTx(
 ) {
   const address = useAddress();
   const { lcdUrl } = useChainApis();
+  const activeChain = useActiveChain();
   const [activeStakingDenom] = useActiveStakingDenom();
 
   const getAmount = useCallback(
@@ -192,15 +214,26 @@ export function useSimulateStakeTx(
             fromValidator?.address ?? '',
             amount,
             fee,
+            getTypeUrl(mode, activeChain),
           );
+
         case 'DELEGATE':
-          return await simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
+          return await simulateDelegate(
+            lcdUrl ?? '',
+            address,
+            toValidator?.address ?? '',
+            amount,
+            fee,
+            getTypeUrl(mode, activeChain),
+          );
+
         case 'CLAIM_REWARDS': {
           const validators =
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
           return await simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
         }
+
         case 'CANCEL_UNDELEGATION': {
           return await simulateCancelUndelegation(
             lcdUrl ?? '',
@@ -209,10 +242,19 @@ export function useSimulateStakeTx(
             amount,
             creationHeight ?? '',
             fee,
+            getTypeUrl(mode, activeChain),
           );
         }
+
         case 'UNDELEGATE':
-          return await simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
+          return await simulateUndelegate(
+            lcdUrl ?? '',
+            address,
+            toValidator?.address ?? '',
+            amount,
+            fee,
+            getTypeUrl(mode, activeChain),
+          );
       }
     },
     [address, toValidator, fromValidator, mode, delegations],
@@ -411,15 +453,26 @@ export function useStakeTx(
             fromValidator?.address ?? '',
             amount,
             fee,
+            getTypeUrl(mode, activeChain),
           );
+
         case 'DELEGATE':
-          return simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
+          return simulateDelegate(
+            lcdUrl ?? '',
+            address,
+            toValidator?.address ?? '',
+            amount,
+            fee,
+            getTypeUrl(mode, activeChain),
+          );
+
         case 'CLAIM_REWARDS': {
           const validators =
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
           return simulateWithdrawRewards(lcdUrl ?? '', address, validators, fee);
         }
+
         case 'CANCEL_UNDELEGATION':
           return simulateCancelUndelegation(
             lcdUrl ?? '',
@@ -428,33 +481,43 @@ export function useStakeTx(
             amount,
             creationHeight ?? '',
             fee,
+            getTypeUrl(mode, activeChain),
           );
+
         case 'UNDELEGATE':
-          return simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee);
+          return simulateUndelegate(
+            lcdUrl ?? '',
+            address,
+            toValidator?.address ?? '',
+            amount,
+            fee,
+            getTypeUrl(mode, activeChain),
+          );
       }
     },
     [address, toValidator, fromValidator, memo, mode, delegations],
   );
 
   const executeTx = useCallback(
-    async (
-      amount: Coin,
-      fee: StdFee,
-      txHandler: Tx | InjectiveTx | EthermintTxHandler | SeiTxHandler,
-      creationHeight?: string,
-    ) => {
+    async (amount: Coin, fee: StdFee, txHandler: StakeTxHandler, creationHeight?: string) => {
       switch (mode) {
-        case 'UNDELEGATE':
+        case 'UNDELEGATE': {
           return await txHandler.unDelegate(address, toValidator?.address ?? '', amount, fee, memo);
+        }
+
         case 'CLAIM_REWARDS': {
           const validators =
             (toValidator ? [toValidator.operator_address] : delegations?.map((d) => d.delegation.validator_address)) ??
             [];
+
           return await txHandler.withdrawRewards(address, validators, fee, memo);
         }
-        case 'DELEGATE':
+
+        case 'DELEGATE': {
           return await txHandler.delegate(address, toValidator?.address ?? '', amount, fee, memo);
-        case 'CANCEL_UNDELEGATION':
+        }
+
+        case 'CANCEL_UNDELEGATION': {
           return await (txHandler as Tx | SeiTxHandler).cancelUnDelegation(
             address,
             toValidator?.address ?? '',
@@ -463,7 +526,9 @@ export function useStakeTx(
             fee,
             memo,
           );
-        case 'REDELEGATE':
+        }
+
+        case 'REDELEGATE': {
           return await txHandler.reDelegate(
             address,
             toValidator?.address ?? '',
@@ -472,6 +537,7 @@ export function useStakeTx(
             fee,
             memo,
           );
+        }
       }
     },
     [address, toValidator, fromValidator, memo, mode, delegations],
@@ -494,7 +560,7 @@ export function useStakeTx(
           return coin(toSmall('0'), activeStakingDenom.coinMinimalDenom);
       }
     },
-    [mode, activeStakingDenom.coinDecimals, activeStakingDenom.coinMinimalDenom, delegations],
+    [mode, activeStakingDenom?.coinDecimals, activeStakingDenom?.coinMinimalDenom, delegations],
   );
 
   const executeDelegateTx = async ({
@@ -536,7 +602,8 @@ export function useStakeTx(
     setLoading(true);
 
     try {
-      const tx = !isSimulation && wallet ? await getTxHandler(wallet) : undefined;
+      const isLedgerWallet = activeWallet?.walletType === WALLETTYPE.LEDGER;
+      const tx: StakeTxHandler | undefined = !isSimulation && wallet ? await getTxHandler(wallet) : undefined;
 
       const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
       const amt = getAmount(amount);
@@ -599,7 +666,7 @@ export function useStakeTx(
       setLedgerError(undefined);
 
       if (tx) {
-        if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
+        if (isLedgerWallet) {
           setShowLedgerPopup(true);
         }
 
@@ -754,6 +821,7 @@ export function useIsCancleUnstakeSupported() {
         amount,
         '500',
         [amount],
+        getTypeUrl('CANCEL_UNDELEGATION', activeChain),
       );
       return true;
     } catch (e: any) {

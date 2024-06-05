@@ -1,4 +1,5 @@
 import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk';
+import { useMemo } from 'react';
 import create from 'zustand';
 
 type ERCTokens = {
@@ -16,5 +17,5 @@ export const useERC20TokensStore = create<ERCTokens>((set) => ({
 
 export const useERC20Tokens = () => {
   const { erc20Tokens } = useERC20TokensStore();
-  return erc20Tokens ?? {};
+  return useMemo(() => erc20Tokens ?? {}, [erc20Tokens]);
 };

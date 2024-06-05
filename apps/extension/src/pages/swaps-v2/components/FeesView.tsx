@@ -6,6 +6,7 @@ import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sh
 import React, { useCallback, useEffect, useState } from 'react'
 
 import { useSwapContext } from '../context'
+import { SWAP_NETWORK } from '../hooks'
 
 export function FeesView() {
   const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
@@ -25,6 +26,7 @@ export function FeesView() {
 
   const defaultGasPrice = useDefaultGasPrice({
     activeChain: sourceChain?.key,
+    selectedNetwork: SWAP_NETWORK,
   })
 
   const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
@@ -70,6 +72,7 @@ export function FeesView() {
         error={gasError}
         setError={setGasError}
         chain={sourceChain?.key}
+        network={SWAP_NETWORK}
       >
         <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
 

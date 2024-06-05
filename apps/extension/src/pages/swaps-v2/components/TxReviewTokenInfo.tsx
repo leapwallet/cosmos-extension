@@ -48,21 +48,24 @@ export function TxReviewTokenInfo({
   }, [amount, token?.symbol])
 
   return (
-    <div className='flex flex-col items-center'>
-      <div className='relative w-[60px]'>
+    <div className='flex flex-col items-center w-full max-w-[140px] gap-4'>
+      <div className='relative'>
         <img
-          className={classNames('border-[0.5px] border-gray-700 rounded-full', {
-            'w-[60px] h-[60px]': !tokenImgClassName,
-            [tokenImgClassName ?? '']: tokenImgClassName,
-          })}
+          className={classNames(
+            'border-[8px] border-gray-100 bg-gray-100 dark:bg-gray-850 dark:border-gray-850 rounded-full',
+            {
+              'w-[44px] h-[44px]': !tokenImgClassName,
+              [tokenImgClassName ?? '']: tokenImgClassName,
+            },
+          )}
           src={token?.img ?? defaultTokenLogo}
           onError={imgOnError(defaultTokenLogo)}
         />
         <img
           className={classNames(
-            'absolute bottom-0 border-[1px] dark:border-gray-900 dark:bg-gray-900 z-10 rounded-full',
+            'absolute -bottom-[6px] border-[4px] border-gray-100 bg-gray-100 dark:border-gray-850 dark:bg-gray-850 z-10 rounded-full',
             {
-              'w-[20px] h-[20px] right-0': !chainImgClassName,
+              'w-[24px] h-[24px] -right-[4px]': !chainImgClassName,
               [chainImgClassName ?? '']: chainImgClassName,
             },
           )}
@@ -71,8 +74,15 @@ export function TxReviewTokenInfo({
         />
       </div>
 
-      <p className='dark:text-white-100 text-base mt-[6px]'>{balanceAmount}</p>
-      <p className='text-gray-300 text-sm'>{dollarAmount}</p>
+      <div className='flex flex-col justify-start items-center w-full'>
+        <p className='text-black-100 dark:text-white-100 text-sm !leading-[19.2px] font-bold w-full overflow-hidden text-ellipsis text-center whitespace-nowrap'>
+          {balanceAmount}
+        </p>
+        <p className='text-gray-800 dark:text-gray-200 text-xs !leading-[19.2px] font-medium w-full overflow-hidden text-ellipsis text-center whitespace-nowrap'>
+          {dollarAmount}
+          {chain ? ` • on ${chain?.chainName}` : null}
+        </p>
+      </div>
     </div>
   )
 }

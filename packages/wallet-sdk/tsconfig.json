@@ -1,20 +1,20 @@
 {
   "compilerOptions": {
-    /* Language and Environment */
-    "target": "es2016",
+    "target": "es6",
     "useUnknownInCatchVariables": false,
-    /* Modules */
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
     "module": "ESNext",
     "rootDir": "src",
     "moduleResolution": "node",
-    /* Emit */
     "outDir": "dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "baseUrl": "src/",
     "lib": ["es2020", "DOM"],
-    /* Type Checking */
     "strict": true,
     "skipLibCheck": true
   },

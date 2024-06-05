@@ -1,6 +1,6 @@
 import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { generatePrivateKeyFromHdPath } from '@leapwallet/cosmos-wallet-sdk'
-import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/utils/get-hdpath'
+import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
 import { decrypt } from '@leapwallet/leap-keychain'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import CanvasTextBox from 'components/canvas-box/CanvasTextBox'

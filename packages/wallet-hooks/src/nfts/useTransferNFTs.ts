@@ -4,79 +4,46 @@ import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
 import {
   DefaultGasEstimates,
-  Dict,
+  encodeErc72TransferData,
   EthermintTxHandler,
   fromSmall,
   InjectiveTx,
   NativeDenom,
-  SigningSscrt,
+  SeiEvmTx,
   SupportedChain,
   Tx,
 } from '@leapwallet/cosmos-wallet-sdk';
-import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/tx/nft-transfer/contract';
-import { Coin } from '@leapwallet/parser-parfait';
-import { BigNumber } from 'bignumber.js';
+import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/browser/tx/nft-transfer/contract';
+import { EthWallet } from '@leapwallet/leap-keychain';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
-import { useMemo, useState } from 'react';
-import { Wallet } from 'secretjs';
+import { ReactNode, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
 import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import {
+  getCompassSeiEvmConfigStoreSnapshot,
   PendingTx,
   useActiveChain,
   useChainApis,
+  useChainInfo,
   useDefaultGasEstimates,
   usePendingTxState,
   useSelectedNetwork,
 } from '../store';
-import { useChainInfo } from '../store/useChainInfo';
-import { ActivityCardContent } from '../types/activity';
-import { Token } from '../types/bank';
-import { GasOptions, getMetaDataForNFTSendTx, useGasRateQuery, useNativeFeeDenom } from '../utils';
-import { sliceAddress } from '../utils/strings';
+import {
+  GasOptions,
+  getMetaDataForNFTSendTx,
+  getSeiEvmInfo,
+  SeiEvmInfoEnum,
+  sliceAddress,
+  useGasRateQuery,
+  useNativeFeeDenom,
+} from '../utils';
+import { useFetchAccountDetails } from '../utils-hooks';
+import { ExecuteInstruction, UseSendNftReturnType } from './types';
 
-export type JsonObject = any;
-
-export interface ExecuteInstruction {
-  contractAddress: string;
-  msg: JsonObject;
-  funds?: readonly Coin[];
-}
-
-export type sendNftTokensParams = {
-  toAddress: string;
-  selectedToken: Token;
-  amount: BigNumber;
-  memo: string;
-  getWallet: () => Promise<OfflineSigner | Wallet>;
-  fees: StdFee;
-  ibcChannelId?: string;
-  txHandler?: SigningSscrt | InjectiveTx | EthermintTxHandler | Tx;
-};
-
-export type sendNFTTokensReturnType =
-  | { success: false; errors: string[] }
-  | {
-      success: true;
-      pendingTx: ActivityCardContent & {
-        txHash?: string;
-        promise: Promise<any>;
-        txStatus: 'loading' | 'success' | 'failed';
-        feeDenomination?: string;
-        feeQuantity?: string;
-      };
-      data?: {
-        txHash: string;
-        txType: CosmosTxType;
-        metadata: Dict;
-        feeDenomination: string;
-        feeQuantity: string;
-      };
-    };
-
-export const useSendNft = (forceChain?: SupportedChain) => {
+export const useSendNft = (collectionId: string, forceChain?: SupportedChain): UseSendNftReturnType => {
   const [showLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
   const chainInfo = useChainInfo();
@@ -86,6 +53,11 @@ export const useSendNft = (forceChain?: SupportedChain) => {
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
   const defaultGasEstimates = useDefaultGasEstimates();
+  const {
+    status: fetchAccountDetailsStatus,
+    data: fetchAccountDetailsData,
+    fetchDetails: fetchAccountDetails,
+  } = useFetchAccountDetails();
 
   const [gasOption] = useState<GasOptions>(GasOptions.LOW);
   const [gasEstimate, setGasEstimate] = useState<number>(
@@ -93,14 +65,15 @@ export const useSendNft = (forceChain?: SupportedChain) => {
   );
 
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
-  const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
+  const gasPrices = useGasRateQuery(activeChain, selectedNetwork, collectionId.toLowerCase().startsWith('0x'));
 
   // Change when using forceChain
   const nativeFeeDenom = useNativeFeeDenom(forceChain);
   const [feeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
 
-  const { lcdUrl, rpcUrl } = useChainApis();
+  const [addressWarning, setAddressWarning] = useState<ReactNode>('');
+  const { lcdUrl, rpcUrl, evmJsonRpc } = useChainApis();
 
   /**
    * Fee Calculation:
@@ -150,7 +123,35 @@ export const useSendNft = (forceChain?: SupportedChain) => {
     collectionId: string;
     memo: string;
   }) => {
-    if (!rpcUrl || !lcdUrl || !toAddress || !fromAddress) return;
+    if (!rpcUrl || !lcdUrl || !evmJsonRpc || !toAddress || !fromAddress) return;
+    const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
+
+    if (collectionId.toLowerCase().startsWith('0x')) {
+      try {
+        const rpc = (await getSeiEvmInfo({
+          activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+          activeNetwork: selectedNetwork,
+          infoType: SeiEvmInfoEnum.EVM_RPC_URL,
+        })) as string;
+
+        const data = encodeErc72TransferData([fromAddress, toAddress, tokenId]);
+        const gasUsed = await SeiEvmTx.SimulateTransaction(
+          collectionId ?? '',
+          '',
+          rpc,
+          data,
+          gasAdjustment,
+          fromAddress,
+        );
+
+        setGasEstimate(gasUsed);
+        return gasUsed;
+      } catch (_) {
+        setGasEstimate(ARCTIC_EVM_GAS_LIMIT * 10);
+        return ARCTIC_EVM_GAS_LIMIT * 10;
+      }
+    }
+
     const tx = {
       msg: {
         transfer_nft: {
@@ -204,78 +205,103 @@ export const useSendNft = (forceChain?: SupportedChain) => {
     txHandler?: InjectiveTx | EthermintTxHandler | Tx;
     ibcChannelId?: string;
   }) => {
-    if (!rpcUrl || !lcdUrl) return;
-    setIsSending(true);
+    if (!rpcUrl || !lcdUrl || !evmJsonRpc) return;
+
     try {
-      const pollForTx = new PollForTx(lcdUrl);
-      const tx = {
-        msg: {
-          transfer_nft: {
-            recipient: toAddress,
-            token_id: tokenId,
+      setIsSending(true);
+      let txHash = '';
+      let isEvmTx = false;
+      let promise = new Promise((resolve) => {
+        resolve({ code: 0 } as any);
+      });
+
+      if (collectionId.toLowerCase().startsWith('0x')) {
+        const chainId = (await getSeiEvmInfo({
+          activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+          activeNetwork: selectedNetwork,
+          infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
+        })) as number;
+
+        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet as unknown as EthWallet, evmJsonRpc ?? '', chainId);
+        const result = await seiEvmTx.transferErc721Token({
+          erc721ContractAddress: collectionId,
+          tokenId,
+          from: fromAddress,
+          to: toAddress,
+          gas: gasEstimate,
+        });
+
+        txHash = result.hash;
+        isEvmTx = true;
+      } else {
+        const pollForTx = new PollForTx(lcdUrl);
+        const tx = {
+          msg: {
+            transfer_nft: {
+              recipient: toAddress,
+              token_id: tokenId,
+            },
           },
-        },
-        fee: fees,
-        memo: memo,
-        funds: [],
-      };
+          fee: fees,
+          memo: memo,
+          funds: [],
+        };
 
-      const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet);
+        const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet);
+        const result: any = await client.execute(fromAddress, collectionId, tx.msg, tx.fee, tx.memo, tx.funds);
 
-      const res = client
-        .execute(fromAddress, collectionId, tx.msg, tx.fee, tx.memo, tx.funds)
-        .then((result: any) => {
-          if (result && result.code !== undefined && result.code !== 0) {
-            setIsSending(false);
-            return {
-              success: false,
-              errors: ['Transaction declined'],
-            };
-          } else {
-            const txHash = result.transactionHash;
-            const pollPromise = pollForTx.pollForTx(txHash);
-
-            const _result = {
-              success: true,
-              pendingTx: {
-                txHash,
-                img: chainInfo.chainSymbolImageUrl,
-                sentUsdValue: '',
-                subtitle1: `to ${sliceAddress(toAddress)}`,
-                title1: `Sent NFT #${tokenId}`,
-                txStatus: 'loading',
-                txType: 'send',
-                promise: pollPromise,
-              } as PendingTx,
-              data: {
-                txHash,
-                txType: CosmosTxType.NFTSend,
-                metadata: getMetaDataForNFTSendTx(toAddress, {
-                  tokenId,
-                  collectionId,
-                }),
-                feeDenomination: fees.amount[0].denom,
-                feeQuantity: fees.amount[0].amount,
-              },
-            };
-
-            txPostToDB(_result.data);
-            setPendingTx({ ..._result.pendingTx, toAddress: toAddress });
-            return _result;
-          }
-        })
-        .catch(() => {
+        if (result && result.code !== undefined && result.code !== 0) {
           setIsSending(false);
           return {
             success: false,
             errors: ['Transaction declined'],
           };
-        });
+        }
 
+        txHash = result.transactionHash;
+        promise = pollForTx.pollForTx(txHash);
+      }
+
+      const _result = {
+        success: true,
+        pendingTx: {
+          txHash,
+          img: chainInfo.chainSymbolImageUrl,
+          sentUsdValue: '',
+          subtitle1: `to ${sliceAddress(toAddress)}`,
+          title1: `Sent NFT #${tokenId}`,
+          txStatus: 'loading',
+          txType: 'send',
+          promise,
+          isEvmTx,
+        } as PendingTx,
+        data: {
+          txHash,
+          txType: CosmosTxType.NFTSend,
+          metadata: getMetaDataForNFTSendTx(toAddress, {
+            tokenId,
+            collectionId,
+          }),
+          feeDenomination: fees.amount[0].denom,
+          feeQuantity: fees.amount[0].amount,
+        },
+      };
+
+      txPostToDB(_result.data);
       setIsSending(false);
-      return res;
+
+      setPendingTx({ ..._result.pendingTx, toAddress: toAddress });
+      return _result;
     } catch (e) {
       setIsSending(false);
+
+      if ((e as Error).message.toLowerCase().includes('out of gas')) {
+        return {
+          success: false,
+          errors: [(e as Error).message],
+        };
+      }
+
       return {
         success: false,
         errors: ['Transaction declined'],
@@ -290,5 +316,10 @@ export const useSendNft = (forceChain?: SupportedChain) => {
     fee,
     allGasOptions,
     isSending,
+    fetchAccountDetails,
+    fetchAccountDetailsData,
+    fetchAccountDetailsStatus,
+    setAddressWarning,
+    addressWarning,
   };
 };

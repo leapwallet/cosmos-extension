@@ -1,7 +1,7 @@
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { OnboardCard as Card } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import ExtensionPage from 'components/extension-page'
-import { Header } from 'components/Header'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
@@ -15,6 +15,7 @@ import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import extension from 'webextension-polyfill'
 
+import { Header } from '../../components/header'
 import { IMPORT_WALLET_DATA } from './constants'
 
 export default function Onboarding() {
@@ -23,7 +24,14 @@ export default function Onboarding() {
   const password = usePassword()
 
   const trackCTAEvent = (methodChosen: string) => {
-    mixpanel.track(EventName.OnboardingMethod, { methodChosen, time: Date.now() / 1000 })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.OnboardingMethod, { methodChosen, time: Date.now() / 1000 })
+      } catch (e) {
+        captureException(e)
+      }
+    }
+
     localStorage.setItem('onboardingMethodChosen', methodChosen)
     localStorage.setItem('timeStarted2', new Date().getTime().toString())
   }
@@ -44,8 +52,20 @@ export default function Onboarding() {
           'data-testing-id': '',
           mixpanelMethod: 'existing-leap',
         },
-        Keplr: keplrWallet,
+        MetaMask: {
+          imgSrc: Images.Logos.Metamask,
+          title: 'MetaMask',
+          'data-testing-id': '',
+          mixpanelMethod: 'existing-metamask',
+        },
+        EvmWallets: {
+          imgSrc: Images.Misc.EvmWalletIcon,
+          title: 'Other EVM wallets',
+          'data-testing-id': '',
+          mixpanelMethod: 'existing-evm',
+        },
         ...IMPORT_WALLET_DATA,
+        Keplr: undefined,
       }
     } else {
       return {
@@ -81,13 +101,15 @@ export default function Onboarding() {
       localStorage.setItem('timeStarted1', new Date().getTime().toString())
     }
 
-    try {
-      mixpanel.track(EventName.OnboardingStarted, {
-        firstWallet: true,
-        time: Date.now() / 1000,
-      })
-    } catch {
-      //
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.OnboardingStarted, {
+          firstWallet: true,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
+      }
     }
   }, [])
 
@@ -118,23 +140,27 @@ export default function Onboarding() {
             <Text size='lg' className='items-start self-start pl-[5px] font-medium'>
               Import an existing wallet:
             </Text>
-            {Object.values(importWalletData).map((val, ind) => (
-              <Card
-                key={ind}
-                className='border-[1px] dark:border-gray-800 border-gray-100'
-                imgSrc={val.imgSrc}
-                title={val.title ?? 'Using a recovery phrase'}
-                data-testing-id={val['data-testing-id']}
-                isFilled={true}
-                isRounded={true}
-                iconSrc={Images.Misc.RightArrow}
-                size='sm'
-                onClick={() => {
-                  navigate(`/onboardingImport?walletName=${val.title ?? ''}`)
-                  trackCTAEvent(val?.mixpanelMethod)
-                }}
-              />
-            ))}
+            {Object.values(importWalletData).map((val, ind) => {
+              if (!val) return null
+
+              return (
+                <Card
+                  key={ind}
+                  className='border-[1px] dark:border-gray-800 border-gray-100'
+                  imgSrc={val.imgSrc}
+                  title={val.title ?? 'Using a recovery phrase'}
+                  data-testing-id={val['data-testing-id']}
+                  isFilled={true}
+                  isRounded={true}
+                  iconSrc={Images.Misc.RightArrow}
+                  size='sm'
+                  onClick={() => {
+                    navigate(`/onboardingImport?walletName=${val.title ?? ''}`)
+                    trackCTAEvent(val?.mixpanelMethod)
+                  }}
+                />
+              )
+            })}
           </div>
           <Link
             className='flex w-full bg-white-100 dark:bg-gray-900 px-[30px] py-[20px] rounded-[16px]'

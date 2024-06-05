@@ -2,11 +2,12 @@ import { axiosWrapper, DenomsRecord, NativeDenom, SupportedChain } from '@leapwa
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
+import { useMemo } from 'react';
 
-import { useGetTokenBalances } from '../bank';
-import { useChainApis, useDenoms } from '../store';
+import { useGetTokenSpendableBalances } from '../bank';
+import { useChainApis, useCompassSeiEvmConfigStore, useDenoms } from '../store';
 import { Token } from '../types';
-import { GasPriceStep, useGasPriceStepForChain, useNativeFeeDenom } from '../utils';
+import { GasPriceStep, getKeyToUseForDenoms, useGasPriceStepForChain, useNativeFeeDenom } from '../utils';
 
 export type FeeTokenData = {
   denom: NativeDenom;
@@ -58,9 +59,10 @@ export const getOsmosisFeeTokens = async ({
     });
 
     const feeTokensWithDenom = feeTokensData.reduce((acc: { ibcDenom: string; denom: NativeDenom }[], curr: Token) => {
+      const key = getKeyToUseForDenoms(curr.coinMinimalDenom, curr.chain ?? '');
       const feeToken = {
         ibcDenom: curr.ibcDenom ? curr.ibcDenom : curr.coinMinimalDenom,
-        denom: denoms[curr.coinMinimalDenom],
+        denom: denoms[key],
       };
 
       return [...acc, feeToken];
@@ -178,16 +180,28 @@ export const getFeeTokens = ({
   }
 };
 
-export const useFeeTokens = (chain: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') => {
+export const useFeeTokens = (
+  chain: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+  isSeiEvmTransaction?: GasPriceStep,
+) => {
   // fetched from s3
   const denoms = useDenoms();
   const { lcdUrl } = useChainApis(chain, forceNetwork);
+  const { compassSeiEvmConfig } = useCompassSeiEvmConfigStore();
 
   // hardcoded
   const baseDenom = useNativeFeeDenom(chain, forceNetwork);
-  const gasPriceStep = useGasPriceStepForChain(chain, forceNetwork);
-  const { allAssets } = useGetTokenBalances(chain, forceNetwork);
+  const _gasPriceStep = useGasPriceStepForChain(chain, forceNetwork);
+  const gasPriceStep = useMemo(() => {
+    if (isSeiEvmTransaction) {
+      return compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS;
+    }
 
+    return _gasPriceStep;
+  }, [isSeiEvmTransaction, _gasPriceStep, compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS]);
+
+  const { allAssets } = useGetTokenSpendableBalances(chain, forceNetwork);
   return useQuery<FeeTokenData[]>({
     queryKey: ['fee-tokens', chain, gasPriceStep, baseDenom, allAssets],
     queryFn: () =>

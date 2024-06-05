@@ -1,8 +1,8 @@
 import { getTopNode, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useGetChains, useSelectedNetwork } from '../store';
-import { removeTrailingSlash } from '../utils';
+import { useCompassSeiEvmConfigStore, useGetChains, useSelectedNetwork } from '../store';
+import { APP_NAME, getAppName, removeTrailingSlash } from '../utils';
 import { useActiveChain } from './useActiveChain';
 
 export function useApiAvailability(url: string) {
@@ -26,14 +26,19 @@ export function useApiAvailability(url: string) {
 }
 
 export function useGetChainApis(
-  activeChain: SupportedChain,
-  selectedNetwork: 'mainnet' | 'testnet',
+  _activeChain: SupportedChain,
+  _selectedNetwork: 'mainnet' | 'testnet',
   chains: ReturnType<typeof useGetChains>,
 ) {
+  const { compassSeiEvmConfig } = useCompassSeiEvmConfigStore();
+
   return useCallback(
-    (isTestnetRpcAvailable: boolean) => {
+    (isTestnetRpcAvailable: boolean, forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') => {
+      const isCompassWallet = getAppName() === APP_NAME.Compass;
+      const activeChain = forceChain || _activeChain;
       if (!activeChain || !chains[activeChain]) return { rpcUrl: '', lcdUrl: '' };
 
+      const selectedNetwork = forceNetwork || _selectedNetwork;
       const mainnetLcdUrl = chains[activeChain].apis.rest;
       const mainnetRpcUrl = chains[activeChain].apis.rpc;
 
@@ -63,6 +68,30 @@ export function useGetChainApis(
       const rpcNode = getTopNode('rpc', activeChainId);
       const { nodeUrl: rpc } = rpcNode ?? {};
 
+      let evmJsonRpc =
+        selectedNetwork === 'testnet'
+          ? chains[activeChain].apis.evmJsonRpcTest ?? chains[activeChain].apis.evmJsonRpc
+          : chains[activeChain].apis.evmJsonRpc;
+
+      if (isCompassWallet) {
+        switch (activeChain) {
+          case 'seiTestnet2': {
+            if (selectedNetwork === 'mainnet') {
+              evmJsonRpc = compassSeiEvmConfig.PACIFIC_EVM_RPC_URL ?? evmJsonRpc;
+            } else if (selectedNetwork === 'testnet') {
+              evmJsonRpc = compassSeiEvmConfig.ATLANTIC_EVM_RPC_URL ?? evmJsonRpc;
+            }
+
+            break;
+          }
+
+          case 'seiDevnet': {
+            evmJsonRpc = compassSeiEvmConfig.ARCTIC_EVM_RPC_URL ?? evmJsonRpc;
+            break;
+          }
+        }
+      }
+
       return {
         rpcUrl: rpc && rpc.length ? rpc : fallbackRpcURL,
         lcdUrl: rest && rest.length ? rest : fallbackRestURL,
@@ -71,10 +100,10 @@ export function useGetChainApis(
             ? removeTrailingSlash(chains[activeChain].apis.grpcTest)
             : removeTrailingSlash(chains[activeChain].apis.grpc),
         txUrl: chains[activeChain].txExplorer?.[selectedNetwork]?.txUrl,
-        evmJsonRpc: chains[activeChain].apis.evmJsonRpc,
+        evmJsonRpc,
       };
     },
-    [activeChain, selectedNetwork, chains],
+    [_activeChain, _selectedNetwork, chains, compassSeiEvmConfig],
   );
 }
 

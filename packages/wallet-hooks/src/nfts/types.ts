@@ -1,4 +1,22 @@
-import { Dict, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { OfflineSigner } from '@cosmjs/proto-signing';
+import { StdFee } from '@cosmjs/stargate';
+import {
+  AccountDetails,
+  Dict,
+  EthermintTxHandler,
+  InjectiveTx,
+  SigningSscrt,
+  SupportedChain,
+  Tx,
+} from '@leapwallet/cosmos-wallet-sdk';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
+import { Coin } from '@leapwallet/parser-parfait';
+import { FetchStatus, QueryStatus } from '@tanstack/react-query';
+import { BigNumber } from 'bignumber.js';
+import { ReactNode } from 'react';
+import { Wallet } from 'secretjs';
+
+import { ActivityCardContent, Token } from '../types';
 
 export type TokensListByCollection = { collection: { address: string; name: string }; tokens: string[] };
 
@@ -111,4 +129,73 @@ export type OwnedCollectionOptions = {
   forceChain?: SupportedChain;
   forceNetwork?: 'mainnet' | 'testnet';
   paginationLimit?: number;
+};
+
+/** Transfer */
+
+export type JsonObject = any;
+
+export interface ExecuteInstruction {
+  contractAddress: string;
+  msg: JsonObject;
+  funds?: readonly Coin[];
+}
+
+export type sendNftTokensParams = {
+  toAddress: string;
+  selectedToken: Token;
+  amount: BigNumber;
+  memo: string;
+  getWallet: () => Promise<OfflineSigner | Wallet>;
+  fees: StdFee;
+  ibcChannelId?: string;
+  txHandler?: SigningSscrt | InjectiveTx | EthermintTxHandler | Tx;
+};
+
+export type sendNFTTokensReturnType =
+  | { success: false; errors: string[] }
+  | {
+      success: true;
+      pendingTx: ActivityCardContent & {
+        txHash?: string;
+        promise: Promise<any>;
+        txStatus: 'loading' | 'success' | 'failed';
+        feeDenomination?: string;
+        feeQuantity?: string;
+      };
+      data?: {
+        txHash: string;
+        txType: CosmosTxType;
+        metadata: Dict;
+        feeDenomination: string;
+        feeQuantity: string;
+      };
+    };
+
+export type UseSendNftReturnType = {
+  showLedgerPopup: boolean;
+  simulateTransferNFTContract: ({
+    wallet,
+    fromAddress,
+    toAddress,
+    tokenId,
+    collectionId,
+    memo,
+  }: {
+    wallet: OfflineSigner;
+    fromAddress: string;
+    toAddress: string;
+    tokenId: string;
+    collectionId: string;
+    memo: string;
+  }) => Promise<number | undefined>;
+  transferNFTContract: any;
+  fee: StdFee | undefined;
+  allGasOptions: { low: string; medium: string; high: string } | undefined;
+  isSending: boolean;
+  fetchAccountDetails: (address: string) => Promise<void>;
+  fetchAccountDetailsData: AccountDetails | undefined;
+  fetchAccountDetailsStatus: QueryStatus | FetchStatus;
+  setAddressWarning: React.Dispatch<React.SetStateAction<ReactNode>>;
+  addressWarning: ReactNode;
 };

@@ -1,12 +1,12 @@
 import {
   useActiveStakingDenom,
   useChainInfo,
-  useGetTokenBalances,
+  useGetTokenSpendableBalances,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import { Delegation, Reward } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
+import { Delegation, Reward } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
+import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import {
   Avatar,
   Buttons,
@@ -236,7 +236,7 @@ export default function ValidatorDetails() {
   } = state as ValidatorDetailsProps
 
   const activeChain = useActiveChain()
-  const { allAssets } = useGetTokenBalances()
+  const { allAssets } = useGetTokenSpendableBalances()
   const [activeStakingDenom] = useActiveStakingDenom()
 
   const token = allAssets?.find((e) => e.symbol === (activeStakingDenom.coinDenom ?? ''))

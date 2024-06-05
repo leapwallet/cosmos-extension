@@ -1,10 +1,12 @@
 import { Key as WalletKey, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { sleep, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import { chainInfosState } from 'atoms/chains'
 import BottomModal from 'components/bottom-modal'
 import { Divider, Key, Value } from 'components/dapp'
 import { ErrorCard } from 'components/ErrorCard'
+import { InfoCard } from 'components/info-card'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { BETA_CHAINS } from 'config/storage-keys'
@@ -19,6 +21,7 @@ import { useNavigate } from 'react-router'
 import { useSetRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
 type AddFromChainStoreProps = {
@@ -54,13 +57,19 @@ export default function AddFromChainStore({
   const chainName = newAddChain?.chainName
 
   const onAddChain = async () => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.CHAIN_MANAGEMENT,
-      buttonName: ButtonName.ADD_CHAIN_FROM_STORE,
-      redirectURL: '/home',
-      addedChainName: chainName,
-      time: Date.now() / 1000,
-    })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.CHAIN_MANAGEMENT,
+          buttonName: ButtonName.ADD_CHAIN_FROM_STORE,
+          redirectURL: '/home',
+          addedChainName: chainName,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
+      }
+    }
 
     setIsLoading(true)
     setChainInfos({ ...chainInfos, [chainName]: newAddChain })
@@ -150,14 +159,10 @@ export default function AddFromChainStore({
             </button>
           </div>
 
-          <div className='p-4 bg-[#002142] rounded-2xl my-6 flex gap-3 items-center'>
-            <div className='material-icons-round' style={{ color: '#ADD6FF' }}>
-              info
-            </div>
-            <p className='text-sm text-blue-100 font-medium'>
-              Some wallet features may not work as expected for custom-added chains
-            </p>
-          </div>
+          <InfoCard
+            message='Some wallet features may not work as expected for custom-added chains'
+            className='my-6'
+          />
 
           {errors.submit ? <ErrorCard text={errors.submit} /> : null}
         </div>

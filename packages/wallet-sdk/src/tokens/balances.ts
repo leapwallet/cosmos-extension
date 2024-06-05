@@ -12,14 +12,19 @@ import { formatEtherValue } from '../utils';
 
 export type IQueryDenomTraceResponse = QueryDenomTraceResponse;
 
-export async function fetchAllBalancesRestApi(lcdUrl: string, address: string, fallBackRpcUrl?: string) {
+export async function fetchAllBalancesRestApi(
+  lcdUrl: string,
+  address: string,
+  fallBackRpcUrl?: string,
+  fetchSpendableBalance?: boolean,
+) {
   // leading whitespaces on request url can cause requests to fail on react native
   try {
     const response = await axiosWrapper<BalancesResponse>({
       baseURL: lcdUrl.trim(),
       method: 'get',
       url: `/cosmos/bank/v1beta1/${
-        address.toLowerCase().includes('terra') ? 'spendable_' : ''
+        address.toLowerCase().includes('terra') || fetchSpendableBalance ? 'spendable_' : ''
       }balances/${address}?pagination.limit=1000`,
     });
 

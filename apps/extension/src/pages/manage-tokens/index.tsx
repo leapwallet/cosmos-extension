@@ -1,11 +1,13 @@
 import {
   useAutoFetchedCW20Tokens,
   useBetaCW20Tokens,
+  useBetaERC20Tokens,
   useBetaNativeTokens,
   useChainApis,
   useCW20Tokens,
   useDisabledCW20Tokens,
   useEnabledCW20Tokens,
+  useERC20Tokens,
   useGetTokenBalances,
   useInteractedTokens,
   useSetBetaCW20Tokens,
@@ -34,12 +36,14 @@ import {
 } from './components'
 import { sortBySymbols } from './utils'
 
-export function ManageTokens() {
+export default function ManageTokens() {
   const betaNativeTokens = useBetaNativeTokens()
   const betaCw20Tokens = useBetaCW20Tokens()
+  const betaERC20Tokens = useBetaERC20Tokens()
   const disabledCW20Tokens = useDisabledCW20Tokens()
   const enabledCW20Tokens = useEnabledCW20Tokens()
   const cw20Tokens = useCW20Tokens()
+  const erc20Tokens = useERC20Tokens()
 
   const interactedTokens = useInteractedTokens()
   const setDisabledCW20Tokens = useSetDisabledCW20InStorage()
@@ -51,7 +55,7 @@ export function ManageTokens() {
   const themeColor = useThemeColor()
   const setBetaCW20Tokens = useSetBetaCW20Tokens()
   const { lcdUrl } = useChainApis()
-  const { cw20TokensBalances } = useGetTokenBalances()
+  const { cw20TokensBalances, erc20TokensBalances } = useGetTokenBalances()
   const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
 
   const [showDeleteSheet, setShowDeleteSheet] = useState(false)
@@ -62,31 +66,16 @@ export function ManageTokens() {
   const [fetchingContract, setFetchingContract] = useState(false)
   const timeoutIdRef = useRef<NodeJS.Timeout>()
   const [manuallyAddedTokens, setManuallyAddedTokens] = useState<NativeDenom[]>([])
-  /**
-   * Initialize manually added tokens
-   */
-  useEffect(() => {
-    let _manuallyAddedTokens: NativeDenom[] = []
-
-    if (betaNativeTokens) {
-      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaNativeTokens)]
-    }
-
-    if (betaCw20Tokens) {
-      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaCw20Tokens)]
-    }
-
-    setManuallyAddedTokens(_manuallyAddedTokens)
-  }, [betaCw20Tokens, betaNativeTokens])
+  const [supportedTokens, setSupportedTokens] = useState<SupportedToken[]>([])
 
   /**
    * Initialize supported tokens
    */
-  const supportedTokens = useMemo(() => {
+  useEffect(() => {
     let _supportedTokens: SupportedToken[] = []
 
     const _nativeCW20Tokens =
-      Object.values(cw20Tokens).map((token) => {
+      Object.values(cw20Tokens)?.map((token) => {
         const tokenBalance = cw20TokensBalances?.find(
           (balance) => balance.coinMinimalDenom === token.coinMinimalDenom,
         )
@@ -103,14 +92,64 @@ export function ManageTokens() {
     const _autoFetchedCW20Tokens =
       Object.values(autoFetchedCW20Tokens)?.map((token) => ({
         ...token,
-        enabled: enabledCW20Tokens.includes(token.coinMinimalDenom),
+        enabled: enabledCW20Tokens?.includes(token.coinMinimalDenom),
         verified: false,
       })) ?? []
 
-    _supportedTokens = [..._supportedTokens, ..._nativeCW20Tokens, ..._autoFetchedCW20Tokens]
+    const _nativeERC20Tokens =
+      Object.values(erc20Tokens)?.map((token) => {
+        const tokenBalance = erc20TokensBalances?.find(
+          (balance) => balance.coinMinimalDenom === token.coinMinimalDenom,
+        )
 
-    return _supportedTokens
-  }, [autoFetchedCW20Tokens, cw20Tokens, cw20TokensBalances, disabledCW20Tokens, enabledCW20Tokens])
+        return {
+          ...token,
+          enabled:
+            String(tokenBalance?.amount) === '0'
+              ? enabledCW20Tokens?.includes(token.coinMinimalDenom)
+              : !disabledCW20Tokens?.includes(token.coinMinimalDenom),
+          verified: true,
+        }
+      }) ?? []
+
+    _supportedTokens = [
+      ..._supportedTokens,
+      ..._nativeCW20Tokens,
+      ..._autoFetchedCW20Tokens,
+      ..._nativeERC20Tokens,
+    ]
+
+    setSupportedTokens(_supportedTokens)
+  }, [
+    autoFetchedCW20Tokens,
+    cw20Tokens,
+    cw20TokensBalances,
+    disabledCW20Tokens,
+    enabledCW20Tokens,
+    erc20Tokens,
+    erc20TokensBalances,
+  ])
+
+  /**
+   * Initialize manually added tokens
+   */
+  useEffect(() => {
+    let _manuallyAddedTokens: NativeDenom[] = []
+
+    if (betaNativeTokens) {
+      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaNativeTokens)]
+    }
+
+    if (betaCw20Tokens) {
+      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaCw20Tokens)]
+    }
+
+    if (betaERC20Tokens) {
+      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaERC20Tokens)]
+    }
+
+    setManuallyAddedTokens(_manuallyAddedTokens)
+  }, [betaCw20Tokens, betaERC20Tokens, betaNativeTokens])
 
   /**
    * Remove disabled tokens from fetched tokens
@@ -179,8 +218,12 @@ export function ManageTokens() {
           if (isEnabledA && !isEnabledB) return -1
           if (!isEnabledA && isEnabledB) return 1
 
-          const isNativeCW20A = !!cw20Tokens?.[tokenA.coinMinimalDenom]
-          const isNativeCW20B = !!cw20Tokens?.[tokenB.coinMinimalDenom]
+          const isNativeCW20A = !!(
+            cw20Tokens?.[tokenA.coinMinimalDenom] || erc20Tokens?.[tokenA.coinMinimalDenom]
+          )
+          const isNativeCW20B = !!(
+            cw20Tokens?.[tokenB.coinMinimalDenom] || erc20Tokens?.[tokenB.coinMinimalDenom]
+          )
 
           if (isNativeCW20A && !isNativeCW20B) return -1
           if (!isNativeCW20A && isNativeCW20B) return 1
@@ -188,7 +231,7 @@ export function ManageTokens() {
           return sortBySymbols(tokenA, tokenB)
         }) ?? []
     )
-  }, [supportedTokens, searchedText, cw20Tokens])
+  }, [supportedTokens, searchedText, cw20Tokens, erc20Tokens])
 
   /**
    * Fetch contract info from the chain

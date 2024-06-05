@@ -13,6 +13,10 @@ type BottomModalProps = React.PropsWithChildren<{
    */
   title: string
   /*
+   * custom title component
+   */
+  titleComponent?: React.ReactNode
+  /*
    * callback when the modal is closed
    */
   onClose?: () => void
@@ -29,6 +33,18 @@ type BottomModalProps = React.PropsWithChildren<{
    */
   className?: string
   /*
+   * custom class names for the container
+   */
+  containerClassName?: string
+  /*
+   * custom class names for the header
+   */
+  headerClassName?: string
+  /*
+   * custom class names for the content
+   */
+  contentClassName?: string
+  /*
    * callback when the action button is clicked
    */
   onActionButtonClick?: () => void
@@ -36,18 +52,42 @@ type BottomModalProps = React.PropsWithChildren<{
    * should the action button be hidden
    */
   hideActionButton?: boolean
+  /*
+   * custom action button
+   */
+  actionButton?: React.ReactNode
+  /*
+   * should the secondary action button be shown
+   */
+  showSecondaryActionButton?: boolean
+  /*
+   * custom secondary action button
+   */
+  secondaryActionButton?: React.ReactNode
+  /*
+   * callback when the secondary action button is clicked
+   */
+  onSecondaryActionButtonClick?: () => void
 }>
 
 const BottomModal: React.FC<BottomModalProps> = ({
   isOpen,
   title,
+  titleComponent,
   closeOnBackdropClick,
   onClose,
   children,
   className,
   disableClose,
+  actionButton,
   onActionButtonClick,
+  containerClassName,
+  headerClassName,
+  contentClassName,
   hideActionButton,
+  showSecondaryActionButton,
+  secondaryActionButton,
+  onSecondaryActionButtonClick,
 }) => {
   const container = document.getElementById('popup-layout')?.parentNode as HTMLElement
 
@@ -71,30 +111,46 @@ const BottomModal: React.FC<BottomModalProps> = ({
       className='w-[400px] h-[600px] mx-auto !absolute'
     >
       <Sheet.Container
-        className='bg-gray-50 dark:bg-black-100 !rounded-t-2xl'
+        className={classNames('bg-gray-50 dark:bg-black-100 !rounded-t-2xl', containerClassName)}
         transition={{
           duration: 0.5,
           ease: 'easeInOut',
         }}
       >
-        <Sheet.Header className='bg-gray-50 dark:bg-black-100 rounded-t-2xl' />
-        <Sheet.Content className='bg-gray-50 dark:bg-black-100'>
+        <Sheet.Header
+          className={classNames('bg-gray-50 dark:bg-black-100 rounded-t-2xl', headerClassName)}
+        />
+        <Sheet.Content className={classNames('bg-gray-50 dark:bg-black-100', contentClassName)}>
           <div className='relative flex items-center justify-center px-7 pb-4 border-b border-b-gray-300 dark:border-b-gray-900'>
-            {hideActionButton ? null : (
-              <div className='absolute top-1 left-7'>
-                <Buttons.Cancel onClick={onActionButtonClick ?? handleCloseAction} />
-              </div>
+            {hideActionButton
+              ? null
+              : actionButton ?? (
+                  <div className='absolute top-1 left-7'>
+                    {<Buttons.Cancel onClick={onActionButtonClick ?? handleCloseAction} />}
+                  </div>
+                )}
+            {titleComponent ?? (
+              <h3 className='text-xl font-semibold dark:text-gray-50 text-gray-900 h-[28px]'>
+                {title}
+              </h3>
             )}
-            <h3 className='text-xl font-semibold dark:text-gray-50 text-gray-900 h-[28px]'>
-              {title}
-            </h3>
+            {showSecondaryActionButton === true
+              ? secondaryActionButton ?? (
+                  <div className='absolute top-1 right-7'>
+                    <Buttons.Cancel onClick={onSecondaryActionButtonClick ?? handleCloseAction} />
+                  </div>
+                )
+              : null}
           </div>
           <div className={classNames('p-7', className)}>{children}</div>
         </Sheet.Content>
       </Sheet.Container>
 
       <Sheet.Backdrop
-        className='!absolute'
+        className={classNames('!absolute', {
+          '!cursor-default': !closeOnBackdropClick,
+          '!cursor-pointer': closeOnBackdropClick,
+        })}
         onTap={() => {
           if (closeOnBackdropClick) {
             handleCloseAction()

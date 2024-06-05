@@ -338,8 +338,17 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
               }}
             />
             <SideNavHeader
-              brandName={isCompassWallet() ? 'COMPASS' : undefined}
-              brandImage={isCompassWallet() ? <img src={Images.Logos.CompassCircle} /> : undefined}
+              brandName={isCompassWallet() ? 'COMPASS' : ''}
+              brandImage={
+                isCompassWallet() ? (
+                  <img src={Images.Logos.CompassCircle} />
+                ) : (
+                  <img
+                    src={isDark ? Images.Logos.LeapDarkMode : Images.Logos.LeapLightMode}
+                    className={'h-[30px]'}
+                  />
+                )
+              }
               onBackClick={toggler}
             />
           </div>

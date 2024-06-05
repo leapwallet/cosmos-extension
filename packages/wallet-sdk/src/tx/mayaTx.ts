@@ -21,7 +21,7 @@ export class MayaTx {
     fromAddress: string,
     toAddress: string,
     amount: { amount: number; denom: string; decimals: number },
-    fee: number | 'auto',
+    _: number | 'auto',
     memo = 'Transfer on Maya via Leap',
   ) {
     const _amount = assetToBase(assetAmount(amount.amount, amount.decimals));

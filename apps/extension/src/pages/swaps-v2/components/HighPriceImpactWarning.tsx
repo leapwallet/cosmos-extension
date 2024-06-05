@@ -39,7 +39,6 @@ export function HighPriceImpactWarning({
       <div className='w-full bg-white-100 dark:bg-gray-900 text-sm flex gap-3 items-center p-2 rounded-lg border border-yellow-600'>
         <CustomCheckbox
           checked={isBlockingUsdValueWarningChecked}
-          color='gray'
           onClick={onUsdValueWarningCheckboxClick}
         />
 
@@ -57,13 +56,12 @@ export function HighPriceImpactWarning({
       <div className='w-full bg-white-100 dark:bg-gray-900 text-sm flex gap-3 items-center p-2 rounded-lg border border-red-300'>
         <CustomCheckbox
           checked={isBlockingPriceImpactWarningChecked}
-          color='gray'
           onClick={onPriceWarningCheckboxClick}
         />
 
         <span className='dark:text-white-100 text-sm'>
-          Due to low liquidity, a {priceImpactPercentage?.toString()}% price impact is expected. I
-          understand and wish to proceed.
+          Due to low liquidity, a {(priceImpactPercentage ?? 0).toFixed(2)}% price impact is
+          expected. I understand and wish to proceed.
         </span>
 
         <img src={Images.Misc.InfoFilledExclamationRedMark} className='ml-auto w-[18px] h-[18px]' />

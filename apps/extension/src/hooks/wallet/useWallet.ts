@@ -8,7 +8,7 @@ import {
   LeapLedgerSignerEth,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/utils/get-hdpath'
+import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { encrypt } from '@leapwallet/leap-keychain'
 import { LEDGER_DISABLED_COINTYPES } from 'config/config'

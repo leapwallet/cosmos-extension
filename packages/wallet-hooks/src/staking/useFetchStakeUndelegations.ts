@@ -3,6 +3,7 @@ import {
   fromSmall,
   SupportedChain,
   UnbondingDelegation,
+  UnbondingDelegationEntry,
   UnbondingDelegationResponse,
 } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
@@ -19,7 +20,9 @@ import {
   useSelectedNetwork,
   useStakeUndelegationsStore,
 } from '../store';
-import { fetchCurrency, formatTokenAmount, useActiveStakingDenom } from '../utils';
+import { Amount } from '../types';
+import { fetchCurrency, formatTokenAmount, getPlatformType, useActiveStakingDenom } from '../utils';
+import { useIsFeatureExistForChain } from '../utils-hooks';
 
 export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const _activeChain = useActiveChain();
@@ -40,65 +43,124 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
   const activeChainInfo = chainInfos[activeChain];
   const chainId = useChainId(activeChain, selectedNetwork);
 
-  const fetchStakeUndelegations = async () => {
-    try {
-      const res = await axiosWrapper({
-        baseURL: lcdUrl,
-        method: 'get',
-        url: '/cosmos/staking/v1beta1/delegators/' + address + '/unbonding_delegations',
-      });
-      const denom = denoms[Object.keys(activeChainInfo.nativeDenoms)[0]];
+  const isStakeComingSoon = useIsFeatureExistForChain({
+    checkForExistenceType: 'comingSoon',
+    feature: 'stake',
+    platform: getPlatformType(),
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  });
 
-      const denomFiatValue = await fetchCurrency(
-        '1',
-        denom.coinGeckoId,
-        denom.chain as SupportedChain,
-        currencyDetail[preferredCurrency].currencyPointer,
-        `${chainId}-${denom.coinMinimalDenom}`,
-      );
-
-      const { unbonding_responses } = res.data as UnbondingDelegationResponse;
-      unbonding_responses.map((r) => {
-        r.entries.map((e) => {
-          e.balance = fromSmall(e.balance, denom?.coinDecimals ?? 6);
-          e.initial_balance = fromSmall(e.initial_balance, denom?.coinDecimals ?? 6);
-          return e;
-        });
-        return r;
-      });
-
-      const uDelegations: Record<string, UnbondingDelegation> = unbonding_responses.reduce(
-        (a, v) => ({ ...a, [v.validator_address]: v }),
-        {},
-      );
-
-      Object.values(uDelegations).map(async (r) => {
-        r.entries.map((e) => {
-          e.formattedBalance = formatTokenAmount(e.balance, activeStakingDenom.coinDenom, 6);
-          e.currencyBalance = new BigNumber(e.balance).multipliedBy(denomFiatValue ?? '0').toString();
-        });
-      });
-
-      setStakeUndelegationsInfo(uDelegations);
-      setStakeUndelegationsStatus('success');
-    } catch (_) {
-      setStakeUndelegationsInfo({});
-      setStakeUndelegationsStatus('error');
-    }
-  };
+  const isStakeNotSupported = useIsFeatureExistForChain({
+    checkForExistenceType: 'notSupported',
+    feature: 'stake',
+    platform: getPlatformType(),
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  });
 
   useEffect(() => {
-    if (
-      activeChainInfo?.comingSoonFeatures?.includes('stake') ||
-      activeChainInfo?.notSupportedFeatures?.includes('stake')
-    ) {
-      setTimeout(() => {
-        setStakeUndelegationsStatus('success');
-        setStakeUndelegationsInfo({});
-      }, 0);
+    let isCancelled = false;
 
-      return;
-    }
+    const fetchStakeUndelegations = async () => {
+      try {
+        if (isStakeComingSoon || isStakeNotSupported) {
+          setTimeout(() => {
+            setStakeUndelegationsStatus('success');
+            setStakeUndelegationsInfo({});
+          }, 0);
+
+          return;
+        }
+        const res = await axiosWrapper({
+          baseURL: lcdUrl,
+          method: 'get',
+          url:
+            (activeChain === 'initia' ? '/initia/mstaking/v1/delegators/' : '/cosmos/staking/v1beta1/delegators/') +
+            address +
+            '/unbonding_delegations',
+        });
+
+        if (isCancelled) return;
+        const denom = denoms[Object.keys(activeChainInfo.nativeDenoms)[0]];
+
+        const denomFiatValue = await fetchCurrency(
+          '1',
+          denom.coinGeckoId,
+          denom.chain as SupportedChain,
+          currencyDetail[preferredCurrency].currencyPointer,
+          `${chainId}-${denom.coinMinimalDenom}`,
+        );
+
+        if (isCancelled) return;
+        let { unbonding_responses } = res.data as UnbondingDelegationResponse;
+
+        if (activeChain === 'initia') {
+          unbonding_responses = unbonding_responses.map((unDelegation: UnbondingDelegation) => {
+            const entries = unDelegation.entries.reduce(
+              (acc: UnbondingDelegationEntry[], entry: UnbondingDelegationEntry) => {
+                const balance = (entry.balance as unknown as Amount[]).find(
+                  (balance) => balance.denom === activeStakingDenom.coinMinimalDenom,
+                );
+
+                const initialBalance = (entry.initial_balance as unknown as Amount[]).find(
+                  (balance) => balance.denom === activeStakingDenom.coinMinimalDenom,
+                );
+
+                if (balance && initialBalance) {
+                  return [
+                    ...acc,
+                    {
+                      ...entry,
+                      balance: balance.amount,
+                      initial_balance: initialBalance.amount,
+                    },
+                  ];
+                }
+
+                return acc;
+              },
+              [],
+            );
+
+            return {
+              ...unDelegation,
+              entries,
+            };
+          });
+        }
+
+        unbonding_responses.map((r) => {
+          r.entries.map((e) => {
+            e.balance = fromSmall(e.balance, denom?.coinDecimals ?? 6);
+            e.initial_balance = fromSmall(e.initial_balance, denom?.coinDecimals ?? 6);
+            return e;
+          });
+          return r;
+        });
+
+        const uDelegations: Record<string, UnbondingDelegation> = unbonding_responses.reduce(
+          (a, v) => ({ ...a, [v.validator_address]: v }),
+          {},
+        );
+
+        Object.values(uDelegations).map(async (r) => {
+          r.entries.map((e) => {
+            e.formattedBalance = formatTokenAmount(e.balance, activeStakingDenom.coinDenom, 6);
+            e.currencyBalance = new BigNumber(e.balance).multipliedBy(denomFiatValue ?? '0').toString();
+          });
+        });
+
+        if (isCancelled) return;
+        setStakeUndelegationsInfo(uDelegations);
+        setStakeUndelegationsStatus('success');
+      } catch (_) {
+        if (isCancelled) return;
+
+        setStakeUndelegationsInfo({});
+        setStakeUndelegationsStatus('error');
+      }
+    };
 
     if (lcdUrl && address && activeChain && selectedNetwork && Object.keys(denoms).length) {
       setTimeout(() => {
@@ -109,6 +171,24 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
         });
         fetchStakeUndelegations();
       }, 0);
+    } else {
+      setStakeUndelegationsStatus('success');
+      setStakeUndelegationsInfo({});
     }
-  }, [lcdUrl, address, denoms, activeChain, selectedNetwork, activeChainInfo]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    lcdUrl,
+    address,
+    preferredCurrency,
+    activeStakingDenom,
+    denoms,
+    activeChain,
+    selectedNetwork,
+    activeChainInfo,
+    isStakeComingSoon,
+    isStakeNotSupported,
+  ]);
 }

@@ -12,10 +12,7 @@ export enum EventName {
   OnboardingMethod = 'Onboarding Method Chosen',
   OnboardingCompleted = 'Onboarding Completed',
   OnboardingClicked = 'Onboarding CTA Clicked',
-  QuickSearchOpen = 'Quick Search Open',
-  QuickSearchClick = 'Quick Search Click',
-  QuickSearchClose = 'Quick Search Close',
-  FeeValidationFailed = 'Fee Validation Failed',
+  SwapTransactionStatus = 'Transaction Status',
 }
 
 export enum ButtonType {
@@ -49,7 +46,10 @@ export enum ButtonName {
 export enum PageName {
   Home = 'Home',
   Send = 'Send',
-  Swap = 'Swap',
+  SwapsStart = 'Swaps - Start',
+  SwapsReview = 'Swaps - Review',
+  SwapsTracking = 'Swaps - Tracking',
+  SwapsCompletion = 'Swaps - Completion',
   Governance = 'Governance',
   Stake = 'Stake',
   Activity = 'Activity',

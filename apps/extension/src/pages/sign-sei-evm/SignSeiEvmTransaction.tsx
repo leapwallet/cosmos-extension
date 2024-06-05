@@ -1,25 +1,40 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  getSeiEvmInfo,
+  SeiEvmInfoEnum,
   useActiveChain,
-  useSetActiveChain,
-  useSetSelectedNetwork,
+  useGetSeiEvmBalance,
+  useGetTokenBalances,
+  useSeiLinkedAddressState,
+  useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ETHEREUM_METHOD_TYPE } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
-import {
-  ARCTIC_CHAIN_KEY,
-  formatEtherUnits,
-  getErc20TokenDetails,
-} from '@leapwallet/cosmos-wallet-sdk'
+import { formatEtherUnits, getErc20TokenDetails } from '@leapwallet/cosmos-wallet-sdk'
 import { Header } from '@leapwallet/leap-ui'
+import BigNumber from 'bignumber.js'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { MessageTypes } from 'config/message-types'
-import React, { useCallback, useEffect, useState } from 'react'
+import { Wallet } from 'hooks/wallet/useWallet'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Browser from 'webextension-polyfill'
 
 import { MessageSignature, SignTransaction, SignTransactionProps } from './components'
 
-function SeiEvmTransaction({ txnData }: SignTransactionProps) {
+function Loading() {
+  return (
+    <PopupLayout
+      className='self-center justify-self-center'
+      header={<Header title='Sign Transaction' topColor='#E54f47' />}
+    >
+      <div className='h-full w-full flex flex-col gap-4 items-center justify-center'>
+        <LoaderAnimation color='white' />
+      </div>
+    </PopupLayout>
+  )
+}
+
+function SeiEvmTransaction({ txnData, isEvmTokenExist }: SignTransactionProps) {
   switch (txnData.signTxnData.methodType) {
     case ETHEREUM_METHOD_TYPE.PERSONAL_SIGN:
     case ETHEREUM_METHOD_TYPE.ETH__SIGN:
@@ -27,7 +42,7 @@ function SeiEvmTransaction({ txnData }: SignTransactionProps) {
       return <MessageSignature txnData={txnData} />
   }
 
-  return <SignTransaction txnData={txnData} />
+  return <SignTransaction txnData={txnData} isEvmTokenExist={isEvmTokenExist} />
 }
 
 /**
@@ -36,9 +51,29 @@ function SeiEvmTransaction({ txnData }: SignTransactionProps) {
 const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
   const Wrapped = () => {
     const activeChain = useActiveChain()
-    const setActiveChain = useSetActiveChain()
-    const setSelectedNetwork = useSetSelectedNetwork()
+    const activeNetwork = useSelectedNetwork()
     const [txnData, setTxnData] = useState<Record<string, any> | null>(null)
+    const getWallet = Wallet.useGetWallet()
+    const { allAssets } = useGetTokenBalances()
+    const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+    const { data: seiEvmBalance, status: seiEvmStatus } = useGetSeiEvmBalance()
+
+    const assets = useMemo(() => {
+      let _assets = allAssets
+
+      if (!['done', 'unknown'].includes(addressLinkState)) {
+        _assets = [..._assets, ...(seiEvmBalance?.seiEvmBalance ?? [])].filter((token) =>
+          new BigNumber(token.amount).gt(0),
+        )
+      }
+
+      return _assets
+    }, [addressLinkState, allAssets, seiEvmBalance?.seiEvmBalance])
+
+    const isEvmTokenExist = useMemo(
+      () => (assets ?? []).some((asset) => asset?.isEvm && asset?.coinMinimalDenom === 'usei'),
+      [assets],
+    )
 
     const signSeiEvmTxEventHandler = useCallback(
       async (message: any, sender: any) => {
@@ -48,8 +83,19 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
           const txnData = message.payload
 
           if (txnData?.signTxnData?.spendPermissionCapValue) {
-            const tokenDetails = await getErc20TokenDetails(txnData.signTxnData.to)
+            const rpcUrl = (await getSeiEvmInfo({
+              activeNetwork,
+              activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+              infoType: SeiEvmInfoEnum.EVM_RPC_URL,
+            })) as string
 
+            const chainId = (await getSeiEvmInfo({
+              activeNetwork,
+              activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+              infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
+            })) as number
+
+            const tokenDetails = await getErc20TokenDetails(txnData.signTxnData.to, rpcUrl, chainId)
             txnData.signTxnData.details = {
               Permission: `This allows the third party to spend ${formatEtherUnits(
                 txnData.signTxnData.spendPermissionCapValue,
@@ -61,13 +107,9 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
           }
 
           setTxnData(txnData)
-          if (activeChain !== ARCTIC_CHAIN_KEY) {
-            setActiveChain(ARCTIC_CHAIN_KEY)
-            setSelectedNetwork('mainnet')
-          }
         }
       },
-      [activeChain, setActiveChain, setSelectedNetwork],
+      [activeChain, activeNetwork],
     )
 
     useEffect(() => {
@@ -79,20 +121,15 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
       }
     }, [signSeiEvmTxEventHandler])
 
-    if (activeChain === ARCTIC_CHAIN_KEY && txnData) {
-      return <Component txnData={txnData} />
+    if (!['done', 'unknown'].includes(addressLinkState) && seiEvmStatus === 'loading') {
+      return <Loading />
     }
 
-    return (
-      <PopupLayout
-        className='self-center justify-self-center'
-        header={<Header title='Sign Transaction' topColor='#E54f47' />}
-      >
-        <div className='h-full w-full flex flex-col gap-4 items-center justify-center'>
-          <LoaderAnimation color='white' />
-        </div>
-      </PopupLayout>
-    )
+    if (txnData) {
+      return <Component txnData={txnData} isEvmTokenExist={isEvmTokenExist} />
+    }
+
+    return <Loading />
   }
 
   Wrapped.displayName = `withSeiEvmTxnSigningRequest(${Component.displayName})`

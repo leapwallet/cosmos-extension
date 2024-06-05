@@ -13,10 +13,13 @@ import {
 import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
-import { useFillBetaCW20Tokens, useFillBetaNativeTokens } from 'hooks/settings'
+import {
+  useFillBetaCW20Tokens,
+  useFillBetaERC20Tokens,
+  useFillBetaNativeTokens,
+} from 'hooks/settings'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useAirdropsData } from 'hooks/useAirdropsData'
-import { ManageTokens } from 'pages/manage-tokens'
 import { AddEvmLedger } from 'pages/onboarding/import/AddEvmLedger'
 import { lazy, Suspense, useEffect } from 'react'
 import React from 'react'
@@ -28,9 +31,7 @@ import LedgerConfirmationPopup from './components/ledger-confirmation/LedgerConf
 import { AuthProvider, RequireAuth, RequireAuthOnboarding } from './context/auth-context'
 
 const Activity = lazy(() => import('pages/activity/Activity'))
-const Swap = lazy(() => import('pages/swaps-v2').then((module) => ({ default: module.Swap })))
-
-// For default exports
+const Swap = lazy(() => import('pages/swaps-v2'))
 const ApproveConnection = React.lazy(() => import('pages/ApproveConnection/ApproveConnection'))
 const TokensDetails = React.lazy(() => import('pages/asset-details/components/chart-details'))
 const Login = React.lazy(() => import('pages/auth/login'))
@@ -39,10 +40,11 @@ const ForgotPassword = React.lazy(() => import('pages/forgot-password'))
 const Home = React.lazy(() => import('pages/home/Home'))
 const ManageChain = React.lazy(() => import('pages/manageChain'))
 const Onboarding = React.lazy(() => import('pages/onboarding'))
+
 const OnboardingCreateWallet = React.lazy(() => import('pages/onboarding/create'))
 const OnboardingImportWallet = React.lazy(() => import('pages/onboarding/import'))
 const OnboardingSuccess = React.lazy(() => import('pages/onboarding/success'))
-const AddSecretToken = React.lazy(() => import('pages/secret/addSecretToken'))
+const AddSecretToken = React.lazy(() => import('pages/suggest/SuggestSecret'))
 const Send = React.lazy(() => import('pages/send-v2'))
 const Sign = React.lazy(() => import('pages/sign/sign-transaction'))
 const SignSeiEvm = React.lazy(() => import('pages/sign-sei-evm/SignSeiEvmTransaction'))
@@ -50,21 +52,20 @@ const Stake = React.lazy(() => import('pages/stake'))
 const CancelUndelegationPage = React.lazy(() => import('pages/stake/cancelUndelegation'))
 const ChooseValidator = React.lazy(() => import('pages/stake/chooseValidator'))
 const ValidatorDetails = React.lazy(() => import('pages/stake/validatorDetails'))
+
 const AddChain = React.lazy(() => import('pages/suggestChain/addChain'))
 const SuggestChain = React.lazy(() => import('pages/suggestChain/suggestChain'))
 const Airdrops = React.lazy(() => import('pages/airdrops'))
 const AirdropsDetails = React.lazy(() => import('pages/airdrops/AirdropsDetails'))
-
-// For named exports, using dynamic import
-const PendingTx = React.lazy(() =>
-  import('pages/activity/PendingTx').then((module) => ({ default: module.PendingTx })),
-)
-const NFTs = React.lazy(() => import('pages/nfts-v2').then((module) => ({ default: module.NFTs })))
-const AddToken = React.lazy(() =>
-  import('pages/secret/AddToken').then((module) => ({ default: module.AddToken })),
-)
+const SecretManageTokens = React.lazy(() => import('pages/snip20-manage-tokens'))
+const SuggestErc20 = React.lazy(() => import('pages/suggest/SuggestErc20'))
+const PendingTx = React.lazy(() => import('pages/activity/PendingTx'))
+const NFTs = React.lazy(() => import('pages/nfts-v2/NFTs'))
+const AddToken = React.lazy(() => import('pages/add-token/AddToken'))
+const ManageTokens = React.lazy(() => import('pages/manage-tokens'))
 const Proposals = React.lazy(() => import('pages/governance/Proposals'))
 
+const SwitchEthereumChain = React.lazy(() => import('pages/switch-ethereum-chain'))
 const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
 export default function AppRoutes(): JSX.Element {
@@ -76,6 +77,7 @@ export default function AppRoutes(): JSX.Element {
   useFetchAutoFetchedCW20Tokens()
   useFillBetaCW20Tokens()
   useFillBetaNativeTokens()
+  useFillBetaERC20Tokens()
   useFetchERC20Tokens()
 
   useInitAnalytics()
@@ -304,6 +306,14 @@ export default function AppRoutes(): JSX.Element {
               }
             />
             <Route
+              path='suggest-erc-20'
+              element={
+                <RequireAuth hideBorder={true}>
+                  <SuggestErc20 />
+                </RequireAuth>
+              }
+            />
+            <Route
               path='pending-tx'
               element={
                 <RequireAuth>
@@ -320,6 +330,14 @@ export default function AppRoutes(): JSX.Element {
               }
             />
             <Route
+              path='snip20-manage-tokens'
+              element={
+                <RequireAuth>
+                  <SecretManageTokens />
+                </RequireAuth>
+              }
+            />
+            <Route
               path='airdrops'
               element={
                 <RequireAuth>
@@ -332,6 +350,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <AirdropsDetails />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='switch-ethereum-chain'
+              element={
+                <RequireAuth>
+                  <SwitchEthereumChain />
                 </RequireAuth>
               }
             />

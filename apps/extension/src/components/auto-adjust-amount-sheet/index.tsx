@@ -1,6 +1,7 @@
 import {
   AdjustmentType,
   getAutoAdjustAmount,
+  getKeyToUseForDenoms,
   Token,
   useActiveChain,
   useChainInfo,
@@ -105,9 +106,14 @@ const OptionalAutoAdjustAmountSheet: React.FC<
   )
 }
 
-const CompulsoryAutoAdjustAmountSheet: React.FC<AutoAdjustAmountSheetProps> = ({
+const CompulsoryAutoAdjustAmountSheet: React.FC<
+  AutoAdjustAmountSheetProps & {
+    tokenBalance: string
+  }
+> = ({
   isOpen,
   tokenAmount,
+  tokenBalance,
   feeAmount,
   setAmount,
   nativeDenom,
@@ -119,7 +125,7 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<AutoAdjustAmountSheetProps> = ({
 
   const updatedAmount = useMemo(() => {
     return getAutoAdjustAmount({
-      tokenAmount,
+      tokenAmount: tokenBalance,
       feeAmount,
       nativeDenom,
     })
@@ -193,6 +199,7 @@ export const AutoAdjustAmountSheet: React.FC<{
   selectedToken: {
     amount: Token['amount']
     coinMinimalDenom: Token['coinMinimalDenom']
+    chain?: Token['chain']
   }
   fee: { amount: string; denom: string }
   // eslint-disable-next-line no-unused-vars
@@ -208,8 +215,16 @@ export const AutoAdjustAmountSheet: React.FC<{
     if (chainInfo.beta) {
       return Object.values(chainInfo.nativeDenoms)[0]
     }
-    return denoms[selectedToken.coinMinimalDenom]
-  }, [chainInfo.beta, chainInfo.nativeDenoms, denoms, selectedToken.coinMinimalDenom])
+
+    const key = getKeyToUseForDenoms(selectedToken.coinMinimalDenom, selectedToken.chain ?? '')
+    return denoms[key]
+  }, [
+    chainInfo.beta,
+    chainInfo.nativeDenoms,
+    denoms,
+    selectedToken.chain,
+    selectedToken.coinMinimalDenom,
+  ])
 
   const allowReview = useCallback(() => {
     closeAdjustmentSheet()
@@ -270,6 +285,7 @@ export const AutoAdjustAmountSheet: React.FC<{
         isOpen={adjustmentType === AdjustmentType.COMPULSORY}
         nativeDenom={nativeDenom}
         tokenAmount={tokenAmount}
+        tokenBalance={tokenBalance}
         feeAmount={fee.amount}
         setAmount={setAmount}
         onAdjust={allowReview}

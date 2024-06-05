@@ -35,6 +35,7 @@ export const LEDGER_ENABLED_EVM_CHAINS = [
   ChainInfos.injective.key,
   ChainInfos.evmos.key,
   ChainInfos.dymension.key,
+  'Nim' as SupportedChain,
 ]
 
 export const LEDGER_ENABLED_EVM_CHAIN_IDS = [
@@ -44,6 +45,7 @@ export const LEDGER_ENABLED_EVM_CHAIN_IDS = [
   ChainInfos.injective.testnetChainId,
   ChainInfos.evmos.testnetChainId,
   ChainInfos.dymension.testnetChainId,
+  'nim_1122-1',
 ]
 
 export const COMPASS_CHAINS = ['seiTestnet2', 'seiDevnet']

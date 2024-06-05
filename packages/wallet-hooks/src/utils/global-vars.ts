@@ -4,9 +4,16 @@ export enum APP_NAME {
   Cosmos = 'COSMOS',
 }
 
+export enum PLATFORM_TYPE {
+  Extension = 'Extension',
+  Mobile = 'Mobile',
+  Dashboard = 'Dashboard',
+}
+
 let leapapiBaseUrl = '';
 let platform: App = App.ChromeExtension;
 let appName = APP_NAME.Cosmos;
+let platformType = PLATFORM_TYPE.Extension;
 let numiaBannerBearer = '';
 
 export type storage = {
@@ -57,6 +64,14 @@ export const getAppName = () => {
 
 export const setAppName = (name: APP_NAME) => {
   appName = name;
+};
+
+export const getPlatformType = () => {
+  return platformType;
+};
+
+export const setPlatformType = (type: PLATFORM_TYPE) => {
+  platformType = type;
 };
 
 export const getNumiaBannerBearer = () => {

@@ -86,7 +86,7 @@ export const getRewards = async (address: string, restUrl: string, opts: any, ge
   return { rewards, result: _result };
 };
 
-const StakeQueryClient = async (chainId: string, restUrls: string, denoms: DenomsRecord) => {
+const StakeQueryClient = async (_: string, restUrls: string, denoms: DenomsRecord) => {
   const restUrl = restUrls;
 
   const getUnbondingDelegations = async (address: string, denom: SupportedDenoms) => {

@@ -18,7 +18,7 @@ export type ChainInfo = {
   rest: string;
   chainId: string;
   chainName: string;
-  stakeCurrency: Currency;
+  stakeCurrency?: Currency;
   walletUrl?: string;
   walletUrlForStaking?: string;
   bip44: {

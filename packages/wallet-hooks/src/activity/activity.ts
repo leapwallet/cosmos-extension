@@ -1,5 +1,5 @@
 import { axiosWrapper, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
-import { fromSmall } from '@leapwallet/cosmos-wallet-sdk/dist/utils/token-converter';
+import { fromSmall } from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/token-converter';
 import { ParsedMessageType, type ParsedTransaction, TransactionParser } from '@leapwallet/parser-parfait';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import qs from 'qs';
@@ -253,7 +253,7 @@ export function useActivity(
               const receiveParams = {
                 'pagination.limit': 20,
                 'pagination.reverse': true,
-                events: `transfer.sender='${address}'`,
+                events: `transfer.recipient='${address}'`,
               };
 
               const receiveQuery = qs.stringify(receiveParams);

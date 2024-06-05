@@ -8,7 +8,7 @@ import {
   simulateVote,
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/constants/default-gasprice-step';
+import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/default-gasprice-step';
 import { BigNumber } from 'bignumber.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { useCallback, useState } from 'react';

@@ -16,8 +16,7 @@ import {
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { transactionDeclinedError } from '@leapwallet/cosmos-wallet-sdk';
-import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/constants/default-gasprice-step';
-import { useChains } from '@leapwallet/elements-hooks';
+import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/default-gasprice-step';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import currency from 'currency.js';
@@ -26,7 +25,7 @@ import { Wallet } from 'secretjs';
 import { Token } from 'types/bank';
 
 import { LeapWalletApi } from '../apis';
-import { useGetTokenBalances, useSnipGetSnip20TokenBalances } from '../bank';
+import { useGetTokenSpendableBalances, useSnipGetSnip20TokenBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { useGetIbcChannelId } from '../ibc';
@@ -66,7 +65,7 @@ export function useSend(toAddress: string) {
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
 
-  const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenBalances();
+  const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenSpendableBalances();
   const { snip20Tokens, snip20TokensStatus } = useSnipGetSnip20TokenBalances();
   const selectedNetwork = useSelectedNetwork();
   const activeChain = useActiveChain();

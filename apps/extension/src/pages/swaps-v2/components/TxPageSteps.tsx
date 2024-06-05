@@ -1,6 +1,6 @@
-import { useTransactions } from '@leapwallet/elements-hooks'
+import { Action, useTransactions } from '@leapwallet/elements-hooks'
 import React from 'react'
-import { SwapTxAction, SwapTxnStatus, TransferTxAction } from 'types/swap'
+import { SwapTxnStatus } from 'types/swap'
 
 import { TxPageStepsType } from './index'
 
@@ -14,30 +14,44 @@ export function TxPageSteps({ route, txStatus }: TxPageStepsProps) {
   const { groupedTransactions } = useTransactions(route)
 
   return (
-    <div className='min-h-[75px] max-h-[150px] overflow-y-auto flex flex-col ml-[48px] gap-2'>
+    <div className='flex flex-col p-4 dark:bg-gray-900 rounded-xl bg-gray-50'>
       {Object.keys(groupedTransactions).length > 0
         ? Object.entries(groupedTransactions).map(([, value], txIndex) => {
-            let currentResponseIndex = -1
-
             return (
               <React.Fragment key={txIndex}>
-                {value?.map((action: SwapTxAction | TransferTxAction, index: number) => {
-                  if (action.type === 'TRANSFER' || action.type === 'SEND') {
-                    currentResponseIndex++
+                {value?.map((action: Action, actionIndex: number, self) => {
+                  const seqReducer = (acc: number, curr: Action) => {
+                    if (
+                      curr.type === 'TRANSFER' ||
+                      curr.type === 'SEND' ||
+                      (curr.type === 'SWAP' && actionIndex === 0)
+                    ) {
+                      return acc + 1
+                    }
+                    return acc
                   }
 
-                  let responseIndex = currentResponseIndex
-                  if (action.type === 'SWAP' && index === 0) {
-                    responseIndex = 0
-                  }
+                  const transferSequenceIndex = self
+                    .slice(0, actionIndex + 1)
+                    .reduce(seqReducer, -1)
+
+                  const previousActionTransferSequenceIndex = self
+                    .slice(0, actionIndex)
+                    .reduce(seqReducer, -1)
+
+                  const prevAction = actionIndex === 0 ? undefined : self[actionIndex - 1]
 
                   return (
                     <TxPageStepsType
-                      key={`${action.type}-${index}`}
+                      key={`${action.type}-${actionIndex}`}
                       action={action}
-                      isFirst={index === 0}
-                      isLast={index === value.length - 1}
-                      response={txStatus?.[txIndex]?.responses?.[responseIndex]}
+                      isFirst={actionIndex === 0}
+                      isLast={actionIndex === value.length - 1}
+                      prevAction={prevAction}
+                      response={txStatus?.[txIndex]?.responses?.[transferSequenceIndex]}
+                      prevTransferSequenceIndex={previousActionTransferSequenceIndex}
+                      transferSequenceIndex={transferSequenceIndex}
+                      actionIndex={actionIndex}
                     />
                   )
                 })}

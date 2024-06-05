@@ -1,5 +1,5 @@
 import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk';
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants';
 
 export function getNativeDenom(
   chainInfos: Record<SupportedChain, ChainInfo>,

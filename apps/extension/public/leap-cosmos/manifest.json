@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Leap Cosmos Wallet DEVELOPMENT BUILD",
-  "description": "THIS IS THE DEVELOPMENT DISTRIBUTION OF THE LEAP COSMOS  EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.",
-  "version": "0.11.4",
+  "name": "Leap Cosmos Wallet",
+  "description": "A crypto wallet for Cosmos blockchains.",
+  "version": "0.12.4",
   "options_page": "index.html",
   "web_accessible_resources": [
     {

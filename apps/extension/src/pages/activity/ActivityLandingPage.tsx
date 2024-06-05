@@ -2,26 +2,21 @@ import { ActivityCardContent, useActivity } from '@leapwallet/cosmos-wallet-hook
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import type { ParsedTransaction } from '@leapwallet/parser-parfait'
 import { QueryStatus } from '@tanstack/react-query'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useMemo, useState } from 'react'
-import { useRecoilState } from 'recoil'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
-import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
 import { ActivityList } from './ActivityList'
-import { ActivitySwapTxPage } from './ActivitySwapTxPage'
 import TxDetails from './TxDetails'
 
 export type SelectedTx = {
@@ -35,14 +30,9 @@ export function ActivityLandingPage() {
   const chainInfos = useChainInfos()
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
-  const [showSelectedChainAlert, setShowSelectedChainAlert] =
-    useRecoilState(selectedChainAlertState)
   const [selectedTx, setSelectedTx] = useState<SelectedTx | null>(null)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [showSwapTxPageFor, setShowSwapTxPageFor] = useState<any>()
   const defaultTokenLogo = useDefaultTokenLogo()
-  const isTestnet = useSelectedNetwork() === 'testnet'
   const activeChain = useActiveChain()
   const { txResponse } = useActivity()
   const themeColor = useThemeColor()
@@ -93,46 +83,14 @@ export function ActivityLandingPage() {
           >
             <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
 
-            {isCompassWallet() && isTestnet && (
-              <AlertStrip
-                message='You are on Sei Testnet'
-                bgColor={themeColor}
-                alwaysShow={isTestnet}
-              />
-            )}
-
-            {showSelectedChainAlert && !isCompassWallet() && (
-              <AlertStrip
-                message={`You are on ${chainInfos[activeChain].chainName}${
-                  isTestnet && !chainInfos[activeChain]?.chainName.includes('Testnet')
-                    ? ' Testnet'
-                    : ''
-                }`}
-                bgColor={themeColor}
-                alwaysShow={isTestnet}
-                onHide={() => {
-                  setShowSelectedChainAlert(false)
-                }}
-              />
-            )}
+            <SelectedChainAlertStrip />
 
             <div className='w-full flex flex-col justify-center pt-[28px] items-center mb-20 px-7'>
-              <ActivityList
-                setSelectedTx={setSelectedTx}
-                txResponse={txResponse}
-                setShowSwapTxPageFor={setShowSwapTxPageFor}
-              />
+              <ActivityList setSelectedTx={setSelectedTx} txResponse={txResponse} />
             </div>
           </PopupLayout>
           <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
           <BottomNav label={BottomNavLabel.Activity} />
-
-          {showSwapTxPageFor ? (
-            <ActivitySwapTxPage
-              onClose={() => setShowSwapTxPageFor(undefined)}
-              {...showSwapTxPageFor}
-            />
-          ) : null}
         </>
       )}
     </div>

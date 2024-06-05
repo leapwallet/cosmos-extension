@@ -1,5 +1,7 @@
 import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
 import { Buttons, Input, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import classNames from 'classnames'
+import CssLoader from 'components/css-loader/CssLoader'
 import ExtensionPage from 'components/extension-page'
 import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
@@ -25,6 +27,7 @@ function LoginView(props: {
   onClick: () => void
   onClick1: () => void
   loading: boolean
+  unlockLoader: boolean
 }) {
   const theme = useTheme()
   const isDark = theme.theme === ThemeName.DARK
@@ -42,7 +45,10 @@ function LoginView(props: {
     <PopupLayout>
       <div className='flex h-[72px] w-[400px] items-center px-7 mt-[8px]'>
         <img
-          className='w-[40px] h-[40px]'
+          className={classNames({
+            'w-[40px] h-[40px]': isCompassWallet(),
+            'h-[30px]': !isCompassWallet(),
+          })}
           src={
             isCompassWallet()
               ? Images.Logos.CompassCircle
@@ -51,9 +57,11 @@ function LoginView(props: {
               : Images.Logos.LeapLightMode
           }
         />
-        <div className='font-black inline-block text-2xl text-gray-900 dark:text-white-100 ml-2'>
-          {isCompassWallet() ? 'COMPASS' : 'LEAP'}
-        </div>
+        {isCompassWallet() && (
+          <div className='font-black inline-block text-2xl text-gray-900 dark:text-white-100 ml-2'>
+            COMPASS
+          </div>
+        )}
       </div>
       <form
         onSubmit={props.onSubmit}
@@ -100,8 +108,9 @@ function LoginView(props: {
             onClick={props.onClick}
             color={isCompassWallet() ? Colors.compassPrimary : Colors.osmosisPrimary}
             data-testing-id='btn-unlock-wallet'
+            disabled={props.unlockLoader}
           >
-            Unlock wallet
+            {props.unlockLoader ? <CssLoader /> : 'Unlock wallet'}
           </Buttons.Generic>
         </div>
         <div className='p-[28px]' onClick={props.onClick1}>
@@ -124,6 +133,7 @@ export default function Login() {
   const [isPopup, setIsPopup] = useState(false)
 
   const [isError, setError] = useState<boolean>(false)
+  const [showUnlockLoader, setShowUnlockLoader] = useState(false)
 
   useEffect(() => {
     if (!auth) {
@@ -192,6 +202,7 @@ export default function Login() {
 
   const signIn = useCallback(async () => {
     if (passwordInput) {
+      setShowUnlockLoader(true)
       try {
         await (auth as AuthContextType).signin(passwordInput, () => {
           setLastActiveTime()
@@ -210,9 +221,11 @@ export default function Login() {
             const _pathname = pathname ?? '/home'
             navigate(_pathname, { state: { from: 'login' }, replace: true })
           }
+          setShowUnlockLoader(false)
         })
       } catch (e) {
         setError(true)
+        setShowUnlockLoader(false)
       }
     }
 
@@ -234,6 +247,7 @@ export default function Login() {
       <div className='absolute top-0 flex h-full w-1/2 z-5 justify-center items-center'>
         <div className='dark:shadow-sm shadow-xl dark:shadow-gray-700'>
           <LoginView
+            unlockLoader={showUnlockLoader}
             loading={(auth as AuthContextType).loading}
             onSubmit={handleSubmit}
             errorHighlighted={isError}
@@ -256,6 +270,7 @@ export default function Login() {
     </ExtensionPage>
   ) : (
     <LoginView
+      unlockLoader={showUnlockLoader}
       loading={(auth as AuthContextType).loading}
       onSubmit={handleSubmit}
       errorHighlighted={isError}

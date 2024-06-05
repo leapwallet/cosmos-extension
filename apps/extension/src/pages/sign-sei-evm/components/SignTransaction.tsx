@@ -1,13 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   GasOptions,
+  getSeiEvmInfo,
+  SeiEvmInfoEnum,
   useActiveChain,
   useActiveWallet,
+  useChainApis,
   useChainInfo,
   useDefaultGasEstimates,
   useGasAdjustmentForChain,
+  useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { GasPrice, SeiEvmTx } from '@leapwallet/cosmos-wallet-sdk'
+import { GasPrice, getSeiEvmAddressToShow, SeiEvmTx } from '@leapwallet/cosmos-wallet-sdk'
 import { EthWallet } from '@leapwallet/leap-keychain'
 import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
 import Tooltip from 'components/better-tooltip'
@@ -37,19 +41,22 @@ const useGetWallet = Wallet.useGetWallet
 
 export type SignTransactionProps = {
   txnData: Record<string, any>
+  isEvmTokenExist: boolean
 }
 
-export function SignTransaction({ txnData }: SignTransactionProps) {
+export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionProps) {
   const chainInfo = useChainInfo()
   const activeWallet = useActiveWallet()
   const activeChain = useActiveChain()
+  const activeNetwork = useSelectedNetwork()
 
   assert(activeWallet !== null, 'activeWallet is null')
   const walletName = useMemo(() => {
     return formatWalletName(activeWallet.name)
   }, [activeWallet.name])
 
-  const defaultGasPrice = useDefaultGasPrice({ activeChain })
+  const { evmJsonRpc } = useChainApis()
+  const defaultGasPrice = useDefaultGasPrice({ activeChain, isSeiEvmTransaction: true })
   const getWallet = useGetWallet()
 
   const [txStatus, setTxStatus] = useState<TransactionStatus>('idle')
@@ -60,10 +67,12 @@ export function SignTransaction({ txnData }: SignTransactionProps) {
   const [isLoadingGasLimit, setIsLoadingGasLimit] = useState<boolean>(false)
   const defaultGasEstimates = useDefaultGasEstimates()
   const gasAdjustment = useGasAdjustmentForChain(activeChain)
-  const [recommendedGasLimit, setRecommendedGasLimit] = useState<number>(
-    defaultGasEstimates[activeChain].DEFAULT_GAS_IBC,
+  const defaultGasLimit = useMemo(
+    () => parseInt((defaultGasEstimates[activeChain].DEFAULT_GAS_IBC * gasAdjustment).toString()),
+    [activeChain, defaultGasEstimates, gasAdjustment],
   )
 
+  const [recommendedGasLimit, setRecommendedGasLimit] = useState<number>(defaultGasLimit)
   const [gasPriceOption, setGasPriceOption] = useState<{
     option: GasOptions
     gasPrice: GasPrice
@@ -75,28 +84,52 @@ export function SignTransaction({ txnData }: SignTransactionProps) {
 
   useEffect(() => {
     ;(async function fetchGasEstimate() {
+      if (txnData.signTxnData.gas) {
+        setRecommendedGasLimit(txnData.signTxnData.gas)
+        return
+      }
+
       try {
         setIsLoadingGasLimit(true)
-        const gasUsed = await SeiEvmTx.SimulateTransaction(
-          txnData.signTxnData.to,
-          txnData.signTxnData.value,
-          '',
-          txnData.signTxnData.data,
-          gasAdjustment,
-        )
+        let gasUsed = defaultGasLimit
+
+        if (txnData.signTxnData.params) {
+          const _gasUsed = await SeiEvmTx.ExecuteEthEstimateGAs(
+            txnData.signTxnData.params,
+            evmJsonRpc,
+          )
+
+          const gasEstimate = parseInt(Number(_gasUsed).toString())
+          gasUsed = parseInt((gasEstimate * gasAdjustment).toString())
+        } else {
+          const fromEthAddress = getSeiEvmAddressToShow(activeWallet?.pubKeys?.[activeChain])
+
+          gasUsed = await SeiEvmTx.SimulateTransaction(
+            txnData.signTxnData.to,
+            txnData.signTxnData.value,
+            evmJsonRpc,
+            txnData.signTxnData.data,
+            gasAdjustment,
+            fromEthAddress,
+          )
+        }
 
         setRecommendedGasLimit(gasUsed)
       } catch (_) {
-        setRecommendedGasLimit(defaultGasEstimates[activeChain].DEFAULT_GAS_IBC)
+        setRecommendedGasLimit(defaultGasLimit)
       } finally {
         setIsLoadingGasLimit(false)
       }
     })()
   }, [
     activeChain,
-    defaultGasEstimates,
+    activeWallet?.pubKeys,
+    defaultGasLimit,
+    evmJsonRpc,
     gasAdjustment,
     txnData.signTxnData.data,
+    txnData.signTxnData.gas,
+    txnData.signTxnData.params,
     txnData.signTxnData.to,
     txnData.signTxnData.value,
   ])
@@ -107,14 +140,19 @@ export function SignTransaction({ txnData }: SignTransactionProps) {
       setTxStatus('loading')
 
       const wallet = (await getWallet(activeChain, true)) as unknown as EthWallet
-      const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet)
+      const chainId = (await getSeiEvmInfo({
+        activeNetwork,
+        activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+        infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
+      })) as number
 
+      const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', chainId)
       const result = await seiEvmTx.sendTransaction(
         '',
         txnData.signTxnData.to,
         txnData.signTxnData.value,
-        Number(userPreferredGasLimit || recommendedGasLimit),
-        undefined,
+        parseInt(Number(userPreferredGasLimit || recommendedGasLimit).toString()),
+        parseInt(String(Number(gasPriceOption.gasPrice.amount.toString()) * 10 ** 18)),
         txnData.signTxnData.data,
       )
 
@@ -196,6 +234,8 @@ export function SignTransaction({ txnData }: SignTransactionProps) {
               setError={setGasPriceError}
               considerGasAdjustment={false}
               chain={activeChain}
+              isSelectedTokenEvm={isEvmTokenExist}
+              isSeiEvmTransaction={true}
             >
               <Tabs
                 className='mt-3'

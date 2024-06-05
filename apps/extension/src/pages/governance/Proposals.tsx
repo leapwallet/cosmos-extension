@@ -4,6 +4,7 @@ import {
   useGetChains,
   useGetNtrnProposals,
   useGovProposals,
+  useIsFeatureExistForChain,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { QueryStatus } from '@tanstack/react-query'
 import { BottomNavLabel } from 'components/bottom-nav/BottomNav'
@@ -112,9 +113,13 @@ function NeutronProposals() {
 
 function Proposals() {
   const activeChain = useActiveChain()
-  const chains = useGetChains()
+  const isGovernanceComingSoon = useIsFeatureExistForChain({
+    checkForExistenceType: 'comingSoon',
+    feature: 'governance',
+    platform: 'Extension',
+  })
 
-  if (chains[activeChain]?.comingSoonFeatures?.includes('governance')) {
+  if (isGovernanceComingSoon) {
     return <ComingSoon title='Governance' bottomNavLabel={BottomNavLabel.Governance} />
   }
 

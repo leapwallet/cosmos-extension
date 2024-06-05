@@ -14,7 +14,7 @@ import {
   useGasRateQuery,
   useGetChains,
   useInvalidateTokenBalances,
-  useIsCW20Tx,
+  useIsCW20Token,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -32,19 +32,17 @@ import {
   getMessageMetadataForSigning,
   SKIP_TXN_STATUS,
   SkipAPI,
+  TransactionStatusResponse,
   TRANSFER_STATE,
   TxClient,
   TXN_STATUS,
 } from '@leapwallet/elements-core'
 import { LEDGER_ENABLED_EVM_CHAIN_IDS } from 'config/config'
-import { ETHERMINT_CHAINS } from 'config/constants'
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { Wallet } from 'hooks/wallet/useWallet'
-import { Images } from 'images'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { SourceChain, SwapTxnStatus } from 'types/swap'
+import { SourceChain, SwapTxnStatus, TransferInfo } from 'types/swap'
 
 import { TxPageProps } from '../components'
 import { handleCosmosTx } from '../tx/cosmosTxHandler'
@@ -53,6 +51,7 @@ import { handleInjectiveTx } from '../tx/injectiveTxHandler'
 import { sendTrackingRequest } from '../utils'
 import { useGetChainsToShow } from './useGetChainsToShow'
 import { useInvalidateSwapAssetsQueries } from './useInvalidateSwapAssetsQueries'
+import { SWAP_NETWORK } from './useSwapsTx'
 
 class TxnError extends Error {
   constructor(message: string) {
@@ -65,6 +64,7 @@ type ExecuteTxParams = Omit<TxPageProps, 'onClose'> & {
   setShowLedgerPopup: React.Dispatch<React.SetStateAction<boolean>>
   setLedgerError?: (ledgerError?: string) => void
   setFeeAmount: React.Dispatch<React.SetStateAction<string>>
+  setTrackingInSync: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 export function useExecuteTx({
@@ -87,19 +87,19 @@ export function useExecuteTx({
   feeAmount,
   refetchDestinationBalances,
   refetchSourceBalances,
+  setTrackingInSync,
 }: ExecuteTxParams) {
-  const isCW20Tx = useIsCW20Tx()
+  const isCW20Token = useIsCW20Token()
   const getWallet = Wallet.useGetWallet()
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
   const activeWallet = useActiveWallet()
-  const chainsToShow = useGetChainsToShow()
+  const { chainsToShow } = useGetChainsToShow()
   const chainInfos = useGetChains()
-  const selectedNetwork = useSelectedNetwork()
 
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [timeoutError, setTimeoutError] = useState(false)
   const [firstTxnError, setFirstTxnError] = useState<string>()
-  const [unableToTrackError, setUnableToTrackError] = useState<string | null>(null)
+  const [unableToTrackError, setUnableToTrackError] = useState<boolean | null>(null)
   const invalidateBalances = useInvalidateTokenBalances()
   const invalidateSwapAssets = useInvalidateSwapAssetsQueries()
 
@@ -124,7 +124,7 @@ export function useExecuteTx({
     const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption]
     if (!_gasPrice) return
 
-    const gasAdjustmentValue = gasAdjustment * (sourceToken && isCW20Tx(sourceToken) ? 2 : 1)
+    const gasAdjustmentValue = gasAdjustment * (sourceToken && isCW20Token(sourceToken) ? 2 : 1)
 
     // @ts-ignore
     return calculateFee(Math.ceil(_gasLimit * gasAdjustmentValue), _gasPrice)
@@ -157,16 +157,24 @@ export function useExecuteTx({
   }
 
   const handleTxError = useCallback(
-    (messageIndex: number, errorMessage: string, chain?: SourceChain) => {
+    (
+      messageIndex: number,
+      errorMessage: string,
+      chain?: SourceChain,
+      transferSequence?: TransferInfo[] | undefined,
+      transferAssetRelease?: any,
+    ) => {
+      setFirstTxnError(errorMessage)
       updateTxStatus(messageIndex, {
         status: TXN_STATUS.FAILED,
-        responses: [
+        responses: transferSequence ?? [
           {
             state: TRANSFER_STATE.TRANSFER_FAILURE,
             // @ts-ignore
             data: { error: { message: errorMessage }, chain },
           },
         ],
+        transferAssetRelease,
         isComplete: true,
       })
     },
@@ -196,7 +204,7 @@ export function useExecuteTx({
       const txnLogAmountValue = await getTxnLogAmountValue(inAmount, {
         coinGeckoId: sourceToken?.coinGeckoId ?? '',
         coinMinimalDenom: sourceToken?.coinMinimalDenom ?? '',
-        chainId: getChainId(denomChainInfo, selectedNetwork) ?? String(sourceChain?.chainId ?? ''),
+        chainId: getChainId(denomChainInfo, SWAP_NETWORK) ?? String(sourceChain?.chainId ?? ''),
         chain: (sourceToken?.chain ?? '') as SupportedChain,
       })
 
@@ -271,7 +279,6 @@ export function useExecuteTx({
       sourceToken?.coinMinimalDenom,
       sourceToken?.coinDecimals,
       inAmount,
-      selectedNetwork,
       sourceChain?.chainId,
       sourceChain?.key,
       activeWallet?.addresses,
@@ -301,7 +308,8 @@ export function useExecuteTx({
     setLedgerError && setLedgerError(undefined)
 
     for (let messageIndex = 0; messageIndex < (route?.messages?.length ?? 0); messageIndex++) {
-      const message = route.messages[messageIndex]
+      const messageObj = route.messages[messageIndex]
+      const message = messageObj?.multi_chain_msg
       const messageChain = chainsToShow.find((chain) => chain.chainId === message.chain_id)
 
       if (!messageChain) {
@@ -311,15 +319,6 @@ export function useExecuteTx({
 
       const messageJson = JSON.parse(message.msg)
 
-      if (new Date().getTime() > Number(messageJson.timeout_timestamp / 10 ** 6)) {
-        if (messageIndex !== 0) {
-          handleTxError(messageIndex, 'Transaction timed out', messageChain)
-        } else {
-          handleMessageTimeout(messageIndex, messageChain)
-          break
-        }
-      }
-
       updateTxStatus(messageIndex, {
         status: TXN_STATUS.PENDING,
         // @ts-ignore
@@ -327,9 +326,18 @@ export function useExecuteTx({
         isComplete: false,
       })
 
-      let txHash: string = message.customTxHash
+      let txHash: string = messageObj?.customTxHash
 
       if (!txHash && fee) {
+        if (new Date().getTime() > Number(messageJson.timeout_timestamp / 10 ** 6)) {
+          if (messageIndex !== 0) {
+            handleTxError(messageIndex, 'Transaction timed out', messageChain)
+          } else {
+            handleMessageTimeout(messageIndex, messageChain)
+            break
+          }
+        }
+
         const { senderAddress, encodedMessage } = getMessageMetadataForSigning(
           message.msg_type_url,
           messageJson,
@@ -440,16 +448,21 @@ export function useExecuteTx({
         }
 
         try {
-          const { success, response } = await txClient.submitTx(
-            String(messageChain.chainId),
-            txBytesString as string,
-          )
+          // We are getting timeout error when broadcasting evmos swap txs signed with ledger on skip api.
+          // We throw an error here to trigger the fallback to broadcast the transaction using our nodes
+          if (messageChain.key === 'evmos' && isLedgerTypeWallet) {
+            throw new Error()
+          } else {
+            const { success, response } = await txClient.submitTx(
+              String(messageChain.chainId),
+              txBytesString as string,
+            )
 
-          if (!success) throw new Error('Submit txn failed')
-          txHash = response.tx_hash
-
-          if (messageIndex === 0) {
-            logTxToDB(response.tx_hash, message.msg_type_url)
+            if (!success) throw new Error('Submit txn failed')
+            txHash = response.tx_hash
+            if (messageIndex === 0) {
+              logTxToDB(response.tx_hash, message.msg_type_url)
+            }
           }
         } catch (_) {
           try {
@@ -506,27 +519,18 @@ export function useExecuteTx({
               // we can't track transaction, show user explorer tx URL
             }
 
-            setUnableToTrackError(
-              `We are unable to track transaction ${
-                messageIndex > 0 ? messageIndex + 1 : ''
-              }. Please check it's status on <a href = "${
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                messageChain.txExplorer.mainnet.txUrl
-              }/${txHash}" target = "_blank" rel = "noreferrer"><span>${
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                messageChain.txExplorer.mainnet.name
-              }</span><img src = "${Images.Misc.OpenLink}" /></a>`,
-            )
+            setUnableToTrackError(true)
             setIsLoading(false)
+            return
           }
         }
 
-        message.customTxHash = txHash
-        message.customMessageChainId = String(messageChain.chainId)
+        messageObj.customTxHash = txHash
+        messageObj.customMessageChainId = String(messageChain.chainId)
       }
 
+      let transferAssetRelease
+      let transferSequence: TransferInfo[] | undefined
       try {
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -536,17 +540,42 @@ export function useExecuteTx({
           })
 
           if (txnStatus.success) {
-            const { state, error, transfer_sequence } = txnStatus.response
+            const { state, error, transfer_sequence, transfer_asset_release } = txnStatus.response
+            transferSequence =
+              transfer_sequence?.map(
+                (transfer) =>
+                  (
+                    transfer as Extract<
+                      TransactionStatusResponse['transfer_sequence'][number],
+                      { ibc_transfer: unknown }
+                    >
+                  ).ibc_transfer,
+              ) ?? []
+            transferAssetRelease = transfer_asset_release
+              ? {
+                  chainId: transfer_asset_release?.chain_id,
+                  denom: transfer_asset_release?.denom,
+                  released: (transfer_asset_release as any)?.released,
+                }
+              : undefined
 
             if (
+              state === SKIP_TXN_STATUS.STATE_SUBMITTED ||
               state === SKIP_TXN_STATUS.STATE_PENDING ||
               state === SKIP_TXN_STATUS.STATE_RECEIVED
             ) {
               updateTxStatus(messageIndex, {
                 status: TXN_STATUS.SIGNED,
-                responses: transfer_sequence,
+                // @ts-ignore
+                responses:
+                  transferSequence && transferSequence?.length > 0
+                    ? transferSequence
+                    : [{ state: TRANSFER_STATE.TRANSFER_PENDING }],
+                transferAssetRelease,
                 isComplete: false,
               })
+
+              setTrackingInSync(true)
             } else if (state === SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS) {
               const defaultResponses = [
                 {
@@ -566,39 +595,76 @@ export function useExecuteTx({
                 },
               ]
 
-              if (transfer_sequence.length === 0) {
+              if (transferSequence.length === 0) {
                 updateTxStatus(messageIndex, {
                   status: TXN_STATUS.SUCCESS,
                   responses: defaultResponses,
+                  transferAssetRelease,
                   isComplete: true,
                 })
               } else {
                 const responses =
-                  route?.response?.chain_ids?.length === 1 ? defaultResponses : transfer_sequence
+                  route?.response?.chain_ids?.length === 1 ? defaultResponses : transferSequence
 
                 updateTxStatus(messageIndex, {
                   status: TXN_STATUS.SUCCESS,
                   responses: responses,
+                  transferAssetRelease,
                   isComplete: true,
                 })
               }
 
+              setTrackingInSync(true)
               break
             } else if (state === SKIP_TXN_STATUS.STATE_ABANDONED) {
+              setUnableToTrackError(true)
               throw new Error('Transaction abandoned')
             }
 
             if (error?.code) {
-              throw new Error(error.message)
+              // find error message from packet_txs in transfer_sequence array
+              let errorMessage = error?.message
+              if (transferSequence?.length > 0) {
+                const errorResponse = transferSequence?.find(
+                  (transfer) => transfer.state === TRANSFER_STATE.TRANSFER_FAILURE,
+                )
+
+                if (errorResponse) {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  errorMessage = (errorResponse?.packet_txs?.error as any)?.message
+                }
+              }
+              throw new Error(errorMessage)
             }
+          } else {
+            throw new Error(txnStatus.error)
           }
 
           await sleep(2000)
         }
       } catch (err) {
         const error = err as Error
-        handleTxError(messageIndex, error.message, messageChain)
+        if (
+          ['Failed to fetch', 'tx not found', 'Unable to get txn status']?.includes(error.message)
+        ) {
+          setUnableToTrackError(true)
+        }
+        handleTxError(
+          messageIndex,
+          error.message,
+          messageChain,
+          transferSequence,
+          transferAssetRelease,
+        )
+        setTrackingInSync(true)
         return
+      }
+
+      try {
+        refetchSourceBalances && refetchSourceBalances()
+        refetchDestinationBalances && refetchDestinationBalances()
+      } catch (_) {
+        //
       }
     }
 
@@ -609,6 +675,8 @@ export function useExecuteTx({
     fee,
     getWallet,
     handleMessageTimeout,
+    refetchDestinationBalances,
+    refetchSourceBalances,
     handleTxError,
     logTxToDB,
     route.messages,

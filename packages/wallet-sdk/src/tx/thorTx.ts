@@ -27,7 +27,7 @@ export class ThorTx {
     fromAddress: string,
     toAddress: string,
     amount: { amount: number; denom: string; decimals: number },
-    fee: number | 'auto',
+    _: number | 'auto',
     memo = 'Transfer on THORChain via Leap',
   ) {
     const _amount = assetToBase(assetAmount(amount.amount, amount.decimals));

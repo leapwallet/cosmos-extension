@@ -1,5 +1,6 @@
 export * from './address-prefixes';
 export * from './chain-infos';
+export * from './chain-infos-config';
 export * from './chainIds';
 export * from './default-gasprice-step';
 export * from './denoms';

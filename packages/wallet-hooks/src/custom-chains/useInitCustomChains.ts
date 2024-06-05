@@ -1,45 +1,35 @@
-import axios from 'axios';
 import { useEffect } from 'react';
 
 import { useCustomChainsStore } from '../store';
-import { CustomChainsType } from '../utils';
+import { cachedRemoteDataWithLastModified, CustomChainsType, storage, useGetStorageLayer } from '../utils';
 
-const link = 'https://assets.leapwallet.io/cosmos-registry/v1/chains/custom-chains.json';
+const mainnetLink = 'https://assets.leapwallet.io/cosmos-registry/v1/chains/custom-chains.json';
 const testnetLink = 'https://assets.leapwallet.io/cosmos-registry/v1/chains/custom-testnet-chains.json';
 
-const getMainnetChainStoreData = async () => {
-  const chainsData: CustomChainsType[] = await axios
-    .get(link)
-    .then(({ data }) => data)
-    .catch(console.error);
-
-  if (chainsData?.length > 0) {
-    return chainsData;
-  } else {
-    return [];
-  }
+const getMainnetChainStoreData = (storage: storage): Promise<CustomChainsType[]> => {
+  return cachedRemoteDataWithLastModified({
+    remoteUrl: mainnetLink,
+    storageKey: 'mainnet-custom-chain',
+    storage,
+  });
 };
 
-const getTestnetChainStoreData = async () => {
-  const chainsData: CustomChainsType[] = await axios
-    .get(testnetLink)
-    .then(({ data }) => data)
-    .catch(console.error);
-
-  if (chainsData?.length > 0) {
-    return chainsData;
-  } else {
-    return [];
-  }
+const getTestnetChainStoreData = (storage: storage): Promise<CustomChainsType[]> => {
+  return cachedRemoteDataWithLastModified({
+    remoteUrl: testnetLink,
+    storageKey: 'testnet-custom-chain',
+    storage,
+  });
 };
 
 export const useInitCustomChains = () => {
+  const storage = useGetStorageLayer();
   const { setCustomChains } = useCustomChainsStore();
 
   useEffect(() => {
     (async () => {
-      const _mainnetChains = await getMainnetChainStoreData();
-      const _testnetChains = await getTestnetChainStoreData();
+      const _mainnetChains = await getMainnetChainStoreData(storage);
+      const _testnetChains = await getTestnetChainStoreData(storage);
       setCustomChains([..._mainnetChains, ..._testnetChains]);
     })();
   }, []);

@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import {
+  getSeiEvmInfo,
+  INITIAL_ADDRESS_WARNING,
+  SeiEvmInfoEnum,
   useActiveChain,
   useAddress,
   useChainsStore,
@@ -15,10 +19,11 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import { FIXED_FEE_CHAINS } from 'config/constants'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useEffectiveAmountValue } from 'hooks/useEffectiveAmountValue'
+import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useWalletClient } from 'hooks/useWalletClient'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useSendContext } from 'pages/send-v2/context'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 
 import { FeesView } from '../fees-view'
@@ -49,11 +54,13 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
     pfmEnabled,
     isIbcUnwindingDisabled,
     isIBCTransfer,
+    fetchAccountDetailsStatus,
   } = useSendContext()
   const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState(getWallet)
 
   const { chains } = useChainsStore()
   const userAddress = useAddress()
+  const walletAddresses = useGetWalletAddresses()
   const { walletClient } = useWalletClient()
   const effectiveAmountValue = useEffectiveAmountValue(inputAmount)
   const debouncedAmount = useDebouncedValue(effectiveAmountValue, 500)
@@ -61,6 +68,10 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
   const { data: elementsChains } = useChains()
   const activeNetwork = useSelectedNetwork()
   const { data: featureFlags } = useFeatureFlags()
+
+  const hCaptchaRef = useRef<HCaptcha>(null)
+  const [hCaptchaError, setHCaptchaError] = useState<string>('')
+  const [showLoadingMessage, setShowLoadingMessage] = useState('')
 
   const asset: Asset = {
     denom: (selectedToken?.ibcDenom || selectedToken?.coinMinimalDenom) ?? '',
@@ -110,20 +121,58 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
   ])
 
   const btnText = useMemo(() => {
-    if (addressWarning && addressLinkState === 'success') {
+    if (addressWarning.type === 'link' && addressLinkState === 'success') {
       return 'Addresses linked successfully'
     }
 
-    if (addressWarning && !['done', 'unknown'].includes(addressLinkState)) {
+    if (addressWarning.type === 'link' && !['done', 'unknown'].includes(addressLinkState)) {
+      if (featureFlags?.link_evm_address?.extension === 'redirect') {
+        return (
+          <span className='flex items-center gap-1'>
+            Link Addresses
+            <span className='!leading-[20px] !text-lg material-icons-round'>open_in_new</span>
+          </span>
+        )
+      }
+
       return 'Link Addresses'
     }
 
     return 'Review Transfer'
-  }, [addressLinkState, addressWarning])
+  }, [addressLinkState, addressWarning.type, featureFlags?.link_evm_address?.extension])
 
   const handleLinkAddressClick = async () => {
-    await updateAddressLinkState(setGasError)
-    setAddressWarning('')
+    if (featureFlags?.link_evm_address?.extension === 'redirect') {
+      const dAppLink = (await getSeiEvmInfo({
+        activeNetwork,
+        activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+        infoType: SeiEvmInfoEnum.NO_FUNDS_DAPP_LINK,
+      })) as string
+
+      window.open(dAppLink, '_blank')
+    } else if (featureFlags?.link_evm_address?.extension === 'no-funds') {
+      try {
+        const result = await hCaptchaRef.current?.execute({ async: true })
+
+        if (!result) {
+          setHCaptchaError('Could not get hCaptcha response. Please try again.')
+          return
+        }
+
+        await updateAddressLinkState({
+          setError: setGasError,
+          ethAddress: walletAddresses[0],
+          token: result.response,
+          setShowLoadingMessage,
+        })
+      } catch (_) {
+        setHCaptchaError('Failed to verify captcha. Please try again.')
+      }
+    } else {
+      await updateAddressLinkState({ setError: setGasError, ethAddress: walletAddresses[0] })
+    }
+
+    setAddressWarning(INITIAL_ADDRESS_WARNING)
   }
 
   const showAdjustmentSheet = useCallback(() => {
@@ -134,20 +183,52 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
     setCheckForAutoAdjust(false)
   }, [])
 
-  const isReviewDisabled = addressWarning
-    ? ['loading', 'success'].includes(addressLinkState)
-    : sendDisabled || (!pfmEnabled && !isIbcUnwindingDisabled)
+  const isReviewDisabled = useMemo(() => {
+    if (addressWarning.type === 'link') {
+      return (
+        ['loading', 'success'].includes(addressLinkState) ||
+        featureFlags?.link_evm_address?.extension === 'disabled'
+      )
+    }
+
+    return (
+      sendDisabled ||
+      (!pfmEnabled && !isIbcUnwindingDisabled) ||
+      ['error', 'loading'].includes(fetchAccountDetailsStatus)
+    )
+  }, [
+    addressLinkState,
+    addressWarning.type,
+    featureFlags?.link_evm_address?.extension,
+    fetchAccountDetailsStatus,
+    isIbcUnwindingDisabled,
+    pfmEnabled,
+    sendDisabled,
+  ])
 
   return (
     <>
       <div className='absolute w-full flex flex-col gap-4 p-4 bottom-0 left-0 dark:bg-black-100 bg-gray-50'>
         {FIXED_FEE_CHAINS.includes(activeChain) ? <FixedFee /> : <FeesView />}
 
+        {featureFlags?.link_evm_address?.extension === 'no-funds' &&
+        addressWarning.type === 'link' &&
+        !['done', 'unknown'].includes(addressLinkState) ? (
+          <form>
+            <HCaptcha
+              ref={hCaptchaRef}
+              sitekey={process.env.LINK_ADDRESS_HCAPTCHA_SITE_KEY ?? ''}
+              size='invisible'
+              theme='dark'
+            />
+          </form>
+        ) : null}
+
         <Buttons.Generic
           size='normal'
           color={themeColor}
           onClick={
-            addressWarning && !['done', 'unknown'].includes(addressLinkState)
+            addressWarning.type === 'link' && !['done', 'unknown'].includes(addressLinkState)
               ? handleLinkAddressClick
               : showAdjustmentSheet
           }
@@ -155,12 +236,17 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
           data-testing-id='send-review-transfer-btn'
           className='w-full'
         >
-          {addressWarning && addressLinkState === 'loading' ? (
+          {addressWarning.type === 'link' && addressLinkState === 'loading' ? (
             <LoaderAnimation color={Colors.white100} />
           ) : (
             btnText
           )}
         </Buttons.Generic>
+
+        {hCaptchaError ? <p className='text-red-300 text-center mt-4'>{hCaptchaError}</p> : null}
+        {showLoadingMessage ? (
+          <p className='text-yellow-600 text-center mt-4'>{showLoadingMessage}</p>
+        ) : null}
       </div>
 
       {selectedToken && fee && checkForAutoAdjust ? (

@@ -5,7 +5,7 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   getBlockChainFromAddress,
   isValidAddress,
-} from '@leapwallet/cosmos-wallet-sdk/dist/utils/validateAddress'
+} from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/validateAddress'
 import { useEffect, useState } from 'react'
 import extension from 'webextension-polyfill'
 

@@ -3,7 +3,7 @@
  * 
  * import { useActiveChain, useActiveWalletStore } from '@leapwallet/cosmos-wallet-hooks'
 import { getLedgerTransport } from '@leapwallet/cosmos-wallet-sdk'
-import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/utils/get-hdpath'
+import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useEffect } from 'react'
 import browser from 'webextension-polyfill'

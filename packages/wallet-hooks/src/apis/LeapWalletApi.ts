@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-namespace */
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { useCallback, useMemo } from 'react';
@@ -365,7 +365,11 @@ export namespace LeapWalletApi {
       ['union Testnet']: 'UNION' as CosmosBlockchain,
       ['Cronos POS Chain']: 'CRYPTO_ORG_CHAIN' as CosmosBlockchain,
       ['Haqq Network']: 'HAQQ_NETWORK' as CosmosBlockchain,
+      ['Elys Network']: 'ELYS_NETWORK' as CosmosBlockchain,
+      ['MANTRA Hongbai Testnet']: 'MANTRA_HONGBAI' as CosmosBlockchain,
+      ['Scorum Network']: 'SCORUM_NETWORK' as CosmosBlockchain,
       saga: 'SAGA' as CosmosBlockchain,
+      initia: 'INITIA' as CosmosBlockchain,
     };
     return blockchains[activeChain] ?? activeChain?.toUpperCase();
   }

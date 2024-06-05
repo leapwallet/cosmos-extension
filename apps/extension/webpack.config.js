@@ -26,6 +26,22 @@ const buildTypes = {
       },
     },
   },
+  staging: {
+    type: 'staging',
+    defaultEnvFile: '.env.production',
+    compassEnvFile: '.env.production.compass',
+    outDirPath: 'staging',
+    manifestData: {
+      leap: {
+        name: 'Leap Cosmos Wallet',
+        description: 'A crypto wallet for Cosmos blockchains.',
+      },
+      compass: {
+        name: 'Compass Wallet for Sei',
+        description: 'A crypto wallet for Sei Blockchain, brought to you by the Leap Wallet team.',
+      },
+    },
+  },
   canary: {
     type: 'canary',
     defaultEnvFile: '.env.canary',
@@ -65,6 +81,7 @@ const buildTypes = {
 
 const buildType = buildTypes[process.env.NODE_ENV]
 const isProdBuild = buildType.type === 'production'
+const isStagingBuild = buildType.type === 'staging'
 const isCanaryBuild = buildType.type === 'canary'
 const isDevelopmentBuild = buildType.type === 'development'
 const isCompassBuild = process.env.APP && process.env.APP.includes('compass')
@@ -246,7 +263,7 @@ module.exports = (env, argv) => {
   // Write manifest file
   fs.writeFileSync(path.join(__dirname, `./${publicDir}/manifest.json`), manifest)
 
-  if (staging) {
+  if (isStagingBuild) {
     config = Object.assign({}, base_config, {
       mode: 'production',
       output: {
@@ -257,7 +274,6 @@ module.exports = (env, argv) => {
         filename: '[name].js',
         clean: true,
       },
-      devtool: 'source-map',
       plugins: [
         ...base_config.plugins,
         new Dotenv({

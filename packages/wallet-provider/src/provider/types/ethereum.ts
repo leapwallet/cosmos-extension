@@ -6,11 +6,20 @@ export const ETHEREUM_POPUP_METHOD_TYPE = {
 
   PERSONAL_SIGN: 'personal_sign',
   WALLET__REQUEST_PERMISSIONS: 'wallet_requestPermissions',
+  WALLET__WATCH_ASSET: 'wallet_watchAsset',
+  WALLET__SWITCH_ETHEREUM_CHAIN: 'wallet_switchEthereumChain',
 };
 
 export const ETHEREUM_NO_POPUP_METHOD_TYPE = {
   ETH__ACCOUNTS: 'eth_accounts',
   ETH__CHAIN_ID: 'eth_chainId',
+  ETH__CALL: 'eth_call',
+  ETH__BLOCK_NUMBER: 'eth_blockNumber',
+  ETH__ESTIMATE_GAS: 'eth_estimateGas',
+
+  WALLET__REVOKE_PERMISSIONS: 'wallet_revokePermissions',
+  ETH__GET_TRANSACTION_RECEIPT: 'eth_getTransactionReceipt',
+  ETH__GET_TRANSACTION_BY_HASH: 'eth_getTransactionByHash',
 };
 
 export type ValueOf<T> = T[keyof T];
@@ -84,10 +93,37 @@ export type WalletRequestPermissions = {
   id?: number | string;
 };
 
+export type WalletWatchAssetParams = {
+  type: string;
+  options: {
+    address: string;
+    symbol: string;
+    decimals: number;
+    image?: string;
+    coinGeckoId?: string;
+  };
+};
+
+export type WalletWatchAsset = {
+  method: typeof ETHEREUM_METHOD_TYPE.WALLET__WATCH_ASSET;
+  params: WalletWatchAssetParams;
+};
+
+export type WalletSwitchEthereumChainParams = {
+  chainId: string;
+};
+
+export type WalletSwitchEthereumChain = {
+  method: typeof ETHEREUM_METHOD_TYPE.WALLET__SWITCH_ETHEREUM_CHAIN;
+  params: [WalletSwitchEthereumChainParams];
+};
+
 export const ETHEREUM_RPC_ERROR = {
   USER_REJECTED_REQUEST: 4001,
   INVALID_PARAMS: -32602,
   INTERNAL: -32603,
+
+  UNRECOGNIZED_CHAIN_ID: 4902,
 };
 
 export const ETHEREUM_RPC_ERROR_MESSAGE = {

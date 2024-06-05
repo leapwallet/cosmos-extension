@@ -1,4 +1,5 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { useMemo } from 'react';
 import create from 'zustand';
 
 import { useActiveChain } from './useActiveChain';
@@ -21,8 +22,8 @@ export const useDisabledCW20TokensStore = create<DisabledCW20Tokens>((set) => ({
 export const useDisabledCW20Tokens = (forceChain?: SupportedChain) => {
   const _activeChain = useActiveChain();
   const activeChain = forceChain || _activeChain;
+
   const address = useAddress(activeChain);
-  return useDisabledCW20TokensStore((state) =>
-    state.disabledCW20Tokens ? state.disabledCW20Tokens[address] ?? [] : [],
-  );
+  const { disabledCW20Tokens } = useDisabledCW20TokensStore();
+  return useMemo(() => disabledCW20Tokens?.[address] ?? [], [address, disabledCW20Tokens]);
 };

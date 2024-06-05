@@ -87,6 +87,7 @@ export const nativeFeeDenoms: FeeDenoms = {
     odin: 'loki',
     dymension: 'udym',
     saga: 'usaga',
+    initia: 'uinit',
   },
   testnet: {
     akash: 'uakt',
@@ -169,5 +170,6 @@ export const nativeFeeDenoms: FeeDenoms = {
     odin: 'loki',
     dymension: 'udym',
     saga: 'usaga',
+    initia: 'uinit',
   },
 };

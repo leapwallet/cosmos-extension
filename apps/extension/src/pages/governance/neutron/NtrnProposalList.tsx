@@ -1,7 +1,6 @@
-import { useActiveChain, useSelectedNetwork } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import { selectedChainAlertState } from 'atoms/selected-chain-alert'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
@@ -13,7 +12,6 @@ import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
 import React, { Fragment, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { sliceSearchWord } from 'utils/strings'
 
@@ -37,15 +35,12 @@ export function NtrnProposalList({
 }: Omit<ProposalListProps, 'fetchMore'>) {
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
-  const [showSelectedChainAlert, setShowSelectedChainAlert] =
-    useRecoilState(selectedChainAlertState)
   const [propFilter, setPropFilter] = useState<string>('')
   const [filter, setFilter] = useState('all')
 
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
   const defaultTokenLogo = useDefaultTokenLogo()
-  const isTestnet = useSelectedNetwork() === 'testnet'
   const navigate = useNavigate()
 
   const loading = proposalListStatus === 'loading'
@@ -98,16 +93,7 @@ export function NtrnProposalList({
           />
         }
       >
-        {showSelectedChainAlert && (
-          <AlertStrip
-            message={`You are on ${activeChainInfo.chainName}${
-              isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
-            }`}
-            bgColor={themeColor}
-            alwaysShow={isTestnet}
-            onHide={() => setShowSelectedChainAlert(false)}
-          />
-        )}
+        <SelectedChainAlertStrip />
 
         <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
           <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>Proposals</div>

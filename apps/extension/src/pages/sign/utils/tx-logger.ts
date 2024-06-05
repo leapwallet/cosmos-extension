@@ -165,7 +165,10 @@ export async function logDirectTx(
   txPostToDb: LogCosmosDappTx,
   chainId: string,
 ) {
-  if (origin.trim().toLowerCase().includes('cosmos.leapwallet.io')) {
+  if (
+    origin.trim().toLowerCase().includes('cosmos.leapwallet.io') ||
+    origin.trim().toLowerCase().includes('swapfast.app')
+  ) {
     return
   }
 
@@ -239,6 +242,7 @@ export async function logSignAmino(
   address: string,
   origin: string,
 ) {
+  if (data.signed.msgs.find((msg) => msg.type === 'query_permit')) return
   const txHash = getTxHashFromAminoSignResponse(data, pubkey)
 
   await txPostToDb({

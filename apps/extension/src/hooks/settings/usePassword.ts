@@ -41,7 +41,7 @@ export function useSetLastActiveTime() {
 export function useSetPassword() {
   const setPassword = useSetRecoilState(passwordState)
   return useCallback(
-    async (password: string | undefined | null) => {
+    (password: string | undefined | null) => {
       setPassword(password)
     },
     [setPassword],

@@ -10,6 +10,7 @@ import {
   useGetNumiaBanner,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
+import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
@@ -17,6 +18,7 @@ import { DISABLE_BANNER_ADS } from 'config/storage-keys'
 import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import Browser from 'webextension-polyfill'
 
 // session storage key for storing the numia banner impression info
@@ -190,16 +192,16 @@ export default function GlobalBannersAD({
 
     if (!mixpanelBannerViewsInfo[walletAddress]?.includes(activeBannerId)) {
       try {
-        mixpanel.track(EventName.BannerView, {
-          bannerId: getMixpanelBannerId(activeBannerId, activeBannerData.attributes?.campaign_id),
-          bannerIndex: activeBannerIndex,
-          walletAddress,
-          globalWalletAddress: cosmosWalletAddress,
-          chainId: chain.chainId,
-          chainName: chain.chainName,
-          positionId: getMixpanelPositionId(activeBannerId, activeBannerData),
-          time: Date.now() / 1000,
-        })
+        if (!isCompassWallet()) {
+          mixpanel.track(EventName.BannerView, {
+            bannerId: getMixpanelBannerId(activeBannerId, activeBannerData.attributes?.campaign_id),
+            bannerIndex: activeBannerIndex,
+            chainId: chain.chainId,
+            chainName: chain.chainName,
+            positionId: getMixpanelPositionId(activeBannerId, activeBannerData),
+            time: Date.now() / 1000,
+          })
+        }
 
         sessionStorage.setItem(
           MIXPANEL_BANNER_VIEWS_INFO,
@@ -208,8 +210,8 @@ export default function GlobalBannersAD({
             [walletAddress]: [...(mixpanelBannerViewsInfo[walletAddress] ?? []), activeBannerId],
           }),
         )
-      } catch (_) {
-        //
+      } catch (e) {
+        captureException(e)
       }
     }
 
@@ -346,33 +348,26 @@ export default function GlobalBannersAD({
         }),
       })
 
-      try {
-        const banner = bannerAds.find((_banner) => _banner.id === bannerId)
+      if (!isCompassWallet()) {
+        try {
+          const banner = bannerAds.find((_banner) => _banner.id === bannerId)
 
-        mixpanel.track(EventName.BannerClose, {
-          bannerId: getMixpanelBannerId(bannerId, banner?.attributes?.campaign_id),
-          bannerIndex,
-          walletAddress,
-          globalWalletAddress: cosmosWalletAddress,
-          chainId: chain.chainId,
-          chainName: chain.chainName,
-          positionId: getMixpanelPositionId(bannerId, banner),
-          time: Date.now() / 1000,
-        })
-      } catch (_) {
-        //
+          mixpanel.track(EventName.BannerClose, {
+            bannerId: getMixpanelBannerId(bannerId, banner?.attributes?.campaign_id),
+            bannerIndex,
+            chainId: chain.chainId,
+            chainName: chain.chainName,
+            positionId: getMixpanelPositionId(bannerId, banner),
+            time: Date.now() / 1000,
+          })
+        } catch (_) {
+          //
+        }
+
+        setDisableBannerAds(newDisabledBannerAds)
       }
-
-      setDisableBannerAds(newDisabledBannerAds)
     },
-    [
-      disabledBannerAds,
-      bannerAds,
-      walletAddress,
-      cosmosWalletAddress,
-      chain.chainId,
-      chain.chainName,
-    ],
+    [disabledBannerAds, bannerAds, cosmosWalletAddress, chain.chainId, chain.chainName],
   )
 
   const handleBannerClick = useCallback(
@@ -392,29 +387,22 @@ export default function GlobalBannersAD({
         }
       }
 
-      try {
-        mixpanel.track(EventName.BannerClick, {
-          bannerId: getMixpanelBannerId(bannerId, banner?.attributes?.campaign_id),
-          bannerIndex,
-          walletAddress,
-          globalWalletAddress: cosmosWalletAddress,
-          chainId: chain.chainId,
-          chainName: chain.chainName,
-          positionId: getMixpanelPositionId(bannerId, banner),
-          time: Date.now() / 1000,
-        })
-      } catch (_) {
-        //
+      if (!isCompassWallet()) {
+        try {
+          mixpanel.track(EventName.BannerClick, {
+            bannerId: getMixpanelBannerId(bannerId, banner?.attributes?.campaign_id),
+            bannerIndex,
+            chainId: chain.chainId,
+            chainName: chain.chainName,
+            positionId: getMixpanelPositionId(bannerId, banner),
+            time: Date.now() / 1000,
+          })
+        } catch (e) {
+          captureException(e)
+        }
       }
     },
-    [
-      bannerAds,
-      chain.chainId,
-      chain.chainName,
-      cosmosWalletAddress,
-      osmoWalletAddress,
-      walletAddress,
-    ],
+    [bannerAds, chain.chainId, chain.chainName, osmoWalletAddress],
   )
 
   const handleScroll: React.UIEventHandler<HTMLDivElement> = useCallback(

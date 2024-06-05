@@ -32,6 +32,7 @@ export type PendingTx = {
   voteOption?: VoteOption;
   proposalId?: number;
   txnLogAmount?: number;
+  isEvmTx?: boolean;
 };
 
 export type PendingTxState = {

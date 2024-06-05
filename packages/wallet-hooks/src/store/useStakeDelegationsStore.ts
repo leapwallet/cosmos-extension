@@ -1,10 +1,12 @@
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk';
+import { BigNumber } from 'bignumber.js';
 import create from 'zustand';
 
 type DelegationInfo = {
   totalDelegationAmount: string;
   currencyAmountDelegation: string;
   delegations: Record<string, Delegation>;
+  totalDelegation: BigNumber;
 };
 
 type StakeDelegationsStore = {

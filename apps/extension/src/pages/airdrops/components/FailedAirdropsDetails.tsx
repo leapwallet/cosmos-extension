@@ -1,5 +1,6 @@
 import { useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
@@ -7,6 +8,7 @@ import { useAirdropsData } from 'hooks/useAirdropsData'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import React, { useEffect, useState } from 'react'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 export default function FailedAirdropsDetails() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -21,13 +23,19 @@ export default function FailedAirdropsDetails() {
   }, [isDataNull])
 
   const trackCTAEvent = () => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.AIRDROPS,
-      buttonName: ButtonName.RETRY_AIRDROP,
-      redirectURL: '',
-      numberOfRetries,
-      time: Date.now() / 1000,
-    })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.AIRDROPS,
+          buttonName: ButtonName.RETRY_AIRDROP,
+          redirectURL: '',
+          numberOfRetries,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
+      }
+    }
   }
 
   const onRetry = () => {

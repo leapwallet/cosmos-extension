@@ -17,7 +17,7 @@ import { CosmosApp } from '@zondax/ledger-cosmos-js';
 import bech32 from 'bech32';
 import { Address as EthereumUtilsAddress } from 'ethereumjs-util';
 
-import { ChainInfos, SupportedChain } from '../constants';
+import { ChainInfo, SupportedChain } from '../constants';
 import { getBech32Address, getEthereumAddress } from '../utils';
 import {
   bolosError,
@@ -236,25 +236,6 @@ export class LeapLedgerSignerEth {
     ).hash(message.message);
   }
 
-  private static messageType(message: any) {
-    const types = { ...message.types };
-
-    delete types['EIP712Domain'];
-
-    const primary = types[message.primaryType];
-
-    if (!primary) {
-      throw new Error(`Could not find  matching  primary type : ${message.primaryType}`);
-    }
-
-    delete types[message.primaryType];
-
-    return {
-      [message.primaryType]: primary,
-      ...types,
-    };
-  }
-
   async getAccounts(closeTransport?: boolean): Promise<readonly AccountData[]> {
     try {
       const defaultHdPath = "m/44'/60'/0'/0/0";
@@ -356,6 +337,7 @@ export class LeapLedgerSignerEth {
 
   async signPersonalMessage(signerAddress: string, message: string) {
     try {
+      await this.getAccount(signerAddress);
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPath = this.options.hdPaths?.toString() ?? defaultHdPath;
       const signature = await this.ledger.signPersonalMessage(hdPath, message);
@@ -369,6 +351,7 @@ export class LeapLedgerSignerEth {
 
   async signTransaction(signerAddress: string, transaction: string) {
     try {
+      await this.getAccount(signerAddress);
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPath = this.options.hdPaths?.toString() ?? defaultHdPath;
 
@@ -414,7 +397,7 @@ export async function isLedgerUnlocked(appName: 'Cosmos' | 'Ethereum') {
       return response.error_message === 'No errors';
     } else {
       const ethApp = new EthereumApp(transport);
-      const response = await ethApp.getAppConfiguration();
+      await ethApp.getAppConfiguration();
       return true;
     }
   } catch (e) {
@@ -432,6 +415,7 @@ export async function importLedgerAccount(
   useEthApp: boolean = false,
   primaryChain: SupportedChain,
   chainsToImport: SupportedChain[],
+  chainInfos: Record<SupportedChain, ChainInfo>,
 ) {
   let transport;
   try {
@@ -445,12 +429,12 @@ export async function importLedgerAccount(
 
     const ledgerSigner = new LeapLedgerSigner(transport, {
       hdPaths: getHdPaths(addressIndexes, '118'),
-      prefix: ChainInfos[primaryChain ?? cosmosDefaultChain].addressPrefix,
+      prefix: chainInfos[primaryChain ?? cosmosDefaultChain].addressPrefix,
     });
 
     const ethLedgerSigner = new LeapLedgerSignerEth(transport, {
       hdPaths: getHdPaths(addressIndexes, '60'),
-      prefix: ChainInfos[primaryChain ?? ethDefaultChain].addressPrefix,
+      prefix: chainInfos[primaryChain ?? ethDefaultChain].addressPrefix,
     });
 
     const primaryChainAccount = useEthApp
@@ -459,12 +443,12 @@ export async function importLedgerAccount(
     const chainWiseAddresses: Record<string, Array<{ address: string; pubKey: Uint8Array }>> = {};
     let enabledChains: Array<any> = [];
     if (useEthApp) {
-      enabledChains = Object.entries(ChainInfos).filter(
+      enabledChains = Object.entries(chainInfos).filter(
         (chain) =>
           chain[1].enabled && chain[1].bip44.coinType === '60' && chainsToImport.includes(chain[0] as SupportedChain),
       );
     } else {
-      enabledChains = Object.entries(ChainInfos).filter(
+      enabledChains = Object.entries(chainInfos).filter(
         (chain) => chain[1].enabled && chain[1].bip44.coinType !== '60' && chain[1].bip44.coinType !== '931',
       );
     }

@@ -1,4 +1,5 @@
 import { useActiveWallet, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { captureException } from '@sentry/react'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
@@ -7,6 +8,7 @@ import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import React, { useEffect, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 export default function FundBanners() {
@@ -15,20 +17,30 @@ export default function FundBanners() {
   const chain = useChainInfo()
   const { handleSwapClick } = useHardCodedActions()
 
-  const transactUrl = (type: 'buy' | 'swap' | 'bridge') =>
-    `https://cosmos.leapwallet.io/transact/${type}?destinationChainId=${chain?.chainId}`
+  const transactUrl = (type: 'buy' | 'swap' | 'bridge') => {
+    if (type === 'swap' || type === 'bridge') {
+      return `https://swapfast.app/?destinationChainId=${chain?.chainId}`
+    }
+    return `https://cosmos.leapwallet.io/transact/${type}?destinationChainId=${chain?.chainId}`
+  }
 
   const [showCopyAddress, setShowCopyAddress] = useState<boolean>(false)
 
   const trackCTAEvent = (buttonName: string, redirectURL?: string) => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.ADD_FUNDS,
-      buttonName,
-      redirectURL,
-      time: Date.now() / 1000,
-      chainId: chain.chainId,
-      chainName: chain.chainName,
-    })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.ADD_FUNDS,
+          buttonName,
+          redirectURL,
+          time: Date.now() / 1000,
+          chainId: chain.chainId,
+          chainName: chain.chainName,
+        })
+      } catch (e) {
+        captureException(e)
+      }
+    }
   }
 
   useEffect(() => {

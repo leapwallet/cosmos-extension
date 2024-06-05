@@ -7,7 +7,7 @@ import {
   generateWalletFromPrivateKey,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/utils/get-hdpath'
+import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
 import { decrypt } from '@leapwallet/leap-keychain'
 import { Secp256k1 } from '@leapwallet/leap-keychain'
 

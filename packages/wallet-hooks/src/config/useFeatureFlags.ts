@@ -24,6 +24,9 @@ export type FeatureFlags = {
     mobile: FeatureFlagState;
     extension: FeatureFlagState;
   };
+  link_evm_address: {
+    extension: 'redirect' | 'no-funds' | 'with-funds' | 'disabled';
+  };
   ibc: {
     mobile: FeatureFlagState;
     extension: FeatureFlagState;
@@ -54,7 +57,13 @@ export function useFeatureFlags() {
   const isCompassWallet = getAppName() === APP_NAME.Compass;
   const storage = useGetStorageLayer();
 
-  return useQuery<FeatureFlags>(['query-feature-flag-v1'], () => getFeatureFlags(storage, isCompassWallet), {
-    retry: 2,
-  });
+  return useQuery<FeatureFlags>(
+    [`query-${isCompassWallet ? 'compass' : 'leap'}-feature-flag-v1`],
+    () => getFeatureFlags(storage, isCompassWallet),
+    {
+      retry: 2,
+      cacheTime: 1000 * 10, // 10 seconds
+      staleTime: 0,
+    },
+  );
 }

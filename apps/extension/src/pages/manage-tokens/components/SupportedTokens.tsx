@@ -2,12 +2,11 @@ import {
   capitalize,
   sliceWord,
   useAutoFetchedCW20Tokens,
-  useChainInfo,
   useCW20Tokens,
+  useGetExplorerAccountUrl,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
-import { CardDivider, GenericCard, Toggle } from '@leapwallet/leap-ui'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
+import { CardDivider, GenericCard, ThemeName, Toggle, useTheme } from '@leapwallet/leap-ui'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useMemo } from 'react'
@@ -26,19 +25,13 @@ export function SupportedTokens({ tokens, handleToggleChange }: SupportedTokensP
   const defaultTokenLogo = useDefaultTokenLogo()
   const cw20Tokens = useCW20Tokens()
   const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
-  const activeChainInfo = useChainInfo()
-  const selectedNetwork = useSelectedNetwork()
 
+  const { theme } = useTheme()
+  const { getExplorerAccountUrl } = useGetExplorerAccountUrl({})
   const combinedCW20Tokens = useMemo(
     () => ({ ...cw20Tokens, ...autoFetchedCW20Tokens }),
     [cw20Tokens, autoFetchedCW20Tokens],
   )
-
-  const explorerURL = useMemo(() => {
-    if (!activeChainInfo) return undefined
-    if (!activeChainInfo.txExplorer) return undefined
-    return activeChainInfo.txExplorer?.[selectedNetwork]?.accountUrl
-  }, [activeChainInfo, selectedNetwork])
 
   return (
     <div>
@@ -53,9 +46,10 @@ export function SupportedTokens({ tokens, handleToggleChange }: SupportedTokensP
           const title = sliceWord(token?.name ?? capitalize(token.coinDenom.toLowerCase()), 7, 4)
           const subTitle = sliceWord(token.coinDenom, 4, 4)
 
+          const explorerURL = getExplorerAccountUrl(token.coinMinimalDenom)
           const handleRedirectionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation()
-            window.open(`${explorerURL}/${token.coinMinimalDenom}`, '_blank')
+            window.open(explorerURL, '_blank')
           }
 
           return (
@@ -83,7 +77,11 @@ export function SupportedTokens({ tokens, handleToggleChange }: SupportedTokensP
                     {token.verified && (
                       <div className='absolute group -bottom-[5px] -right-[5px]'>
                         <img
-                          src={Images.Misc.VerifiedWithBgStar}
+                          src={
+                            theme === ThemeName.DARK
+                              ? Images.Misc.VerifiedWithBgStarDark
+                              : Images.Misc.VerifiedWithBgStar
+                          }
                           alt='verified-token'
                           className='h-4 w-4'
                         />

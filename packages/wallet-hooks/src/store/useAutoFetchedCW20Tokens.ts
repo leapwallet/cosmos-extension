@@ -1,4 +1,5 @@
 import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { useMemo } from 'react';
 import create from 'zustand';
 
 import { useActiveChain } from './useActiveChain';
@@ -26,5 +27,9 @@ export const useAutoFetchedCW20Tokens = (forceChain?: SupportedChain) => {
   const _activeChain = useActiveChain();
   const activeChain = forceChain || _activeChain;
   const { autoFetchedCW20Tokens } = useAutoFetchedCW20TokensStore();
-  return (autoFetchedCW20Tokens?.[activeChain] ?? {}) as DenomsRecord;
+
+  return useMemo(
+    () => (autoFetchedCW20Tokens?.[activeChain] ?? {}) as DenomsRecord,
+    [activeChain, autoFetchedCW20Tokens],
+  );
 };

@@ -1,4 +1,4 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import Text from 'components/text'
 import { usePassword } from 'hooks/settings/usePassword'
@@ -8,6 +8,7 @@ import { Colors } from 'theme/colors'
 import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 
 import useImportWallet = Wallet.useImportWallet
+import InfoSheet from 'components/Infosheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { SeedPhraseInput } from 'components/seed-phrase-input'
 import { Images } from 'images'
@@ -26,6 +27,8 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
   const [isLoading, setIsLoading] = useState(false)
   const importWallet = useImportWallet()
 
+  const [viewInfoSheet, setViewInfoSheet] = useState(false)
+  const isSeiEvmChain = useIsSeiEvmChain()
   const onChangeHandler = (value: string) => {
     setError('')
     setSecret(value)
@@ -56,6 +59,15 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
   if (!isVisible) return null
   return (
     <div className='h-[600px] overflow-scroll bg-white-100 dark:bg-black-100 absolute top-0 z-10'>
+      {isSeiEvmChain ? (
+        <button
+          className='absolute top-5 right-5 w-[32px] cursor-pointer z-10'
+          onClick={() => setViewInfoSheet(true)}
+        >
+          <img className='w-full' src={Images.Misc.HelpOutline} alt='help' />
+        </button>
+      ) : null}
+
       <Header
         topColor={Colors.getChainColor(activeChain)}
         title='Import Wallet'
@@ -104,6 +116,16 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
           </Buttons.Generic>
         </div>
       </div>
+
+      {isSeiEvmChain ? (
+        <InfoSheet
+          isVisible={viewInfoSheet}
+          setVisible={setViewInfoSheet}
+          title='FAQ'
+          heading='Can I import my Metamask recovery phrase here?'
+          desc='Yes, you can but importing a recovery phrase from Metamask might give a different address. Instead, import your private key.'
+        />
+      ) : null}
     </div>
   )
 }

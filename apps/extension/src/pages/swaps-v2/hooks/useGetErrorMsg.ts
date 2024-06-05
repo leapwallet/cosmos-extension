@@ -1,6 +1,12 @@
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
+const NO_TRANSACTION_ROUTES_ERROR = 'No transaction routes available'
+
+export function isNoRoutesAvailableError(routeError: string | undefined) {
+  return routeError?.toLowerCase().includes(NO_TRANSACTION_ROUTES_ERROR?.toLowerCase())
+}
+
 export function useGetErrorMsg(
   routeError: Error | undefined,
   sourceToken: SourceToken | null,
@@ -14,8 +20,13 @@ export function useGetErrorMsg(
       return errorMsg
     }
 
-    if (routeError && routeError.message.toLowerCase().includes('error getting route')) {
-      return 'No transaction routes available'
+    if (routeError) {
+      if (routeError.message.toLowerCase().includes('no routes found')) {
+        return NO_TRANSACTION_ROUTES_ERROR
+      }
+      if (routeError.message.toLowerCase().includes('asset metadata unavailable')) {
+        return 'Asset not supported'
+      }
     }
 
     if (

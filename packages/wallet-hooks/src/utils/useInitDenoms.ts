@@ -14,14 +14,32 @@ const BASE_DENOMS_LAST_UPDATED_AT_URL =
 
 export const BETA_CW20_TOKENS = 'beta-cw20-tokens';
 export const BETA_NATIVE_TOKENS = 'beta-native-tokens';
+export const BETA_ERC20_TOKENS = 'beta-erc20-tokens';
 
 export function useInitDenoms() {
   const storage = useGetStorageLayer();
   const { setDenoms } = useDenomsStore();
 
   const setResource = useCallback(async (resource: any) => {
+    const betaERC20Tokens = await storage.get(BETA_ERC20_TOKENS);
     const betaCW20Tokens = await storage.get(BETA_CW20_TOKENS);
     const betaNativeTokens = await storage.get(BETA_NATIVE_TOKENS);
+
+    if (betaERC20Tokens) {
+      let allBetaERC20Tokens = {};
+      for (const chain in betaERC20Tokens) {
+        for (const coinMinimalDenom in betaERC20Tokens[chain]) {
+          if (resource[coinMinimalDenom]) {
+            delete betaERC20Tokens[chain][coinMinimalDenom];
+          }
+        }
+
+        allBetaERC20Tokens = { ...allBetaERC20Tokens, ...betaERC20Tokens[chain] };
+      }
+
+      await storage.set(BETA_ERC20_TOKENS, betaERC20Tokens);
+      resource = { ...resource, ...allBetaERC20Tokens };
+    }
 
     if (betaCW20Tokens) {
       let allBetaCW20Tokens = {};

@@ -16,6 +16,14 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  uinit: {
+    coinDenom: 'INIT',
+    coinMinimalDenom: 'uinit',
+    coinDecimals: 6,
+    icon: 'https://assets.leapwallet.io/initia.svg',
+    chain: 'initia',
+    coinGeckoId: '',
+  },
   usaga: {
     coinDenom: 'SAGA',
     coinMinimalDenom: 'usaga',
@@ -1400,7 +1408,7 @@ export const denoms = {
     coinMinimalDenom: 'ppica',
     coinDecimals: 12,
     icon: 'https://assets.leapwallet.io/pica.svg',
-    chain: 'centauri',
+    chain: 'composable',
     coinGeckoId: 'picasso',
   },
   unom: {

@@ -10,12 +10,13 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import { fillBetaValuesFromStorage } from 'hooks/settings/fillBetaValuesFromStorage'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { SourceChain } from 'types/swap'
 
 export function useInitializeCW20TokensForChain(chain: SourceChain | undefined) {
   const queryClient = useQueryClient()
   const storage = useGetStorageLayer()
+  const [isLoading, setLoading] = useState(false)
   const { setCW20Tokens } = useCW20TokensStore()
   const { setAutoFetchedCW20Tokens } = useAutoFetchedCW20TokensStore()
   const { setBetaCW20Tokens } = useBetaCW20TokensStore()
@@ -23,6 +24,7 @@ export function useInitializeCW20TokensForChain(chain: SourceChain | undefined) 
   useEffect(() => {
     async function fetchCW20TokensFiles() {
       if (chain?.key) {
+        setLoading(true)
         fillBetaValuesFromStorage(
           chain?.key,
           BETA_CW20_TOKENS,
@@ -42,8 +44,11 @@ export function useInitializeCW20TokensForChain(chain: SourceChain | undefined) 
             fetchCW20TokensQueryParams,
           ),
         ])
+        setLoading(false)
       }
     }
     fetchCW20TokensFiles()
   }, [chain])
+
+  return { isLoading }
 }

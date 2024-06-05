@@ -8,7 +8,6 @@ import {
   UnknownMessage,
 } from '@leapwallet/buffer-boba'
 import {
-  FeeTokenData,
   GasOptions,
   LeapWalletApi,
   useActiveWallet,
@@ -345,23 +344,26 @@ const SignTransaction = ({
   const handleCancel = useCallback(async () => {
     if (isRejectedRef.current || isApprovedRef.current) return
     isRejectedRef.current = true
-    try {
-      mixpanel.track(
-        EventName.DappTxnRejected,
-        {
-          dAppURL: siteOrigin,
-          transactionTypes,
-          signMode: isAmino ? 'sign-amino' : 'sign-direct',
-          walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-          chainId: chainInfo.chainId,
-          chainName: chainInfo.chainName,
-          productVersion: browser.runtime.getManifest().version,
-          time: Date.now() / 1000,
-        },
-        mixpanelTrackOptions,
-      )
-    } catch (e) {
-      captureException(e)
+
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(
+          EventName.DappTxnRejected,
+          {
+            dAppURL: siteOrigin,
+            transactionTypes,
+            signMode: isAmino ? 'sign-amino' : 'sign-direct',
+            walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+            chainId: chainInfo.chainId,
+            chainName: chainInfo.chainName,
+            productVersion: browser.runtime.getManifest().version,
+            time: Date.now() / 1000,
+          },
+          mixpanelTrackOptions,
+        )
+      } catch (e) {
+        captureException(e)
+      }
     }
 
     browser.runtime.sendMessage({
@@ -415,32 +417,9 @@ const SignTransaction = ({
       return
     }
     const skipFeeCheck = isSignArbitrary || ethSignType
-    const onValidationFailed =
-      (txFee: any) => (denomData: NativeDenom, isValidFee: boolean | null) => {
-        mixpanel.track(
-          EventName.FeeValidationFailed,
-          {
-            dAppURL: siteOrigin,
-            transactionTypes,
-            signMode: isAmino ? 'sign-amino' : 'sign-direct',
-            walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-            chainId: chainInfo.chainId,
-            chainName: chainInfo.chainName,
-            productVersion: browser.runtime.getManifest().version,
-            time: Date.now() / 1000,
-            signOptions: JSON.stringify(signOptions),
-            txData: JSON.stringify(messages),
-            gasPrice: gasPriceOption.gasPrice.toString(),
-            gasLimitOriginal: recommendedGasLimit,
-            gasLimit: userPreferredGasLimit || recommendedGasLimit,
-            denom: JSON.stringify(denomData),
-            fee: JSON.stringify(txFee),
-            context: 'post-approval',
-            cause: isValidFee === null ? 'usd-value-unknown' : 'fee-too-high',
-          },
-          mixpanelTrackOptions,
-        )
-      }
+    // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars, no-unused-vars
+    const onValidationFailed = (txFee: any) => () => {}
+
     if (!isAmino) {
       try {
         if (!skipFeeCheck) {
@@ -503,22 +482,25 @@ const SignTransaction = ({
 
         try {
           const txHash = getTxHashFromDirectSignResponse(data)
-          mixpanel.track(
-            EventName.DappTxnApproved,
-            {
-              dAppURL: siteOrigin,
-              transactionTypes:
-                messages?.map((msg) => msg.raw['@type'] ?? msg.raw['type']).filter(Boolean) ?? [],
-              signMode: 'sign-direct',
-              walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-              txHash,
-              chainId: chainInfo.chainId,
-              chainName: chainInfo.chainName,
-              productVersion: browser.runtime.getManifest().version,
-              time: Date.now() / 1000,
-            },
-            mixpanelTrackOptions,
-          )
+
+          if (!isCompassWallet()) {
+            mixpanel.track(
+              EventName.DappTxnApproved,
+              {
+                dAppURL: siteOrigin,
+                transactionTypes:
+                  messages?.map((msg) => msg.raw['@type'] ?? msg.raw['type']).filter(Boolean) ?? [],
+                signMode: 'sign-direct',
+                walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+                txHash,
+                chainId: chainInfo.chainId,
+                chainName: chainInfo.chainName,
+                productVersion: browser.runtime.getManifest().version,
+                time: Date.now() / 1000,
+              },
+              mixpanelTrackOptions,
+            )
+          }
         } catch (e) {
           captureException(e)
         }
@@ -623,17 +605,19 @@ const SignTransaction = ({
           throw new Error('Could not sign transaction')
         }
 
-        try {
-          await logSignAmino(
-            data as AminoSignResponse,
-            publicKey,
-            txPostToDb,
-            activeChain,
-            activeAddress,
-            siteOrigin ?? origin,
-          )
-        } catch (e) {
-          captureException(e)
+        if (!isSignArbitrary) {
+          try {
+            await logSignAmino(
+              data as AminoSignResponse,
+              publicKey,
+              txPostToDb,
+              activeChain,
+              activeAddress,
+              siteOrigin ?? origin,
+            )
+          } catch (e) {
+            captureException(e)
+          }
         }
 
         try {
@@ -655,9 +639,11 @@ const SignTransaction = ({
             //
           }
 
-          mixpanel.track(EventName.DappTxnApproved, trackingData, mixpanelTrackOptions)
-        } catch (_) {
-          //
+          if (!isCompassWallet()) {
+            mixpanel.track(EventName.DappTxnApproved, trackingData, mixpanelTrackOptions)
+          }
+        } catch (e) {
+          captureException(e)
         }
 
         isApprovedRef.current = true
@@ -718,23 +704,26 @@ const SignTransaction = ({
     if (isDappTxnInitEventLogged.current) return
 
     try {
-      mixpanel.track(
-        EventName.DappTxnInit,
-        {
-          dAppURL: siteOrigin,
-          transactionTypes,
-          signMode: isAmino ? 'sign-amino' : 'sign-direct',
-          walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-          chainId: chainInfo.chainId,
-          chainName: chainInfo.chainName,
-          productVersion: browser.runtime.getManifest().version,
-          time: Date.now() / 1000,
-        },
-        mixpanelTrackOptions,
-      )
+      if (!isCompassWallet()) {
+        mixpanel.track(
+          EventName.DappTxnInit,
+          {
+            dAppURL: siteOrigin,
+            transactionTypes,
+            signMode: isAmino ? 'sign-amino' : 'sign-direct',
+            walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+            chainId: chainInfo.chainId,
+            chainName: chainInfo.chainName,
+            productVersion: browser.runtime.getManifest().version,
+            time: Date.now() / 1000,
+          },
+          mixpanelTrackOptions,
+        )
+      }
+
       isDappTxnInitEventLogged.current = true
-    } catch (_) {
-      //
+    } catch (e) {
+      captureException(e)
     }
   }, [
     activeWallet.walletType,
@@ -838,38 +827,16 @@ const SignTransaction = ({
                 fee={fee}
                 chain={activeChain}
                 validateFee={true}
-                onInvalidFees={(feeTokenData: FeeTokenData, isFeesValid: boolean | null) => {
+                onInvalidFees={(feeTokenData: NativeDenom, isFeesValid: boolean | null) => {
                   try {
                     if (isFeesValid === false) {
                       setIsFeesValid(false)
                     }
-                    mixpanel.track(
-                      EventName.FeeValidationFailed,
-                      {
-                        dAppURL: siteOrigin,
-                        transactionTypes,
-                        signMode: isAmino ? 'sign-amino' : 'sign-direct',
-                        walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-                        chainId: chainInfo.chainId,
-                        chainName: chainInfo.chainName,
-                        productVersion: browser.runtime.getManifest().version,
-                        time: Date.now() / 1000,
-                        signOptions: JSON.stringify(signOptions),
-                        txData: JSON.stringify(messages),
-                        gasPrice: gasPriceOption.gasPrice.toString(),
-                        gasLimitOriginal: recommendedGasLimit,
-                        gasLimit: userPreferredGasLimit,
-                        denom: JSON.stringify(feeTokenData.denom),
-                        fee: JSON.stringify(fee),
-                        context: 'pre-approval',
-                        cause: isFeesValid === null ? 'usd-value-unknown' : 'fee-too-high',
-                      },
-                      mixpanelTrackOptions,
-                    )
                   } catch (e) {
                     captureException(e)
                   }
                 }}
+                notUpdateInitialGasPrice={!allowSetFee}
               >
                 <Tabs
                   className='mt-3'

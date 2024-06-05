@@ -15,9 +15,9 @@ export function useInitChainInfos() {
   const customChains = useCustomChains()
 
   useEffect(() => {
-    function getBetaChains() {
+    function getBetaChains(updateStore?: boolean) {
       browser.storage.local.get([BETA_CHAINS, CUSTOM_ENDPOINTS]).then(async (resp) => {
-        const _allChains: any = {}
+        const _allChains: any = JSON.parse(resp[BETA_CHAINS] ?? '{}')
         for (let i = 0; i < customChains?.length; i++) {
           if (
             !isCompassWallet() &&
@@ -56,7 +56,9 @@ export function useInitChainInfos() {
             }
           }
 
-          await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
+          if (updateStore) {
+            await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
+          }
         }
 
         const enabledChains = Object.entries(ChainInfos).reduce(
@@ -80,7 +82,7 @@ export function useInitChainInfos() {
 
         const allChains = { ...betaChains, ...enabledChains }
         const sortedChains = Object.keys(allChains).sort((a, b) =>
-          a.toLowerCase().localeCompare(b.toLowerCase()),
+          allChains[a].chainName.toLowerCase().localeCompare(allChains[b].chainName.toLowerCase()),
         )
 
         const _chains: Record<string, any> = {}
@@ -127,20 +129,17 @@ export function useInitChainInfos() {
       })
     }
 
-    getBetaChains()
-
-    browser.storage.onChanged.addListener((storage) => {
+    getBetaChains(true)
+    const addChainEventListener = (storage: Record<string, any>) => {
       if (storage && (storage[BETA_CHAINS] || storage[CUSTOM_ENDPOINTS])) {
-        getBetaChains()
+        getBetaChains(false)
       }
-    })
+    }
+
+    browser.storage.onChanged.addListener(addChainEventListener)
 
     return () => {
-      browser.storage.onChanged.removeListener((storage) => {
-        if (storage && (storage[BETA_CHAINS] || storage[CUSTOM_ENDPOINTS])) {
-          getBetaChains()
-        }
-      })
+      browser.storage.onChanged.removeListener(addChainEventListener)
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

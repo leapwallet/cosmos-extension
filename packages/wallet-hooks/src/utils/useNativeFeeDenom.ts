@@ -19,10 +19,19 @@ export const useNativeFeeDenom = (forceChain?: string, forceNetwork?: 'mainnet' 
       return denoms[nativeDenom.coinMinimalDenom] ?? nativeDenom;
     }
 
-    return feeDenoms[selectedNetwork][activeChain]
-      ? denoms[feeDenoms[selectedNetwork][activeChain]]
-      : fallbackFeeDenoms[selectedNetwork][activeChain];
-  }, [activeChain, chains, selectedNetwork]);
+    const selectedFeeCoinMinimalDenom = feeDenoms[selectedNetwork][activeChain];
+
+    if (selectedFeeCoinMinimalDenom) {
+      return denoms[selectedFeeCoinMinimalDenom];
+    }
+
+    const fallbackFeeDenom = fallbackFeeDenoms[selectedNetwork][activeChain];
+
+    if (fallbackFeeDenom?.coinMinimalDenom) {
+      return denoms[fallbackFeeDenom.coinMinimalDenom] ?? fallbackFeeDenom;
+    }
+    return fallbackFeeDenom;
+  }, [activeChain, chains, selectedNetwork, feeDenoms, denoms]);
 
   return nativeFeeDenom;
 };

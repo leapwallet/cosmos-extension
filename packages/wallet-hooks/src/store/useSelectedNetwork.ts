@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import create from 'zustand';
 
 import { getStorageLayer } from '../utils';
+import { useIsTestnetActiveChain } from '../utils-hooks';
 import { useActiveChainStore } from './useActiveChain';
 
 type SelectedNetworkState = {
@@ -33,16 +34,25 @@ useSelectedNetworkStore.subscribe(async ({ selectedNetwork }) => {
 });
 
 export const useInitSelectedNetwork = () => {
+  const { isTestnet } = useIsTestnetActiveChain();
+
   useEffect(() => {
     const fn = async () => {
       const selectedNetworkStore = useSelectedNetworkStore.getState();
       const storage = getStorageLayer();
-      const selectedNetwork = await storage.get('selected-network');
-      const defaultSelectedNetwork = 'mainnet';
-      selectedNetworkStore.setSelectedNetwork(selectedNetwork ?? defaultSelectedNetwork);
+      let selectedNetwork = await storage.get('selected-network');
+      let defaultSelectedNetwork = 'mainnet';
+
+      if (selectedNetwork && selectedNetwork === 'mainnet' && isTestnet) {
+        selectedNetwork = 'testnet';
+      } else if (!selectedNetwork && isTestnet) {
+        defaultSelectedNetwork = 'testnet';
+      }
+
+      selectedNetworkStore.setSelectedNetwork(selectedNetwork || defaultSelectedNetwork);
     };
     fn();
-  }, []);
+  }, [isTestnet]);
 };
 
 export const useSelectedNetwork = () => useSelectedNetworkStore((state) => state.selectedNetwork);

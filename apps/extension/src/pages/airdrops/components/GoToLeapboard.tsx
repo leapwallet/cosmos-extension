@@ -1,8 +1,10 @@
+import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import mixpanel from 'mixpanel-browser'
 import React from 'react'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 interface GoToLeapboardProps {
   className?: string
@@ -11,12 +13,18 @@ const redirectURL = `https://cosmos.leapwallet.io/airdrops`
 
 export default function GoToLeapboard({ className = '' }: GoToLeapboardProps) {
   const trackCTAEvent = () => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.AIRDROPS,
-      buttonName: ButtonName.GO_TO_LEAPBOARD,
-      redirectURL,
-      time: Date.now() / 1000,
-    })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.AIRDROPS,
+          buttonName: ButtonName.GO_TO_LEAPBOARD,
+          redirectURL,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
+      }
+    }
   }
 
   return (

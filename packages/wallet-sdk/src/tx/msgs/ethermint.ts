@@ -1,10 +1,9 @@
-import { makeSignDoc } from '@cosmjs/amino';
-import { keccak256 } from '@cosmjs/crypto';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
 import { PubKey } from 'cosmjs-types/cosmos/crypto/secp256k1/keys';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
 import { AuthInfo, Fee, SignDoc, TxBody, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
+import { keccak256 } from 'ethereumjs-util';
 
 export function generateIbcMsgTransferTypes(msg: { memo?: string }) {
   const types = {
@@ -402,7 +401,7 @@ export function createTxIBCMsgTransfer(
     }),
   ).finish();
 
-  const signBytes = keccak256(signDirectDoc);
+  const signBytes = keccak256(Buffer.from(signDirectDoc));
 
   return {
     signDirect: {

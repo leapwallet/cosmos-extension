@@ -6,7 +6,7 @@ import {
   useDefaultGasEstimates,
   useFeeTokens,
   useformatCurrency,
-  useGetTokenBalances,
+  useGetTokenSpendableBalances,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { fromSmallBN, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -50,7 +50,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = ({
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
   const { allAssets, nativeTokensStatus, s3IbcTokensStatus, nonS3IbcTokensStatus } =
-    useGetTokenBalances()
+    useGetTokenSpendableBalances()
   const activeChain = useActiveChain()
   const chainId = useChainId()
 

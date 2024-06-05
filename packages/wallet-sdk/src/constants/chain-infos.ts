@@ -1,6 +1,5 @@
 import { defaultGasPriceStep } from './default-gasprice-step';
 import { denoms, NativeDenom } from './denoms';
-import { ARCTIC_EVM_RPC_URL } from './sei-evm';
 
 /**
  *
@@ -88,7 +87,8 @@ export type SupportedChain =
   | 'pryzmtestnet'
   | 'thorchain'
   | 'odin'
-  | 'saga';
+  | 'saga'
+  | 'initia';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -163,12 +163,13 @@ export type AddressPrefix =
   | 'ki'
   | 'sent'
   | 'band'
-  | 'centauri'
+  | 'pica'
   | 'dym'
   | 'pryzm'
   | 'thor'
   | 'odin'
-  | 'saga';
+  | 'saga'
+  | 'init';
 
 export type Denom =
   | 'JUNO'
@@ -249,7 +250,8 @@ export type Denom =
   | 'PRYZM'
   | 'RUNE'
   | 'ODIN'
-  | 'SAGA';
+  | 'SAGA'
+  | 'INIT';
 
 export type CoinType =
   | '118'
@@ -291,7 +293,9 @@ export type ChainInfo = {
     readonly alternateRest?: string;
     readonly alternateRpcTest?: string;
     readonly alternateRestTest?: string;
+
     readonly evmJsonRpc?: string;
+    readonly evmJsonRpcTest?: string;
 
     readonly grpc?: string;
     readonly grpcTest?: string;
@@ -328,8 +332,6 @@ export type ChainInfo = {
   readonly beta?: boolean;
   readonly disableStaking?: boolean;
   readonly cosmosSDK?: string;
-  readonly notSupportedFeatures?: string[];
-  readonly comingSoonFeatures?: string[];
   readonly evmChainId?: string;
   readonly evmChainIdTestnet?: string;
   apiStatus?: boolean;
@@ -435,7 +437,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/archway/txs',
-        accountUrl: 'https://www.mintscan.io/archway/txs',
+        accountUrl: 'https://www.mintscan.io/archway/accounts',
       },
       testnet: {
         name: 'Testnet Mintscan',
@@ -907,6 +909,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(243, 134, 42, 0.32) 0%, rgba(243, 134, 42, 0) 100%)',
     },
     enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
   },
   chihuahua: {
     chainId: 'chihuahua-1',
@@ -1339,7 +1342,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Mintscan',
         txUrl: 'https://www.mintscan.io/dydx/txs',
-        accountUrl: 'https://www.mintscan.io/dydx/account',
+        accountUrl: 'https://www.mintscan.io/dydx/accounts',
       },
     },
     bip44: {
@@ -1797,6 +1800,45 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  initia: {
+    chainId: 'initiation-1',
+    testnetChainId: 'initiation-1',
+    key: 'initia',
+    chainName: 'Initia Testnet',
+    chainRegistryPath: 'initia',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/initia.svg',
+    apis: {
+      restTest: 'https://lcd.initiation-1.initia.xyz',
+      rpcTest: 'https://rpc-initia-testnet.whispernode.com',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      testnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.testnet.initia.xyz/initiation-1/txs',
+        accountUrl: 'https://scan.testnet.initia.xyz/initiation-1/accounts',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 0.15,
+      average: 0.15,
+      high: 0.4,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      uinit: denoms.uinit,
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
   jackal: {
     chainId: 'jackal-1',
     key: 'jackal',
@@ -2160,7 +2202,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(65, 158, 124, 0.32) 0%, rgba(65, 158, 124, 0) 100%)',
     },
     enabled: true,
-    notSupportedFeatures: ['stake', 'governance'],
   },
   migaloo: {
     chainId: 'migaloo-1',
@@ -2238,7 +2279,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(65, 75, 125, 0.32) 0%, rgba(65, 75, 125, 0) 100%)',
     },
     enabled: true,
-    notSupportedFeatures: ['stake'],
   },
   nibiru: {
     chainId: 'cataclysm-1',
@@ -2297,9 +2337,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'USD',
     txExplorer: {
       mainnet: {
-        name: 'Ping.Pub',
-        txUrl: 'https://ping.testnet.noble.strange.love/noble/tx',
-        accountUrl: 'https://ping.testnet.noble.strange.love/noble/account',
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/noble/tx',
+        accountUrl: 'https://www.mintscan.io/noble/address',
       },
       testnet: {
         name: 'Mintscan Testnet',
@@ -2321,7 +2361,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(151, 177, 249, 0.32) 0%, rgba(151, 177, 249, 0) 100%)',
     },
     enabled: true,
-    notSupportedFeatures: ['stake'],
   },
   nolus: {
     chainId: 'pirin-1',
@@ -2399,7 +2438,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(99, 0, 255, 0.32) 0%, rgba(99, 0, 255, 0) 100%)',
     },
     enabled: true,
-    comingSoonFeatures: ['stake', 'governance', 'activity'],
   },
   odin: {
     chainId: 'odin-mainnet-freya',
@@ -2718,7 +2756,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     bip44: {
       coinType: '118',
     },
-    addressPrefix: 'centauri',
+    addressPrefix: 'pica',
     gasPriceStep: {
       low: 0.025,
       average: 0.03,
@@ -2814,18 +2852,25 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     cosmosSDK: CosmosSDK.Version_Point_46,
   },
   pryzmtestnet: {
-    chainId: 'indigo-1',
+    chainId: 'pryzm-1',
     testnetChainId: 'indigo-1',
     key: 'pryzmtestnet',
-    chainName: 'Pryzm Testnet',
-    chainRegistryPath: 'pryzmtestnet',
+    chainName: 'Pryzm',
+    chainRegistryPath: 'pryzm',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/pryzm.svg',
     apis: {
+      rest: 'https://api.pryzm.nodestake.org',
+      rpc: 'https://rpc.pryzm.nodestake.org',
       restTest: 'https://testnet-api.pryzm.zone',
       rpcTest: 'https://testnet-rpc.pryzm.zone',
     },
     denom: 'PRYZM',
     txExplorer: {
+      mainnet: {
+        name: 'CosmosRun',
+        txUrl: 'https://cosmosrun.info/pryzm/tx',
+        accountUrl: 'https://cosmosrun.info/pryzm/account',
+      },
       testnet: {
         name: 'CosmosRun',
         txUrl: 'https://testnets.cosmosrun.info/pryzm-indigo-1/tx',
@@ -3055,22 +3100,24 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     apis: {
       rpc: 'https://rpc.wallet.pacific-1.sei.io',
       rest: 'https://rest.wallet.pacific-1.sei.io',
-      rpcTest: 'https://rpc.wallet.atlantic-2.sei.io',
+      rpcTest: 'https://rpc.wallet.atlantic-2.sei.io', // ['https://rpc-testnet.sei-apis.com', 'https://rpc.atlantic-2.seinetwork.io'];
       restTest: 'https://rest.wallet.atlantic-2.sei.io',
       alternateRpcTest: 'https://sei-testnet-rpc.polkachu.com',
       alternateRestTest: 'https://sei-testnet-api.polkachu.com',
+      evmJsonRpc: 'https://evm-rpc-arctic-1.sei-apis.com',
+      evmJsonRpcTest: 'https://evm-rpc-testnet.sei-apis.com',
     },
     denom: 'SEI',
     txExplorer: {
       mainnet: {
-        name: 'SeiScan',
-        txUrl: 'https://www.seiscan.app/pacific-1/txs',
-        accountUrl: 'https://www.seiscan.app/pacific-1/accounts',
+        name: 'Seitrace',
+        txUrl: 'https://seitrace.com/tx/PLACEHOLDER_FOR_TX_HASH?chain=pacific-1',
+        accountUrl: 'https://seitrace.com/address/PLACEHOLDER_FOR_WALLET_ADDRESS?chain=pacific-1',
       },
       testnet: {
-        name: 'SeiScan',
-        txUrl: 'https://www.seiscan.app/atlantic-2/txs',
-        accountUrl: 'https://www.seiscan.app/atlantic-2/accounts',
+        name: 'Seitrace',
+        txUrl: 'https://seitrace.com/tx/PLACEHOLDER_FOR_TX_HASH?chain=atlantic-2',
+        accountUrl: 'https://seitrace.com/address/PLACEHOLDER_FOR_WALLET_ADDRESS?chain=atlantic-2',
       },
     },
     bip44: {
@@ -3092,18 +3139,24 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     chainId: 'arctic-1',
     testnetChainId: '',
     key: 'seiDevnet',
-    chainName: 'Sei (Arctic-1)',
+    chainName: 'Sei Devnet (Arctic-1)',
     chainRegistryPath: 'seiDevnet',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/sei.png',
     apis: {
-      // rpc: 'https://rpc.wallet.arctic-1.sei.io',
       rpc: 'https://rpc-arctic-1.sei-apis.com',
-      // rest: 'https://rest.wallet.arctic-1.sei.io',
+      alternateRpc: 'https://rpc.wallet.arctic-1.sei.io',
       rest: 'https://rest-arctic-1.sei-apis.com',
-      evmJsonRpc: ARCTIC_EVM_RPC_URL,
+      alternateRest: 'https://rest.wallet.arctic-1.sei.io',
+      evmJsonRpc: 'https://evm-rpc.sei-apis.com',
     },
     denom: 'SEI',
-    txExplorer: {},
+    txExplorer: {
+      mainnet: {
+        name: 'Seitrace',
+        txUrl: 'https://seitrace.com/tx/PLACEHOLDER_FOR_TX_HASH?chain=arctic-1',
+        accountUrl: 'https://seitrace.com/address/PLACEHOLDER_FOR_WALLET_ADDRESS?chain=arctic-1',
+      },
+    },
     bip44: {
       coinType: '118',
     },
@@ -3390,9 +3443,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'STRD',
     txExplorer: {
       mainnet: {
-        name: 'Apollo',
-        txUrl: 'https://apollo.chandrastation.com/stride/tx',
-        accountUrl: 'https://apollo.chandrastation.com/stride/account',
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/stride/tx',
+        accountUrl: 'https://www.mintscan.io/stride/address',
       },
     },
     bip44: {
@@ -3528,7 +3581,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(31, 194, 167, 0.32) 0%, rgba(31, 194, 167, 0) 100%)',
     },
     enabled: true,
-    notSupportedFeatures: ['stake', 'governance'],
   },
   umee: {
     chainId: 'umee-1',

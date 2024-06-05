@@ -14,7 +14,11 @@ const PopupLoader = () => (
 )
 
 export function AppInitLoader() {
-  const views = Browser.extension.getViews({ type: 'popup' })
+  let views = []
+  if (typeof Browser.extension.getViews === 'function') {
+    views = Browser.extension.getViews({ type: 'popup' })
+  }
+
   return views.length === 0 ? (
     <ExtensionPage>
       <div className='absolute top-0 flex h-full w-1/2 z-5 justify-center items-center'>

@@ -1,39 +1,38 @@
 import { useActiveWallet, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
-import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
+import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { Images } from 'images'
-import { NamedSkip } from 'images/logos'
-import { SwapVert } from 'images/misc'
+import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { Colors } from 'theme/colors'
+import { useLocation, useNavigate } from 'react-router'
 import { isLedgerEnabledChainId } from 'utils/isLedgerEnabled'
 
 import {
-  FeesView,
-  HighPriceImpactWarning,
+  InterchangeButton,
+  MoreDetailsSheet,
   SelectChainSheet,
   SelectTokenSheet,
+  SlippageInfoSheet,
   SlippageSheet,
-  SwapError,
   SwapInfo,
-  SwapLoading,
   SwapTxPage,
   TokenInputCard,
   TxReviewSheet,
 } from './components'
+import FeesSheet from './components/FeesSheet'
+import InputPageHeader from './components/InputPageHeader'
+import { WarningsSection } from './components/WarningsSection'
 import { SwapContextProvider, useSwapContext } from './context'
+import { isNoRoutesAvailableError } from './hooks'
+import { getConversionRateRemark } from './utils/priceImpact'
 
 function SwapPage() {
-  usePageView(PageName.Swap)
-
-  const activeChainInfo = useChainInfo()
   const navigate = useNavigate()
   const defaultTokenLogo = useDefaultTokenLogo()
   const counter = useRef(0)
@@ -48,41 +47,50 @@ function SwapPage() {
 
   const [showTxReviewSheet, setShowTxReviewSheet] = useState<boolean>(false)
   const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
+  const [isPriceImpactChecked, setIsPriceImpactChecked] = useState<boolean>(false)
+  const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
 
+  const [showMoreDetailsSheet, setShowMoreDetailsSheet] = useState<boolean>(false)
   const [showChainSelectSheet, setShowChainSelectSheet] = useState<boolean>(false)
   const [showTxPage, setShowTxPage] = useState<boolean>(false)
   const [showSlippageSheet, setShowSlippageSheet] = useState(false)
+  const [showSlippageInfo, setShowSlippageInfo] = useState(false)
   const [ledgerError, setLedgerError] = useState<string>()
+  const [isInputInUSDC, setIsInputInUSDC] = useState<boolean>(false)
 
-  const [isBlockingPriceImpactWarning, setIsBlockingPriceImpactWarning] = useState<boolean>(false)
-  const [isBlockingPriceImpactWarningChecked, setIsBlockingPriceImpactWarningChecked] =
-    useState<boolean>(false)
-  const [isBlockingUsdValueWarning, setIsBlockingUsdValueWarning] = useState<boolean>(false)
-  const [isBlockingUsdValueWarningChecked, setIsBlockingUsdValueWarningChecked] =
-    useState<boolean>(false)
+  const pageViewSource = useQuery().get('pageSource') ?? undefined
+
+  const handleOnBackClick = useCallback(() => {
+    if (pageViewSource === 'swapAgain') {
+      navigate('/home')
+    } else {
+      navigate(-1)
+    }
+  }, [navigate, pageViewSource])
 
   const {
     inAmount,
     sourceToken,
+    loadingSourceAssets,
     sourceChain,
     sourceTokenBalanceStatus,
     handleInAmountChange,
     sourceAssets,
+    loadingChains,
     chainsToShow,
+    invalidAmount,
     amountExceedsBalance,
     amountOut,
     destinationToken,
     destinationChain,
+    loadingDestinationAssets,
     destinationTokenBalancesStatus,
     destinationAssets,
-    errorMsg,
-    loadingMsg,
     reviewBtnDisabled,
     setSourceToken,
     setDestinationToken,
     setSourceChain,
     setDestinationChain,
-    infoMsg,
     redirectUrl,
     isMoreThanOneStepTransaction,
     refresh,
@@ -90,12 +98,24 @@ function SwapPage() {
     isSwitchOrderPossible,
     setInAmount,
     displayFee,
+    errorMsg,
     feeDenom,
+    route,
   } = useSwapContext()
 
+  const checkNeeded = getConversionRateRemark(route) === 'request-confirmation'
+
+  useEffect(() => {
+    if (checkNeeded) {
+      setIsPriceImpactChecked(false)
+    } else {
+      setIsPriceImpactChecked(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkNeeded])
+
   const uncheckWarnings = useCallback(() => {
-    setIsBlockingPriceImpactWarningChecked(false)
-    setIsBlockingUsdValueWarningChecked(false)
+    setIsPriceImpactChecked(false)
   }, [])
 
   useEffect(() => {
@@ -156,138 +176,144 @@ function SwapPage() {
     return chainsToShow
   }, [chainsToShow, activeWallet])
 
-  const reviewDisabled =
-    reviewBtnDisabled ||
-    isRefreshing ||
-    (isBlockingPriceImpactWarning && !isBlockingPriceImpactWarningChecked) ||
-    (isBlockingUsdValueWarning && !isBlockingUsdValueWarningChecked)
+  const reviewBtnText = useMemo(() => {
+    if (invalidAmount) {
+      return 'Amount must be greater than 0'
+    }
+    if (amountExceedsBalance) {
+      return 'Insufficient balance'
+    }
+    if (isNoRoutesAvailableError(errorMsg)) {
+      return 'No transaction routes available'
+    }
+    return 'Review Swap'
+  }, [amountExceedsBalance, errorMsg, invalidAmount])
+
+  const reviewDisabled = reviewBtnDisabled || isRefreshing || (checkNeeded && !isPriceImpactChecked)
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='w-[400px] overflow-clip'>
       <PopupLayout
         header={
-          <Header
-            title='Swap'
-            action={{
-              onClick: () => navigate(-1),
-              type: HeaderActionType.BACK,
+          <InputPageHeader
+            onBack={handleOnBackClick}
+            onRefresh={() => {
+              refresh()
             }}
-            imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            topColor={activeChainInfo.theme.primaryColor}
+            onSettings={() => {
+              setShowSlippageSheet(true)
+            }}
+            topColor='transparent'
           />
         }
+        className='flex flex-col'
       >
-        <div className='flex flex-col p-7 w-full gap-3 relative'>
-          <div className='w-full flex flex-col items-center'>
-            <TokenInputCard
-              value={inAmount}
-              placeholder='0'
-              token={sourceToken}
-              balanceStatus={sourceTokenBalanceStatus}
-              chainName={sourceChain?.chainName ?? 'Select chain'}
-              chainLogo={sourceChain?.icon ?? defaultTokenLogo}
-              onChange={(event) => {
-                handleInAmountChange(event)
-                uncheckWarnings()
-              }}
-              selectTokenDisabled={sourceAssets.length === 0 || !sourceChain}
-              selectChainDisabled={_chainsToShow.length === 0}
-              onTokenSelectSheet={() => {
-                setShowTokenSelectSheet(true)
-                setShowSelectSheetFor('source')
-                uncheckWarnings()
-              }}
-              onChainSelectSheet={() => {
-                setShowChainSelectSheet(true)
-                setShowSelectSheetFor('source')
-                uncheckWarnings()
-              }}
-              amountError={amountExceedsBalance ? 'Insufficient balance' : undefined}
-              showFor='source'
-              onGearClick={() => setShowSlippageSheet(true)}
-            />
+        <div className='flex flex-1 flex-col justify-between p-4 w-full gap-3 relative'>
+          <div className='flex flex-col w-full gap-2 relative'>
+            <div className='w-full flex flex-col items-center'>
+              <TokenInputCard
+                value={inAmount}
+                isInputInUSDC={isInputInUSDC}
+                setIsInputInUSDC={setIsInputInUSDC}
+                placeholder='0'
+                token={sourceToken}
+                balanceStatus={sourceTokenBalanceStatus}
+                loadingAssets={loadingChains || loadingSourceAssets}
+                loadingChains={loadingChains}
+                chainName={sourceChain?.chainName}
+                chainLogo={sourceChain?.icon ?? defaultTokenLogo}
+                onChange={(value) => {
+                  handleInAmountChange(value)
+                  uncheckWarnings()
+                }}
+                selectTokenDisabled={sourceAssets.length === 0 || !sourceChain}
+                selectChainDisabled={_chainsToShow.length === 0}
+                onTokenSelectSheet={() => {
+                  setShowTokenSelectSheet(true)
+                  setShowSelectSheetFor('source')
+                  uncheckWarnings()
+                }}
+                onChainSelectSheet={() => {
+                  setShowChainSelectSheet(true)
+                  setShowSelectSheetFor('source')
+                  uncheckWarnings()
+                }}
+                amountError={amountExceedsBalance || invalidAmount}
+                showFor='source'
+              />
 
-            <div
-              className={classNames(
-                'w-[44px] h-[44px] relative rounded-full bg-white-100 dark:bg-gray-900 flex items-center justify-center border-4 border-gray-50 dark:border-black-100 -mt-[18px] -mb-[18px]',
-                { 'cursor-pointer': isSwitchOrderPossible },
-              )}
-              onClick={handleSwitchOrder}
-            >
-              <img src={SwapVert} className='invert dark:invert-0' />
+              <InterchangeButton
+                isSwitchOrderPossible={isSwitchOrderPossible}
+                handleSwitchOrder={handleSwitchOrder}
+              />
+
+              <TokenInputCard
+                readOnly
+                isInputInUSDC={isInputInUSDC}
+                setIsInputInUSDC={setIsInputInUSDC}
+                value={amountOut ? Number(amountOut).toFixed(6) : amountOut}
+                placeholder='0'
+                token={destinationToken}
+                balanceStatus={destinationTokenBalancesStatus}
+                loadingChains={loadingChains}
+                loadingAssets={loadingChains || loadingDestinationAssets}
+                chainName={destinationChain?.chainName}
+                chainLogo={destinationChain?.icon ?? defaultTokenLogo}
+                selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}
+                selectChainDisabled={_chainsToShow.length === 0}
+                onTokenSelectSheet={() => {
+                  setShowTokenSelectSheet(true)
+                  setShowSelectSheetFor('destination')
+                  uncheckWarnings()
+                }}
+                onChainSelectSheet={() => {
+                  setShowChainSelectSheet(true)
+                  setShowSelectSheetFor('destination')
+                  uncheckWarnings()
+                }}
+              />
             </div>
 
-            <TokenInputCard
-              readOnly
-              value={amountOut ? Number(amountOut).toFixed(5) : amountOut}
-              placeholder='0'
-              token={destinationToken}
-              balanceStatus={destinationTokenBalancesStatus}
-              chainName={destinationChain?.chainName ?? 'Select chain'}
-              chainLogo={destinationChain?.icon ?? defaultTokenLogo}
-              selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}
-              selectChainDisabled={_chainsToShow.length === 0}
-              onTokenSelectSheet={() => {
-                setShowTokenSelectSheet(true)
-                setShowSelectSheetFor('destination')
-                uncheckWarnings()
-              }}
-              onChainSelectSheet={() => {
-                setShowChainSelectSheet(true)
-                setShowSelectSheetFor('destination')
-                uncheckWarnings()
-              }}
+            <WarningsSection
+              isPriceImpactChecked={isPriceImpactChecked}
+              setIsPriceImpactChecked={setIsPriceImpactChecked}
+              ledgerError={ledgerError}
             />
-          </div>
 
-          {errorMsg ? <SwapError errorMsg={errorMsg} /> : null}
-          {ledgerError ? <SwapError errorMsg={ledgerError} /> : null}
-          {loadingMsg ? <SwapLoading loadingMsg={loadingMsg} /> : null}
-          {isRefreshing ? <SwapLoading loadingMsg='Refreshing transaction routes' /> : null}
-          {infoMsg ? <SwapInfo infoMsg={infoMsg} /> : null}
+            <SwapInfo setShowMoreDetailsSheet={setShowMoreDetailsSheet} />
+          </div>
 
           {isMoreThanOneStepTransaction ? (
             <Buttons.Generic
-              className='w-[344px]'
-              color={activeChainInfo.theme.primaryColor ?? Colors.cosmosPrimary}
+              className='w-full dark:!bg-white-100 !bg-black-100 text-white-100 dark:text-black-100'
               onClick={() => window.open(redirectUrl, '_blank')}
+              style={{ boxShadow: 'none' }}
             >
               <span className='flex items-center gap-1'>
-                Swap on Leapboard <img src={Images.Misc.OpenLink} className='' />
+                Swap on Swapfast{' '}
+                <span className='!leading-[20px] !text-lg material-icons-round'>open_in_new</span>
               </span>
             </Buttons.Generic>
           ) : (
             <>
-              <HighPriceImpactWarning
-                setIsBlockingPriceImpactWarning={setIsBlockingPriceImpactWarning}
-                isBlockingPriceImpactWarningChecked={isBlockingPriceImpactWarningChecked}
-                onPriceWarningCheckboxClick={() =>
-                  setIsBlockingPriceImpactWarningChecked((prev) => !prev)
-                }
-                setIsBlockingUsdValueWarning={setIsBlockingUsdValueWarning}
-                isBlockingUsdValueWarningChecked={isBlockingUsdValueWarningChecked}
-                onUsdValueWarningCheckboxClick={() =>
-                  setIsBlockingUsdValueWarningChecked((prev) => !prev)
-                }
-              />
-              <div className='w-[344px] flex flex-col gap-3'>
-                <FeesView />
-
-                <Buttons.Generic
-                  className='w-full'
-                  color={activeChainInfo.theme.primaryColor ?? Colors.cosmosPrimary}
-                  disabled={reviewDisabled}
-                  onClick={() => setCheckForAutoAdjust(true)}
-                >
-                  Review
-                </Buttons.Generic>
-              </div>
+              <Buttons.Generic
+                className={classNames('w-full', {
+                  '!bg-green-600 text-white-100': !(
+                    invalidAmount ||
+                    amountExceedsBalance ||
+                    isNoRoutesAvailableError(errorMsg)
+                  ),
+                  '!bg-red-300 text-white-100':
+                    invalidAmount || amountExceedsBalance || isNoRoutesAvailableError(errorMsg),
+                })}
+                disabled={reviewDisabled}
+                style={{ boxShadow: 'none' }}
+                onClick={() => setCheckForAutoAdjust(true)}
+              >
+                {reviewBtnText}
+              </Buttons.Generic>
             </>
           )}
-
-          <p className='text-center text-gray-400 flex items-center justify-center gap-1 text-sm'>
-            Powered by <img src={NamedSkip} alt='Skip' className='w-[50px]' />
-          </p>
         </div>
       </PopupLayout>
 
@@ -296,6 +322,7 @@ function SwapPage() {
         sourceAssets={sourceAssets}
         destinationAssets={destinationAssets}
         sourceToken={sourceToken}
+        selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
         destinationToken={destinationToken}
         showFor={showSelectSheetFor}
         onClose={() => {
@@ -339,6 +366,32 @@ function SwapPage() {
         }}
       />
 
+      <MoreDetailsSheet
+        isOpen={showMoreDetailsSheet}
+        onClose={() => {
+          setShowMoreDetailsSheet(false)
+        }}
+        onSlippageInfoClick={() => {
+          setShowSlippageInfo(true)
+        }}
+        setShowFeesSettingSheet={setShowFeesSettingSheet}
+      />
+
+      <SlippageSheet
+        isOpen={showSlippageSheet}
+        onClose={() => setShowSlippageSheet(false)}
+        onSlippageInfoClick={() => {
+          setShowSlippageInfo(true)
+        }}
+      />
+
+      <SlippageInfoSheet
+        isOpen={showSlippageInfo}
+        onClose={() => {
+          setShowSlippageInfo(false)
+        }}
+      />
+
       {checkForAutoAdjust && displayFee && sourceToken && inAmount && (
         <AutoAdjustAmountSheet
           amount={inAmount}
@@ -364,11 +417,35 @@ function SwapPage() {
           setShowTxPage(true)
           ledgerError && setLedgerError(undefined)
         }}
+        setShowFeesSettingSheet={setShowFeesSettingSheet}
       />
+
+      {route?.response && (
+        <FeesSheet
+          showFeesSettingSheet={showFeesSettingSheet}
+          setShowFeesSettingSheet={setShowFeesSettingSheet}
+        />
+      )}
 
       {showTxPage ? (
         <SwapTxPage
-          onClose={() => {
+          onClose={(
+            sourceChainId?: string,
+            sourceToken?: string,
+            destinationChainId?: string,
+            destinationToken?: string,
+          ) => {
+            if (sourceChainId || sourceToken || destinationChainId || destinationToken) {
+              let queryStr = ''
+              queryStr = `?${qs.stringify({
+                sourceChainId,
+                sourceToken,
+                destinationChainId,
+                destinationToken,
+                pageSource: 'swapAgain',
+              })}`
+              navigate(`/swap${queryStr}`)
+            }
             setShowTxPage(false)
             setInAmount('')
           }}
@@ -376,15 +453,50 @@ function SwapPage() {
             setLedgerError(ledgerError)
             ledgerError && setShowTxPage(false)
           }}
+          ledgerError={ledgerError}
         />
       ) : null}
-
-      <SlippageSheet isOpen={showSlippageSheet} onClose={() => setShowSlippageSheet(false)} />
     </div>
   )
 }
 
-export function Swap() {
+export default function Swap() {
+  const pageViewSource = useQuery().get('pageSource') ?? undefined
+  const location = useLocation()
+
+  const pageViewAdditionalProperties = useMemo(() => {
+    let pageSourceFormatted
+    switch (pageViewSource) {
+      case 'bottomNav': {
+        pageSourceFormatted = 'Bottom Nav'
+        break
+      }
+      case 'assetDetails': {
+        pageSourceFormatted = 'Asset Details'
+        break
+      }
+      case 'banners': {
+        pageSourceFormatted = 'Banners'
+        break
+      }
+      case 'swapAgain': {
+        pageSourceFormatted = 'Swap Again CTA'
+        break
+      }
+      case 'quickSearch': {
+        pageSourceFormatted = 'Quick Search'
+        break
+      }
+      default: {
+        break
+      }
+    }
+    return { pageViewSource: pageSourceFormatted }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageViewSource, location?.key])
+
+  usePageView(PageName.SwapsStart, true, pageViewAdditionalProperties)
+
   return (
     <SwapContextProvider>
       <SwapPage />

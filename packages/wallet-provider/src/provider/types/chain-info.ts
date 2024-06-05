@@ -12,7 +12,7 @@ export interface ChainInfo {
   readonly chainId: string;
   readonly chainName: string;
 
-  readonly stakeCurrency: Currency;
+  readonly stakeCurrency?: Currency;
   readonly walletUrl?: string;
   readonly walletUrlForStaking?: string;
   readonly bip44: BIP44;

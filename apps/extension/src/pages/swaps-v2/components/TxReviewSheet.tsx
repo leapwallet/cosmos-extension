@@ -1,66 +1,133 @@
-import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
-import React from 'react'
+import { PageName } from 'config/analytics'
+import { usePageView } from 'hooks/analytics/usePageView'
+import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 
 import { useSwapContext } from '../context'
-import { TxReviewTokenInfo } from './index'
+import { MoreDetails } from './MoreDetails'
+import { ConversionRateDisplay } from './SwapInfo/ConversionRateDisplay'
+import TxTokensSummary from './TxTokensSummary'
 
 type TxReviewSheetProps = {
   isOpen: boolean
   onClose: () => void
   onProceed: () => void
+  setShowFeesSettingSheet: Dispatch<SetStateAction<boolean>>
 }
 
-export function TxReviewSheet({ isOpen, onClose, onProceed }: TxReviewSheetProps) {
-  const activeChainInfo = useChainInfo()
+export function TxReviewSheet({
+  isOpen,
+  onClose,
+  onProceed,
+  setShowFeesSettingSheet,
+}: TxReviewSheetProps) {
   const {
     displayFee,
-    feeDenom,
     inAmount,
     sourceToken,
     amountOut,
     destinationToken,
     sourceChain,
     destinationChain,
+    route,
   } = useSwapContext()
+
+  const reviewPageProperties = useMemo(() => {
+    let inAmountDollarValue
+    if (
+      sourceToken?.usdPrice &&
+      !isNaN(parseFloat(sourceToken?.usdPrice)) &&
+      inAmount &&
+      !isNaN(parseFloat(inAmount))
+    ) {
+      inAmountDollarValue = parseFloat(sourceToken?.usdPrice) * parseFloat(inAmount)
+    }
+    return {
+      fromToken: sourceToken?.symbol,
+      fromTokenAmount: inAmountDollarValue,
+      fromChain: sourceChain?.chainName,
+      toToken: destinationToken?.symbol,
+      toChain: destinationChain?.chainName,
+      hops: (route?.response?.operations?.length ?? 0) - 1,
+    }
+  }, [
+    sourceToken?.usdPrice,
+    sourceToken?.symbol,
+    inAmount,
+    sourceChain?.chainName,
+    destinationToken?.symbol,
+    destinationChain?.chainName,
+    route?.response?.operations?.length,
+  ])
+
+  usePageView(PageName.SwapsReview, isOpen, reviewPageProperties)
+
+  const [showMoreDetails, setShowMoreDetails] = useState<boolean>(false)
+
+  const handleAccordionClick = useCallback(() => {
+    setShowMoreDetails((prevShowMoreDetails) => !prevShowMoreDetails)
+  }, [setShowMoreDetails])
 
   return (
     <BottomModal
+      onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      onClose={onClose}
+      hideActionButton={true}
+      showSecondaryActionButton={true}
+      containerClassName='!bg-white-100 dark:!bg-gray-950'
+      headerClassName='!bg-white-100 dark:!bg-gray-950'
+      contentClassName='!bg-white-100 dark:!bg-gray-950'
+      className='p-6'
       title='Review Transaction'
-      className='p-0'
+      secondaryActionButton={
+        <div className='absolute top-1 right-6'>
+          <Buttons.Cancel onClick={onClose} />
+        </div>
+      }
     >
-      <div className='flex flex-col items-center w-full gap-y-4 my-7'>
-        <div className='w-[344px] bg-white-100 dark:bg-gray-900 flex items-center justify-around p-7 rounded-2xl'>
-          <TxReviewTokenInfo amount={inAmount} token={sourceToken} chain={sourceChain} />
+      <div className='flex flex-col items-center w-full gap-6'>
+        <div className='flex flex-col items-center w-full gap-4'>
+          <TxTokensSummary
+            inAmount={inAmount}
+            sourceToken={sourceToken}
+            sourceChain={sourceChain}
+            amountOut={amountOut}
+            destinationToken={destinationToken}
+            destinationChain={destinationChain}
+          />
 
-          <div className='dark:text-gray-400'>
-            <span className='material-icons-round'>keyboard_double_arrow_right</span>
+          <div className='w-full flex-col bg-gray-50 dark:bg-gray-900 flex items-center justify-between p-4 gap-3 rounded-2xl'>
+            <button
+              onClick={handleAccordionClick}
+              className='w-full flex-row flex justify-between items-center gap-2'
+            >
+              <ConversionRateDisplay onClick={() => {}} />
+              <div className='flex items-center justify-end gap-1'>
+                <span className='!leading-5 [transform:rotateY(180deg)] rotate-180 !text-md material-icons-round dark:text-white-100'>
+                  local_gas_station
+                </span>
+                <span className='dark:text-white-100 text-xs font-medium'>
+                  {displayFee?.fiatValue}
+                </span>
+                <span className='!leading-5 !text-md material-icons-round dark:text-white-100'>
+                  {showMoreDetails ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
+                </span>
+              </div>
+            </button>
+            {showMoreDetails && (
+              <>
+                <div className='border-b w-full border-gray-200 dark:border-gray-800' />
+                <MoreDetails showInfo={false} setShowFeesSettingSheet={setShowFeesSettingSheet} />
+              </>
+            )}
           </div>
-
-          <TxReviewTokenInfo amount={amountOut} token={destinationToken} chain={destinationChain} />
         </div>
 
-        <div className='flex items-center justify-center text-gray-600 dark:text-gray-200'>
-          <p className='font-semibold text-center text-sm'>Transaction fee: </p>
-          <p className='font-semibold text-center text-sm ml-1'>
-            <strong className='mr-[4px]'>
-              {displayFee.formattedAmount} {feeDenom.coinDenom}
-            </strong>
-            {displayFee.fiatValue ? `(${displayFee.fiatValue})` : null}
-          </p>
-        </div>
-
-        <Buttons.Generic
-          color={activeChainInfo.theme.primaryColor ?? Colors.cosmosPrimary}
-          className='w-[344px]'
-          onClick={onProceed}
-        >
-          Proceed
+        <Buttons.Generic color={Colors.green600} className='w-[344px]' onClick={onProceed}>
+          Confirm Swap
         </Buttons.Generic>
       </div>
     </BottomModal>

@@ -17,6 +17,8 @@ import BigNumber from 'bignumber.js'
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
+import { SWAP_NETWORK } from './useSwapsTx'
+
 export function useTokenWithBalances(
   token: SourceToken | null,
   chain: SourceChain | undefined,
@@ -27,7 +29,7 @@ export function useTokenWithBalances(
   const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens(chain?.key ?? undefined)
   const betaCw20Tokens = useBetaCW20Tokens(chain?.key ?? undefined)
   const queryClient = useQueryClient()
-  const { rpcUrl } = useChainApis(chain?.key ?? undefined)
+  const { rpcUrl } = useChainApis(chain?.key ?? undefined, SWAP_NETWORK)
   const [preferredCurrency] = useUserPreferredCurrency()
 
   const preferredCurrencyPointer = currencyDetail[preferredCurrency].currencyPointer
@@ -45,7 +47,12 @@ export function useTokenWithBalances(
   }, [autoFetchedCW20Tokens, betaCw20Tokens, cw20Tokens])
 
   const { data, status } = useQuery(
-    [token?.coinMinimalDenom, token?.skipAsset?.denom, token?.skipAsset?.originDenom],
+    [
+      token?.coinMinimalDenom,
+      token?.skipAsset?.denom,
+      token?.skipAsset?.originDenom,
+      token?.amount,
+    ],
     async () => {
       if (!token || !chain) return token
 

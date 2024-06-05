@@ -1,12 +1,18 @@
 import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
-import { useSkipSupportedChains } from '@leapwallet/elements-hooks'
+import {
+  SkipSupportedChainData,
+  useChains,
+  useSkipSupportedChains,
+} from '@leapwallet/elements-hooks'
 import { useMemo } from 'react'
 import { SourceChain } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 export function useGetChainsToShow() {
   const chains = useGetChains()
-  const { data: skipSupportedChains } = useSkipSupportedChains()
+  const { isLoading } = useChains()
+  const { data: skipSupportedChains, isLoading: skipSupportedChainsLoading } =
+    useSkipSupportedChains()
 
   const chainsToShow = useMemo(() => {
     if (skipSupportedChains) {
@@ -17,13 +23,16 @@ export function useGetChainsToShow() {
         .forEach((chain) => {
           if (chain.enabled) {
             const skipChain = skipSupportedChains.find(
-              (_skipChain) => _skipChain.chainId === chain.chainId,
+              (
+                _skipChain,
+              ): _skipChain is Extract<SkipSupportedChainData, { chainType: 'cosmos' }> =>
+                _skipChain.chainId === chain.chainId,
             )
 
             if (skipChain) {
               _chainsToShow.push({
                 key: chain.key,
-                addressPrefix: skipChain.addressPrefix ?? chain.addressPrefix,
+                addressPrefix: skipChain.bech32Prefix ?? chain.addressPrefix,
                 baseDenom: skipChain.baseDenom ?? Object.keys(chain.nativeDenoms)[0],
                 chainId: skipChain.chainId ?? chain.chainId,
                 chainName: skipChain.chainName ?? chain.chainName,
@@ -46,5 +55,5 @@ export function useGetChainsToShow() {
     return []
   }, [chains, skipSupportedChains])
 
-  return chainsToShow
+  return { chainsToShow, chainsToShowLoading: isLoading || skipSupportedChainsLoading }
 }

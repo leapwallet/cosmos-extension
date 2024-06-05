@@ -6,13 +6,19 @@ import {
   useformatCurrency,
   useGasAdjustmentForChain,
   useGetSeiEvmBalance,
-  useGetTokenBalances,
-  useIsCW20Tx,
+  useGetTokenSpendableBalances,
+  useIsCW20Token,
   useSeiLinkedAddressState,
   useSnipGetSnip20TokenBalances,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { isValidAddressWithPrefix, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { useSkipSupportedChains } from '@leapwallet/elements-hooks'
+import { SupportedChain as SupportedChains } from '@leapwallet/elements-core'
+import {
+  CosmosChainData,
+  Prettify,
+  SkipCosmosMsg,
+  useSkipSupportedChains,
+} from '@leapwallet/elements-hooks'
 import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
@@ -47,16 +53,17 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   const [isMaxClicked, setIsMaxClicked] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assetChain, setAssetChain] = useState<any>(null)
+  const [amount, setAmount] = useState('')
 
+  const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenSpendableBalances()
   const getWallet = Wallet.useGetWallet()
   const { addressLinkState } = useSeiLinkedAddressState(getWallet)
   const { data: seiEvmBalance, status: seiEvmStatus } = useGetSeiEvmBalance()
-  const { allAssets, nativeTokensStatus, s3IbcTokensStatus } = useGetTokenBalances()
   const { snip20Tokens } = useSnipGetSnip20TokenBalances()
 
   const [formatCurrency] = useformatCurrency()
   const chainInfos = useChainInfos()
-  const isCW20Tx = useIsCW20Tx()
+  const isCW20Token = useIsCW20Token()
   const activeChain = useActiveChain()
 
   const assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
@@ -92,6 +99,20 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   const handleMaxClick = () => {
     setIsMaxClicked(true)
   }
+
+  function getFlooredFixed(v: number, d: number) {
+    return (Math.floor(v * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d)
+  }
+
+  useEffect(() => {
+    const amountDecimals = amount.split('.')?.[1]?.length
+    const coinDecimals = selectedToken?.coinDecimals ?? 6
+    if (amountDecimals > coinDecimals) {
+      setInputAmount(getFlooredFixed(Number(amount), coinDecimals) as string)
+    } else {
+      setInputAmount(amount)
+    }
+  }, [amount])
 
   const isSecretChainTargetAddress = useMemo(
     () => selectedAddress && isValidAddressWithPrefix(selectedAddress.address ?? '', 'secret'),
@@ -188,7 +209,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   }, [assetCoinDenom, activeChain, assets, updateSelectedToken])
 
   useEffect(() => {
-    if (addressWarning) {
+    if (addressWarning.type === 'link') {
       setInputAmount('0.0001')
       return
     }
@@ -204,18 +225,18 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
       const feeValue = parseFloat(allGasOptions[gasOption])
 
       if (new BigNumber(selectedToken?.amount ?? 0).isGreaterThan(new BigNumber(feeValue))) {
-        setInputAmount(
+        setAmount(
           new BigNumber(selectedToken?.amount ?? 0)
             .minus(new BigNumber(feeValue))
             .toFixed(6, BigNumber.ROUND_DOWN),
         )
       } else {
-        setInputAmount(new BigNumber(selectedToken?.amount ?? 0).toFixed(6, BigNumber.ROUND_DOWN))
+        setAmount(new BigNumber(selectedToken?.amount ?? 0).toFixed(6, BigNumber.ROUND_DOWN))
       }
     }
 
     if (isMaxClicked && !isNativeToken) {
-      setInputAmount(new BigNumber(selectedToken?.amount ?? 0).toFixed(6, BigNumber.ROUND_DOWN))
+      setAmount(new BigNumber(selectedToken?.amount ?? 0).toFixed(6, BigNumber.ROUND_DOWN))
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,7 +244,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
 
   useEffect(() => {
     const check = () => {
-      if (selectedAddress?.address && !sameChain && selectedToken && isCW20Tx(selectedToken)) {
+      if (selectedAddress?.address && !sameChain && selectedToken && isCW20Token(selectedToken)) {
         return 'IBC transfers not supported for cw20 tokens.'
       }
 
@@ -288,9 +309,11 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   // checking if the token selected is pfmEnbled
   useEffect(() => {
     if (transferData?.isSkipTransfer && transferData?.routeResponse) {
+      const allMessages = transferData?.messages?.[1] as SkipCosmosMsg
+
       const _skipChain = skipSupportedChains?.find(
-        (d) => d.chainId === transferData?.messages?.[1]?.chain_id,
-      )
+        (d) => d.chainId === allMessages?.multi_chain_msg?.chain_id,
+      ) as Prettify<CosmosChainData & SupportedChains>
       setAssetChain(
         _skipChain?.addressPrefix === 'sei'
           ? {
@@ -342,7 +365,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
   return (
     <motion.div
       className={classNames('card-container', {
-        'opacity-50 pointer-events-none': !!addressWarning,
+        'opacity-50 pointer-events-none': addressWarning.type === 'link',
       })}
       style={{ overflow: 'hidden' }}
     >
@@ -382,14 +405,14 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
           {selectedToken ? (
             <>
               <ActionInputWithPreview
-                action={inputAmount ? 'none' : 'max'}
+                action={amount ? 'none' : 'max'}
                 buttonText='Max'
                 buttonTextColor={themeColor}
-                value={inputAmount}
+                value={amount}
                 rightElement={
-                  inputAmount && tokenFiatValue ? (
+                  amount && tokenFiatValue ? (
                     <p className='text-sm text-gray-400'>
-                      ~ {formatCurrency(new BigNumber(tokenFiatValue).times(inputAmount))}
+                      ~ {formatCurrency(new BigNumber(tokenFiatValue).times(amount))}
                     </p>
                   ) : undefined
                 }
@@ -400,7 +423,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
                 }}
                 onChange={(e) => {
                   setIsMaxClicked(false)
-                  setInputAmount(e.target.value)
+                  setAmount(e.target.value)
                 }}
                 placeholder='Enter amount'
                 preview={undefined}
@@ -467,7 +490,7 @@ export const AmountCard: React.FC<AmountCardProps> = ({ themeColor }) => {
         onTokenSelect={(token) => {
           updateSelectedToken(token)
           setGasError('')
-          setInputAmount('')
+          setAmount('')
           setIsMaxClicked(false)
           inputRef.current?.focus()
         }}

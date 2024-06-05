@@ -4,7 +4,6 @@ import {
   useAutoFetchedCW20Tokens,
   useChainInfo,
   useDenoms,
-  useERC20Tokens,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
@@ -31,7 +30,6 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
   onTokenSelect,
 }) => {
   const activeChain = useActiveChain()
-  const erc20Tokens = useERC20Tokens()
   const activeChainInfo = useChainInfo()
   const denoms = useDenoms()
   const [searchQuery, setSearchQuery] = useState('')
@@ -56,15 +54,13 @@ export const SelectTokenSheet: React.FC<SelectTokenSheetProps> = ({
     })
   }, [activeChainInfo.nativeDenoms, assets, combinedDenoms])
 
-  const transferableTokens = useMemo(() => {
-    return _assets.filter((asset) => {
-      if (activeChainInfo.key === 'seiDevnet' && erc20Tokens[asset.coinMinimalDenom]) {
-        return false
-      }
-
-      return asset.symbol.toLowerCase().includes(searchQuery.trim().toLowerCase())
-    })
-  }, [_assets, activeChainInfo.key, erc20Tokens, searchQuery])
+  const transferableTokens = useMemo(
+    () =>
+      _assets.filter((asset) =>
+        asset.symbol.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+      ),
+    [_assets, searchQuery],
+  )
 
   const handleSelectToken = (token: Token) => {
     onTokenSelect(token)

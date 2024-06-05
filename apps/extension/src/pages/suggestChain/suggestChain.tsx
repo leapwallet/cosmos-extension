@@ -6,7 +6,7 @@ import { chainInfosState } from 'atoms/chains'
 import { Divider, Key, Value } from 'components/dapp'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
-import { BG_RESPONSE, NEW_CHAIN_REQUEST } from 'config/storage-keys'
+import { BETA_CHAINS, BG_RESPONSE, NEW_CHAIN_REQUEST } from 'config/storage-keys'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -79,7 +79,15 @@ export default function SuggestChain() {
       const updatedKeystore = await updateKeyStore(
         activeWallet as WalletKey,
         chainName as unknown as SupportedChain,
+        'UPDATE',
+        newChain.chainInfo,
       )
+
+      const storedBetaChains = await browser.storage.local.get([BETA_CHAINS])
+      const betaChains = JSON.parse(storedBetaChains[BETA_CHAINS] ?? '{}')
+      const newBetaChains = { ...betaChains, [chainName]: newChain.chainInfo }
+
+      await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(newBetaChains) })
       if (activeWallet) {
         await addToConnections([newChain.chainInfo.chainId], [activeWallet], origin.current ?? '')
         await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)

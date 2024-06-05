@@ -26,7 +26,7 @@ export const Memo: React.FC = () => {
     <>
       <div
         className={classNames('card-container', {
-          'opacity-50 pointer-events-none': !!addressWarning,
+          'opacity-50 pointer-events-none': addressWarning.type === 'link',
         })}
       >
         <div className='flex justify-between w-full mb-4'>

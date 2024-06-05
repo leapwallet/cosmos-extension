@@ -1,5 +1,5 @@
 import { ActivityCardContent } from '@leapwallet/cosmos-wallet-hooks'
-import classnames from 'classnames'
+import { default as classNames } from 'classnames'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { Images } from 'images'
 import React from 'react'
@@ -13,9 +13,16 @@ export type ActivityCardProps = {
   showLoader?: boolean
   onClick?: () => void
   isSuccessful: boolean
+  containerClassNames?: string
 }
 
-export function ActivityCard({ content, onClick, showLoader, isSuccessful }: ActivityCardProps) {
+export function ActivityCard({
+  content,
+  onClick,
+  showLoader,
+  isSuccessful,
+  containerClassNames,
+}: ActivityCardProps) {
   const {
     txType,
     title1,
@@ -47,7 +54,10 @@ export function ActivityCard({ content, onClick, showLoader, isSuccessful }: Act
 
   return (
     <div
-      className='flex rounded-2xl justify-between items-center p-[16px] bg-white-100 dark:bg-gray-900 cursor-pointer'
+      className={classNames(
+        'flex rounded-2xl justify-between items-center p-[16px] bg-white-100 dark:bg-gray-900 cursor-pointer',
+        containerClassNames,
+      )}
       onClick={onClick}
     >
       <div className='flex items-center flex-grow'>
@@ -84,7 +94,7 @@ export function ActivityCard({ content, onClick, showLoader, isSuccessful }: Act
             <>
               {sentUsdValue && (
                 <p
-                  className={classnames('text-sm text-right font-bold', {
+                  className={classNames('text-sm text-right font-bold', {
                     'text-black-100 dark:text-white-100': !balanceIncreased && !balanceReduced,
                     'text-red-600 dark:text-red-300': balanceReduced,
                     'text-green-600 dark:text-green-600': balanceIncreased,
@@ -95,7 +105,7 @@ export function ActivityCard({ content, onClick, showLoader, isSuccessful }: Act
               )}
 
               {sentAmountInfo && (
-                <p className={classnames('text-xs text-right text-gray-600 dark:text-gray-400')}>
+                <p className={classNames('text-xs text-right text-gray-600 dark:text-gray-400')}>
                   {balanceReduced && '-'} {formatHideBalance(sentAmountInfo)}
                 </p>
               )}

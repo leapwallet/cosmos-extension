@@ -11,7 +11,7 @@ import {
   ShowNfts,
 } from './index'
 
-export function NFTs() {
+export default function NFTs() {
   usePageView(PageName.NFT)
 
   const [activePage, setActivePage] = useState<NftPage>('ShowNfts')
