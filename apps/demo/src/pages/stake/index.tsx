@@ -225,14 +225,22 @@ export default function Stake() {
                 textProps={{ size: 'md', className: 'font-medium  flex flex-column' }}
                 readMoreColor={Colors.getChainColor(activeChain)}
               >
-                {`Staking is the process of locking up a digital asset non custodially (${ChainInfos[activeChain].denom} in the case of the ${ChainInfos[activeChain].chainName} Network) to provide economic security.
-                   When the staking transaction is complete, rewards will start to be generated immediately. At any time, stakers can send a transaction to claim their accumulated rewards, using a wallet.
-                   Staking rewards are generated and distributed to staked ${ChainInfos[activeChain].denom} holders in two ways: Transaction fees collected on the ${ChainInfos[activeChain].chainName} are distributed to staked ${ChainInfos[activeChain].denom} holders. and secondly 
-                   from newly created ${ChainInfos[activeChain].denom}. The total supply of ${ChainInfos[activeChain].denom} is inflated to reward stakers. ${ChainInfos[activeChain].denom} holders that do not stake do not receive rewards, meaning their ${ChainInfos[activeChain].denom} get diluted over time.
-                   The yearly inflation rate of ${ChainInfos[activeChain].denom} is available on most explorers.                   
-                   Staking ${ChainInfos[activeChain].denom} is not risk-free. If a validator has downtime or underperforms, a percentage of ${ChainInfos[activeChain].denom} delegated to them may be forfeited. To mitigate these risks, it is recommended that ${ChainInfos[activeChain].denom} holders delegate to multiple validators.
-                   Upon unstaking, tokens are locked for a period of ${unstakingPeriod} post which you will automatically get them back in your wallet.
-                   `}
+                <Text size='sm' className='mb-[4px]'>
+                  {`Staking is the process of locking up a digital asset non custodially (${ChainInfos[activeChain].denom} in the case of the ${ChainInfos[activeChain].chainName} Network) to provide economic security.`}
+                </Text>
+                <Text size='sm' className='mb-[4px]'>
+                  {`When the staking transaction is complete, rewards will start to be generated immediately. At any time, stakers can send a transaction to claim their accumulated rewards, using a wallet.`}
+                </Text>
+                  <Text size='sm' className='mb-[4px]'>
+                    {`Staking rewards are generated and distributed to staked ${ChainInfos[activeChain].denom} holders in two ways: Transaction fees collected on the ${ChainInfos[activeChain].chainName} are distributed to staked ${ChainInfos[activeChain].denom} holders. and secondly 
+                   from newly created ${ChainInfos[activeChain].denom}. The total supply of ${ChainInfos[activeChain].denom} is inflated to reward stakers. ${ChainInfos[activeChain].denom} holders that do not stake do not receive rewards, meaning their ${ChainInfos[activeChain].denom} get diluted over time.`}
+                  </Text>
+                  <Text size='sm' className='mb-[4px]'>
+                    {`The yearly inflation rate of ${ChainInfos[activeChain].denom} is available on most explorers.`}
+                  </Text>
+                  <Text size='sm' className='mb-[4px]'>
+                    {`Staking ${ChainInfos[activeChain].denom} is not risk-free. If a validator has downtime or underperforms, a percentage of ${ChainInfos[activeChain].denom} delegated to them may be forfeited. To mitigate these risks, it is recommended that ${ChainInfos[activeChain].denom} holders delegate to multiple validators. Upon unstaking, tokens are locked for a period of ${unstakingPeriod} post which you will automatically get them back in your wallet.`}
+                  </Text>
               </ReadMoreText>
             </div>
           </div>
