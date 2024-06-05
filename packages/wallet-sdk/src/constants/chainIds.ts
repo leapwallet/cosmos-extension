@@ -160,7 +160,9 @@ export const chainIdToChain: Record<string, string> = {
   'froopyland_100-1': 'dymension',
   'dymension_1100-1': 'dymension',
   'indigo-1': 'pryzmtestnet',
+  'pryzm-1': 'pryzmtestnet',
   'union-testnet-6': 'uniontestnet',
   'blumbus_111-1': 'dymension',
   'ssc-1': 'saga',
+  'initiation-1': 'initia',
 };

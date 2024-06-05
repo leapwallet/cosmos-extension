@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { coin } from '@cosmjs/proto-signing'
 import { TxClient as InjectiveTxClient } from '@injectivelabs/sdk-ts'
 import {
   CosmosTxType,
@@ -23,6 +22,7 @@ import {
   InjectiveTx,
   sleep,
   SupportedChain,
+  toSmall,
 } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Account,
@@ -30,6 +30,7 @@ import {
   Signer,
   SKIP_TXN_STATUS,
   SkipAPI,
+  SkipCosmosMsg,
   TxClient,
 } from '@leapwallet/elements-core'
 import { useChains } from '@leapwallet/elements-hooks'
@@ -84,7 +85,8 @@ export const useExecuteSkipTx = () => {
     const { messages } = transferData
 
     for (let i = 0; i < messages.length; i++) {
-      const multiHopMsg = messages[i]
+      const allMessages = messages[i] as SkipCosmosMsg
+      const multiHopMsg = allMessages?.multi_chain_msg
       const msgJSON = JSON.parse(multiHopMsg.msg)
       const currentTimestamp = new Date().getTime()
       const timeoutMilliseconds = Number(msgJSON.timeout_timestamp / 10 ** 6)
@@ -288,12 +290,16 @@ export const useExecuteSkipTx = () => {
           chain: (selectedToken?.chain ?? '') as SupportedChain,
         })
 
+        const normalizedAmount = toSmall(inputAmount.toString(), selectedToken?.coinDecimals ?? 6)
         let metadata = isIBCTransfer
           ? getMetaDataForIbcTx(msgJSON?.source_channel, toAddress, {
-              denom: denom,
-              amount: inputAmount,
+              denom,
+              amount: normalizedAmount,
             })
-          : getMetaDataForSendTx(toAddress, coin(inputAmount, denom))
+          : getMetaDataForSendTx(toAddress, {
+              denom,
+              amount: normalizedAmount,
+            })
 
         metadata = { ...metadata, ...txMetadata }
 

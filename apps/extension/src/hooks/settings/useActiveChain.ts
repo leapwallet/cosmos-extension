@@ -1,5 +1,8 @@
 import {
+  getSeiEvmInfo,
   Key,
+  SeiEvmInfoEnum,
+  SelectedNetworkType,
   useActiveChain as useActiveChainWalletHooks,
   useGetChains,
   usePendingTxState,
@@ -14,6 +17,7 @@ import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useEffect } from 'react'
 import { useSetRecoilState } from 'recoil'
+import { sendMessageToTab } from 'utils'
 import browser from 'webextension-polyfill'
 
 import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
@@ -25,7 +29,7 @@ export function useActiveChain(): SupportedChain {
 }
 
 export function useSetActiveChain() {
-  const chainInfos = useChainInfos()
+  const chainInfos = useGetChains()
   const setSelectedChainAlert = useSetRecoilState(selectedChainAlertState)
   const { setPendingTx } = usePendingTxState()
   const setNetwork = useSetNetwork()
@@ -38,11 +42,6 @@ export function useSetActiveChain() {
   const queryClient = useQueryClient()
 
   return async (chain: SupportedChain, chainInfo?: ChainInfo) => {
-    // if (isCompassWallet()) {
-    //   setActiveChain(chainInfos.seiTestnet2.key)
-    //   return
-    // }
-
     const storage = await browser.storage.local.get(['networkMap', KEYSTORE])
     const keystore = storage[KEYSTORE]
     if (keystore) {
@@ -63,16 +62,45 @@ export function useSetActiveChain() {
     setPendingTx(null)
 
     const networkMap = JSON.parse(storage.networkMap ?? '{}')
+    const _chainInfo = chainInfos[chain] || chainInfo
+    let _network: SelectedNetworkType = 'mainnet'
 
-    if (networkMap[chain]) {
-      setNetwork(networkMap[chain])
-      setSelectedNetwork(networkMap[chain])
-    } else if ((chainInfos[chain] || chainInfo).apis.rpc) {
-      setNetwork('mainnet')
+    if (chain === 'seiDevnet') {
       setSelectedNetwork('mainnet')
-    } else if ((chainInfos[chain] || chainInfo).apis.rpcTest) {
-      setNetwork('testnet')
-      setSelectedNetwork('testnet')
+      setNetwork('mainnet')
+    } else {
+      if (networkMap[chain]) {
+        let network = networkMap[chain]
+        let hasChainOnlyTestnet = false
+
+        if (_chainInfo && !_chainInfo?.beta && _chainInfo?.chainId === _chainInfo?.testnetChainId) {
+          hasChainOnlyTestnet = true
+        }
+
+        if (hasChainOnlyTestnet && network !== 'testnet') {
+          network = 'testnet'
+          _network = 'testnet'
+        }
+
+        setNetwork(network)
+        setSelectedNetwork(network)
+      } else if (_chainInfo && _chainInfo?.apis?.rpc) {
+        setNetwork('mainnet')
+        setSelectedNetwork('mainnet')
+      } else if (_chainInfo && _chainInfo?.apis?.rpcTest) {
+        setNetwork('testnet')
+        setSelectedNetwork('testnet')
+        _network = 'testnet'
+      }
+    }
+
+    if (isCompassWallet()) {
+      const chainId = await getSeiEvmInfo({
+        activeChain: chain as 'seiDevnet' | 'seiTestnet2',
+        activeNetwork: _network,
+        infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
+      })
+      await sendMessageToTab({ event: 'chainChanged', data: chainId })
     }
   }
 }

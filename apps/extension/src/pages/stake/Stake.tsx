@@ -1,17 +1,18 @@
 import {
   useActiveStakingDenom,
+  useGetTokenSpendableBalances,
   useIsCancleUnstakeSupported,
   useStaking,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import Network from '@leapwallet/cosmos-wallet-sdk/dist/stake/network'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
+import Network from '@leapwallet/cosmos-wallet-sdk/dist/browser/stake/network'
 import {
   Delegation,
   RewardsResponse,
   UnbondingDelegation,
-} from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
+} from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
+import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import {
   Avatar,
   Buttons,
@@ -23,7 +24,7 @@ import {
 } from '@leapwallet/leap-ui'
 import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import InfoSheet from 'components/Infosheet'
@@ -45,10 +46,9 @@ import { useThemeColor } from 'hooks/utility/useThemeColor'
 import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
-import { useRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { hex2rgba } from 'utils/hextorgba'
 import { imgOnError } from 'utils/imgOnError'
@@ -56,7 +56,6 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceWord } from 'utils/strings'
 import { timeLeft } from 'utils/timeLeft'
 
-import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
 import { CancleUndelegationProps } from './cancelUndelegation'
 import { ChooseValidatorProps } from './chooseValidator'
 import { YourRewardsSheet } from './components'
@@ -79,6 +78,12 @@ function UnboundingDelegations({
   isCancleUnstakeSupported: boolean
 }) {
   const navigate = useNavigate()
+  const { refetchBalances } = useGetTokenSpendableBalances()
+
+  // refetch balances
+  useEffect(() => {
+    refetchBalances()
+  }, [])
 
   if (!isLoading && (Object.values(unboundingDelegations ?? {}).length === 0 || !validators)) {
     return <></>
@@ -500,14 +505,11 @@ export default function Stake() {
 
   const [showYourRewardsSheet, setShowYourRewardsSheet] = useState(false)
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
-  const [showSelectedChainAlert, setShowSelectedChainAlert] =
-    useRecoilState(selectedChainAlertState)
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [activeStakingDenom] = useActiveStakingDenom()
 
   const {
-    isTestnet,
     rewards,
     totalDelegationAmount,
     loadingRewards,
@@ -578,26 +580,7 @@ export default function Stake() {
         }
       >
         <>
-          {isCompassWallet() && isTestnet && (
-            <AlertStrip
-              message='You are on Sei Testnet'
-              bgColor={themeColor}
-              alwaysShow={isTestnet}
-            />
-          )}
-
-          {showSelectedChainAlert && !isCompassWallet() && (
-            <AlertStrip
-              message={`You are on ${activeChainInfo.chainName}${
-                isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
-              }`}
-              bgColor={themeColor}
-              alwaysShow={isTestnet}
-              onHide={() => {
-                setShowSelectedChainAlert(false)
-              }}
-            />
-          )}
+          <SelectedChainAlertStrip />
 
           <div
             className={classNames('flex flex-col p-7 mb-10 overflow-scroll', {

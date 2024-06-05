@@ -11,16 +11,20 @@ type AlertStripProps = {
   timeOut?: number
   'data-testing-id'?: string
   textClassName?: string
+  onClick?: VoidFunction
+  childComponent?: React.ReactNode
 }
 
 export default function AlertStrip({
   message,
+  childComponent,
   bgColor,
   alwaysShow = false,
   onHide,
   className,
   timeOut = 8000,
   textClassName,
+  onClick,
   ...rest
 }: AlertStripProps) {
   const [show, setShow] = useState<boolean>(true)
@@ -51,13 +55,18 @@ export default function AlertStrip({
     <div
       className={`flex items-center w-full justify-center h-[36px]  ${className}`}
       style={{ backgroundColor: bgColor }}
+      onClick={() => {
+        if (onClick) {
+          onClick()
+        }
+      }}
     >
       <Text
         size='sm'
         className={`font-bold text-center' ${textClassName ?? 'text-black-100'}`}
         data-testing-id={rest['data-testing-id']}
       >
-        {message}
+        {childComponent ?? message}
       </Text>
     </div>
   ) : null

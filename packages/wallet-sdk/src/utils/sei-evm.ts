@@ -1,12 +1,13 @@
 import { Interface } from '@ethersproject/abi';
 import { arrayify } from '@ethersproject/bytes';
+import { JsonRpcProvider } from '@ethersproject/providers';
 import { formatEther, parseEther } from '@ethersproject/units';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
 import { hashPersonalMessage, isHexString, stripHexPrefix, toBuffer, toRpcSig } from 'ethereumjs-util';
 import { Contract, ethers } from 'ethers';
 
-import { abiERC20, abiERC721, abiERC1155, ARCTIC_ETH_CHAIN_ID, ARCTIC_EVM_RPC_URL } from '../constants';
+import { abiERC20, abiERC721, abiERC1155 } from '../constants';
 
 const erc20Interface = new Interface(abiERC20);
 const erc721Interface = new Interface(abiERC721);
@@ -59,9 +60,10 @@ export function trimLeadingZeroes(value: string, isHex?: boolean) {
   return removeLeadingZeroes(value);
 }
 
-export async function getErc20TokenDetails(contractAddress: string) {
-  const provider = new ethers.providers.JsonRpcProvider(ARCTIC_EVM_RPC_URL, ARCTIC_ETH_CHAIN_ID);
+export async function getErc20TokenDetails(contractAddress: string, rpcUrl: string, chainId: number) {
+  const provider = new ethers.providers.JsonRpcProvider(rpcUrl, chainId);
   const contract = new Contract(contractAddress, abiERC20, provider);
+
   const [name, symbol, decimals] = await Promise.all([contract.name(), contract.symbol(), contract.decimals()]);
   return { name, symbol, decimals: Number(decimals) };
 }
@@ -101,4 +103,63 @@ export function signTypedData(data: any, signerAddress: string, wallet: EthWalle
   };
   const rpcSignature = toRpcSig(rpcSigArgs.v, rpcSigArgs.r, rpcSigArgs.s);
   return rpcSignature;
+}
+
+export function getFetchParams(
+  params: unknown[],
+  ethMethod: string,
+  method: 'POST' | string = 'POST',
+  headers: { [key: string]: unknown } = {},
+) {
+  return {
+    method,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify({
+      id: 1,
+      jsonrpc: '2.0',
+      method: ethMethod,
+      params: [...params],
+    }),
+  };
+}
+
+export async function getNftContractInfo(contractAddress: string, rpcUrl: string) {
+  const provider = new JsonRpcProvider(rpcUrl);
+  const contract = new Contract(contractAddress, abiERC721, provider);
+  const name = await contract.name();
+  return { name };
+}
+
+export async function getNftBalanceCount(contractAddress: string, ownerAddress: string, rpcUrl: string) {
+  const provider = new JsonRpcProvider(rpcUrl);
+  const contract = new Contract(contractAddress, abiERC721, provider);
+  const balance = await contract.balanceOf(ownerAddress);
+  return balance.toString();
+}
+
+export async function getNftTokenIdInfo(
+  contractAddress: string,
+  tokenId: string,
+  walletAddress: string,
+  rpcUrl: string,
+) {
+  const provider = new JsonRpcProvider(rpcUrl);
+  const contract = new Contract(contractAddress, abiERC721, provider);
+
+  const ownerOf = await contract.ownerOf(tokenId);
+  if (ownerOf.toLowerCase() !== walletAddress.toLowerCase()) {
+    throw new Error('Token does not belong to the wallet');
+  }
+
+  const tokenURI = await contract.tokenURI(tokenId);
+  return { tokenURI };
+}
+
+export function encodeErc72TransferData(params: string[]) {
+  const data = erc721Interface.encodeFunctionData('transferFrom', params);
+  return data;
 }

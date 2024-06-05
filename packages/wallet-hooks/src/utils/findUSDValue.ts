@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants';
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants';
 import { BigNumber } from 'bignumber.js';
 
 import { LeapWalletApi } from '../apis/LeapWalletApi';

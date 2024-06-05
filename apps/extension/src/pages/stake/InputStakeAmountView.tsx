@@ -4,13 +4,13 @@ import {
   useActiveStakingDenom,
   useChainInfo,
   useformatCurrency,
-  useGetTokenBalances,
+  useGetTokenSpendableBalances,
   useStakeTx,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
+import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
+import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import { Avatar, Buttons, GenericCard, StakeInput } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import { ErrorCard } from 'components/ErrorCard'
@@ -68,7 +68,7 @@ export default function InputStakeAmountView({
   const [activeStakingDenom] = useActiveStakingDenom()
 
   const activeChainInfo = useChainInfo()
-  const { allAssets } = useGetTokenBalances()
+  const { allAssets } = useGetTokenSpendableBalances()
   const [formatCurrency] = useformatCurrency()
   const { data: toKeybaseImageUrl } = useValidatorImage(toValidator)
 

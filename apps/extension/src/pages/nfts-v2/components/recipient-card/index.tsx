@@ -7,17 +7,21 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getBlockChainFromAddress,
+  getSeiEvmAddressToShow,
   isValidAddress,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import bech32 from 'bech32'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
+import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { motion } from 'framer-motion'
+import { useManageChainData } from 'hooks/settings/useManageChains'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -25,6 +29,7 @@ import { sliceAddress } from 'utils/strings'
 
 import { IBCSettings } from '../ibc-banner'
 import { SecondaryActionButton } from '../secondary-action-button'
+import { useSendNftCardContext } from '../send-nft'
 import { ContactsSheet } from './contacts-sheet'
 import { ContactsMatchList, NameServiceMatchList } from './match-lists'
 import { MyWalletSheet } from './my-wallet-sheet'
@@ -37,6 +42,7 @@ type RecipientCardProps = {
   setSelectedAddress: (s: SelectedAddress | null) => void
   addressError?: string
   setAddressError: (s: string) => void
+  collectionAddress: string
 }
 
 const nameServiceMatcher = /^[a-zA-Z0-9_]+\.[a-z]+$/
@@ -47,14 +53,23 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   setSelectedAddress,
   addressError,
   setAddressError,
+  collectionAddress,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const {
+    fetchAccountDetails,
+    fetchAccountDetailsData,
+    fetchAccountDetailsStatus,
+    setAddressWarning,
+    addressWarning,
+  } = useSendNftCardContext()
 
   const [isContactsSheetVisible, setIsContactsSheetVisible] = useState<boolean>(false)
   const [isMyWalletSheetVisible, setIsMyWalletSheetVisible] = useState<boolean>(false)
   const [isAddContactSheetVisible, setIsAddContactSheetVisible] = useState<boolean>(false)
   const [recipientInputValue, setRecipientInputValue] = useState<string>('')
 
+  const [manageChains] = useManageChainData()
   const [customIbcChannelId, setCustomIbcChannelId] = useState<string>()
 
   const { ibcSupportData, isIBCTransfer } = {
@@ -69,7 +84,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   const activeNetwork = useSelectedNetwork()
 
   const activeChainInfo = chains[activeChain]
-
   const contactsToShow = useContactsSearch(recipientInputValue)
   const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
   const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
@@ -220,18 +234,84 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   const showSecondaryActions = showContactsButton || showMyWalletButton || showAddToContacts
 
   useEffect(() => {
-    if (currentWalletAddress === recipientInputValue) {
-      setAddressError('Cannot send to self')
-    } else if (
-      recipientInputValue &&
-      !isValidAddress(recipientInputValue) &&
-      !showNameServiceResults
-    ) {
-      setAddressError('Invalid address')
-    } else {
-      setAddressError('')
+    switch (fetchAccountDetailsStatus) {
+      case 'loading': {
+        setAddressWarning(
+          <>
+            Recipient will receive this on address:{' '}
+            <LoaderAnimation color={Colors.white100} className='w-[20px] h-[20px]' />
+          </>,
+        )
+
+        break
+      }
+
+      case 'success': {
+        if (fetchAccountDetailsData?.pubKey.key) {
+          const recipient0xAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+          if (recipient0xAddress.toLowerCase().startsWith('0x')) {
+            setAddressWarning(
+              `Recipient will receive the NFT on associated EVM address: ${recipient0xAddress}`,
+            )
+          } else {
+            setAddressError('You can only send this NFT to an EVM address.')
+          }
+        }
+
+        break
+      }
+
+      case 'error': {
+        setAddressError('You can only send this NFT to an EVM address.')
+        break
+      }
+
+      default: {
+        setAddressWarning('')
+        setAddressError('')
+      }
     }
-  }, [currentWalletAddress, recipientInputValue, setAddressError, showNameServiceResults])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchAccountDetailsData?.pubKey.key, fetchAccountDetailsStatus])
+
+  useEffect(() => {
+    ;(async function () {
+      if (currentWalletAddress === recipientInputValue) {
+        setAddressError('Cannot send to self')
+      } else if (collectionAddress.toLowerCase().startsWith('0x') && recipientInputValue) {
+        if (
+          !recipientInputValue.toLowerCase().startsWith('0x') &&
+          recipientInputValue.length >= 42
+        ) {
+          await fetchAccountDetails(recipientInputValue)
+        }
+      } else if (
+        !collectionAddress.toLowerCase().startsWith('0x') &&
+        recipientInputValue &&
+        recipientInputValue.toLowerCase().startsWith('0x')
+      ) {
+        setAddressError('You can only send this NFT to a Sei address and not an EVM address.')
+      } else if (
+        recipientInputValue &&
+        !isValidAddress(recipientInputValue) &&
+        !showNameServiceResults
+      ) {
+        setAddressError('Invalid address')
+      } else {
+        setAddressError('')
+        setAddressWarning('')
+      }
+    })()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    collectionAddress,
+    currentWalletAddress,
+    recipientInputValue,
+    setAddressError,
+    showNameServiceResults,
+  ])
 
   useEffect(() => {
     if (recipientInputValue === selectedAddress?.address) {
@@ -243,6 +323,22 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
       return
     }
     try {
+      if (
+        collectionAddress.toLowerCase().startsWith('0x') &&
+        cleanInputValue.toLowerCase().startsWith('0x')
+      ) {
+        setSelectedAddress({
+          address: cleanInputValue,
+          name: sliceAddress(cleanInputValue),
+          avatarIcon: activeChainInfo.chainSymbolImageUrl ?? '',
+          emoji: undefined,
+          chainIcon: activeChainInfo.chainSymbolImageUrl ?? '',
+          chainName: activeChainInfo.key,
+          selectionType: 'notSaved',
+        })
+        return
+      }
+
       const { prefix } = bech32.decode(cleanInputValue)
       const _chain = addressPrefixes[prefix] as SupportedChain
       const img = chains[_chain].chainSymbolImageUrl
@@ -260,8 +356,11 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
       //
     }
   }, [
+    activeChainInfo.chainSymbolImageUrl,
+    activeChainInfo.key,
     addressPrefixes,
     chains,
+    collectionAddress,
     currentWalletAddress,
     recipientInputValue,
     selectedAddress,
@@ -309,6 +408,12 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
 
   useEffect(() => {
     let destinationChain: string | undefined
+    if (
+      collectionAddress.toLowerCase().startsWith('0x') &&
+      (selectedAddress?.address ?? '').toLowerCase().startsWith('0x')
+    ) {
+      return
+    }
 
     if (selectedAddress?.address) {
       const destChainAddrPrefix = getBlockChainFromAddress(selectedAddress.address)
@@ -324,7 +429,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     }
 
     const isIBC = destinationChain !== activeChain
-
     if (!isIBC) {
       return
     }
@@ -335,15 +439,20 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
       return
     }
 
-    if (isIBC && destinationChain && isCompassWallet() && activeChain === 'seiTestnet2') {
-      setAddressError(
-        `IBC not supported between ${chains[destinationChain as SupportedChain].chainName} and Sei`,
-      )
-      return
+    if (isIBC && destinationChain && isCompassWallet()) {
+      const compassChains = manageChains.filter((chain) => chain.chainName !== 'cosmos')
+
+      if (!compassChains.find((chain) => chain.chainName === destinationChain)) {
+        const destinationChainName = chains[destinationChain as SupportedChain].chainName
+        const sourceChainName = chains[activeChain].chainName
+
+        setAddressError(`IBC not supported between ${destinationChainName} and ${sourceChainName}`)
+        return
+      }
     }
 
     // check if destination chain is supported
-    if (destinationChain && ibcSupportData !== undefined) {
+    if (destinationChain && ibcSupportData !== undefined && !isCompassWallet()) {
       if (customIbcChannelId) {
         setAddressError('')
       } else {
@@ -365,6 +474,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     customIbcChannelId,
     chains,
     addressPrefixes,
+    collectionAddress,
+    manageChains,
   ])
 
   useEffect(() => {
@@ -392,6 +503,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
 
         <ActionInputWithPreview
           invalid={!!addressError}
+          warning={!!addressWarning}
           action={action}
           buttonText={action}
           buttonTextColor={themeColor}
@@ -415,6 +527,17 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
             data-testing-id='send-recipient-address-error-ele'
           >
             {addressError}
+          </Text>
+        ) : null}
+
+        {addressWarning ? (
+          <Text
+            size='xs'
+            color='text-yellow-600'
+            className='mt-2 ml-1 font-bold'
+            data-testing-id='send-recipient-address-error-ele'
+          >
+            {addressWarning}
           </Text>
         ) : null}
 

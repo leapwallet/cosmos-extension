@@ -1,4 +1,4 @@
-import { Erc20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/constants/erc20-denoms';
+import { Erc20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/erc20-denoms';
 import { useQuery } from '@tanstack/react-query';
 
 import { useActiveChain, useERC20TokensStore } from '../store';

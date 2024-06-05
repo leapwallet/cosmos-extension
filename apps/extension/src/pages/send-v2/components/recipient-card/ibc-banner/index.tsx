@@ -6,7 +6,7 @@ import {
   useDefaultChannelId,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { useTransactions } from '@leapwallet/elements-hooks'
+import { SkipMsg, SkipMsgV2, UseRouteResponse, useTransactions } from '@leapwallet/elements-hooks'
 import classNames from 'classnames'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import Tooltip from 'components/better-tooltip'
@@ -138,12 +138,24 @@ export const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, onSelectC
 
   const { transferData, isIbcUnwindingDisabled, addressError } = useSendContext()
 
+  const routeWithMessages = useMemo(
+    () =>
+      transferData?.isSkipTransfer && transferData?.routeResponse
+        ? {
+            ...transferData?.routeResponse,
+            messages: transferData?.messages,
+          }
+        : {
+            operations: [],
+            messages: [],
+            sourceAsset: { denom: null },
+          },
+    //@ts-ignore
+    [transferData?.isSkipTransfer, transferData?.messages, transferData?.routeResponse],
+  )
+
   const { groupedTransactions } = useTransactions(
-    (transferData?.isSkipTransfer && transferData?.routeResponse) || {
-      operations: [],
-      messages: [],
-      sourceAsset: { denom: null },
-    },
+    routeWithMessages as (UseRouteResponse & { messages?: SkipMsg[] | SkipMsgV2[] }) | null,
   )
 
   const path: string[] = []

@@ -1,6 +1,6 @@
 import { useChainApis, useChainId, useScrtKeysStore } from '@leapwallet/cosmos-wallet-hooks'
 import { decrypt, encrypt } from '@leapwallet/cosmos-wallet-sdk'
-import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/secret/sscrt'
+import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/sscrt'
 import { useCallback } from 'react'
 import { Permit } from 'secretjs'
 import browser from 'webextension-polyfill'
@@ -21,7 +21,6 @@ export function useCreateQueryPermit() {
   return useCallback(
     async (signerAddress: string, contractAddress: string) => {
       const wallet = await getWallet()
-
       const sscrt = await SigningSscrt.create(lcdUrl, chainId as string, wallet)
 
       const storage = await browser.storage.local.get([QUERY_PERMIT])
@@ -30,8 +29,12 @@ export function useCreateQueryPermit() {
       const _storedPermit = encryptedPermit ? decrypt(encryptedPermit, password as string) : null
 
       const storedPermit = _storedPermit ? JSON.parse(_storedPermit) : { contracts: [] }
+      const contracts = [...storedPermit.contracts]
 
-      const contracts = [...storedPermit.contracts, contractAddress]
+      if (!contracts.includes(contractAddress)) {
+        contracts.push(contractAddress)
+      }
+
       const permit = await sscrt.createQueryPermit(signerAddress, 'permit', contracts, [
         'balance',
         'history',

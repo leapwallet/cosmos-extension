@@ -9,83 +9,13 @@ import {
   useChainApis,
   useDisabledNFTsCollections,
   useDisabledNFTsCollectionsStore,
-  useIsCompassWallet,
   useSelectedNetwork,
 } from '../store';
 import { transformUrlQueryPath, useSetDisabledNFTsInStorage } from '../utils';
 import { defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
 import { CosmWasmClientHandler } from '../utils/useCosmWasmClient';
 import type { TokensListByCollection } from './types';
-import { getTokensQuery } from './utils';
-
-const getNFTContracts = (network: 'mainnet' | 'testnet', chain: SupportedChain, isCompassWallet?: boolean) => {
-  return `https://assets.leapwallet.io/cosmos-registry/v1/nft-contracts${
-    isCompassWallet ? '-compass' : ''
-  }/${network}/${chain}.json`;
-};
-
-/**
- * This hook will load NFT contracts list from leapwallet/nft-contracts-list repo
- *
- * @param chain
- * @param options
- * @returns
- */
-export const useLoadNFTContractsList = (
-  chain: SupportedChain,
-  network: 'mainnet' | 'testnet',
-  rpcUrl: string,
-  options: QueryOptions<
-    {
-      name: string;
-      address: string;
-    }[]
-  > = defaultQueryOptions,
-) => {
-  const isCompassWallet = useIsCompassWallet();
-  const betaNFTsCollections = useBetaNFTsCollections(chain);
-
-  return useQuery<
-    {
-      name: string;
-      address: string;
-    }[]
-  >({
-    queryKey: ['nft-contracts-list', chain, network, betaNFTsCollections, rpcUrl],
-    queryFn: async () => {
-      const res = await fetch(getNFTContracts(network, chain, isCompassWallet));
-      const betaCollections = betaNFTsCollections.map((collection) => ({ address: collection }));
-
-      if (res.status === 403) {
-        return betaCollections;
-      } else {
-        let data = await res.json();
-
-        if (chain === 'teritori') {
-          const client = await CosmWasmClientHandler.getClient(rpcUrl);
-          const response = await client.queryContractSmart(data[0].address, {
-            addresses: {},
-          });
-
-          data = response.map((address: string) => ({ address }));
-        }
-
-        const newData = data.filter(({ address }: { address: string }) => !betaNFTsCollections.includes(address));
-
-        const allCollections = [...newData, ...betaCollections].reduce((acc, curr) => {
-          if (!acc.find((v: { address: string }) => v.address === curr.address)) {
-            acc.push(curr);
-          }
-
-          return acc;
-        }, []);
-
-        return allCollections;
-      }
-    },
-    ...options,
-  });
-};
+import { getIsFractionalizedNft, getTokensQuery, useLoadNftContractsList } from './utils';
 
 /**
  * This hook is used to load the collection info along with list of tokens owned by the wallet address
@@ -122,7 +52,7 @@ export const useGetAllNFTsList = (
   }, [walletAddress, storedDisabledNFTsCollections]);
 
   if (rpcUrl && lcdUrl) {
-    const { data: nftContractsList, status: nftContractsListStatus } = useLoadNFTContractsList(
+    const { data: nftContractsList, status: nftContractsListStatus } = useLoadNftContractsList(
       options?.forceContractsListChain ?? chain,
       activeNetwork,
       rpcUrl,
@@ -142,6 +72,10 @@ export const useGetAllNFTsList = (
           startAfter?: string,
           tokens: string[] = [],
         ): Promise<string[]> => {
+          if (chain === 'nibiru' && (await getIsFractionalizedNft(collectionAddress ?? ''))) {
+            return ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'];
+          }
+
           let _response;
           const query = await getTokensQuery({ walletAddress, limit: 50, startAfter, collectionAddress });
 

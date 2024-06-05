@@ -1,6 +1,7 @@
 import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { CardDivider } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { SearchInput } from 'components/search-input'
@@ -59,7 +60,7 @@ export function ListChains({
     .filter((d) => !allNativeChainID.includes(d.chainId))
     .sort((a, b) => a.chainName.localeCompare(b.chainName))
     .map((d, index) => ({
-      active: true,
+      active: d.enabled,
       beta: undefined,
       chainName: d.chainName as SupportedChain,
       denom: d.denom,
@@ -223,19 +224,24 @@ export default function SelectChain({ isVisible, onClose }: ChainSelectorProps) 
   }
 
   const trackCTAEvent = (buttonName: string, redirectURL?: string) => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.CHAIN_MANAGEMENT,
-      buttonName,
-      redirectURL,
-      time: Date.now() / 1000,
-    })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.CHAIN_MANAGEMENT,
+          buttonName,
+          redirectURL,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
+      }
+    }
   }
 
   const handleAddNewChainClick = useCallback(() => {
     const views = extension.extension.getViews({ type: 'popup' })
     if (views.length === 0) navigate('/add-chain', { replace: true })
     else window.open(extension.runtime.getURL('index.html#/add-chain'))
-    trackCTAEvent(ButtonName.ADD_NEW_CHAIN, '/add-chain')
   }, [navigate])
 
   return (

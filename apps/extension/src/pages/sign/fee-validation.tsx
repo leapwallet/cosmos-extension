@@ -14,7 +14,6 @@ import {
   SupportedChain,
   SupportedDenoms,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import Long from 'long'
 import { useCallback } from 'react'
 

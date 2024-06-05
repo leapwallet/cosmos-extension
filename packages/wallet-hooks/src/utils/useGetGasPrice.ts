@@ -6,9 +6,16 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
-import { useCallback, useEffect, useState } from 'react';
+import BigNumber from 'bignumber.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useChainApis, useChainsStore, useGasPriceSteps, useSelectedNetwork } from '../store';
+import {
+  useChainApis,
+  useChainsStore,
+  useCompassSeiEvmConfigStore,
+  useGasPriceSteps,
+  useSelectedNetwork,
+} from '../store';
 import { FeeModel } from '../types/fee-model';
 import { useLowGasPriceStep } from './useLowGasPriceStep';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
@@ -37,7 +44,7 @@ async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: strin
   const { data } = await axios.get(seiGasJSON);
 
   const minGas = data[chainId]?.min_gas_price ?? 0;
-  const defaultGasPrice = gasPriceSteps[chainKey]?.low;
+  const defaultGasPrice = gasPriceSteps[chainKey]?.low ?? 0;
 
   return Math.max(minGas, defaultGasPrice);
 }
@@ -188,6 +195,7 @@ export type GasRate = Record<GasOptions, GasPrice>;
 export function useGasRateQuery(
   chainKey: SupportedChain,
   activeNetwork?: 'mainnet' | 'testnet',
+  isSeiEvmTransaction?: boolean,
 ):
   | {
       [key: string]: GasRate;
@@ -197,15 +205,36 @@ export function useGasRateQuery(
   const selectedNetwork = activeNetwork ?? _selectedNetwork;
 
   const nativeFeeDenom = useNativeFeeDenom(chainKey, selectedNetwork);
+  const { compassSeiEvmConfig } = useCompassSeiEvmConfigStore();
   const gasPriceStep = useGasPriceStepForChain(chainKey);
+  if (!gasPriceStep && !isSeiEvmTransaction) return undefined;
 
-  if (!gasPriceStep) return undefined;
+  return useMemo(() => {
+    if (isSeiEvmTransaction) {
+      const lowAmount = new BigNumber(compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS.low);
+      const mediumAmount = new BigNumber(compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS.medium);
+      const highAmount = new BigNumber(compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS.high);
 
-  return {
-    [nativeFeeDenom.coinMinimalDenom]: {
-      low: GasPrice.fromString(`${gasPriceStep.low}${nativeFeeDenom.coinMinimalDenom}`),
-      medium: GasPrice.fromString(`${gasPriceStep.medium}${nativeFeeDenom.coinMinimalDenom}`),
-      high: GasPrice.fromString(`${gasPriceStep.high}${nativeFeeDenom.coinMinimalDenom}`),
-    },
-  } as const;
+      return {
+        [nativeFeeDenom.coinMinimalDenom]: {
+          low: GasPrice.fromUserInput(lowAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          medium: GasPrice.fromUserInput(mediumAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          high: GasPrice.fromUserInput(highAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+        },
+      } as const;
+    }
+
+    return {
+      [nativeFeeDenom.coinMinimalDenom]: {
+        low: GasPrice.fromString(`${gasPriceStep.low}${nativeFeeDenom.coinMinimalDenom}`),
+        medium: GasPrice.fromString(`${gasPriceStep.medium}${nativeFeeDenom.coinMinimalDenom}`),
+        high: GasPrice.fromString(`${gasPriceStep.high}${nativeFeeDenom.coinMinimalDenom}`),
+      },
+    } as const;
+  }, [
+    nativeFeeDenom?.coinMinimalDenom,
+    gasPriceStep,
+    isSeiEvmTransaction,
+    compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS,
+  ]);
 }

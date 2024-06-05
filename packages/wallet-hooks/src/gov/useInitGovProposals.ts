@@ -12,7 +12,8 @@ import {
   useSpamProposals,
 } from '../store';
 import { Proposal, Proposal2, ProposalApi } from '../types';
-import { getLeapapiBaseUrl } from '../utils';
+import { getLeapapiBaseUrl, getPlatformType } from '../utils';
+import { useIsFeatureExistForChain } from '../utils-hooks';
 import { formatProposal } from './formatProposal';
 import { proposalHasContentMessages } from './utils';
 
@@ -34,6 +35,22 @@ export function useInitGovProposals(
   const paginationCountRef = useRef(0);
   const { shouldUseFallback, setShouldUseFallback, setGovernanceData, setGovernanceStatus, setGovernanceFetchMore } =
     useGovProposalsStore();
+
+  const isGovernanceComingSoon = useIsFeatureExistForChain({
+    checkForExistenceType: 'comingSoon',
+    feature: 'governance',
+    platform: getPlatformType(),
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  });
+
+  const isGovernanceNotSupported = useIsFeatureExistForChain({
+    checkForExistenceType: 'notSupported',
+    feature: 'governance',
+    platform: getPlatformType(),
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  });
 
   const filterSpamProposals = (proposal: any) => {
     if (spamProposals[activeChain] && spamProposals[activeChain].includes(Number(proposal.proposal_id))) {
@@ -170,10 +187,7 @@ export function useInitGovProposals(
   }, [activeChain, selectedNetwork]);
 
   useEffect(() => {
-    if (
-      activeChainInfo?.comingSoonFeatures?.includes('governance') ||
-      activeChainInfo?.notSupportedFeatures?.includes('governance')
-    ) {
+    if (isGovernanceComingSoon || isGovernanceNotSupported) {
       setGovernanceStatus('success');
       setGovernanceData([]);
       return;

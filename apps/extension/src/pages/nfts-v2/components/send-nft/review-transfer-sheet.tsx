@@ -28,6 +28,8 @@ type ReviewNFTTransactionSheetProps = {
   loading: boolean
   memo: string
   setMemo: (s: string) => void
+  showMemo: boolean
+  txError: string
 }
 
 export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = ({
@@ -42,9 +44,10 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
   loading,
   memo,
   setMemo,
+  showMemo,
+  txError,
 }) => {
   const defaultTokenLogo = useDefaultTokenLogo()
-  const [txError] = useState('')
 
   if (showLedgerPopup && txError) {
     return <LedgerConfirmationPopup showLedgerPopup />
@@ -117,12 +120,15 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
               }
             />
           </div>
-          <Memo
-            value={memo}
-            onChange={(e) => {
-              setMemo(e.target.value)
-            }}
-          />
+
+          {showMemo ? (
+            <Memo
+              value={memo}
+              onChange={(e) => {
+                setMemo(e.target.value)
+              }}
+            />
+          ) : null}
 
           {!!fee && <FeesView fee={fee} nftDetails={nftDetails} />}
           <Buttons.Generic

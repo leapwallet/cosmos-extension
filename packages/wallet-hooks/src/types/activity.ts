@@ -1,5 +1,5 @@
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
-import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk/dist/types/constants';
+import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/constants';
 import { ThemeName } from '@leapwallet/leap-ui';
 import { type ParsedTransaction } from '@leapwallet/parser-parfait';
 

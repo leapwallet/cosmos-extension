@@ -1,19 +1,18 @@
 import {
-  SecretToken,
   useGetAsteroidTokens,
   useGetSeiEvmBalance,
   useGetTokenBalances,
+  useIsSeiEvmChain,
   useSeiLinkedAddressState,
-  useSnipDenomsStore,
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { QueryStatus } from '@tanstack/react-query'
-import { selectedChainAlertState } from 'atoms/selected-chain-alert'
 import classNames from 'classnames'
 import AlertStrip from 'components/alert-strip/AlertStrip'
+import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import { EthCopyWalletAddress } from 'components/eth-copy-wallet-address'
@@ -22,9 +21,10 @@ import ReceiveToken from 'components/Receive'
 import TokenCardSkeleton from 'components/Skeletons/TokenCardSkeleton'
 import Text from 'components/text'
 import WarningCard from 'components/WarningCard'
-import { EventName, PageName } from 'config/analytics'
+import { PageName } from 'config/analytics'
 import { LEDGER_ENABLED_EVM_CHAIN_IDS, LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { walletLabels } from 'config/constants'
+import { SHOW_LINK_ADDRESS_NUDGE } from 'config/storage-keys'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -40,11 +40,12 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useAddress } from 'hooks/wallet/useAddress'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
-import mixpanel from 'mixpanel-browser'
-import React, { useMemo, useState } from 'react'
+import { ActivitySwapTxPage } from 'pages/activity/ActivitySwapTxPage'
+import qs from 'qs'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { useSetRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { formatWalletName } from 'utils/formatWalletName'
@@ -55,13 +56,12 @@ import Browser from 'webextension-polyfill'
 
 import { searchModalState } from '../../atoms/search-modal'
 import AssetCard from './AssetCard'
-import { HomeButtons } from './components'
-import { WalletNotConnected } from './components/WalletNotConnected'
-import { CopyAddressSheet } from './CopyAddressSheet'
+import { CopyAddressSheet, HomeButtons, LinkAddressesSheet, WalletNotConnected } from './components'
 import { BitcoinDeposit, DepositBTCBanner } from './DepositBTCBanner'
 import FundBanners from './FundBanners'
 import GlobalBannersAD from './GlobalBannersAD'
-import { SecretManageTokens } from './manage-tokens'
+import PendingSwapsAlertStrip from './PendingSwapsAlertStrip'
+import PendingSwapsSheet from './PendingSwapsSheet'
 import RequestFaucet from './RequestFaucet'
 import SelectChain from './SelectChain'
 import SelectWallet from './SelectWallet'
@@ -102,8 +102,13 @@ export default function Home() {
 
   const [showFaucetResp, setShowFaucetResp] = useState<InitialFaucetResp>(initialFaucetResp)
   const [showErrorMessage, setShowErrorMessage] = useState<boolean>(!!txDeclined)
-  const [showSecretManageTokens, setShowSecretManageTokens] = useState<boolean>(false)
-  const [scrtToken, setScrtToken] = useState<SecretToken & { contractAddr: string }>()
+  const [scrtTokenContractAddress, setScrtTokenContractAddress] = useState<string>('')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [showSwapTxPageFor, setShowSwapTxPageFor] = useState<any>()
+  const [showPendingSwapsSheet, setShowPendingSwapsSheet] = useState<boolean>(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pendingSwapTxs, setPendingSwapTxs] = useState<any[]>([])
 
   const selectedNetwork = useSelectedNetwork()
   const {
@@ -114,14 +119,12 @@ export default function Home() {
 
   const address = useAddress()
   const [formatCurrency] = useFormatCurrency()
-  const { denoms: SecretTokens } = useSnipDenomsStore()
+  const isSeiEvmChain = useIsSeiEvmChain()
 
   const [areSmallBalancesHidden] = useHideSmallBalances()
   const { hideBalances: balancesHidden, formatHideBalance } = useHideAssets()
   const setBalancesVisibility = useSetHideAssets()
 
-  const [showSelectedChainAlert, setShowSelectedChainAlert] =
-    useRecoilState(selectedChainAlertState)
   const setShowSearchModal = useSetRecoilState(searchModalState)
   const [showBitcoinDepositSheet, setShowBitcoinDepositSheet] = useState(false)
 
@@ -137,6 +140,11 @@ export default function Home() {
     refetchBalances,
   } = useGetTokenBalances()
 
+  // refetch balances
+  useEffect(() => {
+    refetchBalances()
+  }, [])
+
   const getWallet = Wallet.useGetWallet()
   const { addressLinkState } = useSeiLinkedAddressState(getWallet)
   const { data: seiEvmBalance, status: seiEvmStatus } = useGetSeiEvmBalance()
@@ -146,7 +154,17 @@ export default function Home() {
     let allAssets = [..._allAssets, ...(asteroidTokenBalance?.asteroidTokens ?? [])]
 
     if (!['done', 'unknown'].includes(addressLinkState)) {
-      allAssets = [...allAssets, ...(seiEvmBalance?.seiEvmBalance ?? [])]
+      const firstElement = allAssets?.[0]
+
+      if (firstElement) {
+        allAssets = [
+          firstElement,
+          ...(seiEvmBalance?.seiEvmBalance ?? []),
+          ...(allAssets ?? []).slice(1),
+        ]
+      } else {
+        allAssets = [...(seiEvmBalance?.seiEvmBalance ?? []), ...(allAssets ?? []).slice(1)]
+      }
     }
 
     return allAssets
@@ -178,9 +196,9 @@ export default function Home() {
 
   const activeChain = useActiveChain()
   const [showCopyAddressSheet, setShowCopyAddressSheet] = useState(false)
+  const [isThisALinkEvmAddressNudge, setIsThisALinkEvmAddressNudge] = useState(false)
   const { activeWallet } = useActiveWallet()
 
-  const isTestnet = useSelectedNetwork() === 'testnet'
   const chain: ChainInfoProp = chainInfos[activeChain]
   const walletAddresses = useGetWalletAddresses()
 
@@ -193,7 +211,7 @@ export default function Home() {
       return Images.Logos.CompassCircle
     }
 
-    return
+    return Images.Logos.LeapLogo28
   }, [activeWallet?.avatar])
 
   const queryStatus = useMemo(() => {
@@ -240,6 +258,32 @@ export default function Home() {
     s3IbcTokensStatus,
     seiEvmStatus,
   ])
+
+  const handleCopyAddressSheetClose = useCallback(
+    (refetch?: boolean) => {
+      setShowCopyAddressSheet(false)
+      setIsThisALinkEvmAddressNudge(false)
+      localStorage.setItem(SHOW_LINK_ADDRESS_NUDGE, 'false')
+
+      if (refetch) {
+        refetchBalances()
+      }
+    },
+    [refetchBalances],
+  )
+
+  useEffect(() => {
+    if (
+      isSeiEvmChain &&
+      !['done', 'unknown', 'loading'].includes(addressLinkState) &&
+      seiEvmStatus === 'success' &&
+      localStorage.getItem(SHOW_LINK_ADDRESS_NUDGE) !== 'false'
+    ) {
+      setIsThisALinkEvmAddressNudge(true)
+    } else {
+      setIsThisALinkEvmAddressNudge(false)
+    }
+  }, [addressLinkState, isSeiEvmChain, seiEvmStatus])
 
   usePerformanceMonitor({
     page: 'home',
@@ -324,13 +368,6 @@ export default function Home() {
 
   const handleQuickSearchIconClick = () => {
     setShowSearchModal(true)
-
-    mixpanel.track(EventName.QuickSearchOpen, {
-      chainId: chain.chainId,
-      chainName: chain.chainName,
-      openMode: 'Icon',
-      time: Date.now() / 1000,
-    })
   }
 
   const noAddress = !activeWallet.addresses[activeChain]
@@ -395,27 +432,7 @@ export default function Home() {
             hidden: connectEVMLedger,
           })}
         >
-          {isCompassWallet() && isTestnet && (
-            <AlertStrip
-              message='You are on Sei Testnet'
-              bgColor={Colors.getChainColor(activeChain)}
-              alwaysShow={isTestnet}
-            />
-          )}
-
-          {showSelectedChainAlert && !showErrorMessage && !isCompassWallet() && (
-            <AlertStrip
-              message={`You are on ${chain?.chainName}${
-                isTestnet && !chain?.chainName.includes('Testnet') ? ' Testnet' : ''
-              }`}
-              bgColor={chain?.theme?.primaryColor}
-              alwaysShow={isTestnet}
-              onHide={() => {
-                setShowSelectedChainAlert(false)
-              }}
-              data-testing-id='home-alertstrip-chainname'
-            />
-          )}
+          {!showErrorMessage && <SelectedChainAlertStrip />}
 
           {showErrorMessage && (
             <AlertStrip
@@ -553,8 +570,7 @@ export default function Home() {
             </div>
           ) : null}
 
-          {!isCompassWallet() &&
-            selectedNetwork !== 'testnet' &&
+          {(isCompassWallet() ? true : selectedNetwork !== 'testnet') &&
             isWalletHasFunds &&
             !atLeastOneTokenIsLoading && (
               <GlobalBannersAD handleBtcBannerClick={() => setShowBitcoinDepositSheet(true)} />
@@ -612,12 +628,7 @@ export default function Home() {
                   <React.Fragment key={token.symbol + token?.ibcDenom}>
                     <CardDivider />
                     <GenericCard
-                      onClick={() => {
-                        setScrtToken({
-                          ...SecretTokens[token.coinMinimalDenom],
-                          contractAddr: token.coinMinimalDenom,
-                        })
-                      }}
+                      onClick={() => setScrtTokenContractAddress(token.coinMinimalDenom)}
                       title={token.symbol}
                       img={<img src={token.img} className='w-[28px] h-[28px] mr-2' />}
                       subtitle2={<span className='material-icons-round text-red-300'>error</span>}
@@ -636,19 +647,19 @@ export default function Home() {
               {nonS3IbcTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
 
               {cw20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
-              {activeChain === 'secret' && snip20TokensStatus !== 'success' && snip20Enabled ? (
-                <TokenCardSkeleton />
-              ) : null}
               {erc20TokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
               {asteroidsTokensStatus !== 'success' ? <TokenCardSkeleton /> : null}
               {seiEvmStatus !== 'success' ? <TokenCardSkeleton /> : null}
+              {activeChain === 'secret' && snip20TokensStatus !== 'success' && snip20Enabled ? (
+                <TokenCardSkeleton />
+              ) : null}
 
               {!atLeastOneTokenIsLoading && cw20TokensStatus === 'success' && (
                 <div
                   className='px-4 py-3 border-t-[1px] dark:border-gray-800 border-gray-100 cursor-pointer'
                   onClick={() => {
                     if (activeChain === 'secret' && selectedNetwork === 'mainnet') {
-                      setShowSecretManageTokens(true)
+                      navigate('/snip20-manage-tokens?contractAddress=' + scrtTokenContractAddress)
                     } else {
                       navigate('/manage-tokens')
                     }
@@ -677,11 +688,28 @@ export default function Home() {
         title='Wallets'
       />
 
-      {activeChain === 'secret' && selectedNetwork === 'mainnet' ? (
-        <SecretManageTokens
-          isVisible={showSecretManageTokens}
-          onClose={() => setShowSecretManageTokens(false)}
-          token={scrtToken}
+      {showSwapTxPageFor ? (
+        <ActivitySwapTxPage
+          onClose={(
+            sourceChainId?: string,
+            sourceToken?: string,
+            destinationChainId?: string,
+            destinationToken?: string,
+          ) => {
+            setShowSwapTxPageFor(undefined)
+            let queryStr = ''
+            if (sourceChainId || sourceToken || destinationChainId || destinationToken) {
+              queryStr = `?${qs.stringify({
+                sourceChainId,
+                sourceToken,
+                destinationChainId,
+                destinationToken,
+                pageSource: 'swapAgain',
+              })}`
+            }
+            navigate(`/swap${queryStr}`)
+          }}
+          {...showSwapTxPageFor}
         />
       ) : null}
 
@@ -698,15 +726,34 @@ export default function Home() {
           setShowBitcoinDepositSheet(false)
         }}
       />
-      <CopyAddressSheet
-        isVisible={showCopyAddressSheet}
-        onClose={(refetch?: boolean) => {
-          setShowCopyAddressSheet(false)
-          if (refetch) {
-            refetchBalances()
-          }
+
+      {!['done', 'unknown'].includes(addressLinkState) ? (
+        <LinkAddressesSheet
+          isVisible={isThisALinkEvmAddressNudge || showCopyAddressSheet}
+          onClose={handleCopyAddressSheetClose}
+          walletAddresses={walletAddresses}
+        />
+      ) : (
+        <CopyAddressSheet
+          isVisible={showCopyAddressSheet}
+          onClose={handleCopyAddressSheetClose}
+          walletAddresses={walletAddresses}
+        />
+      )}
+
+      <PendingSwapsAlertStrip
+        setShowSwapTxPageFor={setShowSwapTxPageFor}
+        setShowPendingSwapsSheet={setShowPendingSwapsSheet}
+        setPendingSwapTxs={setPendingSwapTxs}
+        pendingSwapTxs={pendingSwapTxs}
+      />
+      <PendingSwapsSheet
+        pendingSwapTxs={pendingSwapTxs}
+        isOpen={showPendingSwapsSheet}
+        setShowSwapTxPageFor={setShowSwapTxPageFor}
+        onClose={() => {
+          setShowPendingSwapsSheet(false)
         }}
-        walletAddresses={walletAddresses}
       />
       {!connectEVMLedger ? (
         <BottomNav label={BottomNavLabel.Home} disabled={!activeWallet.addresses[activeChain]} />

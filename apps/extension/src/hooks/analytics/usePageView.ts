@@ -3,14 +3,18 @@ import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { EventName, PageName } from 'config/analytics'
 import mixpanel from 'mixpanel-browser'
 import { useEffect } from 'react'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 /**
  * Track page view on mixpanel
  */
-export const usePageView = (pageName: PageName) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const usePageView = (pageName: PageName, enable = true, additionalProperties?: any) => {
   const chain = useChainInfo() as ChainInfo | undefined
 
   useEffect(() => {
+    if (!enable || (isCompassWallet() && pageName !== PageName.Home)) return
+
     const timeoutId = setTimeout(() => {
       try {
         mixpanel.track(
@@ -20,6 +24,7 @@ export const usePageView = (pageName: PageName) => {
             chainId: chain?.chainId ?? '',
             chainName: chain?.chainName ?? '',
             time: Date.now() / 1000,
+            ...(additionalProperties ?? {}),
           },
           {
             transport: 'sendBeacon',
@@ -33,5 +38,5 @@ export const usePageView = (pageName: PageName) => {
     return () => {
       clearTimeout(timeoutId)
     }
-  }, [chain?.chainId, chain?.chainName, pageName])
+  }, [additionalProperties, chain?.chainId, chain?.chainName, enable, pageName])
 }

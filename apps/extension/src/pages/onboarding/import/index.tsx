@@ -1,11 +1,10 @@
 import { isLedgerUnlocked } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
-import { Buttons, ProgressBar, TextArea } from '@leapwallet/leap-ui'
+import { Buttons, ProgressBar } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import ChoosePasswordView from 'components/choose-password-view'
 import CssLoader from 'components/css-loader/CssLoader'
 import ExtensionPage from 'components/extension-page'
-import { SeedPhraseInput } from 'components/seed-phrase-input'
 import Text from 'components/text'
 import WalletInfoCard from 'components/wallet-info-card'
 import { AuthContextType, useAuth } from 'context/auth-context'
@@ -18,188 +17,12 @@ import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { isCompassWallet } from 'utils/isCompassWallet'
-import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 import browser from 'webextension-polyfill'
 
-import { IMPORT_WALLET_DATA } from '../constants'
-import ImportEvmModal from './ImportEvmModal'
+import { SeedPhraseView } from '../components'
 import ImportLedgerView from './ImportLedgerView'
 import SelectLedgerWalletView from './SelectLedgerWalletView'
 import { LEDGER_CONNECTION_STEP } from './types'
-
-type SeedPhraseViewProps = {
-  readonly walletName: string
-  readonly onProceed: () => void
-  secret: string
-  setSecret: React.Dispatch<React.SetStateAction<string>>
-  isPrivateKey: boolean
-  privateKeyError?: string
-  setPrivateKeyError?: React.Dispatch<React.SetStateAction<string>>
-}
-
-function SeedPhraseView({
-  onProceed,
-  walletName,
-  secret,
-  setSecret,
-  isPrivateKey,
-  privateKeyError,
-  setPrivateKeyError,
-}: SeedPhraseViewProps) {
-  const [error, setError] = useState(privateKeyError ?? '')
-  const isCosmostation = walletName === 'Cosmostation'
-
-  useEffect(() => {
-    if (privateKeyError?.length) {
-      setError(privateKeyError)
-    }
-  }, [privateKeyError])
-
-  const onChangeHandler = (value: string) => {
-    setError('')
-    setPrivateKeyError && setPrivateKeyError('')
-    setSecret(value)
-  }
-
-  const handleImportWalletClick = () => {
-    if (validateSeedPhrase({ phrase: secret, isPrivateKey, setError, setSecret })) {
-      onProceed()
-    }
-  }
-
-  return (
-    <div className='flex flex-row overflow-scroll gap-x-[20px]'>
-      <div className='flex flex-col w-[408px]'>
-        <img
-          src={
-            IMPORT_WALLET_DATA[isPrivateKey ? 'PrivateKey' : walletName]?.imgSrc ??
-            Images.Misc.WalletIcon
-          }
-          width='36'
-          height='36'
-        />
-        <Text size='xxl' className='font-black mt-4'>
-          Import {isPrivateKey ? 'via Private Key' : walletName}{' '}
-          {!walletName && 'via Recovery Phrase'}
-        </Text>
-        <Text size='md' color='text-gray-600 dark:text-gray-400' className='font-medium mb-[32px]'>
-          {isPrivateKey ? (
-            <>To import an existing wallet, please enter the private key here:</>
-          ) : (
-            <>To import an existing {walletName} wallet, please enter the recovery phrase here:</>
-          )}
-        </Text>
-
-        {isPrivateKey ? (
-          <TextArea
-            autoFocus
-            onChange={(event) => onChangeHandler(event.target.value)}
-            value={secret}
-            isErrorHighlighted={!!error}
-            placeholder='Enter or Paste your private key'
-            data-testing-id='enter-phrase'
-          />
-        ) : (
-          <div className='w-[376px]'>
-            <SeedPhraseInput onChangeHandler={onChangeHandler} isError={!!error} heading='' />
-          </div>
-        )}
-
-        {error && (
-          <Text size='sm' color='text-red-300 mt-[16px]' data-testing-id='error-text-ele'>
-            {error}
-          </Text>
-        )}
-
-        <div className='w-[376px] h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center px-5 py-3 my-7'>
-          <img className='mr-[16px]' src={Images.Misc.Warning} width='40' height='40' />
-          <div className='flex flex-col gap-y-[2px]'>
-            <Text size='sm' color='text-gray-400 font-medium'>
-              Recommended security practice:
-            </Text>
-            <Text size='sm' color='text-gray-400 dark:text-white-100 font-bold'>
-              {`It is always safer to type the ${
-                isPrivateKey ? 'private key' : 'recovery phrase'
-              } rather than pasting it.`}
-            </Text>
-          </div>
-        </div>
-
-        <Buttons.Generic
-          disabled={!!error || !secret}
-          color={Colors.cosmosPrimary}
-          onClick={handleImportWalletClick}
-          data-testing-id='btn-import-wallet'
-        >
-          Import Wallet
-        </Buttons.Generic>
-      </div>
-      <div>
-        <div className='shrink flex-col gap-y-[4px] w-[408px] p-[32px] rounded-lg border-[1px] border-gray-800'>
-          <Text size='md' className='font-bold' color='text-gray-600 dark:text-gray-200'>
-            {`What is a ${isPrivateKey ? 'private key' : 'recovery phrase'}?`}
-          </Text>
-          <Text size='sm' color='text-gray-600 font-medium dark:text-gray-400 mb-[32px] mt-1'>
-            {`${
-              isPrivateKey
-                ? 'A private key is like a password — a string of letters and numbers — '
-                : 'Recovery phrase is a 12 or 24-word phrase'
-            } that can be used to restore your wallet.`}
-          </Text>
-
-          {walletName && !isPrivateKey && (
-            <>
-              <Text size='lg' className='font-medium text-gray-600 dark:text-gray-200'>
-                {' '}
-                Where can I find my phrase?
-              </Text>
-              <Text size='md' color=' text-gray-600 dark:text-gray-400 mb-[32px]'>
-                <ol>
-                  <li>
-                    1. Open <strong> {walletName} extension </strong>{' '}
-                  </li>
-                  {walletName === 'Leap' ? (
-                    <>
-                      <li>
-                        2. On top left, click on the <strong> Hamburger icon </strong>{' '}
-                      </li>
-                      <li>
-                        3. Select show recovery phrase and enter your password and{' '}
-                        <strong> view recovery phrase </strong>{' '}
-                      </li>
-                    </>
-                  ) : (
-                    <>
-                      <li>
-                        2. On top {isCosmostation ? 'left' : 'right'}, click on the{' '}
-                        <strong> Profile icon </strong>{' '}
-                      </li>
-                      <li>
-                        3. Select {isCosmostation ? 'account settings' : 'wallet'} and click on the
-                        3 dots and <strong> view recovery phrase </strong>{' '}
-                      </li>
-                    </>
-                  )}
-                  <li>4. Copy and paste the recovery phrase to the field on the left. </li>
-                </ol>
-              </Text>
-            </>
-          )}
-
-          <Text size='md' className='font-bold text-gray-600 dark:text-gray-200 mt-1'>
-            {' '}
-            Is it safe to enter it into {isCompassWallet() ? 'Compass' : 'Leap'}?
-          </Text>
-          <Text size='sm' color='font-medium text-gray-600 dark:text-gray-400'>
-            {' '}
-            Yes. It will be stored locally and never leave your device without your explicit
-            permission.
-          </Text>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 type SelectWalletViewProps = {
   readonly onProceed: () => void
@@ -379,7 +202,10 @@ function SelectWalletView({
 export default function OnboardingImportWallet() {
   const walletName = useQuery().get('walletName') ?? undefined
   const isLedger = ['hardwarewallet', 'evmhardwarewallet'].includes(walletName || '')
-  const isPrivateKey = walletName?.toLowerCase().includes('private')
+  const isMetamask = walletName?.toLowerCase().includes('metamask')
+  const isOtherEvmWallets = walletName?.toLowerCase().includes('evm wallets')
+  const isPrivateKey =
+    walletName?.toLowerCase().includes('private') || isMetamask || isOtherEvmWallets
   const { noAccount } = useAuth() as AuthContextType
 
   const [secret, setSecret] = useState('')
@@ -564,8 +390,11 @@ export default function OnboardingImportWallet() {
           isPrivateKey={isPrivateKey as boolean}
           privateKeyError={privateKeyError}
           setPrivateKeyError={setPrivateKeyError}
+          isMetamaskKey={isMetamask}
+          isOtherEvmWallets={isOtherEvmWallets}
         />
       )}
+
       {showImportLedgerView && currentStep !== 3 && (
         <ImportLedgerView
           retry={() => importLedger(getLedgerAccountDetails)}
@@ -585,6 +414,7 @@ export default function OnboardingImportWallet() {
           isEvmLedger={importEvmLedgerStep}
         />
       )}
+
       {currentStep === 2 && !isLedger && (
         <SelectWalletView
           selectedIds={selectedIds}
@@ -593,6 +423,7 @@ export default function OnboardingImportWallet() {
           onProceed={moveToNextStep}
         />
       )}
+
       {currentStep === 2 && isLedger && !showImportLedgerView && (
         <SelectLedgerWalletView
           selectedIds={selectedIds}
@@ -606,6 +437,7 @@ export default function OnboardingImportWallet() {
           }}
         />
       )}
+
       {currentStep === 3 && !savedPassword && (
         <ChoosePasswordView onProceed={onOnboardingCompleted} />
       )}

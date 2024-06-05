@@ -5,8 +5,11 @@ import {
   useGetBannerApi,
   useGetFaucetApi,
   useGetQuickSearchOptions,
+  useInitBetaEvmNftTokenIds,
   useInitBetaNFTsCollections,
+  useInitChainInfosConfig,
   useInitCoingeckoPrices,
+  useInitCompassSeiEvmConfig,
   useInitCustomChannelsStore,
   useInitDefaultGasEstimates,
   useInitDenoms,
@@ -26,6 +29,7 @@ import {
   useInitSpamProposals,
   useInitStakingDenoms,
   useInitTxMetadata,
+  useInitWhitelistedFactoryTokens,
   useMobileAppBanner,
   useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -88,6 +92,7 @@ export default function App() {
   useGetFaucetApi()
   useGetBannerApi()
   useInitDenoms()
+  useInitWhitelistedFactoryTokens()
 
   useInitSpamProposals()
   useInitCustomChannelsStore()
@@ -116,6 +121,9 @@ export default function App() {
   useTransactionConfigs()
 
   useInitStakingDenoms()
+  useInitChainInfosConfig()
+  useInitBetaEvmNftTokenIds()
+  useInitCompassSeiEvmConfig()
 
   return (
     <LeapUiTheme defaultTheme={theme} forcedTheme={theme}>

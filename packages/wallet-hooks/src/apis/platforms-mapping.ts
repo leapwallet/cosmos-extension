@@ -105,6 +105,8 @@ export const platforms: Record<string, Platform> = {
   thorchain: 'THOR_CHAIN',
   // @ts-ignore
   saga: 'SAGA',
+  // @ts-ignore
+  initia: 'INITIA',
 };
 
 export const platformToChain: Record<Platform, string> = {
@@ -182,4 +184,5 @@ export const platformToChain: Record<Platform, string> = {
   THOR_CHAIN: 'thorchain',
   ODIN_CHAIN: 'odin',
   SAGA: 'saga',
+  INITIA: 'initia',
 };

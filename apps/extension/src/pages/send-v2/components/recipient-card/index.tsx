@@ -1,4 +1,5 @@
 import {
+  INITIAL_ADDRESS_WARNING,
   SelectedAddress,
   sliceWord,
   useActiveChain,
@@ -7,12 +8,15 @@ import {
   useAddressPrefixes,
   useChainsStore,
   useFeatureFlags,
+  useIsERC20Token,
+  useIsSeiEvmChain,
   useSeiLinkedAddressState,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getBech32Address,
   getBlockChainFromAddress,
+  getSeiEvmAddressToShow,
   isValidAddress,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -20,6 +24,7 @@ import { Asset, useChains, useSkipDestinationChains } from '@leapwallet/elements
 import { captureException } from '@sentry/react'
 import bech32 from 'bech32'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
+import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { motion } from 'framer-motion'
 import { useManageChainData } from 'hooks/settings/useManageChains'
@@ -30,6 +35,7 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -52,6 +58,7 @@ const nameServiceMatcher = /^[a-zA-Z0-9_]+\.[a-z]+$/
 
 export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const isERC20Token = useIsERC20Token()
 
   const [isContactsSheetVisible, setIsContactsSheetVisible] = useState<boolean>(false)
   const [isMyWalletSheetVisible, setIsMyWalletSheetVisible] = useState<boolean>(false)
@@ -74,6 +81,10 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     addressWarning,
     setAddressWarning,
     isIbcUnwindingDisabled,
+    fetchAccountDetails,
+    fetchAccountDetailsData,
+    fetchAccountDetailsStatus,
+    setFetchAccountDetailsData,
   } = useSendContext()
 
   const { chains } = useChainsStore()
@@ -99,10 +110,11 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
   const defaultTokenLogo = useDefaultTokenLogo()
   const activeWallet = useActiveWallet()
+  const isSeiEvmChain = useIsSeiEvmChain()
 
   const fillRecipientInputValue = useCallback(
     (value: string) => {
-      if (activeChainInfo.key === 'seiDevnet' && value.toLowerCase().startsWith('0x')) {
+      if (isSeiEvmChain && value.toLowerCase().startsWith('0x')) {
         setAddressError(undefined)
         setEthAddress(value)
         setRecipientInputValue(value)
@@ -129,6 +141,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       activeChainInfo.addressPrefix,
       activeChainInfo.bip44.coinType,
       activeChainInfo.key,
+      isSeiEvmChain,
       setAddressError,
       setEthAddress,
     ],
@@ -335,48 +348,131 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const showSecondaryActions = showContactsButton || showMyWalletButton || showAddToContacts
 
   useEffect(() => {
-    if (currentWalletAddress === recipientInputValue) {
-      setAddressError('Cannot send to self')
-    } else if (activeChainInfo.key === 'seiDevnet' && recipientInputValue.length) {
-      if (selectedToken?.isEvm && !recipientInputValue.toLowerCase().startsWith('0x')) {
-        setAddressWarning(
-          'To send Sei EVM tokens to Sei address, link your 0x and Sei addresses first.',
-        )
-        return
+    switch (fetchAccountDetailsStatus) {
+      case 'loading': {
+        setAddressWarning({
+          type: 'erc20',
+          message: (
+            <>
+              Recipient will receive this on address:{' '}
+              <LoaderAnimation color={Colors.white100} className='w-[20px] h-[20px]' />
+            </>
+          ),
+        })
+
+        break
       }
 
-      if (recipientInputValue.toLowerCase().startsWith('0x')) {
-        if (
-          !selectedToken?.isEvm &&
-          selectedToken?.coinMinimalDenom === 'usei' &&
-          !['done', 'unknown'].includes(addressLinkState)
-        ) {
-          setAddressWarning(
-            'To send Sei tokens to 0x address, link your 0x and Sei addresses first.',
-          )
+      case 'success': {
+        if (fetchAccountDetailsData?.pubKey.key) {
+          const recipient0xAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+          if (recipient0xAddress.toLowerCase().startsWith('0x')) {
+            setAddressWarning({
+              type: 'erc20',
+              message: `Recipient will receive the ERC-20 token on associated EVM address: ${recipient0xAddress}`,
+            })
+          } else {
+            setAddressWarning({
+              type: 'erc20',
+              message: 'You can only transfer ERC-20 tokens to an EVM address.',
+            })
+          }
         }
 
-        return
+        break
       }
-    } else if (
-      recipientInputValue &&
-      !isValidAddress(recipientInputValue) &&
-      !showNameServiceResults
-    ) {
-      setAddressError('Invalid Address')
-    } else {
-      setAddressWarning(undefined)
-      setAddressError(undefined)
+
+      case 'error': {
+        setAddressWarning({
+          type: 'erc20',
+          message: 'You can only transfer ERC-20 tokens to an EVM address.',
+        })
+
+        break
+      }
+
+      default: {
+        setAddressWarning(INITIAL_ADDRESS_WARNING)
+      }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchAccountDetailsData?.pubKey.key, fetchAccountDetailsStatus])
+
+  useEffect(() => {
+    ;(async function () {
+      if (currentWalletAddress === recipientInputValue) {
+        setAddressError('Cannot send to self')
+      } else if (isSeiEvmChain && recipientInputValue.length && selectedToken) {
+        if (addressLinkState === 'loading') {
+          setAddressWarning({
+            type: 'link',
+            message: (
+              <>
+                Checking the Ox and Sei address link status{' '}
+                <LoaderAnimation color={Colors.white100} className='w-[20px] h-[20px]' />
+              </>
+            ),
+          })
+
+          return
+        } else {
+          setAddressWarning(INITIAL_ADDRESS_WARNING)
+        }
+
+        if (!recipientInputValue.toLowerCase().startsWith('0x')) {
+          if (selectedToken.isEvm) {
+            setAddressWarning({
+              type: 'link',
+              message:
+                'To send Sei EVM tokens to Sei address, link your EVM and Sei addresses first.',
+            })
+          } else if (isERC20Token(selectedToken) && recipientInputValue.length >= 42) {
+            await fetchAccountDetails(recipientInputValue)
+          } else {
+            setAddressWarning(INITIAL_ADDRESS_WARNING)
+            setFetchAccountDetailsData(undefined)
+          }
+
+          return
+        }
+
+        if (recipientInputValue.toLowerCase().startsWith('0x')) {
+          if (
+            !selectedToken.isEvm &&
+            selectedToken.coinMinimalDenom === 'usei' &&
+            !['done', 'unknown'].includes(addressLinkState)
+          ) {
+            setAddressWarning({
+              type: 'link',
+              message: 'To send Sei tokens to EVM address, link your EVM and Sei addresses first.',
+            })
+          }
+
+          return
+        }
+      } else if (
+        recipientInputValue &&
+        !isValidAddress(recipientInputValue) &&
+        !showNameServiceResults
+      ) {
+        setAddressError('Invalid Address')
+      } else {
+        setAddressWarning(INITIAL_ADDRESS_WARNING)
+        setAddressError(undefined)
+      }
+    })()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    activeChainInfo.key,
+    isSeiEvmChain,
     addressLinkState,
     currentWalletAddress,
+    isERC20Token,
     recipientInputValue,
+    selectedToken,
     selectedToken?.coinMinimalDenom,
     selectedToken?.isEvm,
-    setAddressError,
-    setAddressWarning,
     showNameServiceResults,
   ])
 
@@ -398,7 +494,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     }
 
     try {
-      if (activeChainInfo.key === 'seiDevnet' && cleanInputValue.toLowerCase().startsWith('0x')) {
+      if (isSeiEvmChain && cleanInputValue.toLowerCase().startsWith('0x')) {
         const img = activeChainInfo.chainSymbolImageUrl ?? ''
         setSelectedAddress({
           ethAddress: cleanInputValue,
@@ -427,7 +523,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         selectionType: 'notSaved',
       })
     } catch (err) {
-      captureException(err)
+      if (!(err as Error)?.message?.includes('too short')) {
+        captureException(err)
+      }
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -438,6 +536,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     recipientInputValue,
     selectedAddress,
     setSelectedAddress,
+    isSeiEvmChain,
   ])
 
   useEffect(() => {
@@ -497,7 +596,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
   useEffect(() => {
     let destinationChain: string | undefined
-    if (selectedAddress?.chainName === 'seiDevnet' && selectedAddress.address?.startsWith('0x')) {
+    if (isSeiEvmChain && selectedAddress?.address?.startsWith('0x')) {
       return
     }
     if (selectedAddress?.address) {
@@ -580,6 +679,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     manageChains,
     isIbcUnwindingDisabled,
     selectedToken?.symbol,
+    isSeiEvmChain,
   ])
 
   useEffect(() => {
@@ -667,7 +767,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
         <ActionInputWithPreview
           invalid={!!addressError}
-          warning={!!addressWarning}
+          warning={!!addressWarning.message}
           action={action}
           buttonText={action}
           buttonTextColor={themeColor}
@@ -694,14 +794,14 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           </Text>
         ) : null}
 
-        {addressWarning ? (
+        {addressWarning.message ? (
           <Text
             size='xs'
             color='text-yellow-600'
             className='mt-2 ml-1 font-bold'
             data-testing-id='send-recipient-address-error-ele'
           >
-            {addressWarning}
+            {addressWarning.message}
           </Text>
         ) : null}
 

@@ -11,7 +11,8 @@ import { Colors } from 'theme/colors'
 import BottomSheet from '../../components/bottom-sheet/BottomSheet'
 import { Wallet } from '../../hooks/wallet/useWallet'
 import useImportWallet = Wallet.useImportWallet
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
+import InfoSheet from 'components/Infosheet'
 import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 
 type ImportPrivateKeyProps = {
@@ -28,6 +29,8 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
   const importWallet = useImportWallet()
   const password = usePassword()
 
+  const [viewInfoSheet, setViewInfoSheet] = useState(false)
+  const isSeiEvmChain = useIsSeiEvmChain()
   const onChangeHandler = (value: string) => {
     setError('')
     setPrivateKey(value)
@@ -70,51 +73,72 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
       headerActionType={HeaderActionType.CANCEL}
       closeOnClickBackDrop={true}
     >
-      <div className='flex flex-col p-[28px] gap-y-4 items-cente justify-center'>
-        <Text size='sm' color='text-center text-gray-600 dark:text-gray-600'>
-          Enter the private key below. This will import an existing wallet.
-        </Text>
-        <TextArea
-          onChange={(e) => onChangeHandler(e.target.value)}
-          className={classNames(
-            'border-solid border-2 bg-white-100 dark:bg-gray-900 text text-black-100 dark:text-white-100 p-4 text-center items-center justify-center rounded-lg w-[344px] h-[176px] resize-none focus:outline-none',
-            {
-              'border-red-300': !!error,
-              'dark:border-gray-400 border-gray-200 focus:border-gray-400': !error,
-            },
-          )}
-          placeholder='Enter private key'
-          isErrorHighlighted={!!error}
-        />
+      <>
+        {isSeiEvmChain ? (
+          <button
+            className='absolute top-8 right-5 w-[32px] cursor-pointer z-10'
+            onClick={() => setViewInfoSheet(true)}
+          >
+            <img className='w-full' src={Images.Misc.HelpOutline} alt='help' />
+          </button>
+        ) : null}
 
-        {error && (
-          <Text size='sm' color='text-red-300 mx-5'>
-            {error}
+        <div className='flex flex-col p-[28px] gap-y-4 items-cente justify-center'>
+          <Text size='sm' color='text-center text-gray-600 dark:text-gray-600'>
+            Enter the private key below. This will import an existing wallet.
           </Text>
-        )}
+          <TextArea
+            onChange={(e) => onChangeHandler(e.target.value)}
+            className={classNames(
+              'border-solid border-2 bg-white-100 dark:bg-gray-900 text text-black-100 dark:text-white-100 p-4 text-center items-center justify-center rounded-lg w-[344px] h-[176px] resize-none focus:outline-none',
+              {
+                'border-red-300': !!error,
+                'dark:border-gray-400 border-gray-200 focus:border-gray-400': !error,
+              },
+            )}
+            placeholder='Enter private key'
+            isErrorHighlighted={!!error}
+          />
 
-        <div className='w-full h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center p-[16px] pr-[21px]'>
-          <img className='mr-[16px]' src={Images.Misc.Warning} />
-          <div className='flex flex-col gap-y-[2px]'>
-            <Text size='sm' className='tex font-black font-bold'>
-              Recommended security practice:
+          {error && (
+            <Text size='sm' color='text-red-300 mx-5'>
+              {error}
             </Text>
-            <Text size='xs' color='text-gray-400'>
-              It is always safer to type the private key rather than pasting it.
-            </Text>
+          )}
+
+          <div className='w-full h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center p-[16px] pr-[21px]'>
+            <img className='mr-[16px]' src={Images.Misc.Warning} />
+            <div className='flex flex-col gap-y-[2px]'>
+              <Text size='sm' className='tex font-black font-bold'>
+                Recommended security practice:
+              </Text>
+              <Text size='xs' color='text-gray-400'>
+                It is always safer to type the private key rather than pasting it.
+              </Text>
+            </div>
           </div>
+
+          <Buttons.Generic
+            size='normal'
+            disabled={!privateKey || !!error || isLoading}
+            onClick={handleImportWallet}
+            color={Colors.getChainColor(activeChain)}
+            className='w-[344px]'
+          >
+            {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Import Wallet'}
+          </Buttons.Generic>
         </div>
 
-        <Buttons.Generic
-          size='normal'
-          disabled={!privateKey || !!error || isLoading}
-          onClick={handleImportWallet}
-          color={Colors.getChainColor(activeChain)}
-          className='w-[344px]'
-        >
-          {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Import Wallet'}
-        </Buttons.Generic>
-      </div>
+        {isSeiEvmChain ? (
+          <InfoSheet
+            isVisible={viewInfoSheet}
+            setVisible={setViewInfoSheet}
+            title='FAQ'
+            heading='Use private key for importing via MetaMask'
+            desc='Using private key to import your Metamask wallet will generate the same 0x address as on Metamask.'
+          />
+        ) : null}
+      </>
     </BottomSheet>
   )
 }

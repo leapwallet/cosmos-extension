@@ -1,14 +1,24 @@
 /* eslint-disable no-unused-vars */
 import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
+import { KeyChain } from '@leapwallet/leap-keychain'
+import * as Sentry from '@sentry/react'
 import ExtensionPage from 'components/extension-page'
 import { SearchModal } from 'components/search-modal'
-import { EventName } from 'config/analytics'
 import { QUICK_SEARCH_DISABLED_PAGES } from 'config/config'
-import { ACTIVE_WALLET } from 'config/storage-keys'
+import {
+  ACTIVE_CHAIN,
+  ACTIVE_WALLET,
+  ENCRYPTED_KEY_STORE,
+  KEYSTORE,
+  V80_KEYSTORE_MIGRATION_COMPLETE,
+  V118_KEYSTORE_MIGRATION_COMPLETE,
+} from 'config/storage-keys'
+import { migrateEncryptedKeyStore, migrateKeyStore } from 'extension-scripts/migrations/v80'
+import { migratePicassoAddress } from 'extension-scripts/migrations/v118-migrate-picasso-address'
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
-import mixpanel from 'mixpanel-browser'
 import SideNav from 'pages/home/side-nav'
 import React, { ReactElement, ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { useRef } from 'react'
@@ -31,7 +41,7 @@ import { SeedPhrase } from '../hooks/wallet/seed-phrase/useSeedPhrase'
 export type AuthContextType = {
   locked: boolean
   noAccount: boolean
-  signin: (password: string, callback?: VoidFunction) => void
+  signin: (password: string, callback?: VoidFunction) => Promise<void>
   signout: (callback?: VoidFunction) => void
   loading: boolean
 }
@@ -74,23 +84,56 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
            *
            * for some reason the password authentication failed errors are not propagated to the calling function when using async await
            */
-          browser.storage.local.get([ACTIVE_WALLET]).then(async () => {
-            browser.runtime.sendMessage({ type: 'unlock', data: { password } })
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const listener = async (message: { type: string }, sender: any) => {
-              if (sender.id !== browser.runtime.id) return
-              if (message.type === 'wallet-unlocked') {
-                setLocked(false)
-                setNoAccount(false)
-                setLoading(false)
-                await setPassword(password)
-                callback && callback()
-                browser.runtime.onMessage.removeListener(listener)
-              }
-            }
+          try {
+            await browser.runtime.sendMessage({ type: 'unlock', data: { password } })
+          } catch (e) {
+            Sentry.captureException(e)
+          }
 
-            browser.runtime.onMessage.addListener(listener)
-          })
+          const storage = await browser.storage.local.get([
+            ACTIVE_WALLET,
+            KEYSTORE,
+            V80_KEYSTORE_MIGRATION_COMPLETE,
+            V118_KEYSTORE_MIGRATION_COMPLETE,
+            ENCRYPTED_KEY_STORE,
+            ENCRYPTED_ACTIVE_WALLET,
+          ])
+
+          if (!storage[V80_KEYSTORE_MIGRATION_COMPLETE]) {
+            if (storage[ENCRYPTED_KEY_STORE] && storage[ENCRYPTED_ACTIVE_WALLET]) {
+              await migrateEncryptedKeyStore(storage, password)
+            } else {
+              await migrateKeyStore(storage, password)
+            }
+          }
+
+          if (!storage[ACTIVE_WALLET]) {
+            await KeyChain.decrypt(password)
+          }
+
+          if (!isCompassWallet() && !storage[V118_KEYSTORE_MIGRATION_COMPLETE]) {
+            const newStore = await browser.storage.local.get([
+              ACTIVE_WALLET,
+              KEYSTORE,
+              ACTIVE_CHAIN,
+            ])
+            if (newStore[ACTIVE_WALLET].addresses.composable) {
+              const { newActiveWallet, newKeyStore } = migratePicassoAddress(
+                newStore[KEYSTORE],
+                newStore[ACTIVE_WALLET],
+              )
+              await browser.storage.local.set({
+                [KEYSTORE]: newKeyStore,
+                [ACTIVE_WALLET]: newActiveWallet,
+                [V118_KEYSTORE_MIGRATION_COMPLETE]: true,
+              })
+            }
+          }
+          setLocked(false)
+          setNoAccount(false)
+          setLoading(false)
+          setPassword(password)
+          callback && callback()
         } catch (e) {
           throw new Error('Password authentication failed')
         }
@@ -102,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   const signout = useCallback(
     async (callback?: VoidFunction) => {
       if (locked) return
-      await setPassword(null)
+      setPassword(null)
       browser.runtime.sendMessage({ type: 'lock' })
       const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
 
@@ -127,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         } else {
           setLoading(() => false)
         }
+        browser.runtime.onMessage.removeListener(listener)
       }
     }
 
@@ -142,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
             setLoading(false)
             //browser.runtime.onMessage.removeListener(listener)
           }
-        }, 5000)
+        }, 1000)
       } else {
         setNoAccount(true)
         setLoading(false)
@@ -154,7 +198,6 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     return () => {
       browser.runtime.onMessage.removeListener(listener)
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signin])
 
@@ -251,30 +294,6 @@ export function RequireAuth({
                 {
                   event.stopPropagation()
                   event.preventDefault()
-
-                  if (!showModal) {
-                    try {
-                      mixpanel.track(EventName.QuickSearchOpen, {
-                        chainId: chain.chainId,
-                        chainName: chain.chainName,
-                        openMode: 'Shortcut',
-                        time: Date.now() / 1000,
-                      })
-                    } catch (e) {
-                      //
-                    }
-                  } else {
-                    try {
-                      mixpanel.track(EventName.QuickSearchClose, {
-                        chainId: chain.chainId,
-                        chainName: chain.chainName,
-                        time: Date.now() / 1000,
-                      })
-                    } catch {
-                      //
-                    }
-                  }
-
                   setShowSearchModal(!showModal)
                   setSearchModalEnteredOption(null)
                 }

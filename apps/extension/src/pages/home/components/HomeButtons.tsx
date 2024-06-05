@@ -1,8 +1,6 @@
 import {
   useActiveChain,
-  useAddress,
   useChainInfo,
-  useFeatureFlags,
   useSelectedNetwork,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -13,7 +11,6 @@ import { useHardCodedActions } from 'components/search-modal'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import React from 'react'
-import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
@@ -25,14 +22,10 @@ type HomeButtonsProps = {
 export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
   const isTestnet = useSelectedNetwork() === 'testnet'
   const activeChain = useActiveChain()
-  const navigate = useNavigate()
   const { activeWallet } = useActiveWallet()
   const chain = useChainInfo()
-  const { handleSwapClick, handleVoteClick, handleNftsClick, onSendClick, handleBuyClick } =
-    useHardCodedActions()
+  const { handleVoteClick, handleNftsClick, onSendClick, handleBuyClick } = useHardCodedActions()
 
-  const walletAddress = useAddress()
-  const { data: featureFlags } = useFeatureFlags()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
   const disabled =
     activeWallet?.walletType === WALLETTYPE.LEDGER &&
@@ -40,6 +33,32 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
 
   const isNomicChain = activeChain === 'nomic'
   const walletCtaDisabled = isNomicChain || disabled
+
+  if (activeChain === 'initia') {
+    return (
+      <div className='flex flex-row justify-evenly mb-6 w-[244px]'>
+        {/* Buy Button */}
+        <ClickableIcon
+          image={{ src: 'download', alt: 'Receive' }}
+          onClick={setShowReceiveSheet}
+          disabled={walletCtaDisabled}
+        />
+
+        {/* Send Button */}
+        <ClickableIcon
+          image={{ src: 'north', alt: 'Send' }}
+          onClick={() => onSendClick()}
+          disabled={walletCtaDisabled}
+        />
+
+        {/* Vote Button */}
+        <ClickableIcon
+          image={{ src: 'how_to_vote', alt: 'Vote' }}
+          onClick={() => handleVoteClick()}
+        />
+      </div>
+    )
+  }
 
   if (isCompassWallet() && isTestnet === false) {
     const isPacificChain = chain.chainId === 'pacific-1'
@@ -120,7 +139,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
           size='sm'
           disabled={walletCtaDisabled}
           color={darkTheme ? undefined : Colors.white100}
-          onClick={() => navigate('/send')}
+          onClick={() => onSendClick()}
           data-testing-id='home-generic-send-btn'
         >
           <div className='flex justify-center text-black-100 items-center'>
@@ -152,7 +171,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       <ClickableIcon
         image={{ src: 'route', alt: 'Bridge' }}
         onClick={() => {
-          const baseUrl = 'https://cosmos.leapwallet.io/transact/bridge'
+          const baseUrl = 'https://swapfast.app/bridge'
           window.open(`${baseUrl}?destinationChainId=${chain.chainId}`, '_blank')
         }}
         disabled={walletCtaDisabled}

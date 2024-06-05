@@ -47,6 +47,7 @@ export function AddEvmLedger() {
       useEvmApp,
       activeChain,
       LEDGER_ENABLED_EVM_CHAINS,
+      chains,
     )
 
     return { chainWiseAddresses }
@@ -71,9 +72,11 @@ export function AddEvmLedger() {
       const newPubKeys: Record<string, string> = {}
 
       for (const chain of LEDGER_ENABLED_EVM_CHAINS) {
-        const account = chainWiseAddresses[chain][ledgerWallet.addressIndex]
-        newAddresses[chain] = account.address
-        newPubKeys[chain] = Buffer.from(account.pubKey).toString('base64')
+        if (chainWiseAddresses[chain] && !ledgerWallet.addresses[chain]) {
+          const account = chainWiseAddresses[chain][ledgerWallet.addressIndex]
+          newAddresses[chain] = account.address
+          newPubKeys[chain] = Buffer.from(account.pubKey).toString('base64')
+        }
       }
       const newWallet = {
         ...ledgerWallet,

@@ -1,0 +1,18 @@
+import classNames from 'classnames'
+import React, { ReactNode } from 'react'
+
+type InfoCardProps = {
+  message: ReactNode
+  className?: string
+}
+
+export function InfoCard({ message, className }: InfoCardProps) {
+  return (
+    <div className={classNames('p-4 bg-[#002142] rounded-2xl flex gap-3 items-center', className)}>
+      <div className='material-icons-round' style={{ color: '#ADD6FF' }}>
+        info
+      </div>
+      <p className='text-sm text-blue-100 font-medium'>{message}</p>
+    </div>
+  )
+}

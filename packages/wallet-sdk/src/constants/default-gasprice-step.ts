@@ -19,9 +19,9 @@ type GasEstimates = {
 export const DEFAULT_GAS_REDELEGATE = 300_000;
 
 export const DefaultGasEstimates = {
-  DEFAULT_GAS_TRANSFER: 100_000,
-  DEFAULT_GAS_IBC: 180_000,
-  DEFAULT_GAS_STAKE: 160_000,
+  DEFAULT_GAS_TRANSFER: 500_000,
+  DEFAULT_GAS_IBC: 580_000,
+  DEFAULT_GAS_STAKE: 560_000,
 };
 
 export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
@@ -117,4 +117,5 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   thorchain: DefaultGasEstimates,
   odin: DefaultGasEstimates,
   saga: DefaultGasEstimates,
+  initia: DefaultGasEstimates,
 };

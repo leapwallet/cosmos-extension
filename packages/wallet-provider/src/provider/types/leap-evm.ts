@@ -6,6 +6,8 @@ import {
   PersonalSign,
   ValueOf,
   WalletRequestPermissions,
+  WalletSwitchEthereumChain,
+  WalletWatchAsset,
 } from './ethereum';
 
 export const ETHEREUM_LISTENER_TYPE = {
@@ -22,7 +24,9 @@ export type EthereumRequestMessage =
   | EthSign
   | EthSignTypedData
   | PersonalSign
-  | WalletRequestPermissions;
+  | WalletRequestPermissions
+  | WalletWatchAsset
+  | WalletSwitchEthereumChain;
 
 export interface Ethereum {
   request: (message: EthereumRequestMessage) => Promise<unknown>;

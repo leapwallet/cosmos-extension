@@ -92,6 +92,7 @@ export const feeDenoms: FeeDenoms = {
     thorchain: denoms.rune,
     odin: denoms.loki,
     saga: denoms.usaga,
+    initia: denoms.uinit,
   },
   testnet: {
     akash: denoms.uakt,
@@ -174,5 +175,6 @@ export const feeDenoms: FeeDenoms = {
     thorchain: denoms.rune,
     odin: denoms.loki,
     saga: denoms.usaga,
+    initia: denoms.uinit,
   },
 };

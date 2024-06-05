@@ -7,7 +7,7 @@ export function getKeyToUseForDenoms(denom: string, originChainId: string) {
     return 'lunc';
   }
 
-  if (['noble-1', 'grand-1'].includes(originChainId) && _denom === 'uusdc') {
+  if (['noble-1', 'grand-1', 'noble'].includes(originChainId) && _denom === 'uusdc') {
     return 'usdc';
   }
 

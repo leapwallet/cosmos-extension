@@ -1,7 +1,12 @@
 import { LeapWalletApi, useGasPriceSteps, useScrtKeysStore } from '@leapwallet/cosmos-wallet-hooks'
 import { CosmosTxType } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, encrypt, Sscrt } from '@leapwallet/cosmos-wallet-sdk'
-import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/secret/sscrt'
+import {
+  ChainInfos,
+  CreateViewingKeyOptions,
+  encrypt,
+  SigningSscrt,
+  Sscrt,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { useCallback } from 'react'
 import browser from 'webextension-polyfill'
 
@@ -36,12 +41,12 @@ export function useCreateViewingKey() {
       signerAddress: string,
       contractAddress: string,
       importKey: boolean,
-      key?: string,
+      options?: CreateViewingKeyOptions,
     ) => {
       const wallet = await getWallet()
-
       const signingSecretClient = await SigningSscrt.create(lcdUrl ?? '', chainId as string, wallet)
-      let viewingKey = key
+      let viewingKey = options?.key
+
       if (!importKey) {
         try {
           const { txStatus: _txStatus, viewingKey: _key } =
@@ -49,11 +54,17 @@ export function useCreateViewingKey() {
               signerAddress,
               contractAddress,
               gasPriceSteps,
-              key,
+              {
+                key: viewingKey,
+                gasLimit: options?.gasLimit,
+                feeDenom: options?.feeDenom,
+              },
             )
+
           if (_txStatus.code !== 0) {
             return { validKey: false, error: _txStatus.rawLog }
           }
+
           txPostToDB({
             txHash: _txStatus.transactionHash,
             txType: CosmosTxType.SecretTokenTransaction,
@@ -63,6 +74,7 @@ export function useCreateViewingKey() {
             feeDenomination: 'uscrt',
             feeQuantity: _txStatus.tx?.auth_info?.fee?.amount?.[0]?.amount ?? '0.01',
           })
+
           viewingKey = _key
         } catch (e) {
           return { validKey: false, error: 'Unable to create viewing key' }
@@ -70,19 +82,20 @@ export function useCreateViewingKey() {
       } else {
         const validKey = await verifyViewingKey(
           lcdUrl ?? '',
-          key as string,
+          viewingKey ?? '',
           contractAddress,
           signerAddress,
         )
+
         if (!validKey) {
-          return { validKey: false, error: 'Invalid viewing key', key: key }
+          return { validKey: false, error: 'Invalid viewing key', key: viewingKey }
         }
-        viewingKey = key
       }
 
       const encryptedViewingKey = encrypt(viewingKey as string, password as string)
       const storage = await browser.storage.local.get([VIEWING_KEYS])
       const viewingKeys = storage[VIEWING_KEYS]
+
       if (viewingKeys) {
         const updatedViewingKeyStore = (shouldEncrypt: boolean) => ({
           ...viewingKeys,
@@ -91,6 +104,7 @@ export function useCreateViewingKey() {
             [contractAddress]: shouldEncrypt ? encryptedViewingKey : viewingKey,
           },
         })
+
         await browser.storage.local.set({
           [VIEWING_KEYS]: updatedViewingKeyStore(true),
         })
@@ -101,6 +115,7 @@ export function useCreateViewingKey() {
             [contractAddress]: shouldEncrypt ? encryptedViewingKey : (viewingKey as string),
           },
         })
+
         await browser.storage.local.set({
           [VIEWING_KEYS]: viewingKeyStore(true),
         })

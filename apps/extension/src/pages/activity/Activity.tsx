@@ -1,4 +1,4 @@
-import { useActiveChain, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { useIsFeatureExistForChain } from '@leapwallet/cosmos-wallet-hooks'
 import { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { ComingSoon } from 'components/coming-soon'
 import React from 'react'
@@ -6,10 +6,13 @@ import React from 'react'
 import { ActivityLandingPage } from './ActivityLandingPage'
 
 export default function Activity() {
-  const activeChain = useActiveChain()
-  const chains = useGetChains()
+  const isActivityComingSoon = useIsFeatureExistForChain({
+    checkForExistenceType: 'comingSoon',
+    feature: 'activity',
+    platform: 'Extension',
+  })
 
-  if (chains[activeChain]?.comingSoonFeatures?.includes('activity')) {
+  if (isActivityComingSoon) {
     return <ComingSoon title='Activity' bottomNavLabel={BottomNavLabel.Activity} />
   }
 

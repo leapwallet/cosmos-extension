@@ -2,12 +2,12 @@ import {
   Token,
   useActiveStakingDenom,
   useChainInfo,
-  useGetTokenBalances,
+  useGetTokenSpendableBalances,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
-import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
+import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
+import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import { Card, CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
@@ -355,7 +355,7 @@ export default function ChooseValidator() {
   const navigate = useNavigate()
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
-  const { allAssets } = useGetTokenBalances()
+  const { allAssets } = useGetTokenSpendableBalances()
 
   const activeChainInfo = chainInfos[activeChain]
   const [activeStakingDenom] = useActiveStakingDenom()
@@ -367,13 +367,11 @@ export default function ChooseValidator() {
     let _token = allAssets?.find((e) => e.symbol === activeStakingDenom.coinDenom)
 
     if (!_token) {
-      const denom = Object.values(activeChainInfo.nativeDenoms)[0]
-
       _token = {
         amount: '0',
-        symbol: denom.coinDenom,
+        symbol: activeStakingDenom.coinDenom,
         usdValue: '0',
-        coinMinimalDenom: denom.coinMinimalDenom,
+        coinMinimalDenom: activeStakingDenom.coinMinimalDenom,
         img: activeChainInfo.chainSymbolImageUrl ?? '',
       }
     }

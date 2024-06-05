@@ -1,9 +1,11 @@
 import {
   useActiveChain,
   useBetaCW20Tokens,
+  useBetaERC20Tokens,
   useBetaNativeTokens,
   useChainInfo,
   useRemoveBetaCW20Tokens,
+  useRemoveBetaERC20Tokens,
   useRemoveBetaNativeTokens,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
@@ -24,8 +26,10 @@ export function DeleteTokenSheet({ isOpen, onClose, tokenToDelete }: DeleteToken
   const activeChainInfo = useChainInfo()
   const betaNativeTokens = useBetaNativeTokens()
   const betaCw20Tokens = useBetaCW20Tokens()
+  const betaErc20Tokens = useBetaERC20Tokens()
   const removeBetaCW20Tokens = useRemoveBetaCW20Tokens()
   const removeBetaNativeTokens = useRemoveBetaNativeTokens()
+  const removeBetaERC20Tokens = useRemoveBetaERC20Tokens()
 
   const tokenName = useMemo(() => {
     const name = tokenToDelete?.coinDenom ?? ''
@@ -38,6 +42,8 @@ export function DeleteTokenSheet({ isOpen, onClose, tokenToDelete }: DeleteToken
       removeBetaNativeTokens(tokenToDelete, activeChain)
     } else if (tokenToDelete && betaCw20Tokens[tokenToDelete?.coinMinimalDenom ?? '']) {
       removeBetaCW20Tokens(tokenToDelete, activeChain)
+    } else if (tokenToDelete && betaErc20Tokens[tokenToDelete?.coinMinimalDenom ?? '']) {
+      removeBetaERC20Tokens(tokenToDelete, activeChain)
     }
 
     onClose()

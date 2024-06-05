@@ -167,16 +167,16 @@ export function ShowNfts() {
                     case 'aura':
                       return <LoadAuraNft key={_index} index={_index} nftChain={nftChain} />
 
-                    case 'seiTestnet2':
-                      return (
-                        <Fragment key={_index}>
-                          {/* {isCompassWallet() ? (
-                            <LoadSeiPalletNft index={`${_index}-pallet`} nftChain={nftChain} />
-                          ) : null} */}
+                    // case 'seiTestnet2':
+                    //   return (
+                    //     <Fragment key={_index}>
+                    //       {/* {isCompassWallet() ? (
+                    //         <LoadSeiPalletNft index={`${_index}-pallet`} nftChain={nftChain} />
+                    //       ) : null} */}
 
-                          <LoadNftData index={_index} nftChain={nftChain} />
-                        </Fragment>
-                      )
+                    //       <LoadNftData index={_index} nftChain={nftChain} />
+                    //     </Fragment>
+                    //   )
 
                     default:
                       return <LoadNftData key={_index} index={_index} nftChain={nftChain} />

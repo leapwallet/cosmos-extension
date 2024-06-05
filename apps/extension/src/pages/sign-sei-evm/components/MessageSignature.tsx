@@ -60,11 +60,15 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
       if (txnData.signTxnData.methodType === ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4) {
         signature = signTypedData(
           txnData.signTxnData.data,
-          activeWallet.addresses.seiDevnet,
+          activeWallet.addresses[activeChain],
           wallet,
         )
       } else {
-        signature = personalSign(txnData.signTxnData.data, activeWallet.addresses.seiDevnet, wallet)
+        signature = personalSign(
+          txnData.signTxnData.data,
+          activeWallet.addresses[activeChain],
+          wallet,
+        )
       }
 
       try {

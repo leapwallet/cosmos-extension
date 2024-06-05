@@ -10,8 +10,11 @@ import {
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { Delegation, RewardsResponse } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
+import {
+  Delegation,
+  RewardsResponse,
+} from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
+import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import { Avatar, Buttons, Card, CardDivider, Memo } from '@leapwallet/leap-ui'
 import { BigNumber } from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'

@@ -32,17 +32,25 @@ import {
   useActiveChain,
   useActiveWalletStore,
   useAddressPrefixes,
+  useChainApis,
   useChainsStore,
   useDenoms,
+  useSelectedNetwork,
 } from '../store';
 import { useChainInfo } from '../store/useChainInfo';
 import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
 import { Token } from '../types/bank';
-import { convertScientificNotation, getMetaDataForIbcTx, getMetaDataForSendTx } from '../utils';
+import {
+  convertScientificNotation,
+  getMetaDataForIbcTx,
+  getMetaDataForSendTx,
+  getSeiEvmInfo,
+  SeiEvmInfoEnum,
+} from '../utils';
 import { sliceAddress } from '../utils/strings';
-import { useIsCW20Tx } from './useIsCW20Tx';
+import { useIsCW20Token } from '../utils-hooks';
 
 type _TokenDenom = {
   ibcDenom?: string;
@@ -57,6 +65,12 @@ export type sendTokensParams = {
   fees: StdFee;
   ibcChannelId?: string;
   txHandler?: SigningSscrt | InjectiveTx | EthermintTxHandler | Tx;
+};
+
+export type SendTokenEthParamOptions = {
+  isERC20Token?: boolean;
+  contractAddress?: string;
+  decimals?: number;
 };
 
 export type sendTokensReturnType =
@@ -99,10 +113,12 @@ export const useSimpleSend = () => {
   const getTxHandler = useTxHandler();
   const getScrtTxHandler = useScrtTxHandler();
   const getCW20TxClient = useCWTxHandler();
-  const checkIsCW20Tx = useIsCW20Tx();
+  const isCW20Token = useIsCW20Token();
   const addressPrefixes = useAddressPrefixes();
   const validateIbcChannelId = useValidateIbcChannelId();
   const { chains } = useChainsStore();
+  const { evmJsonRpc } = useChainApis();
+  const selectedNetwork = useSelectedNetwork();
 
   const sendCW20 = useCallback(
     async ({
@@ -300,11 +316,31 @@ export const useSimpleSend = () => {
       gas: number,
       wallet: EthWallet,
       gasPrice?: number,
+      options?: SendTokenEthParamOptions,
     ) => {
       try {
         setIsSending(true);
-        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet);
-        const result = await seiEvmTx.sendTransaction(fromAddress, toAddress, value, gas, gasPrice);
+        const chainId = (await getSeiEvmInfo({
+          activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+          activeNetwork: selectedNetwork,
+          infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
+        })) as number;
+
+        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', chainId);
+        let result = { hash: '' };
+
+        if (!options?.isERC20Token) {
+          result = await seiEvmTx.sendTransaction(fromAddress, toAddress, value, gas, gasPrice);
+        } else {
+          result = await seiEvmTx.sendERC20Transaction(
+            toAddress,
+            value,
+            options?.contractAddress ?? '',
+            options?.decimals ?? 18,
+            gas,
+            gasPrice,
+          );
+        }
 
         const pendingTx: PendingTx = {
           txHash: result.hash,
@@ -316,6 +352,7 @@ export const useSimpleSend = () => {
           title1: `Sent Sei`,
           txStatus: 'success',
           txType: 'send',
+          isEvmTx: true,
           promise: new Promise((resolve) => {
             resolve({ code: 0 } as any);
           }),
@@ -339,7 +376,7 @@ export const useSimpleSend = () => {
         setIsSending(false);
       }
     },
-    [],
+    [evmJsonRpc],
   );
 
   const send = useCallback(
@@ -565,7 +602,7 @@ export const useSimpleSend = () => {
       }
 
       const isSnip20Tx = isValidAddressWithPrefix(selectedToken.coinMinimalDenom ?? '', 'secret');
-      const isCW20Tx = checkIsCW20Tx(selectedToken);
+      const isCW20Tx = isCW20Token(selectedToken);
 
       if (isCW20Tx) {
         result = await sendCW20({

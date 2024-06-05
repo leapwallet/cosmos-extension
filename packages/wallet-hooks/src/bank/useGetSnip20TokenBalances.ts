@@ -1,7 +1,8 @@
 import { fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { Sscrt } from '@leapwallet/cosmos-wallet-sdk/dist/secret/sscrt';
+import { Sscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/sscrt';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
+import { useMemo } from 'react';
 
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
@@ -27,17 +28,16 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
   const denoms = useDenoms();
   const { setDenoms } = useDenomsStore();
 
-  const viewingKeyList = Object.entries(viewingKeys[address] ?? {});
-  const permit = queryPermits[address];
   const chainId = useChainId();
+  const { lcdUrl = '' } = useChainApis();
   const [preferredCurrency] = useUserPreferredCurrency();
 
+  const viewingKeyList = useMemo(() => Object.entries(viewingKeys[address] ?? {}), [viewingKeys[address]]);
+  const permit = useMemo(() => queryPermits[address], [queryPermits[address]]);
   const enabled = (activeChain === 'secret' && selectedNetwork === 'mainnet' && viewingKeyList.length > 0) || !!permit;
 
-  const { lcdUrl = '' } = useChainApis();
-
   const { data: snip20Tokens, status: snip20TokensStatus } = useQuery(
-    ['getSNIP20Balances', viewingKeyList, permit, selectedNetwork],
+    ['getSNIP20Balances', viewingKeyList, permit, selectedNetwork, chainId, lcdUrl],
     async () => {
       const sscrt = sscrtClient ?? Sscrt.create(lcdUrl, chainId ?? '', address);
 
@@ -50,7 +50,7 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
             [contract]: {
               coinDecimals: denom.decimals ?? 6,
               coinMinimalDenom: contract,
-              coinDenom: denom.symbol,
+              coinDenom: denom.name,
               chain: denom.chain ?? 'secret',
               coinGeckoId: denom.coingeckoId ?? '',
               icon: denom.icon ?? '',
@@ -62,14 +62,17 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
         // so check either denom or balance is available if not return default value
         if (!denom || !balance.balance) {
           return {
+            chain: denom.chain ?? 'secret',
+            name: denom?.name,
             amount: '0',
-            symbol: denom?.symbol,
+            symbol: denom?.name,
             usdValue: '',
             coinMinimalDenom: contract,
             img: denom?.icon,
             ibcDenom: '',
             usdPrice: '0',
             coinDecimals: denom?.decimals,
+            coinGeckoId: denom?.coingeckoId ?? '',
             invalidKey: true,
           };
         }
@@ -91,18 +94,20 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
         }
 
         const usdValue = fiatValue;
-
         const usdPrice = amount ? (Number(usdValue ?? '0') / Number(amount)).toString() : '0';
 
         return {
+          chain: denom.chain ?? 'secret',
+          name: denom?.name,
           amount,
-          symbol: denom?.symbol,
-          usdValue: usdValue,
+          symbol: denom?.name,
+          usdValue: usdValue ?? '',
           coinMinimalDenom: contract,
           img: denom?.icon,
           ibcDenom: '',
           usdPrice,
           coinDecimals: denom?.decimals,
+          coinGeckoId: denom?.coingeckoId ?? '',
         };
       }
 

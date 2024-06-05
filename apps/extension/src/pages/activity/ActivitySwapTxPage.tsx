@@ -1,11 +1,15 @@
 import { TxPage, TxPageProps } from 'pages/swaps-v2/components'
 import React, { useEffect } from 'react'
-import { updatePendingSwapTxs } from 'utils/updatePendingSwapTxs'
+import { generateObjectKey, removePendingSwapTxs } from 'utils/pendingSwapsTxsStore'
 
 export function ActivitySwapTxPage({ onClose, ...rest }: TxPageProps) {
   useEffect(() => {
-    updatePendingSwapTxs(rest.route)
-  }, [rest.route])
+    const route = rest?.route
+    const txKey = generateObjectKey(route)
+    if (txKey) {
+      removePendingSwapTxs(txKey)
+    }
+  }, [rest])
 
-  return <TxPage onClose={onClose} {...rest} />
+  return <TxPage onClose={onClose} {...rest} isTrackingPage={true} />
 }

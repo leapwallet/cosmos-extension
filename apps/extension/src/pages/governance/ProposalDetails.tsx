@@ -4,7 +4,9 @@ import {
   useChainApis,
   useChainInfo,
   useChainsStore,
+  useGetExplorerAccountUrl,
   useGetProposal,
+  useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { axiosWrapper, ChainInfo, CoinType, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider, Header, HeaderActionType, LineDivider } from '@leapwallet/leap-ui'
@@ -29,6 +31,7 @@ import { voteRatio } from 'utils/gov/voteRatio'
 import { imgOnError } from 'utils/imgOnError'
 
 import { CastVote } from './CastVote'
+import RequireMinStaking from './RequireMinStaking'
 import Status, { ProposalStatus } from './Status'
 
 export type ProposalDetailsProps = {
@@ -138,6 +141,7 @@ function VoteDetails({
   proposal,
   isLoading,
   activeChain,
+  hasMinStaked,
   onVote,
 }: {
   proposal: any
@@ -145,6 +149,7 @@ function VoteDetails({
   isLoading: boolean
   activeChain: SupportedChain
   onVote: () => void
+  hasMinStaked: boolean
 }) {
   const [timeLeft, setTimeLeft] = useState<string | undefined>()
 
@@ -224,6 +229,7 @@ function VoteDetails({
             size='normal'
             className='w-[344px] py-4 mt-4'
             onClick={() => onVote()}
+            disabled={!hasMinStaked}
           >
             <div className={'flex justify-center text-white-100 items-center'}>
               <span className='mr-2 material-icons-round'>how_to_vote</span>
@@ -384,9 +390,19 @@ function ProposalDetails({
   const activeChainInfo = useChainInfo()
 
   const chain = chains[activeChain]
-  const { lcdUrl, txUrl } = useChainApis()
-
+  const { lcdUrl } = useChainApis()
+  const { getExplorerAccountUrl } = useGetExplorerAccountUrl({})
   const [showCastVoteSheet, setShowCastVoteSheet] = useState<boolean>(false)
+
+  const { totalDelegation } = useStaking()
+
+  const hasMinAmountStaked = useMemo(() => {
+    if (activeChain === 'cosmos') {
+      return totalDelegation?.gte(1)
+    }
+
+    return true
+  }, [activeChain, totalDelegation])
 
   const proposal = useMemo(
     () => proposalList.find((prop) => prop.proposal_id === selectedProp),
@@ -501,9 +517,7 @@ function ProposalDetails({
       return proposal?.proposer?.address
         ? {
             address: proposal?.proposer?.address,
-            url:
-              proposal?.proposer?.url ??
-              `${txUrl?.replace('txs', 'account')}/${proposal?.proposer?.address}`,
+            url: proposal?.proposer?.url ?? `${getExplorerAccountUrl(proposal?.proposer?.address)}`,
           }
         : undefined
     }
@@ -516,10 +530,10 @@ function ProposalDetails({
   }, [
     _proposalVotes?.proposer?.depositor,
     _proposalVotes?.proposerTxUrl,
+    getExplorerAccountUrl,
     proposal?.proposer?.address,
     proposal?.proposer?.url,
     shouldUseFallback,
-    txUrl,
   ])
 
   return (
@@ -541,19 +555,23 @@ function ProposalDetails({
             {proposal?.title ?? proposal?.content?.title}
           </div>
 
+          {proposal.status === ProposalStatus.PROPOSAL_STATUS_VOTING_PERIOD &&
+            !hasMinAmountStaked && <RequireMinStaking />}
+
           <VoteDetails
             proposal={proposal}
             activeChain={activeChain}
             onVote={() => setShowCastVoteSheet(true)}
             currVote={currVote ?? ''}
             isLoading={isLoading}
+            hasMinStaked={hasMinAmountStaked}
           />
 
           <div className='my-8'>
             <LineDivider size='sm' />
           </div>
 
-          {proposal.status !== ProposalStatus.PROPOSAL_STATUS_DEPOSIT_PERIOD && totalVotes && (
+          {proposal.status !== ProposalStatus.PROPOSAL_STATUS_DEPOSIT_PERIOD && totalVotes ? (
             <>
               <div className='w-full h-full flex items-center justify-center mb-8'>
                 <div className='w-[180px] h-[180px] flex items-center justify-center relative'>
@@ -570,7 +588,7 @@ function ProposalDetails({
               <ShowVotes dataMock={dataMock} chain={chain} />
               <Turnout tallying={tallying} />
             </>
-          )}
+          ) : null}
 
           {activeProposalStatusTypes.includes(proposal.status) && proposer?.address && (
             <div

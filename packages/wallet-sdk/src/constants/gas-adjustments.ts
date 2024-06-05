@@ -86,4 +86,5 @@ export const gasAdjustments: GasAdjustments = {
   thorchain: 1.5,
   odin: 1.5,
   saga: 1.5,
+  initia: 1.5,
 };

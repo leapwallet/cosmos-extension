@@ -2,13 +2,14 @@ import {
   capitalize,
   sliceWord,
   useBetaCW20Tokens,
-  useChainInfo,
+  useBetaERC20Tokens,
   useDisabledCW20Tokens,
+  useEnabledCW20Tokens,
+  useGetExplorerAccountUrl,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { DenomsRecord, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
+import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider } from '@leapwallet/leap-ui'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
-import React, { useMemo } from 'react'
+import React from 'react'
 
 import { CustomToggleCard, TokenType } from './index'
 import { TokenTitle } from './TokenTitle'
@@ -27,16 +28,10 @@ export function ManuallyAddedTokens({
   onDeleteClick,
 }: ManuallyAddedTokensProps) {
   const betaCw20Tokens = useBetaCW20Tokens()
+  const betaErc20Tokens = useBetaERC20Tokens()
   const disabledCW20Tokens = useDisabledCW20Tokens()
-
-  const activeChainInfo = useChainInfo()
-  const selectedNetwork = useSelectedNetwork()
-
-  const explorerURL = useMemo(() => {
-    if (!activeChainInfo) return undefined
-    if (!activeChainInfo.txExplorer) return undefined
-    return activeChainInfo.txExplorer?.[selectedNetwork]?.accountUrl
-  }, [activeChainInfo, selectedNetwork])
+  const enabledCW20Tokens = useEnabledCW20Tokens()
+  const { getExplorerAccountUrl } = useGetExplorerAccountUrl({})
 
   return (
     <div>
@@ -54,13 +49,16 @@ export function ManuallyAddedTokens({
 
           if (betaCw20Tokens[token.coinMinimalDenom]) {
             _TokenType = <TokenType type='cw20' className='bg-[#29A8741A] text-green-600' />
+          } else if (betaErc20Tokens[token.coinMinimalDenom]) {
+            _TokenType = <TokenType type='erc20' className='bg-[#A52A2A1A] text-[#a52a2a]' />
           } else if (token.coinMinimalDenom.trim().toLowerCase().startsWith('factory')) {
             _TokenType = <TokenType type='factory' className='bg-[#0AB8FF1A] text-teal-500' />
           }
 
+          const explorerURL = getExplorerAccountUrl(token.coinMinimalDenom)
           const handleRedirectionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation()
-            window.open(`${explorerURL}/${token.coinMinimalDenom}`, '_blank')
+            window.open(explorerURL, '_blank')
           }
 
           return (
@@ -79,7 +77,8 @@ export function ManuallyAddedTokens({
                 TokenType={_TokenType}
                 isToggleChecked={
                   !disabledCW20Tokens.includes(token.coinMinimalDenom) &&
-                  !fetchedTokens.includes(token.coinMinimalDenom)
+                  !fetchedTokens.includes(token.coinMinimalDenom) &&
+                  enabledCW20Tokens.includes(token.coinMinimalDenom)
                 }
                 onToggleChange={(isEnabled) =>
                   handleToggleChange(isEnabled, token.coinMinimalDenom)

@@ -1,95 +1,276 @@
-import { sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { useGetExplorerTxnUrl } from '@leapwallet/cosmos-wallet-hooks'
 import { PacketContent, TRANSFER_STATE } from '@leapwallet/elements-core'
-import { useChains } from '@leapwallet/elements-hooks'
-import classNames from 'classnames'
-import React, { useCallback } from 'react'
-import { SwapTxAction, TransferTxAction } from 'types/swap'
+import { Action, useChains, useDenomData } from '@leapwallet/elements-hooks'
+import React, { useCallback, useMemo } from 'react'
+import Skeleton from 'react-loading-skeleton'
+import { TransferInfo } from 'types/swap'
 
-import { TxPageStepsTypeSwap, TxPageStepsTypeTransfer } from './index'
+import { TxStepsStatusIcon } from './TxStepsStatusIcon'
 
 type TxPageStepsTypeProps = {
-  action: SwapTxAction | TransferTxAction
+  action: Action
   isFirst: boolean
   isLast: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  response?: any
+  response?: TransferInfo
+  prevAction: Action | undefined
+  prevTransferSequenceIndex: number
+  transferSequenceIndex: number
+  actionIndex: number
 }
 
-export function TxPageStepsType({ action, isFirst, isLast, response }: TxPageStepsTypeProps) {
-  const { data: chains } = useChains()
+export function TxPageStepsType({
+  action,
+  isLast,
+  response,
+  actionIndex,
+  prevAction,
+  prevTransferSequenceIndex,
+  transferSequenceIndex,
+}: TxPageStepsTypeProps) {
+  const { srcChainId, destChainId, srcAsset, destAsset } = useMemo(() => {
+    let srcChainId, destChainId, srcAsset, destAsset
+    switch (action.type) {
+      case 'SWAP': {
+        srcChainId = action.chain
+        destChainId = action.chain
+        srcAsset = action.sourceAsset
+        destAsset = action.destinationAsset
+        break
+      }
+      case 'TRANSFER': {
+        srcChainId = action.sourceChain
+        destChainId = action.destinationChain
+        srcAsset = action.asset
+        destAsset = action.asset
+        break
+      }
+      default: {
+        srcChainId = action.sourceChain
+        destChainId = action.sourceChain
+        srcAsset = action.asset
+        destAsset = action.asset
+        break
+      }
+    }
 
+    return {
+      srcChainId,
+      destChainId,
+      srcAsset,
+      destAsset,
+    }
+  }, [action])
+
+  const { data: chains, isLoading: isChainsLoading } = useChains()
+  const { data: srcDenomData, isLoading: isSrcDenomLoading } = useDenomData(srcAsset, srcChainId)
+  const { data: destDenomData, isLoading: isDestDenomLoading } = useDenomData(
+    destAsset,
+    destChainId,
+  )
+
+  const sourceChain = useMemo(
+    () => chains?.find((chain) => chain.chainId === srcChainId),
+    [chains, srcChainId],
+  )
+
+  const destChain = useMemo(
+    () => chains?.find((chain) => chain.chainId === destChainId),
+    [chains, destChainId],
+  )
+
+  const { getExplorerTxnUrl } = useGetExplorerTxnUrl({})
   const handleViewInExplorer = useCallback(
     (chainId: string, txHash: string) => {
       const chain = chains?.find((chain) => chain.chainId === chainId)
       if (!chain) return
-      window.open(`${chain.txExplorer.mainnet.txUrl}/${txHash}`, '_blank', 'noopener noreferrer')
+
+      const explorerTxnUrl = getExplorerTxnUrl(txHash, chain.txExplorer?.mainnet?.txUrl ?? '')
+      window.open(explorerTxnUrl, '_blank', 'noopener noreferrer')
     },
-    [chains],
+    [chains, getExplorerTxnUrl],
   )
 
+  const { status, txData } = useMemo(() => {
+    const packetTxs = response?.packet_txs
+    let _status
+    let _txData
+
+    if (!packetTxs) {
+      _status =
+        actionIndex === 0 || transferSequenceIndex !== prevTransferSequenceIndex
+          ? response?.state
+          : undefined
+
+      return {
+        status: _status,
+        txData: _txData,
+      }
+    }
+
+    if (packetTxs?.error) {
+      _status = TRANSFER_STATE.TRANSFER_FAILURE
+
+      if (transferSequenceIndex === prevTransferSequenceIndex) {
+        _txData = packetTxs.receive_tx ?? packetTxs?.timeout_tx ?? packetTxs?.send_tx
+      } else {
+        if (prevAction !== undefined) {
+          _txData = packetTxs.receive_tx ?? packetTxs?.timeout_tx ?? packetTxs?.send_tx
+        } else {
+          _txData = packetTxs?.timeout_tx ?? packetTxs?.send_tx
+        }
+      }
+
+      return {
+        status: _status,
+        txData: _txData,
+      }
+    }
+
+    if (transferSequenceIndex === prevTransferSequenceIndex) {
+      if (packetTxs?.receive_tx) {
+        _status = TRANSFER_STATE.TRANSFER_SUCCESS
+        _txData = packetTxs?.receive_tx
+      } else if (packetTxs?.send_tx) {
+        _status = TRANSFER_STATE.TRANSFER_PENDING
+      }
+    } else {
+      if (prevAction !== undefined && prevAction?.type !== action?.type) {
+        if (packetTxs?.receive_tx) {
+          _status = TRANSFER_STATE.TRANSFER_SUCCESS
+          _txData = packetTxs?.receive_tx
+        } else if (packetTxs?.send_tx) {
+          _status = TRANSFER_STATE.TRANSFER_PENDING
+        }
+      } else {
+        if (packetTxs?.send_tx) {
+          _status = TRANSFER_STATE.TRANSFER_SUCCESS
+          _txData = packetTxs?.send_tx
+        } else {
+          _status = TRANSFER_STATE.TRANSFER_PENDING
+        }
+      }
+    }
+
+    return { status: _status, txData: _txData }
+  }, [
+    action?.type,
+    prevAction,
+    actionIndex,
+    prevTransferSequenceIndex,
+    response?.packet_txs,
+    response?.state,
+    transferSequenceIndex,
+  ])
+
+  const { txHash, chainId } = useMemo(() => {
+    if (!txData) return { txHash: undefined, chainId: undefined }
+
+    return {
+      txHash: (txData as PacketContent)?.tx_hash,
+      chainId: (txData as PacketContent)?.chain_id,
+    }
+  }, [txData])
+
   return (
-    <div
-      className={classNames(
-        "before:content-[''] relative before:absolute before:w-[1px] before:h-[50px]",
-        {
-          'before:top-[16px]': isFirst,
-          'before:bottom-[16px]': isLast,
-          'z-10': !isFirst && !isLast,
-          'before:bg-green-600': TRANSFER_STATE.TRANSFER_SUCCESS === response?.state,
-
-          'before:bg-yellow-600': [
-            TRANSFER_STATE.TRANSFER_PENDING,
-            TRANSFER_STATE.TRANSFER_RECEIVED,
-          ].includes(response?.state),
-
-          'before:bg-red-300': TRANSFER_STATE.TRANSFER_FAILURE === response?.state,
-
-          'before:bg-gray-200 before:dark:bg-gray-800': ![
-            TRANSFER_STATE.TRANSFER_SUCCESS,
-            TRANSFER_STATE.TRANSFER_PENDING,
-            TRANSFER_STATE.TRANSFER_RECEIVED,
-            TRANSFER_STATE.TRANSFER_FAILURE,
-          ].includes(response?.state),
-        },
-      )}
-    >
-      <div className='ml-[16px]'>
-        {action.type === 'SWAP' ? <TxPageStepsTypeSwap action={action} /> : null}
-        {action.type === 'TRANSFER' || action.type === 'SEND' ? (
-          <TxPageStepsTypeTransfer action={action} />
-        ) : null}
-
-        {response?.state === TRANSFER_STATE.TRANSFER_PENDING ? (
-          <p className='text-yellow-600 text-xs flex items-center gap-1'>Pending...</p>
-        ) : null}
-
-        <p className='text-gray-300 text-xs flex items-center gap-1'>
-          {response?.state === TRANSFER_STATE.TRANSFER_SUCCESS ? (
-            <>
-              {(function () {
-                let txData: PacketContent
-
-                if (isFirst) {
-                  txData = response?.packet_txs.send_tx
-                } else {
-                  txData = response?.packet_txs.receive_tx
-                }
-
-                if (!txData) return null
-                const { tx_hash: txHash, chain_id: chainId } = txData
-
-                return (
-                  <>
-                    {`Success · #${sliceAddress(txHash)} · `}
-                    <span className='cursor-pointer underline'>
-                      <a onClick={() => handleViewInExplorer(chainId, txHash)}>View in Explorer</a>
-                    </span>
-                  </>
-                )
-              })()}
-            </>
-          ) : null}
-        </p>
+    <div className={'flex my-1 w-full flex-row justify-start items-start gap-[12px]'}>
+      <div className='py-[2px] flex flex-col gap-2 justify-start items-center'>
+        <TxStepsStatusIcon state={status} denomData={srcDenomData} />
+        {!isLast && <div className='w-[2px] h-[11px] bg-gray-100 dark:bg-gray-850 rounded-sm' />}
+      </div>
+      <div className='flex w-full flex-col justify-start items-start gap-0'>
+        <div className='flex-row flex w-full justify-between items-center'>
+          <div className='dark:text-white-100 font-bold text-black-100 text-md !leading-[21.6px]'>
+            {action.type === 'SWAP' ? 'Swap ' : 'Transfer '}
+            {action.type === 'TRANSFER' || action.type === 'SEND' ? (
+              isSrcDenomLoading ? (
+                <Skeleton
+                  width={40}
+                  height={20}
+                  containerClassName='inline-block !leading-none rounded-2xl'
+                />
+              ) : (
+                srcDenomData?.coinDenom
+              )
+            ) : (
+              <>
+                <>
+                  {isSrcDenomLoading ? (
+                    <Skeleton
+                      width={40}
+                      height={20}
+                      containerClassName='inline-block !leading-none rounded-2xl'
+                    />
+                  ) : (
+                    srcDenomData?.coinDenom
+                  )}
+                </>
+                <> to </>
+                <>
+                  {isDestDenomLoading ? (
+                    <Skeleton
+                      width={40}
+                      height={20}
+                      containerClassName='inline-block !leading-none rounded-2xl'
+                    />
+                  ) : (
+                    destDenomData?.coinDenom
+                  )}
+                </>
+              </>
+            )}
+          </div>
+          <>
+            {txHash && chainId && (
+              <button
+                onClick={() => handleViewInExplorer(chainId, txHash)}
+                className='material-icons-round text-gray-400 dark:text-gray-600 !leading-4 !text-md'
+              >
+                open_in_new
+              </button>
+            )}
+          </>
+        </div>
+        <div>
+          <div className='text-gray-400 font-medium dark:text-gray-600 text-sm !leading-[18.9px]'>
+            {action.type === 'TRANSFER' || action.type === 'SEND' ? (
+              <>
+                from{' '}
+                {isChainsLoading ? (
+                  <Skeleton
+                    width={40}
+                    height={20}
+                    containerClassName='inline-block !leading-none rounded-2xl'
+                  />
+                ) : (
+                  sourceChain?.chainName
+                )}{' '}
+                to{' '}
+                {isChainsLoading ? (
+                  <Skeleton
+                    width={40}
+                    height={20}
+                    containerClassName='inline-block !leading-none rounded-2xl'
+                  />
+                ) : (
+                  destChain?.chainName
+                )}
+              </>
+            ) : (
+              <>
+                on{' '}
+                {isChainsLoading ? (
+                  <Skeleton
+                    width={40}
+                    height={20}
+                    containerClassName='inline-block !leading-none rounded-2xl'
+                  />
+                ) : (
+                  sourceChain?.chainName
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

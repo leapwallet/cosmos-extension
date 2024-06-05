@@ -1,4 +1,9 @@
-import { sendTokensParams, useAddress, useSendModule } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  SendTokenEthParamOptions,
+  sendTokensParams,
+  useAddress,
+  useSendModule,
+} from '@leapwallet/cosmos-wallet-hooks'
 import {
   getBlockChainFromAddress,
   isValidAddressWithPrefix,
@@ -35,6 +40,7 @@ export type SendContextType = ReturnType<typeof useSendModule> &
       gas: number,
       wallet: EthWallet,
       gasPrice?: number,
+      options?: SendTokenEthParamOptions,
     ) => void
   }>
 
@@ -79,8 +85,15 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
     [confirmSend, getSscrtWallet, getWallet, selectedToken?.coinMinimalDenom, txCallback],
   )
   const confirmSendTxEth = useCallback(
-    async (toAddress: string, value: string, gas: number, wallet: EthWallet, gasPrice?: number) => {
-      confirmSendEth(toAddress, value, gas, wallet, txCallback, gasPrice)
+    async (
+      toAddress: string,
+      value: string,
+      gas: number,
+      wallet: EthWallet,
+      gasPrice?: number,
+      options?: SendTokenEthParamOptions,
+    ) => {
+      confirmSendEth(toAddress, value, gas, wallet, txCallback, gasPrice, options)
     },
     [confirmSendEth, txCallback],
   )

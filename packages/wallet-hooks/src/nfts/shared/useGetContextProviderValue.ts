@@ -25,9 +25,14 @@ export function useGetContextProviderValue({ hiddenNfts, chainInfos }: useGetCon
   const disabledNftsCollections = useDisabledNFTsCollections();
   const [triggerRerender, setTriggerRerender] = useState(false);
   const areAllNftsHiddenRef = useRef<boolean>(false);
-  const activeNetwork = useSelectedNetwork();
   const isCompassWallet = useIsCompassWallet();
+
   const activeChain = useActiveChain();
+  const _activeNetwork = useSelectedNetwork();
+  const activeNetwork = useMemo(
+    () => (activeChain === 'seiDevnet' ? 'mainnet' : _activeNetwork),
+    [_activeNetwork, activeChain],
+  );
 
   const [collectionData, setCollectionData] = useState<CollectionData | null>(null);
   const [showCollectionDetailsFor, setShowCollectionDetailsFor] = useState('');
@@ -55,10 +60,22 @@ export function useGetContextProviderValue({ hiddenNfts, chainInfos }: useGetCon
   const isLoadingInitialValue = useMemo(
     () =>
       _nftChains.reduce((_isLoading, nft, index) => {
-        return {
+        let _loading = {
           ..._isLoading,
           [`${nft.forceContractsListChain}-${index}`]: true,
         };
+
+        if (
+          isCompassWallet &&
+          (nft.forceContractsListChain === 'seiDevnet' || nft.forceContractsListChain === 'seiTestnet2')
+        ) {
+          _loading = {
+            ..._loading,
+            [`evm-${nft.forceContractsListChain}-${index}`]: true,
+          };
+        }
+
+        return _loading;
       }, {}),
     [_nftChains],
   );

@@ -8,23 +8,23 @@ import {
   MobileAppBanner,
   sliceAddress,
   useActiveChain,
+  useGetExplorerTxnUrl,
   useInvalidateActivity,
   useInvalidateDelegations,
   useInvalidateTokenBalances,
   useMobileAppBanner,
   usePendingTxState,
-  useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, GenericCard, Header } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import classnames from 'classnames'
+import { InfoCard } from 'components/info-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { Cross } from 'images/misc'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { TxResponse } from 'secretjs'
 import { Colors } from 'theme/colors'
@@ -55,11 +55,9 @@ function MobileQrCode({
   )
 }
 
-export function PendingTx() {
-  const chainInfos = useChainInfos()
+export default function PendingTx() {
   const activeChain = useActiveChain()
   const navigate = useNavigate()
-  const selectedNetwork = useSelectedNetwork()
   const [txHash, setTxHash] = useState('')
   const [showMobileQrCode, setShowMobileQrCode] = useState(
     sessionStorage.getItem(PENDING_TX_MOBILE_QR_CODE_BANNER) ? false : true,
@@ -163,6 +161,7 @@ export function PendingTx() {
     receivedTokenInfo,
     txStatus,
     txHash: _txHash,
+    isEvmTx,
   } = pendingTx ?? {}
 
   useEffect(() => {
@@ -184,11 +183,7 @@ export function PendingTx() {
   const balanceIncreased =
     txType === 'undelegate' || txType === 'receive' || txType === 'liquidity/remove'
 
-  const txnUrl = useMemo(() => {
-    if (!chainInfos[activeChain].txExplorer?.[selectedNetwork]?.txUrl || !txHash) return ''
-    return `${chainInfos[activeChain].txExplorer?.[selectedNetwork]?.txUrl}/${txHash}`
-  }, [chainInfos, activeChain, selectedNetwork, txHash])
-
+  const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({ forceTxHash: txHash })
   const txStatusStyles = {
     loading: {
       topColor: '#696969',
@@ -318,6 +313,16 @@ export function PendingTx() {
           data &&
           data.visible ? (
             <MobileQrCode setShowMobileQrCode={setShowMobileQrCode} data={data} />
+          ) : null}
+
+          {isCompassWallet() &&
+          title1?.toLowerCase().includes('sent nft') &&
+          isEvmTx &&
+          txStatus === 'success' ? (
+            <InfoCard
+              className='mb-4'
+              message='Add your NFTs via Manage Collection in the other wallet for it to show up'
+            />
           ) : null}
 
           <Buttons.Generic size='normal' onClick={handleCloseClick} className='mt-auto w-full'>

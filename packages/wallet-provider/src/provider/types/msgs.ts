@@ -66,7 +66,7 @@ export class SuggestChainInfoMsg extends Message<void> {
     if (!result.chainName) throw new Error('chain name not set');
     if (!result.feeCurrencies) throw new Error('stake currency not set');
     if (!result.bech32Config) throw new Error('bech32 config not set');
-    if (!result.stakeCurrency) throw new Error('stake currency not set');
+
     return {
       rpc: result.rpc,
       rest: result.rest,

@@ -1,4 +1,5 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
@@ -7,6 +8,7 @@ import { useAirdropsData } from 'hooks/useAirdropsData'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import React, { useState } from 'react'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import GoToLeapboard from './GoToLeapboard'
 
@@ -30,13 +32,19 @@ export default function EmptyAirdrops({
   const fetchAirdropsData = useAirdropsData()
 
   const trackCTAEvent = () => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.AIRDROPS,
-      buttonName: ButtonName.RETRY_AIRDROP,
-      redirectURL: '',
-      numberOfRetries,
-      time: Date.now() / 1000,
-    })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.AIRDROPS,
+          buttonName: ButtonName.RETRY_AIRDROP,
+          redirectURL: '',
+          numberOfRetries,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
+      }
+    }
   }
 
   const onRetry = () => {

@@ -1,12 +1,19 @@
 import { Key, useActiveWalletStore } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, getSeiEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
 import { useCallback, useEffect } from 'react'
+import { sendMessageToTab } from 'utils'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
-import { ACTIVE_WALLET, KEYSTORE, MANAGE_CHAIN_SETTINGS } from '../../config/storage-keys'
+import {
+  ACTIVE_CHAIN,
+  ACTIVE_WALLET,
+  KEYSTORE,
+  MANAGE_CHAIN_SETTINGS,
+} from '../../config/storage-keys'
 import { usePassword } from './usePassword'
 
 type ActionType = 'UPDATE' | 'DELETE'
@@ -87,22 +94,16 @@ export default function useActiveWallet() {
   const setActiveWallet = useCallback(
     async (wallet: Key | null) => {
       if (!wallet) return
-      const tabs = await browser.tabs.query({
-        status: 'complete',
-        active: true,
-        currentWindow: true,
-      })
 
-      for (const tab of tabs) {
-        try {
-          if (tab.active && !tab.discarded && tab.id) {
-            await browser.tabs.sendMessage(tab.id, { event: 'leap_keystorechange' })
-          }
-        } catch (e) {
-          //
-        }
+      if (isCompassWallet()) {
+        const store = await browser.storage.local.get([ACTIVE_CHAIN])
+        const activeChain = store[ACTIVE_CHAIN] as SupportedChain
+
+        const evmAddress = getSeiEvmAddressToShow(wallet.pubKeys?.[activeChain])
+        await sendMessageToTab({ event: 'accountsChanged', data: [evmAddress] })
       }
 
+      await sendMessageToTab({ event: 'leap_keystorechange' })
       await browser.storage.local.set({ [ACTIVE_WALLET]: wallet })
       try {
         setState(wallet)

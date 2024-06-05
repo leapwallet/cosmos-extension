@@ -114,6 +114,8 @@ export const useShouldShowAutoAdjustSheet = (): ((args: shouldShowAutoAdjustArgs
       const tokenBalanceBN = new BigNumber(tokenBalance);
       const tokenAmountBN = new BigNumber(tokenAmount);
       const feeAmountBN = new BigNumber(feeAmount);
+      const totalExpenseBN = tokenAmountBN.plus(feeAmountBN);
+      const ratioOfAmountToFee = tokenAmountBN.dividedBy(feeAmountBN).integerValue(BigNumber.ROUND_FLOOR);
 
       // 1. user is spending almost all the balance
       // -> not enough token remain to pay for fees
@@ -121,13 +123,12 @@ export const useShouldShowAutoAdjustSheet = (): ((args: shouldShowAutoAdjustArgs
         return AdjustmentType.COMPULSORY;
       }
 
-      const totalExpenseBN = tokenAmountBN.plus(feeAmountBN);
-
       // 2. user is spending close to all the balance
       // -> no token remain to pay for fees for future transactions
       if (
         tokenBalanceBN.isGreaterThanOrEqualTo(totalExpenseBN) &&
-        tokenBalanceBN.isLessThan(totalExpenseBN.plus(feeAmountBN.multipliedBy(3)))
+        tokenBalanceBN.isLessThan(totalExpenseBN.plus(feeAmountBN.multipliedBy(3))) &&
+        ratioOfAmountToFee.isGreaterThan(1)
       ) {
         return AdjustmentType.OPTIONAL;
       }

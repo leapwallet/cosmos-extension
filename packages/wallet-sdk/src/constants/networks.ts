@@ -298,6 +298,7 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'thorchain' },
   { enabled: true, name: 'odin' },
   { enabled: true, name: 'saga' },
+  { enabled: true, name: 'initia' },
 ];
 
 export default networkData;

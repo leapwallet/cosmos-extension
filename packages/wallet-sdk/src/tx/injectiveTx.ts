@@ -44,7 +44,7 @@ import { StakeAuthorization } from 'cosmjs-types/cosmos/staking/v1beta1/authz';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 import { keccak256 } from 'ethereumjs-util';
 
-import { AccountDetails, fetchAccountDetails, InjectiveAccountRestResponse } from '../accounts';
+import { fetchAccountDetails } from '../accounts';
 import { ChainInfos } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
 import { LeapLedgerSignerEth } from '../ledger';
@@ -416,7 +416,7 @@ export class InjectiveTx {
     sourcePort: string,
     sourceChannel: string,
     timeoutHeight: any | undefined,
-    timeoutTimestamp: number | undefined,
+    _: number | undefined,
     simulate: boolean,
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -635,26 +635,6 @@ export class InjectiveTx {
       }
     } catch (e: any) {
       throw new Error(e);
-    }
-  }
-
-  private async fetchAccountDetails(address: string): Promise<AccountDetails> {
-    try {
-      const data = await this.chainRestAuthApi.fetchAccount(address);
-
-      const baseAccount = (data as InjectiveAccountRestResponse).account.base_account;
-
-      return {
-        address: baseAccount.address,
-        accountNumber: baseAccount.account_number,
-        sequence: baseAccount.sequence,
-        pubKey: {
-          type: baseAccount.pub_key ? baseAccount.pub_key['@type'] : '',
-          key: baseAccount.pub_key ? baseAccount.pub_key.key : '',
-        },
-      } as AccountDetails;
-    } catch (e) {
-      throw new Error((e as any).message);
     }
   }
 

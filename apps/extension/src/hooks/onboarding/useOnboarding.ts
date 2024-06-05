@@ -1,5 +1,6 @@
+import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { importLedgerAccount } from '@leapwallet/cosmos-wallet-sdk'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
@@ -14,6 +15,7 @@ export function useOnboarding() {
     useState<{ address: string; index: number; pubkey: Uint8Array | null }[]>()
 
   const importWalletAccounts = Wallet.useImportMultipleWalletAccounts()
+  const { chains } = useChainsStore()
 
   const [mnemonic, setMnemonic] = useState('')
   const saveLedgerWallet = Wallet.useSaveLedgerWallet()
@@ -110,6 +112,7 @@ export function useOnboarding() {
       useEvmApp,
       useEvmApp ? defaultChainEth : defaultChainCosmos,
       LEDGER_ENABLED_EVM_CHAINS,
+      chains,
     )
 
     const newAddresses: Addresses = {}
@@ -141,6 +144,7 @@ export function useOnboarding() {
       useEvmApp ? defaultChainEth : defaultChainCosmos,
       //Added as a placeholder
       [],
+      chains,
     )
 
     setWalletAccounts(

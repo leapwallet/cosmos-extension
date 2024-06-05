@@ -1,5 +1,5 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { CosmWasmChain, Cw20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/constants/cw20-denoms';
+import { CosmWasmChain, Cw20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/cw20-denoms';
 import { useQuery } from '@tanstack/react-query';
 
 import { useActiveChain, useCW20TokensStore } from '../store';

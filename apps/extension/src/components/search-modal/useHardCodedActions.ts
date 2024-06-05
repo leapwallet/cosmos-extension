@@ -57,14 +57,13 @@ export function useHardCodedActions() {
     window.open(buyUrl, '_blank')
   }
 
-  function handleSwapClick(_redirectUrl?: string) {
+  function handleSwapClick(_redirectUrl?: string, navigateUrl?: string) {
     if (featureFlags?.all_chains?.swap === 'redirect') {
       const redirectUrl =
-        _redirectUrl ??
-        `https://cosmos.leapwallet.io/transact/swap?sourceChainId=${activeChainInfo.chainId}`
+        _redirectUrl ?? `https://swapfast.app/?sourceChainId=${activeChainInfo.chainId}`
       window.open(redirectUrl, '_blank')
     } else {
-      navigate('/swap')
+      navigate(navigateUrl ?? '/swap')
     }
   }
 

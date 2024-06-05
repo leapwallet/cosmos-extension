@@ -111,7 +111,7 @@ const getActiveWallet = async () => {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function checkConnection(chainIds: [string], msg: any) {
+export async function checkConnection(chainIds: string[], msg: any) {
   const [activeWallet, connections] = await Promise.all([getActiveWallet(), getConnections()])
   return await checkChainConnections(chainIds, connections, msg, activeWallet)
 }
@@ -125,6 +125,8 @@ type Page =
   | 'signSeiEvm'
   | 'add-secret-token'
   | 'login'
+  | 'suggest-erc-20'
+  | 'switch-ethereum-chain'
 
 async function getPopup() {
   if (popupIds.length === 0) {

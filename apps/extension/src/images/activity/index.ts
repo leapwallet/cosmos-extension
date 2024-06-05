@@ -15,6 +15,8 @@ import SwapIcon from './swap.svg'
 import SwapDetails from './swap-details.svg'
 import TxFee from './tx-fee.svg'
 import TxHash from './tx-hash.svg'
+import TxSwapFailure from './tx-swap-failure.svg'
+import TxSwapSuccess from './tx-swap-success.svg'
 import Undelegate from './undelegate.svg'
 import UndelegateDetails from './undelegate-details.svg'
 import Voting from './voting.svg'
@@ -37,6 +39,8 @@ export {
   SwapIcon,
   TxFee,
   TxHash,
+  TxSwapFailure,
+  TxSwapSuccess,
   Undelegate,
   UndelegateDetails,
   Voting,

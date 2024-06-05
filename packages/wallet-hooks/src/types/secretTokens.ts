@@ -6,4 +6,5 @@ export type SecretToken = {
   coingeckoId?: string;
   chain?: string;
   snip24Enabled?: boolean;
+  coinGeckoId?: string;
 };

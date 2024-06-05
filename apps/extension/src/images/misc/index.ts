@@ -46,6 +46,7 @@ import DownArrow from './down-arrow.svg'
 import dropUpDarkModeIcon from './drop-up-dark-mode.svg'
 import dropUpLightModeIcon from './drop-up-light-mode.svg'
 import EditItems from './edit-items.svg'
+import EvmWalletIcon from './evm-wallet.svg'
 import ExpandContent from './expand-content.svg'
 import Explore from './explore.svg'
 import FilledArrowDown from './filled-arrow-down.svg'
@@ -66,6 +67,7 @@ import HardwareWallet from './hardware-wallet.svg'
 import HeartIcon from './heart.svg'
 import HeartOutlineIcon from './heart-outline.svg'
 import HelpIcon from './help.svg'
+import HelpOutline from './help-outline.svg'
 import HideNft from './hide-nft.svg'
 import IBC from './ibc.svg'
 import IbcProtocol from './ibc-protocol.svg'
@@ -123,6 +125,7 @@ import UnhideNft from './unhide-nft.svg'
 import Validator from './validator.svg'
 import VerifiedWithBgStar from './verified.png'
 import Verified from './verified.svg'
+import VerifiedWithBgStarDark from './verified-dark.png'
 import VerticalDots from './vertical-dots.svg'
 import VisibilityOffIcon from './visibility-off.svg'
 import VisibilityOff from './visibility-off.svg'
@@ -209,6 +212,7 @@ export {
   dropUpDarkModeIcon,
   dropUpLightModeIcon,
   EditItems,
+  EvmWalletIcon,
   ExpandContent,
   Explore,
   FilledArrowDown,
@@ -229,6 +233,7 @@ export {
   HeartIcon,
   HeartOutlineIcon,
   HelpIcon,
+  HelpOutline,
   HideNft,
   IBC,
   IbcProtocol,
@@ -286,6 +291,7 @@ export {
   Validator,
   Verified,
   VerifiedWithBgStar,
+  VerifiedWithBgStarDark,
   VerticalDots,
   VisibilityOff,
   VisibilityOffIcon,

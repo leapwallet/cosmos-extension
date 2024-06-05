@@ -1,8 +1,10 @@
 import { AirdropEligibilityInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import mixpanel from 'mixpanel-browser'
 import React from 'react'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 interface ClaimButtonProps {
   selectedAirdrop: AirdropEligibilityInfo
@@ -15,12 +17,18 @@ export default function ClaimButton({ selectedAirdrop }: ClaimButtonProps) {
       : selectedAirdrop?.CTAInfo?.href
 
   const trackCTAEvent = () => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.AIRDROPS,
-      buttonName: ButtonName.CLAIM_AIRDROP,
-      redirectURL,
-      time: Date.now() / 1000,
-    })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.AIRDROPS,
+          buttonName: ButtonName.CLAIM_AIRDROP,
+          redirectURL,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
+      }
+    }
   }
 
   return (

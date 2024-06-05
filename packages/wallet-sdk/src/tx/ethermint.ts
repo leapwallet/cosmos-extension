@@ -4,7 +4,7 @@ import { Coin, DeliverTxResponse, StdFee, TimeoutError } from '@cosmjs/stargate'
 import { arrayify, concat, joinSignature, SignatureLike, splitSignature } from '@ethersproject/bytes';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
-import { Fee, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { Fee, SignDoc, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 import dayjs from 'dayjs';
 import { proto, transactions } from 'evmosjs';
@@ -37,7 +37,7 @@ export class EthermintTxHandler {
   constructor(
     private restUrl: string,
     protected wallet: EthWallet | LeapLedgerSignerEth,
-    private chainId?: string,
+    chainId?: string,
     evmChainId?: string,
   ) {
     this.chain = {
@@ -79,7 +79,6 @@ export class EthermintTxHandler {
     transferAmount,
     sourcePort,
     sourceChannel,
-    timeoutHeight = undefined,
     timeoutTimestamp = undefined,
     fee,
     memo,
@@ -142,6 +141,7 @@ export class EthermintTxHandler {
       timeoutTimestamp,
       fee,
       memo,
+      txMemo,
     });
 
     return this.broadcastTx(txRaw);
@@ -274,10 +274,6 @@ export class EthermintTxHandler {
     return this.signAndBroadcast(delegatorAddress, sender.accountNumber, tx);
   }
 
-  private signatureToBytes(signature: { r: string; s: string; v: number }) {
-    return arrayify(concat([signature.r, signature.s, Uint8Array.from([signature.v])]));
-  }
-
   async sign(signerAddress: string, accountNumber: number, tx: any, ibcTx?: boolean) {
     if (this.wallet instanceof LeapLedgerSignerEth) {
       const signature = await (this.wallet as LeapLedgerSignerEth).signEip712(signerAddress, tx.eipToSign);
@@ -313,13 +309,20 @@ export class EthermintTxHandler {
     }
 
     if (!(this.wallet instanceof EthWallet)) {
-      const signedData = await (this.wallet as any).signDirect(signerAddress, tx);
+      const signDoc = SignDoc.fromPartial({
+        authInfoBytes: tx.signDirect.authInfo.serializeBinary(),
+        bodyBytes: tx.signDirect.body.serializeBinary(),
+        chainId: this.chain.cosmosChainId,
+        accountNumber: accountNumber,
+      });
+      const signedData = await (this.wallet as any).signDirect(signerAddress, signDoc);
       const txRaw = proto.createTxRaw(tx.signDirect.body.serializeBinary(), tx.signDirect.authInfo.serializeBinary(), [
         fromBase64(signedData.signature.signature),
       ]);
       return Buffer.from(txRaw.message.serialize()).toString('base64');
     } else {
       const dataToSign = `0x${Buffer.from(tx.signDirect.signBytes, 'base64').toString('hex')}`;
+
       const rawSignature = this.wallet.sign(signerAddress, dataToSign);
       const _splitSignature = splitSignature(rawSignature);
       const txRaw = proto.createTxRaw(tx.signDirect.body.serializeBinary(), tx.signDirect.authInfo.serializeBinary(), [

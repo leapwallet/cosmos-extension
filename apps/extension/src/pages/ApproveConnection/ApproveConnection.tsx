@@ -2,7 +2,6 @@ import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
-import { Header } from 'components/Header'
 import Loader from 'components/loader/Loader'
 import { SelectWallets } from 'components/SelectWallets'
 import Text from 'components/text'
@@ -14,6 +13,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
 import browser from 'webextension-polyfill'
 
+import { Header } from '../../components/header'
 import { addToConnections } from './utils'
 
 type WebsiteProps = {

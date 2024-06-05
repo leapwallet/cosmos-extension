@@ -22,10 +22,17 @@ export function useInitSnipDenoms() {
   const setResource = useCallback(async (resource: any) => {
     const betaSnipTokens = await storage.get(BETA_SNIP_20_TOKENS);
     if (betaSnipTokens) {
-      let allBetaSnipTokens = {};
+      let allBetaSnipTokens: Record<string, any> = {};
       for (const chain in betaSnipTokens) {
         allBetaSnipTokens = { ...allBetaSnipTokens, ...betaSnipTokens[chain] };
       }
+
+      for (const contract in allBetaSnipTokens) {
+        if (resource[contract]) {
+          delete allBetaSnipTokens[contract];
+        }
+      }
+
       setDenoms({ ...resource, ...allBetaSnipTokens });
     } else {
       setDenoms(resource);

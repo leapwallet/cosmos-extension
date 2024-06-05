@@ -70,8 +70,9 @@ export async function simulateDelegate(
   validatorAddress: string,
   amount: Coin,
   fee: Coin[],
+  typeUrl?: string,
 ) {
-  const msg = getDelegateMsg(fromAddress, validatorAddress, amount);
+  const msg = getDelegateMsg(fromAddress, validatorAddress, amount, typeUrl);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgDelegate.encode(msg.value).finish(),
@@ -85,8 +86,9 @@ export async function simulateUndelegate(
   validatorAddress: string,
   amount: Coin,
   fee: Coin[],
+  typeUrl?: string,
 ) {
-  const msg = getUnDelegateMsg(fromAddress, validatorAddress, amount);
+  const msg = getUnDelegateMsg(fromAddress, validatorAddress, amount, typeUrl);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgUndelegate.encode(msg.value).finish(),
@@ -101,8 +103,9 @@ export async function simulateCancelUndelegation(
   amount: Coin,
   creationHeight: string,
   fee: Coin[],
+  typeUrl?: string,
 ) {
-  const msg = getCancelUnDelegationMsg(fromAddress, validatorAddress, amount, creationHeight);
+  const msg = getCancelUnDelegationMsg(fromAddress, validatorAddress, amount, creationHeight, typeUrl);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgCancelUnbondingDelegation.encode(msg.value).finish(),
@@ -118,8 +121,9 @@ export async function simulateRedelegate(
   validatorSrcAddress: string,
   amount: Coin,
   fee: Coin[],
+  typeUrl?: string,
 ) {
-  const msg = getRedelegateMsg(fromAddress, validatorDstAddress, validatorSrcAddress, amount);
+  const msg = getRedelegateMsg(fromAddress, validatorDstAddress, validatorSrcAddress, amount, typeUrl);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
     value: MsgBeginRedelegate.encode(msg.value).finish(),

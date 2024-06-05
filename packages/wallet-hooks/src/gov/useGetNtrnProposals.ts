@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ProposalApi } from 'types';
 
 import { useActiveChain, useChainApis, useGetChains, useSpamProposals } from '../store';
-import { getLeapapiBaseUrl } from '../utils';
+import { getLeapapiBaseUrl, getPlatformType } from '../utils';
+import { useIsFeatureExistForChain } from '../utils-hooks';
 
 export function useGetNtrnProposals() {
   const { rpcUrl, lcdUrl } = useChainApis();
@@ -14,6 +15,20 @@ export function useGetNtrnProposals() {
   const spamProposals = useSpamProposals();
   const chains = useGetChains();
   const [shouldPreferFallback, setShouldPreferFallback] = useState<boolean>(false);
+
+  const isNeutronGovernanceComingSoon = useIsFeatureExistForChain({
+    checkForExistenceType: 'comingSoon',
+    feature: 'governance',
+    platform: getPlatformType(),
+    forceChain: 'neutron',
+  });
+
+  const isNeutronGovernanceNotSupported = useIsFeatureExistForChain({
+    checkForExistenceType: 'notSupported',
+    feature: 'governance',
+    platform: getPlatformType(),
+    forceChain: 'neutron',
+  });
 
   const filterSpamProposals = (proposal: any) => {
     if (spamProposals.neutron && spamProposals.neutron.includes(Number(proposal?.proposal_id ?? proposal?.id))) {
@@ -88,10 +103,7 @@ export function useGetNtrnProposals() {
   const neutronProposalsQueryData = useQuery(
     ['fetch-neutron-proposals', rpcUrl, chains],
     async function () {
-      if (
-        chains.neutron?.comingSoonFeatures?.includes('governance') ||
-        chains.neutron?.notSupportedFeatures?.includes('governance')
-      ) {
+      if (isNeutronGovernanceComingSoon || isNeutronGovernanceNotSupported) {
         return;
       }
 

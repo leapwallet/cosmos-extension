@@ -3,19 +3,21 @@ import React from 'react'
 
 type CustomCheckboxProps = {
   checked: boolean
-  color: string
   onClick: () => void
 }
 
-export function CustomCheckbox({ checked, color, onClick }: CustomCheckboxProps) {
+export function CustomCheckbox({ checked, onClick }: CustomCheckboxProps) {
   return (
     <div
-      className={`w-[20px] h-[20px] rounded border-[2px] border-${color}-400 cursor-pointer relative`}
+      className={'w-[20px] h-[20px] rounded cursor-pointer flex justify-center items-center'}
       onClick={onClick}
     >
-      <span className='w-[20px] block h-[20px]' />
-      {checked && (
-        <img src={Images.Misc.FilledRoundedSquareCheckMark} className='absolute inset-0' />
+      {checked ? (
+        <div className='w-[15px] h-[15px] relative'>
+          <img src={Images.Misc.FilledRoundedSquareCheckMark} className='absolute inset-0' />
+        </div>
+      ) : (
+        <div className='w-[15px] h-[15px] rounded-[2px] border-[2px] border-gray-200'></div>
       )}
     </div>
   )

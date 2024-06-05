@@ -1,4 +1,4 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, useGetTokenSpendableBalances } from '@leapwallet/cosmos-wallet-hooks'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
@@ -27,6 +27,7 @@ const Send = () => {
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
   const setActiveChain = useSetActiveChain()
+  const { refetchBalances } = useGetTokenSpendableBalances()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showChainSelector, setShowChainSelector] = useState<boolean>(false)
@@ -37,6 +38,10 @@ const Send = () => {
     [activeChain, chainInfos, defaultTokenLogo],
   )
 
+  // refetch balances
+  useEffect(() => {
+    refetchBalances()
+  }, [])
   const chainId = useQuery().get('chainId') ?? undefined
 
   useEffect(() => {

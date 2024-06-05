@@ -6,7 +6,7 @@ import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { NftDetailsType } from 'pages/nfts-v2/context'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 interface FeesViewProps {
   nftDetails: NftDetailsType
@@ -20,8 +20,14 @@ export const FeesView: React.FC<FeesViewProps> = ({
   nftDetails: NftDetailsType
   fee: StdFee
 }) => {
+  const collectionAddress = useMemo(() => {
+    return nftDetails?.collection.address ?? nftDetails?.collection.contractAddress ?? ''
+  }, [nftDetails?.collection.address, nftDetails?.collection.contractAddress])
+
   const [showFeesSettingSheet] = useState(false)
-  const defaultGasPrice = useDefaultGasPrice()
+  const defaultGasPrice = useDefaultGasPrice({
+    isSeiEvmTransaction: collectionAddress.toLowerCase().startsWith('0x'),
+  })
 
   const chainInfos = useChainInfos()
   const activeChainInfo = chainInfos[nftDetails?.chain ?? 'sei']
@@ -46,7 +52,7 @@ export const FeesView: React.FC<FeesViewProps> = ({
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultGasPrice.gasPrice])
+  }, [defaultGasPrice.gasPrice.amount.toString(), defaultGasPrice.gasPrice.denom])
 
   return (
     <div>
@@ -62,6 +68,7 @@ export const FeesView: React.FC<FeesViewProps> = ({
         }}
         error={gasError}
         setError={setGasError}
+        isSeiEvmTransaction={collectionAddress.toLowerCase().startsWith('0x')}
       >
         <DisplayFee />
         {gasError && !showFeesSettingSheet ? (

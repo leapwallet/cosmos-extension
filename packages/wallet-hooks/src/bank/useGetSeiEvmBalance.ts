@@ -4,14 +4,28 @@ import { BigNumber } from 'bignumber.js';
 import { useCallback } from 'react';
 
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
-import { useActiveChain, useActiveWallet, useAddress, useChainApis, useDenoms } from '../store';
+import {
+  getCompassSeiEvmConfigStoreSnapshot,
+  useActiveChain,
+  useActiveWallet,
+  useAddress,
+  useChainApis,
+  useDenoms,
+  useSelectedNetwork,
+} from '../store';
 import { SupportedCurrencies, Token } from '../types';
 import { balanceCalculator, fetchCurrency, useGetStorageLayer } from '../utils';
 import { SEI_EVM_LINKED_ADDRESS_STATE_KEY } from '../utils-hooks';
 
-export function useGetSeiEvmBalance(forceChain?: SupportedChain, forceCurrencyPreferred?: SupportedCurrencies) {
+export function useGetSeiEvmBalance(
+  forceChain?: SupportedChain,
+  forceCurrencyPreferred?: SupportedCurrencies,
+  forceNetwork?: 'mainnet' | 'testnet',
+) {
   const _activeChain = useActiveChain();
   const denoms = useDenoms();
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = forceNetwork || _selectedNetwork;
   const [_preferredCurrency] = useUserPreferredCurrency();
 
   const activeChain = forceChain || _activeChain;
@@ -25,9 +39,10 @@ export function useGetSeiEvmBalance(forceChain?: SupportedChain, forceCurrencyPr
 
   return useQuery(
     [
-      QUERY_SEI_EVM_BALANCE_KEY,
+      `${activeChain}-${QUERY_SEI_EVM_BALANCE_KEY}`,
       activeChain,
-      activeWallet?.pubKeys?.seiDevnet,
+      activeWallet?.pubKeys?.[activeChain],
+      activeChain,
       uSeiToken,
       preferredCurrency,
       storage,
@@ -39,11 +54,12 @@ export function useGetSeiEvmBalance(forceChain?: SupportedChain, forceCurrencyPr
 
       try {
         if (evmJsonRpc) {
-          const isSeiEvm = activeChain === 'seiDevnet';
+          const { ARCTIC_CHAIN_KEY, ATLANTIC_CHAIN_KEY } = await getCompassSeiEvmConfigStoreSnapshot();
+          const isSeiEvm = [ARCTIC_CHAIN_KEY, ATLANTIC_CHAIN_KEY].includes(activeChain);
 
           if (isSeiEvm) {
             const fetchSeiEvmBalance = async () => {
-              const ethWalletAddress = getSeiEvmAddressToShow(activeWallet?.pubKeys?.seiDevnet);
+              const ethWalletAddress = getSeiEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]);
 
               if (ethWalletAddress.startsWith('0x')) {
                 const balance = await fetchSeiEvmBalances(evmJsonRpc, ethWalletAddress);
@@ -83,7 +99,7 @@ export function useGetSeiEvmBalance(forceChain?: SupportedChain, forceCurrencyPr
             if (storedLinkedAddressState) {
               const linkedAddressState = JSON.parse(storedLinkedAddressState);
 
-              if (linkedAddressState[address] !== 'done') {
+              if (linkedAddressState[address]?.[activeChain]?.[selectedNetwork] !== 'done') {
                 await fetchSeiEvmBalance();
               }
             } else {
@@ -106,7 +122,10 @@ const QUERY_SEI_EVM_BALANCE_KEY = 'query-get-sei-evm-balance';
 export function useInvalidateSeiEvmBalance() {
   const queryClient = useQueryClient();
 
-  return useCallback(() => {
-    queryClient.invalidateQueries([QUERY_SEI_EVM_BALANCE_KEY]);
-  }, [queryClient]);
+  return useCallback(
+    (activeChain: SupportedChain) => {
+      queryClient.invalidateQueries([`${activeChain}-${QUERY_SEI_EVM_BALANCE_KEY}`]);
+    },
+    [queryClient],
+  );
 }

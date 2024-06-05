@@ -173,7 +173,8 @@ export function CollectionDetails() {
         }
       >
         <div className='px-6 pt-4 pb-8'>
-          {['omniflix', 'stargaze', 'aura'].includes(collection.chain) ? (
+          {['omniflix', 'stargaze', 'aura'].includes(collection.chain) ||
+          collection.address.toLowerCase().startsWith('0x') ? (
             <ChainHeaderCollectionCard
               nfts={nfts}
               chain={collection.chain}

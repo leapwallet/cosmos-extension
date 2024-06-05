@@ -11,27 +11,42 @@ import {
   NumiaBannerAttribute,
   NumiaTrackAction,
 } from '../types/banner';
-import { getNumiaBannerBearer, storage, useGetStorageLayer } from '../utils';
+import { APP_NAME, getAppName, getNumiaBannerBearer, storage, useGetStorageLayer } from '../utils';
 import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
 
 const NUMIA_BASE_URL = 'https://filament.numia.xyz';
+const LEAP_BANNER_URL = 'https://assets.leapwallet.io/banner/banner-v2.json';
+const COMPASS_BANNER_URL = 'https://assets.leapwallet.io/banner/compass-banner-v2.json';
 
-export const getBannerDetailsData = (storage: storage): Promise<BannerData> => {
+export const getBannerDetailsData = (storage: storage, isCompassWallet: boolean): Promise<BannerData> => {
   return cachedRemoteDataWithLastModified({
-    remoteUrl: 'https://assets.leapwallet.io/banner/banner-v2.json',
+    remoteUrl: isCompassWallet ? COMPASS_BANNER_URL : LEAP_BANNER_URL,
     storageKey: 'banner-ad-data',
     storage,
   });
 };
 
 export function useGetBannerApi() {
+  /**
+   * We are using `getAppName()` here to determine if we are in the Compass Wallet, instead of using the `useIsCompassWallet` hook.
+   * This is because the `useIsCompassWallet` hook is initialized at the same time as `useFeatureFlags`,
+   * which causes an initial network request to get the Leap Cosmos's feature flags.
+   * However, this is not necessary for the Compass Wallet.
+   * On the other hand, `getAppName()` is initialized before `useFeatureFlags` is called for the first time,
+   * ensuring that the correct feature-flag files are fetched.
+   */
+  const isCompassWallet = getAppName() === APP_NAME.Compass;
   const storage = useGetStorageLayer();
 
-  return useQuery<BannerData>(['banner-ad-data'], async () => getBannerDetailsData(storage), {
-    retry: 2,
-    cacheTime: 1000 * 10, // 10 seconds
-    staleTime: 0,
-  });
+  return useQuery<BannerData>(
+    [`query-${isCompassWallet}-banner-ad-data`],
+    async () => getBannerDetailsData(storage, isCompassWallet),
+    {
+      retry: 2,
+      cacheTime: 1000 * 10, // 10 seconds
+      staleTime: 0,
+    },
+  );
 }
 
 export type BannerConfig = {
@@ -59,55 +74,62 @@ export function useBannerConfig() {
 
 export function useGetNumiaBanner(address: string, positionIds: string[]) {
   const numiaBearer = getNumiaBannerBearer();
+  const isCompassWallet = getAppName() === APP_NAME.Compass;
 
-  return useQuery(['numia-banner-ad-data', address, positionIds], async () => {
-    const responses = await Promise.allSettled(
-      positionIds.map(async (positionId) => {
-        const URL = `${NUMIA_BASE_URL}/campaign/${address}?position_id=${positionId}`;
-        const { data } = await axios.get(URL, {
-          headers: {
-            Authorization: `Bearer ${numiaBearer}`,
-          },
-        });
+  return useQuery(
+    ['numia-banner-ad-data', address, positionIds],
+    async () => {
+      const responses = await Promise.allSettled(
+        positionIds.map(async (positionId) => {
+          const URL = `${NUMIA_BASE_URL}/campaign/${address}?position_id=${positionId}`;
+          const { data } = await axios.get(URL, {
+            headers: {
+              Authorization: `Bearer ${numiaBearer}`,
+            },
+          });
 
-        const bannerList = (data ?? []).map((banner: NumiaBannerAD) => {
-          return {
-            start_date: banner.start_date,
-            end_date: banner.end_date,
-            description: banner.creatives.body,
-            title: banner.creatives.title,
-            banner_type: 'redirect-external' as BannerADType,
-            id: `numia-campaign-${banner.campaign_id}-banner-${banner.audience_id}`,
-            redirect_url: banner.creatives.url,
-            image_url: banner.creatives.banner_url,
-            mobile_config: {
+          const bannerList = (data ?? []).map((banner: NumiaBannerAD) => {
+            return {
+              start_date: banner.start_date,
+              end_date: banner.end_date,
+              description: banner.creatives.body,
+              title: banner.creatives.title,
+              banner_type: 'redirect-external' as BannerADType,
+              id: `numia-campaign-${banner.campaign_id}-banner-${banner.audience_id}`,
               redirect_url: banner.creatives.url,
               image_url: banner.creatives.banner_url,
-            },
-            logo: banner.creatives.logo,
-            visibleOn: 'ALL',
-            attributes: {
-              position_id: positionId,
-              campaign_id: banner.campaign_id,
-              campaign_name: banner.campaign_name,
-              audience_id: banner.audience_id,
-              audience_name: banner.audience_name,
-            },
-          };
-        });
+              mobile_config: {
+                redirect_url: banner.creatives.url,
+                image_url: banner.creatives.banner_url,
+              },
+              logo: banner.creatives.logo,
+              visibleOn: 'ALL',
+              attributes: {
+                position_id: positionId,
+                campaign_id: banner.campaign_id,
+                campaign_name: banner.campaign_name,
+                audience_id: banner.audience_id,
+                audience_name: banner.audience_name,
+              },
+            };
+          });
 
-        return bannerList;
-      }),
-    );
+          return bannerList;
+        }),
+      );
 
-    return responses.reduce((acc: BannerAD[], curr) => {
-      if (curr.status === 'fulfilled') {
-        return [...acc, ...curr.value];
-      }
+      return responses.reduce((acc: BannerAD[], curr) => {
+        if (curr.status === 'fulfilled') {
+          return [...acc, ...curr.value];
+        }
 
-      return acc;
-    }, []);
-  });
+        return acc;
+      }, []);
+    },
+    {
+      enabled: !isCompassWallet,
+    },
+  );
 }
 
 export async function postNumiaEvent(address: string, action: NumiaTrackAction, attributes: NumiaBannerAttribute) {
@@ -139,7 +161,7 @@ export async function postNumiaEvent(address: string, action: NumiaTrackAction, 
 }
 
 export function useGetBannerData(chain: string) {
-  const { data } = useQuery<BannerData>(['banner-ad-data']);
+  const { data } = useGetBannerApi();
 
   /*
    * We want to display banners in the following order:

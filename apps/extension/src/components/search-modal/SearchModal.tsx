@@ -10,10 +10,8 @@ import {
 import { WALLETTYPE } from '@leapwallet/leap-keychain'
 import classNames from 'classnames'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { EventName } from 'config/analytics'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
-import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useRecoilState, useSetRecoilState } from 'recoil'
@@ -136,23 +134,12 @@ export function SearchModal() {
 
   const handleClose = useCallback(() => {
     setShowSearchModal(false)
-    try {
-      mixpanel.track(EventName.QuickSearchClose, {
-        chainId: chain.chainId,
-        chainName: chain.chainName,
-        time: Date.now() / 1000,
-      })
-    } catch {
-      //
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleNoRedirectActions = (actionName: string) => {
     switch (actionName) {
       case 'Swap': {
-        handleSwapClick()
+        handleSwapClick(undefined, `/swap?pageSource=quickSearch`)
         break
       }
 
@@ -195,35 +182,6 @@ export function SearchModal() {
     optionIndex: number,
     actionName: string,
   ) => {
-    if (searchedText.trim()) {
-      try {
-        mixpanel.track(EventName.QuickSearchClick, {
-          searchUsed: true,
-          searchTerm: searchedText.trim(),
-          actionIndex: optionIndex,
-          actionName,
-          chainId: chain.chainId,
-          chainName: chain.chainName,
-          time: Date.now() / 1000,
-        })
-      } catch {
-        //
-      }
-    } else {
-      try {
-        mixpanel.track(EventName.QuickSearchClick, {
-          searchUsed: false,
-          actionIndex: optionIndex,
-          actionName,
-          chainId: chain.chainId,
-          chainName: chain.chainName,
-          time: Date.now() / 1000,
-        })
-      } catch {
-        //
-      }
-    }
-
     setShowSearchModal(false)
 
     switch (config.action_type) {

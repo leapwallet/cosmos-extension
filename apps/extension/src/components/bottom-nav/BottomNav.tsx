@@ -1,5 +1,9 @@
 /* eslint-disable no-unused-vars */
-import { useChainsStore, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useChainsStore,
+  useFeatureFlags,
+  useSelectedNetwork,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -28,6 +32,7 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
   const [selected, setSelected] = useState(label)
   const navigate = useNavigate()
   const activeChain = useActiveChain()
+  const activeNetwork = useSelectedNetwork()
   const { chains } = useChainsStore()
   const activeChainInfo = chains[activeChain]
   const { data: featureFlags } = useFeatureFlags()
@@ -39,9 +44,16 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
     window.open(redirectUrl, '_blank')
   }, [])
 
+  const stakeRedirectForInitiaHandler = useCallback(() => {
+    const redirectUrl = `https://app.testnet.initia.xyz/stake`
+    window.open(redirectUrl, '_blank')
+  }, [])
+
   const bottomNavItems = useMemo(() => {
     const isSwapDisabled =
-      featureFlags?.swaps?.extension === 'disabled' || ['nomic', 'seiDevnet'].includes(activeChain)
+      featureFlags?.swaps?.extension === 'disabled' ||
+      ['nomic', 'seiDevnet'].includes(activeChain) ||
+      (isCompassWallet() && activeChain === 'seiTestnet2' && activeNetwork === 'testnet')
 
     return [
       {
@@ -56,11 +68,13 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
         path: '/stake',
         show: true,
         disabled: activeChainInfo?.disableStaking,
+        shouldRedirect: activeChain === 'initia',
+        redirectHandler: stakeRedirectForInitiaHandler,
       },
       {
         label: BottomNavLabel.Swap,
         icon: 'sync_alt',
-        path: '/swap',
+        path: '/swap?pageSource=bottomNav',
         show: true,
         disabled: isSwapDisabled,
       },
@@ -86,10 +100,12 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
       },
     ]
   }, [
-    activeChainInfo?.disableStaking,
     featureFlags?.swaps?.extension,
     featureFlags?.airdrops?.extension,
     activeChain,
+    activeNetwork,
+    activeChainInfo?.disableStaking,
+    stakeRedirectForInitiaHandler,
     airdropRedirectHandler,
   ])
 

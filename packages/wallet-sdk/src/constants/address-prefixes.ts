@@ -102,7 +102,8 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   xpla: 'xpla',
   aura: 'aura',
   pryzm: 'pryzmtestnet',
-  centauri: 'composable',
+  pica: 'composable',
   dym: 'dymension',
   saga: 'saga',
+  init: 'initia',
 };

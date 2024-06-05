@@ -17,7 +17,12 @@ export default function InfoSheet({
   setVisible: (v: boolean) => void
 }) {
   return (
-    <BottomModal isOpen={isVisible} onClose={() => setVisible(false)} title={title}>
+    <BottomModal
+      isOpen={isVisible}
+      onClose={() => setVisible(false)}
+      title={title}
+      closeOnBackdropClick={true}
+    >
       <Text size='sm' color='dark:text-gray-400 text-gray-600 font-bold'>
         {heading}
       </Text>

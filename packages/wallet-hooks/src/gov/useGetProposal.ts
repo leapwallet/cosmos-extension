@@ -1,20 +1,38 @@
-import { axiosWrapper } from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper, CosmosSDK } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 
-import { useActiveChain, useChainApis, useSelectedNetwork } from '../store';
+import { useActiveChain, useChainApis, useGetChains, useSelectedNetwork } from '../store';
+import { useGetExplorerAccountUrl } from '../utils-hooks';
 import { govQueryIds } from './queryIds';
 
 export function useGetProposal(id: number, enabled: boolean) {
   const activeChain = useActiveChain();
   const selectedNetwork = useSelectedNetwork();
-  const { lcdUrl, txUrl } = useChainApis();
+  const { lcdUrl } = useChainApis();
+  const chains = useGetChains();
+  const { getExplorerAccountUrl } = useGetExplorerAccountUrl({});
+
   return useQuery(
-    [govQueryIds.proposals, activeChain, selectedNetwork, id],
+    [govQueryIds.proposals, activeChain, selectedNetwork, id, chains],
     async (): Promise<any> => {
-      const url = `/cosmos/gov/v1beta1/proposals/${id}/tally`;
-      const tallying = '/cosmos/gov/v1beta1/params/tallying';
-      const poolUrl = '/cosmos/staking/v1beta1/pool';
-      const proposerUrl = `/cosmos/gov/v1beta1/proposals/${id}/deposits`;
+      const chainInfo = chains[activeChain];
+      let version = 'v1beta1';
+
+      switch (chainInfo.cosmosSDK) {
+        case CosmosSDK.Version_Point_46:
+        case CosmosSDK.Version_Point_47:
+          version = `v1`;
+          break;
+      }
+
+      const url = `/cosmos/gov/${version}/proposals/${id}/tally`;
+      const tallying = `/cosmos/gov/${version}/params/tallying`;
+      let poolUrl = `/cosmos/staking/${version}/pool`;
+      const proposerUrl = `/cosmos/gov/${version}/proposals/${id}/deposits`;
+
+      if (activeChain === 'initia') {
+        poolUrl = `/initia/mstaking/v1/pool`;
+      }
 
       const [data1, data2, data3, data4] = await Promise.all([
         axiosWrapper({ baseURL: lcdUrl, method: 'get', url }),
@@ -28,7 +46,7 @@ export function useGetProposal(id: number, enabled: boolean) {
         ...data2.data.tally_params,
         ...data3.data.pool,
         proposer,
-        proposerTxUrl: proposer?.depositor ? `${txUrl?.replace('txs', 'account')}/${proposer?.depositor}` : '',
+        proposerTxUrl: proposer?.depositor ? `${getExplorerAccountUrl(proposer?.depositor)}` : '',
       };
     },
     { enabled: !!activeChain && enabled, retry: 2 },

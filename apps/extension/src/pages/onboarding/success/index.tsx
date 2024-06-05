@@ -2,6 +2,7 @@ import { useAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, LineDivider, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { sha256 } from '@noble/hashes/sha256'
 import { utils } from '@noble/secp256k1'
+import { captureException } from '@sentry/react'
 import ExtensionPage from 'components/extension-page'
 import Text from 'components/text'
 import { ButtonName, EventName } from 'config/analytics'
@@ -25,7 +26,13 @@ export default function OnboardingSuccess() {
   const isDark = theme === ThemeName.DARK
 
   const trackCTAEvent = (buttonName: string) => {
-    mixpanel.track(EventName.OnboardingClicked, { buttonName, time: Date.now() / 1000 })
+    if (!isCompassWallet()) {
+      try {
+        mixpanel.track(EventName.OnboardingClicked, { buttonName, time: Date.now() / 1000 })
+      } catch (e) {
+        captureException(e)
+      }
+    }
   }
 
   const onboardingContent = [
@@ -49,7 +56,7 @@ export default function OnboardingSuccess() {
           cardTitle: 'Bridge',
           cardContent: 'Move assets from other ecosystems',
           onCardClick: () => {
-            window.open('https://cosmos.leapwallet.io/transact/bridge')
+            window.open('https://swapfast.app/bridge')
             trackCTAEvent(ButtonName.BRIDGE)
           },
         },
@@ -138,7 +145,6 @@ export default function OnboardingSuccess() {
   }, [chrome])
 
   const activeWalletCosmosAddress = useAddress('cosmos')
-
   useEffect(() => {
     const currentTime = new Date().getTime()
     const timeStarted1 = Number(localStorage.getItem('timeStarted1'))
@@ -148,13 +154,19 @@ export default function OnboardingSuccess() {
     if (timeStarted1 && timeStarted2 && activeWalletCosmosAddress) {
       const hashedAddress = utils.bytesToHex(sha256(activeWalletCosmosAddress))
 
-      mixpanel.track(EventName.OnboardingCompleted, {
-        methodChosen,
-        timeTaken1: dayjs(currentTime).diff(timeStarted1, 'seconds'),
-        timeTaken2: dayjs(currentTime).diff(timeStarted2, 'seconds'),
-        wallet: hashedAddress,
-        time: Date.now() / 1000,
-      })
+      if (!isCompassWallet()) {
+        try {
+          mixpanel.track(EventName.OnboardingCompleted, {
+            methodChosen,
+            timeTaken1: dayjs(currentTime).diff(timeStarted1, 'seconds'),
+            timeTaken2: dayjs(currentTime).diff(timeStarted2, 'seconds'),
+            wallet: hashedAddress,
+            time: Date.now() / 1000,
+          })
+        } catch (e) {
+          captureException(e)
+        }
+      }
 
       localStorage.removeItem('timeStarted1')
       localStorage.removeItem('timeStarted2')

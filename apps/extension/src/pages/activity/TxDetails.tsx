@@ -1,4 +1,4 @@
-import { ActivityCardContent } from '@leapwallet/cosmos-wallet-hooks'
+import { ActivityCardContent, useGetExplorerTxnUrl } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, Buttons, Card, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { parfait, ParsedMessageType, type ParsedTransaction } from '@leapwallet/parser-parfait'
@@ -9,7 +9,7 @@ import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useAddress } from 'hooks/wallet/useAddress'
 import { Images } from 'images'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -125,11 +125,7 @@ function TxDetails({ parsedTx, content, onBack }: TxDetailsProps) {
     }
   }, [parsedTx, content, setContact, txnMessage, address])
 
-  const txnUrl = useMemo(() => {
-    if (!chainInfos[activeChain].txExplorer?.[selectedNetwork]?.txUrl) return null
-    return `${chainInfos[activeChain].txExplorer?.[selectedNetwork]?.txUrl}/${parsedTx.txHash}`
-  }, [activeChain, chainInfos, selectedNetwork, parsedTx])
-
+  const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({ forceTxHash: parsedTx.txHash })
   const isSimpleTokenTransfer =
     content.txType === 'send' || content.txType === 'receive' || content.txType === 'ibc/transfer'
 

@@ -26,7 +26,7 @@ export class PasswordManager {
       if (sender.id !== browser.runtime.id) return
       if (message.type === 'popup-open') {
         if (this.password) {
-          browser.runtime.sendMessage({
+          await browser.runtime.sendMessage({
             type: 'authentication',
             data: {
               status: 'success',
@@ -34,7 +34,7 @@ export class PasswordManager {
             },
           })
         } else {
-          browser.runtime.sendMessage({
+          await browser.runtime.sendMessage({
             type: 'authentication',
             data: {
               status: 'failed',
@@ -44,29 +44,8 @@ export class PasswordManager {
       }
 
       if (message.type === 'unlock') {
-        const storage = await browser.storage.local.get([
-          ACTIVE_WALLET,
-          KEYSTORE,
-          V80_KEYSTORE_MIGRATION_COMPLETE,
-          ENCRYPTED_KEY_STORE,
-          ENCRYPTED_ACTIVE_WALLET,
-        ])
         const { password } = message.data
-        if (!storage[V80_KEYSTORE_MIGRATION_COMPLETE]) {
-          if (storage[ENCRYPTED_KEY_STORE] && storage[ENCRYPTED_ACTIVE_WALLET]) {
-            await migrateEncryptedKeyStore(storage, password)
-          } else {
-            await migrateKeyStore(storage, password)
-          }
-        }
-
         this.password = password
-        if (!storage[ACTIVE_WALLET]) {
-          await KeyChain.decrypt(password)
-        }
-        browser.runtime.sendMessage({
-          type: 'wallet-unlocked',
-        })
       }
 
       if (message.type === 'lock') {

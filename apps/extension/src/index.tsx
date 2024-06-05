@@ -2,11 +2,14 @@ import '../styles/globals.css'
 
 import {
   APP_NAME,
+  PLATFORM_TYPE,
   setAppName,
   setLeapapiBaseUrl,
   setNumiaBannerBearer,
+  setPlatformType,
   setStorageLayer,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { initCachingLayer } from '@leapwallet/elements-hooks'
 import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import { createSentryConfig } from '@leapwallet/sentry-config/dist/extension'
 import * as Sentry from '@sentry/react'
@@ -24,6 +27,7 @@ import {
   useNavigationType,
 } from 'react-router-dom'
 import { RecoilRoot } from 'recoil'
+import { AsyncIDBStorage } from 'utils/asyncIDBStorage'
 import { beforeCapture } from 'utils/sentry'
 import browser from 'webextension-polyfill'
 
@@ -37,7 +41,9 @@ axios.defaults.timeout = 5000
 
 setLeapapiBaseUrl(process.env.LEAP_WALLET_BACKEND_API_URL as string)
 setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
+setPlatformType(PLATFORM_TYPE.Extension)
 
+initCachingLayer(AsyncIDBStorage)
 // setAppName is for tx logging
 setAppName(isCompassWallet() ? APP_NAME.Compass : APP_NAME.Cosmos)
 const storageAdapter = getStorageAdapter()
@@ -76,6 +82,8 @@ if (process.env.SENTRY_DSN) {
         'AxiosError: Network Error',
         'AxiosError: Request aborted',
         'AbortError: Aborted',
+        'TypeError: Failed to fetch',
+        'TypeError: NetworkError when attempting to fetch resource.',
       ],
       release: `${browser.runtime.getManifest().version}`,
       integrations: [

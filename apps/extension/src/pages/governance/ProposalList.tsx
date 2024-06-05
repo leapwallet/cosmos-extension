@@ -1,27 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Proposal } from '@leapwallet/cosmos-wallet-hooks'
+import { Proposal, useStaking } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { SearchInput } from 'components/search-input'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useRecoilState } from 'recoil'
 import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceSearchWord } from 'utils/strings'
 
-import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
 import GovCardSkeleton from '../../components/Skeletons/GovCardSkeleton'
+import RequireMinStaking from './RequireMinStaking'
 import Status, { ProposalStatus } from './Status'
 
 export type ProposalListProps = {
@@ -56,12 +53,19 @@ function ProposalList({
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showFilter, setShowFilter] = useState(false)
   const [filter, setFilter] = useState('all')
-  const [showSelectedChainAlert, setShowSelectedChainAlert] =
-    useRecoilState(selectedChainAlertState)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const activeChain = useActiveChain()
-  const isTestnet = useSelectedNetwork() === 'testnet'
   const loading = proposalListStatus === 'loading'
+
+  const { totalDelegation } = useStaking()
+
+  const hasMinAmountStaked = useMemo(() => {
+    if (activeChain === 'cosmos') {
+      return totalDelegation?.gte(1)
+    }
+
+    return true
+  }, [activeChain, totalDelegation])
 
   const filteredProposalList: Proposal[] = useMemo(
     () =>
@@ -138,18 +142,7 @@ function ProposalList({
         }
       >
         <>
-          {showSelectedChainAlert && !isCompassWallet() && (
-            <AlertStrip
-              message={`You are on ${activeChainInfo.chainName}${
-                isTestnet && !activeChainInfo?.chainName.includes('Testnet') ? ' Testnet' : ''
-              }`}
-              bgColor={themeColor}
-              alwaysShow={isTestnet}
-              onHide={() => {
-                setShowSelectedChainAlert(false)
-              }}
-            />
-          )}
+          <SelectedChainAlertStrip />
 
           <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
             <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>
@@ -158,6 +151,8 @@ function ProposalList({
             <div className='text-sm text-gray-600 font-bold'>
               List of proposals in {activeChainInfo.chainName}
             </div>
+
+            {!hasMinAmountStaked && <RequireMinStaking />}
 
             <div className='flex items-center justify-between mt-6 mb-4'>
               <SearchInput

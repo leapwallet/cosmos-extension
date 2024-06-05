@@ -1,11 +1,12 @@
 import {
   sliceAddress,
-  Token,
   useActiveChain,
   useformatCurrency,
   useGasAdjustmentForChain,
+  useIsERC20Token,
+  useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, isEthAddress } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, getSeiEvmAddressToShow, isEthAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { EthWallet } from '@leapwallet/leap-keychain'
 import { Avatar, Buttons, Card, CardDivider } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
@@ -45,6 +46,8 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
   const defaultTokenLogo = useDefaultTokenLogo()
   const activeChain = useActiveChain()
   const getWallet = Wallet.useGetWallet()
+  const isERC20Token = useIsERC20Token()
+  const isSeiEvmChain = useIsSeiEvmChain()
 
   const {
     memo,
@@ -69,6 +72,7 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
     customIbcChannelId,
     transferData,
     isIbcUnwindingDisabled,
+    fetchAccountDetailsData,
   } = useSendContext()
 
   const { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx } = useExecuteSkipTx()
@@ -112,19 +116,36 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
 
   const handleSend = useCallback(async () => {
     clearTxError()
-    if (!fee || !selectedAddress?.address) {
+    if (!fee || !selectedAddress?.address || !selectedToken) {
       return
     }
 
     try {
-      if (isEthAddress(selectedAddress.address) && activeChain === 'seiDevnet') {
-        const wallet = await getWallet(ChainInfos.seiDevnet.key, true)
+      let toAddress = selectedAddress.address
+      const _isERC20Token = isERC20Token(selectedToken)
 
+      if (
+        isSeiEvmChain &&
+        _isERC20Token &&
+        toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
+        fetchAccountDetailsData?.pubKey.key
+      ) {
+        toAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+      }
+
+      if (isSeiEvmChain && isEthAddress(toAddress)) {
+        const wallet = await getWallet(ChainInfos[activeChain].key, true)
         await confirmSendEth(
-          selectedAddress.address,
+          toAddress,
           inputAmount,
           userPreferredGasLimit ?? gasEstimate,
           wallet as unknown as EthWallet,
+          parseInt(String(Number(userPreferredGasPrice?.amount.toString()) * 10 ** 18)),
+          {
+            isERC20Token: _isERC20Token,
+            contractAddress: selectedToken.coinMinimalDenom,
+            decimals: selectedToken.coinDecimals,
+          },
         )
       } else if (transferData?.isSkipTransfer && !isIbcUnwindingDisabled && isIBCTransfer) {
         // If skiptranfer is supported and ibc unwinding in not disabled and it is ibc transfer
@@ -134,7 +155,7 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
         confirmSkipTx()
       } else {
         await confirmSend({
-          selectedToken: selectedToken as Token,
+          selectedToken: selectedToken,
           toAddress: selectedAddress?.address || '',
           amount: new BigNumber(inputAmount),
           memo: memo,
@@ -151,9 +172,11 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
     confirmSendEth,
     confirmSkipTx,
     fee,
+    fetchAccountDetailsData?.pubKey.key,
     gasEstimate,
     getWallet,
     inputAmount,
+    isERC20Token,
     isIBCTransfer,
     isIbcUnwindingDisabled,
     memo,
@@ -161,6 +184,8 @@ export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({
     selectedToken,
     transferData?.isSkipTransfer,
     userPreferredGasLimit,
+    isSeiEvmChain,
+    userPreferredGasPrice?.amount,
   ])
 
   useCaptureTxError(txError)

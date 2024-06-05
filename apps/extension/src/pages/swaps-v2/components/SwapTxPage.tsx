@@ -6,9 +6,10 @@ import { TxPage } from './index'
 type SwapTxPageProps = {
   onClose: () => void
   setLedgerError: (ledgerError?: string) => void
+  ledgerError?: string
 }
 
-export function SwapTxPage({ onClose, setLedgerError }: SwapTxPageProps) {
+export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageProps) {
   const {
     route,
     sourceToken,
@@ -42,6 +43,7 @@ export function SwapTxPage({ onClose, setLedgerError }: SwapTxPageProps) {
       gasEstimate={gasEstimate}
       feeDenom={feeDenom}
       gasOption={gasOption}
+      ledgerError={ledgerError}
       setLedgerError={setLedgerError}
       refetchSourceBalances={refetchSourceBalances}
       callbackPostTx={callbackPostTx}

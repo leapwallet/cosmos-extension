@@ -4,7 +4,7 @@ import { NftChain } from '../../types';
 import { useGetAllNFTsList } from '../useGetAllNFTsList';
 import { NftContextType } from './types';
 
-type useLoadNftDataParams = {
+export type useLoadNftDataParams = {
   nftChain: NftChain;
   index: string;
   nftChains: NftContextType['nftChains'];

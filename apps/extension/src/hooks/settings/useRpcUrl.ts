@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useMemo } from 'react'
 

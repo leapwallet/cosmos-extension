@@ -15,8 +15,19 @@ let pageStream: any
 
 browser.runtime.onMessage.addListener((data, sender) => {
   if (sender.id !== browser.runtime.id) return
+
   if (data?.event === 'leap_keystorechange') {
     const customEvent = new CustomEvent('leap_keystorechange', { detail: {} })
+    window.dispatchEvent(customEvent)
+  }
+
+  if (data?.event === 'chainChanged') {
+    const customEvent = new CustomEvent('chainChanged', { detail: { data: data?.data } })
+    window.dispatchEvent(customEvent)
+  }
+
+  if (data?.event === 'accountsChanged') {
+    const customEvent = new CustomEvent('accountsChanged', { detail: { data: data?.data } })
     window.dispatchEvent(customEvent)
   }
 })

@@ -1,5 +1,4 @@
 import { Coin } from '@cosmjs/stargate';
-import { MsgGrant, MsgRevoke } from 'cosmjs-types/cosmos/authz/v1beta1/tx.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { MsgBeginRedelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
@@ -59,9 +58,9 @@ export function getVoteMsg(option: VoteOption, proposalId: string, fromAddress: 
   return voteMsg;
 }
 
-export function getDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin) {
+export function getDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin, typeUrl?: string) {
   const delegateMsg = {
-    typeUrl: '/cosmos.staking.v1beta1.MsgDelegate',
+    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgDelegate',
     value: {
       delegatorAddress: delegatorAddress,
       validatorAddress: validatorAddress,
@@ -71,9 +70,9 @@ export function getDelegateMsg(delegatorAddress: string, validatorAddress: strin
   return delegateMsg;
 }
 
-export function getUnDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin) {
+export function getUnDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin, typeUrl?: string) {
   const undelegateMsg = {
-    typeUrl: '/cosmos.staking.v1beta1.MsgUndelegate',
+    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgUndelegate',
     value: {
       delegatorAddress: delegatorAddress,
       validatorAddress: validatorAddress,
@@ -88,9 +87,10 @@ export function getCancelUnDelegationMsg(
   validatorAddress: string,
   amount: Coin,
   creationHeight: string,
+  typeUrl?: string,
 ) {
   const cancelUndelegationMsg = {
-    typeUrl: '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
+    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
     value: {
       amount: amount,
       creationHeight: Long.fromString(creationHeight),
@@ -124,9 +124,10 @@ export function getRedelegateMsg(
   validatorDstAddress: string,
   validatorSrcAddress: string,
   amount: Coin,
+  typeUrl?: string,
 ) {
   const msg = {
-    typeUrl: '/cosmos.staking.v1beta1.MsgBeginRedelegate',
+    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgBeginRedelegate',
     value: {
       delegatorAddress: delegatorAddress,
       validatorSrcAddress: validatorSrcAddress,
@@ -168,7 +169,7 @@ export function buildGrantMsg(type: string, granter: string, grantee: string, au
 
   return {
     typeUrl: '/cosmos.authz.v1beta1.MsgGrant',
-    value: MsgGrant.encode(MsgGrant.fromPartial(value)).finish(),
+    value: value,
   };
 }
 
@@ -181,6 +182,6 @@ export function buildRevokeMsg(type: string, granter: string, grantee: string) {
 
   return {
     typeUrl: '/cosmos.authz.v1beta1.MsgRevoke',
-    value: MsgRevoke.encode(MsgRevoke.fromPartial(value)).finish(),
+    value: value,
   };
 }

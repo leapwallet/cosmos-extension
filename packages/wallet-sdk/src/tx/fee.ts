@@ -13,14 +13,9 @@ export class GasPrice extends StargateGasPrice {
   }
 
   public static fromString(gasPrice: string): GasPrice {
-    const isIbcDenom = gasPrice.match('ibc/');
     let matchResult = null;
 
-    if (isIbcDenom) {
-      matchResult = gasPrice.match(/^([0-9.]+)(ibc\/[a-z0-9]*)$/i);
-    } else {
-      matchResult = gasPrice.match(/^([0-9.]+)([a-z][a-z0-9]*)$/i);
-    }
+    matchResult = gasPrice.match(/^([0-9.]+)([a-z][a-z0-9/\-:]*]*)$/i);
 
     if (!matchResult) {
       throw new Error('Invalid gas price string');

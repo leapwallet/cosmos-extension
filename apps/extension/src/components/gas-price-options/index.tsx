@@ -17,7 +17,7 @@ import {
   useGasAdjustmentForChain,
   useGasPriceStepForChain,
   useGetSeiEvmBalance,
-  useGetTokenBalances,
+  useGetTokenSpendableBalances,
   useLowGasPriceStep,
   useNativeFeeDenom,
   useSeiLinkedAddressState,
@@ -49,6 +49,7 @@ import { imgOnError } from 'utils/imgOnError'
 
 import { GasPriceOptionsContext, GasPriceOptionsContextType, useGasPriceContext } from './context'
 import { SelectTokenModal } from './select-token-modal'
+import { updateFeeTokenData } from './utils'
 
 type ExtendedNativeDenom = NativeDenom & { ibcDenom?: string }
 
@@ -56,14 +57,22 @@ export const useDefaultGasPrice = (options?: {
   activeChain?: SupportedChain
   selectedNetwork?: 'mainnet' | 'testnet'
   feeDenom?: ExtendedNativeDenom
+  isSeiEvmTransaction?: boolean
 }) => {
-  const lowGasPriceStep = useLowGasPriceStep(options?.activeChain)
-  const nativeFeeDenom = useNativeFeeDenom(options?.activeChain, options?.selectedNetwork)
+  const _lowGasPriceStep = useLowGasPriceStep(options?.activeChain)
+  const lowGasPriceStep = useMemo(() => {
+    if (options?.isSeiEvmTransaction) {
+      return 0.000000001
+    }
 
+    return _lowGasPriceStep
+  }, [_lowGasPriceStep, options?.isSeiEvmTransaction])
+
+  const nativeFeeDenom = useNativeFeeDenom(options?.activeChain, options?.selectedNetwork)
   const defaultPrice = useMemo(() => {
     const feeDenom = options?.feeDenom ?? (nativeFeeDenom as ExtendedNativeDenom)
-
     const amount = new BigNumber(lowGasPriceStep)
+
     return {
       gasPrice: GasPrice.fromUserInput(
         amount.toString(),
@@ -95,6 +104,8 @@ export type GasPriceOptionsProps = React.PropsWithChildren<any> & {
   validateFee?: boolean
   onInvalidFees?: (feeData: NativeDenom, isFeesValid: boolean | null) => void
   isSelectedTokenEvm?: boolean
+  isSeiEvmTransaction?: boolean
+  notUpdateInitialGasPrice?: boolean
 }
 
 const GasPriceOptions = ({
@@ -116,6 +127,8 @@ const GasPriceOptions = ({
   fee,
   onInvalidFees,
   isSelectedTokenEvm,
+  isSeiEvmTransaction,
+  notUpdateInitialGasPrice,
 }: GasPriceOptionsProps) => {
   const [viewAdditionalOptions, setViewAdditionalOptions] = useState(false)
   const _activeChain = useActiveChain()
@@ -144,10 +157,10 @@ const GasPriceOptions = ({
   const { data: feeTokensList, isLoading: isFeeTokensListLoading } = useFeeTokens(
     activeChain,
     selectedNetwork,
+    isSeiEvmTransaction,
   )
 
   const chainNativeFeeTokenData = useMemo(() => feeTokensList[0], [feeTokensList])
-
   const feeIbcDenomTrackerRef = useRef<{
     current: string | null
     previous: string | null
@@ -210,7 +223,7 @@ const GasPriceOptions = ({
     allAssets: _allTokens,
     s3IbcTokensStatus,
     nativeTokensStatus,
-  } = useGetTokenBalances(activeChain, selectedNetwork)
+  } = useGetTokenSpendableBalances(activeChain, selectedNetwork)
 
   const allTokens = useMemo(() => {
     let allTokens = _allTokens
@@ -400,8 +413,44 @@ const GasPriceOptions = ({
   }, [recommendedGasLimit])
 
   useEffect(() => {
-    setFeeTokenData(chainNativeFeeTokenData)
-  }, [chainNativeFeeTokenData])
+    if (
+      isFeeTokensListLoading ||
+      initialFeeDenom ||
+      userHasSelectedToken ||
+      allTokensStatus === 'loading'
+    ) {
+      return
+    }
+
+    const foundFeeTokenData = feeTokensList.find(
+      (feeToken) =>
+        !!allTokens?.find((token) => {
+          if (token.ibcDenom) {
+            return token.ibcDenom === feeToken?.ibcDenom
+          } else {
+            return token.coinMinimalDenom === feeToken?.denom?.coinMinimalDenom
+          }
+        }),
+    )
+
+    updateFeeTokenData({
+      foundFeeTokenData,
+      lcdUrl,
+      activeChain,
+      baseGasPriceStep,
+      chainNativeFeeTokenData,
+      setFeeTokenData,
+      onGasPriceOptionChange,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    chainNativeFeeTokenData,
+    allTokens,
+    allTokensStatus,
+    feeTokensList,
+    isFeeTokensListLoading,
+    userHasSelectedToken,
+  ])
 
   useEffect(() => {
     if (isFeeTokensListLoading || !initialFeeDenom || userHasSelectedToken) {
@@ -409,9 +458,25 @@ const GasPriceOptions = ({
     }
     const foundFeeTokenData = feeTokensList.find((token) => token.ibcDenom === initialFeeDenom)
     if (foundFeeTokenData) {
-      setFeeTokenData(foundFeeTokenData)
+      updateFeeTokenData({
+        foundFeeTokenData,
+        chainNativeFeeTokenData,
+        setFeeTokenData,
+        onGasPriceOptionChange,
+        activeChain,
+        lcdUrl,
+        baseGasPriceStep,
+        notUpdateGasPrice: notUpdateInitialGasPrice,
+      })
     }
-  }, [feeTokensList, initialFeeDenom, isFeeTokensListLoading, userHasSelectedToken])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    feeTokensList,
+    initialFeeDenom,
+    isFeeTokensListLoading,
+    userHasSelectedToken,
+    notUpdateInitialGasPrice,
+  ])
 
   if (!feeTokenData) return null
 
@@ -702,11 +767,14 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
   const defaultTokenLogo = useDefaultTokenLogo()
   const gasAdjustment = useGasAdjustmentForChain(activeChain)
   const { data: feeTokensList, isLoading } = useFeeTokens(activeChainInfo.key, selectedNetwork)
+  const [gasLimitInputValue, setGasLimitInputValue] = useState('100000')
 
-  const [gasLimitInputValue, setGasLimitInputValue] = useState(() => {
-    const limit = gasLimit.toString() || recommendedGasLimit?.toString() || '100000'
-    return Math.round(Number(limit) * (considerGasAdjustment ? gasAdjustment : 1)).toString()
-  })
+  useEffect(() => {
+    setGasLimitInputValue(() => {
+      const limit = gasLimit.toString() || recommendedGasLimit?.toString() || '100000'
+      return Math.round(Number(limit) * (considerGasAdjustment ? gasAdjustment : 1)).toString()
+    })
+  }, [considerGasAdjustment, gasAdjustment, gasLimit, recommendedGasLimit])
 
   const eligibleFeeTokens = useMemo(() => {
     return allTokens.filter((token) => {
