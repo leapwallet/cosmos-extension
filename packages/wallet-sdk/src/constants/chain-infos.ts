@@ -224,7 +224,6 @@ export type Denom =
   | 'TESTCORE'
   | 'QCK'
   | 'KYVE'
-  | 'NOM'
   | 'USD'
   | 'IXO'
   | 'PLQ'
