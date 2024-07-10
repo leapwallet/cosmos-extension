@@ -27,9 +27,12 @@ import { QueryStatus, useQuery as reactUseQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import { calculateFeeAmount, useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useQuery from 'hooks/useQuery'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
+import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import {
@@ -120,7 +123,10 @@ const SEI_ASTROPORT_SWAP_VENUE: SwapVenue = { chain_id: 'pacific-1', name: 'sei-
 export const SWAP_NETWORK = 'mainnet'
 
 export function useSwapsTx(): SwapsTxType {
-  const activeChainInfo = useChainInfo()
+  const activeChain = useActiveChain()
+  const activeChainInfo = useChainInfo(
+    (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY ? 'cosmos' : activeChain,
+  )
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
   const isSwitchedRef = useRef(false)
@@ -172,7 +178,7 @@ export function useSwapsTx(): SwapsTxType {
   )
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined)
   const defaultGasPrice = useDefaultGasPrice({
-    activeChain: sourceChain?.key,
+    activeChain: sourceChain?.key ?? 'cosmos',
   })
 
   const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
@@ -180,7 +186,7 @@ export function useSwapsTx(): SwapsTxType {
     gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
   })
 
-  const nativeFeeDenom = useNativeFeeDenom(sourceChain?.key, SWAP_NETWORK)
+  const nativeFeeDenom = useNativeFeeDenom(sourceChain?.key ?? 'cosmos', SWAP_NETWORK)
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom)
   const gasAdjustment = useGasAdjustmentForChain(sourceChain?.key ?? '')
 

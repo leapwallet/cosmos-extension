@@ -1,16 +1,29 @@
-import { axiosWrapper, CosmosSDK } from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper, CosmosSDK, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { useActiveChain, useChainApis, useGetChains, useSelectedNetwork } from '../store';
 import { useGetExplorerAccountUrl } from '../utils-hooks';
 import { govQueryIds } from './queryIds';
 
-export function useGetProposal(id: number, enabled: boolean) {
-  const activeChain = useActiveChain();
-  const selectedNetwork = useSelectedNetwork();
-  const { lcdUrl } = useChainApis();
+export function useGetProposal(
+  id: number,
+  enabled: boolean,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+) {
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain]);
+
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [_selectedNetwork, forceNetwork]);
+
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const chains = useGetChains();
-  const { getExplorerAccountUrl } = useGetExplorerAccountUrl({});
+  const { getExplorerAccountUrl } = useGetExplorerAccountUrl({
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  });
 
   return useQuery(
     [govQueryIds.proposals, activeChain, selectedNetwork, id, chains],

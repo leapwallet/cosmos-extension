@@ -80,7 +80,7 @@ module.exports = {
         300: '#FFC770',
         500: '#FF9F0A',
         600: '#D17F00',
-      },
+      }
     },
     extend: {
       animation: {

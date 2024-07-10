@@ -47,7 +47,7 @@ export function TxReviewSheet({
     return {
       fromToken: sourceToken?.symbol,
       fromTokenAmount: inAmountDollarValue,
-      fromChain: sourceChain?.chainName,
+      fromChain: sourceChain?.chainName ?? '',
       toToken: destinationToken?.symbol,
       toChain: destinationChain?.chainName,
       hops: (route?.response?.operations?.length ?? 0) - 1,
@@ -75,18 +75,9 @@ export function TxReviewSheet({
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      hideActionButton={true}
-      showSecondaryActionButton={true}
-      containerClassName='!bg-white-100 dark:!bg-gray-950'
-      headerClassName='!bg-white-100 dark:!bg-gray-950'
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
       title='Review Transaction'
-      secondaryActionButton={
-        <div className='absolute top-1 right-6'>
-          <Buttons.Cancel onClick={onClose} />
-        </div>
-      }
     >
       <div className='flex flex-col items-center w-full gap-6'>
         <div className='flex flex-col items-center w-full gap-4'>
@@ -104,7 +95,11 @@ export function TxReviewSheet({
               onClick={handleAccordionClick}
               className='w-full flex-row flex justify-between items-center gap-2'
             >
-              <ConversionRateDisplay onClick={() => {}} />
+              <ConversionRateDisplay
+                onClick={() => {
+                  //
+                }}
+              />
               <div className='flex items-center justify-end gap-1'>
                 <span className='!leading-5 [transform:rotateY(180deg)] rotate-180 !text-md material-icons-round dark:text-white-100'>
                   local_gas_station

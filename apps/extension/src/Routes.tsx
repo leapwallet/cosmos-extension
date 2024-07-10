@@ -46,12 +46,13 @@ const OnboardingImportWallet = React.lazy(() => import('pages/onboarding/import'
 const OnboardingSuccess = React.lazy(() => import('pages/onboarding/success'))
 const AddSecretToken = React.lazy(() => import('pages/suggest/SuggestSecret'))
 const Send = React.lazy(() => import('pages/send-v2'))
+const Buy = React.lazy(() => import('pages/buy'))
 const Sign = React.lazy(() => import('pages/sign/sign-transaction'))
 const SignSeiEvm = React.lazy(() => import('pages/sign-sei-evm/SignSeiEvmTransaction'))
 const Stake = React.lazy(() => import('pages/stake'))
-const CancelUndelegationPage = React.lazy(() => import('pages/stake/cancelUndelegation'))
-const ChooseValidator = React.lazy(() => import('pages/stake/chooseValidator'))
-const ValidatorDetails = React.lazy(() => import('pages/stake/validatorDetails'))
+const CancelUndelegation = React.lazy(() => import('pages/stake/CancelUndelegation'))
+const ChooseValidator = React.lazy(() => import('pages/stake/ChooseValidator'))
+const ValidatorDetails = React.lazy(() => import('pages/stake/ValidatorDetails'))
 
 const AddChain = React.lazy(() => import('pages/suggestChain/addChain'))
 const SuggestChain = React.lazy(() => import('pages/suggestChain/suggestChain'))
@@ -157,7 +158,7 @@ export default function AppRoutes(): JSX.Element {
               path='stakeCancelUndelegation'
               element={
                 <RequireAuth>
-                  <CancelUndelegationPage />
+                  <CancelUndelegation />
                 </RequireAuth>
               }
             />
@@ -190,6 +191,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <Send />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='buy'
+              element={
+                <RequireAuth>
+                  <Buy />
                 </RequireAuth>
               }
             />
@@ -363,6 +372,7 @@ export default function AppRoutes(): JSX.Element {
             />
           </RoutesMatch>
         </HashRouter>
+
         <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />
       </AuthProvider>
     </Suspense>

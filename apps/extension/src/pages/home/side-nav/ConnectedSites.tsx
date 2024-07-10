@@ -11,7 +11,6 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import Browser, { Storage } from 'webextension-polyfill'
 
@@ -167,11 +166,7 @@ const ConnectedSites = ({ setPage }: Props) => {
 
   return (
     <div className='h-[600px]'>
-      <Header
-        topColor={Colors.getChainColor(activeChain)}
-        title='Connected Sites'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
+      <Header title='Connected Sites' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
       <div className='h-[528px] overflow-y-auto'>
         <div className='flex flex-col items-center mx-7 mt-7 px-4 py-6 dark:bg-gray-900 bg-white-100 rounded-2xl'>
           <div className='w-full flex flex-col justify-center align-middle'>

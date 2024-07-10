@@ -6,12 +6,13 @@ import {
   LedgerError,
   NativeDenom,
   simulateVote,
+  SupportedChain,
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/default-gasprice-step';
 import { BigNumber } from 'bignumber.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
 import { useGetTokenBalances } from '../bank';
@@ -23,7 +24,6 @@ import {
   useActiveWalletStore,
   useAddress,
   useChainApis,
-  useChainId,
   useDefaultGasEstimates,
   useGetChains,
   usePendingTxState,
@@ -33,6 +33,7 @@ import { useTxHandler } from '../tx';
 import { TxCallback, VoteOptions, WALLETTYPE } from '../types';
 import { fetchCurrency, formatTokenAmount, getMetaDataForGovVoteTx, useGetGasPrice, useNativeFeeDenom } from '../utils';
 import { getNativeDenom } from '../utils/getNativeDenom';
+import { useChainId } from '../utils-hooks';
 
 export const getVoteNum = (voteOptions: VoteOptions): VoteOption => {
   switch (voteOptions) {
@@ -49,49 +50,64 @@ export const getVoteNum = (voteOptions: VoteOptions): VoteOption => {
   }
 };
 
-export function useSimulateVote() {
-  const { lcdUrl } = useChainApis();
-  const address = useAddress();
+export function useSimulateVote(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const { lcdUrl } = useChainApis(forceChain, forceNetwork);
+  const address = useAddress(forceChain);
 
   return useCallback(
     ({ proposalId, voteOption, fee }: { proposalId: string; voteOption: VoteOptions; fee: Coin[] }) => {
       if (proposalId) {
         return simulateVote(lcdUrl ?? '', address, proposalId, getVoteNum(voteOption), fee);
       }
+
       return Promise.resolve(null);
     },
     [lcdUrl, address],
   );
 }
 
-export function useGov({ proposalId }: { proposalId: string }) {
-  const chainInfos = useGetChains();
+export type UseGovParams = {
+  proposalId: string;
+  forceChain?: SupportedChain;
+  forceNetwork?: 'mainnet' | 'testnet';
+};
+
+export function useGov({ proposalId, forceChain, forceNetwork }: UseGovParams) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [ledgerError, setLedgerErrorMsg] = useState<string>();
   const [fees, setFees] = useState<StdFee>();
+
   const [memo, setMemo] = useState<string>('');
   const [feeUsdValue, setFeeUsdValue] = useState<string>();
   const [feeText, setFeeText] = useState<string>('');
+  const [showLedgerPopup, setShowLedgerPopup] = useState(false);
 
-  const activeChain = useActiveChain();
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain]);
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [_selectedNetwork, forceNetwork]);
+
+  const chainInfos = useGetChains();
   const { activeWallet } = useActiveWalletStore();
-  const selectedNetwork = useSelectedNetwork();
-  const { allAssets } = useGetTokenBalances();
-  const getTxHandler = useTxHandler();
-  const address = useAddress();
+  const { allAssets } = useGetTokenBalances(activeChain, selectedNetwork);
+  const getTxHandler = useTxHandler({
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  });
+
+  const address = useAddress(activeChain);
   const { setPendingTx } = usePendingTxState();
-  const nativeFeeDenom = useNativeFeeDenom();
-  const chainId = useChainId();
+  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
+  const activeChainId = useChainId(activeChain, selectedNetwork);
 
   const defaultGasEstimates = useDefaultGasEstimates();
   const [preferredCurrency] = useUserPreferredCurrency();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-  const [showLedgerPopup, setShowLedgerPopup] = useState(false);
   const [currencyFormatter] = useformatCurrency();
-  const { lcdUrl } = useChainApis();
-  const getGasPrice = useGetGasPrice(activeChain);
-  const gasAdjustment = useGasAdjustmentForChain();
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
+  const getGasPrice = useGetGasPrice(activeChain, selectedNetwork);
+  const gasAdjustment = useGasAdjustmentForChain(activeChain);
 
   const clearError = useCallback(() => {
     setError(undefined);
@@ -122,24 +138,26 @@ export function useGov({ proposalId }: { proposalId: string }) {
       const voteOption = getVoteNum(_voteOption);
       setFeeText('');
       if (voteOption === undefined) return;
+
       if (proposalId && activeChain && allAssets) {
         setLoading(true);
         setError(undefined);
         setLedgerError(undefined);
+
         try {
           const _tx = !isSimulation ? await getTxHandler(wallet) : undefined;
-
           const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
+
           const nativeDenom = allAssets.find((asset) => {
             if (asset.ibcDenom) {
               return asset.ibcDenom === denom.coinMinimalDenom;
             }
             return asset.coinMinimalDenom === denom.coinMinimalDenom;
           });
-          const amount = toSmall(nativeDenom?.amount ?? '0', nativeDenom?.coinDecimals);
 
           let fee: StdFee;
           let feeDenom: NativeDenom;
+          const amount = toSmall(nativeDenom?.amount ?? '0', nativeDenom?.coinDecimals);
 
           if (customFee !== undefined) {
             fee = customFee.stdFee;
@@ -148,6 +166,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
             const gasPrice = await getGasPrice();
             let gasEstimate =
               defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? defaultGasEstimates.cosmos.DEFAULT_GAS_TRANSFER;
+
             try {
               const fee = getSimulationFee(gasPrice.denom);
               const { gasUsed } = await simulateVote(lcdUrl ?? '', address, proposalId, voteOption, fee);
@@ -157,7 +176,6 @@ export function useGov({ proposalId }: { proposalId: string }) {
             }
 
             fee = calculateFee(Math.round((gasEstimate ?? 250000) * gasAdjustment), gasPrice);
-
             if (activeChain === 'injective') {
               fee = INJECTIVE_DEFAULT_STD_FEE;
             }
@@ -185,15 +203,16 @@ export function useGov({ proposalId }: { proposalId: string }) {
                 feeDenom.coinGeckoId,
                 activeChain,
                 currencyDetail[preferredCurrency].currencyPointer,
-                `${chainId}-${feeDenom.coinMinimalDenom}`,
+                `${activeChainId}-${feeDenom.coinMinimalDenom}`,
               );
-              setFeeUsdValue(feesFiatVal ?? '0');
+
               const feeTokenAmount = formatTokenAmount(
                 new BigNumber(fromSmall(fee.amount[0].amount, feeDenom.coinDecimals)).toString(),
                 feeDenom.coinDenom,
               );
               const feeValueUsd = currencyFormatter(new BigNumber(feesFiatVal ?? '0'));
 
+              setFeeUsdValue(feesFiatVal ?? '0');
               setFeeText(`Transaction Fee: ${feeTokenAmount} (${feeValueUsd})`);
             } catch (e) {
               setFeeText(
@@ -202,6 +221,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
                   feeDenom.coinDenom,
                 )}`,
               );
+
               setFeeUsdValue(undefined);
             }
             return;
@@ -213,7 +233,6 @@ export function useGov({ proposalId }: { proposalId: string }) {
 
           if (_tx) {
             const txHash = await _tx.vote(address, proposalId, voteOption, fee, memo);
-
             if (!txHash) {
               throw new Error('Transaction failed');
             }
@@ -227,7 +246,12 @@ export function useGov({ proposalId }: { proposalId: string }) {
               metadata,
               feeDenomination: fee.amount[0].denom,
               feeQuantity: fee.amount[0].amount,
+              forceChain: activeChain,
+              forceNetwork: selectedNetwork,
+              forceWalletAddress: address,
+              chainId: activeChainId,
             });
+
             setPendingTx({
               img: chainInfos[activeChain].chainSymbolImageUrl,
               subtitle1: `Proposal ${proposalId}`,
@@ -236,7 +260,10 @@ export function useGov({ proposalId }: { proposalId: string }) {
               txType: 'vote',
               promise,
               txHash,
+              sourceChain: activeChain,
+              sourceNetwork: selectedNetwork,
             });
+
             callback('success');
             setError(undefined);
             return true;
@@ -248,6 +275,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
             setLoading(false);
             setError(e.message.toString());
           }
+
           return false;
         } finally {
           setLoading(false);
@@ -258,6 +286,7 @@ export function useGov({ proposalId }: { proposalId: string }) {
     [
       activeWallet,
       activeChain,
+      activeChainId,
       selectedNetwork,
       allAssets,
       getVoteNum,

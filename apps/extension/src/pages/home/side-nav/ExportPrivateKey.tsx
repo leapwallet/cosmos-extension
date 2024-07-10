@@ -52,11 +52,7 @@ function PrivateKeyView({ password, goBack }: PrivateKeyViewProps): ReactElement
 
   return (
     <div className='h-[600px] '>
-      <Header
-        topColor={Colors.getChainColor(activeChain)}
-        title='Private Key'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
+      <Header title='Private Key' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
       <div className='flex flex-col items-center p-7 pt-[10px]'>
         <div className='p-4 rounded-2xl dark:bg-gray-900 bg-white-100'>
           <img src={Images.Misc.KeyVpn} />

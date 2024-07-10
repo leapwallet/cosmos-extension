@@ -8,9 +8,11 @@ import {
   useTheme,
 } from '@leapwallet/leap-ui'
 import classnames from 'classnames'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import { AlertStrip } from 'components/alert-strip'
 import Text from 'components/text'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useAuth } from 'context/auth-context'
+import { useChainPageInfo } from 'hooks'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
 import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
@@ -18,6 +20,7 @@ import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { Images } from 'images'
 import React, { ReactElement, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { AggregatedSupportedChain } from 'types/utility'
 import { DEBUG } from 'utils/debug'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize } from 'utils/strings'
@@ -100,12 +103,13 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
   const [showThemeDropUp, setShowThemeDropUp] = useState(false)
   const [showNavPage, setShowNavPage] = useState<NavPages | undefined>()
   const { activeWallet } = useActiveWallet()
-  const activeChain = useActiveChain()
+  const activeChain = useActiveChain() as AggregatedSupportedChain
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   const auth = useAuth()
   const isDark = theme === ThemeName.DARK
   const isInExpandView = browser.extension.getViews({ type: 'tab' }).length > 0
+  const { topChainColor } = useChainPageInfo()
 
   const Preferences = [
     {
@@ -131,7 +135,10 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
         containerRef.current?.scrollTo(0, 0)
         setShowNetworkDropUp(true)
       },
-      enabled: !(isCompassWallet() && activeChain === 'seiDevnet'),
+      enabled: !(
+        (isCompassWallet() && activeChain === 'seiDevnet') ||
+        activeChain === AGGREGATED_CHAIN_KEY
+      ),
     },
     // {
     //   title: 'Finder',
@@ -190,7 +197,8 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
       title: 'Export Private Key',
       titleIcon: isDark ? Images.Nav.SecretKeyDark : Images.Nav.SecretKeyLight,
       onClick: () => setShowNavPage(NavPages.ExportPrivateKey),
-      enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
+      enabled:
+        activeWallet?.walletType !== WALLETTYPE.LEDGER && activeChain !== AGGREGATED_CHAIN_KEY,
     },
 
     // {
@@ -331,12 +339,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
       {showNavPage === undefined && !showGSDropUp && (
         <div className='flex flex-col h-full'>
           <div className='fixed dark:bg-black-100 bg-gray-50'>
-            <div
-              className='w-full h-1'
-              style={{
-                backgroundColor: Colors.getChainColor(activeChain),
-              }}
-            />
+            <div className='w-full h-1' style={{ backgroundColor: topChainColor }} />
             <SideNavHeader
               brandName={isCompassWallet() ? 'COMPASS' : ''}
               brandImage={
@@ -434,16 +437,13 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
           </div>
         </div>
       )}
-      {showNetworkDropUp && (
-        <NetworkDropUp
-          isVisible={showNetworkDropUp}
-          onCloseHandler={() => setShowNetworkDropUp(false)}
-        />
-      )}
+      <NetworkDropUp
+        isVisible={showNetworkDropUp}
+        onCloseHandler={() => setShowNetworkDropUp(false)}
+      />
       {/* {showFinderDropUp && <FinderDropUp onCloseHandler={() => setShowFinderDropUp(false)} />} */}
-      {showThemeDropUp && (
-        <ThemeDropUp isVisible={showThemeDropUp} onCloseHandler={() => setShowThemeDropUp(false)} />
-      )}
+
+      <ThemeDropUp isVisible={showThemeDropUp} onCloseHandler={() => setShowThemeDropUp(false)} />
     </div>
   )
 }

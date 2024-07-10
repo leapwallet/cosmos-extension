@@ -2,17 +2,18 @@ import { addressPrefixes, getBlockChainFromAddress, SupportedChain } from '@leap
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 
 import { LeapWalletApi } from '../apis';
-import { useTxMetadataStore } from '../store';
+import { getTxLogCosmosBlockchainMapStoreSnapshot, useTxMetadataStore } from '../store';
 
 /************* Send *************/
 
-export function getMetaDataForIbcTx(
+export async function getMetaDataForIbcTx(
   sourceChannel: string | undefined,
   toAddress: string,
   token: { amount: string; denom: string },
   provider?: string,
   hops?: number,
 ) {
+  const txLogMap = await getTxLogCosmosBlockchainMapStoreSnapshot();
   const prefix = getBlockChainFromAddress(toAddress);
   const _chain = addressPrefixes[prefix ?? ''];
   const chain = _chain === 'cosmoshub' ? 'cosmos' : _chain;
@@ -20,7 +21,7 @@ export function getMetaDataForIbcTx(
 
   const metadata = {
     ...globalTxMeta,
-    toChain: LeapWalletApi.getCosmosNetwork(chain as SupportedChain),
+    toChain: LeapWalletApi.getCosmosNetwork(chain as SupportedChain, txLogMap),
     toAddress: toAddress,
     token,
   };
@@ -129,6 +130,23 @@ export function getMetaDataForLsUnstakeTx(
     amount,
     conversionRate,
     receiverAddress,
+  };
+}
+
+/************* Swap *************/
+
+export function getMetaDataForSwapTx(
+  provider: string,
+  fromToken: { amount: number; denom: string },
+  toToken: { amount: number; denom: string },
+) {
+  const globalTxMeta = useTxMetadataStore.getState().txMetadata;
+
+  return {
+    ...globalTxMeta,
+    provider,
+    fromToken,
+    toToken,
   };
 }
 

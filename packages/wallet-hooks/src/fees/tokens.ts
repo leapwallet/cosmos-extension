@@ -1,13 +1,34 @@
-import { axiosWrapper, DenomsRecord, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  axiosWrapper,
+  DenomsRecord,
+  DenomWithGasPriceStep,
+  NativeDenom,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useGetTokenSpendableBalances } from '../bank';
-import { useChainApis, useCompassSeiEvmConfigStore, useDenoms } from '../store';
+import {
+  fetchIbcTrace,
+  IbcDenomData,
+  useChainApis,
+  useChainsStore,
+  useCompassSeiEvmConfigStore,
+  useDappDefaultFee,
+  useDenoms,
+  useIbcTraceStore,
+} from '../store';
 import { Token } from '../types';
-import { GasPriceStep, getKeyToUseForDenoms, useGasPriceStepForChain, useNativeFeeDenom } from '../utils';
+import {
+  GasPriceStep,
+  getKeyToUseForDenoms,
+  useAdditionalFeeDenoms,
+  useGasPriceStepForChain,
+  useNativeFeeDenom,
+} from '../utils';
 
 export type FeeTokenData = {
   denom: NativeDenom;
@@ -146,38 +167,88 @@ export const getChainFeeTokens = async ({
   }
 };
 
-export const getFeeTokens = ({
+export const getFeeTokens = async ({
   chain,
   nativeDenom,
   baseGasPriceStep,
+  additionalFeeDenoms,
   denoms,
   restUrl,
   allAssets,
+  dappSuggestedToken,
 }: {
   chain: SupportedChain;
   nativeDenom: NativeDenom;
   baseGasPriceStep: GasPriceStep;
+  additionalFeeDenoms: DenomWithGasPriceStep[];
   denoms: DenomsRecord;
   restUrl: string;
   allAssets: Token[];
+  dappSuggestedToken: { denom: NativeDenom; ibcDenom?: string } | undefined;
 }): Promise<FeeTokenData[]> => {
+  let feeTokens: FeeTokenData[];
+
   switch (chain) {
     case 'osmosis':
-      return getOsmosisFeeTokens({
+      feeTokens = await getOsmosisFeeTokens({
         baseGasPriceStep,
         denoms,
         restUrl,
         allAssets,
         nativeDenom,
       });
+      break;
     default:
-      return getChainFeeTokens({
+      feeTokens = await getChainFeeTokens({
         denoms,
         baseGasPriceStep,
         chain,
         nativeDenom,
       });
   }
+
+  // Append fee denoms which are present in chain-infos but not in the fee-tokens
+  additionalFeeDenoms.forEach((denom) => {
+    if (
+      feeTokens.find((a) =>
+        a.ibcDenom ? a.ibcDenom === denom.coinMinimalDenom : a.denom.coinMinimalDenom === denom.coinMinimalDenom,
+      )
+    ) {
+      return;
+    }
+
+    const ibcDenom = denom?.coinMinimalDenom.toLowerCase().startsWith('ibc/') ? denom.coinMinimalDenom : undefined;
+    let gasPriceStep = baseGasPriceStep;
+    if (denom.gasPriceStep) {
+      gasPriceStep = {
+        low: denom.gasPriceStep.low,
+        medium: denom.gasPriceStep.average,
+        high: denom.gasPriceStep.high,
+      };
+    }
+    feeTokens.push({
+      denom: denoms[denom?.coinMinimalDenom] ?? denom,
+      ibcDenom,
+      gasPriceStep,
+    });
+  });
+
+  if (dappSuggestedToken) {
+    const dappSuggestedTokenAlreadyExists = feeTokens?.find((a) => {
+      if (a.ibcDenom || dappSuggestedToken.ibcDenom) {
+        return a.ibcDenom === dappSuggestedToken.ibcDenom;
+      }
+      return a.denom.coinMinimalDenom === dappSuggestedToken.denom.coinMinimalDenom;
+    });
+    if (!dappSuggestedTokenAlreadyExists) {
+      feeTokens.push({
+        ...dappSuggestedToken,
+        gasPriceStep: baseGasPriceStep,
+      });
+    }
+  }
+
+  return feeTokens;
 };
 
 export const useFeeTokens = (
@@ -189,9 +260,80 @@ export const useFeeTokens = (
   const denoms = useDenoms();
   const { lcdUrl } = useChainApis(chain, forceNetwork);
   const { compassSeiEvmConfig } = useCompassSeiEvmConfigStore();
+  const { defaultFee } = useDappDefaultFee();
+  const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
+  const { chains } = useChainsStore();
+  const [dappSuggestedToken, setDappSuggestedToken] = useState<{ denom: NativeDenom; ibcDenom?: string } | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    async function updateDappSuggestedFeeToken(denom?: string | undefined) {
+      if (!denom) {
+        return;
+      }
+
+      if (!denom.startsWith('ibc/')) {
+        if (denoms?.[denom]) {
+          setDappSuggestedToken({ denom: denoms?.[denom], ibcDenom: undefined });
+        } else {
+          setDappSuggestedToken({
+            denom: {
+              coinMinimalDenom: denom,
+              coinDecimals: 0,
+              coinDenom: denom,
+              coinGeckoId: '',
+              icon: '',
+              name: denom,
+              chain: chain,
+            },
+            ibcDenom: undefined,
+          });
+        }
+        return;
+      }
+
+      try {
+        let trace = ibcTraceData[denom];
+        const ibcTraceDataToAdd: Record<string, IbcDenomData> = {};
+        if (!trace) {
+          trace = await fetchIbcTrace(denom, lcdUrl ?? '', chains[chain].chainId);
+          if (trace) {
+            ibcTraceDataToAdd[denom] = trace;
+          }
+        }
+        const baseDenom = trace.baseDenom;
+
+        const _baseDenom = getKeyToUseForDenoms(baseDenom, trace?.originChainId);
+        const denomInfo = denoms[_baseDenom];
+        Object.keys(ibcTraceDataToAdd).length && addIbcTraceData(ibcTraceDataToAdd);
+        if (denomInfo) {
+          setDappSuggestedToken({ denom: denomInfo, ibcDenom: denom });
+        } else {
+          throw new Error('Denom trace not found');
+        }
+      } catch (e) {
+        setDappSuggestedToken({
+          denom: {
+            coinMinimalDenom: denom,
+            coinDecimals: 0,
+            coinDenom: denom,
+            coinGeckoId: '',
+            icon: '',
+            name: denom,
+            chain: chain,
+          },
+          ibcDenom: denom,
+        });
+      }
+      return;
+    }
+    updateDappSuggestedFeeToken(defaultFee?.amount?.[0]?.denom);
+  }, [chains, chain, denoms, ibcTraceData, lcdUrl, defaultFee]);
 
   // hardcoded
   const baseDenom = useNativeFeeDenom(chain, forceNetwork);
+  const additionalFeeDenoms = useAdditionalFeeDenoms(chain);
   const _gasPriceStep = useGasPriceStepForChain(chain, forceNetwork);
   const gasPriceStep = useMemo(() => {
     if (isSeiEvmTransaction) {
@@ -203,15 +345,27 @@ export const useFeeTokens = (
 
   const { allAssets } = useGetTokenSpendableBalances(chain, forceNetwork);
   return useQuery<FeeTokenData[]>({
-    queryKey: ['fee-tokens', chain, gasPriceStep, baseDenom, allAssets],
+    queryKey: [
+      'fee-tokens',
+      chain,
+      gasPriceStep,
+      baseDenom,
+      allAssets,
+      lcdUrl,
+      denoms,
+      additionalFeeDenoms,
+      dappSuggestedToken,
+    ],
     queryFn: () =>
       getFeeTokens({
         chain,
         nativeDenom: baseDenom,
         baseGasPriceStep: gasPriceStep,
+        additionalFeeDenoms,
         denoms,
         restUrl: lcdUrl ?? '',
         allAssets,
+        dappSuggestedToken,
       }),
     initialData: [
       {

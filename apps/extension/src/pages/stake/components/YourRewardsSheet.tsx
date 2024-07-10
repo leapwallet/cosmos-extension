@@ -2,9 +2,10 @@ import {
   formatTokenAmount,
   sliceWord,
   useActiveStakingDenom,
+  useSelectedNetwork,
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Amount, Reward, Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { Amount, Reward, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -12,32 +13,48 @@ import BottomModal from 'components/bottom-modal'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
+import { SelectedNetwork } from 'hooks/settings/useNetwork'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React, { useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
-import { StakeRewardCard } from '../Stake'
-import { ReviewClaimRewardsTx } from './index'
+import { ReviewClaimRewardsTx, StakeRewardCard } from './index'
 
 export type YourRewardsSheetProps = {
   isOpen: boolean
   onClose: VoidFunction
   validator?: Validator
   reward?: Reward
+  forceChain?: SupportedChain
+  forceNetwork?: SelectedNetwork
 }
 
-export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRewardsSheetProps) {
-  const [formatCurrency] = useFormatCurrency()
-  const activeChain = useActiveChain()
+export function YourRewardsSheet({
+  isOpen,
+  onClose,
+  validator,
+  reward,
+  forceChain,
+  forceNetwork,
+}: YourRewardsSheetProps) {
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain])
 
-  const [activeStakingDenom] = useActiveStakingDenom()
-  const activeDenom = activeStakingDenom.coinDenom
+  const _activeNetwork = useSelectedNetwork()
+  const activeNetwork = useMemo(
+    () => forceNetwork || _activeNetwork,
+    [forceNetwork, _activeNetwork],
+  )
+
+  const [formatCurrency] = useFormatCurrency()
+  const [activeStakingDenom] = useActiveStakingDenom(activeChain, activeNetwork)
+  const activeDenom = useMemo(() => activeStakingDenom.coinDenom, [activeStakingDenom.coinDenom])
 
   const { formatHideBalance } = useHideAssets()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const { rewards } = useStaking(activeChain, activeNetwork)
   const [showReviewTxSheet, setShowReviewTxSheet] = useState(false)
-  const { rewards } = useStaking()
 
   const rewardTokens = useMemo(() => {
     if (reward?.reward) {
@@ -136,10 +153,11 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
           isOpen={isOpen}
           closeOnBackdropClick={true}
           onClose={onClose}
+          contentClassName='[&>div:first-child>div:last-child]:-mt-[2px]'
         >
           <div className='flex flex-col items-center h-full'>
             <div
-              className='bg-white-100 dark:bg-gray-900 rounded-2xl max-h-[240px] w-fit mb-4'
+              className='bg-white-100 dark:bg-gray-950 rounded-2xl max-h-[240px] w-fit mb-4'
               style={{ overflowY: 'scroll' }}
             >
               {tokensToShow &&
@@ -156,7 +174,7 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
                       <div className='py-2'>
                         <GenericCard
                           title={
-                            <h3 className='text-md text-gray-600 dark:text-gray-200 font-medium'>
+                            <h3 className='text-md text-gray-600 dark:text-white-100 font-medium'>
                               {formatHideBalance(formatTokenAmount(amount, title, 3))}
                             </h3>
                           }
@@ -177,9 +195,15 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
                             />
                           }
                           isRounded={isLast}
+                          className='dark:!bg-gray-950'
                         />
                       </div>
-                      {!isLast && <CardDivider />}
+
+                      {!isLast && (
+                        <div className='[&>div]:dark:!bg-gray-950'>
+                          <CardDivider />
+                        </div>
+                      )}
                     </React.Fragment>
                   )
                 })}
@@ -190,6 +214,7 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
                 isLoading={false}
                 rewardsAmount={rewardsAmount ?? ''}
                 rewardsTokens={cardRewardsTokens ?? ''}
+                forceChain={activeChain}
               />
             )}
 
@@ -213,6 +238,8 @@ export function YourRewardsSheet({ isOpen, onClose, validator, reward }: YourRew
           onClose={() => setShowReviewTxSheet(false)}
           validator={validator}
           reward={reward}
+          forceChain={activeChain}
+          forceNetwork={activeNetwork}
         />
       )}
     </>

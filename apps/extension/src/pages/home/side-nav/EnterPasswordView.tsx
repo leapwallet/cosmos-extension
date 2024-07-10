@@ -1,11 +1,11 @@
-import { useActiveChain, useActiveWallet } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveWallet } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType, Input } from '@leapwallet/leap-ui'
 import Resize from 'components/resize'
 import Text from 'components/text'
+import { useChainPageInfo } from 'hooks'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import React, { Dispatch, ReactElement, SetStateAction } from 'react'
 import { useForm } from 'react-hook-form'
-import { Colors } from 'theme/colors'
 
 type FormData = {
   readonly password: string
@@ -26,7 +26,7 @@ export function EnterPasswordView({
 }: EnterPasswordViewProps): ReactElement {
   const testPassword = SeedPhrase.useTestPassword()
   const activeWallet = useActiveWallet()
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
 
   const {
     register,
@@ -55,11 +55,7 @@ export function EnterPasswordView({
 
   return (
     <div className='h-[600px]'>
-      <Header
-        topColor={Colors.getChainColor(activeChain)}
-        title='Enter Password'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
+      <Header title='Enter Password' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
       <div className='relative flex flex-col items-center h-[528px] px-7'>
         <div className='dark:bg-gray-900 bg-white-100 rounded-2xl mt-7'>
           <div
@@ -99,11 +95,7 @@ export function EnterPasswordView({
             {!!errors.password && errors.password.message}
           </Text>
           <Resize className='mt-auto mb-7'>
-            <Buttons.Generic
-              type='submit'
-              color={Colors.getChainColor(activeChain)}
-              data-testing-id='submit'
-            >
+            <Buttons.Generic type='submit' color={topChainColor} data-testing-id='submit'>
               Proceed
             </Buttons.Generic>
           </Resize>

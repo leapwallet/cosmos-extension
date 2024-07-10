@@ -12,6 +12,10 @@ export type FeatureFlags = {
   all_chains: {
     swap: FeatureFlagState;
   };
+  give_all_chains_option_in_wallet: {
+    mobile: FeatureFlagState;
+    extension: FeatureFlagState;
+  };
   gov: {
     mobile: FeatureFlagState;
     extension: FeatureFlagState;
@@ -37,10 +41,12 @@ export type FeatureFlags = {
   };
 };
 
+export const FEATURE_FLAG_STORAGE_KEY = 'feature-flag-v1';
+
 export function getFeatureFlags(storage: storage, isCompassWallet: boolean): Promise<FeatureFlags> {
   return cachedRemoteDataWithLastModified({
     remoteUrl: isCompassWallet ? COMPASS_FEATURE_FLAG_URL : LEAP_FEATURE_FLAG_URL,
-    storageKey: 'feature-flag-v1',
+    storageKey: FEATURE_FLAG_STORAGE_KEY,
     storage,
   });
 }

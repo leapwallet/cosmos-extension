@@ -1,12 +1,5 @@
-import {
-  Avatar,
-  Card,
-  CardDivider,
-  HeaderActionType,
-  ThemeName,
-  useTheme,
-} from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { Avatar, Card, CardDivider, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import React from 'react'
@@ -47,30 +40,23 @@ export default function ThemeDropUp({
   ]
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
-      onClose={onCloseHandler}
-      headerTitle='Select Theme'
-      headerActionType={HeaderActionType.CANCEL}
-    >
-      <div className='flex flex-col items-center px-7 pt-7 pb-10'>
-        <div className='overflow-hidden rounded-2xl'>
-          {themes.map((item, index) => {
-            return (
-              <React.Fragment key={item.title}>
-                {index !== 0 && <CardDivider />}
-                <Card
-                  iconSrc={item.isSelected ? Images.Misc.ChainChecks[activeChain] : undefined}
-                  avatar={<Avatar avatarImage={item.icon} />}
-                  size='md'
-                  title={item.title}
-                  onClick={item.onClick}
-                />
-              </React.Fragment>
-            )
-          })}
-        </div>
+    <BottomModal isOpen={isVisible} onClose={onCloseHandler} title={'Select Theme'}>
+      <div className='overflow-hidden rounded-2xl'>
+        {themes.map((item, index) => {
+          return (
+            <React.Fragment key={item.title}>
+              {index !== 0 && <CardDivider />}
+              <Card
+                iconSrc={item.isSelected ? Images.Misc.ChainChecks[activeChain] : undefined}
+                avatar={<Avatar avatarImage={item.icon} />}
+                size='md'
+                title={item.title}
+                onClick={item.onClick}
+              />
+            </React.Fragment>
+          )
+        })}
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

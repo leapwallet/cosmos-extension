@@ -1,6 +1,6 @@
 import { SecretToken } from '@leapwallet/cosmos-wallet-hooks'
-import { CardDivider, GenericCard, HeaderActionType } from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React from 'react'
@@ -25,13 +25,8 @@ export function AddTokenSheet({
   const defaultLogo = useDefaultTokenLogo()
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
-      headerTitle={'Add Token'}
-      headerActionType={HeaderActionType.CANCEL}
-      onClose={() => onClose()}
-    >
-      <div className='px-7 py-5'>
+    <BottomModal isOpen={isVisible} onClose={onClose} title={'Add Token'}>
+      <div>
         <div className='mb-4 px-5'>
           <div className='flex items-center'>
             <img
@@ -71,6 +66,6 @@ export function AddTokenSheet({
           />
         </div>
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

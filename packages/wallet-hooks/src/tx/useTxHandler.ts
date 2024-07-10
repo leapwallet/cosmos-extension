@@ -10,10 +10,11 @@ import {
 import { EthermintTxHandler } from '@leapwallet/cosmos-wallet-sdk';
 import { CWTx } from '@leapwallet/cosmos-wallet-sdk';
 import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/sscrt';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Wallet } from 'secretjs';
 
-import { useActiveChain, useChainApis, useChainId, useChainInfo, useGetChains, useSelectedNetwork } from '../store';
+import { useActiveChain, useChainApis, useGetChains, useSelectedNetwork } from '../store';
+import { useChainId, useChainInfo } from '../utils-hooks';
 
 export function useTxHandler({
   forceChain,
@@ -21,8 +22,8 @@ export function useTxHandler({
 }: { forceChain?: SupportedChain; forceNetwork?: 'mainnet' | 'testnet' } = {}) {
   const selectedNetwork = useSelectedNetwork();
   const activeChain = useActiveChain();
-  const chain = forceChain ?? activeChain;
-  const network = forceNetwork ?? selectedNetwork;
+  const chain = useMemo(() => forceChain ?? activeChain, [forceChain, activeChain]);
+  const network = useMemo(() => forceNetwork ?? selectedNetwork, [forceNetwork, selectedNetwork]);
 
   const { rpcUrl, lcdUrl } = useChainApis(chain, network);
   const chainInfo = useChainInfo(chain);
@@ -75,10 +76,13 @@ export function useTxHandler({
   );
 }
 
-export function useScrtTxHandler() {
-  const selectedNetwork = useSelectedNetwork();
-  const { lcdUrl = '' } = useChainApis();
-  const chainId = useChainId();
+export function useScrtTxHandler(forceNetwork?: 'mainnet' | 'testnet') {
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [_selectedNetwork, forceNetwork]);
+
+  const { lcdUrl = '' } = useChainApis('secret', selectedNetwork);
+  const chainId = useChainId('secret', selectedNetwork);
+
   return useCallback(
     (wallet: Wallet) => {
       return SigningSscrt.create(lcdUrl, chainId ?? '', wallet);
@@ -87,8 +91,8 @@ export function useScrtTxHandler() {
   );
 }
 
-export function useCW20TxHandler() {
-  const { rpcUrl = '' } = useChainApis();
+export function useCW20TxHandler(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const { rpcUrl = '' } = useChainApis(forceChain, forceNetwork);
 
   return useCallback(
     async (wallet: Wallet) => {
@@ -102,8 +106,8 @@ export function useCW20TxHandler() {
   );
 }
 
-export function useCWTxHandler() {
-  const { rpcUrl, lcdUrl = '' } = useChainApis();
+export function useCWTxHandler(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const { rpcUrl, lcdUrl = '' } = useChainApis(forceChain, forceNetwork);
 
   return useCallback(
     async (wallet: OfflineSigner) => {

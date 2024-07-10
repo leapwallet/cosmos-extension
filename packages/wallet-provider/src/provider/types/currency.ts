@@ -55,3 +55,11 @@ export interface FiatCurrency {
   readonly maxDecimals: number;
   readonly locale: string;
 }
+
+export type FeeCurrency = AppCurrency & {
+  readonly gasPriceStep: {
+    readonly low: number;
+    readonly average: number;
+    readonly high: number;
+  };
+};

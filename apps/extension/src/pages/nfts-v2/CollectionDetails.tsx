@@ -9,10 +9,8 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
 import { useHiddenNFTs } from 'hooks/settings'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import React, { useEffect, useMemo, useState } from 'react'
-import { Colors } from 'theme/colors'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 
 import { ChainHeaderCollectionCard, CollectionAvatar } from './components'
@@ -113,7 +111,6 @@ function OwnedCollectionDetails({ collection, nfts }: OwnedCollectionDetailsProp
 
 export function CollectionDetails() {
   const { setActivePage, showCollectionDetailsFor, collectionData } = useNftContext()
-  const activeChain = useActiveChain()
   const chainInfos = useChainInfos()
   const hiddenNfts = useHiddenNFTs()
 
@@ -168,7 +165,6 @@ export function CollectionDetails() {
                 </span>
               </h1>
             }
-            topColor={Colors.getChainColor(activeChain)}
           />
         }
       >

@@ -1,6 +1,7 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { CosmWasmChain, Cw20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/cw20-denoms';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { useActiveChain, useCW20TokensStore } from '../store';
 import { cachedRemoteDataWithLastModified } from './cached-remote-data';
@@ -23,8 +24,11 @@ export async function fetchCW20TokensQueryFn(
   activeChain: SupportedChain,
   storage: storage,
   setCW20Tokens: (resource: any, chain: SupportedChain) => void,
+  forceSupportedChains?: string[],
 ) {
-  const { chains: cw20TokensSupportedChains } = await getCw20TokensSupportedChains(storage);
+  const { chains: cw20TokensSupportedChains } = forceSupportedChains
+    ? { chains: forceSupportedChains }
+    : await getCw20TokensSupportedChains(storage);
 
   const setResource = (resource: any) => {
     setCW20Tokens(resource, activeChain);
@@ -49,14 +53,26 @@ export async function fetchCW20TokensQueryFn(
   }
 }
 
-export function useFetchCW20Tokens() {
-  const activeChain = useActiveChain();
+export function useFetchCW20Tokens(forceChain?: SupportedChain, forceSupportedChainsList?: string[]) {
+  const _activeChain = useActiveChain();
   const storage = useGetStorageLayer();
   const { setCW20Tokens } = useCW20TokensStore();
 
+  const activeChain = useMemo(
+    () => (forceChain || _activeChain) as SupportedChain & 'aggregated',
+    [forceChain, _activeChain],
+  );
+
   useQuery(
-    ['fetch-cw20-tokens', activeChain],
-    async () => fetchCW20TokensQueryFn(activeChain, storage, setCW20Tokens),
-    fetchCW20TokensQueryParams,
+    ['fetch-cw20-tokens', activeChain, forceSupportedChainsList],
+    async () => {
+      if (activeChain && activeChain !== 'aggregated') {
+        await fetchCW20TokensQueryFn(activeChain, storage, setCW20Tokens, forceSupportedChainsList);
+      }
+    },
+    {
+      ...fetchCW20TokensQueryParams,
+      enabled: activeChain !== 'aggregated',
+    },
   );
 }

@@ -60,3 +60,7 @@ export const formatTokenAmount = (amount: string, symbol = '', precision = 3) =>
 export const formatPercentAmount = (amount: string, precision = 3) => {
   return currency(amount, { precision, pattern: '!#', symbol: '' }).format()
 }
+
+export const removeLeadingZeroes = (inputString: string) => {
+  return inputString?.replace?.(/^0+(?=\d)/, '')?.replace?.(/(\.+)/g, '.')
+}

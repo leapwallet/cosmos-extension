@@ -1,6 +1,6 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
+import { TestnetAlertStrip } from 'components/alert-strip'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
@@ -12,7 +12,6 @@ import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
 import React, { Fragment, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Colors } from 'theme/colors'
 import { sliceSearchWord } from 'utils/strings'
 
 import { ProposalListProps } from '../ProposalList'
@@ -45,7 +44,6 @@ export function NtrnProposalList({
 
   const loading = proposalListStatus === 'loading'
   const activeChainInfo = chainInfos[activeChain]
-  const themeColor = Colors.getChainColor(activeChain, activeChainInfo)
 
   const filteredProposalList = useMemo(() => {
     return _proposalList?.reduce((acc, curr) => {
@@ -89,11 +87,10 @@ export function NtrnProposalList({
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={() => setShowChainSelector(true)}
             title='Governance'
-            topColor={themeColor}
           />
         }
       >
-        <SelectedChainAlertStrip />
+        <TestnetAlertStrip />
 
         <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
           <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>Proposals</div>

@@ -24,12 +24,13 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
   const activeChain = useActiveChain()
   const { activeWallet } = useActiveWallet()
   const chain = useChainInfo()
-  const { handleVoteClick, handleNftsClick, onSendClick, handleBuyClick } = useHardCodedActions()
+  const { handleVoteClick, handleNftsClick, onSendClick, handleBuyClick, handleBridgeClick } =
+    useHardCodedActions()
 
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
   const disabled =
     activeWallet?.walletType === WALLETTYPE.LEDGER &&
-    !isLedgerEnabled(activeChain, chain.bip44.coinType)
+    !isLedgerEnabled(activeChain, chain?.bip44?.coinType)
 
   const isNomicChain = activeChain === 'nomic'
   const walletCtaDisabled = isNomicChain || disabled
@@ -61,11 +62,11 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
   }
 
   if (isCompassWallet() && isTestnet === false) {
-    const isPacificChain = chain.chainId === 'pacific-1'
+    const isPacificChain = chain?.chainId === 'pacific-1'
 
     return (
       <div
-        className={classNames('flex flex-row justify-evenly mb-6 w-full', {
+        className={classNames('flex flex-row justify-evenly mb-4 w-full', {
           'gap-2': isPacificChain,
         })}
       >
@@ -75,7 +76,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
             size='sm'
             disabled={walletCtaDisabled}
             color={darkTheme ? undefined : Colors.white100}
-            onClick={() => handleBuyClick('compass')}
+            onClick={() => handleBuyClick()}
           >
             <div className='flex justify-center text-black-100 items-center'>
               <span className='mr-2 material-icons-round'>add</span>
@@ -116,7 +117,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
 
   if (isTestnet) {
     return (
-      <div className='flex justify-between mb-6 w-full'>
+      <div className='flex justify-between mb-4 w-full'>
         {/* Deposit/Receive Button */}
         <Buttons.Generic
           size='sm'
@@ -152,11 +153,11 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
   }
 
   return (
-    <div className='flex flex-row justify-evenly mb-6 w-full'>
+    <div className='flex flex-row justify-evenly mb-4 w-full'>
       {/* Buy Button */}
       <ClickableIcon
         image={{ src: 'local_mall', alt: 'Buy' }}
-        onClick={() => handleBuyClick('leap')}
+        onClick={() => handleBuyClick()}
         disabled={walletCtaDisabled}
       />
 
@@ -170,10 +171,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       {/* Bridge Button */}
       <ClickableIcon
         image={{ src: 'route', alt: 'Bridge' }}
-        onClick={() => {
-          const baseUrl = 'https://swapfast.app/bridge'
-          window.open(`${baseUrl}?destinationChainId=${chain.chainId}`, '_blank')
-        }}
+        onClick={() => handleBridgeClick()}
         disabled={walletCtaDisabled}
       />
 

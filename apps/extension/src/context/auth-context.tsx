@@ -1,6 +1,12 @@
 /* eslint-disable no-unused-vars */
-import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  BETA_NFTS_COLLECTIONS,
+  ENABLED_NFTS_COLLECTIONS,
+  StoredBetaNftCollection,
+  useActiveChain,
+  useGetChains,
+} from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import * as Sentry from '@sentry/react'
@@ -14,6 +20,7 @@ import {
   KEYSTORE,
   V80_KEYSTORE_MIGRATION_COMPLETE,
   V118_KEYSTORE_MIGRATION_COMPLETE,
+  V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE,
 } from 'config/storage-keys'
 import { migrateEncryptedKeyStore, migrateKeyStore } from 'extension-scripts/migrations/v80'
 import { migratePicassoAddress } from 'extension-scripts/migrations/v118-migrate-picasso-address'
@@ -25,6 +32,7 @@ import { useRef } from 'react'
 import KeyboardEventHandler from 'react-keyboard-event-handler'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useRecoilState, useSetRecoilState } from 'recoil'
+import { AggregatedSupportedChain } from 'types/utility'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import browser, { extension } from 'webextension-polyfill'
@@ -54,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   const [noAccount, setNoAccount] = useState<boolean | undefined>(false)
   const setPassword = useSetPassword()
   const testPassword = SeedPhrase.useTestPassword()
+  const chains = useGetChains()
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
             KEYSTORE,
             V80_KEYSTORE_MIGRATION_COMPLETE,
             V118_KEYSTORE_MIGRATION_COMPLETE,
+            V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE,
             ENCRYPTED_KEY_STORE,
             ENCRYPTED_ACTIVE_WALLET,
           ])
@@ -129,17 +139,74 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
               })
             }
           }
+
+          if (!storage[V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE]) {
+            const storedBetaNftCollections = await browser.storage.local.get([
+              BETA_NFTS_COLLECTIONS,
+            ])
+
+            if (storedBetaNftCollections[BETA_NFTS_COLLECTIONS]) {
+              const betaNftCollections = JSON.parse(
+                storedBetaNftCollections[BETA_NFTS_COLLECTIONS] ?? '{}',
+              )
+              const formattedBetaNftCollections: {
+                [chain: string]: { [network: string]: StoredBetaNftCollection[] }
+              } = {}
+
+              for (const chain in betaNftCollections) {
+                const _chain = chain as SupportedChain
+                const isTestnetOnly = chains?.[_chain]?.chainId === chains?.[_chain]?.testnetChainId
+
+                if (chains?.[_chain] && isTestnetOnly) {
+                  formattedBetaNftCollections[chain] = {
+                    testnet: betaNftCollections[chain].map((collection: string) => {
+                      return { address: collection, name: '', image: '' }
+                    }),
+                  }
+                } else {
+                  const evenHasTestnet = chains?.[_chain]?.testnetChainId
+
+                  if (evenHasTestnet) {
+                    formattedBetaNftCollections[chain] = {
+                      testnet: betaNftCollections[chain].map((collection: string) => {
+                        return { address: collection, name: '', image: '' }
+                      }),
+                    }
+                  }
+
+                  formattedBetaNftCollections[chain] = {
+                    ...(formattedBetaNftCollections[chain] ?? {}),
+                    mainnet: betaNftCollections[chain].map((collection: string) => {
+                      return { address: collection, name: '', image: '' }
+                    }),
+                  }
+                }
+              }
+
+              await browser.storage.local.set({
+                [BETA_NFTS_COLLECTIONS]: JSON.stringify(formattedBetaNftCollections),
+                [ENABLED_NFTS_COLLECTIONS]: JSON.stringify(betaNftCollections),
+                [V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE]: true,
+              })
+            } else {
+              await browser.storage.local.set({
+                [V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE]: true,
+              })
+            }
+          }
+
           setLocked(false)
           setNoAccount(false)
           setLoading(false)
           setPassword(password)
           callback && callback()
         } catch (e) {
+          setLoading(false)
           throw new Error('Password authentication failed')
         }
       }
     },
-    [setPassword, testPassword],
+    [setPassword, testPassword, chains],
   )
 
   const signout = useCallback(
@@ -166,7 +233,11 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       if (sender.id !== browser.runtime.id) return
       if (message.type === 'authentication') {
         if (message.data.status === 'success') {
-          signin(message.data.password)
+          try {
+            await signin(message.data.password)
+          } catch (_) {
+            setLoading(false)
+          }
         } else {
           setLoading(() => false)
         }
@@ -231,7 +302,7 @@ export function RequireAuth({
   )
   const setSearchModalEnteredOption = useSetRecoilState(searchModalEnteredOptionState)
   const [showSideNav, setShowSideNav] = useRecoilState(showSideNavFromSearchModalState)
-  const chain = useChainInfo()
+  const activeChain = useActiveChain() as AggregatedSupportedChain
 
   if (auth?.locked) {
     return <Navigate to='/' state={{ from: location }} replace />
@@ -240,7 +311,9 @@ export function RequireAuth({
   const views = extension.getViews({ type: 'popup' })
 
   const Children =
-    QUICK_SEARCH_DISABLED_PAGES.includes(location.pathname) || isCompassWallet() ? (
+    QUICK_SEARCH_DISABLED_PAGES.includes(location.pathname) ||
+    isCompassWallet() ||
+    activeChain === 'aggregated' ? (
       children
     ) : (
       <>

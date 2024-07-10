@@ -21,6 +21,7 @@ export type Proposal = {
   total_deposit: TotalDeposit[];
   voting_start_time: string;
   voting_end_time: string;
+  chain?: string;
 };
 
 export type Content = {

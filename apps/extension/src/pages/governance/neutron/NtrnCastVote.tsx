@@ -5,6 +5,7 @@ import {
   useActiveChain,
   useNtrnGov,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
@@ -15,13 +16,13 @@ import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sh
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { Wallet } from 'hooks/wallet/useWallet'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { useTxCallBack } from 'utils/txCallback'
 
-import { CastVoteProps } from '../CastVote'
-import { VoteOptions } from '../CastVoteSheet'
+import { CastVoteProps } from '../components'
 import { NtrnReviewVoteCast } from './index'
+import { VoteOptions } from './utils'
 
 const useGetWallet = Wallet.useGetWallet
 
@@ -52,6 +53,7 @@ type CastVoteSheetProps = {
   onCloseHandler: () => void
   showFeesSettingSheet: boolean
   gasError: string
+  forceChain?: SupportedChain
   simulateNtrnVote: (
     wallet: OfflineSigner,
     proposalId: number,
@@ -67,11 +69,14 @@ function CastVoteSheet({
   onSubmitVote,
   showFeesSettingSheet,
   gasError,
+  forceChain,
   simulateNtrnVote,
 }: CastVoteSheetProps) {
   const [selectedOption, setSelectedOption] = useState<VoteOptions | undefined>(undefined)
-  const activeChain = useActiveChain()
-  const getWallet = useGetWallet()
+
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
+  const getWallet = useGetWallet(forceChain)
   const [simulateError, setSimulateError] = useState('')
   const [isSimulating, setIsSimulating] = useState(false)
 
@@ -145,9 +150,14 @@ export function NtrnCastVote({
   showCastVoteSheet,
   setShowCastVoteSheet,
   className,
+  forceChain,
+  forceNetwork,
 }: CastVoteProps) {
-  const getWallet = useGetWallet()
-  const defaultGasPrice = useDefaultGasPrice()
+  const getWallet = useGetWallet(forceChain)
+  const defaultGasPrice = useDefaultGasPrice({
+    activeChain: forceChain,
+    selectedNetwork: forceNetwork,
+  })
   const txCallback = useTxCallBack()
 
   const {
@@ -166,7 +176,7 @@ export function NtrnCastVote({
     isVoting,
     handleVote,
     simulateNtrnVote,
-  } = useNtrnGov()
+  } = useNtrnGov(forceChain, forceNetwork)
 
   const [selectedVoteOption, setSelectedVoteOption] = useState<VoteOptions | undefined>(undefined)
   const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
@@ -232,6 +242,8 @@ export function NtrnCastVote({
         onGasPriceOptionChange={handleGasPriceOptionChange}
         error={gasError}
         setError={setGasError}
+        chain={forceChain}
+        network={forceNetwork}
       >
         <CastVoteSheet
           proposalId={proposalId}
@@ -242,6 +254,7 @@ export function NtrnCastVote({
           showFeesSettingSheet={showFeesSettingSheet}
           gasError={gasError ?? ''}
           simulateNtrnVote={simulateNtrnVote}
+          forceChain={forceChain}
         />
 
         <FeesSettingsSheet
@@ -262,6 +275,7 @@ export function NtrnCastVote({
           refetchCurrVote={refetchVote}
           onCloseHandler={handleCloseReviewVoteCastSheet}
           gasOption={gasPriceOption.option}
+          forceChain={forceChain}
         />
       </GasPriceOptions>
     </div>

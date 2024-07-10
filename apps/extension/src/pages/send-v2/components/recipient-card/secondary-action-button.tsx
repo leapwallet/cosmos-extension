@@ -22,7 +22,7 @@ export const SecondaryActionButton: React.FC<SecondaryActionButtonProps> = ({
     <button
       className={classNames(
         className,
-        'flex gap-[6px] items-center rounded-full pl-2 pr-3 py-[6px] bg-gray-50 dark:bg-gray-800 focus:bg-gray-400 dark:focus:bg-gray-500 outline-none',
+        'flex gap-1 items-center rounded-full px-[10px] py-1 bg-gray-50 dark:bg-gray-900 focus:bg-gray-400 dark:focus:bg-gray-500 outline-none',
       )}
       onClick={onClick}
     >

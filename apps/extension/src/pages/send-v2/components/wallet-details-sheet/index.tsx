@@ -1,8 +1,5 @@
-import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { Avatar, AvatarCard, Buttons, Card } from '@leapwallet/leap-ui'
+import { AvatarCard, Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
-import { Images } from 'images'
 import { SelectedAddress } from 'pages/send-v2/types'
 import React, { ReactElement, useCallback, useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -24,9 +21,9 @@ export default function WalletDetailsSheet({
   onDelete,
   selectedAddress,
 }: WalletDetailsSheetProps): ReactElement {
-  const chains = useGetChains()
   const [showSaveAddressSheet, setShowSaveAddressSheet] = useState<boolean>(false)
   const contact = AddressBook.useGetContact(selectedAddress.address ?? '')
+  const { theme } = useTheme()
 
   const stopPropagation = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     e.stopPropagation()
@@ -37,46 +34,57 @@ export default function WalletDetailsSheet({
 
   return (
     <div onClick={stopPropagation}>
-      <BottomModal isOpen={isOpen} onClose={onCloseHandler} title='Contact details'>
+      <BottomModal
+        title='Contact details'
+        onClose={onCloseHandler}
+        isOpen={isOpen}
+        closeOnBackdropClick={true}
+        contentClassName='!bg-white-100 dark:!bg-gray-950'
+        className='p-6'
+      >
         <div className='flex flex-col items-center gap-4'>
-          <AvatarCard
-            chainIcon={selectedAddress.chainIcon}
-            emoji={contact?.emoji ?? selectedAddress.emoji}
-            size='lg'
-            subtitle={`Chain: ${
-              chains[selectedAddress.chainName as SupportedChain]?.chainName ??
-              selectedAddress.chainName
-            }`}
-            title={contact?.name ?? selectedAddress.name}
-          />
-          <Buttons.CopyWalletAddress
-            color={Colors.juno}
-            walletAddress={sliceAddress(selectedAddress.address)}
-          />
-          <div className=' dark:bg-gray-900 bg-white-100 rounded-2xl  items-center'>
-            <Card
-              avatar={<Avatar avatarImage={Images.Misc.EditItems} size='sm' />}
-              isRounded
-              size='md'
-              onClick={() => setShowSaveAddressSheet(true)}
-              subtitle={<>Edit name and profile picture</>}
-              title='Edit contact'
+          <div className='w-full bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 flex items-center flex-col'>
+            <AvatarCard
+              chainIcon={selectedAddress.chainIcon}
+              emoji={contact?.emoji ?? selectedAddress.emoji}
+              size='lg'
+              title={contact?.name ?? selectedAddress.name}
+              className='mt-3'
             />
-            <Card
-              avatar={<Avatar avatarImage={Images.Misc.Delete} size='sm' />}
-              isRounded
-              size='md'
+
+            <Buttons.CopyWalletAddress
+              className='mt-1'
+              color={Colors.juno}
+              walletAddress={sliceAddress(selectedAddress.address)}
+            />
+          </div>
+
+          <div className='flex gap-4 w-full'>
+            <Buttons.Generic
+              title='Delete contact'
+              color={Colors.red300}
               onClick={async () => {
                 await AddressBook.removeEntry(selectedAddress.address ?? '')
                 onDelete()
                 onCloseHandler()
               }}
-              subtitle={<>Remove {contact?.name ?? selectedAddress.name} from your contacts</>}
-              title='Delete contact'
-            />
+              className='flex-1'
+            >
+              Delete contact
+            </Buttons.Generic>
+
+            <Buttons.Generic
+              title='Edit contact'
+              color={theme === ThemeName.DARK ? Colors.gray900 : '#F4F4F4'}
+              onClick={() => setShowSaveAddressSheet(true)}
+              className='flex-1'
+            >
+              <p className='!text-black-100 dark:!text-white-100'>Edit contact</p>
+            </Buttons.Generic>
           </div>
         </div>
       </BottomModal>
+
       <SaveAddressSheet
         isOpen={showSaveAddressSheet}
         title='Edit Contact'

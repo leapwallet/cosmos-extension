@@ -5,8 +5,8 @@ import {
   useChainId,
   useGetChains,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, GenericCard, HeaderActionType } from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { Buttons, GenericCard } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { ErrorCard } from 'components/ErrorCard'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
@@ -108,13 +108,12 @@ export function CreateKeySheet({ isVisible, onClose, token, onSuccess }: Props) 
   ])
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
-      onClose={() => clearState()}
-      headerTitle={token?.snip24Enabled ? 'Create query permit' : 'Create Viewing Key'}
-      headerActionType={HeaderActionType.CANCEL}
+    <BottomModal
+      isOpen={isVisible}
+      onClose={clearState}
+      title={token?.snip24Enabled ? 'Create query permit' : 'Create Viewing Key'}
     >
-      <div className='p-7'>
+      <div>
         <div className='py-5 rounded-2xl bg-white-100 dark:bg-gray-900 mb-4'>
           <Text size='xs' className='font-bold px-5' color={'text-gray-200'}>
             {token?.snip24Enabled ? 'Create query permit' : 'Create Viewing Key'}
@@ -164,6 +163,6 @@ export function CreateKeySheet({ isVisible, onClose, token, onSuccess }: Props) 
           </div>
         )}
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

@@ -27,40 +27,6 @@ export class SeiEvmTx {
     return new SeiEvmTx(rpc, wallet);
   }
 
-  async sendTransaction(_: string, toAddress: string, value: string, gas: number, gasPrice?: number, data?: BytesLike) {
-    const weiValue = parseEther(value);
-    return this.wallet.sendTransaction({
-      to: toAddress,
-      value: weiValue.toHexString(),
-      gasLimit: intToHex(gas),
-      gasPrice: intToHex(gasPrice ?? 1000_000_000),
-      data,
-    });
-  }
-
-  async sendERC20Transaction(
-    toAddress: string,
-    value: string,
-    contractAddress: string,
-    decimals: number,
-    gas: number,
-    gasPrice?: number,
-  ) {
-    const weiValue = parseUnits(value, decimals);
-    const contract = new Contract(contractAddress, abiERC20);
-    const data = contract.interface.encodeFunctionData('transfer', [toAddress, weiValue]);
-
-    const txObject = {
-      to: contractAddress,
-      value: 0,
-      gasLimit: intToHex(gas),
-      gasPrice: intToHex(gasPrice ?? 1000_000_000),
-      data,
-    };
-
-    return this.wallet.sendTransaction(txObject);
-  }
-
   public static async SimulateTransaction(
     toAddress: string,
     value: string,
@@ -87,7 +53,7 @@ export class SeiEvmTx {
     }
 
     const result = await SeiEvmTx.ExecuteEthEstimateGAs([txParams], rpc);
-    const gasEstimate = parseInt(Number(result).toString());
+    const gasEstimate = Math.ceil(Number(result));
 
     if (gasAdjustment) {
       return parseInt((gasEstimate * gasAdjustment).toString());
@@ -121,6 +87,65 @@ export class SeiEvmTx {
     return await SeiEvmTx.fetchRequest(fetchParams, rpc);
   }
 
+  public static async GetBlockByNumber(txParams: any, rpc?: string) {
+    const fetchParams = getFetchParams(txParams, 'eth_getBlockByNumber');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
+  public static async EthGetBalance(txParams: any, rpc?: string) {
+    const fetchParams = getFetchParams(txParams, 'eth_getBalance');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
+  public static async GetCosmosTxHash(evmTxHash: string, rpc?: string) {
+    const fetchParams = getFetchParams([evmTxHash], 'sei_getCosmosTx');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
+  public static async GetSeiAddressFromHex(hexAddress: string, rpc?: string) {
+    const fetchParams = getFetchParams([hexAddress], 'sei_getSeiAddress');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
+  async sendTransaction(_: string, toAddress: string, value: string, gas: number, gasPrice?: number, data?: BytesLike) {
+    const weiValue = parseEther(value);
+    const txn = await this.wallet.sendTransaction({
+      to: toAddress,
+      value: weiValue.toHexString(),
+      gasLimit: intToHex(gas),
+      gasPrice: intToHex(gasPrice ?? 1000_000_000),
+      data,
+    });
+
+    await txn.wait();
+    return txn;
+  }
+
+  async sendERC20Transaction(
+    toAddress: string,
+    value: string,
+    contractAddress: string,
+    decimals: number,
+    gas: number,
+    gasPrice?: number,
+  ) {
+    const weiValue = parseUnits(value, decimals);
+    const contract = new Contract(contractAddress, abiERC20);
+    const data = contract.interface.encodeFunctionData('transfer', [toAddress, weiValue]);
+
+    const txObject = {
+      to: contractAddress,
+      value: 0,
+      gasLimit: intToHex(gas),
+      gasPrice: intToHex(gasPrice ?? 1000_000_000),
+      data,
+    };
+
+    const txn = await this.wallet.sendTransaction(txObject);
+    await txn.wait();
+    return txn;
+  }
+
   async transferErc721Token({
     erc721ContractAddress,
     tokenId,
@@ -147,7 +172,9 @@ export class SeiEvmTx {
       data,
     };
 
-    return this.wallet.sendTransaction(txObject);
+    const txn = await this.wallet.sendTransaction(txObject);
+    await txn.wait();
+    return txn;
   }
 
   public async pollLinkAddressWithoutFunds(ethAddress: string, chainId: string, retryCount = 20): Promise<any> {

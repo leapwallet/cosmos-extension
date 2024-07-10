@@ -42,17 +42,8 @@ export function SelectChainSheet({
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      hideActionButton={true}
-      showSecondaryActionButton={true}
-      containerClassName='!bg-white-100 dark:!bg-gray-950'
-      headerClassName='!bg-white-100 dark:!bg-gray-950'
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
-      secondaryActionButton={
-        <div className='absolute top-1 right-6'>
-          <Buttons.Cancel onClick={onClose} />
-        </div>
-      }
     >
       <ChainsList
         onChainSelect={handleOnChainSelect}

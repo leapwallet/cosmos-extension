@@ -14,9 +14,11 @@ export const ETHEREUM_NO_POPUP_METHOD_TYPE = {
   ETH__ACCOUNTS: 'eth_accounts',
   ETH__CHAIN_ID: 'eth_chainId',
   ETH__CALL: 'eth_call',
+  ETH__GET_BALANCE: 'eth_getBalance',
   ETH__BLOCK_NUMBER: 'eth_blockNumber',
   ETH__ESTIMATE_GAS: 'eth_estimateGas',
 
+  ETH__GET_BLOCK_BY_NUMBER: 'eth_getBlockByNumber',
   WALLET__REVOKE_PERMISSIONS: 'wallet_revokePermissions',
   ETH__GET_TRANSACTION_RECEIPT: 'eth_getTransactionReceipt',
   ETH__GET_TRANSACTION_BY_HASH: 'eth_getTransactionByHash',

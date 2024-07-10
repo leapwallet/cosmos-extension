@@ -1,8 +1,7 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
+import { useChainPageInfo } from 'hooks'
 import React from 'react'
-import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import GasPriceOptions from './index'
@@ -18,7 +17,7 @@ export const FeesSettingsSheet: React.FC<FeesSettingsSheetProps> = ({
   showFeesSettingSheet,
   gasError,
 }) => {
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
 
   return (
     <BottomModal
@@ -44,7 +43,7 @@ export const FeesSettingsSheet: React.FC<FeesSettingsSheetProps> = ({
           <p className='text-red-300 text-sm font-medium mt-3 px-1 text-center'>{gasError}</p>
         ) : null}
         <Buttons.Generic
-          color={Colors.getChainColor(activeChain)}
+          color={topChainColor}
           onClick={onClose}
           disabled={gasError !== null}
           className='!w-full mt-4'

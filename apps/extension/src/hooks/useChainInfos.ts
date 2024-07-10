@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useChainsStore, useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { chainInfosState } from 'atoms/chains'
 import { BETA_CHAINS, CUSTOM_ENDPOINTS } from 'config/storage-keys'
 import { useEffect } from 'react'
@@ -17,15 +15,16 @@ export function useInitChainInfos() {
   useEffect(() => {
     function getBetaChains(updateStore?: boolean) {
       browser.storage.local.get([BETA_CHAINS, CUSTOM_ENDPOINTS]).then(async (resp) => {
-        const _allChains: any = JSON.parse(resp[BETA_CHAINS] ?? '{}')
+        const _allChains: Record<string, ChainInfo> = {}
+        const _betaChains = JSON.parse(resp[BETA_CHAINS] ?? '{}')
+
+        // Update previously added custom chains with the latest chain info
         for (let i = 0; i < customChains?.length; i++) {
-          if (
-            !isCompassWallet() &&
-            !!resp[BETA_CHAINS] &&
-            Object.keys(JSON.parse(resp[BETA_CHAINS])).includes(customChains[i].chainName)
-          ) {
-            const existingChain = JSON.parse(resp[BETA_CHAINS])[customChains[i]?.chainName]
-            _allChains[customChains[i]?.chainName] = {
+          const existingChain =
+            _betaChains[customChains[i].key] || _betaChains[customChains[i].chainName]
+
+          if (!isCompassWallet() && !!resp[BETA_CHAINS] && existingChain) {
+            _allChains[customChains[i].key] = {
               ...customChains[i],
               chainId: existingChain.chainId,
               bip44: existingChain.bip44,
@@ -33,26 +32,28 @@ export function useInitChainInfos() {
               chainRegistryPath: existingChain.chainRegistryPath,
               testnetChainRegistryPath: existingChain.testnetChainRegistryPath,
             }
+
+            delete _betaChains[customChains[i].key]
+            delete _betaChains[customChains[i].chainName]
           }
         }
 
-        const betaChains = isCompassWallet()
-          ? {}
-          : Object.keys(_allChains).length > 0
-          ? _allChains
-          : JSON.parse(resp[BETA_CHAINS] ?? '{}')
+        let betaChains =
+          Object.keys(_allChains).length > 0 ? { ..._allChains, ..._betaChains } : _betaChains
+        betaChains = isCompassWallet() ? {} : betaChains
 
         if (!isCompassWallet()) {
-          for (const chainName in betaChains) {
+          // Delete beta chains that are already in the native chain list
+          for (const chainKey in betaChains) {
             if (
               Object.values(ChainInfos).some(
                 (chainInfo) =>
                   [chainInfo.chainId, chainInfo.testnetChainId].includes(
-                    betaChains[chainName].chainId,
+                    betaChains[chainKey].chainId,
                   ) && chainInfo.enabled,
               )
             ) {
-              delete betaChains[chainName]
+              delete betaChains[chainKey]
             }
           }
 
@@ -63,7 +64,7 @@ export function useInitChainInfos() {
 
         const enabledChains = Object.entries(ChainInfos).reduce(
           (chainInfos, [chainKey, chainData]) => {
-            //cosmoshub is kept here for backwards compatibility
+            // Cosmoshub is kept here for backwards compatibility
             if (
               isCompassWallet() &&
               !['arctic-1', 'pacific-1', 'cosmoshub-4'].includes(chainData.chainId)
@@ -85,7 +86,7 @@ export function useInitChainInfos() {
           allChains[a].chainName.toLowerCase().localeCompare(allChains[b].chainName.toLowerCase()),
         )
 
-        const _chains: Record<string, any> = {}
+        const _chains: Record<string, ChainInfo> = {}
         sortedChains.map((key) => {
           _chains[key] = allChains[key]
         })
@@ -130,6 +131,7 @@ export function useInitChainInfos() {
     }
 
     getBetaChains(true)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const addChainEventListener = (storage: Record<string, any>) => {
       if (storage && (storage[BETA_CHAINS] || storage[CUSTOM_ENDPOINTS])) {
         getBetaChains(false)

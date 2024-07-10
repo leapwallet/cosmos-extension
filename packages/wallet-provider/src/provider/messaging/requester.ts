@@ -60,17 +60,12 @@ export class InExtensionMessageRequester implements MessageRequester {
     return uuidv4();
   }
 
-  private static generateId(): number {
-    return uuidv4();
-  }
-
   destroy() {
     this.inpageStream && this.inpageStream.destroy();
   }
 
   send(type: any, data?: any): number {
     const id = InExtensionMessageRequester.generateId();
-
     this.inpageStream.write({
       ...data,
       id,

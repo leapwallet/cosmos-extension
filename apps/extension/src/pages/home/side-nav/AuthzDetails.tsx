@@ -127,11 +127,7 @@ export function AuthzDetails({ goBack, grant }: { goBack: () => void; grant: Gra
 
   return (
     <div className='pb-5 h-[600px]'>
-      <Header
-        topColor={Colors.getChainColor(activeChain)}
-        title='AuthZ Details'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
+      <Header title='AuthZ Details' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
 
       <div className='overflow-y-auto w-full'>
         <div className='flex flex-col items-center gap-4 p-[28px] h-[530px] relative'>

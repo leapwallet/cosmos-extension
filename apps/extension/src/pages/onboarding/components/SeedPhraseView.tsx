@@ -152,42 +152,6 @@ export function SeedPhraseView({
             heading={`Is it safe to enter it into ${isCompassWallet() ? 'Compass' : 'Leap'}?`}
             description='Yes. It will be stored locally and never leave your device without your explicit permission.'
           />
-
-          {!walletName &&
-          !isPrivateKey &&
-          !isMetamaskKey &&
-          !isOtherEvmWallets &&
-          isCompassWallet() ? (
-            <AdditionalInfo
-              headingClassName='!mt-[32px]'
-              heading='Can I import my Metamask (or EVM wallet) recovery phrase here?'
-              description='Yes, you can but importing a recovery phrase from Metamask (or EVM wallet) might give a different address. Instead, import your private key.'
-            />
-          ) : null}
-
-          {isPrivateKey && !isMetamaskKey && !isOtherEvmWallets && isCompassWallet() ? (
-            <AdditionalInfo
-              headingClassName='!mt-[32px]'
-              heading='Use the private key for importing via MetaMask (or EVM wallet)'
-              description='Using a private key to import your Metamask (or EVM) wallet will generate the same 0x address as on Metamask (or EVM wallet).'
-            />
-          ) : null}
-
-          {isPrivateKey && isMetamaskKey && isCompassWallet() ? (
-            <AdditionalInfo
-              headingClassName='!mt-[32px]'
-              heading='Use the private key for importing via MetaMask'
-              description='Using a private key to import your Metamask wallet will generate the same 0x address as on Metamask.'
-            />
-          ) : null}
-
-          {isPrivateKey && isOtherEvmWallets && isCompassWallet() ? (
-            <AdditionalInfo
-              headingClassName='!mt-[32px]'
-              heading='Use the private key for importing via the EVM wallet'
-              description='Using a private key to import your EVM wallet will generate the same 0x address as on the EVM wallet.'
-            />
-          ) : null}
         </div>
       </div>
     </div>

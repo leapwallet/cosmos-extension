@@ -2,6 +2,8 @@ import { toBase64, toUtf8 } from '@cosmjs/encoding'
 import {
   currencyDetail,
   formatTokenAmount,
+  useActiveChain,
+  useGetChains,
   useGetExplorerAccountUrl,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useChains } from '@leapwallet/elements-hooks'
@@ -9,13 +11,14 @@ import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Text from 'components/text'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useFormatCurrency, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useCallback, useMemo, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
+import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { imgOnError } from 'utils/imgOnError'
 import { sliceWord } from 'utils/strings'
@@ -37,11 +40,12 @@ export function TokenCard({
   selectedChain: SourceChain | undefined
   showRedirection?: boolean
 }) {
+  const activeChain = useActiveChain() as AggregatedSupportedChain
   const [formatCurrency] = useFormatCurrency()
-  const { theme } = useTheme()
   const { formatHideBalance } = useHideAssets()
   const [preferredCurrency] = useUserPreferredCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const { theme } = useTheme()
   const formattedTokenAmount = formatHideBalance(
     formatTokenAmount(
       token?.amount,
@@ -51,7 +55,7 @@ export function TokenCard({
     ),
   )
 
-  const chains = useChainInfos()
+  const chains = useGetChains()
   const { data: skipChains } = useChains()
   const ibcChainInfo = useMemo(() => {
     if (!token.ibcChainInfo) return
@@ -88,6 +92,16 @@ export function TokenCard({
     return [_showRedirection, false]
   }, [explorerAccountUrl, selectedChain, showRedirection, token.coinMinimalDenom])
 
+  const ibcInfo = useMemo(() => {
+    if (!token?.ibcChainInfo) return ''
+
+    return `${ibcChainInfo?.chainName ?? token.ibcChainInfo?.pretty_name} • Channel ${sliceWord(
+      token.ibcChainInfo?.channelId?.replace('channel-', ''),
+      4,
+      4,
+    )}`
+  }, [ibcChainInfo?.chainName, token?.ibcChainInfo])
+
   const handleRedirectionClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation()
@@ -116,6 +130,8 @@ export function TokenCard({
     [token.coinMinimalDenom],
   )
 
+  const tokenName = token?.name ?? token.symbol
+
   return (
     <div
       onClick={() => onTokenSelect(token)}
@@ -131,6 +147,7 @@ export function TokenCard({
               className='h-10 w-10'
               onError={imgOnError(defaultTokenLogo)}
             />
+
             {verified && (
               <div className='absolute group -bottom-[3px] -right-[6px]'>
                 <img
@@ -142,20 +159,34 @@ export function TokenCard({
                   alt='verified-token'
                   className='h-5 w-5'
                 />
+
                 <div className='group-hover:!block hidden absolute bottom-0 right-0 translate-x-full bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-xs dark:text-white-100'>
                   Whitelisted
                 </div>
               </div>
             )}
           </div>
+
           <div className='flex flex-col justify-center items-start gap-[2px]'>
             <div className='flex items-center gap-[4px]'>
               <Text
                 size='md'
-                className='font-bold'
-                data-testing-id={`switch-token-${(token?.name ?? token.symbol).toLowerCase()}-ele`}
+                className={classNames('font-bold', {
+                  'items-center justify-center gap-1':
+                    activeChain === AGGREGATED_CHAIN_KEY && token?.ibcChainInfo,
+                })}
+                data-testing-id={`switch-token-${tokenName.toLowerCase()}-ele`}
               >
-                {sliceWord(token?.name ?? token.symbol, 4, 4)}
+                {tokenName?.length > 20 ? sliceWord(tokenName, 6, 6) : tokenName}
+
+                {activeChain === AGGREGATED_CHAIN_KEY && token?.ibcChainInfo ? (
+                  <span
+                    className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] dark:text-white-100 text-black-100 bg-gray-50 dark:bg-gray-900'
+                    title={ibcInfo}
+                  >
+                    IBC
+                  </span>
+                ) : null}
               </Text>
 
               {_showRedirection ? (
@@ -182,19 +213,30 @@ export function TokenCard({
                 </>
               ) : null}
             </div>
-            {token?.ibcChainInfo && (
-              <div className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] dark:text-white-100 text-black-100 bg-gray-50 dark:bg-gray-900'>
-                {ibcChainInfo?.chainName ?? token.ibcChainInfo?.pretty_name} • Channel{' '}
-                {sliceWord(token.ibcChainInfo?.channelId?.replace('channel-', ''), 4, 4)}
-              </div>
+
+            {activeChain === AGGREGATED_CHAIN_KEY && token?.tokenBalanceOnChain ? (
+              <p className='font-medium text-[10px] dark:text-white-100 text-black-100'>
+                {chains[token?.tokenBalanceOnChain]?.chainName ?? 'Unknown Chain'}
+              </p>
+            ) : (
+              <>
+                {token?.ibcChainInfo && (
+                  <div className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] dark:text-white-100 text-black-100 bg-gray-50 dark:bg-gray-900'>
+                    {ibcInfo}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
+
         {hideAmount === false && (
           <div className='flex flex-col justify-center items-end gap-[4px]'>
-            <Text size='md' className='font-bold'>
-              {formattedFiatValue}
-            </Text>
+            {formattedFiatValue !== '-' && (
+              <Text size='md' className='font-bold'>
+                {formattedFiatValue}
+              </Text>
+            )}
             <div className='text-xs !leading-[16.2px] font-medium text-gray-600 dark:text-gray-400'>
               {formattedTokenAmount}
             </div>

@@ -1,6 +1,7 @@
-import { OwnedCollectionTokenInfo, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { OwnedCollectionTokenInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import classNames from 'classnames'
+import { useChainPageInfo } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
 import React from 'react'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
@@ -21,7 +22,7 @@ export function TextHeaderCollectionCard({
   noChip,
 }: TextHeaderCollectionCardProps) {
   const chainInfos = useChainInfos()
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
   const { activePage, setActivePage, setNftDetails, setActiveTab } = useNftContext()
   const isFavoriteHeaderTitle = headerTitle === 'Favorites'
 
@@ -42,13 +43,7 @@ export function TextHeaderCollectionCard({
                 !isFavoriteHeaderTitle,
             },
           )}
-          style={
-            isFavoriteHeaderTitle
-              ? {}
-              : {
-                  color: chainInfos[activeChain].theme.primaryColor,
-                }
-          }
+          style={isFavoriteHeaderTitle ? {} : { color: topChainColor }}
         >
           {headerTitle}
         </h2>
@@ -57,7 +52,7 @@ export function TextHeaderCollectionCard({
           <div className='ml-auto'>
             <div
               className='border dark:border-gray-900 rounded-md py-[3px] px-[6px] text-[14px] font-bold'
-              style={{ color: chainInfos[activeChain].theme.primaryColor }}
+              style={{ color: topChainColor }}
             >
               {nfts.length} item{nfts.length > 1 ? 's' : ''}
             </div>

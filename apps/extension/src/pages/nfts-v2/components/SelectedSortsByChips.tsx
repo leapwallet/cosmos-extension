@@ -1,5 +1,6 @@
-import { sortStringArr, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { sortStringArr } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { useChainPageInfo } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import React from 'react'
@@ -17,7 +18,7 @@ export function SelectedSortsByChips({
   setSelectedSortsBy,
 }: SelectedSortsByChipsProps) {
   const chainInfos = useChainInfos()
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
 
   return (
     <div className='flex overflow-auto whitespace-nowrap scroll-smooth mb-4'>
@@ -63,7 +64,7 @@ export function SelectedSortsByChips({
         <Chip.Text
           className='text-gray-800 dark:text-gray-50 text-sm font-bold'
           title='Reset'
-          style={{ color: chainInfos[activeChain].theme.primaryColor }}
+          style={{ color: topChainColor }}
         >
           Reset
         </Chip.Text>

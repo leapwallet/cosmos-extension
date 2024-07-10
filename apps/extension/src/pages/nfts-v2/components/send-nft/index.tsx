@@ -40,6 +40,7 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
   const isSeiEvmChain = useIsSeiEvmChain()
   const walletAddresses = useGetWalletAddresses(nftDetails?.chain)
   const [selectedAddress, setSelectedAddress] = useState<SelectedAddress | null>(null)
+  const [associatedSeiAddress, setAssociatedSeiAddress] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
 
   const [txError, setTxError] = useState('')
@@ -84,12 +85,35 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
         return
       }
 
-      const wallet = await getWallet()
+      let wallet
+      let toAddress = selectedAddress?.address
+
+      if (collectionAddress.toLowerCase().startsWith('0x')) {
+        wallet = await getWallet(nftDetails.chain, true)
+
+        if (
+          toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
+          fetchAccountDetailsData?.pubKey.key
+        ) {
+          toAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+        }
+      } else {
+        wallet = await getWallet()
+
+        if (
+          selectedAddress?.address.toLowerCase().startsWith('0x') &&
+          !collectionAddress.toLowerCase().startsWith('0x') &&
+          associatedSeiAddress
+        ) {
+          toAddress = associatedSeiAddress
+        }
+      }
+
       await simulateTransferNFTContract({
         wallet: wallet,
         collectionId: collectionAddress,
         fromAddress,
-        toAddress: selectedAddress?.address,
+        toAddress: toAddress,
         tokenId: nftDetails?.tokenId ?? '',
         memo: memo,
       })
@@ -112,8 +136,6 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
       return
     }
 
-    // setIsProcessing(true)
-    // setTxError('')
     let wallet
     let toAddress = selectedAddress?.address
 
@@ -128,6 +150,14 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
       }
     } else {
       wallet = await getWallet()
+
+      if (
+        selectedAddress?.address.toLowerCase().startsWith('0x') &&
+        !collectionAddress.toLowerCase().startsWith('0x') &&
+        associatedSeiAddress
+      ) {
+        toAddress = associatedSeiAddress
+      }
     }
 
     const res = await transferNFTContract({
@@ -179,6 +209,8 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
         addressError={addressError}
         setAddressError={setAddressError}
         collectionAddress={collectionAddress}
+        associatedSeiAddress={associatedSeiAddress}
+        setAssociatedSeiAddress={setAssociatedSeiAddress}
       />
 
       <div className='my-2 flex'></div>

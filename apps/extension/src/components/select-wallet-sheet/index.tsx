@@ -116,9 +116,10 @@ export default function SelectWalletSheet({
                 <div className='relative min-h-[56px] w-full' key={wallet.id}>
                   <Card
                     onClick={async () => {
+                      const walletIds = currentWalletInfo?.wallets.map((wallet) => wallet.id)
                       await addToConnections(
                         currentWalletInfo?.chainIds as [string],
-                        currentWalletInfo?.wallets as Key[],
+                        walletIds ?? [],
                         currentWalletInfo?.origin as string,
                       )
                       setActiveWallet(wallet)

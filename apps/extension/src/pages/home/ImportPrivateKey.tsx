@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Buttons, HeaderActionType, TextArea } from '@leapwallet/leap-ui'
+import { Buttons, TextArea } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
+import BottomModal from 'components/bottom-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { usePassword } from 'hooks/settings/usePassword'
@@ -8,7 +9,6 @@ import { Images } from 'images'
 import React, { useState } from 'react'
 import { Colors } from 'theme/colors'
 
-import BottomSheet from '../../components/bottom-sheet/BottomSheet'
 import { Wallet } from '../../hooks/wallet/useWallet'
 import useImportWallet = Wallet.useImportWallet
 import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
@@ -63,29 +63,29 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
   }
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
+    <BottomModal
+      isOpen={isVisible}
       onClose={() => {
         onClose(false)
         setError('')
       }}
-      headerTitle='Import Wallet'
-      headerActionType={HeaderActionType.CANCEL}
-      closeOnClickBackDrop={true}
+      title={'Import Wallet'}
+      closeOnBackdropClick={true}
     >
       <>
         {isSeiEvmChain ? (
           <button
-            className='absolute top-8 right-5 w-[32px] cursor-pointer z-10'
+            className='absolute top-5 left-5 w-[32px] cursor-pointer z-10'
             onClick={() => setViewInfoSheet(true)}
           >
             <img className='w-full' src={Images.Misc.HelpOutline} alt='help' />
           </button>
         ) : null}
 
-        <div className='flex flex-col p-[28px] gap-y-4 items-cente justify-center'>
+        <div className='flex flex-col gap-y-4 items-cente justify-center'>
           <Text size='sm' color='text-center text-gray-600 dark:text-gray-600'>
-            Enter the private key below. This will import an existing wallet.
+            Use private key to import your MetaMask wallet to generate the same EVM address as on
+            MetaMask.
           </Text>
           <TextArea
             onChange={(e) => onChangeHandler(e.target.value)}
@@ -109,7 +109,7 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
           <div className='w-full h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center p-[16px] pr-[21px]'>
             <img className='mr-[16px]' src={Images.Misc.Warning} />
             <div className='flex flex-col gap-y-[2px]'>
-              <Text size='sm' className='tex font-black font-bold'>
+              <Text size='sm' className='tex font-bold'>
                 Recommended security practice:
               </Text>
               <Text size='xs' color='text-gray-400'>
@@ -135,10 +135,10 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
             setVisible={setViewInfoSheet}
             title='FAQ'
             heading='Use private key for importing via MetaMask'
-            desc='Using private key to import your Metamask wallet will generate the same 0x address as on Metamask.'
+            desc='Using private key to import your MetaMask wallet will generate the same 0x address as on MetaMask.'
           />
         ) : null}
       </>
-    </BottomSheet>
+    </BottomModal>
   )
 }

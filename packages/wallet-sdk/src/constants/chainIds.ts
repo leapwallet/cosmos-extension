@@ -165,4 +165,5 @@ export const chainIdToChain: Record<string, string> = {
   'blumbus_111-1': 'dymension',
   'ssc-1': 'saga',
   'initiation-1': 'initia',
+  'humans_1089-1': 'humans',
 };

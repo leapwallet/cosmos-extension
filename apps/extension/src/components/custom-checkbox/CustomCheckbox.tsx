@@ -17,7 +17,7 @@ export function CustomCheckbox({ checked, onClick }: CustomCheckboxProps) {
           <img src={Images.Misc.FilledRoundedSquareCheckMark} className='absolute inset-0' />
         </div>
       ) : (
-        <div className='w-[15px] h-[15px] rounded-[2px] border-[2px] border-gray-200'></div>
+        <div className='w-[15px] h-[15px] rounded-[2px] border-[2px] border-gray-800 dark:border-gray-200'></div>
       )}
     </div>
   )

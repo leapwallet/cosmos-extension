@@ -1,64 +1,24 @@
-import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import classNames from 'classnames'
-import Text from 'components/text'
 import { useSendContext } from 'pages/send-v2/context'
-import React, { useState } from 'react'
-
-import { CEXSheet } from './cex-sheet'
-
-const tokenOnCEX = ['ATOM', 'SEI', 'INJ', 'NTRN', 'USDC', 'TIA', 'OSMO']
+import React from 'react'
 
 export const Memo: React.FC = () => {
-  const [showCEXSheet, setShowCEXSheet] = useState<boolean>(false)
-  const { memo, setMemo, selectedAddress, selectedToken, isIBCTransfer, addressWarning } =
-    useSendContext()
-
-  const selectedAddressNativeDenoms: string[] = Object.keys(
-    ChainInfos[selectedAddress?.chainName as SupportedChain]?.nativeDenoms ?? {},
-  )
-
-  const canBeCEXTransfer =
-    isIBCTransfer &&
-    tokenOnCEX.includes(selectedToken?.symbol || '') &&
-    selectedAddressNativeDenoms?.includes(selectedToken?.coinMinimalDenom || '')
+  const { memo, setMemo, addressWarning } = useSendContext()
 
   return (
-    <>
-      <div
-        className={classNames('card-container', {
-          'opacity-50 pointer-events-none': addressWarning.type === 'link',
-        })}
-      >
-        <div className='flex justify-between w-full mb-4'>
-          <p className='font-bold text-sm text-gray-600 dark:text-gray-200'>Memo</p>
-          <p
-            className='font-medium text-sm text-gray-500 cursor-pointer'
-            onClick={() => setShowCEXSheet(true)}
-          >
-            Learn more
-          </p>
-        </div>
-        <input
-          type='text'
-          value={memo}
-          placeholder='Required for sending to centralised exchanges..'
-          className='border w-full border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 font-medium text-sm placeholder:text-gray-300 dark:placeholder:text-gray-700 text-gray-600 dark:text-gray-200 outline-none focus:border-gray-400 dark:focus:border-gray-500 bg-white-0'
-          onChange={(e) => setMemo(e.target?.value)}
-        />
-      </div>
-
-      {canBeCEXTransfer && (
-        <div className='rounded-xl p-4 flex items-center bg-[#422800] border border-[#704400] gap-2'>
-          <div className='material-icons-round text-orange-600' style={{ fontSize: 20 }}>
-            warning
-          </div>
-          <Text size='sm' color='text-orange-600 font-medium'>
-            Avoid IBC transfers to Centralised exchanges. Your token might get lost.
-          </Text>
-        </div>
-      )}
-
-      <CEXSheet isOpen={showCEXSheet} onClose={() => setShowCEXSheet(false)} />
-    </>
+    <div
+      className={classNames('p-4 rounded-2xl bg-white-100 dark:bg-gray-950', {
+        'opacity-50 pointer-events-none': addressWarning.type === 'link',
+      })}
+    >
+      <p className='font-bold text-sm text-gray-600 dark:text-gray-400 mb-3'>Memo</p>
+      <input
+        type='text'
+        value={memo}
+        placeholder='Required for CEX transfers...'
+        className='w-full h-10 rounded-xl px-4 py-2 font-medium text-xs placeholder:text-gray-600 dark:placeholder:text-gray-400 text-black-100 dark:text-white-100 outline-none border border-[transparent] focus-within:border-green-600 bg-gray-50 dark:bg-gray-900'
+        onChange={(e) => setMemo(e.target?.value)}
+      />
+    </div>
   )
 }

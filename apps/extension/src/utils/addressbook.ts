@@ -23,6 +23,7 @@ export namespace AddressBook {
     tnsAddress?: string
     memo?: string
     ethAddress?: string
+    saveAsCEX?: boolean
   }
 
   export type SavedAddresses = {

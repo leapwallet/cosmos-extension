@@ -1,5 +1,10 @@
-import { useActiveChain, useChainApis, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
-import { getNeutronProposalVote } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  useActiveChain,
+  useAddress,
+  useChainApis,
+  useChainsStore,
+} from '@leapwallet/cosmos-wallet-hooks'
+import { getNeutronProposalVote, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType, LineDivider } from '@leapwallet/leap-ui'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
@@ -8,34 +13,29 @@ import PopupLayout from 'components/layout/popup-layout'
 import { ProposalDescription } from 'components/proposal-description'
 import Text from 'components/text'
 import dayjs from 'dayjs'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { useAddress } from 'hooks/wallet/useAddress'
 import React, { useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { PieChart } from 'react-minimal-pie-chart'
 import { Colors } from 'theme/colors'
-import { voteRatio } from 'utils/gov/voteRatio'
 import { imgOnError } from 'utils/imgOnError'
 
-import { VoteOptions } from '../CastVoteSheet'
-import {
-  convertTime,
-  getPercentage,
-  ProposalDetailsProps,
-  ShowVotes,
-  Turnout,
-} from '../ProposalDetails'
+import { ProposalDetailsProps, ProposalStatusEnum, ShowVotes, Turnout } from '../components'
+import { convertTime, getPercentage, voteRatio } from '../utils'
 import { NtrnCastVote, NtrnStatus } from './index'
 import { NtrnProposalStatus } from './NtrnStatus'
 import {
   getDescription,
   getEndTime,
+  getId,
   getProposer,
   getQuorum,
   getStatus,
   getTitle,
   getTurnout,
   getVotes,
+  VoteOptions,
 } from './utils'
 
 type VoteDetailsProps = {
@@ -45,6 +45,7 @@ type VoteDetailsProps = {
   currVote: string
   isLoading: boolean
   shouldUseFallback: boolean
+  forceChain?: SupportedChain
 }
 
 function VoteDetails({
@@ -53,9 +54,11 @@ function VoteDetails({
   currVote,
   isLoading,
   shouldUseFallback,
+  forceChain,
 }: VoteDetailsProps) {
   const [timeLeft, setTimeLeft] = useState<string | undefined>()
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
 
   useEffect(() => {
     const getTime = () => {
@@ -71,6 +74,8 @@ function VoteDetails({
 
   switch (getStatus(proposal, shouldUseFallback)) {
     case NtrnProposalStatus.OPEN:
+    case ProposalStatusEnum.PROPOSAL_STATUS_IN_PROGRESS:
+    case ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD:
       return (
         <>
           <div className='rounded-2xl bg-white-100 dark:bg-gray-900 flex flex-col mt-4'>
@@ -132,6 +137,10 @@ function VoteDetails({
     case NtrnProposalStatus.EXECUTED:
     case NtrnProposalStatus.PASSED:
     case NtrnProposalStatus.REJECTED:
+    case ProposalStatusEnum.PROPOSAL_STATUS_PASSED:
+    case ProposalStatusEnum.PROPOSAL_STATUS_EXECUTED:
+    case ProposalStatusEnum.PROPOSAL_STATUS_FAILED:
+    case ProposalStatusEnum.PROPOSAL_STATUS_REJECTED:
       return (
         <div className='rounded-2xl bg-white-100 dark:bg-gray-900 flex flex-col mt-4'>
           <div className='flex items-center gap-3 p-4'>
@@ -185,13 +194,21 @@ export function NtrnProposalDetails({
   onBack,
   proposalList,
   shouldUseFallback,
+  forceChain,
+  forceNetwork,
 }: ProposalDetailsProps) {
   const { chains } = useChainsStore()
-  const activeChain = useActiveChain()
-  const chain = chains[activeChain]
-  const address = useAddress()
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
+  const _selectedNetwork = useSelectedNetwork()
+  const selectedNetwork = useMemo(
+    () => forceNetwork || _selectedNetwork,
+    [_selectedNetwork, forceNetwork],
+  )
 
-  const { rpcUrl, txUrl } = useChainApis()
+  const address = useAddress(activeChain)
+  const chain = chains[activeChain]
+  const { rpcUrl, txUrl } = useChainApis(activeChain, selectedNetwork)
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showCastVoteSheet, setShowCastVoteSheet] = useState(false)
 
@@ -204,6 +221,14 @@ export function NtrnProposalDetails({
   )
   const { abstain, yes, no } = shouldUseFallback ? proposal.proposal.votes : proposal.tally
   const totalVotes = [yes, no, abstain].reduce((sum, val) => sum + Number(val), 0)
+
+  const isProposalInVotingPeriod = useMemo(() => {
+    return [
+      NtrnProposalStatus.OPEN,
+      ProposalStatusEnum.PROPOSAL_STATUS_IN_PROGRESS,
+      ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD,
+    ].includes(getStatus(proposal, shouldUseFallback))
+  }, [proposal, shouldUseFallback])
 
   const dataMock = useMemo(() => {
     return !totalVotes
@@ -262,7 +287,7 @@ export function NtrnProposalDetails({
     },
     {
       retry: (failureCount) => failureCount <= 2,
-      enabled: getStatus(proposal, shouldUseFallback) === NtrnProposalStatus.OPEN && !!rpcUrl,
+      enabled: isProposalInVotingPeriod && !!rpcUrl,
     },
   )
 
@@ -278,7 +303,8 @@ export function NtrnProposalDetails({
         />
         <div className='flex flex-col py-6 px-7 max-h-[520px] overflow-y-scroll'>
           <div className='text-gray-600 dark:text-gray-200 text-sm mb-1'>
-            #{proposal.id} · <NtrnStatus status={getStatus(proposal, shouldUseFallback)} />
+            #{getId(proposal, shouldUseFallback)} ·{' '}
+            <NtrnStatus status={getStatus(proposal, shouldUseFallback)} />
           </div>
           <div className='text-black-100 dark:text-white-100 font-bold text-xl break-words'>
             {getTitle(proposal, shouldUseFallback)}
@@ -290,6 +316,7 @@ export function NtrnProposalDetails({
             currVote={currVote?.vote}
             isLoading={isLoading}
             shouldUseFallback={shouldUseFallback}
+            forceChain={forceChain}
           />
 
           <div className='my-8'>
@@ -312,7 +339,7 @@ export function NtrnProposalDetails({
             </>
           )}
 
-          {getStatus(proposal, shouldUseFallback) === NtrnProposalStatus.OPEN && (
+          {isProposalInVotingPeriod && (
             <div className='rounded-2xl mt-6 h-18 w-full p-4 flex items-center justify-between roundex-xxl bg-white-100 dark:bg-gray-900'>
               <div className='flex items-center'>
                 <div
@@ -369,15 +396,18 @@ export function NtrnProposalDetails({
               description={getDescription(proposal, shouldUseFallback)}
               title='Description'
               btnColor={Colors.getChainColor(activeChain, chain)}
+              forceChain={forceChain}
             />
           )}
         </div>
 
         <NtrnCastVote
           refetchVote={refetch}
-          proposalId={proposal.id}
+          proposalId={getId(proposal, shouldUseFallback)}
           showCastVoteSheet={showCastVoteSheet}
           setShowCastVoteSheet={setShowCastVoteSheet}
+          forceChain={forceChain}
+          forceNetwork={forceNetwork}
         />
       </PopupLayout>
     </div>

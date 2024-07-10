@@ -7,6 +7,8 @@ import {
   GasOptions,
   GasPriceStep,
   getGasPricesForOsmosisFee,
+  SelectedNetworkType,
+  Token,
   useActiveChain,
   useChainApis,
   useChainId,
@@ -16,8 +18,10 @@ import {
   useFeeTokens,
   useGasAdjustmentForChain,
   useGasPriceStepForChain,
+  useGetFeeMarketGasPricesSteps,
   useGetSeiEvmBalance,
   useGetTokenSpendableBalances,
+  useHasToCalculateDynamicFee,
   useLowGasPriceStep,
   useNativeFeeDenom,
   useSeiLinkedAddressState,
@@ -46,6 +50,7 @@ import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { sliceWord } from 'utils/strings'
 
 import { GasPriceOptionsContext, GasPriceOptionsContextType, useGasPriceContext } from './context'
 import { SelectTokenModal } from './select-token-modal'
@@ -79,9 +84,13 @@ export const useDefaultGasPrice = (options?: {
         feeDenom?.ibcDenom ?? feeDenom?.coinMinimalDenom ?? '',
       ),
     }
-  }, [options, nativeFeeDenom, lowGasPriceStep])
+  }, [options?.feeDenom, nativeFeeDenom, lowGasPriceStep])
 
   return defaultPrice
+}
+
+function tokenHasBalance(token: Token | undefined) {
+  return !!token?.amount && !isNaN(parseFloat(token?.amount)) && parseFloat(token.amount) > 0
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,11 +141,17 @@ const GasPriceOptions = ({
 }: GasPriceOptionsProps) => {
   const [viewAdditionalOptions, setViewAdditionalOptions] = useState(false)
   const _activeChain = useActiveChain()
-  const activeChain = chain ?? _activeChain
+  const activeChain: SupportedChain = useMemo(() => chain ?? _activeChain, [_activeChain, chain])
 
   const _selectedNetwork = useSelectedNetwork()
-  const selectedNetwork = network ?? _selectedNetwork
+  const selectedNetwork: SelectedNetworkType = useMemo(
+    () => network ?? _selectedNetwork,
+    [_selectedNetwork, network],
+  )
+
   const nonNativeTokenGasLimitMultiplier = useRef<number>(1)
+  const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork)
+  const getFeeMarketGasPricesSteps = useGetFeeMarketGasPricesSteps(activeChain, selectedNetwork)
 
   useEffect(() => {
     if (activeChain === 'osmosis') {
@@ -149,7 +164,7 @@ const GasPriceOptions = ({
   const { chains } = useChainsStore()
   const chainInfo = chains[activeChain as SupportedChain]
   const defaultGasEstimates = useDefaultGasEstimates()
-  const gasAdjustment = useGasAdjustmentForChain()
+  const gasAdjustment = useGasAdjustmentForChain(activeChain)
 
   const baseGasPriceStep = useGasPriceStepForChain(activeChain, selectedNetwork)
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork)
@@ -183,7 +198,7 @@ const GasPriceOptions = ({
           gaslimit: fee.gasLimit ?? Long.fromString(fee.gas),
           feeAmount: fee.amount[0].amount,
           feeDenom: fee.amount[0].denom,
-          chain: chain,
+          chain: activeChain,
         },
         onInvalidFees,
       ).catch((e) => {
@@ -191,7 +206,7 @@ const GasPriceOptions = ({
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fee, chain])
+  }, [fee, activeChain])
 
   useEffect(() => {
     const fn = async () => {
@@ -200,7 +215,7 @@ const GasPriceOptions = ({
       if (
         activeChain === 'osmosis' &&
         feeTokenData &&
-        ![feeTokenData.ibcDenom, feeTokenData.denom.coinMinimalDenom].includes('uosmo')
+        ![feeTokenData.ibcDenom, feeTokenData.denom?.coinMinimalDenom].includes('uosmo')
       ) {
         const gasPriceStep = await getGasPricesForOsmosisFee(
           lcdUrl ?? '',
@@ -209,12 +224,26 @@ const GasPriceOptions = ({
         )
         setFeeTokenData(() => ({ ...feeTokenData, gasPriceStep }))
       }
+
+      if (hasToCalculateDynamicFee && feeTokenData) {
+        let isIbcDenom = false
+        if (feeTokenData.ibcDenom?.toLowerCase().startsWith('ibc/')) {
+          isIbcDenom = true
+        }
+
+        const gasPriceStep = await getFeeMarketGasPricesSteps(
+          feeTokenData.denom?.coinMinimalDenom ?? '',
+          feeTokenData.gasPriceStep,
+          isIbcDenom,
+        )
+        setFeeTokenData(() => ({ ...feeTokenData, gasPriceStep: gasPriceStep }))
+      }
     }
 
     fn()
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feeTokensList])
+  }, [feeTokensList, hasToCalculateDynamicFee])
 
   const getWallet = Wallet.useGetWallet()
   const { addressLinkState } = useSeiLinkedAddressState(getWallet)
@@ -244,18 +273,8 @@ const GasPriceOptions = ({
       }
 
       if (token.ibcDenom) {
-        if (chainInfo?.beta) {
-          return Object.values(chainInfo.nativeDenoms).find(
-            (nativeCoinDenom) => nativeCoinDenom.coinMinimalDenom === token.coinMinimalDenom,
-          )
-        }
         return token.ibcDenom === feeTokenData?.ibcDenom
       } else {
-        if (chainInfo?.beta) {
-          return Object.values(chainInfo.nativeDenoms).find(
-            (nativeCoinDenom) => nativeCoinDenom.coinMinimalDenom === token.coinMinimalDenom,
-          )
-        }
         return token.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
       }
     })
@@ -426,9 +445,11 @@ const GasPriceOptions = ({
       (feeToken) =>
         !!allTokens?.find((token) => {
           if (token.ibcDenom) {
-            return token.ibcDenom === feeToken?.ibcDenom
+            return token.ibcDenom === feeToken?.ibcDenom && tokenHasBalance(token)
           } else {
-            return token.coinMinimalDenom === feeToken?.denom?.coinMinimalDenom
+            return (
+              token.coinMinimalDenom === feeToken?.denom?.coinMinimalDenom && tokenHasBalance(token)
+            )
           }
         }),
     )
@@ -441,6 +462,8 @@ const GasPriceOptions = ({
       chainNativeFeeTokenData,
       setFeeTokenData,
       onGasPriceOptionChange,
+      hasToCalculateDynamicFee,
+      getFeeMarketGasPricesSteps,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -450,13 +473,48 @@ const GasPriceOptions = ({
     feeTokensList,
     isFeeTokensListLoading,
     userHasSelectedToken,
+    hasToCalculateDynamicFee,
   ])
 
   useEffect(() => {
-    if (isFeeTokensListLoading || !initialFeeDenom || userHasSelectedToken) {
+    if (
+      isFeeTokensListLoading ||
+      !initialFeeDenom ||
+      userHasSelectedToken ||
+      allTokensStatus === 'loading'
+    ) {
       return
     }
-    const foundFeeTokenData = feeTokensList.find((token) => token.ibcDenom === initialFeeDenom)
+    let foundFeeTokenData = feeTokensList.find((token) => {
+      if (token.ibcDenom) {
+        return token.ibcDenom === initialFeeDenom
+      }
+      return token.denom.coinMinimalDenom === initialFeeDenom
+    })
+    if (!notUpdateInitialGasPrice) {
+      const dAppSuggestedFeeToken = allTokens?.find((token) => {
+        if (token.ibcDenom) {
+          return token.ibcDenom === initialFeeDenom
+        }
+        return token.coinMinimalDenom === initialFeeDenom
+      })
+      if (!tokenHasBalance(dAppSuggestedFeeToken)) {
+        foundFeeTokenData =
+          feeTokensList?.find(
+            (feeToken) =>
+              !!allTokens?.find((token) => {
+                if (token.ibcDenom) {
+                  return token.ibcDenom === feeToken?.ibcDenom && tokenHasBalance(token)
+                } else {
+                  return (
+                    token.coinMinimalDenom === feeToken?.denom?.coinMinimalDenom &&
+                    tokenHasBalance(token)
+                  )
+                }
+              }),
+          ) ?? foundFeeTokenData
+      }
+    }
     if (foundFeeTokenData) {
       updateFeeTokenData({
         foundFeeTokenData,
@@ -467,15 +525,20 @@ const GasPriceOptions = ({
         lcdUrl,
         baseGasPriceStep,
         notUpdateGasPrice: notUpdateInitialGasPrice,
+        hasToCalculateDynamicFee,
+        getFeeMarketGasPricesSteps,
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     feeTokensList,
     initialFeeDenom,
+    allTokens,
+    allTokensStatus,
     isFeeTokensListLoading,
     userHasSelectedToken,
     notUpdateInitialGasPrice,
+    hasToCalculateDynamicFee,
   ])
 
   if (!feeTokenData) return null
@@ -543,9 +606,16 @@ GasPriceOptions.Selector = function Selector({
   className?: string
   preSelected?: boolean
 }) {
-  const { value, onChange, gasLimit, feeTokenData, considerGasAdjustment, activeChain } =
-    useGasPriceContext()
-  const chainId = useChainId()
+  const {
+    value,
+    onChange,
+    gasLimit,
+    feeTokenData,
+    considerGasAdjustment,
+    activeChain,
+    selectedNetwork,
+  } = useGasPriceContext()
+  const chainId = useChainId(activeChain, selectedNetwork)
 
   const defaultGasEstimates = useDefaultGasEstimates()
   const [formatCurrency, preferredCurrency] = useFormatCurrency()
@@ -666,7 +736,8 @@ GasPriceOptions.Selector = function Selector({
                   isSelected ? 'dark:brightness-200 brightness-50' : ''
                 } ${formattedAmount.length > 4 ? 'text-[10px]' : 'text-xs'}`}
               >
-                {isVerySmallAmount ? '< 0.00001' : formattedAmount} {feeTokenData.denom.coinDenom}
+                {isVerySmallAmount ? '< 0.00001' : formattedAmount}{' '}
+                {sliceWord(feeTokenData?.denom?.coinDenom ?? '')}
               </span>
               {amountInFiat ? (
                 <span
@@ -816,7 +887,7 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
     }
   }, [feeTokenAsset, inputTouched, viewAdditionalOptions])
 
-  if (!feeTokenAsset) {
+  if (!feeTokenAsset && (!eligibleFeeTokens || eligibleFeeTokens?.length === 0)) {
     if (allTokensStatus === 'error') {
       return (
         <div className='w-full z-0 mt-3'>
@@ -851,22 +922,25 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
 
   const onlySingleFeeToken = feeTokensList?.length === 1
 
-  const handleTokenSelect = async (selectedMinimalDenom: string) => {
-    let selectedFeeTokenData = feeTokensList.find(
-      (feeToken) => feeToken.denom.coinMinimalDenom === selectedMinimalDenom,
-    )
+  const handleTokenSelect = async (selectedMinimalDenom: string, selectedIbcDenom?: string) => {
+    let selectedFeeTokenData = feeTokensList.find((feeToken) => {
+      if (feeToken.ibcDenom) {
+        return feeToken.ibcDenom === selectedIbcDenom
+      }
+      return feeToken.denom.coinMinimalDenom === selectedMinimalDenom
+    })
 
     if (
       activeChain === 'osmosis' &&
       selectedFeeTokenData &&
-      ![selectedFeeTokenData.ibcDenom, selectedFeeTokenData.denom.coinMinimalDenom].includes(
+      ![selectedFeeTokenData.ibcDenom, selectedFeeTokenData.denom?.coinMinimalDenom].includes(
         'uosmo',
       )
     ) {
       try {
         const gasPriceStep = await getGasPricesForOsmosisFee(
           lcdUrl ?? '',
-          selectedFeeTokenData?.ibcDenom ?? '',
+          selectedFeeTokenData.ibcDenom ?? '',
           baseGasPriceStep,
         )
 
@@ -918,7 +992,7 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
         </p>
         <div className='flex items-center justify-between mt-3'>
           <button
-            className={`rounded-full flex items-center py-2 pl-3 pr-2 cursor-pointer disabled:cursor-default ${
+            className={`rounded-full flex items-center py-2 shrink-0 pl-3 pr-2 cursor-pointer disabled:cursor-default ${
               onlySingleFeeToken
                 ? 'bg-white-100 dark:bg-[#141414] border border-gray-300 dark:border-gray-800'
                 : 'bg-gray-50 dark:bg-gray-800'
@@ -934,7 +1008,7 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
               className='h-6 w-6 mr-1'
             />
             <p className='text-black-100 dark:text-white-100 font-bold text-base mr-2'>
-              {feeTokenData.denom.coinDenom}
+              {sliceWord(feeTokenData?.denom?.coinDenom ?? '', 3, 3)}
             </p>
             {isLoading || onlySingleFeeToken ? null : <img src={Images.Misc.ArrowDown} />}
           </button>
@@ -942,10 +1016,10 @@ GasPriceOptions.AdditionalSettings = function AdditionalSettings({
             className='text-sm text-gray-700 dark:text-gray-400 font-bold'
             title={`${new BigNumber(feeTokenAsset?.amount ?? '0').decimalPlaces(
               feeTokenData.denom.coinDecimals ?? 6,
-            )} ${feeTokenData.denom.coinDenom}`}
+            )} ${sliceWord(feeTokenData?.denom?.coinDenom ?? '')}`}
           >
             Balance: {formatBigNumber(new BigNumber(feeTokenAsset?.amount ?? '0'))}{' '}
-            {feeTokenData.denom.coinDenom}
+            {sliceWord(feeTokenData?.denom?.coinDenom ?? '')}
           </p>
         </div>
         <div className='mt-4'>

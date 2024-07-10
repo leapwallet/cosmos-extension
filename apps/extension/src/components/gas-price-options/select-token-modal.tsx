@@ -11,9 +11,9 @@ type SelectTokenSheetProps = {
   assets: Token[]
   isOpen: boolean
   onClose: () => void
-  selectedToken: Token
+  selectedToken?: Token
   // eslint-disable-next-line no-unused-vars
-  onTokenSelect: (baseDenom: string) => void
+  onTokenSelect: (baseDenom: string, ibcDenom?: string) => void
 }
 
 export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
@@ -35,7 +35,7 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
     const handleSelectToken = useCallback(
       (token: Token) => {
         if (token) {
-          onTokenSelect(token.coinMinimalDenom)
+          onTokenSelect(token.coinMinimalDenom, token.ibcDenom)
           onClose()
         }
       },
@@ -58,9 +58,12 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
                 const isFirst = index === 0
                 const isLast = index === choiceOfTokens.length - 1
 
-                const isSelected = selectedToken.ibcDenom
-                  ? selectedToken.ibcDenom === asset.ibcDenom
-                  : selectedToken.coinMinimalDenom === asset.coinMinimalDenom
+                let isSelected = false
+                if (selectedToken) {
+                  isSelected = selectedToken?.ibcDenom
+                    ? selectedToken?.ibcDenom === asset.ibcDenom
+                    : selectedToken?.coinMinimalDenom === asset.coinMinimalDenom
+                }
 
                 return (
                   <React.Fragment key={`${asset.symbol}-${index}`}>

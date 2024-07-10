@@ -33,13 +33,13 @@ type BottomModalProps = React.PropsWithChildren<{
    */
   className?: string
   /*
+   * custom class names for the main wrapper
+   */
+  wrapperClassName?: string
+  /*
    * custom class names for the container
    */
   containerClassName?: string
-  /*
-   * custom class names for the header
-   */
-  headerClassName?: string
   /*
    * custom class names for the content
    */
@@ -57,17 +57,9 @@ type BottomModalProps = React.PropsWithChildren<{
    */
   actionButton?: React.ReactNode
   /*
-   * should the secondary action button be shown
-   */
-  showSecondaryActionButton?: boolean
-  /*
    * custom secondary action button
    */
   secondaryActionButton?: React.ReactNode
-  /*
-   * callback when the secondary action button is clicked
-   */
-  onSecondaryActionButtonClick?: () => void
 }>
 
 const BottomModal: React.FC<BottomModalProps> = ({
@@ -81,13 +73,11 @@ const BottomModal: React.FC<BottomModalProps> = ({
   disableClose,
   actionButton,
   onActionButtonClick,
+  wrapperClassName,
   containerClassName,
-  headerClassName,
   contentClassName,
   hideActionButton,
-  showSecondaryActionButton,
   secondaryActionButton,
-  onSecondaryActionButtonClick,
 }) => {
   const container = document.getElementById('popup-layout')?.parentNode as HTMLElement
 
@@ -108,46 +98,40 @@ const BottomModal: React.FC<BottomModalProps> = ({
       isOpen={isOpen}
       detent='content-height'
       onClose={handleCloseAction}
-      className='w-[400px] h-[600px] mx-auto !absolute'
+      className={classNames('w-[400px] h-[600px] mx-auto !absolute', wrapperClassName)}
     >
       <Sheet.Container
-        className={classNames('bg-gray-50 dark:bg-black-100 !rounded-t-2xl', containerClassName)}
+        className={classNames(
+          'bg-gray-50 dark:bg-black-100 !rounded-t-2xl overflow-hidden',
+          containerClassName,
+        )}
         transition={{
-          duration: 0.5,
+          duration: 1.5,
           ease: 'easeInOut',
         }}
       >
-        <Sheet.Header
-          className={classNames('bg-gray-50 dark:bg-black-100 rounded-t-2xl', headerClassName)}
-        />
         <Sheet.Content className={classNames('bg-gray-50 dark:bg-black-100', contentClassName)}>
-          <div className='relative flex items-center justify-center px-7 pb-4 border-b border-b-gray-300 dark:border-b-gray-900'>
-            {hideActionButton
-              ? null
-              : actionButton ?? (
-                  <div className='absolute top-1 left-7'>
-                    {<Buttons.Cancel onClick={onActionButtonClick ?? handleCloseAction} />}
-                  </div>
-                )}
+          <div className='relative flex items-center justify-center px-7 py-5 border-b border-b-gray-300 dark:border-b-gray-900'>
+            {secondaryActionButton ? secondaryActionButton : null}
             {titleComponent ?? (
-              <h3 className='text-xl font-semibold dark:text-gray-50 text-gray-900 h-[28px]'>
+              <h3 className='text-[18px] font-semibold dark:text-gray-50 text-gray-900 h-[28px]'>
                 {title}
               </h3>
             )}
-            {showSecondaryActionButton === true
-              ? secondaryActionButton ?? (
-                  <div className='absolute top-1 right-7'>
-                    <Buttons.Cancel onClick={onSecondaryActionButtonClick ?? handleCloseAction} />
+            {hideActionButton
+              ? null
+              : actionButton ?? (
+                  <div className='absolute top-[22px] right-7'>
+                    {<Buttons.Cancel onClick={onActionButtonClick ?? handleCloseAction} />}
                   </div>
-                )
-              : null}
+                )}
           </div>
-          <div className={classNames('p-7', className)}>{children}</div>
+          <div className={classNames('p-7 max-h-[488px] overflow-auto', className)}>{children}</div>
         </Sheet.Content>
       </Sheet.Container>
 
       <Sheet.Backdrop
-        className={classNames('!absolute', {
+        className={classNames('!absolute !bg-[#0003] dark:!bg-[#fff3]', {
           '!cursor-default': !closeOnBackdropClick,
           '!cursor-pointer': closeOnBackdropClick,
         })}

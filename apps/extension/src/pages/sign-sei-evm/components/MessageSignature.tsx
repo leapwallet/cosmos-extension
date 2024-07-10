@@ -1,4 +1,9 @@
-import { useActiveChain, useActiveWallet, useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useActiveChain,
+  useActiveWallet,
+  useChainInfo,
+  WALLETTYPE,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { ETHEREUM_METHOD_TYPE } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import { personalSign, signTypedData } from '@leapwallet/cosmos-wallet-sdk'
 import { EthWallet } from '@leapwallet/leap-keychain'
@@ -8,6 +13,7 @@ import { ErrorCard } from 'components/ErrorCard'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { Tabs } from 'components/tabs'
+import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -51,6 +57,10 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
 
   const handleSignClick = async () => {
     try {
+      if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+        throw new Error(SEI_EVM_LEDGER_ERROR_MESSAGE)
+      }
+
       setSigningError(null)
       setTxStatus('loading')
 
@@ -110,7 +120,6 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
                     className='pr-4 cursor-default'
                   />
                 }
-                topColor={Colors.getChainColor(activeChain, chainInfo)}
               />
             </div>
           }

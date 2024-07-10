@@ -1,6 +1,5 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainPageInfo } from 'hooks'
 import React from 'react'
-import { Colors } from 'theme/colors'
 
 import { CantSeeNfts, NoCollectionCard } from './index'
 
@@ -17,7 +16,7 @@ export function NoNft({
   openManageCollectionsSheet,
   openAddCollectionSheet,
 }: NoNftProps) {
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
 
   return (
     <>
@@ -28,7 +27,7 @@ export function NoNft({
         />
 
         <button
-          style={{ color: Colors.getChainColor(activeChain) }}
+          style={{ color: topChainColor }}
           className='font-semibold text-[18px] mt-2 mb-6 w-full'
           onClick={openManageCollectionsSheet}
         >

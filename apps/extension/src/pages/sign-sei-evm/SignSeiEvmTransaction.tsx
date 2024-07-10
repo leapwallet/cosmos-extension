@@ -25,7 +25,7 @@ function Loading() {
   return (
     <PopupLayout
       className='self-center justify-self-center'
-      header={<Header title='Sign Transaction' topColor='#E54f47' />}
+      header={<Header title='Sign Transaction' />}
     >
       <div className='h-full w-full flex flex-col gap-4 items-center justify-center'>
         <LoaderAnimation color='white' />

@@ -1,37 +1,55 @@
-import { CardDivider } from '@leapwallet/leap-ui'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import BottomModal from 'components/bottom-modal'
-import React from 'react'
-
-import { CopyAddressCard } from '.'
+import { CopyAddressCard } from 'components/card'
+import { useWalletInfo } from 'hooks'
+import React, { useMemo } from 'react'
 
 type CopyAddressSheetProps = {
   isVisible: boolean
   onClose: (refetch?: boolean) => void
   walletAddresses: string[]
+  forceChain?: SupportedChain
 }
 
-export function CopyAddressSheet({ isVisible, onClose, walletAddresses }: CopyAddressSheetProps) {
+export function CopyAddressSheet({
+  isVisible,
+  onClose,
+  walletAddresses,
+  forceChain,
+}: CopyAddressSheetProps) {
+  const { walletAvatar, walletName } = useWalletInfo()
+
+  const Title = useMemo(() => {
+    return (
+      <h3 className='flex items-center justify-center gap-2'>
+        <img className='w-[20px] h-[20px]' src={walletAvatar} alt='wallet avatar' />
+
+        <span
+          className='dark:text-white-100 text-black-100 truncate text-[18px] font-bold max-w-[196px]'
+          title={walletName}
+        >
+          {walletName}
+        </span>
+      </h3>
+    )
+  }, [walletAvatar, walletName])
+
   return (
     <BottomModal
       isOpen={isVisible}
       onClose={onClose}
       closeOnBackdropClick={true}
-      title='Copy Address'
+      titleComponent={Title}
+      title=''
+      contentClassName='[&>div:first-child>div:last-child]:-mt-[2px]'
     >
       <div
-        className='bg-white-100 dark:bg-gray-900 rounded-2xl max-h-[400px] w-full mb-5'
+        className='flex flex-col items-center justif-center gap-4 max-h-[400px] w-full'
         style={{ overflowY: 'scroll' }}
       >
-        {walletAddresses.map((address, index, array) => {
-          const isLast = index === array.length - 1
-
-          return (
-            <React.Fragment key={`${address}-${index}`}>
-              <CopyAddressCard address={address} />
-              {!isLast && <CardDivider />}
-            </React.Fragment>
-          )
-        })}
+        {walletAddresses.map((address, index) => (
+          <CopyAddressCard address={address} key={`${address}-${index}`} forceChain={forceChain} />
+        ))}
       </div>
     </BottomModal>
   )

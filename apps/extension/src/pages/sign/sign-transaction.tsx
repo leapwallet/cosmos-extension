@@ -12,6 +12,7 @@ import {
   LeapWalletApi,
   useActiveWallet,
   useChainInfo,
+  useDappDefaultFeeStore,
   useDefaultGasEstimates,
   useSelectedNetwork,
   useSetSelectedNetwork,
@@ -54,7 +55,6 @@ import { BG_RESPONSE } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -125,7 +125,6 @@ const SignTransaction = ({
 
   const [checkedGrantAuthBox, setCheckedGrantAuthBox] = useState(false)
   const chainInfo = useChainInfo()
-  const chainInfos = useChainInfos()
   const activeWallet = useActiveWallet()
   const getWallet = useGetWallet()
 
@@ -136,6 +135,8 @@ const SignTransaction = ({
   const selectedGasOptionRef = useRef(false)
   const [isFeesValid, setIsFeesValid] = useState<boolean | null>(null)
   const [highFeeAccepted, setHighFeeAccepted] = useState<boolean>(false)
+
+  const { setDefaultFee: setDappDefaultFee } = useDappDefaultFeeStore()
 
   const errorMessageRef = useRef<any>(null)
   const feeValidation = useFeeValidation(activeChain)
@@ -691,6 +692,11 @@ const SignTransaction = ({
   ])
 
   useEffect(() => {
+    setDappDefaultFee(defaultFee)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultFee])
+
+  useEffect(() => {
     window.addEventListener('beforeunload', handleCancel)
     browser.storage.local.remove(BG_RESPONSE)
     return () => {
@@ -770,7 +776,6 @@ const SignTransaction = ({
                     className='pr-4 cursor-default'
                   />
                 }
-                topColor={Colors.getChainColor(activeChain, chainInfos[activeChain])}
               />
             </div>
           }
@@ -1138,7 +1143,7 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
       return (
         <PopupLayout
           className='self-center justify-self-center'
-          header={<Header title='Sign Transaction' topColor='#E54f47' />}
+          header={<Header title='Sign Transaction' />}
         >
           <div className='h-full w-full flex flex-col gap-4 items-center justify-center'>
             <h1 className='text-red-300 text-2xl font-bold px-4 text-center'>{heading}</h1>
@@ -1161,7 +1166,7 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
     return (
       <PopupLayout
         className='self-center justify-self-center'
-        header={<Header title='Sign Transaction' topColor='#E54f47' />}
+        header={<Header title='Sign Transaction' />}
       >
         <div className='h-full w-full flex flex-col gap-4 items-center justify-center'>
           <LoaderAnimation color='white' />

@@ -5,7 +5,6 @@ import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { useThemeColor } from 'hooks/utility/useThemeColor'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -16,7 +15,6 @@ import { Snip20ManageTokensProvider } from './context'
 
 export default function SecretManageTokens() {
   const defaultLogo = useDefaultTokenLogo()
-  const themeColor = useThemeColor()
   const navigate = useNavigate()
 
   const [searchText, setSearchText] = useState('')
@@ -91,7 +89,6 @@ export default function SecretManageTokens() {
                 type: HeaderActionType.BACK,
               }}
               title='Manage Tokens'
-              topColor={themeColor}
             />
           }
         >
@@ -102,7 +99,7 @@ export default function SecretManageTokens() {
                 className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
                 onChange={handleFilterChange}
               />
-              <img src={Images.Misc.SearchIcon} />
+              <img src={Images.Misc.Search} />
             </div>
 
             <div className='overflow-y-auto pb-20'>

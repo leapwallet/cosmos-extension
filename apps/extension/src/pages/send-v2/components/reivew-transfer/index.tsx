@@ -4,7 +4,6 @@ import {
   getSeiEvmInfo,
   INITIAL_ADDRESS_WARNING,
   SeiEvmInfoEnum,
-  useActiveChain,
   useAddress,
   useChainsStore,
   useFeatureFlags,
@@ -17,7 +16,6 @@ import { Buttons } from '@leapwallet/leap-ui'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { FIXED_FEE_CHAINS } from 'config/constants'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useEffectiveAmountValue } from 'hooks/useEffectiveAmountValue'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useWalletClient } from 'hooks/useWalletClient'
@@ -30,11 +28,7 @@ import { FeesView } from '../fees-view'
 import { FixedFee } from '../fees-view/FixedFee'
 import { ReviewTransferSheet } from './review-transfer-sheet'
 
-type ReviewTransferProps = {
-  themeColor: string
-}
-
-export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) => {
+export const ReviewTransfer: React.FC = () => {
   const getWallet = Wallet.useGetWallet()
   const [showReviewTxSheet, setShowReviewTxSheet] = useState(false)
   const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
@@ -55,18 +49,21 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
     isIbcUnwindingDisabled,
     isIBCTransfer,
     fetchAccountDetailsStatus,
+    amountError,
+    addressError,
+    sendActiveChain,
+    sendSelectedNetwork,
   } = useSendContext()
   const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState(getWallet)
 
   const { chains } = useChainsStore()
-  const userAddress = useAddress()
+  const userAddress = useAddress(sendActiveChain)
+  const { walletClient } = useWalletClient(sendActiveChain)
   const walletAddresses = useGetWalletAddresses()
-  const { walletClient } = useWalletClient()
+
   const effectiveAmountValue = useEffectiveAmountValue(inputAmount)
   const debouncedAmount = useDebouncedValue(effectiveAmountValue, 500)
-  const activeChain = useActiveChain()
   const { data: elementsChains } = useChains()
-  const activeNetwork = useSelectedNetwork()
   const { data: featureFlags } = useFeatureFlags()
 
   const hCaptchaRef = useRef<HCaptcha>(null)
@@ -92,11 +89,11 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
       (d) => d.chainId === chains[selectedAddress?.chainName]?.chainId,
     ),
     destinationAddress: selectedAddress?.address,
-    sourceChain: elementsChains?.find((chain) => chain.chainId === chains[activeChain].chainId),
+    sourceChain: elementsChains?.find((chain) => chain.chainId === chains[sendActiveChain].chainId),
     userAddress: userAddress ?? '',
     walletClient: walletClient,
     enabled: isIBCTransfer && featureFlags?.ibc?.extension !== 'disabled',
-    isMainnet: activeNetwork === 'mainnet',
+    isMainnet: sendSelectedNetwork === 'mainnet',
   })
 
   useEffect(() => {
@@ -121,6 +118,26 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
   ])
 
   const btnText = useMemo(() => {
+    if (amountError) {
+      if (amountError.includes('IBC transfers are not supported')) {
+        return 'Select different chain or address'
+      } else if (amountError.includes('You can only send this token to a SEI address')) {
+        return 'Address not supported'
+      } else {
+        return amountError
+      }
+    }
+
+    if (addressError) {
+      if (addressError === 'The entered address is invalid') {
+        return 'Invalid address'
+      } else if (addressError.includes('IBC transfers are not supported')) {
+        return 'Select different chain or address'
+      } else {
+        return addressError
+      }
+    }
+
     if (addressWarning.type === 'link' && addressLinkState === 'success') {
       return 'Addresses linked successfully'
     }
@@ -139,13 +156,19 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
     }
 
     return 'Review Transfer'
-  }, [addressLinkState, addressWarning.type, featureFlags?.link_evm_address?.extension])
+  }, [
+    addressError,
+    addressLinkState,
+    addressWarning.type,
+    amountError,
+    featureFlags?.link_evm_address?.extension,
+  ])
 
   const handleLinkAddressClick = async () => {
     if (featureFlags?.link_evm_address?.extension === 'redirect') {
       const dAppLink = (await getSeiEvmInfo({
-        activeNetwork,
-        activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+        activeNetwork: sendSelectedNetwork,
+        activeChain: sendActiveChain as 'seiDevnet' | 'seiTestnet2',
         infoType: SeiEvmInfoEnum.NO_FUNDS_DAPP_LINK,
       })) as string
 
@@ -209,7 +232,7 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
   return (
     <>
       <div className='absolute w-full flex flex-col gap-4 p-4 bottom-0 left-0 dark:bg-black-100 bg-gray-50'>
-        {FIXED_FEE_CHAINS.includes(activeChain) ? <FixedFee /> : <FeesView />}
+        {inputAmount && (FIXED_FEE_CHAINS.includes(sendActiveChain) ? <FixedFee /> : <FeesView />)}
 
         {featureFlags?.link_evm_address?.extension === 'no-funds' &&
         addressWarning.type === 'link' &&
@@ -226,7 +249,7 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
 
         <Buttons.Generic
           size='normal'
-          color={themeColor}
+          color={addressError || amountError ? Colors.red300 : Colors.green600}
           onClick={
             addressWarning.type === 'link' && !['done', 'unknown'].includes(addressLinkState)
               ? handleLinkAddressClick
@@ -257,6 +280,8 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
           fee={fee.amount[0]}
           setShowReviewSheet={setShowReviewTxSheet}
           closeAdjustmentSheet={hideAdjustmentSheet}
+          forceChain={sendActiveChain}
+          forceNetwork={sendSelectedNetwork}
         />
       ) : null}
 
@@ -266,7 +291,6 @@ export const ReviewTransfer: React.FC<ReviewTransferProps> = ({ themeColor }) =>
           setShowReviewTxSheet(false)
           clearTxError()
         }}
-        themeColor={themeColor}
       />
     </>
   )

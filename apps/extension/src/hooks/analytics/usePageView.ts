@@ -1,8 +1,11 @@
 import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { EventName, PageName } from 'config/analytics'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
 import { useEffect } from 'react'
+import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 /**
@@ -11,6 +14,10 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const usePageView = (pageName: PageName, enable = true, additionalProperties?: any) => {
   const chain = useChainInfo() as ChainInfo | undefined
+  const activeChain = useActiveChain() as AggregatedSupportedChain
+  const isAggregatedView = activeChain === AGGREGATED_CHAIN_KEY
+  const chainId = isAggregatedView ? 'all' : chain?.chainId ?? ''
+  const chainName = isAggregatedView ? 'All Chains' : chain?.chainName ?? ''
 
   useEffect(() => {
     if (!enable || (isCompassWallet() && pageName !== PageName.Home)) return
@@ -21,8 +28,8 @@ export const usePageView = (pageName: PageName, enable = true, additionalPropert
           EventName.PageView,
           {
             pageName,
-            chainId: chain?.chainId ?? '',
-            chainName: chain?.chainName ?? '',
+            chainId,
+            chainName,
             time: Date.now() / 1000,
             ...(additionalProperties ?? {}),
           },

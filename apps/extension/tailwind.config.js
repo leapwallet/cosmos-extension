@@ -99,6 +99,7 @@ module.exports = {
       },
       transparent: 'transparent',
       current: 'currentColor',
+      osmosisPrimary: '#726FDC',
     },
     extend: {
       animation: {

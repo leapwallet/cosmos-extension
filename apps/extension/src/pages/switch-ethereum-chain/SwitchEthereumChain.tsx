@@ -1,15 +1,11 @@
-import {
-  useActiveChain,
-  useActiveWallet,
-  useChainInfo,
-  useGetChains,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveWallet, useChainInfo, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header } from '@leapwallet/leap-ui'
 import assert from 'assert'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { ACTIVE_CHAIN, BG_RESPONSE, REDIRECT_REQUEST, SELECTED_NETWORK } from 'config/storage-keys'
+import { useChainPageInfo } from 'hooks'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -24,7 +20,7 @@ import { ChainDiv } from './components'
 export default function SwitchEthereumChain() {
   const chainInfo = useChainInfo()
   const activeWallet = useActiveWallet()
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
 
   assert(activeWallet !== null, 'activeWallet is null')
   const walletName = useMemo(() => {
@@ -100,7 +96,6 @@ export default function SwitchEthereumChain() {
                     className='pr-4 cursor-default'
                   />
                 }
-                topColor={Colors.getChainColor(activeChain, chainInfo)}
               />
             </div>
           }
@@ -148,7 +143,7 @@ export default function SwitchEthereumChain() {
 
               <Buttons.Generic
                 title='Approve Button'
-                color={Colors.getChainColor(activeChain)}
+                color={topChainColor}
                 onClick={handleSwitchChainClick}
                 disabled={isLoading}
                 className={`${isLoading ? 'cursor-not-allowed opacity-50' : ''}`}

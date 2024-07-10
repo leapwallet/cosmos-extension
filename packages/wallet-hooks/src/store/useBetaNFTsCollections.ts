@@ -2,9 +2,17 @@ import create from 'zustand';
 
 import { useActiveChain } from './useActiveChain';
 
+export type StoredBetaNftCollection = {
+  name: string;
+  address: string;
+  image: string;
+};
+
 type BetaNFTsCollections = {
-  betaNFTsCollections: { [key: string]: string[] } | null;
-  setBetaNFTsCollections: (betaNFTsCollections: { [key: string]: string[] } | null) => void;
+  betaNFTsCollections: { [chain: string]: { [network: string]: StoredBetaNftCollection[] } } | null;
+  setBetaNFTsCollections: (
+    betaNFTsCollections: { [chain: string]: { [network: string]: StoredBetaNftCollection[] } } | null,
+  ) => void;
 };
 
 export const useBetaNFTsCollectionsStore = create<BetaNFTsCollections>((set) => ({

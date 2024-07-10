@@ -27,7 +27,7 @@ export function Filter({ searchedText, setSearchedText, onClickSortBy }: FilterP
             close
           </span>
         ) : (
-          <img src={Images.Misc.SearchIcon} />
+          <img src={Images.Misc.Search} />
         )}
       </div>
 

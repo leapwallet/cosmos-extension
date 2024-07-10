@@ -1,4 +1,4 @@
-import { useActiveChain, useAddress, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, useAddress } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getEthereumAddress,
   getSeiEvmAddressToShow,
@@ -19,7 +19,7 @@ export function useGetWalletAddresses(forceChain?: SupportedChain) {
   return useMemo(() => {
     if (
       activeWallet &&
-      activeWallet?.walletType !== WALLETTYPE.LEDGER &&
+      activeWallet?.addresses?.[activeChain] &&
       SHOW_ETH_ADDRESS_CHAINS.includes(activeChain)
     ) {
       if (!isCompassWallet() && activeChain !== 'seiTestnet2') {

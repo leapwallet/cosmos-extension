@@ -60,7 +60,7 @@ export function sendTxTest() {
         'send-recipient-address-error-ele',
       )
 
-      const expectedSendRecipientAddressErrorEleText = 'IBC transfers not supported on testnet.'
+      const expectedSendRecipientAddressErrorEleText = 'IBC transfers are not supported on testnet.'
       expect(sendRecipientAddressErrorEleText).toBe(expectedSendRecipientAddressErrorEleText)
     })
 

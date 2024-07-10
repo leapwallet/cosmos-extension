@@ -17,9 +17,13 @@ export type Validators = Record<string, string>;
 
 export const useInvalidateActivity = () => {
   const queryClient = useQueryClient();
-  return useCallback(() => {
-    queryClient.invalidateQueries(['fetch-activity']);
-  }, [queryClient]);
+
+  return useCallback(
+    (activeChain: SupportedChain) => {
+      queryClient.invalidateQueries([`${activeChain}-fetch-activity`]);
+    },
+    [queryClient],
+  );
 };
 
 async function getActivityCardContent({
@@ -203,7 +207,7 @@ export function useActivity(
   }, [activeChain, address, selectedNetwork]);
 
   const { status, data } = useQuery(
-    ['fetch-activity', address, activeChain, selectedNetwork, chains],
+    [`${activeChain}-fetch-activity`, address, activeChain, selectedNetwork, chains],
     async function () {
       if (address) {
         try {
@@ -287,9 +291,9 @@ export function useActivity(
           const activity = await Promise.all(
             parsedData?.map(async (parsedTx) => {
               try {
-                const txnFee = parsedTx.fee.amount[0];
+                const txnFee = parsedTx.fee?.amount[0];
                 let feeTokenInfo = txnFee ? denoms[txnFee.denom as SupportedDenoms] : undefined;
-                if (chains[activeChain].beta && chains[activeChain].nativeDenoms) {
+                if (chains[activeChain].beta && chains[activeChain].nativeDenoms && !feeTokenInfo) {
                   feeTokenInfo = Object.values(chains[activeChain].nativeDenoms)[0];
                 }
                 const feeAmount = txnFee ? fromSmall(txnFee.amount.toString(), feeTokenInfo?.coinDecimals) : undefined;

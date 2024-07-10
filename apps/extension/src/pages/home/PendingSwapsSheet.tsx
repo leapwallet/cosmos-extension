@@ -2,7 +2,7 @@ import { ActivityCardContent, ActivityType } from '@leapwallet/cosmos-wallet-hoo
 import { SKIP_TXN_STATUS } from '@leapwallet/elements-core'
 import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
-import { ActivityCard } from 'pages/activity/ActivityCard'
+import { ActivityCard } from 'pages/activity/components/ActivityCard'
 import React, { Dispatch, SetStateAction } from 'react'
 
 type Props = {
@@ -19,17 +19,8 @@ function PendingSwapsSheet({ isOpen, onClose, pendingSwapTxs, setShowSwapTxPageF
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      hideActionButton={true}
-      showSecondaryActionButton={true}
-      containerClassName='!bg-white-100 dark:!bg-gray-950'
-      headerClassName='!bg-white-100 dark:!bg-gray-950'
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
-      secondaryActionButton={
-        <div className='absolute top-1 right-6'>
-          <Buttons.Cancel onClick={onClose} />
-        </div>
-      }
     >
       <div className='flex flex-col justify-start w-full items-start gap-[16px]'>
         {

@@ -153,7 +153,7 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                                 emoji: undefined,
                                 name: `${
                                   name.length > 12 ? `${name.slice(0, 12)}...` : name
-                                } - ${capitalize(chain)}`,
+                                } - ${chainName}`,
                                 selectionType: 'currentWallet',
                               })
                               onClose()

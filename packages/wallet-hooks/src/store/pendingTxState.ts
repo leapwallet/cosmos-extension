@@ -1,6 +1,6 @@
 import { ExecuteResult } from '@cosmjs/cosmwasm-stargate';
 import { DeliverTxResponse } from '@cosmjs/stargate';
-import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
+import { NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import create from 'zustand';
 
@@ -33,6 +33,8 @@ export type PendingTx = {
   proposalId?: number;
   txnLogAmount?: number;
   isEvmTx?: boolean;
+  sourceChain?: SupportedChain;
+  sourceNetwork?: 'mainnet' | 'testnet';
 };
 
 export type PendingTxState = {

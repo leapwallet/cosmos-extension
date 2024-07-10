@@ -21,10 +21,17 @@ export const FeesView: React.FC = () => {
     gasError,
     setGasError,
     addressWarning,
+    sendActiveChain,
+    sendSelectedNetwork,
     isSeiEvmTransaction,
   } = useSendContext()
 
-  const defaultGasPrice = useDefaultGasPrice({ isSeiEvmTransaction })
+  const defaultGasPrice = useDefaultGasPrice({
+    activeChain: sendActiveChain,
+    selectedNetwork: sendSelectedNetwork,
+    isSeiEvmTransaction,
+  })
+
   const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
     option: gasOption,
     gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
@@ -55,7 +62,7 @@ export const FeesView: React.FC = () => {
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultGasPrice.gasPrice])
+  }, [defaultGasPrice.gasPrice.amount.toString(), defaultGasPrice.gasPrice.denom])
 
   useEffect(() => {
     setGasOption(gasPriceOption.option)
@@ -73,6 +80,8 @@ export const FeesView: React.FC = () => {
         error={gasError}
         setError={setGasError}
         isSelectedTokenEvm={selectedToken?.isEvm}
+        chain={sendActiveChain}
+        network={sendSelectedNetwork}
         isSeiEvmTransaction={isSeiEvmTransaction}
       >
         {addressWarning.type === 'link' ? null : (

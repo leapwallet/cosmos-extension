@@ -113,7 +113,6 @@ export default function AssetDetails() {
             imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
             onImgClick={() => setShowChainSelector(true)}
             title={<Text size='lg'>Asset details</Text>}
-            topColor={Colors.getChainColor(activeChain)}
           />
         }
         headerZIndex={3}

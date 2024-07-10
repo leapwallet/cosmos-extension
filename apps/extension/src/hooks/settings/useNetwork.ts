@@ -4,10 +4,8 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SELECTED_NETWORK } from 'config/storage-keys'
 import { useEffect } from 'react'
-import { useSetRecoilState } from 'recoil'
 import browser from 'webextension-polyfill'
 
-import { selectedChainAlertState } from '../../atoms/selected-chain-alert'
 import { isCompassWallet } from '../../utils/isCompassWallet'
 
 export type SelectedNetwork = 'mainnet' | 'testnet'
@@ -18,10 +16,8 @@ export function useSelectedNetwork() {
 
 export function useSetNetwork() {
   const setSelectedNetwork = useSetSelectedNetwork()
-  const setShowChainAlert = useSetRecoilState(selectedChainAlertState)
 
   return (chain: SelectedNetwork) => {
-    setShowChainAlert(true)
     setSelectedNetwork(chain)
     browser.storage.local.set({ [SELECTED_NETWORK]: chain })
   }

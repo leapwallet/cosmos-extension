@@ -3,11 +3,10 @@ import {
   useFractionalizedNftContracts,
 } from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
+import { useChainPageInfo } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { RightArrow } from 'images/misc'
 import React, { useMemo } from 'react'
-import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
 
 import { useNftContext } from '../context'
@@ -18,7 +17,7 @@ type CollectionsProps = {
 }
 
 export function Collections({ setShowManageCollections }: CollectionsProps) {
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
   const chainInfos = useChainInfos()
 
   const fractionalizedNftContracts = useFractionalizedNftContracts()
@@ -41,7 +40,7 @@ export function Collections({ setShowManageCollections }: CollectionsProps) {
       <div className='flex items-center justify-between p-4 border-b dark:border-gray-900'>
         <h2 className='text-gray-800 dark:text-white-100'>Your collections</h2>
         <button
-          style={{ color: Colors.getChainColor(activeChain) }}
+          style={{ color: topChainColor }}
           className='font-semibold'
           onClick={() => setShowManageCollections(true)}
         >
@@ -88,7 +87,7 @@ export function Collections({ setShowManageCollections }: CollectionsProps) {
 
                 <div
                   className='border dark:border-gray-900 rounded-2xl py-[2px] px-[12px] text-[12px] mt-[1px]'
-                  style={{ color: chainInfos[activeChain].theme.primaryColor }}
+                  style={{ color: topChainColor }}
                 >
                   {nftCount} item{(nftCount ?? 1) > 1 ? 's' : ''}
                 </div>

@@ -4,8 +4,8 @@ import axios from 'axios';
 import { format } from 'date-fns';
 import { useCallback, useMemo } from 'react';
 
+import { TX_LOG_COSMOS_BLOCKCHAIN_MAP } from '../config';
 import {
-  CosmosBlockchain,
   CosmosTxRequest,
   CosmosTxType,
   Currency,
@@ -17,15 +17,20 @@ import {
   Platform,
   V2MarketPricesResponse,
 } from '../connectors';
-import { getCoingeckoPricesStoreSnapshot, useActiveChain, useAddress, useAddressStore, useChainsStore } from '../store';
+import {
+  getCoingeckoPricesStoreSnapshot,
+  getTxLogCosmosBlockchainMapStoreSnapshot,
+  useActiveChain,
+  useAddress,
+  useAddressStore,
+  useChainsStore,
+} from '../store';
 import { useSelectedNetwork } from '../store/useSelectedNetwork';
-import { APP_NAME, getAppName, getLeapapiBaseUrl, getPlatform } from '../utils';
+import { APP_NAME, getAppName, getChainId, getLeapapiBaseUrl, getPlatform } from '../utils';
 import { platforms, platformToChain } from './platforms-mapping';
 import { TransactionMetadata } from './types/txLoggingTypes';
 
 export namespace LeapWalletApi {
-  const leapApi = new LeapApi(process.env.LEAP_WALLET_BACKEND_API_URL);
-
   export type LogInfo = {
     readonly txHash: string;
     readonly txType: CosmosTxType;
@@ -36,6 +41,7 @@ export namespace LeapWalletApi {
     readonly forcePrimaryAddress?: string;
     readonly forceWalletAddress?: string;
     readonly forceChain?: string;
+    readonly forceNetwork?: 'mainnet' | 'testnet';
     readonly amount?: number; // $value of in-amount
   };
 
@@ -53,6 +59,8 @@ export namespace LeapWalletApi {
     priceChange: number;
     marketCap: number;
   }> {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const leapApi = new LeapApi(leapApiBaseUrl);
     let platform = platforms[chain];
     if (!platform) {
       platform = 'DEFAULT' as Platform;
@@ -112,6 +120,8 @@ export namespace LeapWalletApi {
     days: number,
     currency: Currency,
   ): Promise<{ data: MarketChartPrice[]; minMax: MarketChartPrice[] }> {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const leapApi = new LeapApi(leapApiBaseUrl);
     let platform = platforms[chain];
     if (!platform) {
       platform = 'DEFAULT' as Platform;
@@ -151,6 +161,8 @@ export namespace LeapWalletApi {
     currencySelected?: Currency,
   ): Promise<MarketPricesResponse> {
     try {
+      const leapApiBaseUrl = getLeapapiBaseUrl();
+      const leapApi = new LeapApi(leapApiBaseUrl);
       const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
       currencySelected = currencySelected ?? Currency.Usd;
 
@@ -189,10 +201,10 @@ export namespace LeapWalletApi {
     }
   }
 
-  export async function getActivity(walletAddress: string, limit: number, chainId: string) {
+  export async function getActivity(walletAddress: string, offset: number, chainId: string) {
     const leapApiBaseUrl = getLeapapiBaseUrl();
     const { data } = await axios.get(
-      `${leapApiBaseUrl}/activity?chain-id=${chainId}&wallet-address=${walletAddress}&use-ecostake-proxy=false&pagination-offset=${limit}`,
+      `${leapApiBaseUrl}/v2/activity?chain-id=${chainId}&wallet-address=${walletAddress}&use-ecostake-proxy=false&pagination-offset=${offset}`,
       {
         timeout: 30000,
       },
@@ -204,6 +216,8 @@ export namespace LeapWalletApi {
     tokens: { platform: SupportedChain; tokenAddresses: string[] }[],
     currencySelected?: Currency,
   ): Promise<{ [supportedChain: string]: { [tokenAddress: string]: string } }> {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const leapApi = new LeapApi(leapApiBaseUrl);
     const platformTokenAddresses = formatPlatforms(tokens);
     if (platformTokenAddresses.length === 0) return Promise.resolve({});
 
@@ -244,6 +258,8 @@ export namespace LeapWalletApi {
 
   export async function operateMarketPercentChanges(tokens: string[], chain: SupportedChain) {
     try {
+      const leapApiBaseUrl = getLeapapiBaseUrl();
+      const leapApi = new LeapApi(leapApiBaseUrl);
       let platform = platforms[chain];
       if (!platform) {
         platform = 'DEFAULT' as Platform;
@@ -259,6 +275,8 @@ export namespace LeapWalletApi {
     tokens: { platform: SupportedChain; tokenAddresses: string[] }[],
     currency?: Currency,
   ): Promise<{ [key: string]: { [tokenAddr: string]: number } }> {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const leapApi = new LeapApi(leapApiBaseUrl);
     const platformTokenAddresses = formatPlatforms(tokens);
     if (platformTokenAddresses.length === 0) return Promise.resolve({});
     const marketPercentages = await leapApi.getV2MarketPercentageChanges({
@@ -274,103 +292,12 @@ export namespace LeapWalletApi {
     }, {});
   }
 
-  // eslint-disable-next-line no-inner-declarations
-  export function getCosmosNetwork(activeChain: SupportedChain) {
-    const blockchains: Record<SupportedChain, CosmosBlockchain> = {
-      akash: CosmosBlockchain.Akash,
-      assetmantle: CosmosBlockchain.AssetMantle,
-      axelar: CosmosBlockchain.Axelar,
-      comdex: CosmosBlockchain.Comdex,
-      crescent: CosmosBlockchain.Cresent,
-      cryptoorg: CosmosBlockchain.CryptoOrgChain,
-      emoney: CosmosBlockchain.EMoney,
-      irisnet: CosmosBlockchain.IrisNet,
-      juno: CosmosBlockchain.Juno,
-      osmosis: CosmosBlockchain.Osmosis,
-      persistenceNew: CosmosBlockchain.Persistence,
-      persistence: CosmosBlockchain.Persistence,
-      secret: CosmosBlockchain.Secret,
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      secretnetwork: CosmosBlockchain.Secret,
-      sifchain: CosmosBlockchain.Sifchain,
-      sommelier: CosmosBlockchain.Sommelier,
-      stargaze: CosmosBlockchain.Stargaze,
-      starname: CosmosBlockchain.Starname,
-      umee: CosmosBlockchain.Umee,
-      cosmos: CosmosBlockchain.CosmosHub,
-      injective: CosmosBlockchain.Injective,
-      kujira: CosmosBlockchain.Kujira,
-      sei: CosmosBlockchain.Sei,
-      mars: CosmosBlockchain.Mars,
-      stride: CosmosBlockchain.Stride,
-      agoric: CosmosBlockchain.Agoric,
-      cheqd: CosmosBlockchain.Cheqd,
-      likecoin: CosmosBlockchain.LikeCoin,
-      gravitybridge: CosmosBlockchain.GravityBridge,
-      chihuahua: CosmosBlockchain.Chihuahua,
-      fetchhub: CosmosBlockchain.FetchHub,
-      teritori: CosmosBlockchain.Teritori,
-      desmos: CosmosBlockchain.Desmos,
-      jackal: CosmosBlockchain.Jackal,
-      bitsong: CosmosBlockchain.BitSong,
-      evmos: CosmosBlockchain.Evmos,
-      bitcanna: CosmosBlockchain.Bitcanna,
-      canto: CosmosBlockchain.Canto,
-      decentr: CosmosBlockchain.Decentr,
-      carbon: CosmosBlockchain.Carbon,
-      cudos: CosmosBlockchain.Cudos,
-      kava: CosmosBlockchain.Kava,
-      omniflix: CosmosBlockchain.OmniFlix,
-      passage: CosmosBlockchain.Passage,
-      terra: CosmosBlockchain.Terra,
-      quasar: CosmosBlockchain.Quasar,
-      neutron: CosmosBlockchain.Neutron,
-      coreum: CosmosBlockchain.Coreum,
-      mainCoreum: CosmosBlockchain.Coreum,
-      quicksilver: CosmosBlockchain.QuickSilver,
-      onomy: CosmosBlockchain.Onomy,
-      seiTestnet2: CosmosBlockchain.Sei,
-      migaloo: CosmosBlockchain.Migaloo,
-      kyve: CosmosBlockchain.Kyve,
-      archway: CosmosBlockchain.Archway,
-      noble: CosmosBlockchain.Noble,
-      impacthub: CosmosBlockchain.Ixo,
-      planq: CosmosBlockchain.Planq,
-      nomic: CosmosBlockchain.Nomic,
-      nibiru: CosmosBlockchain.Nibiru,
-      mayachain: CosmosBlockchain.mayaChain,
-      empowerchain: CosmosBlockchain.EmpowerChain,
-      provenance: CosmosBlockchain.Provenance,
-      kichain: CosmosBlockchain.Ki,
-      sentinel: CosmosBlockchain.Sentinel,
-      bandchain: CosmosBlockchain.Band,
-      dydx: 'DYDX' as CosmosBlockchain,
-      sge: 'SGE' as CosmosBlockchain,
-      celestia: 'CELESTIA' as CosmosBlockchain,
-      gitopia: CosmosBlockchain.Gitopia,
-      xpla: 'XPLA' as CosmosBlockchain,
-      aura: 'AURA' as CosmosBlockchain,
-      chain4energy: CosmosBlockchain.chain4Energy,
-      composable: 'COMPOSABLE' as CosmosBlockchain,
-      nolus: CosmosBlockchain.Nolus,
-      dymension: 'DYMENSION' as CosmosBlockchain,
-      pryzmtestnet: 'PRYZM' as CosmosBlockchain,
-      thorchain: 'THOR_CHAIN' as CosmosBlockchain,
-      odin: 'ODIN_CHAIN' as CosmosBlockchain,
-      ['8ball']: 'EIGHT_BALL' as CosmosBlockchain,
-      ['Dora Vota']: 'DORAVOTA' as CosmosBlockchain,
-      ['f(x)Core']: 'FX_CORE' as CosmosBlockchain,
-      ['Humans.ai']: 'HUMANS_AI' as CosmosBlockchain,
-      ['union Testnet']: 'UNION' as CosmosBlockchain,
-      ['Cronos POS Chain']: 'CRYPTO_ORG_CHAIN' as CosmosBlockchain,
-      ['Haqq Network']: 'HAQQ_NETWORK' as CosmosBlockchain,
-      ['Elys Network']: 'ELYS_NETWORK' as CosmosBlockchain,
-      ['MANTRA Hongbai Testnet']: 'MANTRA_HONGBAI' as CosmosBlockchain,
-      ['Scorum Network']: 'SCORUM_NETWORK' as CosmosBlockchain,
-      saga: 'SAGA' as CosmosBlockchain,
-      initia: 'INITIA' as CosmosBlockchain,
+  export function getCosmosNetwork(activeChain: SupportedChain, txLogMap: Record<string, string> = {}) {
+    const blockchains: Record<string, string> = {
+      ...TX_LOG_COSMOS_BLOCKCHAIN_MAP,
+      ...txLogMap,
     };
+
     return blockchains[activeChain] ?? activeChain?.toUpperCase();
   }
 
@@ -399,7 +326,7 @@ export namespace LeapWalletApi {
 
     const _activeChain = useActiveChain();
     const address = useAddress();
-    const selectedNetwork = useSelectedNetwork();
+    const _selectedNetwork = useSelectedNetwork();
     const { primaryAddress } = useAddressStore();
     const testnetChainIds = useMemo(() => {
       return Object.values(chains).map((c) => {
@@ -418,14 +345,21 @@ export namespace LeapWalletApi {
         forcePrimaryAddress,
         forceWalletAddress,
         forceChain,
+        forceNetwork,
         amount,
       }) => {
+        const leapApiBaseUrl = getLeapapiBaseUrl();
+        const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`);
         const walletAddress = forceWalletAddress || address;
         const wallet = forcePrimaryAddress || (primaryAddress ?? address);
         const activeChain = (forceChain || _activeChain) as SupportedChain;
+        const selectedNetwork = forceNetwork || _selectedNetwork;
 
-        const isMainnet = chainId ? !testnetChainIds.includes(chainId) : selectedNetwork === 'mainnet';
-        const blockchain = getCosmosNetwork(chains[activeChain].key);
+        const _chainId = chainId || getChainId(chains[activeChain], selectedNetwork);
+        const isMainnet = _chainId ? !testnetChainIds.includes(_chainId) : selectedNetwork === 'mainnet';
+
+        const txLogMap = await getTxLogCosmosBlockchainMapStoreSnapshot();
+        const blockchain = getCosmosNetwork(activeChain, txLogMap);
 
         const logReq = {
           app: getPlatform(),
@@ -438,6 +372,7 @@ export namespace LeapWalletApi {
           metadata: formatMetadata(metadata),
           feeDenomination,
           feeQuantity,
+          chainId: _chainId ?? '',
         } as CosmosTxRequest;
 
         if (amount !== undefined) {
@@ -448,15 +383,15 @@ export namespace LeapWalletApi {
 
         try {
           if (isCompassWallet) {
-            await leapApi.operateSeiTx(logReq);
+            await txnLeapApi.operateSeiTx(logReq);
           } else {
-            await leapApi.operateCosmosTx(logReq);
+            await txnLeapApi.operateCosmosTx(logReq);
           }
         } catch (err) {
           console.error(err);
         }
       },
-      [_activeChain, selectedNetwork, primaryAddress, address, chains],
+      [_activeChain, _selectedNetwork, primaryAddress, address, chains, testnetChainIds, isCompassWallet],
     );
   }
 
@@ -472,32 +407,49 @@ export namespace LeapWalletApi {
     }, [chains]);
 
     return useCallback(
-      async (logInfo: LogInfo & { chain: SupportedChain; address: string }) => {
-        const { chain, chainId, address, txHash, metadata, feeDenomination, feeQuantity, txType } = logInfo;
+      async ({
+        chain,
+        chainId,
+        address,
+        txHash,
+        metadata,
+        feeDenomination,
+        feeQuantity,
+        txType,
+      }: LogInfo & { chain: SupportedChain; address: string }) => {
+        const leapApiBaseUrl = getLeapapiBaseUrl();
+        const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`);
+        const _chainId = chainId || getChainId(chains[chain], selectedNetwork);
+        const isMainnet = _chainId ? !testnetChainIds.includes(_chainId) : selectedNetwork === 'mainnet';
+
+        const txLogMap = await getTxLogCosmosBlockchainMapStoreSnapshot();
+        const blockchain = getCosmosNetwork(chain, txLogMap);
+
         try {
           const logReq = {
             app: getPlatform(),
             txHash,
-            blockchain: getCosmosNetwork(chain),
-            isMainnet: chainId ? !testnetChainIds.includes(chainId) : selectedNetwork === 'mainnet',
+            blockchain,
+            isMainnet,
             wallet: primaryAddress ?? address,
             walletAddress: address,
             type: txType,
             metadata: formatMetadata(metadata),
             feeDenomination,
             feeQuantity,
+            chainId: _chainId ?? '',
           } as CosmosTxRequest;
 
           if (isCompassWallet) {
-            await leapApi.operateSeiTx(logReq);
+            await txnLeapApi.operateSeiTx(logReq);
           } else {
-            await leapApi.operateCosmosTx(logReq);
+            await txnLeapApi.operateCosmosTx(logReq);
           }
         } catch (err) {
           console.error(err);
         }
       },
-      [primaryAddress],
+      [primaryAddress, chains, selectedNetwork, testnetChainIds, isCompassWallet],
     );
   }
 }

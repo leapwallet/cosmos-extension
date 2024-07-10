@@ -3,16 +3,21 @@ import {
   formatTokenAmount,
   IbcChainInfo,
   sliceWord,
+  useActiveChain,
+  useGetChains,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { GenericCard } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import Badge from 'components/badge/Badge'
 import IBCTokenBadge from 'components/badge/IbcTokenBadge'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import React from 'react'
+import React, { useMemo } from 'react'
+import { AggregatedSupportedChain } from 'types/utility'
 import { imgOnError } from 'utils/imgOnError'
 
 type TokenCardProps = {
@@ -32,6 +37,7 @@ type TokenCardProps = {
   readonly hasToShowEvmTag?: boolean
   readonly isEvm?: boolean
   readonly hideAmount?: boolean
+  readonly tokenBalanceOnChain?: SupportedChain
 }
 
 export function TokenCard({
@@ -51,7 +57,10 @@ export function TokenCard({
   hasToShowEvmTag,
   isEvm,
   hideAmount = false,
+  tokenBalanceOnChain,
 }: TokenCardProps) {
+  const activeChain = useActiveChain() as AggregatedSupportedChain
+  const chains = useGetChains()
   const [formatCurrency] = useFormatCurrency()
   const { formatHideBalance } = useHideAssets()
 
@@ -59,27 +68,47 @@ export function TokenCard({
   const [preferredCurrency] = useUserPreferredCurrency()
   const formattedFiatValue = usdValue ? formatCurrency(new BigNumber(usdValue)) : '-'
 
+  const ibcInfo = useMemo(() => {
+    if (!ibcChainInfo) return ''
+
+    return `${ibcChainInfo.pretty_name} / ${sliceWord(ibcChainInfo?.channelId ?? '', 7, 5)}`
+  }, [ibcChainInfo])
+
+  const Title = useMemo(() => {
+    let _Title = (
+      <h3 className='text-md text-ellipsis overflow-hidden whitespace-nowrap' title={title}>
+        {sliceWord(title, 7, 4)}
+      </h3>
+    )
+
+    if (activeChain === AGGREGATED_CHAIN_KEY && ibcChainInfo) {
+      _Title = (
+        <div className='flex items-center justify-center gap-1'>
+          {title}
+          {activeChain === AGGREGATED_CHAIN_KEY && ibcChainInfo ? (
+            <Badge text='IBC' title={ibcInfo} />
+          ) : null}
+        </div>
+      )
+    }
+
+    return _Title
+  }, [title, activeChain, ibcChainInfo, ibcInfo])
+
   return (
     <GenericCard
-      title={
-        <h3 className='text-md text-ellipsis overflow-hidden whitespace-nowrap' title={title}>
-          {sliceWord(title, 7, 4)}
-        </h3>
-      }
+      title={Title}
       subtitle={
         <div className='flex space-x-2 font-normal text-gray-400'>
-          {ibcChainInfo && !hasToShowIbcTag ? (
-            <IBCTokenBadge
-              text={`${ibcChainInfo.pretty_name} / ${sliceWord(
-                ibcChainInfo?.channelId ?? '',
-                7,
-                5,
-              )}`}
-            />
-          ) : null}
-
-          {ibcChainInfo && hasToShowIbcTag ? <Badge text='IBC' /> : null}
-          {isEvm && hasToShowEvmTag ? <Badge text='EVM' /> : null}
+          {activeChain === AGGREGATED_CHAIN_KEY && tokenBalanceOnChain ? (
+            <p>{chains[tokenBalanceOnChain]?.chainName ?? 'Unknown Chain'}</p>
+          ) : (
+            <>
+              {ibcChainInfo && !hasToShowIbcTag ? <IBCTokenBadge text={ibcInfo} /> : null}
+              {ibcChainInfo && hasToShowIbcTag ? <Badge text='IBC' title={ibcInfo} /> : null}
+              {isEvm && hasToShowEvmTag ? <Badge text='EVM' /> : null}
+            </>
+          )}
         </div>
       }
       title2={

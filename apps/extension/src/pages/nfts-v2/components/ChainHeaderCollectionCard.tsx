@@ -1,9 +1,9 @@
-import { OwnedCollectionTokenInfo, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { OwnedCollectionTokenInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { LoaderAnimation } from 'components/loader/Loader'
+import { useChainPageInfo } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
 import React from 'react'
-import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 import { sessionStoreItem } from 'utils/sessionStorage'
@@ -27,7 +27,7 @@ export function ChainHeaderCollectionCard({
   isFetchingMore,
 }: ChainHeaderCollectionCardProps) {
   const chainInfos = useChainInfos()
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
   const { activePage, setActivePage, setNftDetails, activeTab, setShowChainNftsFor } =
     useNftContext()
   const chainInfo = chainInfos[chain]
@@ -61,7 +61,7 @@ export function ChainHeaderCollectionCard({
         <div className='ml-auto'>
           <div
             className='border dark:border-gray-900 rounded-md py-[3px] px-[6px] text-[14px] font-bold'
-            style={{ color: chainInfos[activeChain].theme.primaryColor }}
+            style={{ color: topChainColor }}
           >
             {nftsCount} item{nftsCount > 1 ? 's' : ''}
           </div>
@@ -141,9 +141,7 @@ export function ChainHeaderCollectionCard({
               />
               {isFetchingMore && (
                 <div className='flex items-center justify-center'>
-                  <LoaderAnimation
-                    color={Colors.getChainColor(activeChain, chainInfos[activeChain])}
-                  />
+                  <LoaderAnimation color={topChainColor} />
                 </div>
               )}
             </div>

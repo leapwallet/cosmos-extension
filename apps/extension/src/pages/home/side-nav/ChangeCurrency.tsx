@@ -1,6 +1,6 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import NoSearchResults from 'components/no-search-results'
+import { useChainPageInfo } from 'hooks'
 import {
   currencyDetail,
   CurrencyMap,
@@ -10,12 +10,11 @@ import {
 import { Images } from 'images'
 import React from 'react'
 import ReactCountryFlag from 'react-country-flag'
-import { Colors } from 'theme/colors'
 
 const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [selectedCurrency] = useUserPreferredCurrency()
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
   const [currencyUpdater] = useCurrencyUpdater()
 
   const currencyData =
@@ -32,11 +31,7 @@ const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
 
   return (
     <div className='pb-5'>
-      <Header
-        topColor={Colors.getChainColor(activeChain)}
-        title='Currency'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
+      <Header title='Currency' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
       <div className='flex flex-col items-center px-[28px] h-full'>
         <div className='mx-auto mt-[28px] w-[344px] mb-[16px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
           <input
@@ -46,7 +41,7 @@ const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           {searchQuery.length === 0 ? (
-            <img src={Images.Misc.SearchIcon} />
+            <img src={Images.Misc.Search} />
           ) : (
             <img
               className='cursor-pointer'
@@ -89,10 +84,8 @@ const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
                       selectedCurrency.toString() === currency.country ? (
                         <span
                           className='material-icons-round'
-                          style={{
-                            color: Colors.getChainColor(activeChain),
-                          }}
-                          color={Colors.getChainColor(activeChain)}
+                          style={{ color: topChainColor }}
+                          color={topChainColor}
                         >
                           check_circle
                         </span>

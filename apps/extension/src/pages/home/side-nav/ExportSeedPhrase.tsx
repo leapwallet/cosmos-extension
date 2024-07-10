@@ -1,13 +1,13 @@
-import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
+import { useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import CanvasTextBox from 'components/canvas-box/CanvasTextBox'
 import InfoSheet from 'components/Infosheet'
 import Text from 'components/text'
+import { useChainPageInfo } from 'hooks'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Images } from 'images'
 import React, { ReactElement, useState } from 'react'
-import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 
 import { EnterPasswordView } from './EnterPasswordView'
@@ -20,7 +20,7 @@ function SeedPhraseView({
   goBack: () => void
 }): ReactElement {
   const mnemonic = SeedPhrase.useMnemonic(password)
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
   const isSeiEvmChain = useIsSeiEvmChain()
 
@@ -40,7 +40,6 @@ function SeedPhraseView({
       ) : null}
 
       <Header
-        topColor={Colors.getChainColor(activeChain)}
         title='Recovery Phrase'
         action={{
           type: HeaderActionType.BACK,
@@ -56,12 +55,13 @@ function SeedPhraseView({
           These words are the keys to your wallet
         </div>
         <div className='dark:text-gray-400 text-gray-600 text-xs mb-5 w-4/5 text-center'>
-          Please store them somewhere safe. Anyone with these words will have full access to your
-          wallet
+          Exporting a recovery phrase to MetaMask might give a different address, use private key
+          instead.
         </div>
+
         <CanvasTextBox text={mnemonic} noSpace={false} size={'md'} />
         <Buttons.CopyToClipboard
-          color={Colors.getChainColor(activeChain)}
+          color={topChainColor}
           data-testing-id='copy-seed-phrase'
           onCopy={() => {
             UserClipboard.copyText(mnemonic)
@@ -86,7 +86,7 @@ function SeedPhraseView({
           setVisible={setViewInfoSheet}
           title='FAQ'
           heading='Can I export my recovery phrase to MetaMask?'
-          desc='Yes, you can but importing a recovery phrase to Metamask might give a different address. Instead, import your private key.'
+          desc='Yes, you can but importing a recovery phrase to MetaMask might give a different address. Instead, import your private key.'
         />
       ) : null}
     </div>

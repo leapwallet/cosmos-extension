@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { QueryStatus, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { useMemo } from 'react';
 
 import {
   ALL_CHAIN_BANNERS,
@@ -15,8 +14,8 @@ import { APP_NAME, getAppName, getNumiaBannerBearer, storage, useGetStorageLayer
 import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
 
 const NUMIA_BASE_URL = 'https://filament.numia.xyz';
-const LEAP_BANNER_URL = 'https://assets.leapwallet.io/banner/banner-v2.json';
-const COMPASS_BANNER_URL = 'https://assets.leapwallet.io/banner/compass-banner-v2.json';
+const LEAP_BANNER_URL = 'https://assets.leapwallet.io/banner/banner-v3.json';
+const COMPASS_BANNER_URL = 'https://assets.leapwallet.io/banner/compass-banner-v3.json';
 
 export const getBannerDetailsData = (storage: storage, isCompassWallet: boolean): Promise<BannerData> => {
   return cachedRemoteDataWithLastModified({
@@ -72,13 +71,17 @@ export function useBannerConfig() {
   });
 }
 
-export function useGetNumiaBanner(address: string, positionIds: string[]) {
+export function useGetNumiaBanner(address: string, positionIds: string[], bannerConfigStatus: QueryStatus) {
   const numiaBearer = getNumiaBannerBearer();
   const isCompassWallet = getAppName() === APP_NAME.Compass;
 
   return useQuery(
-    ['numia-banner-ad-data', address, positionIds],
+    ['numia-banner-ad-data', address, positionIds, isCompassWallet, numiaBearer],
     async () => {
+      if (isCompassWallet) {
+        return [];
+      }
+
       const responses = await Promise.allSettled(
         positionIds.map(async (positionId) => {
           const URL = `${NUMIA_BASE_URL}/campaign/${address}?position_id=${positionId}`;
@@ -127,7 +130,7 @@ export function useGetNumiaBanner(address: string, positionIds: string[]) {
       }, []);
     },
     {
-      enabled: !isCompassWallet,
+      enabled: bannerConfigStatus !== 'loading',
     },
   );
 }
@@ -161,21 +164,28 @@ export async function postNumiaEvent(address: string, action: NumiaTrackAction, 
 }
 
 export function useGetBannerData(chain: string) {
-  const { data } = useGetBannerApi();
+  const { data, status } = useGetBannerApi();
 
-  /*
-   * We want to display banners in the following order:
-   * 1. Banners for the current chain
-   * 2. Banners for all chains
-   */
-  const combinedBannerDataToDisplay = useMemo(() => {
-    const chainData = (data?.[chain] as BannerAD[]) ?? [];
-    const allChainData = (data?.[ALL_CHAIN_BANNERS] as BannerAD[]) ?? [];
+  const { data: leapBanners, status: leapBannersStatus } = useQuery<BannerAD[]>(
+    [`${chain}-banner-ad-data`, chain, data],
+    function () {
+      /*
+       * We want to display banners in the following order:
+       * 1. Banners for the current chain
+       * 2. Banners for all chains
+       */
 
-    return [...chainData, ...allChainData].sort((a, b) =>
-      (String(a?.display_position) ?? '0') > (String(b?.display_position) ?? '0') ? 1 : -1,
-    );
-  }, [data, chain]);
+      const chainData = (data?.[chain] as BannerAD[]) ?? [];
+      const allChainData = (data?.[ALL_CHAIN_BANNERS] as BannerAD[]) ?? [];
 
-  return combinedBannerDataToDisplay;
+      return [...chainData, ...allChainData].sort((a, b) =>
+        (String(a?.display_position) ?? '0') > (String(b?.display_position) ?? '0') ? 1 : -1,
+      );
+    },
+    {
+      enabled: status !== 'loading',
+    },
+  );
+
+  return { leapBanners, isLeapBannersLoading: leapBannersStatus === 'loading' || status === 'loading' };
 }

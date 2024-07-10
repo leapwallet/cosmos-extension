@@ -106,4 +106,5 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   dym: 'dymension',
   saga: 'saga',
   init: 'initia',
+  humans: 'human',
 };

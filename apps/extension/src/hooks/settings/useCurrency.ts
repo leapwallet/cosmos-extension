@@ -118,7 +118,7 @@ export const useFormatCurrency = () => {
 
   // * @param currencyValue - the currency value to be formatted
   const currencyFormatter = useCallback(
-    (currencyValue: BigNumber) => {
+    (currencyValue: BigNumber, returnNumber: boolean = false) => {
       const formatCurrency = (amount: BigNumber) => {
         return new Intl.NumberFormat(currencyDetail[preferredCurrency].locale, {
           style: 'currency',
@@ -127,8 +127,11 @@ export const useFormatCurrency = () => {
           notation: 'compact',
         }).format(amount.toNumber())
       }
-      if (isNaN(currencyValue.toNumber()) || currencyValue.toNumber() === 0) {
+      if (isNaN(currencyValue.toNumber())) {
         return '-'
+      }
+      if (currencyValue.toNumber() === 0) {
+        return returnNumber ? formatCurrency(new BigNumber(0.0)) : '-'
       }
       if (currencyValue.toNumber() < 0.01 && currencyValue.toNumber() !== 0) {
         return `<${formatCurrency(new BigNumber(0.01))}`

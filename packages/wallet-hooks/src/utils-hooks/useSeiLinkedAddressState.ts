@@ -30,27 +30,20 @@ export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams
   const { evmJsonRpc } = useChainApis();
   const { compassSeiEvmConfig } = useCompassSeiEvmConfigStore();
 
-  const { ATLANTIC_CHAIN_KEY, PACIFIC_ETH_CHAIN_ID, ATLANTIC_ETH_CHAIN_ID, ARCTIC_CHAIN_KEY, ARCTIC_ETH_CHAIN_ID } =
-    useMemo(() => compassSeiEvmConfig, []);
-
+  const { ATLANTIC_CHAIN_KEY, PACIFIC_ETH_CHAIN_ID, ATLANTIC_ETH_CHAIN_ID } = useMemo(() => compassSeiEvmConfig, []);
   const activeChain = forceChain || _activeChain;
+
   const [activeChainKey, activeEvmChainId, selectedNetwork, activeCosmosChainId]: [
     SupportedChain,
     number,
     'mainnet' | 'testnet',
     string,
   ] = useMemo(() => {
-    if (activeChain === 'seiTestnet2') {
-      if (_selectedNetwork === 'mainnet') {
-        return [ATLANTIC_CHAIN_KEY as SupportedChain, PACIFIC_ETH_CHAIN_ID, 'mainnet', 'pacific-1'];
-      }
-
-      if (_selectedNetwork === 'testnet') {
-        return [ATLANTIC_CHAIN_KEY as SupportedChain, ATLANTIC_ETH_CHAIN_ID, 'testnet', 'atlantic-2'];
-      }
+    if (_selectedNetwork === 'testnet') {
+      return [ATLANTIC_CHAIN_KEY as SupportedChain, ATLANTIC_ETH_CHAIN_ID, 'testnet', 'atlantic-2'];
     }
 
-    return [ARCTIC_CHAIN_KEY as SupportedChain, ARCTIC_ETH_CHAIN_ID, 'mainnet', 'arctic-1'];
+    return [ATLANTIC_CHAIN_KEY as SupportedChain, PACIFIC_ETH_CHAIN_ID, 'mainnet', 'pacific-1'];
   }, [activeChain, _selectedNetwork]);
 
   const { data: featureFlags } = useFeatureFlags();

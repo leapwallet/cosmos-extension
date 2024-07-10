@@ -40,4 +40,5 @@ export type ProposalApi = {
   total_deposit?: Amount[];
   quorum?: number;
   turnout?: number;
+  chain?: string;
 };

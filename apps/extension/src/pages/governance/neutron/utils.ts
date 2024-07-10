@@ -1,4 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+export enum VoteOptions {
+  YES = 'Yes',
+  NO = 'No',
+  NO_WITH_VETO = 'No with Veto',
+  ABSTAIN = 'Abstain',
+}
+
 export const getTitle = (proposal: any, shouldPreferFallback: boolean) => {
   if (shouldPreferFallback === true) {
     return proposal?.proposal?.title

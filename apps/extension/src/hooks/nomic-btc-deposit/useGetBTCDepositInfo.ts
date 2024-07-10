@@ -40,18 +40,24 @@ export const getNomicBTCDepositConstants = (
 export function useNomicBTCDepositConstants() {
   const storage = useGetStorageLayer()
   const chain = ChainInfos.nomic.chainRegistryPath
+  const activeChain = useActiveChain() as SupportedChain & 'aggregated'
 
   return useQuery<NomicBTCDepositConstants>(
     ['query-nomic-btc-deposit-constants', chain],
     async () => {
-      const res = await fetch(`https://assets.leapwallet.io/ibc-support-db/chains/${chain}.json`)
-      const ibcChains = await res.json()
+      if (activeChain !== 'aggregated') {
+        const res = await fetch(`https://assets.leapwallet.io/ibc-support-db/chains/${chain}.json`)
+        const ibcChains = await res.json()
 
-      const constants: NomicBTCDepositConstants = await getNomicBTCDepositConstants(storage)
-      return { ...constants, ibcChains }
+        const constants: NomicBTCDepositConstants = await getNomicBTCDepositConstants(storage)
+        return { ...constants, ibcChains }
+      }
+
+      return {} as NomicBTCDepositConstants
     },
     {
       retry: 2,
+      enabled: activeChain !== 'aggregated',
     },
   )
 }

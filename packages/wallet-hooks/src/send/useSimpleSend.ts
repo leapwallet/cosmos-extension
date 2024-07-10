@@ -1,5 +1,6 @@
 import { coin, OfflineSigner } from '@cosmjs/proto-signing';
 import { StdFee } from '@cosmjs/stargate';
+import { parseEther, parseUnits } from '@ethersproject/units';
 import {
   Dict,
   EthermintTxHandler,
@@ -22,7 +23,7 @@ import {
 import { EthWallet } from '@leapwallet/leap-keychain';
 import * as bech32 from 'bech32';
 import { BigNumber } from 'bignumber.js';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
 
 import { CosmosTxType } from '../connectors';
@@ -37,7 +38,6 @@ import {
   useDenoms,
   useSelectedNetwork,
 } from '../store';
-import { useChainInfo } from '../store/useChainInfo';
 import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
@@ -48,9 +48,9 @@ import {
   getMetaDataForSendTx,
   getSeiEvmInfo,
   SeiEvmInfoEnum,
+  sliceAddress,
 } from '../utils';
-import { sliceAddress } from '../utils/strings';
-import { useIsCW20Token } from '../utils-hooks';
+import { useChainInfo, useIsCW20Token } from '../utils-hooks';
 
 type _TokenDenom = {
   ibcDenom?: string;
@@ -90,6 +90,9 @@ export type sendTokensReturnType =
         metadata: Dict;
         feeDenomination: string;
         feeQuantity: string;
+        forceChain?: SupportedChain;
+        forceNetwork?: 'mainnet' | 'testnet';
+        forceWalletAddress?: string;
       };
     };
 
@@ -102,23 +105,27 @@ const getSourceChannelIdUnsafe = async (srcChain: string, destChain: string): Pr
   }
 };
 
-export const useSimpleSend = () => {
+export const useSimpleSend = (forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') => {
   const [showLedgerPopup, setShowLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
-
   const denoms = useDenoms();
-  const chainInfo = useChainInfo();
-  const activeChain = useActiveChain();
   const { activeWallet } = useActiveWalletStore();
-  const getTxHandler = useTxHandler();
+
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [forceNetwork, _selectedNetwork]);
+
+  const chainInfo = useChainInfo(activeChain);
+  const getTxHandler = useTxHandler({ forceChain: activeChain, forceNetwork: selectedNetwork });
   const getScrtTxHandler = useScrtTxHandler();
-  const getCW20TxClient = useCWTxHandler();
+  const getCW20TxClient = useCWTxHandler(activeChain, selectedNetwork);
+
   const isCW20Token = useIsCW20Token();
   const addressPrefixes = useAddressPrefixes();
   const validateIbcChannelId = useValidateIbcChannelId();
   const { chains } = useChainsStore();
-  const { evmJsonRpc } = useChainApis();
-  const selectedNetwork = useSelectedNetwork();
+  const { evmJsonRpc } = useChainApis(activeChain, selectedNetwork);
 
   const sendCW20 = useCallback(
     async ({
@@ -163,8 +170,8 @@ export const useSimpleSend = () => {
             sentAmount: amount.toString(),
             sentTokenInfo: selectedDenom,
             sentUsdValue: '',
-            subtitle1: `to ${sliceAddress(toAddress)}`,
-            title1: `Sent ${selectedDenom.coinDenom}`,
+            subtitle1: sliceAddress(toAddress),
+            title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
             txStatus: 'loading',
             txType: 'cw20TokenTransfer',
             promise,
@@ -211,8 +218,8 @@ export const useSimpleSend = () => {
             sentAmount: amount.toString(),
             sentTokenInfo: selectedDenom,
             sentUsdValue: '',
-            subtitle1: `to ${sliceAddress(toAddress)}`,
-            title1: `Sent ${selectedDenom.coinDenom}`,
+            subtitle1: sliceAddress(toAddress),
+            title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
             txStatus: 'loading',
             txType: 'secretTokenTransfer',
             promise,
@@ -281,8 +288,8 @@ export const useSimpleSend = () => {
             sentAmount: amount.toString(),
             sentTokenInfo: selectedDenom as unknown as NativeDenom,
             sentUsdValue: '',
-            subtitle1: `to ${sliceAddress(toAddress)}`,
-            title1: `Sent ${selectedDenom.coinDenom}`,
+            subtitle1: sliceAddress(toAddress),
+            title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
             txStatus: 'loading',
             txType: 'send',
             promise: Promise.resolve({ code: 0 }),
@@ -299,6 +306,7 @@ export const useSimpleSend = () => {
           },
         };
       } catch (e: any) {
+        console.log('logging error', e);
         return {
           success: false,
           errors: ['Failed to send tokens', e.message?.slice(0, 200)],
@@ -328,10 +336,15 @@ export const useSimpleSend = () => {
 
         const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', chainId);
         let result = { hash: '' };
+        let denom = 'usei';
+        let weiValue = parseEther(value);
 
         if (!options?.isERC20Token) {
           result = await seiEvmTx.sendTransaction(fromAddress, toAddress, value, gas, gasPrice);
         } else {
+          denom = options?.contractAddress ?? '';
+          weiValue = parseUnits(value, options?.decimals ?? 18);
+
           result = await seiEvmTx.sendERC20Transaction(
             toAddress,
             value,
@@ -348,8 +361,8 @@ export const useSimpleSend = () => {
           sentAmount: value.toString(),
           sentTokenInfo: denoms.usei,
           sentUsdValue: '',
-          subtitle1: `to ${sliceAddress(toAddress)}`,
-          title1: `Sent Sei`,
+          subtitle1: sliceAddress(toAddress),
+          title1: `${value.toString()} Sei`,
           txStatus: 'success',
           txType: 'send',
           isEvmTx: true,
@@ -363,8 +376,8 @@ export const useSimpleSend = () => {
           pendingTx: pendingTx,
           data: {
             txHash: result.hash,
-            txType: 'send',
-            metadata: {},
+            txType: CosmosTxType.Send,
+            metadata: getMetaDataForSendTx(toAddress, coin(weiValue.toString(), denom)),
           },
         };
       } catch (e: any) {
@@ -432,7 +445,6 @@ export const useSimpleSend = () => {
         }
 
         const normalizedAmount = toSmall(amount.toString(), selectedDenom?.coinDecimals ?? 6);
-
         let token = selectedDenom.ibcDenom || selectedDenom.coinMinimalDenom;
         token = isEthAddress(token) ? `erc20/${token}` : token;
         const amountOfCoins = coin(normalizedAmount, token);
@@ -481,7 +493,7 @@ export const useSimpleSend = () => {
             memo,
           );
 
-          metadata = getMetaDataForIbcTx(ibcChannelId, toAddress, {
+          metadata = await getMetaDataForIbcTx(ibcChannelId, toAddress, {
             denom: selectedDenom.coinMinimalDenom,
             amount: normalizedAmount,
           });
@@ -491,7 +503,6 @@ export const useSimpleSend = () => {
         }
 
         const txType = isIBCTx ? CosmosTxType.IbcSend : CosmosTxType.Send;
-
         const pollPromise = _tx.pollForTx(txHash);
 
         return {
@@ -502,8 +513,8 @@ export const useSimpleSend = () => {
             sentAmount: amount.toString(),
             sentTokenInfo: selectedDenom as unknown as NativeDenom,
             sentUsdValue: '',
-            subtitle1: `to ${sliceAddress(toAddress)}`,
-            title1: `Sent ${selectedDenom.coinDenom}`,
+            subtitle1: sliceAddress(toAddress),
+            title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
             txStatus: 'loading',
             txType: isIBCTx ? 'ibc/transfer' : 'send',
             promise: pollPromise,
@@ -530,7 +541,7 @@ export const useSimpleSend = () => {
         }
       }
     },
-    [addressPrefixes],
+    [addressPrefixes, activeChain],
   );
 
   const sendTokens = useCallback(

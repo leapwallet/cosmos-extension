@@ -9,12 +9,13 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useCallback, useMemo } from 'react'
 
-export const useWalletClient = () => {
+export const useWalletClient = (forceChain?: SupportedChain) => {
   const { activeWallet } = useActiveWallet()
   const getWallet = Wallet.useGetWallet()
-  const activeChain = useActiveChain()
   const { chains } = useChainsStore()
 
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
   const isLedgerTypeWallet = activeWallet?.walletType === WALLETTYPE.LEDGER
 
   const signDirect: SignDirectMethod = useCallback(

@@ -17,13 +17,6 @@ const RadioGroup: React.FC<RadioGroupProps> = ({
   className,
   themeColor,
 }) => {
-  const handleOptionChange: React.ChangeEventHandler<HTMLInputElement> = useCallback(
-    (event) => {
-      onChange(event.target.value)
-    },
-    [onChange],
-  )
-
   return (
     <fieldset className={classNames('flex flex-col', className)}>
       {options.map((option) => {
@@ -40,7 +33,7 @@ const RadioGroup: React.FC<RadioGroupProps> = ({
               type='radio'
               value={option.value}
               checked={isSelected}
-              onChange={handleOptionChange}
+              readOnly
               className='hidden'
             />
             <div

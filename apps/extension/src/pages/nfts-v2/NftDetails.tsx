@@ -7,10 +7,10 @@ import {
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import { AlertStrip } from 'components/alert-strip'
 import PopupLayout from 'components/layout/popup-layout'
+import { useChainPageInfo } from 'hooks'
 import { useFavNFTs, useHiddenNFTs, useModifyFavNFTs, useModifyHiddenNFTs } from 'hooks/settings'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -34,13 +34,11 @@ import { SendNftCard } from './components/send-nft'
 import { useNftContext } from './context'
 
 export function NftDetails() {
-  const activeChain = useActiveChain()
   const chainInfos = useChainInfos()
-  const activeChainInfo = chainInfos[activeChain]
   const fractionalizedNftContracts = useFractionalizedNftContracts()
 
+  const { topChainColor } = useChainPageInfo()
   const navigate = useNavigate()
-  const color = Colors.getChainColor(activeChain, activeChainInfo)
   const { activeWallet, setActiveWallet } = useActiveWallet()
   const [alertMsg, setAlertMsg] = useState({ body: '', status: '' })
 
@@ -164,7 +162,6 @@ export function NftDetails() {
                 </span>
               </h1>
             }
-            topColor={color}
           />
         }
       >
@@ -298,9 +295,9 @@ export function NftDetails() {
               )}
 
               {isFractionalizedNft ? (
-                <FractionalizedNftDescription nftDetails={nftDetails} color={color} />
+                <FractionalizedNftDescription nftDetails={nftDetails} color={topChainColor} />
               ) : (
-                <NonFractionalizedNftDescription nftDetails={nftDetails} color={color} />
+                <NonFractionalizedNftDescription nftDetails={nftDetails} color={topChainColor} />
               )}
             </>
           )}

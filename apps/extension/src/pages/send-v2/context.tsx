@@ -52,10 +52,18 @@ type SendContextProviderProps = {
 } & React.PropsWithChildren<any>
 
 export const SendContextProvider: React.FC<SendContextProviderProps> = ({ children }) => {
-  const { tokenFiatValue, feeTokenFiatValue, confirmSend, confirmSendEth, selectedToken, ...rest } =
-    useSendModule()
+  const {
+    tokenFiatValue,
+    feeTokenFiatValue,
+    confirmSend,
+    confirmSendEth,
+    selectedToken,
+    setCustomIbcChannelId,
+    sendActiveChain,
+    ...rest
+  } = useSendModule()
   const txCallback = useTxCallBack()
-  const getWallet = useGetWallet()
+  const getWallet = useGetWallet(sendActiveChain)
   const currentWalletAddress = useAddress()
   const getSscrtWallet = useSecretWallet()
   const [transferData, setTransferData] = useState<useTransferReturnType | null>(null)
@@ -100,10 +108,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
 
   useEffect(() => {
     setIsIbcUnwindingDisabled(false)
-  }, [selectedToken, rest?.selectedAddress])
-
-  useEffect(() => {
-    setIsIbcUnwindingDisabled(false)
+    setCustomIbcChannelId(undefined)
   }, [selectedToken, rest?.selectedAddress])
 
   const value = useMemo(() => {
@@ -126,25 +131,28 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = ({ childr
       setTransferData,
       isIbcUnwindingDisabled,
       setIsIbcUnwindingDisabled,
+      setCustomIbcChannelId,
       pfmEnabled,
       setPfmEnabled,
+      sendActiveChain,
       ...rest,
     } as const
   }, [
+    currentWalletAddress,
+    rest,
+    ethAddress,
+    tokenFiatValue,
+    feeTokenFiatValue,
+    selectedToken,
     confirmSendTx,
     confirmSendTxEth,
-    currentWalletAddress,
-    ethAddress,
-    feeTokenFiatValue,
-    rest,
-    selectedToken,
-    tokenFiatValue,
     transferData,
-    setTransferData,
     isIbcUnwindingDisabled,
     setIsIbcUnwindingDisabled,
+    setCustomIbcChannelId,
     pfmEnabled,
     setPfmEnabled,
+    sendActiveChain,
   ])
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

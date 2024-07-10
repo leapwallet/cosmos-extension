@@ -4,6 +4,7 @@ import {
   sliceWord,
   useActiveChain,
   useActiveStakingDenom,
+  useSelectedNetwork,
   useStakeTx,
   useStaking,
   useValidatorImage,
@@ -39,19 +40,36 @@ export function ReviewClaimRewardsTx({
   onClose,
   validator,
   reward,
+  forceChain,
+  forceNetwork,
 }: YourRewardsSheetProps) {
   const getWallet = useGetWallet()
   const txCallback = useTxCallBack()
-  const activeChain = useActiveChain()
+
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain])
+  const _activeNetwork = useSelectedNetwork()
+  const activeNetwork = useMemo(
+    () => forceNetwork || _activeNetwork,
+    [forceNetwork, _activeNetwork],
+  )
+
   const { data: imgUrl } = useValidatorImage(validator)
-  const defaultGasPrice = useDefaultGasPrice()
+  const defaultGasPrice = useDefaultGasPrice({
+    activeChain,
+    selectedNetwork: activeNetwork,
+  })
 
   const [formatCurrency] = useFormatCurrency()
   const { formatHideBalance } = useHideAssets()
   const defaultTokenLogo = useDefaultTokenLogo()
-  const [activeStakingDenom] = useActiveStakingDenom()
+  const [activeStakingDenom] = useActiveStakingDenom(activeChain, activeNetwork)
 
-  const { delegations, refetchDelegatorRewards, totalRewardsDollarAmt, rewards } = useStaking()
+  const { delegations, refetchDelegatorRewards, totalRewardsDollarAmt, rewards } = useStaking(
+    activeChain,
+    activeNetwork,
+  )
+
   const {
     showLedgerPopup,
     onReviewTransaction,
@@ -71,6 +89,8 @@ export function ReviewClaimRewardsTx({
     validator as Validator,
     undefined,
     Object.values(delegations ?? {}),
+    activeChain,
+    activeNetwork,
   )
 
   const [showFeesSettingSheet, setShowFeesSettingSheet] = useState<boolean>(false)
@@ -135,7 +155,7 @@ export function ReviewClaimRewardsTx({
   }
 
   const onClaimRewardsClick = async () => {
-    const wallet = await getWallet()
+    const wallet = await getWallet(activeChain)
 
     onReviewTransaction(
       wallet,
@@ -156,12 +176,15 @@ export function ReviewClaimRewardsTx({
       onGasPriceOptionChange={onGasPriceOptionChange}
       error={gasError}
       setError={setGasError}
+      chain={activeChain}
+      network={activeNetwork}
     >
       <BottomModal
         isOpen={isOpen}
         onClose={onClose}
         title='Review Transaction'
         closeOnBackdropClick={true}
+        contentClassName='[&>div:first-child>div:last-child]:-mt-[2px]'
       >
         <div>
           <div className='flex flex-col items-center w-full gap-y-4'>
@@ -188,15 +211,18 @@ export function ReviewClaimRewardsTx({
                     : '-',
                 )}
                 title={titleText ?? ''}
+                className='dark:!bg-gray-950'
               />
             </CardWithHeading>
 
-            <Memo
-              value={memo}
-              onChange={(e) => {
-                setMemo(e.target.value)
-              }}
-            />
+            <div className='[&>div]:dark:!bg-gray-950 [&>div_input]:dark:!bg-gray-950'>
+              <Memo
+                value={memo}
+                onChange={(e) => {
+                  setMemo(e.target.value)
+                }}
+              />
+            </div>
 
             <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
 

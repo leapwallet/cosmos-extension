@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   useActiveChain,
-  useGetChains,
   useGetNtrnProposals,
   useGovProposals,
   useIsFeatureExistForChain,
@@ -10,18 +9,17 @@ import { QueryStatus } from '@tanstack/react-query'
 import { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { ComingSoon } from 'components/coming-soon'
 import { PageName } from 'config/analytics'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import React, { useMemo, useState } from 'react'
+import { AggregatedSupportedChain } from 'types/utility'
 
+import { AggregatedGovernance, ProposalDetails, ProposalStatusEnum } from './components'
 import { NtrnProposalDetails, NtrnProposalList, NtrnProposalStatus } from './neutron'
-import ProposalDetails from './ProposalDetails'
 import ProposalList from './ProposalList'
-import { ProposalStatus } from './Status'
 
 function GeneralProposals() {
-  usePageView(PageName.Governance)
-
   const [selectedProposal, setSelectedProposal] = useState<string | undefined>()
   const { data: proposalsList, status, fetchMore, shouldUseFallback } = useGovProposals()
 
@@ -63,20 +61,20 @@ function NeutronProposals() {
   const formatProposalStatus = (proposal: any): any => {
     let status = proposal?.status
     switch (proposal?.status) {
-      case ProposalStatus.PROPOSAL_STATUS_EXECUTED: {
+      case ProposalStatusEnum.PROPOSAL_STATUS_EXECUTED: {
         status = NtrnProposalStatus.EXECUTED
         break
       }
-      case ProposalStatus.PROPOSAL_STATUS_REJECTED: {
+      case ProposalStatusEnum.PROPOSAL_STATUS_REJECTED: {
         status = NtrnProposalStatus.REJECTED
         break
       }
-      case ProposalStatus.PROPOSAL_STATUS_PASSED: {
+      case ProposalStatusEnum.PROPOSAL_STATUS_PASSED: {
         status = NtrnProposalStatus.PASSED
         break
       }
-      case ProposalStatus.PROPOSAL_STATUS_IN_PROGRESS:
-      case ProposalStatus.PROPOSAL_STATUS_VOTING_PERIOD: {
+      case ProposalStatusEnum.PROPOSAL_STATUS_IN_PROGRESS:
+      case ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD: {
         status = NtrnProposalStatus.OPEN
         break
       }
@@ -112,12 +110,17 @@ function NeutronProposals() {
 }
 
 function Proposals() {
-  const activeChain = useActiveChain()
+  usePageView(PageName.Governance)
+  const activeChain = useActiveChain() as AggregatedSupportedChain
   const isGovernanceComingSoon = useIsFeatureExistForChain({
     checkForExistenceType: 'comingSoon',
     feature: 'governance',
     platform: 'Extension',
   })
+
+  if (activeChain === AGGREGATED_CHAIN_KEY) {
+    return <AggregatedGovernance />
+  }
 
   if (isGovernanceComingSoon) {
     return <ComingSoon title='Governance' bottomNavLabel={BottomNavLabel.Governance} />

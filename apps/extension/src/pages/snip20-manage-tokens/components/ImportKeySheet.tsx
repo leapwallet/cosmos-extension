@@ -1,6 +1,6 @@
 import { SecretToken, useAddress, useChainApis, useChainId } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, GenericCard, HeaderActionType, Input } from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { Buttons, GenericCard, Input } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { ErrorCard } from 'components/ErrorCard'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useCreateViewingKey } from 'hooks/secret/useCreateViewingKey'
@@ -107,13 +107,12 @@ export function ImportKeySheet({
   ])
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
-      onClose={() => clearState()}
-      headerTitle={type === 'import' ? 'Import viewing key' : 'Update viewing key'}
-      headerActionType={HeaderActionType.CANCEL}
+    <BottomModal
+      isOpen={isVisible}
+      onClose={clearState}
+      title={type === 'import' ? 'Import viewing key' : 'Update viewing key'}
     >
-      <div className='p-7'>
+      <div>
         <GenericCard
           className='rounded-2xl mb-4 p-4'
           title={token?.symbol}
@@ -168,6 +167,6 @@ export function ImportKeySheet({
           </div>
         )}
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

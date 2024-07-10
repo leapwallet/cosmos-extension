@@ -36,7 +36,7 @@ export async function getApr(
     return 0;
   }
 
-  if (chain === 'crescent') return getAprCrescent();
+  if (chain === ('crescent' as SupportedChain)) return getAprCrescent();
   const lcd = getRestUrl(chainInfos ?? ChainInfos, chain, testnet);
   if (['seiTestnet2', 'seiDevnet'].includes(chain)) return getAprSei(lcd);
 

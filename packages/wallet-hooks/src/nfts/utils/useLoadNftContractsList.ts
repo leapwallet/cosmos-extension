@@ -1,7 +1,14 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
-import { useBetaNFTsCollections, useIsCompassWallet } from '../../store';
+import {
+  StoredBetaNftCollection,
+  useBetaNFTsCollections,
+  useDisabledNFTsCollections,
+  useEnabledNftsCollections,
+  useIsCompassWallet,
+} from '../../store';
 import { CosmWasmClientHandler, defaultQueryOptions, QueryOptions } from '../../utils';
 import { getNftContractsEndpoint } from './index';
 
@@ -18,7 +25,19 @@ export function useLoadNftContractsList(
   > = defaultQueryOptions,
 ) {
   const isCompassWallet = useIsCompassWallet();
+  const enabledNftsCollections = useEnabledNftsCollections(chain);
   const betaNFTsCollections = useBetaNFTsCollections(chain);
+  const disabledNftsCollections = useDisabledNFTsCollections();
+
+  const nftCollections = useMemo(() => {
+    if (isCompassWallet) {
+      return enabledNftsCollections;
+    }
+
+    return (betaNFTsCollections?.[network] ?? []).reduce((acc: string[], curr) => {
+      return [...acc, ...curr.address];
+    }, []);
+  }, [betaNFTsCollections, enabledNftsCollections]);
 
   return useQuery<
     {
@@ -26,10 +45,10 @@ export function useLoadNftContractsList(
       address: string;
     }[]
   >({
-    queryKey: ['nft-contracts-list', chain, network, betaNFTsCollections, rpcUrl],
+    queryKey: ['nft-contracts-list', chain, network, nftCollections, disabledNftsCollections, rpcUrl, isCompassWallet],
     queryFn: async () => {
       const res = await fetch(getNftContractsEndpoint(network, chain, isCompassWallet));
-      const betaCollections = betaNFTsCollections.reduce((acc: { address: string }[], collection: string) => {
+      const betaCollections = nftCollections.reduce((acc: { address: string }[], collection: string) => {
         if (isEvm) {
           if (!collection.toLowerCase().startsWith('0x')) {
             return acc;
@@ -60,9 +79,10 @@ export function useLoadNftContractsList(
             return false;
           }
 
-          return !betaNFTsCollections.includes(address);
+          return !nftCollections.includes(address);
         });
 
+        // remove duplicates
         const allCollections = [...newData, ...betaCollections].reduce((acc, curr) => {
           if (!acc.find((v: { address: string }) => v.address.toLowerCase() === curr.address.toLowerCase())) {
             acc.push(curr);
@@ -71,7 +91,13 @@ export function useLoadNftContractsList(
           return acc;
         }, []);
 
-        return allCollections;
+        return allCollections.filter((collection: StoredBetaNftCollection) => {
+          if (isCompassWallet) {
+            return !disabledNftsCollections.includes(collection.address);
+          }
+
+          return true;
+        });
       }
     },
     ...options,

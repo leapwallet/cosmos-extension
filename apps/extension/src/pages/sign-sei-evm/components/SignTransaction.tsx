@@ -1,15 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  CosmosTxType,
   GasOptions,
   getSeiEvmInfo,
+  LeapWalletApi,
   SeiEvmInfoEnum,
   useActiveChain,
   useActiveWallet,
+  useAddress,
   useChainApis,
   useChainInfo,
   useDefaultGasEstimates,
   useGasAdjustmentForChain,
   useSelectedNetwork,
+  useTxMetadata,
+  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { GasPrice, getSeiEvmAddressToShow, SeiEvmTx } from '@leapwallet/cosmos-wallet-sdk'
 import { EthWallet } from '@leapwallet/leap-keychain'
@@ -20,6 +25,7 @@ import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-option
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { Tabs } from 'components/tabs'
+import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -51,10 +57,13 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
   const activeNetwork = useSelectedNetwork()
 
   assert(activeWallet !== null, 'activeWallet is null')
+  const globalTxMeta = useTxMetadata()
+  const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
   const walletName = useMemo(() => {
     return formatWalletName(activeWallet.name)
   }, [activeWallet.name])
 
+  const address = useAddress()
   const { evmJsonRpc } = useChainApis()
   const defaultGasPrice = useDefaultGasPrice({ activeChain, isSeiEvmTransaction: true })
   const getWallet = useGetWallet()
@@ -85,7 +94,7 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
   useEffect(() => {
     ;(async function fetchGasEstimate() {
       if (txnData.signTxnData.gas) {
-        setRecommendedGasLimit(txnData.signTxnData.gas)
+        setRecommendedGasLimit(Number(txnData.signTxnData.gas))
         return
       }
 
@@ -99,8 +108,7 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
             evmJsonRpc,
           )
 
-          const gasEstimate = parseInt(Number(_gasUsed).toString())
-          gasUsed = parseInt((gasEstimate * gasAdjustment).toString())
+          gasUsed = Math.ceil(Number(_gasUsed))
         } else {
           const fromEthAddress = getSeiEvmAddressToShow(activeWallet?.pubKeys?.[activeChain])
 
@@ -109,7 +117,7 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
             txnData.signTxnData.value,
             evmJsonRpc,
             txnData.signTxnData.data,
-            gasAdjustment,
+            undefined,
             fromEthAddress,
           )
         }
@@ -136,13 +144,17 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
 
   const handleApproveClick = async () => {
     try {
+      if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+        throw new Error(SEI_EVM_LEDGER_ERROR_MESSAGE)
+      }
+
       setSigningError(null)
       setTxStatus('loading')
 
       const wallet = (await getWallet(activeChain, true)) as unknown as EthWallet
       const chainId = (await getSeiEvmInfo({
         activeNetwork,
-        activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+        activeChain,
         infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
       })) as number
 
@@ -156,8 +168,27 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
         txnData.signTxnData.data,
       )
 
-      setTxStatus('success')
+      const evmTxHash = result.hash
+      const evmRpcUrl = await getSeiEvmInfo({
+        activeChain,
+        activeNetwork,
+        infoType: SeiEvmInfoEnum.EVM_RPC_URL,
+      })
 
+      try {
+        const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmRpcUrl as string)
+        txPostToDb({
+          txType: CosmosTxType.Dapp,
+          txHash: cosmosTxHash,
+          metadata: { ...globalTxMeta, dapp_url: siteOrigin ?? origin },
+          address,
+          chain: activeChain,
+        })
+      } catch {
+        // Added here as the GetCosmosTxHash call is currently failing causing the send flow to break
+      }
+
+      setTxStatus('success')
       try {
         Browser.runtime.sendMessage({
           type: MessageTypes.signSeiEvmResponse,
@@ -198,7 +229,6 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
                     className='pr-4 cursor-default'
                   />
                 }
-                topColor={Colors.getChainColor(activeChain, chainInfo)}
               />
             </div>
           }

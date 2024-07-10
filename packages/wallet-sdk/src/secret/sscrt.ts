@@ -2,7 +2,7 @@ import { Random } from '@cosmjs/crypto';
 import { Permit, SecretNetworkClient, Wallet, WalletOptions } from 'secretjs';
 import { GasPriceStepsRecord } from 'types';
 
-import { ChainInfos } from '../constants';
+import { ChainInfos, defaultGasPriceStep } from '../constants';
 import { EncryptionUtilsImpl } from './encryptionutil';
 
 const DEFAULT_GAS = 135000;
@@ -195,7 +195,7 @@ export class SigningSscrt {
         },
         {
           gasLimit: options?.gasLimit ?? DEFAULT_GAS,
-          gasPriceInFeeDenom: options?.gasPriceStep ?? gasPriceSteps.secret.low,
+          gasPriceInFeeDenom: options?.gasPriceStep ?? gasPriceSteps.secret?.low ?? defaultGasPriceStep.low,
           feeDenom: options?.feeDenom ?? 'uscrt',
         },
       );

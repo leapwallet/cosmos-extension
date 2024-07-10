@@ -13,6 +13,8 @@ export enum EventName {
   OnboardingCompleted = 'Onboarding Completed',
   OnboardingClicked = 'Onboarding CTA Clicked',
   SwapTransactionStatus = 'Transaction Status',
+  ChainFavorited = 'Chain Favorited',
+  ChainUnfavorited = 'Chain Unfavorited',
 }
 
 export enum ButtonType {
@@ -57,4 +59,7 @@ export enum PageName {
   NFT = 'NFT Collections',
   SyncWithMobileApp = 'Sync with Mobile App',
   Airdrops = 'Airdrops',
+  Buy = 'Buy',
+  OnRampQuotePreview = 'On-ramp quote preview',
+  AssetDetails = 'Asset Details',
 }

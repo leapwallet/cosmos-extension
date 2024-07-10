@@ -3,7 +3,7 @@ import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { chainInfosState } from 'atoms/chains'
 import { deleteChain } from 'atoms/delete-chain'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import BottomModal from 'components/bottom-modal'
 import DraggableContainer from 'components/draggable'
 import { ManageChainDraggables, ManageChainNonDraggables } from 'components/draggable/manage-chains'
 import PopupLayout from 'components/layout/popup-layout'
@@ -66,13 +66,8 @@ const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
     })
   }
   return (
-    <BottomSheet
-      isVisible={!!chain}
-      onClose={() => setDeleteChain(null)}
-      headerTitle='Remove Chain?'
-      headerActionType={HeaderActionType.CANCEL}
-    >
-      <div className='flex flex-col p-7 gap-y-1'>
+    <BottomModal isOpen={!!chain} onClose={() => setDeleteChain(null)} title={'Remove Chain?'}>
+      <div className='flex flex-col gap-y-1'>
         <div className='text-center px-5'>
           <div className='rounded-2xl bg-white-100 dark:bg-gray-800 p-[12px] w-[48px] h-[48px] text-red-300 material-icons-round mb-4'>
             remove_circle
@@ -102,7 +97,7 @@ const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
           </Buttons.Generic>
         </div>
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }
 
@@ -145,7 +140,6 @@ export default function ManageChain(): ReactElement {
               },
               type: HeaderActionType.BACK,
             }}
-            topColor={Colors.getChainColor(activeChain ?? 'cosmos')}
           />
         }
       >
@@ -158,7 +152,7 @@ export default function ManageChain(): ReactElement {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery.length === 0 ? (
-              <img src={Images.Misc.SearchIcon} />
+              <img src={Images.Misc.Search} />
             ) : (
               <img
                 className='cursor-pointer'

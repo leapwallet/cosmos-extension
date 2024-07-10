@@ -1,19 +1,22 @@
 import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { KeyChain } from '@leapwallet/leap-keychain'
-import { Buttons, Header, HeaderActionType, Input, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { Buttons, Input, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
+import BottomModal from 'components/bottom-modal'
 import { ErrorCard } from 'components/ErrorCard'
 import IconButton from 'components/icon-button'
 import { LEDGER_NAME_EDITED_SUFFIX, LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { useChainPageInfo } from 'hooks'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import React, { ChangeEventHandler, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { sliceAddress } from 'utils/strings'
 
-import BottomSheet from '../../components/bottom-sheet/BottomSheet'
 import { RemoveWallet } from './RemoveWallet'
 
 type EditWalletFormProps = {
@@ -28,7 +31,7 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
   const [error, setError] = useState<string>('')
   const [isShowRemoveWallet, setShowRemoveWallet] = useState<boolean>(false)
   const { activeWallet, setActiveWallet } = useActiveWallet()
-  const activeChain = useActiveChain()
+  const activeChain = useActiveChain() as AggregatedSupportedChain
   const [colorIndex, setColorIndex] = useState<number>(wallet?.colorIndex ?? 0)
   const isDark = useTheme().theme === ThemeName.DARK
 
@@ -38,6 +41,7 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
     setColorIndex(wallet?.colorIndex ?? 0)
   }, [wallet, isVisible])
 
+  const { topChainColor } = useChainPageInfo()
   const handleInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     setError('')
     if (e.target.value.length < 25) setName(e.target.value)
@@ -70,34 +74,24 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
 
   return (
     <>
-      <BottomSheet
-        isVisible={isVisible}
+      <BottomModal
+        isOpen={isVisible}
         onClose={() => onClose(false)}
-        headerTitle={'Edit wallet'}
-        headerActionType={HeaderActionType.CANCEL}
-        closeOnClickBackDrop={true}
-        customHeader={(toggle) => (
-          <div className='relative'>
-            <Header
-              title={'Edit Wallet'}
-              action={{
-                type: HeaderActionType.CANCEL,
-                onClick: toggle,
+        title={'Edit wallet'}
+        closeOnBackdropClick={true}
+        secondaryActionButton={
+          <div className='absolute top-[22px] left-7'>
+            <IconButton
+              onClick={() => {
+                setShowRemoveWallet(true)
               }}
+              image={{ src: Images.Misc.DeleteRed, alt: ' ' }}
+              data-testing-id='btn-remove-wallet-bin'
             />
-            <div className='absolute p-[3px] hover:cursor-pointer right-[20px] top-[20px]'>
-              <IconButton
-                onClick={() => {
-                  setShowRemoveWallet(true)
-                }}
-                image={{ src: Images.Misc.DeleteRed, alt: ' ' }}
-                data-testing-id='btn-remove-wallet-bin'
-              />
-            </div>
           </div>
-        )}
+        }
       >
-        <div className='flex flex-col  justify-center gap-y-[16px] items-center p-[28px]'>
+        <div className='flex flex-col  justify-center gap-y-[16px] items-center'>
           <div className='flex w-[344px] rounded-2xl flex-col dark:bg-gray-900 bg-white-100 items-center py-[24px] gap-y-[20px] px-[16]'>
             <div
               className='rounded-full'
@@ -111,7 +105,7 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
               </div>
             </div>
 
-            {activeChain && wallet && (
+            {activeChain && activeChain !== AGGREGATED_CHAIN_KEY && wallet && (
               <Buttons.CopyWalletAddress
                 color={Colors.getChainColor(activeChain)}
                 walletAddress={sliceAddress(wallet.addresses[activeChain])}
@@ -125,6 +119,7 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
                 }}
               />
             )}
+
             {wallet ? (
               <div className='flex relative justify-center shrink w-[312px]'>
                 <Input
@@ -136,6 +131,7 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
                 <div className='absolute right-[16px] top-[14px] text-gray-400 text-sm font-medium'>{`${name.length}/24`}</div>
               </div>
             ) : null}
+
             <div className='flex items-center gap-x-[8px] justify-center'>
               {Colors.walletColors.map((color, index) => {
                 return (
@@ -164,18 +160,16 @@ export function EditWalletForm({ isVisible, wallet, onClose }: EditWalletFormPro
               })}
             </div>
           </div>
+
           {!!error && <ErrorCard text={error} />}
           <div className='flex shrink w-[344px]'>
-            <Buttons.Generic
-              disabled={!name}
-              color={Colors.getChainColor(activeChain)}
-              onClick={handleSaveChanges}
-            >
+            <Buttons.Generic disabled={!name} color={topChainColor} onClick={handleSaveChanges}>
               Save changes
             </Buttons.Generic>
           </div>
         </div>
-      </BottomSheet>
+      </BottomModal>
+
       <RemoveWallet
         wallet={wallet}
         isVisible={isShowRemoveWallet}

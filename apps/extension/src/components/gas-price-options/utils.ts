@@ -19,6 +19,12 @@ type UpdateFeeTokenDataParams = {
   setFeeTokenData: React.Dispatch<React.SetStateAction<FeeTokenData | undefined>>
   onGasPriceOptionChange: (value: GasPriceOptionValue, feeDenom: FeeTokenData) => void
   notUpdateGasPrice?: boolean
+  hasToCalculateDynamicFee: boolean
+  getFeeMarketGasPricesSteps: (
+    feeDenom: string,
+    forceBaseGasPriceStep?: GasPriceStep,
+    isIbcDenom?: boolean,
+  ) => Promise<GasPriceStep>
 }
 
 /**
@@ -41,6 +47,8 @@ export async function updateFeeTokenData({
   setFeeTokenData,
   onGasPriceOptionChange,
   notUpdateGasPrice = false,
+  hasToCalculateDynamicFee,
+  getFeeMarketGasPricesSteps,
 }: UpdateFeeTokenDataParams) {
   let feeTokenDataToSet = foundFeeTokenData
   if (foundFeeTokenData) {
@@ -67,6 +75,19 @@ export async function updateFeeTokenData({
         }
         captureException(error)
       }
+    } else if (hasToCalculateDynamicFee && foundFeeTokenData) {
+      let isIbcDenom = false
+      if (foundFeeTokenData.ibcDenom?.toLowerCase().startsWith('ibc/')) {
+        isIbcDenom = true
+      }
+
+      const gasPriceStep = await getFeeMarketGasPricesSteps(
+        foundFeeTokenData.denom?.coinMinimalDenom ?? '',
+        foundFeeTokenData.gasPriceStep,
+        isIbcDenom,
+      )
+
+      feeTokenDataToSet = { ...foundFeeTokenData, gasPriceStep }
     } else {
       feeTokenDataToSet = foundFeeTokenData
     }
