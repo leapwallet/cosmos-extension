@@ -242,7 +242,7 @@ export function TxPageStepsType({
                     containerClassName='inline-block !leading-none rounded-2xl'
                   />
                 ) : (
-                  sourceChain?.chainName
+                  sourceChain?.chainName ?? 'Unknown'
                 )}{' '}
                 to{' '}
                 {isChainsLoading ? (
@@ -265,7 +265,7 @@ export function TxPageStepsType({
                     containerClassName='inline-block !leading-none rounded-2xl'
                   />
                 ) : (
-                  sourceChain?.chainName
+                  sourceChain?.chainName ?? 'Unknown'
                 )}
               </>
             )}

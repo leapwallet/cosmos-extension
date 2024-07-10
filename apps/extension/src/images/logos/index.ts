@@ -111,6 +111,7 @@ const ChainLogos: Record<string, string | undefined> = {
   odin: ChainInfos.odin.chainSymbolImageUrl,
   saga: ChainInfos.saga.chainSymbolImageUrl,
   initia: ChainInfos.initia.chainSymbolImageUrl,
+  humans: ChainInfos.humans.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {

@@ -17,6 +17,7 @@ export function generateObjectKey(route: {
 }
 
 export type TxStoreObject = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   route: any
   sourceChain: SourceChain | undefined
   sourceToken: SourceToken | null

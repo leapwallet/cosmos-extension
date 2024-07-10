@@ -42,7 +42,6 @@
     "build:extension-canary": "run-s build:packages build:ext-canary",
     "build:extension:canary-compass": "run-s build:packages build:ext:canary-compass",
     "build:extension:all": "run-s build:extension build:extension:compass",
-    "build:extension:staging": "run-s build:extension:staging",
     "build:extension:canary-all": "run-s build:extension-canary build:extension:canary-compass",
     "build:ext:staging": "yarn workspace @leap-cosmos/extension build:staging",
     "build:extension:staging": "run-s build:packages build:ext:staging",

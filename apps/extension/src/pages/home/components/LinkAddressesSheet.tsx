@@ -8,9 +8,10 @@ import {
   useSeiLinkedAddressState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, CardDivider } from '@leapwallet/leap-ui'
+import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
+import { CopyAddressCard } from 'components/card'
 import { ErrorCard } from 'components/ErrorCard'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
@@ -19,8 +20,6 @@ import { Images } from 'images'
 import React, { useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import Browser from 'webextension-polyfill'
-
-import { CopyAddressCard } from './CopyAddressCard'
 
 type LinkAddressesSheetProps = {
   isVisible: boolean
@@ -117,10 +116,7 @@ export function LinkAddressesSheet({
       onClose={onClose}
       closeOnBackdropClick={true}
       title='Link addresses to explore Sei V2'
-      hideActionButton={true}
-      showSecondaryActionButton={true}
       contentClassName='[&>div:first-child]:!justify-start'
-      headerClassName='h-[18px]'
     >
       <img
         src={Images.Banners.welcomeSeiV2Banner}
@@ -141,19 +137,12 @@ export function LinkAddressesSheet({
       </Text>
 
       <div
-        className='bg-white-100 dark:bg-gray-900 rounded-2xl max-h-[400px] w-full mb-4'
+        className='flex flex-col items-center justif-center gap-4 max-h-[400px] w-full mb-4'
         style={{ overflowY: 'scroll' }}
       >
-        {walletAddresses.map((address, index, array) => {
-          const isLast = index === array.length - 1
-
-          return (
-            <React.Fragment key={`${address}-${index}`}>
-              <CopyAddressCard address={address} />
-              {!isLast && <CardDivider />}
-            </React.Fragment>
-          )
-        })}
+        {walletAddresses.map((address, index) => (
+          <CopyAddressCard address={address} key={`${address}-${index}`} />
+        ))}
       </div>
 
       {addressLinkState === 'error' ? <ErrorCard text={error} className='mb-4' /> : null}

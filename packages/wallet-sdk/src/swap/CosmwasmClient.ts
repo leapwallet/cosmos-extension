@@ -202,7 +202,7 @@ export class CWTx extends BaseSwapTx {
     contractAddress: string,
     message: JsonObject,
     fee: StdFee | 'auto' | number,
-    memo: string = '',
+    memo = '',
     funds?: Coin[],
   ) {
     const executeMessage = createExecuteMessage({

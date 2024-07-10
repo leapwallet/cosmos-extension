@@ -8,26 +8,32 @@ export type EmptyCardProps = {
   heading?: ReactNode
   subHeading?: ReactNode
   classname?: string
+  imgContainerClassname?: string
   isRounded?: boolean
   'data-testing-id'?: string
 }
 
 export function EmptyCard(props: PropsWithoutRef<EmptyCardProps>) {
   const defaultTokenLogo = useDefaultTokenLogo()
-  const { src, heading, subHeading, isRounded = true, classname } = props
+  const { src, heading, subHeading, isRounded = true, classname, imgContainerClassname } = props
 
   return (
     <>
       <div
         className={classNames(
-          'flex flex-col items-center bg-white-100 w-[344px] dark:bg-gray-900 py-10 px-10',
+          'flex flex-col items-center bg-white-100 w-[344px] dark:bg-gray-950 py-10 px-10',
           classname,
           {
             'rounded-[16px]': isRounded,
           },
         )}
       >
-        <div className='h-14 w-14 mb-3 flex justify-center rounded-full bg-gray-50 dark:bg-gray-800'>
+        <div
+          className={classNames(
+            'h-14 w-14 mb-3 flex justify-center rounded-full bg-gray-50 dark:bg-gray-900',
+            imgContainerClassname,
+          )}
+        >
           <img src={src ?? defaultTokenLogo} className='' onError={imgOnError(defaultTokenLogo)} />
         </div>
         {heading && (

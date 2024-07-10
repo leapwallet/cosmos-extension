@@ -11,6 +11,7 @@ type ProposalDescriptionProps = {
   description: string
   btnColor: string
   className?: string
+  forceChain?: string
 }
 
 export function ProposalDescription({
@@ -18,6 +19,7 @@ export function ProposalDescription({
   description,
   btnColor,
   className,
+  forceChain,
 }: ProposalDescriptionProps) {
   const [showAll, setShowAll] = useState(false)
   const [url, setUrl] = useState<string>('')
@@ -27,7 +29,8 @@ export function ProposalDescription({
   const [showRedirectConfirmation, setShowRedirectConfirmation] = useState<boolean>(false)
 
   const { data: allWhitelistedUrls } = useWhitelistedUrls()
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
 
   const whiteListedUrls = useMemo(() => {
     if (!allWhitelistedUrls) return []
@@ -70,6 +73,7 @@ export function ProposalDescription({
             a: ({ ...props }) => {
               return (
                 <a {...props} target='_blank' rel='noreferrer noopener' onClick={handleLinkClick}>
+                  {/* eslint-disable-next-line react/prop-types */}
                   {props.children}
                 </a>
               )

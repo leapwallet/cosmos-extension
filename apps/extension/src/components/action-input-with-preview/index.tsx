@@ -73,11 +73,11 @@ export const ActionInputWithPreview = React.forwardRef(
               transition={{ duration: 0.2, ease: 'linear' }}
               exit={{ opacity: 0.9 }}
               className={classNames(
-                'border rounded-lg transition bg-gray-50 dark:bg-gray-800 outline-none text-gray-800 caret-gray-800 dark:text-white-100 w-full pl-4 pr-12 py-2',
+                'border rounded-xl transition bg-gray-50 dark:bg-gray-900 outline-none text-gray-800 caret-gray-800 dark:text-white-100 w-full pl-4 pr-12 py-2',
                 {
                   'border-red-300 dark:border-red-300': invalid,
                   'border-yellow-600 dark:border-yellow-600': warning,
-                  'border-gray-300 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-500':
+                  'border-[transparent] focus:border-gray-400 dark:focus:border-gray-500':
                     !invalid && !warning,
                 },
               )}
@@ -133,7 +133,7 @@ export const ActionInputWithPreview = React.forwardRef(
               >
                 <img src={icon} alt={action + ' icon'} />
               </button>
-            ) : (
+            ) : buttonText ? (
               <button
                 className='capitalize text-sm font-bold rounded-full px-3 py-1 outline-none'
                 style={{
@@ -144,7 +144,7 @@ export const ActionInputWithPreview = React.forwardRef(
               >
                 {buttonText}
               </button>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>

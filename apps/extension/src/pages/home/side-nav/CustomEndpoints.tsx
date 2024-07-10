@@ -3,17 +3,21 @@ import { initiateNodeUrls, NODE_URLS, SupportedChain } from '@leapwallet/cosmos-
 import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import axios from 'axios'
 import classNames from 'classnames'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import { AlertStrip } from 'components/alert-strip'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { CUSTOM_ENDPOINTS } from 'config/storage-keys'
+import { useChainPageInfo } from 'hooks'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDebounceCallback } from 'hooks/useDebounceCallback'
+import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { AggregatedSupportedChain } from 'types/utility'
 import { imgOnError } from 'utils/imgOnError'
 import Browser from 'webextension-polyfill'
 
@@ -104,9 +108,18 @@ function CustomEndpointInput({
 }
 
 export function CustomEndpoints({ goBack }: { goBack: () => void }) {
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain() as AggregatedSupportedChain
+  const activeChain = useMemo(() => {
+    if (_activeChain === AGGREGATED_CHAIN_KEY) {
+      return 'cosmos'
+    }
+
+    return _activeChain
+  }, [_activeChain])
+
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const { topChainColor } = useChainPageInfo()
 
   const [showSelectChain, setShowSelectChain] = useState(false)
   const [selectedChain, setSelectedChain] = useState(activeChain)
@@ -120,6 +133,7 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
   )
 
   const { debounce } = useDebounceCallback()
+  const dontShowSelectChain = useDontShowSelectChain()
   const [validating, setValidating] = useState(false)
   const [showAlertMsg, setShowAlertMsg] = useState(false)
   const [customEndpoints, setCustomEndpoints] = useState({
@@ -206,8 +220,8 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
 
       const selectedChainInfo = chainInfos[selectedChain]
       setCustomEndpoints({
-        rpc: NODE_URLS.rpc?.[selectedChainInfo.chainId][0].nodeUrl ?? rpcUrl ?? '',
-        lcd: NODE_URLS.rest?.[selectedChainInfo.chainId][0].nodeUrl ?? lcdUrl ?? '',
+        rpc: NODE_URLS.rpc?.[selectedChainInfo.chainId]?.[0].nodeUrl ?? rpcUrl ?? '',
+        lcd: NODE_URLS.rest?.[selectedChainInfo.chainId]?.[0].nodeUrl ?? lcdUrl ?? '',
       })
     } else {
       setCustomEndpoints({ rpc: rpcUrl ?? '', lcd: lcdUrl ?? '' })
@@ -255,7 +269,6 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
     <>
       <div className='pb-5 h-[600px]'>
         <Header
-          topColor={Colors.getChainColor(activeChain)}
           title='Custom Endpoints'
           action={{ type: HeaderActionType.BACK, onClick: goBack }}
         />
@@ -282,8 +295,13 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
             }
             isRounded={true}
             title2='Chain'
-            icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
-            onClick={() => setShowSelectChain(true)}
+            icon={
+              dontShowSelectChain ? undefined : (
+                <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
+              )
+            }
+            className={classNames({ '!cursor-default': dontShowSelectChain })}
+            onClick={dontShowSelectChain ? undefined : () => setShowSelectChain(true)}
           />
 
           <CustomEndpointInput
@@ -320,9 +338,7 @@ export function CustomEndpoints({ goBack }: { goBack: () => void }) {
               </Buttons.Generic>
 
               <Buttons.Generic
-                style={{
-                  background: Colors.getChainColor(activeChain),
-                }}
+                style={{ background: topChainColor }}
                 className='ml-3 h-[48px] cursor-pointer text-white-100'
                 onClick={handleSaveClick}
                 disabled={isSaveDisabled}

@@ -1,8 +1,9 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useMemo } from 'react';
 
-import { useAddress, useChainInfo, useSelectedNetwork } from '../store';
+import { useAddress, useSelectedNetwork } from '../store';
 import { removeTrailingSlash, SelectedNetworkType } from '../utils';
+import { useChainInfo } from './index';
 
 type UseGetExplorerAccountUrlParams = {
   forceChain?: SupportedChain;
@@ -13,7 +14,7 @@ type UseGetExplorerAccountUrlParams = {
 export function useGetExplorerAccountUrl({ forceChain, forceAddress, forceNetwork }: UseGetExplorerAccountUrlParams) {
   const chainInfo = useChainInfo(forceChain);
 
-  const _activeAddress = useAddress();
+  const _activeAddress = useAddress(forceChain);
   const activeAddress = useMemo(
     function getActiveAddress() {
       return forceAddress || _activeAddress;

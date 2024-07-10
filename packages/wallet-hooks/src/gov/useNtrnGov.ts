@@ -1,14 +1,20 @@
 import { toUtf8 } from '@cosmjs/encoding';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
-import { DefaultGasEstimates, fromSmall, NativeDenom, NTRN_GOV_CONTRACT_ADDRESS } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  DefaultGasEstimates,
+  fromSmall,
+  NativeDenom,
+  NTRN_GOV_CONTRACT_ADDRESS,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/browser/tx/nft-transfer/contract';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
 
 import { LeapWalletApi } from '../apis';
-import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { sendTokensReturnType } from '../send';
 import {
@@ -23,15 +29,20 @@ import {
 import { useCW20TxHandler } from '../tx';
 import { TxCallback, VoteOptions } from '../types';
 import { GasOptions, getMetaDataForGovVoteTx, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import { useChainId } from '../utils-hooks';
 import { getVoteNum } from './useGov';
 
-export function useNtrnGov() {
-  const activeChain = useActiveChain();
+export function useNtrnGov(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain]);
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [_selectedNetwork, forceNetwork]);
+
   const chainInfos = useGetChains();
   const defaultGasEstimates = useDefaultGasEstimates();
-  const nativeFeeDenom = useNativeFeeDenom();
-  const address = useAddress();
-  const getCW20TxClient = useCW20TxHandler();
+  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
+  const address = useAddress(activeChain);
+  const getCW20TxClient = useCW20TxHandler(activeChain, selectedNetwork);
   const { setPendingTx } = usePendingTxState();
 
   const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
@@ -46,13 +57,12 @@ export function useNtrnGov() {
   );
 
   const [isVoting, setIsVoting] = useState(false);
-  const { lcdUrl } = useChainApis();
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
-  const selectedNetwork = useSelectedNetwork();
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
+  const activeChainId = useChainId(activeChain, selectedNetwork);
 
   /**
    * Fee Calculation:
@@ -134,6 +144,9 @@ export function useNtrnGov() {
           metadata: getMetaDataForGovVoteTx(String(proposalId), getVoteNum(voteOption)),
           feeDenomination: fee?.amount[0].denom ?? '',
           feeQuantity: fee?.amount[0].amount ?? '',
+          forceChain: activeChain,
+          forceNetwork: selectedNetwork,
+          forceWalletAddress: address,
         },
       };
     } catch (error) {
@@ -165,7 +178,10 @@ export function useNtrnGov() {
     setIsVoting(false);
 
     if (result.success === true) {
-      if (result.data) txPostToDB(result.data);
+      if (result.data) {
+        txPostToDB({ ...result.data, chainId: activeChainId });
+      }
+
       setPendingTx({ ...result.pendingTx });
       callback('success');
     } else {

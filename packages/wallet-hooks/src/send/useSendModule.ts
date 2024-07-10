@@ -32,7 +32,6 @@ import {
   useActiveWallet,
   useAddress,
   useChainApis,
-  useChainId,
   useDefaultGasEstimates,
   useDenoms,
   useGasPriceSteps,
@@ -53,7 +52,15 @@ import {
   useGasRateQuery,
   useNativeFeeDenom,
 } from '../utils';
-import { useFetchAccountDetails, useIsCW20Token, useIsERC20Token, useIsSeiEvmChain } from '../utils-hooks';
+import {
+  useChainId,
+  useFetchAccountDetails,
+  useGetFeeMarketGasPricesSteps,
+  useHasToCalculateDynamicFee,
+  useIsCW20Token,
+  useIsERC20Token,
+  useIsSeiEvmChain,
+} from '../utils-hooks';
 import { useSendIbcChains } from './useSendIbcChains';
 import { SendTokenEthParamOptions, sendTokensParams, useSimpleSend } from './useSimpleSend';
 
@@ -139,34 +146,29 @@ export type SendModuleType = Readonly<{
   fetchAccountDetailsData: AccountDetails | undefined;
   fetchAccountDetails: (address: string) => Promise<void>;
   setFetchAccountDetailsData: React.Dispatch<React.SetStateAction<AccountDetails | undefined>>;
+  setSelectedChain: React.Dispatch<React.SetStateAction<SupportedChain | null>>;
+  selectedChain: SupportedChain | null;
+  sendActiveChain: SupportedChain;
+  sendSelectedNetwork: 'mainnet' | 'testnet';
   isSeiEvmTransaction: boolean;
+  associatedSeiAddress: string;
+  setAssociatedSeiAddress: React.Dispatch<React.SetStateAction<string>>;
 }>;
 
 export function useSendModule(): SendModuleType {
   /**
    * Universal Hooks
    */
-  const activeChain = useActiveChain();
-  const selectedNetwork = useSelectedNetwork();
+  const _activeChain = useActiveChain();
+  const _selectedNetwork = useSelectedNetwork();
   const activeWallet = useActiveWallet();
+
   const defaultGasEstimates = useDefaultGasEstimates();
   const [preferredCurrency] = useUserPreferredCurrency();
-  const fromAddress = useAddress();
-  const { lcdUrl } = useChainApis();
   const allChainsGasPriceSteps = useGasPriceSteps();
   const isCW20Token = useIsCW20Token();
   const isERC20Token = useIsERC20Token();
   const denoms = useDenoms();
-  const chainId = useChainId();
-  const isSeiEvmChain = useIsSeiEvmChain();
-  const {
-    isLoading: fetchAccountDetailsLoading,
-    status: fetchAccountDetailsStatus,
-    error: fetchAccountDetailsError,
-    data: fetchAccountDetailsData,
-    fetchDetails: fetchAccountDetails,
-    setData: setFetchAccountDetailsData,
-  } = useFetchAccountDetails();
 
   /**
    * Local State Variables
@@ -175,6 +177,41 @@ export function useSendModule(): SendModuleType {
   const [memo, setMemo] = useState<string>('');
   const [selectedAddress, setSelectedAddress] = useState<SelectedAddress | null>(null);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null);
+
+  const activeChain = useMemo(() => {
+    if (selectedChain) {
+      return selectedChain;
+    }
+
+    if ((_activeChain as SupportedChain & 'aggregated') === 'aggregated') {
+      return 'cosmos';
+    }
+
+    return _activeChain;
+  }, [_activeChain, selectedChain]);
+
+  const selectedNetwork = useMemo(() => {
+    if ((_activeChain as SupportedChain & 'aggregated') === 'aggregated') {
+      return 'mainnet';
+    }
+
+    return _selectedNetwork;
+  }, [_selectedNetwork, _activeChain]);
+
+  const isSeiEvmChain = useIsSeiEvmChain(activeChain);
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
+  const fromAddress = useAddress(activeChain);
+  const activeChainId = useChainId(activeChain, selectedNetwork);
+
+  const {
+    isLoading: fetchAccountDetailsLoading,
+    status: fetchAccountDetailsStatus,
+    error: fetchAccountDetailsError,
+    data: fetchAccountDetailsData,
+    fetchDetails: fetchAccountDetails,
+    setData: setFetchAccountDetailsData,
+  } = useFetchAccountDetails(activeChain, selectedNetwork);
 
   const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
   const [gasEstimate, setGasEstimate] = useState<number>(
@@ -189,6 +226,7 @@ export function useSendModule(): SendModuleType {
 
   const chains = useGetChains();
   const [customIbcChannelId, setCustomIbcChannelId] = useState<string | undefined>(undefined);
+  const [associatedSeiAddress, setAssociatedSeiAddress] = useState<string>('');
 
   /**
    * Send Tx related hooks
@@ -196,9 +234,9 @@ export function useSendModule(): SendModuleType {
   const { setPendingTx } = usePendingTxState();
   const getIbcChannelId = useGetIbcChannelId();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-  const { isSending, sendTokens, showLedgerPopup, sendTokenEth } = useSimpleSend();
+  const { isSending, sendTokens, showLedgerPopup, sendTokenEth } = useSimpleSend(activeChain, selectedNetwork);
   const { data: ibcSupportData, isLoading: isIbcSupportDataLoading } = useGetIBCSupport(activeChain);
-  const nativeFeeDenom = useNativeFeeDenom();
+  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
 
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
@@ -206,7 +244,7 @@ export function useSendModule(): SendModuleType {
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
 
   const isSeiEvmTransaction = useMemo(() => {
-    if (selectedAddress && selectedToken) {
+    if (selectedAddress && selectedToken && !associatedSeiAddress) {
       let toAddress = selectedAddress.address ?? '';
       const _isERC20Token = isERC20Token(selectedToken);
 
@@ -225,10 +263,13 @@ export function useSendModule(): SendModuleType {
     }
 
     return false;
-  }, [isSeiEvmChain, selectedAddress, selectedToken, fetchAccountDetailsData?.pubKey.key]);
+  }, [isSeiEvmChain, selectedAddress, selectedToken, fetchAccountDetailsData?.pubKey.key, associatedSeiAddress]);
+
+  const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork);
+  const getFeeMarketGasPricesSteps = useGetFeeMarketGasPricesSteps(activeChain, selectedNetwork);
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork, isSeiEvmTransaction);
   const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
-  const displayAccounts = useSendIbcChains();
+  const displayAccounts = useSendIbcChains(activeChain);
 
   useEffect(() => {
     (async function () {
@@ -239,9 +280,27 @@ export function useSendModule(): SendModuleType {
           medium: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
           high: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
         });
+      } else if (hasToCalculateDynamicFee && feeDenom.coinMinimalDenom === nativeFeeDenom?.coinMinimalDenom) {
+        const { low, medium, high } = await getFeeMarketGasPricesSteps(feeDenom.coinMinimalDenom);
+
+        setGasPriceOptions({
+          low: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
+          medium: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
+          high: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
+        });
       }
     })();
-  }, [feeDenom.coinMinimalDenom, gasOption, gasEstimate, userPreferredGasLimit, userPreferredGasPrice, activeChain]);
+  }, [
+    feeDenom.coinMinimalDenom,
+    gasOption,
+    gasEstimate,
+    userPreferredGasLimit,
+    userPreferredGasPrice,
+    activeChain,
+    selectedNetwork,
+    hasToCalculateDynamicFee,
+    nativeFeeDenom?.coinMinimalDenom,
+  ]);
 
   /**
    * Ibc Related tx
@@ -329,7 +388,7 @@ export function useSendModule(): SendModuleType {
         feeDenom.coinGeckoId,
         feeDenom.chain as unknown as SupportedChain,
         currencyDetail[preferredCurrency].currencyPointer,
-        `${chainId}-${feeDenom.coinMinimalDenom}`,
+        `${activeChainId}-${feeDenom.coinMinimalDenom}`,
       );
     },
     { enabled: !!selectedToken },
@@ -360,13 +419,23 @@ export function useSendModule(): SendModuleType {
 
         const txLogAmountValue = await getTxnLogAmountValue(inputAmount, txLogAmountDenom);
 
-        if (result.data) txPostToDB({ ...result.data, amount: txLogAmountValue });
+        if (result.data)
+          txPostToDB({
+            ...result.data,
+            amount: txLogAmountValue,
+            forceChain: activeChain,
+            forceNetwork: selectedNetwork,
+            forceWalletAddress: fromAddress,
+            chainId: activeChainId,
+          });
+
         setPendingTx({
           ...result.pendingTx,
           toAddress: args?.toAddress,
           txnLogAmount: txLogAmountValue,
+          sourceChain: activeChain,
+          sourceNetwork: selectedNetwork,
         });
-
         callback('success');
       } else {
         if (result.errors.includes('txDeclined')) {
@@ -389,6 +458,7 @@ export function useSendModule(): SendModuleType {
       selectedToken?.coinMinimalDenom,
       selectedNetwork,
       chains,
+      activeChainId,
     ],
   );
 
@@ -404,13 +474,49 @@ export function useSendModule(): SendModuleType {
     ) => {
       const result = await sendTokenEth(fromAddress, toAddress, value, gas, wallet, gasPrice, options);
       if (result.success) {
+        if (result.data) {
+          const denomChainInfo = chains[denoms[selectedToken?.coinMinimalDenom ?? '']?.chain as SupportedChain];
+          const txLogAmountDenom = {
+            coinGeckoId: denoms[selectedToken?.coinMinimalDenom ?? '']?.coinGeckoId,
+            chain: selectedToken?.chain as SupportedChain,
+            chainId: getChainId(denomChainInfo, selectedNetwork),
+            coinMinimalDenom: selectedToken?.coinMinimalDenom,
+          };
+
+          const txLogAmountValue = await getTxnLogAmountValue(inputAmount, txLogAmountDenom);
+          const evmTxHash = result.data.txHash;
+          const evmRpcUrl = await getSeiEvmInfo({
+            activeChain,
+            activeNetwork: selectedNetwork,
+            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
+          });
+
+          try {
+            const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmRpcUrl as string);
+            txPostToDB({ ...result.data, amount: txLogAmountValue, txHash: cosmosTxHash, chainId: activeChainId });
+          } catch {
+            // GetCosmosTxHash is currently failing
+          }
+        }
+
         result.pendingTx && setPendingTx(result.pendingTx);
         callback('success');
       } else {
         result.errors && setTxError(result.errors.join(',\n'));
       }
     },
-    [fromAddress],
+    [
+      activeChain,
+      denoms,
+      inputAmount,
+      fromAddress,
+      txPostToDB,
+      selectedToken?.chain,
+      selectedToken?.coinMinimalDenom,
+      selectedNetwork,
+      chains,
+      activeChainId,
+    ],
   );
 
   const clearTxError = useCallback(() => {
@@ -450,7 +556,7 @@ export function useSendModule(): SendModuleType {
       const channelId = customIbcChannelId ?? ibcChannelId ?? '';
 
       try {
-        if (isEthAddress(selectedAddress.address) && isSeiEvmChain) {
+        if (isEthAddress(selectedAddress.address) && isSeiEvmChain && !associatedSeiAddress) {
           const erc20Token = isERC20Token(selectedToken);
           const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
 
@@ -458,7 +564,7 @@ export function useSendModule(): SendModuleType {
             try {
               const fromEthAddress = getSeiEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]);
               const rpc = (await getSeiEvmInfo({
-                activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+                activeChain: activeChain,
                 activeNetwork: selectedNetwork,
                 infoType: SeiEvmInfoEnum.EVM_RPC_URL,
               })) as string;
@@ -468,7 +574,7 @@ export function useSendModule(): SendModuleType {
                 inputAmountNumber.toString(),
                 rpc,
                 undefined,
-                gasAdjustment,
+                undefined,
                 fromEthAddress,
               );
 
@@ -482,11 +588,13 @@ export function useSendModule(): SendModuleType {
         }
 
         const fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom);
+        const toAddress = associatedSeiAddress || selectedAddress.address || '';
+
         const { gasUsed } = isIBCTransfer
           ? await simulateIbcTransfer(
               lcdUrl ?? '',
               fromAddress,
-              selectedAddress.address ?? '',
+              toAddress,
               amountOfCoins,
               channelId,
               'transfer',
@@ -494,7 +602,7 @@ export function useSendModule(): SendModuleType {
               undefined,
               fee,
             )
-          : await simulateSend(lcdUrl ?? '', fromAddress, selectedAddress.address ?? '', [amountOfCoins], fee);
+          : await simulateSend(lcdUrl ?? '', fromAddress, toAddress, [amountOfCoins], fee);
 
         setGasEstimate(gasUsed);
       } catch (err) {
@@ -518,6 +626,7 @@ export function useSendModule(): SendModuleType {
     feeDenom.coinMinimalDenom,
     isSeiEvmChain,
     activeWallet?.pubKeys,
+    associatedSeiAddress,
   ]);
 
   return {
@@ -569,6 +678,12 @@ export function useSendModule(): SendModuleType {
     fetchAccountDetailsError,
     fetchAccountDetailsData,
     setFetchAccountDetailsData,
+    setSelectedChain,
+    selectedChain,
+    sendActiveChain: activeChain,
+    sendSelectedNetwork: selectedNetwork,
     isSeiEvmTransaction,
+    associatedSeiAddress,
+    setAssociatedSeiAddress,
   } as const;
 }

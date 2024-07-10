@@ -20,7 +20,6 @@ import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { useThemeColor } from 'hooks/utility/useThemeColor'
 import { Images } from 'images'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -52,7 +51,6 @@ export default function ManageTokens() {
   const activeChain = useActiveChain()
 
   const navigate = useNavigate()
-  const themeColor = useThemeColor()
   const setBetaCW20Tokens = useSetBetaCW20Tokens()
   const { lcdUrl } = useChainApis()
   const { cw20TokensBalances, erc20TokensBalances } = useGetTokenBalances()
@@ -359,7 +357,6 @@ export default function ManageTokens() {
               type: HeaderActionType.BACK,
             }}
             title='Manage Tokens'
-            topColor={themeColor}
           />
         }
       >
@@ -371,7 +368,7 @@ export default function ManageTokens() {
                 className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
                 onChange={(event) => setSearchedText(event.target.value)}
               />
-              <img src={Images.Misc.SearchIcon} />
+              <img src={Images.Misc.Search} />
             </div>
 
             <button

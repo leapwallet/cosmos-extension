@@ -1,12 +1,11 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { LineDivider } from '@leapwallet/leap-ui'
-import AlertStrip from 'components/alert-strip/AlertStrip'
+import { AlertStrip } from 'components/alert-strip'
 import PopupLayout from 'components/layout/popup-layout'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
+import { useChainPageInfo } from 'hooks'
 import { Images } from 'images'
 import React, { Fragment, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import {
@@ -45,7 +44,7 @@ export function ShowNfts() {
   const [searchedText, setSearchedText] = useState('')
   const [showSelectSortBy, setShowSelectSortBy] = useState(false)
 
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
   const [showManageCollections, setShowManageCollections] = useState(false)
   const [selectedSortsBy, setSelectedSortsBy] = useState<SupportedChain[]>([])
   const [loadingMessage, setLoadingMessage] = useState('')
@@ -96,7 +95,7 @@ export function ShowNfts() {
             </div>
             <div
               className='absolute w-full h-1 left-0 top-0'
-              style={{ backgroundColor: Colors.getChainColor(activeChain) }}
+              style={{ backgroundColor: topChainColor }}
             />
           </div>
         }

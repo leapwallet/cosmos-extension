@@ -8,6 +8,8 @@ import {
   getTxnLogAmountValue,
   LeapWalletApi,
   sliceAddress,
+  useAddress,
+  useChainId,
   useChainsStore,
   useDenoms,
   useGetChains,
@@ -36,7 +38,6 @@ import {
 import { useChains } from '@leapwallet/elements-hooks'
 import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useWalletClient } from 'hooks/useWalletClient'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useSendContext } from 'pages/send-v2/context'
@@ -47,21 +48,32 @@ export const useExecuteSkipTx = () => {
   const [txnProcessing, setTxnProcessing] = useState<boolean>(false)
   const [error, setError] = useState<string | undefined>()
 
+  const {
+    selectedToken,
+    selectedAddress,
+    fee,
+    inputAmount,
+    isIBCTransfer,
+    transferData,
+    memo,
+    sendActiveChain,
+    sendSelectedNetwork,
+    associatedSeiAddress,
+  } = useSendContext()
+
   const denoms = useDenoms()
   const { chains } = useChainsStore()
   const { data: elementsChains } = useChains()
   const { setPendingTx } = usePendingTxState()
   const txCallback = useTxCallBack()
-  const { walletClient } = useWalletClient()
+  const { walletClient } = useWalletClient(sendActiveChain)
   const txMetadata = useTxMetadata()
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
   const [showLedgerPopupSkipTx, setShowLedgerPopup] = useState(false)
   const getWallet = Wallet.useGetWallet()
   const chainInfos = useGetChains()
-  const selectedNetwork = useSelectedNetwork()
-
-  const { selectedToken, selectedAddress, fee, inputAmount, isIBCTransfer, transferData, memo } =
-    useSendContext()
+  const activeWalletAddress = useAddress(sendActiveChain)
+  const activeChainId = useChainId(sendActiveChain, sendSelectedNetwork)
 
   const confirmSkipTx = async () => {
     if (
@@ -262,6 +274,9 @@ export const useExecuteSkipTx = () => {
             await sleep(2000)
           }
         }
+        const toAddress = associatedSeiAddress || selectedAddress?.address || ''
+        const denom = selectedToken?.coinMinimalDenom || selectedToken?.ibcDenom || ''
+
         const pendingTx = {
           img: messageChain.icon,
           sentAmount: inputAmount,
@@ -270,29 +285,28 @@ export const useExecuteSkipTx = () => {
             coinDenom: selectedToken?.symbol || selectedToken?.name,
           },
           sentUsdValue: '',
-          subtitle1: `to ${sliceAddress(selectedAddress?.address)}`,
-          title1: `Sent ${selectedToken?.symbol || selectedToken?.name}`,
+          subtitle1: sliceAddress(toAddress),
+          title1: `${inputAmount} ${selectedToken?.symbol || selectedToken?.name}`,
           txStatus: 'loading',
           txType: isIBCTransfer ? 'ibc/transfer' : 'send',
           txHash,
           promise: getTxStatus(),
+          sourceChain: sendActiveChain,
+          sourceNetwork: sendSelectedNetwork,
         }
-
-        const toAddress = selectedAddress?.address || ''
-        const denom = selectedToken?.coinMinimalDenom || selectedToken?.ibcDenom || ''
 
         const denomChainInfo =
           chainInfos[(denoms[selectedToken?.coinMinimalDenom ?? '']?.chain ?? '') as SupportedChain]
         const txnLogAmountValue = await getTxnLogAmountValue(inputAmount, {
           coinGeckoId: denoms[selectedToken?.coinMinimalDenom ?? '']?.coinGeckoId,
           coinMinimalDenom: selectedToken?.coinMinimalDenom ?? '',
-          chainId: getChainId(denomChainInfo, selectedNetwork),
+          chainId: getChainId(denomChainInfo, sendSelectedNetwork),
           chain: (selectedToken?.chain ?? '') as SupportedChain,
         })
 
         const normalizedAmount = toSmall(inputAmount.toString(), selectedToken?.coinDecimals ?? 6)
         let metadata = isIBCTransfer
-          ? getMetaDataForIbcTx(msgJSON?.source_channel, toAddress, {
+          ? await getMetaDataForIbcTx(msgJSON?.source_channel, toAddress, {
               denom,
               amount: normalizedAmount,
             })
@@ -310,6 +324,10 @@ export const useExecuteSkipTx = () => {
           metadata,
           feeDenomination: fee?.amount[0]?.denom,
           feeQuantity: fee?.amount[0]?.amount,
+          forceChain: sendActiveChain,
+          forceNetwork: sendSelectedNetwork,
+          forceWalletAddress: activeWalletAddress,
+          chainId: activeChainId,
         })
 
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -334,5 +352,5 @@ export const useExecuteSkipTx = () => {
     setTxnProcessing(false)
   }
 
-  return { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx }
+  return { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError }
 }

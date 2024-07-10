@@ -202,7 +202,9 @@ function AddTokenForm() {
     if (value) {
       if (name === 'coinMinimalDenom') {
         const _value = value.trim().toLowerCase()
-        if (Object.keys(combinedDenoms).includes(_value)) {
+        const combinedDenomsKey = Object.keys(combinedDenoms).map((key) => key.toLowerCase())
+
+        if (combinedDenomsKey.includes(_value)) {
           error = 'Token with same minimal denom already exists'
         } else if (!isSeiEvmChain && (_value.startsWith('erc20/') || isEthAddress(_value))) {
           error = "We don't support adding erc20 token yet."
@@ -387,7 +389,6 @@ function AddTokenForm() {
 }
 
 export default function AddToken() {
-  const activeChain = useActiveChain()
   const navigate = useNavigate()
 
   return (
@@ -402,7 +403,6 @@ export default function AddToken() {
               },
               type: HeaderActionType.BACK,
             }}
-            topColor={Colors.getChainColor(activeChain)}
           />
         }
       >

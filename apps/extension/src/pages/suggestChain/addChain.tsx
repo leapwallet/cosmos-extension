@@ -382,7 +382,6 @@ export default function AddChain() {
               },
               type: HeaderActionType.BACK,
             }}
-            topColor='#E18881'
           />
         }
       >

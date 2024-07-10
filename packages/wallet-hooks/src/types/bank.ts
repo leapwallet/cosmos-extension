@@ -1,3 +1,5 @@
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+
 export type Token = {
   name?: string;
   symbol: string;
@@ -14,6 +16,7 @@ export type Token = {
   chain?: string;
   coinGeckoId?: string;
   isEvm?: boolean;
+  tokenBalanceOnChain?: SupportedChain; // for aggregated view
 };
 
 export type IbcChainInfo = {

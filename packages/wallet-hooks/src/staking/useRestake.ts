@@ -31,14 +31,15 @@ import {
   useActiveWalletStore,
   useAddress,
   useChainApis,
-  useChainId,
   useDefaultGasEstimates,
   useGetChains,
   usePendingTxState,
+  useSelectedNetwork,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
 import { fetchCurrency, formatTokenAmount, getMetaDataForRestakeTx, sliceAddress, useLowGasPriceStep } from '../utils';
+import { useChainId } from '../utils-hooks';
 
 export function useRestake() {
   // HOOKS
@@ -55,7 +56,8 @@ export function useRestake() {
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
   const denom = Object.values(ChainInfos[activeChain].nativeDenoms)[0];
-  const chainId = useChainId();
+  const selectedNetwork = useSelectedNetwork();
+  const activeChainId = useChainId(activeChain, selectedNetwork);
 
   // STATES
   const [memo, setMemo] = useState<string>('');
@@ -239,7 +241,7 @@ export function useRestake() {
           denom.coinGeckoId,
           denom.chain as unknown as SupportedChain,
           currencyDetail[preferredCurrency].currencyPointer,
-          `${chainId}-${denom.coinMinimalDenom}`,
+          `${activeChainId}-${denom.coinMinimalDenom}`,
         );
         setCurrencyFees(feeCurrencyValue ?? '0');
         setFees(fee);
@@ -271,6 +273,7 @@ export function useRestake() {
           metadata,
           feeDenomination: fee.amount[0].denom,
           feeQuantity: fee.amount[0].amount,
+          chainId: activeChainId,
         });
         const txResult = tx.pollForTx(txHash);
 

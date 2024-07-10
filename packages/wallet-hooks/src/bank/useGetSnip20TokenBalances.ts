@@ -9,7 +9,6 @@ import {
   useActiveChain,
   useAddress,
   useChainApis,
-  useChainId,
   useDenoms,
   useDenomsStore,
   useScrtKeysStore,
@@ -18,6 +17,7 @@ import {
 } from '../store';
 import { Token } from '../types/bank';
 import { fetchCurrency, sortTokenBalances } from '../utils';
+import { useChainId } from '../utils-hooks';
 
 export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
   const { viewingKeys, queryPermits } = useScrtKeysStore();

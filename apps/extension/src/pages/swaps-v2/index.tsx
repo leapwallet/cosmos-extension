@@ -1,4 +1,4 @@
-import { useActiveWallet, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveWallet, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
@@ -392,7 +392,7 @@ function SwapPage() {
         }}
       />
 
-      {checkForAutoAdjust && displayFee && sourceToken && inAmount && (
+      {checkForAutoAdjust && displayFee && sourceToken && inAmount && sourceChain && (
         <AutoAdjustAmountSheet
           amount={inAmount}
           setAmount={setInAmount}
@@ -404,6 +404,7 @@ function SwapPage() {
             amount: toSmall(String(displayFee.value), feeDenom.coinDecimals),
             denom: feeDenom.coinMinimalDenom,
           }}
+          forceChain={sourceChain?.key}
           setShowReviewSheet={setShowTxReviewSheet}
           closeAdjustmentSheet={() => setCheckForAutoAdjust(false)}
         />

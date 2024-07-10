@@ -8,23 +8,25 @@ import {
   MobileAppBanner,
   sliceAddress,
   useActiveChain,
+  useAddress,
+  useChainId,
   useGetExplorerTxnUrl,
   useInvalidateActivity,
   useInvalidateDelegations,
   useInvalidateTokenBalances,
   useMobileAppBanner,
   usePendingTxState,
+  useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, GenericCard, Header } from '@leapwallet/leap-ui'
+import { Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import classnames from 'classnames'
-import { InfoCard } from 'components/info-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { Images } from 'images'
 import { Cross } from 'images/misc'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { TxResponse } from 'secretjs'
 import { Colors } from 'theme/colors'
@@ -32,6 +34,18 @@ import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 const PENDING_TX_MOBILE_QR_CODE_BANNER = 'pending-tx-mobile-qr-code-banner'
+
+const txStatusStyles = {
+  loading: {
+    title: 'In Progress...',
+  },
+  success: {
+    title: 'Complete',
+  },
+  failed: {
+    title: 'Failed',
+  },
+}
 
 function MobileQrCode({
   setShowMobileQrCode,
@@ -56,25 +70,52 @@ function MobileQrCode({
 }
 
 export default function PendingTx() {
-  const activeChain = useActiveChain()
   const navigate = useNavigate()
   const [txHash, setTxHash] = useState('')
   const [showMobileQrCode, setShowMobileQrCode] = useState(
     sessionStorage.getItem(PENDING_TX_MOBILE_QR_CODE_BANNER) ? false : true,
   )
-
+  const { theme } = useTheme()
   const copyTxHashRef = useRef<HTMLButtonElement>(null)
   const { pendingTx, setPendingTx } = usePendingTxState()
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
+
   const invalidateBalances = useInvalidateTokenBalances()
   const invalidateDelegations = useInvalidateDelegations()
   const invalidateActivity = useInvalidateActivity()
+
+  const {
+    txType,
+    title1,
+    subtitle1,
+    sentTokenInfo,
+    sentAmount,
+    receivedAmount,
+    sentUsdValue,
+    receivedTokenInfo,
+    txStatus,
+    txHash: _txHash,
+    sourceChain,
+    sourceNetwork,
+  } = pendingTx ?? {}
+
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => sourceChain || _activeChain, [_activeChain, sourceChain])
+
+  const _selectedNetwork = useSelectedNetwork()
+  const selectedNetwork = useMemo(
+    () => sourceNetwork || _selectedNetwork,
+    [_selectedNetwork, sourceNetwork],
+  )
+
+  const activeChainId = useChainId(activeChain, selectedNetwork)
+  const address = useAddress(activeChain)
 
   useEffect(() => {
     const invalidateQueries = () => {
       invalidateBalances(activeChain)
       invalidateDelegations()
-      invalidateActivity()
+      invalidateActivity(activeChain)
     }
 
     if (pendingTx && pendingTx.promise) {
@@ -111,6 +152,10 @@ export default function PendingTx() {
               feeQuantity,
               feeDenomination: 'uscrt',
               amount: pendingTx.txnLogAmount,
+              forceChain: activeChain,
+              forceNetwork: selectedNetwork,
+              forceWalletAddress: address,
+              chainId: activeChainId,
             })
           }
 
@@ -129,40 +174,25 @@ export default function PendingTx() {
               feeQuantity: pendingTx.feeQuantity,
               feeDenomination: pendingTx.feeDenomination,
               amount: pendingTx.txnLogAmount,
+              forceChain: activeChain,
+              forceNetwork: selectedNetwork,
+              forceWalletAddress: address,
+              chainId: activeChainId,
             })
           }
 
-          setTimeout(() => {
-            invalidateQueries()
-          }, 2000)
+          invalidateQueries()
         })
         .catch(() => {
           if (pendingTx.txType === 'cw20TokenTransfer') {
             setPendingTx({ ...pendingTx, txStatus: 'failed' })
           }
 
-          setTimeout(() => {
-            invalidateQueries()
-          }, 2000)
+          invalidateQueries()
         })
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txPostToDB])
-
-  const {
-    txType,
-    title1,
-    subtitle1,
-    sentTokenInfo,
-    sentAmount,
-    receivedAmount,
-    sentUsdValue,
-    receivedTokenInfo,
-    txStatus,
-    txHash: _txHash,
-    isEvmTx,
-  } = pendingTx ?? {}
+  }, [activeChain, address, selectedNetwork, activeChainId])
 
   useEffect(() => {
     if (_txHash) setTxHash(_txHash)
@@ -183,53 +213,54 @@ export default function PendingTx() {
   const balanceIncreased =
     txType === 'undelegate' || txType === 'receive' || txType === 'liquidity/remove'
 
-  const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({ forceTxHash: txHash })
-  const txStatusStyles = {
-    loading: {
-      topColor: '#696969',
-      title: 'Processing...',
-    },
-    success: {
-      topColor: '#29A874',
-      title: 'Success',
-    },
-    failed: {
-      topColor: '#D10014',
-      title: 'Failed',
-    },
-  }
+  const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({
+    forceTxHash: txHash,
+    forceChain: activeChain,
+  })
 
-  const handleCloseClick = () => {
-    navigate('/home')
-  }
+  const isSendTxn = txType
+    ? ['ibc/transfer', 'send', 'secretTokenTransfer', 'cw20TokenTransfer'].includes(txType)
+    : false
 
   return (
     <PopupLayout>
-      <Header
-        topColor={txStatusStyles[txStatus ?? 'loading'].topColor}
-        title={`Transaction ${txStatusStyles[txStatus ?? 'loading'].title}`}
-      />
-      <div className='flex h-[528px] p-7'>
-        <div
-          className={classnames({
-            'overflow-y-auto': showMobileQrCode,
-            'flex flex-col items-center': !showMobileQrCode,
-          })}
-        >
-          <div className='bg-white-100 dark:bg-gray-900 rounded-2xl w-full flex flex-col items-center p-3 mb-4'>
-            {txStatus === 'loading' && <LoaderAnimation color='#29a874' className='w-16 h-16' />}
-            {txStatus === 'success' && (
-              <img src={Images.Activity.SendDetails} className='h-16 w-16' />
-            )}
-            {txStatus === 'failed' && <img src={Images.Activity.Error} className='h-16 w-16' />}
+      <Header title={`Transaction ${txStatusStyles[txStatus ?? 'loading'].title}`} />
+      <div className='flex h-[528px] p-6 flex-col items-center overflow-y-auto'>
+        <div className='bg-white-100 dark:bg-gray-950 rounded-2xl w-full flex flex-col items-center p-4 mb-4'>
+          {txStatus === 'loading' && (
+            <LoaderAnimation color={Colors.green600} className='w-20 h-20' />
+          )}
+          {txStatus === 'success' && (
+            <img src={Images.Activity.SendDetails} className='w-20 h-20' />
+          )}
+          {txStatus === 'failed' && <img src={Images.Activity.Error} className='w-20 h-20' />}
 
-            <div className='text-xl font-bold text-black-100 dark:text-white-100 text-left mt-4 break-all'>
-              {title1}
+          <div className='text-xl font-bold text-black-100 dark:text-white-100 text-left mt-1 break-all'>
+            {title1}
+          </div>
+          {isSendTxn ? (
+            <div className='text-sm font-medium text-black-100 dark:text-white-100 mt-1'>
+              {txStatus === 'success'
+                ? 'sent successfully to'
+                : txStatus === 'failed'
+                ? 'failed sending to'
+                : 'sending to'}
             </div>
-            <div className='text-base text-gray-600 dark:text-gray-400 text-center break-all'>
+          ) : null}
+          {isSendTxn ? (
+            <div className='flex rounded-full gap-[6px] py-[6px] pl-2 pr-3 bg-gray-50 dark:bg-gray-900 text-sm font-bold text-black-100 dark:text-white-100 mt-2 items-center'>
+              <div className='material-icons-round !text-[18px] text-gray-200 dark:text-gray-800'>
+                account_circle
+              </div>
               {subtitle1}
             </div>
+          ) : (
+            <div className='text-base text-gray-600 dark:text-gray-400 text-center break-all mt-1'>
+              {subtitle1}
+            </div>
+          )}
 
+          {!isSendTxn ? (
             <div className='flex mt-2 space-x-2 text-sm items-center'>
               {txType === 'swap' ? (
                 <>
@@ -267,67 +298,94 @@ export default function PendingTx() {
                 </>
               )}
             </div>
-          </div>
+          ) : null}
+        </div>
 
-          {txHash && (
-            <div className='rounded-2xl overflow-hidden w-full mb-4'>
-              <GenericCard
-                title='Transaction ID'
-                img={<img className='mr-3' src={Images.Activity.TxHash} />}
-                subtitle={sliceAddress(txHash)}
+        {txHash && (
+          <div
+            className='rounded-2xl w-full mb-4 px-6 py-4 bg-white-100 dark:bg-gray-950 cursor-pointer flex items-center'
+            onClick={() => {
+              copyTxHashRef.current?.click()
+              UserClipboard.copyText(txHash)
+              setIsCopiedClick(true)
+              setTimeout(() => setIsCopiedClick(false), 2000)
+            }}
+          >
+            <div className='flex-1'>
+              <div className='text-sm font-bold text-black-100 dark:text-white-100 mb-1'>
+                Transaction ID
+              </div>
+              <div className='text-md font-medium text-gray-600 dark:text-gray-400'>
+                {sliceAddress(txHash)}
+              </div>
+            </div>
+
+            <Buttons.CopyWalletAddress
+              copyIcon={Images.Activity.Copy}
+              ref={copyTxHashRef}
+              color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+              className={!isCopiedClick ? 'hidden' : ''}
+            />
+
+            {!isCopiedClick && (
+              <span
+                className='!text-lg material-icons-round text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2'
                 onClick={() => {
                   copyTxHashRef.current?.click()
                   UserClipboard.copyText(txHash)
                   setIsCopiedClick(true)
                   setTimeout(() => setIsCopiedClick(false), 2000)
                 }}
-                size='md'
-                icon={
-                  <>
-                    <Buttons.CopyWalletAddress
-                      copyIcon={Images.Activity.Copy}
-                      ref={copyTxHashRef}
-                      color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-                    />
+              >
+                content_copy
+              </span>
+            )}
 
-                    {txnUrl && !isCopiedClick ? (
-                      <span
-                        className='material-icons-round text-[#9E9E9E]'
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          window.open(txnUrl, '_blank')
-                        }}
-                      >
-                        open_in_new
-                      </span>
-                    ) : null}
-                  </>
-                }
-              />
-            </div>
-          )}
+            {txnUrl && !isCopiedClick ? (
+              <span
+                className='!text-lg material-icons-round text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2'
+                onClick={(event) => {
+                  event.stopPropagation()
+                  window.open(txnUrl, '_blank')
+                }}
+              >
+                open_in_new
+              </span>
+            ) : null}
+          </div>
+        )}
 
-          {!isCompassWallet() &&
-          showMobileQrCode &&
-          status === 'success' &&
-          data &&
-          data.visible ? (
-            <MobileQrCode setShowMobileQrCode={setShowMobileQrCode} data={data} />
-          ) : null}
+        {!isCompassWallet() && showMobileQrCode && status === 'success' && data && data.visible ? (
+          <MobileQrCode setShowMobileQrCode={setShowMobileQrCode} data={data} />
+        ) : null}
 
-          {isCompassWallet() &&
-          title1?.toLowerCase().includes('sent nft') &&
-          isEvmTx &&
-          txStatus === 'success' ? (
-            <InfoCard
-              className='mb-4'
-              message='Add your NFTs via Manage Collection in the other wallet for it to show up'
-            />
-          ) : null}
-
-          <Buttons.Generic size='normal' onClick={handleCloseClick} className='mt-auto w-full'>
-            Done
+        <div className='w-full flex gap-4'>
+          <Buttons.Generic
+            color={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray300}
+            size='normal'
+            className='w-full'
+            onClick={() => navigate('/home')}
+          >
+            <p className='!text-black-100 dark:!text-white-100'>Home</p>
           </Buttons.Generic>
+          {isSendTxn && !title1?.toLowerCase()?.includes('nft') ? (
+            <Buttons.Generic
+              color={Colors.green600}
+              size='normal'
+              className='w-full'
+              onClick={() =>
+                navigate(
+                  `/send?assetCoinDenom=${
+                    sentTokenInfo?.ibcDenom || sentTokenInfo?.coinMinimalDenom
+                  }`,
+                  { replace: true },
+                )
+              }
+              disabled={txStatus !== 'success'}
+            >
+              Send Again
+            </Buttons.Generic>
+          ) : null}
         </div>
       </div>
     </PopupLayout>

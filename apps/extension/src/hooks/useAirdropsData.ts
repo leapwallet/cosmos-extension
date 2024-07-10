@@ -13,8 +13,8 @@ export const useAirdropsData = () => {
   const fetchAirdropsData = useCallback(async () => {
     const allWallets = await KeyChain.getAllWallets()
     const addresses = Object.values(
-      Object.values(allWallets).filter((wallet: Key) => wallet.id === activeWallet?.id)?.[0]
-        ?.addresses,
+      Object.values(allWallets ?? {}).filter((wallet: Key) => wallet.id === activeWallet?.id)?.[0]
+        ?.addresses ?? {},
     )
     const uniqueAddresses = [...new Set(addresses)]
     fetchAirdropsEligibilityData(uniqueAddresses)

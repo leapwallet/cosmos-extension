@@ -23,7 +23,7 @@ export class LeapEvm implements Ethereum {
       name: `${IDENTIFIER}:inpage`,
       target: `${IDENTIFIER}:content`,
     });
-    this.inpageStream.setMaxListeners(100);
+    this.inpageStream.setMaxListeners(200);
     this.origin = window.location.origin;
     this.requestQueue = {};
   }

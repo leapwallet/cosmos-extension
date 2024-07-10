@@ -1,25 +1,37 @@
-import { useActiveChain, useGetTokenSpendableBalances } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  Token,
+  useActiveChain,
+  useGetTokenSpendableBalances,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { motion } from 'framer-motion'
+import { useChainPageInfo } from 'hooks'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import useQuery from 'hooks/useQuery'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { useThemeColor } from 'hooks/utility/useThemeColor'
 import SelectChain from 'pages/home/SelectChain'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { AggregatedSupportedChain } from 'types/utility'
 
+import {
+  AggregatedSpendableNullComponents,
+  LoadAggregateAssets,
+  LoadChainAssets,
+} from './components'
 import { AmountCard } from './components/amount-card'
+import ErrorWarning from './components/error-warning'
 import { Memo } from './components/memo'
 import { RecipientCard } from './components/recipient-card'
 import { ReviewTransfer } from './components/reivew-transfer'
 import { SendContextProvider } from './context'
 
-const Send = () => {
+const Send = React.memo(() => {
   usePageView(PageName.Send)
 
   const navigate = useNavigate()
@@ -29,20 +41,20 @@ const Send = () => {
   const setActiveChain = useSetActiveChain()
   const { refetchBalances } = useGetTokenSpendableBalances()
 
-  const defaultTokenLogo = useDefaultTokenLogo()
   const [showChainSelector, setShowChainSelector] = useState<boolean>(false)
+  const { headerChainImgSrc, topChainColor } = useChainPageInfo()
 
-  const themeColor = useThemeColor()
-  const chainImage = useMemo(
-    () => chainInfos[activeChain]?.chainSymbolImageUrl ?? defaultTokenLogo,
-    [activeChain, chainInfos, defaultTokenLogo],
-  )
+  const [allAssets, setAllAssets] = useState<Token[]>([])
+  const [isAllAssetsLoading, setIsAllAssetsLoading] = useState<boolean>(true)
+  const chainId = useQuery().get('chainId') ?? undefined
+  const dontShowSelectChain = useDontShowSelectChain()
 
   // refetch balances
   useEffect(() => {
     refetchBalances()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const chainId = useQuery().get('chainId') ?? undefined
 
   useEffect(() => {
     if (chainId) {
@@ -63,20 +75,34 @@ const Send = () => {
                 onClick: () => navigate(-1),
                 type: HeaderActionType.BACK,
               }}
-              imgSrc={chainImage}
-              onImgClick={() => setShowChainSelector(true)}
+              imgSrc={headerChainImgSrc}
+              onImgClick={dontShowSelectChain ? undefined : () => setShowChainSelector(true)}
               title={location.pathname === '/ibc' ? 'IBC' : 'Send'}
-              topColor={themeColor}
             />
           }
         >
+          {(activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY ? (
+            <>
+              <LoadAggregateAssets
+                setAllAssets={setAllAssets}
+                setIsAllAssetsLoading={setIsAllAssetsLoading}
+              />
+              <AggregatedSpendableNullComponents />
+            </>
+          ) : (
+            <LoadChainAssets
+              setAllAssets={setAllAssets}
+              setIsAllAssetsLoading={setIsAllAssetsLoading}
+            />
+          )}
           <SendContextProvider activeChain={activeChain}>
             <div className='p-4 space-y-4 overflow-y-auto' style={{ height: 'calc(100% - 72px)' }}>
-              <RecipientCard themeColor={themeColor} />
-              <AmountCard themeColor={themeColor} />
+              <AmountCard allAssets={allAssets} isAllAssetsLoading={isAllAssetsLoading} />
+              <RecipientCard themeColor={topChainColor} />
               <Memo />
-              <div className='h-[115px]' />
-              <ReviewTransfer themeColor={themeColor} />
+              <ErrorWarning />
+              <div className='h-[100px]' />
+              <ReviewTransfer />
             </div>
           </SendContextProvider>
           <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
@@ -84,6 +110,8 @@ const Send = () => {
       </motion.div>
     </div>
   )
-}
+})
+
+Send.displayName = 'Send'
 
 export default Send

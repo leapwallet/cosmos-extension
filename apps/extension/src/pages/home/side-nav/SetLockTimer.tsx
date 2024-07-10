@@ -1,6 +1,6 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
-import { CardDivider, HeaderActionType } from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { CardDivider } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import Text from 'components/text'
 import { TimerLockPeriod, useLockTimer } from 'hooks/settings/usePassword'
@@ -19,13 +19,8 @@ export default function SetLockTimerDropUp({
   const { lockTime, setTimer } = useLockTimer()
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
-      onClose={onCloseHandler}
-      headerTitle='Set Timer'
-      headerActionType={HeaderActionType.CANCEL}
-    >
-      <div className='flex flex-col items-center gap-y-4 p-[28px]'>
+    <BottomModal isOpen={isVisible} onClose={onCloseHandler} title={'Set Timer'}>
+      <div className='flex flex-col items-center gap-y-4'>
         <EmptyCard
           src={Images.Misc.Timer}
           subHeading='Your wallet will auto-lock if not in use for the chosen duration'
@@ -72,6 +67,6 @@ export default function SetLockTimerDropUp({
           })}
         </div>
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

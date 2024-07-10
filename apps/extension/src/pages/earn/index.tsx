@@ -1,19 +1,16 @@
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
-import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
+import { TestnetAlertStrip } from 'components/alert-strip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
+import { useChainPageInfo } from 'hooks'
 import { usePageView } from 'hooks/analytics/usePageView'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
-import { useChainInfos } from 'hooks/useChainInfos'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { LeapCosmos } from 'images/logos'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
-import { Colors } from 'theme/colors'
 
 import { DisplaySettingsModal } from './display-settings-modal'
 import InvestViewContainer from './invest-view'
@@ -25,17 +22,12 @@ export default function EarnPage() {
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showDisplaySettings, setShowDisplaySettings] = useState(false)
-  const defaultTokenLogo = useDefaultTokenLogo()
 
+  const { activeWallet } = useActiveWallet()
+  const { headerChainImgSrc } = useChainPageInfo()
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
     sortBy: 'tvl',
   })
-
-  const { activeWallet } = useActiveWallet()
-  const activeChain = useActiveChain()
-  const chainInfos = useChainInfos()
-  const activeChainInfo = chainInfos[activeChain]
-  const themeColor = Colors.getChainColor(activeChain, activeChainInfo)
 
   if (!activeWallet) {
     return (
@@ -65,14 +57,13 @@ export default function EarnPage() {
               className:
                 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
-            imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
+            imgSrc={headerChainImgSrc}
             onImgClick={() => setShowChainSelector(true)}
             title='Earn'
-            topColor={themeColor}
           />
         }
       >
-        <SelectedChainAlertStrip />
+        <TestnetAlertStrip />
 
         <div className='w-full px-7 pt-7 mb-[84px]'>
           <div className='mb-5'>

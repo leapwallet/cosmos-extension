@@ -1,4 +1,5 @@
 import {
+  axiosWrapper,
   ChainInfo,
   defaultGasPriceStep,
   GasPrice,
@@ -20,7 +21,7 @@ import { FeeModel } from '../types/fee-model';
 import { useLowGasPriceStep } from './useLowGasPriceStep';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
 
-function roundOf(value: number, tillDecimal: number) {
+export function roundOf(value: number, tillDecimal: number) {
   return Math.round(value * 10 ** tillDecimal) / 10 ** tillDecimal;
 }
 
@@ -33,7 +34,7 @@ async function getCoreumGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRec
   const minGasPrice1 = parseFloat(gasPrice1.data.min_gas_price.amount);
   const minGasPrice2 = parseFloat(gasPrice2.data.min_gas_price.amount);
 
-  const defaultGasPrice = gasPriceSteps.coreum?.low;
+  const defaultGasPrice = gasPriceSteps.coreum?.low ?? 0;
   const minGasPrice = Math.max(minGasPrice1, minGasPrice2, defaultGasPrice);
 
   return isNaN(minGasPrice) ? defaultGasPrice : minGasPrice;
@@ -53,17 +54,31 @@ async function getOsmosisGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRe
   const url = `${lcdUrl}/osmosis/txfees/v1beta1/cur_eip_base_fee`;
   const { data } = await axios.get(url);
 
-  return roundOf(Number(data.base_fee), 4) ?? gasPriceSteps.osmosis.low;
+  return roundOf(Number(data.base_fee), 4) ?? gasPriceSteps.osmosis?.low ?? 0;
 }
 
 export async function getOsmosisGasPriceSteps(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
   const minGasPrice = await getOsmosisGasPrice(lcdUrl ?? '', gasPriceSteps);
 
-  const low = Math.max(gasPriceSteps.osmosis.low, minGasPrice);
-  const medium = Math.max(gasPriceSteps.osmosis.average, minGasPrice * 1.1);
-  const high = Math.max(gasPriceSteps.osmosis.high, minGasPrice * 2);
+  const low = Math.max(gasPriceSteps.osmosis?.low ?? 0, minGasPrice);
+  const medium = Math.max(gasPriceSteps.osmosis?.average ?? 0, minGasPrice * 1.1);
+  const high = Math.max(gasPriceSteps.osmosis?.high ?? 0, minGasPrice * 2);
 
   return { low, medium, high };
+}
+
+export async function getFeeMarketGasPrices(lcdUrl: string) {
+  try {
+    const { data } = await axiosWrapper({
+      baseURL: lcdUrl,
+      method: 'get',
+      url: '/feemarket/v1/gas_prices',
+    });
+
+    return data?.prices ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getMayaTxFee(lcdUrl: string) {
@@ -79,22 +94,24 @@ export async function getThorChainTxFee(lcdUrl: string) {
 }
 
 function getGasPriceStep(chain: ChainInfo, allChainsGasPriceSteps: GasPriceStepsRecord): GasPriceStep {
-  let gasPrices = defaultGasPriceStep;
-  const gasPriceStepsForChain = allChainsGasPriceSteps[chain.key];
-  if (chain.beta && chain.gasPriceStep) {
+  let gasPrices = allChainsGasPriceSteps[chain.key];
+  if (!gasPrices && chain.beta && chain.gasPriceStep) {
     gasPrices = chain.gasPriceStep;
-  } else if (gasPriceStepsForChain) {
-    gasPrices = gasPriceStepsForChain;
+  } else if (!gasPrices) {
+    gasPrices = defaultGasPriceStep;
   }
+
   return { low: gasPrices.low, medium: gasPrices.average, high: gasPrices.high };
 }
 
-export function useGetGasPrice(chain: SupportedChain) {
+export function useGetGasPrice(chain: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [forceNetwork, _selectedNetwork]);
+
   const { chains } = useChainsStore();
-  const { lcdUrl } = useChainApis(chain);
+  const { lcdUrl } = useChainApis(chain, selectedNetwork);
   const gasPriceSteps = useGasPriceSteps();
   const lowGasPriceStep = useLowGasPriceStep(chain);
-  const selectedNetwork = useSelectedNetwork();
 
   return useCallback(async () => {
     const chainInfo = chains[chain];
@@ -137,11 +154,11 @@ export type GasPriceStep = { low: number; medium: number; high: number };
 
 export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?: 'mainnet' | 'testnet'): GasPriceStep {
   const { chains } = useChainsStore();
-  const chain = chains[chainKey];
+  const chain = useMemo(() => chains[chainKey], [chains, chainKey]);
   const { lcdUrl } = useChainApis(chainKey);
   const allChainsGasPriceSteps = useGasPriceSteps();
   const _selectedNetwork = useSelectedNetwork();
-  const selectedNetwork = forceNetwork ?? _selectedNetwork;
+  const selectedNetwork = useMemo(() => forceNetwork ?? _selectedNetwork, [forceNetwork, _selectedNetwork]);
 
   const [gasPriceStep, setGasPriceStep] = useState<GasPriceStep>(() => {
     return getGasPriceStep(chain, allChainsGasPriceSteps);

@@ -5,10 +5,10 @@ import { ErrorCard } from 'components/ErrorCard'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Colors } from 'theme/colors'
 
-import { ReviewVoteCastProps } from '../ReviewVoteCast'
+import { ReviewVoteCastProps } from '../components/ReviewVoteCast'
 
 export function NtrnReviewVoteCast({
   isOpen,
@@ -21,8 +21,10 @@ export function NtrnReviewVoteCast({
   setMemo,
   proposalId,
   gasOption,
+  forceChain,
 }: Omit<ReviewVoteCastProps, 'feeText'>) {
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
   useCaptureTxError(error)
 
   return (

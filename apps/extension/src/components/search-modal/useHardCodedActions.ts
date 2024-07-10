@@ -4,19 +4,18 @@ import {
   useChainInfo,
   useFeatureFlags,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { captureException } from '@sentry/react'
 import { showSideNavFromSearchModalState } from 'atoms/search-modal'
+import { ButtonName, ButtonType, EventName, PageName } from 'config/analytics'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useAuth } from 'context/auth-context'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
-import { useGetKadoAssets, useGetKadoChains } from 'hooks/useGetKadoDetails'
-import {
-  BuyUrlFuncParams,
-  getBuyUrl,
-  OriginWalletSourceEnum,
-  ServiceProviderEnum,
-} from 'pages/home/utils'
+import mixpanel from 'mixpanel-browser'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useSetRecoilState } from 'recoil'
+import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import Browser from 'webextension-polyfill'
 
@@ -26,6 +25,7 @@ export function useHardCodedActions() {
   const { data: featureFlags } = useFeatureFlags()
 
   const address = useAddress()
+  const activeChain = useActiveChain() as AggregatedSupportedChain
   const activeChainInfo = useChainInfo()
   const { hideBalances: balancesHidden } = useHideAssets()
   const setBalancesVisibility = useSetHideAssets()
@@ -34,27 +34,8 @@ export function useHardCodedActions() {
   const [alertMessage, setAlertMessage] = useState('')
   const setShowSideNav = useSetRecoilState(showSideNavFromSearchModalState)
 
-  const walletAddress = useAddress()
-  const activeWalletCosmosAddress = useAddress('cosmos')
-  const { data: kadoSupportedChainId = [] } = useGetKadoChains()
-  const { data: kadoSupportedAssets = [] } = useGetKadoAssets()
-  const isKadoSupported =
-    kadoSupportedChainId.includes(activeChainInfo?.chainId) &&
-    kadoSupportedAssets.includes(activeChainInfo?.denom)
-
-  const handleBuyClick = (type: 'leap' | 'compass') => {
-    const buyUrlArgs: BuyUrlFuncParams = {
-      serviceProvider: ServiceProviderEnum.KADO,
-      originWalletSource:
-        type === 'leap' ? OriginWalletSourceEnum.LEAP : OriginWalletSourceEnum.COMPASS,
-      walletAddress: isKadoSupported ? walletAddress : activeWalletCosmosAddress,
-      providerApiKey: process.env.KADO_API_KEY as string,
-      activeChain: isKadoSupported ? activeChainInfo.chainName.toUpperCase() : 'COSMOS HUB',
-      denom: isKadoSupported ? activeChainInfo.denom : 'ATOM',
-    }
-
-    const buyUrl = getBuyUrl(buyUrlArgs)
-    window.open(buyUrl, '_blank')
+  const handleBuyClick = () => {
+    navigate(`/buy?pageSource=${PageName.Home}`)
   }
 
   function handleSwapClick(_redirectUrl?: string, navigateUrl?: string) {
@@ -82,6 +63,29 @@ export function useHardCodedActions() {
       window.open(redirectUrl, '_blank')
     } else {
       navigate('/gov')
+    }
+  }
+
+  function handleBridgeClick() {
+    const baseUrl = 'https://swapfast.app/bridge'
+    let redirectURL = `${baseUrl}?destinationChainId=${activeChainInfo?.chainId}`
+
+    if (activeChainInfo?.key === 'mainCoreum') {
+      redirectURL = 'https://sologenic.org/coreum-bridge'
+    } else if (activeChain === AGGREGATED_CHAIN_KEY) {
+      redirectURL = baseUrl
+    }
+    window.open(redirectURL, '_blank')
+
+    try {
+      mixpanel.track(EventName.ButtonClick, {
+        buttonType: ButtonType.HOME,
+        buttonName: ButtonName.BRIDGE,
+        redirectURL: redirectURL,
+        time: Date.now() / 1000,
+      })
+    } catch (e) {
+      captureException(e)
     }
   }
 
@@ -140,5 +144,6 @@ export function useHardCodedActions() {
     handleNftsClick,
     handleVoteClick,
     onSendClick,
+    handleBridgeClick,
   }
 }

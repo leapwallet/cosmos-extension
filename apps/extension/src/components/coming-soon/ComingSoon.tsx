@@ -1,12 +1,11 @@
-import { useActiveChain, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import PopupLayout from 'components/layout/popup-layout'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { useChainPageInfo } from 'hooks'
+import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
-import { Colors } from 'theme/colors'
 
 type ComingSoonProps = {
   title: string
@@ -16,13 +15,8 @@ type ComingSoonProps = {
 export function ComingSoon({ title, bottomNavLabel }: ComingSoonProps) {
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
-
-  const activeChain = useActiveChain()
-  const chains = useGetChains()
-  const defaultTokenLogo = useDefaultTokenLogo()
-
-  const activeChainInfo = chains[activeChain]
-  const themeColor = Colors.getChainColor(activeChain, activeChainInfo)
+  const { headerChainImgSrc } = useChainPageInfo()
+  const dontShowSelectChain = useDontShowSelectChain()
 
   return (
     <div className='relative w-[400px] overflow-clip'>
@@ -40,10 +34,9 @@ export function ComingSoon({ title, bottomNavLabel }: ComingSoonProps) {
               className:
                 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
-            imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={() => setShowChainSelector(true)}
+            imgSrc={headerChainImgSrc}
+            onImgClick={dontShowSelectChain ? undefined : () => setShowChainSelector(true)}
             title={title}
-            topColor={themeColor}
           />
         }
       >

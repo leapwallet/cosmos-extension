@@ -10,28 +10,27 @@ export const useNativeFeeDenom = (forceChain?: string, forceNetwork?: 'mainnet' 
   const denoms = useDenoms();
   const _selectedNetwork = useSelectedNetwork();
 
-  const activeChain = (forceChain ?? _activeChain) as SupportedChain;
-  const selectedNetwork = forceNetwork ?? _selectedNetwork;
+  const activeChain = useMemo(() => (forceChain ?? _activeChain) as SupportedChain, [_activeChain, forceChain]);
+  const selectedNetwork = useMemo(() => forceNetwork ?? _selectedNetwork, [forceNetwork, _selectedNetwork]);
 
   const nativeFeeDenom = useMemo(() => {
+    const feeDenom = feeDenoms[selectedNetwork][activeChain];
+    if (feeDenom) {
+      return denoms[feeDenom];
+    }
+
     if (chains[activeChain].beta && chains[activeChain].nativeDenoms) {
       const nativeDenom = Object.values(chains[activeChain].nativeDenoms)[0];
       return denoms[nativeDenom.coinMinimalDenom] ?? nativeDenom;
     }
 
-    const selectedFeeCoinMinimalDenom = feeDenoms[selectedNetwork][activeChain];
-
-    if (selectedFeeCoinMinimalDenom) {
-      return denoms[selectedFeeCoinMinimalDenom];
-    }
-
     const fallbackFeeDenom = fallbackFeeDenoms[selectedNetwork][activeChain];
-
     if (fallbackFeeDenom?.coinMinimalDenom) {
       return denoms[fallbackFeeDenom.coinMinimalDenom] ?? fallbackFeeDenom;
     }
+
     return fallbackFeeDenom;
-  }, [activeChain, chains, selectedNetwork, feeDenoms, denoms]);
+  }, [activeChain, chains, selectedNetwork]);
 
   return nativeFeeDenom;
 };

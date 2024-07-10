@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { getChains } from '@leapwallet/cosmos-wallet-hooks'
 import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import { chainIdToChain, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
 import { MessageTypes } from 'config/message-types'
-import { BETA_CHAINS } from 'config/storage-keys'
+import { ACTIVE_WALLET_ID, BETA_CHAINS } from 'config/storage-keys'
 import CryptoJs from 'crypto-js'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import { getStorageAdapter } from 'utils/storageAdapter'
@@ -71,14 +70,14 @@ export async function checkChainConnections(
   connections: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   msg: any,
-  activeWallet: Key,
+  activeWalletId: string,
 ) {
   const isLeapBoardOrigin = 'https://cosmos.leapwallet.io' === msg.origin
-  let isNewChainPresent = !activeWallet
+  let isNewChainPresent = !activeWalletId
 
-  if (activeWallet) {
+  if (activeWalletId) {
     chainIds.forEach((chainId: string) => {
-      const sites: [string] = connections?.[activeWallet.id]?.[chainId] || []
+      const sites: [string] = connections?.[activeWalletId]?.[chainId] || []
 
       if (!sites.includes(msg?.origin)) {
         isNewChainPresent = true
@@ -91,7 +90,7 @@ export async function checkChainConnections(
 
   if (validChainIds.length && isLeapBoardOrigin) {
     isNewChainPresent = false
-    await addToConnections(chainIds, [activeWallet], msg.origin)
+    await addToConnections(chainIds, [activeWalletId], msg.origin)
   }
 
   return {
@@ -110,10 +109,15 @@ const getActiveWallet = async () => {
   return activeWallet
 }
 
+const getActiveWalletId = async () => {
+  const store = await browser.storage.local.get([ACTIVE_WALLET_ID])
+  return store[ACTIVE_WALLET_ID]
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function checkConnection(chainIds: string[], msg: any) {
-  const [activeWallet, connections] = await Promise.all([getActiveWallet(), getConnections()])
-  return await checkChainConnections(chainIds, connections, msg, activeWallet)
+  const [activeWalletId, connections] = await Promise.all([getActiveWalletId(), getConnections()])
+  return await checkChainConnections(chainIds, connections, msg, activeWalletId)
 }
 const popupIds: Record<string, number> = {}
 const pendingPromises: Record<string, Promise<browser.Windows.Window>> = {}
@@ -186,14 +190,16 @@ export async function openPopup(page: Page, queryString?: string) {
       } else {
         throw new Error('No tabs')
       }
-    } catch {
+    } catch (e: any) {
       try {
-        const promise = browser.windows.create(popup)
-        pendingPromises[url] = promise
+        if (e.message.includes(`No tab with id`)) {
+          const promise = browser.windows.create(popup)
+          pendingPromises[url] = promise
 
-        const window = await promise
-        if (window.id) {
-          popupIds[url] = window.id
+          const window = await promise
+          if (window.id) {
+            popupIds[url] = window.id
+          }
         }
       } finally {
         delete pendingPromises[url]
@@ -202,13 +208,12 @@ export async function openPopup(page: Page, queryString?: string) {
   } else {
     try {
       const promise = browser.windows.create(popup)
-
       pendingPromises[url] = promise
       const window = await promise
       if (window.id) {
         popupIds[url] = window.id
       }
-      return window.id
+      return window
     } finally {
       delete pendingPromises[url]
     }
@@ -365,6 +370,36 @@ export async function awaitUIResponse(messageType: string) {
   })
 }
 
+export async function awaitApproveChainResponse(payloadId: string) {
+  return new Promise((resolve, reject) => {
+    const listener = async (
+      message: { type: string; payload: any; status: string },
+      sender: any,
+    ) => {
+      if (sender.id !== browser.runtime.id) reject('Invalid sender')
+      if (message.type === 'chain-enabled' && message.payload.payloadId === payloadId) {
+        resolve({ status: 'success', payloadId: message.payload.payloadId })
+        //browser.runtime.onMessage.removeListener(listener)
+      } else if (
+        message.type === 'chain-approval-rejected' &&
+        message.payload.payloadId === payloadId
+      ) {
+        reject({ status: 'rejected', payloadId: message.payload.payloadId })
+        browser.runtime.onMessage.removeListener(listener)
+      } else if (message.type === 'popup-closed') {
+        resolve('popup-closed')
+        browser.runtime.onMessage.removeListener(listener)
+      } else if (message.type === 'user-logged-in' && message.status !== 'success') {
+        reject('failed')
+        browser.runtime.onMessage.removeListener(listener)
+      }
+      // if (ApprovalMessageTypes.includes(message.type)) {
+      //   browser.runtime.onMessage.removeListener(listener)
+      // }
+    }
+    browser.runtime.onMessage.addListener(listener)
+  })
+}
 export function requestSignTransaction(payload: any) {
   const listener = (message: any, sender: any) => {
     if (sender.id !== browser.runtime.id) throw new Error('Invalid Sender')

@@ -1,4 +1,4 @@
-import { ChainInfos, GasPrice, SigningSscrt } from '@leapwallet/cosmos-wallet-sdk';
+import { ChainInfos, DefaultGasEstimates, GasPrice, SigningSscrt } from '@leapwallet/cosmos-wallet-sdk';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { Wallet } from 'secretjs';
 
@@ -33,7 +33,9 @@ export function useSecretSnip20({ getWallet }: useSecretSnip20Params): useSecret
   const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
-  const [recommendedGasLimit, setRecommendedGasLimit] = useState(defaultGasEstimates.secret.DEFAULT_GAS_TRANSFER);
+  const [recommendedGasLimit, setRecommendedGasLimit] = useState(
+    defaultGasEstimates?.secret?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
+  );
 
   useEffect(() => {
     (async function simulate() {

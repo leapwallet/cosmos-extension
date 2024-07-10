@@ -1,5 +1,7 @@
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 
+import { useActiveChain } from '../store';
 import { DApp, DappType, QuickSearchOption } from '../types';
 import { storage, useGetStorageLayer } from '../utils';
 import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
@@ -14,13 +16,21 @@ export function getQuickSearchOptions(storage: storage): Promise<QuickSearchOpti
 
 export function useGetQuickSearchOptions() {
   const storage = useGetStorageLayer();
+  const activeChain = useActiveChain() as SupportedChain & 'aggregated';
 
   return useQuery<QuickSearchOption[]>(
     ['get-quick-search-options'],
     function () {
-      return getQuickSearchOptions(storage);
+      if (activeChain && activeChain !== 'aggregated') {
+        return getQuickSearchOptions(storage);
+      }
+
+      return [];
     },
-    { retry: 2 },
+    {
+      retry: 2,
+      enabled: activeChain !== 'aggregated',
+    },
   );
 }
 

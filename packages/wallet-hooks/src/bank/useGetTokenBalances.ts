@@ -30,7 +30,6 @@ import {
   useBetaERC20Tokens,
   useBetaNativeTokens,
   useChainApis,
-  useChainInfo,
   useChainsStore,
   useCW20Tokens,
   useDenoms,
@@ -49,7 +48,7 @@ import {
   getKeyToUseForDenoms,
   sortTokenBalances,
 } from '../utils';
-import { useIsSeiEvmChain } from '../utils-hooks';
+import { useChainInfo, useIsSeiEvmChain } from '../utils-hooks';
 import { bankQueryIds } from './queryIds';
 
 export function useInvalidateTokenBalances() {
@@ -108,7 +107,6 @@ export function getQueryFn(
           }
 
           const amount = fromSmall(new BigNumber(balance.amount).toString(), denom?.coinDecimals);
-
           const alternateCoingeckoKey = `${chainInfo.chainId}-${denom.coinMinimalDenom}`;
 
           let usdValue;
@@ -136,6 +134,7 @@ export function getQueryFn(
             usdPrice,
             coinDecimals: denom?.coinDecimals,
             coinGeckoId: denom?.coinGeckoId,
+            tokenBalanceOnChain: activeChain,
           };
         });
 
@@ -165,6 +164,7 @@ export function getQueryFn(
           img: denom?.icon ?? chainInfos[activeChain].chainSymbolImageUrl ?? '',
           usdPrice,
           coinGeckoId: denom?.coinGeckoId ?? '',
+          tokenBalanceOnChain: activeChain,
         };
 
         allTokens.push(placeHolderBalance);
@@ -207,7 +207,7 @@ export function useGetERC20TokenAddresses(forceChain?: SupportedChain) {
   const _activeChain = useActiveChain();
   const activeChain = forceChain ?? _activeChain;
 
-  const erc20Tokens = useERC20Tokens();
+  const erc20Tokens = useERC20Tokens(activeChain);
   const betaERC20Tokens = useBetaERC20Tokens(activeChain);
   const disabledCW20Tokens = useDisabledCW20Tokens(activeChain);
 
@@ -242,6 +242,10 @@ export function useGetNativeTokensBalances(
 
   const address = useAddress(activeChain);
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
+
+  const { chains } = useChainsStore();
+  const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
+  const retry = isApiUnavailable ? false : 10;
 
   const { data: _denoms, status: denomsStatus } = useQuery(
     ['fetch-missing-denoms', activeChain, selectedNetwork, balances, lcdUrl, Object.keys(denoms).length],
@@ -294,7 +298,7 @@ export function useGetNativeTokensBalances(
     {
       enabled: enabled && denomsStatus === 'success' && _balancesStatus === 'success',
       staleTime: 60 * 1000,
-      retry: 10,
+      retry,
       retryDelay: 1000,
     },
   );
@@ -313,9 +317,9 @@ export function useGetCW20TokenBalances(
   const address = useAddress(activeChain);
   const { rpcUrl } = useChainApis(activeChain, selectedNetwork);
 
-  const cw20TokenAddresses = useGetCW20TokenAddresses(forceChain);
+  const cw20TokenAddresses = useGetCW20TokenAddresses(activeChain);
   const denoms = useDenoms();
-  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens(forceChain);
+  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens(activeChain);
   const combinedDenoms = { ...denoms, ...autoFetchedCW20Tokens };
 
   const { chains } = useChainsStore();
@@ -324,7 +328,7 @@ export function useGetCW20TokenBalances(
 
   const queryRes = useQueries({
     queries: (cw20TokenAddresses ?? []).map((tokenAddress) => ({
-      queryKey: [[`${activeChain}-${bankQueryIds.cw20TokenBalancesRaw}`, activeChain, address, tokenAddress]],
+      queryKey: [[`${activeChain}-${bankQueryIds.cw20TokenBalancesRaw}`, activeChain, address, tokenAddress, rpcUrl]],
       queryFn: async () => {
         if (tokenAddress) {
           return await fetchCW20Balances(`${rpcUrl}/`, address, [tokenAddress]);
@@ -377,16 +381,25 @@ export function useGetCW20TokenBalances(
   };
 }
 
-function useGetERC20TokenBalances(currencyPreferred: Currency) {
-  const { evmJsonRpc } = useChainApis();
-  const erc20TokenAddresses = useGetERC20TokenAddresses();
+function useGetERC20TokenBalances(
+  currencyPreferred: Currency,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+) {
+  const _activeChain = useActiveChain();
+  const _selectedNetwork = useSelectedNetwork();
+
+  const activeChain = forceChain ?? _activeChain;
+  const selectedNetwork = forceNetwork ?? _selectedNetwork;
+
+  const { evmJsonRpc } = useChainApis(activeChain, selectedNetwork);
+  const erc20TokenAddresses = useGetERC20TokenAddresses(activeChain);
 
   const activeWallet = useActiveWallet();
-  const activeChain = useActiveChain();
-  const address = useAddress();
+  const address = useAddress(activeChain);
   const denoms = useDenoms();
   const { chains } = useChainsStore();
-  const isSeiEvm = useIsSeiEvmChain();
+  const isSeiEvm = useIsSeiEvmChain(activeChain);
 
   const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
   const retry = isApiUnavailable ? false : 10;
@@ -567,6 +580,7 @@ export function useIbcTokensBalances(
             coinDecimals: denomInfo?.coinDecimals ?? 6,
             coinGeckoId: denomInfo?.coinGeckoId ?? '',
             chain: denomInfo?.chain ?? '',
+            tokenBalanceOnChain: activeChain,
           },
           ibcTraceDataToAdd,
         };
@@ -683,7 +697,7 @@ export function useGetRawBalances(
   const queryClient = useQueryClient();
 
   const { data, status, refetch } = useQuery(
-    [`${activeChain}-${bankQueryIds.rawBalances}`, address, lcdUrl],
+    [`${activeChain}-${bankQueryIds.rawBalances}`, address, lcdUrl, rpcUrl],
     async () => {
       const balances = await fetchAllBalancesRestApi(lcdUrl ?? '', address, rpcUrl, fetchSpendableBalance);
       queryClient.setQueryData([`${activeChain}-${bankQueryIds.rawBalances}`, address, lcdUrl], balances);
@@ -819,32 +833,27 @@ export function useGetTokenBalances(
     .plus(totalUSDValueERC20Denoms);
 
   const allAssets = useMemo(() => {
-    if (rawBalancesData?.length === 0) {
-      return _nativeTokensBalance ?? [];
-    } else {
-      const nativeTokens = sortTokenBalances(
-        _nativeTokensBalance?.filter((token) =>
-          Object.keys(chainInfo?.nativeDenoms)?.includes(token.coinMinimalDenom),
-        ) ?? [],
-      );
+    const nativeTokens = sortTokenBalances(
+      _nativeTokensBalance?.filter((token) => Object.keys(chainInfo?.nativeDenoms)?.includes(token.coinMinimalDenom)) ??
+        [],
+    );
 
-      const nonNativeTokens =
-        _nativeTokensBalance?.filter(
-          (token) => !Object.keys(chainInfo?.nativeDenoms)?.includes(token.coinMinimalDenom),
-        ) ?? [];
+    const nonNativeTokens =
+      _nativeTokensBalance?.filter(
+        (token) => !Object.keys(chainInfo?.nativeDenoms)?.includes(token.coinMinimalDenom),
+      ) ?? [];
 
-      const sortedNativeTokensBalance = nativeTokens;
+    const sortedNativeTokensBalance = nativeTokens;
 
-      const sortNonNativeTokens = sortTokenBalances([
-        ...(nonNativeTokens ?? []),
-        ...(s3IbcTokensBalances ?? []),
-        ...(nonS3IbcTokensBalances ?? []),
-        ...(_cw20TokensBalances ?? []),
-        ...(_erc20TokensBalances ?? []),
-      ]);
+    const sortNonNativeTokens = sortTokenBalances([
+      ...(nonNativeTokens ?? []),
+      ...(s3IbcTokensBalances ?? []),
+      ...(nonS3IbcTokensBalances ?? []),
+      ...(_cw20TokensBalances ?? []),
+      ...(_erc20TokensBalances ?? []),
+    ]);
 
-      return sortedNativeTokensBalance.concat(sortNonNativeTokens);
-    }
+    return sortedNativeTokensBalance.concat(sortNonNativeTokens);
   }, [
     _nativeTokensBalance,
     s3IbcTokensBalances,
@@ -878,6 +887,7 @@ export function useGetTokenBalances(
 
   return {
     nativeTokensBalance,
+    _nativeTokensBalance,
     s3IbcTokensBalances,
     nonS3IbcTokensBalances,
     allAssets,
@@ -888,8 +898,10 @@ export function useGetTokenBalances(
     refetchBalances,
     cw20TokensBalances,
     cw20TokensStatus,
+    _cw20TokensBalances,
     erc20TokensStatus,
     erc20TokensBalances,
+    _erc20TokensBalances,
     isWalletHasFunds,
   };
 }

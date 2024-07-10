@@ -12,15 +12,18 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import classNames from 'classnames'
 import { ProposalDescription } from 'components/proposal-description'
 import Text from 'components/text'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { createContext, ReactNode, useContext, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { Colors } from 'theme/colors'
+import { AggregatedSupportedChain } from 'types/utility'
 import { assert } from 'utils/assert'
 import { formatAuthzDate } from 'utils/formatAuthzDate'
 import { imgOnError } from 'utils/imgOnError'
@@ -73,6 +76,8 @@ function _ManageAuthZ({ goBack }: { goBack: () => void }) {
     setError,
     selectedChainHasMainnetOnly,
   } = useAuthZContext()
+
+  const dontShowSelectChain = useDontShowSelectChain()
   const [showSelectChain, setShowSelectChain] = useState(false)
   const { data, isLoading } = useGetGivenAuthz(
     selectedChain,
@@ -166,11 +171,7 @@ function _ManageAuthZ({ goBack }: { goBack: () => void }) {
   ) : (
     <>
       <div className='pb-5 h-[600px]'>
-        <Header
-          topColor={Colors.getChainColor(activeChain)}
-          title='Manage AuthZ'
-          action={{ type: HeaderActionType.BACK, onClick: goBack }}
-        />
+        <Header title='Manage AuthZ' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
 
         <div className='overflow-y-auto w-full h-[530px] p-[28px]'>
           <div className='flex flex-col items-center gap-4 pb-4'>
@@ -185,8 +186,13 @@ function _ManageAuthZ({ goBack }: { goBack: () => void }) {
               }
               isRounded={true}
               title2='Chain'
-              icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
-              onClick={() => setShowSelectChain(true)}
+              icon={
+                dontShowSelectChain ? undefined : (
+                  <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
+                )
+              }
+              className={classNames({ '!cursor-default': dontShowSelectChain })}
+              onClick={dontShowSelectChain ? undefined : () => setShowSelectChain(true)}
             />
 
             {isLoading && (
@@ -276,7 +282,11 @@ function _ManageAuthZ({ goBack }: { goBack: () => void }) {
           <ProposalDescription
             title='About AuthZ'
             description='AuthZ empowers you to delegate specific tasks, like voting or claiming rewards, to another wallet without compromising the security of your account. On this page, you can view and manage all AuthZ transactions initiated by your wallet.'
-            btnColor={activeChain}
+            btnColor={
+              (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY
+                ? 'cosmos'
+                : activeChain
+            }
           />
         </div>
       </div>

@@ -89,7 +89,11 @@ export default function SuggestChain() {
 
       await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(newBetaChains) })
       if (activeWallet) {
-        await addToConnections([newChain.chainInfo.chainId], [activeWallet], origin.current ?? '')
+        await addToConnections(
+          [newChain.chainInfo.chainId],
+          [activeWallet.id],
+          origin.current ?? '',
+        )
         await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
       }
 

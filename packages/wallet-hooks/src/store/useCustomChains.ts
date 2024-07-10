@@ -18,5 +18,5 @@ export const useCustomChainsStore = create<CustomChainsState>((set) => ({
 
 export const useCustomChains = () => {
   const { customChains } = useCustomChainsStore();
-  return customChains;
+  return customChains ?? [];
 };

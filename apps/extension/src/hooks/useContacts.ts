@@ -25,6 +25,7 @@ export const useContacts = () => {
           acc[key] = contact
           return acc
         }, {})
+
       setContacts(contactsToShow)
       setLoading(false)
     }
@@ -47,11 +48,13 @@ export const useContactsSearch = (searchQuery?: string): AddressBook.SavedAddres
     if (loading) {
       return []
     }
+
     const contactsList = Object.values(contacts)
     const cleanSearchQuery = searchQuery?.trim().toLowerCase() ?? ''
     if (cleanSearchQuery.length === 0) {
       return contactsList
     }
+
     return new Fuse(contactsList, {
       threshold: 0.3,
       keys: ['name', 'address', 'ethAddress'],

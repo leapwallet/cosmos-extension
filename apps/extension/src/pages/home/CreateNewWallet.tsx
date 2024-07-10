@@ -1,5 +1,5 @@
-import { Buttons, HeaderActionType } from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { Buttons } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import React, { useCallback, useState } from 'react'
 
 import { Wallet } from '../../hooks/wallet/useWallet'
@@ -49,14 +49,13 @@ export function NewWalletForm({ isVisible, onClose }: NewWalletFormProps) {
   }
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
+    <BottomModal
+      isOpen={isVisible}
       onClose={() => handleClose(false)}
-      headerTitle={'Create new wallet'}
-      headerActionType={HeaderActionType.CANCEL}
-      closeOnClickBackDrop={true}
+      title={'Create new wallet'}
+      closeOnBackdropClick={true}
     >
-      <div className='flex flex-col  justify-center gap-y-[16px] items-center p-[28px]'>
+      <div className='flex flex-col justify-center gap-y-[16px] items-center'>
         <div className='flex w-[344px] rounded-2xl flex-col dark:bg-gray-900 bg-white-100 items-center py-[24px] gap-y-[20px] px-[16]'>
           <div
             className='rounded-full'
@@ -86,6 +85,6 @@ export function NewWalletForm({ isVisible, onClose }: NewWalletFormProps) {
           </Buttons.Generic>
         </div>
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

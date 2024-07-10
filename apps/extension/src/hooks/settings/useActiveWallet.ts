@@ -11,6 +11,7 @@ import browser from 'webextension-polyfill'
 import {
   ACTIVE_CHAIN,
   ACTIVE_WALLET,
+  ACTIVE_WALLET_ID,
   KEYSTORE,
   MANAGE_CHAIN_SETTINGS,
 } from '../../config/storage-keys'
@@ -80,10 +81,16 @@ export function useInitActiveWallet() {
   const { setActiveWallet } = useActiveWalletStore()
   const password = usePassword()
   useEffect(() => {
-    browser.storage.local.get([ACTIVE_WALLET, MANAGE_CHAIN_SETTINGS]).then((storage) => {
-      setActiveWallet(storage[ACTIVE_WALLET])
-    })
-
+    browser.storage.local
+      .get([ACTIVE_WALLET, MANAGE_CHAIN_SETTINGS, ACTIVE_WALLET_ID])
+      .then((storage) => {
+        const activeWallet = storage[ACTIVE_WALLET]
+        const activeWalletId = storage[ACTIVE_WALLET_ID]
+        setActiveWallet(activeWallet)
+        if (!activeWalletId && activeWallet) {
+          browser.storage.local.set({ [ACTIVE_WALLET_ID]: storage[ACTIVE_WALLET].id })
+        }
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [password])
 }
@@ -104,7 +111,7 @@ export default function useActiveWallet() {
       }
 
       await sendMessageToTab({ event: 'leap_keystorechange' })
-      await browser.storage.local.set({ [ACTIVE_WALLET]: wallet })
+      await browser.storage.local.set({ [ACTIVE_WALLET]: wallet, [ACTIVE_WALLET_ID]: wallet.id })
       try {
         setState(wallet)
       } catch (e) {

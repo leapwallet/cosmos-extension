@@ -1,10 +1,11 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType, NavCard, ToggleCard } from '@leapwallet/leap-ui'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
 import { TimerLockPeriodRev, useLockTimer } from 'hooks/settings/usePassword'
 import { Images } from 'images'
 import React, { ReactElement, useState } from 'react'
-import { Colors } from 'theme/colors'
+import { AggregatedSupportedChain } from 'types/utility'
 
 import { SideNavSection } from '.'
 import ConnectedSites from './ConnectedSites'
@@ -41,6 +42,7 @@ export default function GeneralSecurity({ goBack }: { goBack: () => void }): Rea
       onClick: () => {
         setShowLockTimeDropUp(true)
       },
+      disabled: false,
     },
     {
       imgSrc: Images.Misc.Globe,
@@ -49,6 +51,7 @@ export default function GeneralSecurity({ goBack }: { goBack: () => void }): Rea
       onClick: () => {
         setPage(GENERAL_SECURITY_PAGES.CONNECTED_SITES)
       },
+      disabled: (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY,
     },
 
     {
@@ -58,16 +61,13 @@ export default function GeneralSecurity({ goBack }: { goBack: () => void }): Rea
       onClick: () => {
         setPage(GENERAL_SECURITY_PAGES.MANAGE_AUTHZ)
       },
+      disabled: false,
     },
   ]
 
   return (
     <div className='h-[600px]'>
-      <Header
-        topColor={Colors.getChainColor(activeChain)}
-        title='Security'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
+      <Header title='Security' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
       <div className='flex flex-col items-center p-[28px]'>
         <SideNavSection>
           <div className='pt-3 pb-1 bg-white-100 dark:bg-gray-900'>
@@ -85,6 +85,10 @@ export default function GeneralSecurity({ goBack }: { goBack: () => void }): Rea
           </div>
 
           {NavOptions.map((navOption) => {
+            if (navOption.disabled) {
+              return null
+            }
+
             return (
               <React.Fragment key={navOption.property}>
                 <CardDivider />

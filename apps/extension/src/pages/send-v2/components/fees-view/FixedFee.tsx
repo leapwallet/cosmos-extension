@@ -1,7 +1,6 @@
 import {
   getMayaTxFee,
   getThorChainTxFee,
-  useActiveChain,
   useChainApis,
   useformatCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -12,13 +11,18 @@ import React, { useEffect, useState } from 'react'
 export function FixedFee() {
   const [fee, setFee] = useState(new BigNumber(1))
   const [formatCurrency] = useformatCurrency()
-  const { feeDenom, feeTokenFiatValue } = useSendContext()
-  const { lcdUrl } = useChainApis()
-  const activeChain = useActiveChain()
+
+  const {
+    feeDenom,
+    feeTokenFiatValue,
+    sendActiveChain: sourceChain,
+    sendSelectedNetwork: sourceNetwork,
+  } = useSendContext()
+  const { lcdUrl } = useChainApis(sourceChain, sourceNetwork)
 
   useEffect(() => {
     ;(async function () {
-      switch (activeChain) {
+      switch (sourceChain) {
         case 'mayachain': {
           const fee = await getMayaTxFee(lcdUrl ?? '')
           setFee(new BigNumber(fee).div(10 ** feeDenom.coinDecimals))
@@ -34,10 +38,10 @@ export function FixedFee() {
         }
       }
     })()
-  }, [feeDenom.coinDecimals, lcdUrl, activeChain])
+  }, [feeDenom.coinDecimals, lcdUrl, sourceChain])
 
   return (
-    <div className='flex items-center justify-center text-gray-600 dark:text-gray-200'>
+    <div className='flex items-center justify-center text-gray-600 dark:text-gray-400'>
       <p className='font-semibold text-center text-sm'>Transaction fee: </p>
       <p className='font-semibold text-center text-sm ml-1'>
         <strong className='mr-1'>

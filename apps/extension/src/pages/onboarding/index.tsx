@@ -2,6 +2,7 @@ import { KeyChain } from '@leapwallet/leap-keychain'
 import { OnboardCard as Card } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import ExtensionPage from 'components/extension-page'
+import { Header } from 'components/header'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
@@ -15,7 +16,6 @@ import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import extension from 'webextension-polyfill'
 
-import { Header } from '../../components/header'
 import { IMPORT_WALLET_DATA } from './constants'
 
 export default function Onboarding() {

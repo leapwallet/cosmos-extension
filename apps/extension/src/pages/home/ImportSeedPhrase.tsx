@@ -58,7 +58,7 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
 
   if (!isVisible) return null
   return (
-    <div className='h-[600px] overflow-scroll bg-white-100 dark:bg-black-100 absolute top-0 z-10'>
+    <div className='h-[600px] overflow-scroll bg-white-100 dark:bg-black-100 absolute top-0 z-[10000000]'>
       {isSeiEvmChain ? (
         <button
           className='absolute top-5 right-5 w-[32px] cursor-pointer z-10'
@@ -69,7 +69,6 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
       ) : null}
 
       <Header
-        topColor={Colors.getChainColor(activeChain)}
         title='Import Wallet'
         action={{
           type: HeaderActionType.BACK,
@@ -83,7 +82,7 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
         <SeedPhraseInput
           onChangeHandler={onChangeHandler}
           isError={!!error}
-          heading='To import an existing wallet, please enter the recovery phrase here:'
+          heading='Importing a recovery phrase from MetaMask might give a different address, use private key instead.'
           onPage='SelectWallet'
         />
         {error && (
@@ -122,8 +121,9 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
           isVisible={viewInfoSheet}
           setVisible={setViewInfoSheet}
           title='FAQ'
-          heading='Can I import my Metamask recovery phrase here?'
-          desc='Yes, you can but importing a recovery phrase from Metamask might give a different address. Instead, import your private key.'
+          heading='Can I import my MetaMask recovery phrase here?'
+          desc='Yes, you can but importing a recovery phrase from MetaMask might give a different address. Instead, import your private key.'
+          className='!z-[20000000]'
         />
       ) : null}
     </div>

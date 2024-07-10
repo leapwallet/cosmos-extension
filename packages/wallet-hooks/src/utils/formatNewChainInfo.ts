@@ -48,6 +48,11 @@ export interface CustomChainsType {
           txUrl: string;
           accountUrl: string;
         };
+        testnet: {
+          name: string;
+          txUrl: string;
+          accountUrl: string;
+        };
       }
     | undefined;
   theme: {
@@ -58,6 +63,7 @@ export interface CustomChainsType {
   apiStatus?: boolean | undefined;
   status: 'live';
   key_algos: 'secp256k1' | 'ethsecp256k1';
+  cosmosSDK?: string;
 }
 
 function removeTrailingSlash(url: string) {
@@ -87,10 +93,11 @@ export function formatNewChainInfo(chainInfo: CustomChainsType) {
     chainId: chainInfo.chainId,
     chainName: chainInfo.chainName,
     chainRegistryPath: chainInfo.chainRegistryPath ?? addressPrefix,
-    key: chainInfo.chainName as SupportedChain,
+    key: chainInfo.chainRegistryPath as SupportedChain,
     chainSymbolImageUrl: chainInfo?.image,
     txExplorer: {
       mainnet: chainInfo.txExplorer?.mainnet,
+      testnet: chainInfo.txExplorer?.testnet,
     },
     apis,
     denom: rest.coinDenom as Denom,
@@ -111,6 +118,7 @@ export function formatNewChainInfo(chainInfo: CustomChainsType) {
     beta: true,
     features: chainInfo.features || [],
     apiStatus: chainInfo?.apiStatus,
+    cosmosSDK: chainInfo?.cosmosSDK,
     ...testnetData,
   };
 }

@@ -118,4 +118,5 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   odin: DefaultGasEstimates,
   saga: DefaultGasEstimates,
   initia: DefaultGasEstimates,
+  humans: DefaultGasEstimates,
 };

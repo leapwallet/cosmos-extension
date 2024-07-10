@@ -1,4 +1,3 @@
-import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import React, { Dispatch, SetStateAction } from 'react'
 
@@ -23,17 +22,8 @@ export function MoreDetailsSheet({
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      hideActionButton={true}
-      showSecondaryActionButton={true}
-      containerClassName='!bg-white-100 dark:!bg-gray-950'
-      headerClassName='!bg-white-100 dark:!bg-gray-950'
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
-      secondaryActionButton={
-        <div className='absolute top-1 right-6'>
-          <Buttons.Cancel onClick={onClose} />
-        </div>
-      }
     >
       <div className='p-4 bg-gray-50 dark:bg-gray-900 rounded-xl'>
         <MoreDetails

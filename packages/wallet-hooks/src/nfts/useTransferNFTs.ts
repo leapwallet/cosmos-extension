@@ -26,7 +26,6 @@ import {
   PendingTx,
   useActiveChain,
   useChainApis,
-  useChainInfo,
   useDefaultGasEstimates,
   usePendingTxState,
   useSelectedNetwork,
@@ -40,7 +39,7 @@ import {
   useGasRateQuery,
   useNativeFeeDenom,
 } from '../utils';
-import { useFetchAccountDetails } from '../utils-hooks';
+import { useChainId, useChainInfo, useFetchAccountDetails } from '../utils-hooks';
 import { ExecuteInstruction, UseSendNftReturnType } from './types';
 
 export const useSendNft = (collectionId: string, forceChain?: SupportedChain): UseSendNftReturnType => {
@@ -52,6 +51,7 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
   const selectedNetwork = useSelectedNetwork();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
+  const activeChainId = useChainId(activeChain, selectedNetwork);
   const defaultGasEstimates = useDefaultGasEstimates();
   const {
     status: fetchAccountDetailsStatus,
@@ -135,14 +135,7 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
         })) as string;
 
         const data = encodeErc72TransferData([fromAddress, toAddress, tokenId]);
-        const gasUsed = await SeiEvmTx.SimulateTransaction(
-          collectionId ?? '',
-          '',
-          rpc,
-          data,
-          gasAdjustment,
-          fromAddress,
-        );
+        const gasUsed = await SeiEvmTx.SimulateTransaction(collectionId ?? '', '', rpc, data, undefined, fromAddress);
 
         setGasEstimate(gasUsed);
         return gasUsed;
@@ -217,7 +210,7 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
 
       if (collectionId.toLowerCase().startsWith('0x')) {
         const chainId = (await getSeiEvmInfo({
-          activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
+          activeChain: activeChain,
           activeNetwork: selectedNetwork,
           infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
         })) as number;
@@ -287,9 +280,30 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
         },
       };
 
-      txPostToDB(_result.data);
-      setIsSending(false);
+      if (collectionId.toLowerCase().startsWith('0x')) {
+        const evmTxHash = _result.data.txHash;
+        const evmRpcUrl = await getSeiEvmInfo({
+          activeChain,
+          activeNetwork: selectedNetwork,
+          infoType: SeiEvmInfoEnum.EVM_RPC_URL,
+        });
 
+        try {
+          const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmRpcUrl as string);
+          txPostToDB({
+            txHash: cosmosTxHash,
+            txType: _result.data.txType,
+            metadata: _result.data.metadata,
+            chainId: activeChainId,
+          });
+        } catch {
+          // GetCosmosTxHash is currently failing
+        }
+      } else {
+        txPostToDB({ ..._result.data, chainId: activeChainId });
+      }
+
+      setIsSending(false);
       setPendingTx({ ..._result.pendingTx, toAddress: toAddress });
       return _result;
     } catch (e) {

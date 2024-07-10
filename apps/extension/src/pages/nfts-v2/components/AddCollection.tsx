@@ -2,12 +2,15 @@ import {
   BETA_EVM_NFT_TOKEN_IDS,
   BETA_NFT_CHAINS,
   BETA_NFTS_COLLECTIONS,
+  ENABLED_NFTS_COLLECTIONS,
   NftChain,
   normalizeImageSrc,
+  StoredBetaNftCollection,
   useBetaEvmNftTokenIdsStore,
   useBetaNFTsCollectionsStore,
   useChainApis,
   useDisabledNFTsCollections,
+  useEnabledNftsCollectionsStore,
   useIsSeiEvmChain,
   useNftChains,
   useNftChainsStore,
@@ -21,18 +24,22 @@ import {
   getNftTokenIdInfo,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { GenericCard, HeaderActionType } from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { GenericCard } from '@leapwallet/leap-ui'
+import classNames from 'classnames'
+import BottomModal from 'components/bottom-modal'
 import { InputComponent } from 'components/input-component/InputComponent'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { SelectChainSheet } from 'pages/home/side-nav/CustomEndpoints'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { AggregatedSupportedChain } from 'types/utility'
 import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -45,7 +52,11 @@ type AddCollectionProps = Omit<ManageCollectionsProps, 'openAddCollectionSheet'>
 
 export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
   const chainInfos = useChainInfos()
-  const activeChain = useActiveChain()
+  let activeChain = useActiveChain()
+  if ((activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY) {
+    activeChain = 'cosmos'
+  }
+
   const activeNetwork = useSelectedNetwork()
   const defaultTokenLogo = useDefaultTokenLogo()
   const timeoutIdRef = useRef<NodeJS.Timeout>()
@@ -67,9 +78,13 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
   const setDisabledNFTsCollections = useSetDisabledNFTsInStorage()
   const { setNftChains } = useNftChainsStore()
   const { setBetaNFTsCollections } = useBetaNFTsCollectionsStore()
+  const { enabledNftsCollections, setEnabledNftsCollections } = useEnabledNftsCollectionsStore()
   const { setBetaEvmNftTokenIds } = useBetaEvmNftTokenIdsStore()
 
-  const chain = selectedChain ? selectedChain : activeChain
+  const chain = useMemo(
+    () => (selectedChain ? selectedChain : activeChain),
+    [activeChain, selectedChain],
+  )
   const forceNetwork = useMemo(() => {
     if (activeChain === 'seiDevnet') {
       return 'mainnet'
@@ -86,6 +101,7 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
   const { rpcUrl, evmJsonRpc } = useChainApis(chain, forceNetwork)
   const isSeiEvmChain = useIsSeiEvmChain()
 
+  const dontShowSelectChain = useDontShowSelectChain()
   const showTokenIdInput = useMemo(() => {
     return enteredCollection.length > 0 && enteredCollection.toLowerCase().startsWith('0x')
   }, [enteredCollection])
@@ -248,7 +264,9 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
   const handleToggleClick = async (isEnabled: boolean) => {
     setNftInfo((prevValue) => ({ ...prevValue, enable: isEnabled }))
 
+    const existingEnabledNftsCollections = enabledNftsCollections?.[selectedChain] ?? []
     let _disabledNFTsCollections: string[] = []
+    let _enabledNftsCollections: string[] = []
     let hasToSetInfo = true
 
     if (isEnabled) {
@@ -256,15 +274,20 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
         (collection) => collection !== enteredCollection,
       )
 
+      if (isCompassWallet() && !existingEnabledNftsCollections.includes(enteredCollection)) {
+        _enabledNftsCollections = [...existingEnabledNftsCollections, enteredCollection]
+      }
+
       const storage = await Browser.storage.local.get([
         BETA_NFTS_COLLECTIONS,
         BETA_NFT_CHAINS,
         BETA_EVM_NFT_TOKEN_IDS,
       ])
       if (storage[BETA_NFTS_COLLECTIONS]) {
-        const parsedData = JSON.parse(storage[BETA_NFTS_COLLECTIONS])[selectedChain] ?? []
+        const parsedData: StoredBetaNftCollection[] =
+          JSON.parse(storage[BETA_NFTS_COLLECTIONS])?.[selectedChain]?.[forceNetwork] ?? []
 
-        if (parsedData.includes(enteredCollection)) {
+        if (parsedData.some((collection) => collection.address === enteredCollection)) {
           if (enteredCollection.toLowerCase().startsWith('0x')) {
             const betaEvmNftTokenIds = JSON.parse(storage[BETA_EVM_NFT_TOKEN_IDS] ?? '{}')
             const address = walletAddresses[0].toLowerCase().startsWith('0x')
@@ -280,10 +303,32 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
         }
       }
     } else {
-      _disabledNFTsCollections = [...disabledNFTsCollections, enteredCollection]
+      if (!_disabledNFTsCollections.includes(enteredCollection)) {
+        _disabledNFTsCollections = [...disabledNFTsCollections, enteredCollection]
+      }
+
+      if (isCompassWallet()) {
+        _enabledNftsCollections = existingEnabledNftsCollections.filter(
+          (collection) => collection !== enteredCollection,
+        )
+      }
     }
 
     await setDisabledNFTsCollections(_disabledNFTsCollections)
+
+    if (isCompassWallet()) {
+      setEnabledNftsCollections({
+        ...enabledNftsCollections,
+        [selectedChain]: _enabledNftsCollections,
+      })
+      await Browser.storage.local.set({
+        [ENABLED_NFTS_COLLECTIONS]: JSON.stringify({
+          ...enabledNftsCollections,
+          [selectedChain]: _enabledNftsCollections,
+        }),
+      })
+    }
+
     if (hasToSetInfo) {
       const storage = await Browser.storage.local.get([
         BETA_NFTS_COLLECTIONS,
@@ -291,13 +336,26 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
         BETA_EVM_NFT_TOKEN_IDS,
       ])
 
+      const newCollection = {
+        address: enteredCollection,
+        name: nftInfo?.contractInfo?.name ?? 'Unknown',
+        image: nftInfo?.contractInfo?.image ?? '',
+      }
+
       if (storage[BETA_NFTS_COLLECTIONS]) {
         const parsedData = JSON.parse(storage[BETA_NFTS_COLLECTIONS])
 
-        if (!parsedData?.[selectedChain]?.includes(enteredCollection)) {
+        if (
+          !parsedData?.[selectedChain]?.[forceNetwork]?.some(
+            (collection: StoredBetaNftCollection) => collection.address === enteredCollection,
+          )
+        ) {
           const newStorageInfo = {
             ...parsedData,
-            [selectedChain]: [...(parsedData[selectedChain] ?? []), enteredCollection],
+            [selectedChain]: {
+              ...(parsedData[selectedChain] ?? {}),
+              [forceNetwork]: [...(parsedData[selectedChain]?.[forceNetwork] ?? []), newCollection],
+            },
           }
 
           await Browser.storage.local.set({
@@ -311,7 +369,9 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
         }
       } else {
         const newStorageInfo = {
-          [selectedChain]: [enteredCollection],
+          [selectedChain]: {
+            [forceNetwork]: [newCollection],
+          },
         }
 
         await Browser.storage.local.set({ [BETA_NFTS_COLLECTIONS]: JSON.stringify(newStorageInfo) })
@@ -347,9 +407,8 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
 
   return (
     <>
-      <BottomSheet
-        isVisible={isVisible}
-        headerTitle='Add Collection'
+      <BottomModal
+        isOpen={isVisible}
         onClose={() => {
           onClose()
           setSelectedChain('' as SupportedChain)
@@ -357,10 +416,10 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
           setNftInfo({})
           setErrors({})
         }}
-        headerActionType={HeaderActionType.CANCEL}
-        closeOnClickBackDrop={true}
+        title={'Add Collection'}
+        closeOnBackdropClick={true}
       >
-        <div className='w-full h-[320px] flex flex-col pt-6 pb-2 px-7 sticky top-[72px] bg-gray-50 dark:bg-black-100'>
+        <div className='w-full h-[320px] flex flex-col sticky top-[72px] bg-gray-50 dark:bg-black-100'>
           <GenericCard
             title={
               selectedChain ? getChainName(chainInfos[selectedChain].chainName) : 'Select Chain'
@@ -378,8 +437,13 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
             }
             isRounded={true}
             title2={selectedChain ? 'Chain' : ''}
-            icon={<img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />}
-            onClick={() => setShowSelectChain(true)}
+            icon={
+              dontShowSelectChain ? undefined : (
+                <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
+              )
+            }
+            className={classNames({ '!cursor-default': dontShowSelectChain })}
+            onClick={dontShowSelectChain ? undefined : () => setShowSelectChain(true)}
           />
           {errors?.selectedChain && enteredCollection.length > 0 && (
             <Text size='sm' color='text-red-300 mt-1 mb-2'>
@@ -435,7 +499,7 @@ export function AddCollection({ isVisible, onClose }: AddCollectionProps) {
             </Text>
           )}
         </div>
-      </BottomSheet>
+      </BottomModal>
 
       <SelectChainSheet
         chainsToShow={isCompassWallet() ? [chainInfos[activeChain].chainRegistryPath] : undefined}

@@ -9,6 +9,10 @@ export namespace Colors {
   export const compassGradient =
     'linear-gradient(180deg, rgba(34, 72, 116, 0.7) 0%, rgba(34, 72, 116, 0) 100%)'
 
+  export const aggregatePrimary = '#fcb045eb'
+  export const aggregateGradient =
+    'linear-gradient(180deg, rgba(252, 176, 69, 0.28) 0%, rgba(131, 58, 180, 0.24) 32%, rgba(58, 141, 180, 0.12) 56%, rgba(58, 141, 180, 0) 100%)'
+
   export const cosmosPrimary = isCompassWallet() ? compassPrimary : '#754F9C'
   export const juno = '#E18881'
   export const gray900 = '#212121'
@@ -16,6 +20,7 @@ export namespace Colors {
   export const gray300 = '#B8B8B8'
   export const gray100 = '#E8E8E8'
   export const gray800 = '#383838'
+  export const gray950 = '#141414'
   export const green600 = '#29A874'
 
   export const Indigo300 = '#8583EC'

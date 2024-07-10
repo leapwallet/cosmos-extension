@@ -1,6 +1,7 @@
 import * as activity from './activity'
 import * as airdrop from './airdrop'
 import * as banners from './banners'
+import * as countries from './countries'
 import * as gov from './gov'
 import * as loaders from './loaders'
 import * as logos from './logos'
@@ -13,6 +14,7 @@ import * as swap from './swap'
 export namespace Images {
   export const Activity = activity
   export const Airdrop = airdrop
+  export const Countries = countries
   export const Misc = misc
   export const Nav = nav
   export const Loaders = loaders

@@ -7,6 +7,7 @@ import {
   getChainId,
   getMetaDataForIbcSwapTx,
   getMetaDataForIbcTx,
+  getMetaDataForSwapTx,
   getTxnLogAmountValue,
   LeapWalletApi,
   useActiveWallet,
@@ -162,6 +163,7 @@ export function useExecuteTx({
       errorMessage: string,
       chain?: SourceChain,
       transferSequence?: TransferInfo[] | undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transferAssetRelease?: any,
     ) => {
       setFirstTxnError(errorMessage)
@@ -200,6 +202,7 @@ export function useExecuteTx({
   const logTxToDB = useCallback(
     async (txHash: string, msgType: string) => {
       const isIBCSendTx = !route?.response?.does_swap ?? false
+      const hasIBC = route?.operations?.some((operation: any) => 'transfer' in operation)
       const denomChainInfo = chainInfos[(sourceToken?.chain ?? '') as SupportedChain]
       const txnLogAmountValue = await getTxnLogAmountValue(inAmount, {
         coinGeckoId: sourceToken?.coinGeckoId ?? '',
@@ -208,8 +211,14 @@ export function useExecuteTx({
         chain: (sourceToken?.chain ?? '') as SupportedChain,
       })
 
+      const txType = isIBCSendTx
+        ? CosmosTxType.IbcSend
+        : hasIBC
+        ? CosmosTxType.IBCSwap
+        : CosmosTxType.Swap
+
       const metadata = isIBCSendTx
-        ? getMetaDataForIbcTx(
+        ? await getMetaDataForIbcTx(
             route?.operations?.[0]?.transfer?.channel,
             activeWallet?.addresses?.[destinationChain?.key as SupportedChain] ?? '',
             {
@@ -219,7 +228,8 @@ export function useExecuteTx({
             'skip_api',
             (route?.response?.chain_ids?.length ?? 1) - 1,
           )
-        : getMetaDataForIbcSwapTx(
+        : hasIBC
+        ? getMetaDataForIbcSwapTx(
             msgType,
             'skip_api',
             (route?.response?.chain_ids?.length ?? 1) - 1,
@@ -234,20 +244,33 @@ export function useExecuteTx({
               amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
             },
           )
+        : getMetaDataForSwapTx(
+            'skip_api',
+            {
+              denom: sourceToken?.coinMinimalDenom ?? '',
+              amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
+            },
+            {
+              denom: destinationToken?.coinMinimalDenom ?? '',
+              amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
+            },
+          )
 
       txPostToDB({
         txHash,
-        txType: isIBCSendTx ? CosmosTxType.IbcSend : CosmosTxType.IBCSwap,
+        txType: txType,
         amount: txnLogAmountValue,
         metadata,
         feeDenomination: feeDenom.coinMinimalDenom,
         feeQuantity: feeAmount ?? fee?.amount[0].amount,
-        forceWalletAddress: activeWallet?.addresses?.[sourceChain?.key as SupportedChain],
+        forceWalletAddress:
+          activeWallet?.addresses?.[(sourceChain?.key as SupportedChain) ?? 'cosmos'],
         forceChain: String(sourceChain?.key ?? ''),
+        forceNetwork: SWAP_NETWORK,
       })
 
       const timerId = setTimeout(() => {
-        invalidateBalances(sourceChain?.key as SupportedChain)
+        invalidateBalances((sourceChain?.key as SupportedChain) ?? 'cosmos')
         invalidateBalances(destinationChain?.key as SupportedChain)
 
         try {
@@ -263,7 +286,7 @@ export function useExecuteTx({
           //
         }
 
-        invalidateSwapAssets(sourceChain?.key as SupportedChain)
+        invalidateSwapAssets((sourceChain?.key as SupportedChain) ?? 'cosmos')
         invalidateSwapAssets(destinationChain?.key as SupportedChain)
 
         clearTimeout(timerId)
@@ -371,7 +394,7 @@ export function useExecuteTx({
           if (isLedgerTypeWallet) {
             if (
               sourceChain &&
-              LEDGER_ENABLED_EVM_CHAIN_IDS.includes(sourceChain?.chainId as string)
+              LEDGER_ENABLED_EVM_CHAIN_IDS.includes((sourceChain?.chainId as string) ?? '')
             ) {
               if (messageChain.key === 'injective') {
                 ;({ txRaw, txBytesString } = await handleInjectiveTx(
@@ -555,6 +578,7 @@ export function useExecuteTx({
               ? {
                   chainId: transfer_asset_release?.chain_id,
                   denom: transfer_asset_release?.denom,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   released: (transfer_asset_release as any)?.released,
                 }
               : undefined

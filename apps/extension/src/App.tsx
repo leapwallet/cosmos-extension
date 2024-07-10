@@ -1,12 +1,15 @@
 import 'react-loading-skeleton/dist/skeleton.css'
 
 import {
+  useBannerConfig,
   useFeatureFlags,
+  useFetchAggregatedChainsList,
   useGetBannerApi,
   useGetFaucetApi,
   useGetQuickSearchOptions,
   useInitBetaEvmNftTokenIds,
   useInitBetaNFTsCollections,
+  useInitChainCosmosSDK,
   useInitChainInfosConfig,
   useInitCoingeckoPrices,
   useInitCompassSeiEvmConfig,
@@ -16,6 +19,7 @@ import {
   useInitDisabledCW20Tokens,
   useInitDisabledNFTsCollections,
   useInitEnabledCW20Tokens,
+  useInitEnabledNftsCollections,
   useInitFeeDenoms,
   useInitFractionalizedNftContracts,
   useInitGasAdjustments,
@@ -24,10 +28,12 @@ import {
   useInitInteractedTokens,
   useInitInvestData,
   useInitIteratedUriNftContracts,
+  useInitKadoBuyChains,
   useInitNftChains,
   useInitSelectedNetwork,
   useInitSpamProposals,
   useInitStakingDenoms,
+  useInitTxLogCosmosBlockchainMap,
   useInitTxMetadata,
   useInitWhitelistedFactoryTokens,
   useMobileAppBanner,
@@ -37,14 +43,18 @@ import { useInitSnipDenoms } from '@leapwallet/cosmos-wallet-hooks/dist/utils/us
 import { LeapUiTheme } from '@leapwallet/leap-ui'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
-import { useInitFavouriteNFTs, useInitHiddenNFTs, useInitIsCompassWallet } from 'hooks/settings'
+import {
+  useInitFavouriteNFTs,
+  useInitHiddenNFTs,
+  useInitIsCompassWallet,
+  useInitStarredChains,
+} from 'hooks/settings'
 import { useInitiateCurrencyPreference } from 'hooks/settings/useCurrency'
 import { useInitHideAssets } from 'hooks/settings/useHideAssets'
 import { useInitHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useInitChainInfos } from 'hooks/useChainInfos'
 import { useInitNodeUrls } from 'hooks/useInitNodeUrls'
-import React from 'react'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { SkeletonTheme } from 'react-loading-skeleton'
 import Browser from 'webextension-polyfill'
 
@@ -82,6 +92,7 @@ export default function App() {
   useInitTxMetadata({ appVersion: Browser.runtime.getManifest().version })
 
   useInitFavouriteNFTs()
+  useInitStarredChains()
   useInitHiddenNFTs()
   useInitPrimaryWalletAddress()
 
@@ -107,6 +118,7 @@ export default function App() {
   useInitDisabledNFTsCollections()
 
   useInitBetaNFTsCollections()
+  useInitEnabledNftsCollections()
   useInitInvestData()
   useInitSnipDenoms()
   useInitIbcTraceStore()
@@ -122,8 +134,16 @@ export default function App() {
 
   useInitStakingDenoms()
   useInitChainInfosConfig()
+  useInitKadoBuyChains()
+  useInitTxLogCosmosBlockchainMap()
+  useInitChainCosmosSDK()
+
+  useFetchAggregatedChainsList()
   useInitBetaEvmNftTokenIds()
   useInitCompassSeiEvmConfig()
+
+  useGetBannerApi()
+  useBannerConfig()
 
   return (
     <LeapUiTheme defaultTheme={theme} forcedTheme={theme}>

@@ -1,6 +1,6 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { Card, CardDivider, HeaderActionType } from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { Card, CardDivider } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
@@ -28,14 +28,13 @@ export function SelectSortBy({
   const chainInfos = useChainInfos()
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
+    <BottomModal
+      isOpen={isVisible}
       onClose={onClose}
-      headerTitle='Filter by Chain'
-      headerActionType={HeaderActionType.CANCEL}
-      closeOnClickBackDrop={true}
+      title={'Filter by Chain'}
+      closeOnBackdropClick={true}
     >
-      <div className='flex flex-col p-7 gap-y-1'>
+      <div className='flex flex-col gap-y-1'>
         <div className='dark:bg-gray-900 overflow-clip bg-white-100 rounded-2xl max-h-[300px] overflow-y-scroll'>
           {sortedCollectionChains.map((chain, index) => {
             const chainInfo = chainInfos[chain as SupportedChain]
@@ -67,6 +66,6 @@ export function SelectSortBy({
           })}
         </div>
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

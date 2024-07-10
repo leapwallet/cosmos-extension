@@ -25,7 +25,7 @@ export function FeesView() {
   } = useSwapContext()
 
   const defaultGasPrice = useDefaultGasPrice({
-    activeChain: sourceChain?.key,
+    activeChain: sourceChain?.key ?? 'cosmos',
     selectedNetwork: SWAP_NETWORK,
   })
 

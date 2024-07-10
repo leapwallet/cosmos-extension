@@ -2,7 +2,7 @@ import { AxiosRequestConfig } from 'axios';
 
 import { Bech32Config } from './bech32';
 import { BIP44 } from './bip44';
-import { AppCurrency, Currency } from './currency';
+import { AppCurrency, Currency, FeeCurrency } from './currency';
 
 export interface ChainInfo {
   readonly rpc: string;
@@ -21,7 +21,7 @@ export interface ChainInfo {
 
   readonly currencies: AppCurrency[];
 
-  readonly feeCurrencies: Currency[];
+  readonly feeCurrencies?: FeeCurrency[];
 
   readonly coinType?: number;
 

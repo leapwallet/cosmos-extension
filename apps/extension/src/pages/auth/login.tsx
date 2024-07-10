@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
 import { Buttons, Input, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
@@ -28,9 +29,11 @@ function LoginView(props: {
   onClick1: () => void
   loading: boolean
   unlockLoader: boolean
+  fullHeight?: boolean
 }) {
   const theme = useTheme()
   const isDark = theme.theme === ThemeName.DARK
+
   if (props.loading) {
     return (
       <PopupLayout>
@@ -42,7 +45,7 @@ function LoginView(props: {
   }
 
   return (
-    <PopupLayout>
+    <PopupLayout className='!h-screen !max-h-[680px]'>
       <div className='flex h-[72px] w-[400px] items-center px-7 mt-[8px]'>
         <img
           className={classNames({
@@ -176,7 +179,12 @@ export default function Login() {
   useEffect(() => {
     const handleCancel = async () => {
       const searchParams = new URLSearchParams(location.search)
-      if (searchParams.has('close-on-login')) {
+      //@ts-ignore
+      if (
+        searchParams.has('close-on-login') ||
+        //@ts-ignore
+        location.state?.from.search.includes('unlock-to-approve')
+      ) {
         browser.runtime.sendMessage({ type: 'user-logged-in', payload: { status: 'failed' } })
       } else {
         await browser.storage.local.set({ [BG_RESPONSE]: { error: 'Request rejected' } })
@@ -274,6 +282,7 @@ export default function Login() {
       loading={(auth as AuthContextType).loading}
       onSubmit={handleSubmit}
       errorHighlighted={isError}
+      fullHeight={true}
       onChange={(event) => {
         setError(false)
         setPasswordInput(event.target.value)

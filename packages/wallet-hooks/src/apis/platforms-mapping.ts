@@ -107,6 +107,8 @@ export const platforms: Record<string, Platform> = {
   saga: 'SAGA',
   // @ts-ignore
   initia: 'INITIA',
+  // @ts-ignore
+  humans: 'HUMANS_AI',
 };
 
 export const platformToChain: Record<Platform, string> = {
@@ -185,4 +187,5 @@ export const platformToChain: Record<Platform, string> = {
   ODIN_CHAIN: 'odin',
   SAGA: 'saga',
   INITIA: 'initia',
+  HUMANS_AI: 'humans',
 };

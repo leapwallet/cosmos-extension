@@ -1,5 +1,7 @@
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { Erc20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/erc20-denoms';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { useActiveChain, useERC20TokensStore } from '../store';
 import { cachedRemoteDataWithLastModified } from './cached-remote-data';
@@ -17,32 +19,45 @@ export function getErc20TokensSupportedChains(storage: storage): Promise<{ chain
   });
 }
 
-export function useFetchERC20Tokens() {
-  const activeChain = useActiveChain();
+export function useFetchERC20Tokens(forceChain?: SupportedChain, forceSupportedChainsList?: string[]) {
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(
+    () => (forceChain || _activeChain) as SupportedChain & 'aggregated',
+    [forceChain, _activeChain],
+  );
+
   const storage = useGetStorageLayer();
   const { setERC20Tokens } = useERC20TokensStore();
 
   useQuery(
-    ['fetch-erc20-tokens', activeChain],
+    ['fetch-erc20-tokens', activeChain, forceSupportedChainsList],
     async () => {
-      const { chains: erc20TokensSupportedChains } = await getErc20TokensSupportedChains(storage);
+      if (activeChain && activeChain !== 'aggregated') {
+        const { chains: erc20TokensSupportedChains } = forceSupportedChainsList
+          ? { chains: forceSupportedChainsList }
+          : await getErc20TokensSupportedChains(storage);
 
-      if (erc20TokensSupportedChains.includes(activeChain)) {
-        const resourceKey = `${activeChain}-${ERC20_TOKENS}`;
-        const resourceURL = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${activeChain}/erc20.json`;
+        if (erc20TokensSupportedChains.includes(activeChain)) {
+          const resourceKey = `${activeChain}-${ERC20_TOKENS}`;
+          const resourceURL = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${activeChain}/erc20.json`;
 
-        const lastUpdatedAtKey = `${activeChain}-${ERC20_TOKENS_LAST_UPDATED_AT}`;
-        const lastUpdatedAtURL = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${activeChain}/erc20-last-updated-at.json`;
+          const lastUpdatedAtKey = `${activeChain}-${ERC20_TOKENS_LAST_UPDATED_AT}`;
+          const lastUpdatedAtURL = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${activeChain}/erc20-last-updated-at.json`;
 
-        initResourceFromS3({
-          storage,
-          setResource: setERC20Tokens,
-          resourceKey,
-          resourceURL,
-          lastUpdatedAtKey,
-          lastUpdatedAtURL,
-          defaultResourceData: Erc20Denoms[activeChain as 'evmos'] ?? {},
-        });
+          const setResource = (resource: any) => {
+            setERC20Tokens(resource, activeChain);
+          };
+
+          initResourceFromS3({
+            storage,
+            setResource,
+            resourceKey,
+            resourceURL,
+            lastUpdatedAtKey,
+            lastUpdatedAtURL,
+            defaultResourceData: Erc20Denoms[activeChain as 'evmos'] ?? {},
+          });
+        }
       }
     },
     {
@@ -53,6 +68,7 @@ export function useFetchERC20Tokens() {
 
         return failureCount < 3;
       },
+      enabled: activeChain !== 'aggregated',
     },
   );
 }

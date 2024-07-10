@@ -1,7 +1,6 @@
-import { ActivityType, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { ActivityType, useActiveChain, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { useMemo } from 'react'
 
 import { Images } from '../../images'
@@ -15,31 +14,32 @@ export const getSwapImage = (activeChain: SupportedChain): string => {
   }
 }
 
-export function useActivityImage(txType: ActivityType) {
-  const chainInfos = useChainInfos()
+export function useActivityImage(txType: ActivityType, forceChain?: SupportedChain) {
+  const chains = useGetChains()
   const theme = useTheme().theme
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
+  const activeChain = forceChain || _activeChain
   const genericAssetIcon =
     theme === ThemeName.DARK ? Images.Logos.GenericDark : Images.Logos.GenericLight
 
   return useMemo(() => {
     const content: Record<ActivityType, string> = {
-      send: chainInfos[activeChain].chainSymbolImageUrl as string,
-      receive: chainInfos[activeChain].chainSymbolImageUrl as string,
+      send: chains[activeChain]?.chainSymbolImageUrl ?? genericAssetIcon,
+      receive: chains[activeChain]?.chainSymbolImageUrl ?? genericAssetIcon,
       vote: Images.Activity.Voting,
       fallback: genericAssetIcon,
       delegate: genericAssetIcon,
       undelegate: genericAssetIcon,
       'ibc/transfer': genericAssetIcon,
       pending: genericAssetIcon,
-      secretTokenTransfer: chainInfos[activeChain].chainSymbolImageUrl as string,
+      secretTokenTransfer: chains[activeChain]?.chainSymbolImageUrl ?? genericAssetIcon,
       swap: getSwapImage(activeChain),
-      'liquidity/add': Images.Logos.ChainLogos[activeChain] as string,
-      'liquidity/remove': Images.Logos.ChainLogos[activeChain] as string,
-      grant: Images.Logos.ChainLogos[activeChain] as string,
-      revoke: Images.Logos.ChainLogos[activeChain] as string,
+      'liquidity/add': Images.Logos.ChainLogos[activeChain] ?? genericAssetIcon,
+      'liquidity/remove': Images.Logos.ChainLogos[activeChain] ?? genericAssetIcon,
+      grant: Images.Logos.ChainLogos[activeChain] ?? genericAssetIcon,
+      revoke: Images.Logos.ChainLogos[activeChain] ?? genericAssetIcon,
       cw20TokenTransfer: genericAssetIcon,
     }
     return content[txType]
-  }, [activeChain, chainInfos, genericAssetIcon, txType])
+  }, [activeChain, chains, genericAssetIcon, txType])
 }

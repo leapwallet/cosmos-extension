@@ -1,15 +1,9 @@
 import { useActiveChain, useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import {
-  Buttons,
-  HeaderActionType,
-  OnboardCard,
-  QrCode,
-  ThemeName,
-  useTheme,
-} from '@leapwallet/leap-ui'
-import BottomSheet from 'components/bottom-sheet/BottomSheet'
+import { Buttons, OnboardCard, QrCode, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
+import { useChainPageInfo } from 'hooks'
 import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
@@ -19,7 +13,6 @@ import kadoLightLogo from 'images/logos/Kado-light.svg'
 import { nBtcSymbol } from 'images/misc'
 import rightArrow from 'images/misc/right-arrow.svg'
 import React, { ReactElement } from 'react'
-import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -48,21 +41,24 @@ export type ReceiveTokenProps = {
   chain?: SupportedChain
   onCloseHandler?: () => void
   handleBtcBannerClick?: () => void
+  tokenBalanceOnChain?: SupportedChain
 }
 
 export default function ReceiveToken({
   isVisible,
   onCloseHandler,
   handleBtcBannerClick,
+  tokenBalanceOnChain,
 }: ReceiveTokenProps): ReactElement {
   const wallet = useActiveWallet().activeWallet
-  const activeChainInfo = useChainInfo()
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
+  const activeChain = tokenBalanceOnChain ?? _activeChain
+  const { topChainColor } = useChainPageInfo()
 
-  const address = wallet?.addresses[activeChainInfo?.key]
+  const address = wallet?.addresses[activeChain]
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
-  const walletAddress = useGetWalletAddresses()
+  const walletAddress = useGetWalletAddresses(activeChain)
 
   const QrCodeProps = {
     height: 250,
@@ -77,16 +73,15 @@ export default function ReceiveToken({
   }
 
   return (
-    <BottomSheet
-      isVisible={isVisible}
-      onClose={onCloseHandler as () => void}
-      headerTitle={'Your QR code'}
-      closeOnClickBackDrop={true}
-      headerActionType={HeaderActionType.CANCEL}
+    <BottomModal
+      isOpen={isVisible}
+      onClose={onCloseHandler}
+      title={'Your QR code'}
+      closeOnBackdropClick={true}
     >
       {wallet ? (
-        <div className='flex flex-col items-center w-[400px] mb-[40px]'>
-          <div className='rounded-[48px] overflow-hidden mt-[28px] bg-white-100 p-[8px] ml-[40px] mr-[40px] shadow-[0_4px_16px_8px_rgba(0,0,0,0.04)]'>
+        <div className='flex flex-col items-center'>
+          <div className='rounded-[48px] overflow-hidden bg-white-100 p-[8px] shadow-[0_4px_16px_8px_rgba(0,0,0,0.04)]'>
             <QrCode {...QrCodeProps} />
           </div>
           <div className='inline-block mt-[16px] mb-[12px] text-black-100 dark:text-white-100 font-Satoshi24px text-[28px] leading-[36px] font-black'>
@@ -94,22 +89,21 @@ export default function ReceiveToken({
           </div>
 
           {walletAddress.map((address, index) => (
-            <>
+            <React.Fragment key={address}>
               {index !== 0 && <div className='mt-2' />}
               <Buttons.CopyWalletAddress
-                color={Colors.getChainColor(activeChain)}
+                color={topChainColor}
                 walletAddress={sliceAddress(address)}
                 data-testing-id='copy-wallet-address'
                 onCopy={() => {
                   if (!address) return
                   UserClipboard.copyText(address)
                 }}
-                key={address}
               />
-            </>
+            </React.Fragment>
           ))}
 
-          {ON_RAMP_SUPPORT_CHAINS.includes(activeChainInfo?.key) && (
+          {ON_RAMP_SUPPORT_CHAINS.includes(activeChain) && (
             <div
               className='mt-2'
               onClick={() => {
@@ -122,9 +116,7 @@ export default function ReceiveToken({
                 isFilled
                 isRounded
                 size='lg'
-                title={`Buy ${
-                  activeChainInfo?.key === 'osmosis' ? 'AxlUSDC' : 'Crypto'
-                } with Kado Ramp`}
+                title={`Buy ${activeChain === 'osmosis' ? 'AxlUSDC' : 'Crypto'} with Kado Ramp`}
               />
             </div>
           )}
@@ -134,6 +126,6 @@ export default function ReceiveToken({
       ) : (
         <></>
       )}
-    </BottomSheet>
+    </BottomModal>
   )
 }

@@ -22,7 +22,6 @@ type ChainWiseAddresses = Record<string, { address: string; pubKey: Uint8Array }
 export function AddEvmLedger() {
   const [error, setError] = useState('')
   const [ledgerConnectionStatus, setLedgerConnectionStatus] = useState(LEDGER_CONNECTION_STEP.step0)
-  const [accountInfo, setAccountInfo] = useState<ChainWiseAddresses>()
 
   const activeWallet = useActiveWallet()
   const activeChain = useActiveChain()

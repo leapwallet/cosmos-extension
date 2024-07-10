@@ -20,12 +20,17 @@ import {
   Tx,
   Validator,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { DEFAULT_GAS_REDELEGATE, NativeDenom } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants';
+import {
+  DEFAULT_GAS_REDELEGATE,
+  defaultGasPriceStep,
+  GasPrice,
+  NativeDenom,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import Network from '@leapwallet/cosmos-wallet-sdk/dist/browser/stake/network';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
 import { useGetTokenSpendableBalances } from '../bank';
@@ -44,10 +49,10 @@ import {
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
-  useStakeClaimRewards,
-  useStakeDelegations,
-  useStakeUndelegations,
-  useStakeValidators,
+  useStakeClaimRewardsStore,
+  useStakeDelegationsStore,
+  useStakeUndelegationsStore,
+  useStakeValidatorsStore,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
@@ -68,6 +73,7 @@ import {
 import { fetchCurrency } from '../utils/findUSDValue';
 import { getNativeDenom } from '../utils/getNativeDenom';
 import { capitalize, formatTokenAmount } from '../utils/strings';
+import { useChainId, useGetFeeMarketGasPricesSteps, useHasToCalculateDynamicFee } from '../utils-hooks';
 
 type StakeTxHandler = Tx | InjectiveTx | EthermintTxHandler | SeiTxHandler;
 
@@ -112,17 +118,86 @@ export function useInvalidateDelegations() {
   }, []);
 }
 
-export function useStaking() {
-  const { allAssets } = useGetTokenSpendableBalances();
+export function useStaking(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const { allAssets } = useGetTokenSpendableBalances(forceChain, forceNetwork);
   const isTestnet = useSelectedNetwork() === 'testnet';
+  const activeChain = useActiveChain();
 
-  const { rewards, loadingRewardsStatus, isFetchingRewards, refetchDelegatorRewards } = useStakeClaimRewards();
-  const { delegationInfo, loadingDelegations, refetchDelegations } = useStakeDelegations();
-  const { unboundingDelegationsInfo, loadingUnboundingDegStatus, refetchUnboundingDelegations } =
-    useStakeUndelegations();
-  const { validatorData, validatorDataStatus, refetchNetwork } = useStakeValidators();
+  const {
+    rewards,
+    loadingRewardsStatus,
+    isFetchingRewards,
+    refetchDelegatorRewards,
+    setClaimStatus,
+    setClaimPushForceChain,
+    setClaimPushForceNetwork,
+  } = useStakeClaimRewardsStore();
 
-  const [activeStakingDenom] = useActiveStakingDenom();
+  const {
+    delegationInfo,
+    loadingDelegations,
+    refetchDelegations,
+    setStakeDelegationLoading,
+    setStakeDelegationPushForceChain,
+    setStakeDelegationPushForceNetwork,
+  } = useStakeDelegationsStore();
+
+  const {
+    validatorData,
+    validatorDataStatus,
+    refetchNetwork,
+    setStakeValidatorStatus,
+    setStakeValidatorPushForceChain,
+    setStakeValidatorPushForceNetwork,
+  } = useStakeValidatorsStore();
+
+  const {
+    unboundingDelegationsInfo,
+    loadingUnboundingDegStatus,
+    refetchUnboundingDelegations,
+    setStakeUndelegationsStatus,
+    setStakeUndelegationsPushForceChain,
+    setStakeUndelegationsPushForceNetwork,
+  } = useStakeUndelegationsStore();
+
+  useLayoutEffect(() => {
+    if (forceChain && (activeChain as SupportedChain & 'aggregated') === 'aggregated') {
+      setStakeDelegationLoading(true);
+      setStakeUndelegationsStatus('loading');
+      setStakeValidatorStatus('loading');
+      setClaimStatus('loading');
+    }
+  }, [forceChain, activeChain]);
+
+  useLayoutEffect(() => {
+    if (forceChain) {
+      setStakeValidatorPushForceChain(forceChain);
+      setStakeDelegationPushForceChain(forceChain);
+      setClaimPushForceChain(forceChain);
+      setStakeUndelegationsPushForceChain(forceChain);
+    }
+
+    if (forceNetwork) {
+      setStakeValidatorPushForceNetwork(forceNetwork);
+      setStakeDelegationPushForceNetwork(forceNetwork);
+      setClaimPushForceNetwork(forceNetwork);
+      setStakeUndelegationsPushForceNetwork(forceNetwork);
+    }
+
+    return () => {
+      setStakeValidatorPushForceChain(undefined);
+      setStakeDelegationPushForceChain(undefined);
+      setClaimPushForceChain(undefined);
+      setStakeUndelegationsPushForceChain(undefined);
+
+      setStakeValidatorPushForceNetwork(undefined);
+      setStakeDelegationPushForceNetwork(undefined);
+      setClaimPushForceNetwork(undefined);
+      setStakeUndelegationsPushForceNetwork(undefined);
+    };
+  }, [forceChain, forceNetwork]);
+
+  const [activeStakingDenom] = useActiveStakingDenom(forceChain, forceNetwork);
   const token = allAssets?.find((e) => e.symbol === activeStakingDenom.coinDenom);
 
   const networkData = useMemo(() => {
@@ -268,21 +343,30 @@ export function useStakeTx(
   toValidator: Validator,
   fromValidator?: Validator,
   delegations?: Delegation[],
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
 ) {
   // HOOKS
   const denoms = useDenoms();
   const chainInfos = useGetChains();
-  const getTxHandler = useTxHandler();
-  const activeChain = useActiveChain();
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [forceNetwork, _selectedNetwork]);
+
+  const getTxHandler = useTxHandler({
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  });
   const { activeWallet } = useActiveWalletStore();
-  const address = useAddress();
+  const address = useAddress(activeChain);
   const [preferredCurrency] = useUserPreferredCurrency();
   const [formatCurrency] = useformatCurrency();
   const { setPendingTx } = usePendingTxState();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const defaultGasEstimates = useDefaultGasEstimates();
   const gasPriceSteps = useGasPriceSteps();
-  const [activeStakingDenom] = useActiveStakingDenom();
+  const [activeStakingDenom] = useActiveStakingDenom(activeChain, selectedNetwork);
 
   // STATES
   const [memo, setMemo] = useState<string>('');
@@ -296,23 +380,25 @@ export function useStakeTx(
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
   const [, setGasPriceFactor] = useState<'low' | 'average' | 'high'>('low');
-  const selectedNetwork = useSelectedNetwork();
   const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
     if (mode === 'REDELEGATE') return DEFAULT_GAS_REDELEGATE.toString();
     return defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE.toString() ?? DefaultGasEstimates.DEFAULT_GAS_STAKE;
   });
 
   const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
-  const { lcdUrl } = useChainApis();
-  const getGasPrice = useGetGasPrice(activeChain);
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
+  const getGasPrice = useGetGasPrice(activeChain, selectedNetwork);
+  const activeChainId = useChainId(activeChain, selectedNetwork);
 
   /**
    * Fee calculation
    */
 
-  const gasAdjustment = useGasAdjustmentForChain();
-  const nativeFeeDenom = useNativeFeeDenom();
+  const gasAdjustment = useGasAdjustmentForChain(activeChain);
+  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
   const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
+  const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork);
+  const getFeeMarketGasPricesSteps = useGetFeeMarketGasPricesSteps(activeChain, selectedNetwork);
 
   const [feeDenom, setFeeDenom] = useState<NativeDenom>(nativeFeeDenom);
   const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
@@ -329,6 +415,14 @@ export function useStakeTx(
           medium: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
           high: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
         });
+      } else if (hasToCalculateDynamicFee && feeDenom.coinMinimalDenom === nativeFeeDenom?.coinMinimalDenom) {
+        const { low, medium, high } = await getFeeMarketGasPricesSteps(feeDenom.coinMinimalDenom);
+
+        setGasPriceOptions({
+          low: GasPrice.fromString(`${low}${feeDenom.coinMinimalDenom}`),
+          medium: GasPrice.fromString(`${medium}${feeDenom.coinMinimalDenom}`),
+          high: GasPrice.fromString(`${high}${feeDenom.coinMinimalDenom}`),
+        });
       }
     })();
   }, [
@@ -338,6 +432,9 @@ export function useStakeTx(
     userPreferredGasLimit,
     userPreferredGasPrice,
     activeChain,
+    selectedNetwork,
+    hasToCalculateDynamicFee,
+    nativeFeeDenom?.coinMinimalDenom,
   ]);
 
   const customFee = useMemo(() => {
@@ -425,6 +522,8 @@ export function useStakeTx(
       txType: mode === 'DELEGATE' || mode === 'REDELEGATE' ? 'delegate' : 'undelegate',
       promise,
       txHash,
+      sourceChain: activeChain,
+      sourceNetwork: selectedNetwork,
     });
     if (showLedgerPopup) {
       setShowLedgerPopup(false);
@@ -618,7 +717,9 @@ export function useStakeTx(
         let gasPrice = await getGasPrice();
         if (activeChain === 'akash') {
           gasPrice = GasPrice.fromString(
-            `${gasPriceSteps[activeChain].high.toString()}${denoms.uakt.coinMinimalDenom}`,
+            `${(gasPriceSteps[activeChain]?.high ?? defaultGasPriceStep.high).toString()}${
+              denoms.uakt.coinMinimalDenom
+            }`,
           );
         }
 
@@ -704,6 +805,10 @@ export function useStakeTx(
           feeDenomination: fee.amount[0].denom,
           feeQuantity: fee.amount[0].amount,
           amount: txnLogAmountValue,
+          forceChain: activeChain,
+          forceNetwork: selectedNetwork,
+          forceWalletAddress: address,
+          chainId: activeChainId,
         });
 
         const txResult = tx.pollForTx(txHash);
@@ -803,12 +908,16 @@ export function useStakeTx(
   };
 }
 
-export function useIsCancleUnstakeSupported() {
-  const address = useAddress();
-  const selectedNetwork = useSelectedNetwork();
-  const activeChain = useActiveChain();
+export function useIsCancleUnstakeSupported(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
+
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [forceNetwork, _selectedNetwork]);
+
+  const address = useAddress(activeChain);
   const { chains } = useChainsStore();
-  const { lcdUrl } = useChainApis();
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
 
   const checkIsCancelUnstakeSupported = useCallback(async () => {
     try {

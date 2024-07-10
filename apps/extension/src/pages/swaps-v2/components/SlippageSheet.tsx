@@ -66,17 +66,8 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
     <BottomModal
       isOpen={isOpen}
       onClose={onClose}
-      containerClassName='!bg-white-100 dark:!bg-gray-950'
-      headerClassName='!bg-white-100 dark:!bg-gray-950'
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
-      hideActionButton={true}
-      showSecondaryActionButton={true}
-      secondaryActionButton={
-        <div className='absolute top-1 right-6'>
-          <Buttons.Cancel onClick={onClose} />
-        </div>
-      }
       titleComponent={
         <div className='flex justify-start gap-2 items-center'>
           <h1 className='text-[18px] text-black-100 dark:text-white-100 !leading-[24.3px] font-bold'>

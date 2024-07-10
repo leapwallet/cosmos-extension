@@ -1,7 +1,6 @@
-import { Header } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import React from 'react'
 
-import BottomSheet from '../bottom-sheet/BottomSheet'
 import RadarAnimation from '../loader/Radar'
 import Text from '../text'
 
@@ -16,20 +15,19 @@ export default function LedgerConfirmationPopup({ showLedgerPopup, onCloseLedger
   }
 
   return (
-    <BottomSheet
-      isVisible={showLedgerPopup}
+    <BottomModal
+      isOpen={showLedgerPopup}
       onClose={onCloseLedgerPopup ?? onClose}
-      customHeader={() => <Header title={'Confirm on Ledger'} />}
-      closeOnClickBackDrop={false}
+      title={'Confirm on Ledger'}
     >
       <div className='flex flex-col items-center'>
-        <div className='my-10'>
+        <div className='my-7'>
           <RadarAnimation />
         </div>
         <Text size='md' className='font-bold mb-7'>
           Approve transaction on your hardware wallet
         </Text>
       </div>
-    </BottomSheet>
+    </BottomModal>
   )
 }

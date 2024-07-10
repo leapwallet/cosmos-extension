@@ -4,8 +4,9 @@ import { useMemo } from 'react';
 import { useGetIBCSupport } from '../ibc';
 import { useActiveChain, useActiveWallet, useGetChains } from '../store';
 
-export function useSendIbcChains() {
-  const activeChain = useActiveChain();
+export function useSendIbcChains(forceChain?: SupportedChain) {
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
   const { data: ibcSupportData, isLoading: isIbcSupportDataLoading } = useGetIBCSupport(activeChain);
   const activeWallet = useActiveWallet();
   const chains = useGetChains();

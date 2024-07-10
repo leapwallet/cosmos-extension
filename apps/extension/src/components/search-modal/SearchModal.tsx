@@ -9,6 +9,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { WALLETTYPE } from '@leapwallet/leap-keychain'
 import classNames from 'classnames'
+import { AlertStrip } from 'components/alert-strip'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
@@ -23,7 +24,6 @@ import {
   searchModalEnteredOptionState,
   searchModalState,
 } from '../../atoms/search-modal'
-import AlertStrip from '../alert-strip/AlertStrip'
 import { QuickSearchOptions } from './QuickSearchOptions'
 import { useHardCodedActions } from './useHardCodedActions'
 
@@ -152,7 +152,7 @@ export function SearchModal() {
         if (!activeWallet) return
         if (
           activeWallet.walletType === WALLETTYPE.LEDGER &&
-          isLedgerEnabled(chain.key, chain.bip44.coinType)
+          isLedgerEnabled(chain?.key, chain?.bip44?.coinType)
         ) {
           break
         }

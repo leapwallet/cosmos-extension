@@ -8,16 +8,24 @@ import {
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { Coin } from '@leapwallet/parser-parfait';
 import { useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
-import { useActiveChain, useAddress, useChainApis, useGetChains, usePendingTxState } from '../store';
+import {
+  useActiveChain,
+  useAddress,
+  useChainApis,
+  useGetChains,
+  usePendingTxState,
+  useSelectedNetwork,
+} from '../store';
 import { useTxHandler } from '../tx';
 import { TxCallback } from '../types';
 import { GasOptions, getMetaDataForAuthzTx, Grant, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import { useChainId } from '../utils-hooks';
 
 const GAS_ESTIMATE = 240_000;
 
@@ -58,8 +66,16 @@ export type AuthzTxType = {
 export function useAuthzTx() {
   const chainInfos = useGetChains();
   const { setPendingTx } = usePendingTxState();
-  const activeChain = useActiveChain();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
+
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => {
+    if ((_activeChain as SupportedChain & 'aggregated') === 'aggregated') {
+      return 'cosmos';
+    }
+
+    return _activeChain;
+  }, [_activeChain]);
 
   const [memo, setMemo] = useState<string>('Revoke authz grant via Leap');
   const [error, setError] = useState<string>('');
@@ -83,6 +99,16 @@ export function useAuthzTx() {
     return true;
   }, [selectedChain]);
 
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => {
+    if ((_activeChain as SupportedChain & 'aggregated') === 'aggregated' || selectedChainHasMainnetOnly) {
+      return 'mainnet';
+    }
+
+    return _selectedNetwork;
+  }, [_activeChain, _selectedNetwork]);
+
+  const activeChainId = useChainId(selectedChain, selectedNetwork);
   const nativeFeeDenom = useNativeFeeDenom(selectedChain, selectedChainHasMainnetOnly ? 'mainnet' : undefined);
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
   const activeAddress = useAddress(selectedChain);
@@ -182,6 +208,9 @@ export function useAuthzTx() {
         metadata: getMetaDataForAuthzTx(showAuthzDetailsFor?.grantee ?? '', [msgType]),
         feeDenomination: fee?.amount[0].denom,
         feeQuantity: fee?.amount[0].amount,
+        forceChain: selectedChain,
+        forceWalletAddress: activeAddress,
+        chainId: activeChainId,
       });
 
       const txResult = tx.pollForTx(txHash);

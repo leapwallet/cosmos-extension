@@ -1,11 +1,11 @@
-import { CardDivider, HeaderActionType, WalletCard } from '@leapwallet/leap-ui'
+import { CardDivider, WalletCard } from '@leapwallet/leap-ui'
+import BottomModal from 'components/bottom-modal'
 import { Images } from 'images'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import extension from 'webextension-polyfill'
 
-import BottomSheet from '../../components/bottom-sheet/BottomSheet'
 import Text from '../../components/text'
 import useActiveWallet from '../../hooks/settings/useActiveWallet'
 import { Wallet } from '../../hooks/wallet/useWallet'
@@ -18,13 +18,13 @@ import useWallets = Wallet.useWallets
 
 import { Key, useActiveChain, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
+import { AGGREGATED_CHAIN_KEY, walletLabels } from 'config/constants'
+import { useChainPageInfo } from 'hooks'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
-import { Colors } from 'theme/colors'
+import { AggregatedSupportedChain } from 'types/utility'
 import { formatWalletName } from 'utils/formatWalletName'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
-
-import { walletLabels } from '../../config/constants'
 
 type SelectWalletProps = {
   readonly isVisible: boolean
@@ -49,11 +49,12 @@ export default function SelectWallet({
   const [isEditWalletVisible, setIsEditWalletVisible] = useState(false)
   const wallets = useWallets()
   const activeChainInfo = useChainInfo()
-  const activeChain = useActiveChain()
+  const activeChain = useActiveChain() as AggregatedSupportedChain
   const { activeWallet, setActiveWallet } = useActiveWallet()
   const [editWallet, setEditWallet] = useState<Key>()
   const navigate = useNavigate()
 
+  const { topChainColor } = useChainPageInfo()
   const [showImportPrivateKey, setShowImportPrivateKey] = useState(false)
   const [showImportSeedPhrase, setShowImportSeedPhrase] = useState(false)
 
@@ -66,9 +67,10 @@ export default function SelectWallet({
   }, [wallets])
 
   const handleConnectWalletClick = async () => {
+    const walletIds = currentWalletInfo?.wallets.map((wallet) => wallet.id)
     await addToConnections(
       currentWalletInfo?.chainIds as [string],
-      currentWalletInfo?.wallets as Key[],
+      walletIds ?? [],
       currentWalletInfo?.origin as string,
     )
     onClose()
@@ -91,16 +93,10 @@ export default function SelectWallet({
 
   return (
     <>
-      <BottomSheet
-        isVisible={isVisible}
-        onClose={onClose}
-        headerTitle={title}
-        headerActionType={HeaderActionType.CANCEL}
-        closeOnClickBackDrop={true}
-      >
+      <BottomModal isOpen={isVisible} onClose={onClose} title={title} closeOnBackdropClick={true}>
         <div>
           {currentWalletInfo && (
-            <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 min-h-[100px] justify-center items-center p-2 mx-7 mt-4'>
+            <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 min-h-[100px] justify-center items-center p-2'>
               <div className='pt-8 pb-2 flex flex-row'>
                 <img
                   src={Images.Misc.getWalletIconAtIndex(walletColorIndex as number)}
@@ -134,7 +130,7 @@ export default function SelectWallet({
             </div>
           )}
 
-          <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 max-h-[200px] overflow-y-auto mx-7 mt-7 mb-4 py-1'>
+          <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 max-h-[200px] overflow-y-auto mb-4 py-1'>
             {walletsList.map((wallet, index, array) => {
               const isLast = index === array.length - 1
               if (wallet.id === currentWalletInfo?.wallets?.[0]?.id) return null
@@ -164,22 +160,22 @@ export default function SelectWallet({
                   : walletName
 
               let addressText = `${sliceAddress(
-                wallet.addresses[activeChainInfo.key],
+                wallet.addresses[activeChainInfo?.key],
               )}${walletLabel}`
 
               let disableEdit = false
 
               if (
                 wallet.walletType === WALLETTYPE.LEDGER &&
-                !isLedgerEnabled(activeChainInfo.key, activeChainInfo.bip44.coinType)
+                !isLedgerEnabled(activeChainInfo?.key, activeChainInfo?.bip44?.coinType)
               ) {
-                addressText = `Ledger not supported on ${activeChainInfo.chainName}`
+                addressText = `Ledger not supported on ${activeChainInfo?.chainName}`
                 disableEdit = true
               }
               if (
                 wallet.walletType === WALLETTYPE.LEDGER &&
-                isLedgerEnabled(activeChainInfo.key, activeChainInfo.bip44.coinType) &&
-                !wallet.addresses[activeChainInfo.key]
+                isLedgerEnabled(activeChainInfo?.key, activeChainInfo?.bip44?.coinType) &&
+                !wallet.addresses[activeChainInfo?.key]
               ) {
                 addressText = `Please import EVM wallet`
                 disableEdit = true
@@ -220,10 +216,14 @@ export default function SelectWallet({
                         more_horiz
                       </div>
                     }
-                    subtitle={addressText}
+                    subtitle={
+                      activeChain === AGGREGATED_CHAIN_KEY
+                        ? walletLabel?.replace(' · ', '')
+                        : addressText
+                    }
                     isSelected={activeWallet?.id === wallet.id}
                     imgSrc={wallet?.avatar ?? Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
-                    color={Colors.getChainColor(activeChain)}
+                    color={topChainColor}
                     isRounded={true}
                   />
                   {!isLast ? <CardDivider /> : null}
@@ -234,7 +234,7 @@ export default function SelectWallet({
 
           {!hideCreateNewWallet ? (
             <>
-              <div className='bg-white-100 dark:bg-gray-900 rounded-2xl py-4 mx-7 mb-4'>
+              <div className='bg-white-100 dark:bg-gray-900 rounded-2xl py-4 mb-4'>
                 <div
                   data-testing-id='create-new-wallet-div'
                   onClick={handleCreateNewWalletClick}
@@ -278,7 +278,7 @@ export default function SelectWallet({
                     window.open('index.html#/onboardingImport?walletName=hardwarewallet')
                   }
                 }}
-                className='flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 cursor-pointer mx-7 rounded-2xl'
+                className='flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 cursor-pointer rounded-2xl'
               >
                 <span className='material-icons-round text-gray-400 mr-4'>usb</span>
                 <Text size='md' className='font-bold'>
@@ -288,7 +288,7 @@ export default function SelectWallet({
             </>
           ) : null}
         </div>
-      </BottomSheet>
+      </BottomModal>
 
       <EditWalletForm
         wallet={editWallet as Key}

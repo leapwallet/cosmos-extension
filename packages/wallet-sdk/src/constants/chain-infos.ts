@@ -88,7 +88,8 @@ export type SupportedChain =
   | 'thorchain'
   | 'odin'
   | 'saga'
-  | 'initia';
+  | 'initia'
+  | 'humans';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -169,7 +170,8 @@ export type AddressPrefix =
   | 'thor'
   | 'odin'
   | 'saga'
-  | 'init';
+  | 'init'
+  | 'human';
 
 export type Denom =
   | 'JUNO'
@@ -251,7 +253,8 @@ export type Denom =
   | 'RUNE'
   | 'ODIN'
   | 'SAGA'
-  | 'INIT';
+  | 'INIT'
+  | 'HEART';
 
 export type CoinType =
   | '118'
@@ -276,6 +279,14 @@ export enum CosmosSDK {
   Version_Point_47 = 'v0.47',
 }
 
+export type DenomWithGasPriceStep = NativeDenom & {
+  readonly gasPriceStep: {
+    readonly low: number;
+    readonly average: number;
+    readonly high: number;
+  };
+};
+
 export type ChainInfo = {
   readonly chainId: string;
   readonly chainRegistryPath: string;
@@ -284,6 +295,7 @@ export type ChainInfo = {
   readonly chainSymbolImageUrl?: string;
   readonly key: SupportedChain;
   readonly nativeDenoms: Record<string, NativeDenom>;
+  readonly feeCurrencies?: DenomWithGasPriceStep[];
   readonly apis: {
     readonly rest?: string;
     readonly rpc?: string;
@@ -3662,6 +3674,45 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     theme: {
       primaryColor: '#00b1ff',
       gradient: 'linear-gradient(180deg, rgba(0, 177, 255, 0.32) 0%, rgba(0, 177, 255, 0) 100%)',
+    },
+    enabled: true,
+  },
+  humans: {
+    chainId: 'humans_1089-1',
+    chainName: 'Humans.ai',
+    key: 'humans',
+    chainRegistryPath: 'humans',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/humans.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/humans',
+      rpc: 'https://rpc.cosmos.directory/humans',
+    },
+    denom: 'HEART',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/humans/tx',
+        accountUrl: 'https://www.mintscan.io/humans/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'human',
+    gasPriceStep: {
+      low: 80000000000,
+      average: 100000000000,
+      high: 160000000000,
+    },
+    ibcChannelIds: {
+      osmo: ['channel-4'],
+    },
+    nativeDenoms: {
+      aheart: denoms.aheart,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
     },
     enabled: true,
   },

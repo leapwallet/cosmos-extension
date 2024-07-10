@@ -73,6 +73,7 @@ export function useCreateViewingKey() {
             },
             feeDenomination: 'uscrt',
             feeQuantity: _txStatus.tx?.auth_info?.fee?.amount?.[0]?.amount ?? '0.01',
+            chainId,
           })
 
           viewingKey = _key

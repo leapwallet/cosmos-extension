@@ -32,5 +32,8 @@ export const ETHERMINT_CHAINS = [
 ]
 
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']
+export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'seiDevnet', 'seiTestnet2', 'humans']
 
-export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'seiDevnet', 'seiTestnet2']
+export const AGGREGATED_CHAIN_KEY = 'aggregated'
+export const SEI_EVM_LEDGER_ERROR_MESSAGE =
+  'Transactions for EVM addresses are not supported on Ledger yet'

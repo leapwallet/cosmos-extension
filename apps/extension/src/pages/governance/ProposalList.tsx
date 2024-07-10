@@ -1,25 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Proposal, useStaking } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import SelectedChainAlertStrip from 'components/alert-strip/SelectedChainAlertStrip'
+import { TestnetAlertStrip } from 'components/alert-strip'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { SearchInput } from 'components/search-input'
+import { useChainPageInfo } from 'hooks'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import SelectChain from 'pages/home/SelectChain'
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Colors } from 'theme/colors'
 import { sliceSearchWord } from 'utils/strings'
 
 import GovCardSkeleton from '../../components/Skeletons/GovCardSkeleton'
-import RequireMinStaking from './RequireMinStaking'
-import Status, { ProposalStatus } from './Status'
+import { ProposalStatus, ProposalStatusEnum, RequireMinStaking } from './components'
 
 export type ProposalListProps = {
   // eslint-disable-next-line no-unused-vars
@@ -32,9 +30,9 @@ export type ProposalListProps = {
 
 const filters = [
   { key: 'all', label: 'All Proposals' },
-  { key: ProposalStatus.PROPOSAL_STATUS_VOTING_PERIOD, label: 'Voting in Progress' },
-  { key: ProposalStatus.PROPOSAL_STATUS_PASSED, label: 'Passed' },
-  { key: ProposalStatus.PROPOSAL_STATUS_REJECTED, label: 'Rejected' },
+  { key: ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD, label: 'Voting in Progress' },
+  { key: ProposalStatusEnum.PROPOSAL_STATUS_PASSED, label: 'Passed' },
+  { key: ProposalStatusEnum.PROPOSAL_STATUS_REJECTED, label: 'Rejected' },
 ]
 
 function ProposalList({
@@ -50,7 +48,6 @@ function ProposalList({
   }
   const navigate = useNavigate()
 
-  const defaultTokenLogo = useDefaultTokenLogo()
   const [showFilter, setShowFilter] = useState(false)
   const [filter, setFilter] = useState('all')
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -123,7 +120,7 @@ function ProposalList({
   }, [fetchMore, filteredProposalList.length, proposalListStatus])
 
   const activeChainInfo = chainInfos[activeChain]
-  const themeColor = Colors.getChainColor(activeChain, activeChainInfo)
+  const { headerChainImgSrc } = useChainPageInfo()
 
   return (
     <div className='relative w-[400px] overflow-clip'>
@@ -134,22 +131,21 @@ function ProposalList({
               onClick: () => navigate(-1),
               type: HeaderActionType.BACK,
             }}
-            imgSrc={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
+            imgSrc={headerChainImgSrc}
             onImgClick={() => setShowChainSelector(true)}
             title={'Governance'}
-            topColor={themeColor}
           />
         }
       >
         <>
-          <SelectedChainAlertStrip />
+          <TestnetAlertStrip />
 
           <div className='w-full flex flex-col pt-6 pb-2 px-7 '>
             <div className='text-[28px] text-black-100 dark:text-white-100 font-bold'>
               Proposals
             </div>
             <div className='text-sm text-gray-600 font-bold'>
-              List of proposals in {activeChainInfo.chainName}
+              List of proposals in {activeChainInfo?.chainName ?? ''}
             </div>
 
             {!hasMinAmountStaked && <RequireMinStaking />}
@@ -202,7 +198,7 @@ function ProposalList({
                               </div>
                               <div className='text-gray-600 dark:text-gray-200 text-xs'>
                                 #{prop.proposal_id} ·{' '}
-                                <Status status={prop.status as unknown as ProposalStatus} />
+                                <ProposalStatus status={prop.status as ProposalStatusEnum} />
                               </div>
                             </div>
                           </div>

@@ -68,13 +68,17 @@ export async function fetchAutoFetchedCW20BalancesQueryFn(
 
 export function useFetchAutoFetchedCW20Tokens(forceChain?: SupportedChain) {
   const _activeChain = useActiveChain();
-  const activeChain = forceChain || _activeChain;
+  const activeChain = (forceChain || _activeChain) as SupportedChain & 'aggregated';
   const storage = useGetStorageLayer();
   const { setAutoFetchedCW20Tokens } = useAutoFetchedCW20TokensStore();
 
   useQuery(
     ['fetch-auto-fetched-cw20-tokens', activeChain],
-    async () => fetchAutoFetchedCW20BalancesQueryFn(activeChain, storage, setAutoFetchedCW20Tokens),
+    async () => {
+      if (activeChain && activeChain !== 'aggregated') {
+        await fetchAutoFetchedCW20BalancesQueryFn(activeChain, storage, setAutoFetchedCW20Tokens);
+      }
+    },
     fetchCW20TokensQueryParams,
   );
 }

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useActiveChain, usePrimaryWalletAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { usePrimaryWalletAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Key, WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Buttons, Header, HeaderActionType, Input, QrCode } from '@leapwallet/leap-ui'
@@ -8,12 +8,12 @@ import CountDownTimer from 'components/countdown-timer'
 import Resize from 'components/resize'
 import Text from 'components/text'
 import { PageName } from 'config/analytics'
+import { useChainPageInfo } from 'hooks'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { Dispatch, ReactElement, SetStateAction, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Colors } from 'theme/colors'
 
 type FormData = {
   readonly password: string
@@ -56,7 +56,7 @@ function EnterPasswordView({
   setQrData,
   goBack,
 }: EnterPasswordViewProps): ReactElement {
-  const activeChain = useActiveChain()
+  const { topChainColor } = useChainPageInfo()
   const primaryWalletAddress = usePrimaryWalletAddress()
   const testPassword = SeedPhrase.useTestPassword()
   const [walletError, setWalletError] = useState('')
@@ -118,7 +118,6 @@ function EnterPasswordView({
   return (
     <div className='h-[600px]'>
       <Header
-        topColor={Colors.getChainColor(activeChain)}
         title='Sync with mobile app'
         action={{ type: HeaderActionType.BACK, onClick: goBack }}
       />
@@ -161,7 +160,7 @@ function EnterPasswordView({
           )}
 
           <Resize className='mt-auto mb-7'>
-            <Buttons.Generic type='submit' color={Colors.getChainColor(activeChain)}>
+            <Buttons.Generic type='submit' color={topChainColor}>
               Continue
             </Buttons.Generic>
           </Resize>
@@ -179,12 +178,9 @@ function QrCodeView({
 }: EnterPasswordViewProps): ReactElement {
   usePageView(PageName.SyncWithMobileApp)
 
-  const activeChain = useActiveChain()
-
   return (
     <div className='h-[600px]'>
       <Header
-        topColor={Colors.getChainColor(activeChain)}
         title='Sync with mobile app'
         action={{ type: HeaderActionType.BACK, onClick: goBack }}
       />

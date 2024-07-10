@@ -1,5 +1,11 @@
 import { AccountData, DirectSecp256k1HdWallet, OfflineSigner } from '@cosmjs/proto-signing'
-import { Key, useChainsStore, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  FEATURE_FLAG_STORAGE_KEY,
+  Key,
+  useChainsStore,
+  useFeatureFlags,
+  WALLETTYPE,
+} from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
   generateWalletFromMnemonic,
@@ -11,7 +17,7 @@ import {
 import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { encrypt } from '@leapwallet/leap-keychain'
-import { LEDGER_DISABLED_COINTYPES } from 'config/config'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import {
   ACTIVE_CHAIN,
   ACTIVE_WALLET,
@@ -44,15 +50,21 @@ export namespace Wallet {
   export type Keystore = Record<string, Key>
 
   export async function storeWallets(newWallets: Record<string, Key>): Promise<void> {
-    const data = await browser.storage.local.get([KEYSTORE])
+    const data = await browser.storage.local.get([KEYSTORE, FEATURE_FLAG_STORAGE_KEY])
     const keystore: Keystore[] = data[KEYSTORE] ?? {}
     const newKeystore = { ...keystore, ...newWallets }
     const newWalletEntries = Object.keys(newWallets)
     const lastEntry = newWalletEntries[0]
+    const featureFlags = JSON.parse(data[FEATURE_FLAG_STORAGE_KEY] ?? '{}')
+    const leapFallbackChain =
+      featureFlags?.give_all_chains_option_in_wallet?.extension === 'active'
+        ? AGGREGATED_CHAIN_KEY
+        : ChainInfos.cosmos.key
+
     return await browser.storage.local.set({
       [KEYSTORE]: newKeystore,
       [ACTIVE_WALLET]: newWallets[lastEntry],
-      [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : ChainInfos.cosmos.key,
+      [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : leapFallbackChain,
     })
   }
 
@@ -80,8 +92,14 @@ export namespace Wallet {
   export function useRemoveWallet() {
     const { activeWallet, setActiveWallet } = useActiveWallet()
     const auth = useAuth()
+    const { data: featureFlags } = useFeatureFlags()
 
     const removeAll = async (signout = true) => {
+      const leapFallbackChain =
+        featureFlags?.give_all_chains_option_in_wallet?.extension === 'active'
+          ? AGGREGATED_CHAIN_KEY
+          : ChainInfos.cosmos.key
+
       await browser.storage.local.set({
         [KEYSTORE]: null,
         [ACTIVE_WALLET]: null,
@@ -89,7 +107,7 @@ export namespace Wallet {
         [ENCRYPTED_ACTIVE_WALLET]: null,
         [CONNECTIONS]: null,
         [BETA_CHAINS]: null,
-        [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : ChainInfos.cosmos.key,
+        [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : leapFallbackChain,
         [NETWORK_MAP]: null,
         [SELECTED_NETWORK]: 'mainnet',
       })
@@ -445,7 +463,7 @@ export namespace Wallet {
           password: password as string,
           pubKeys,
         })
-        setActiveWallet(wallets[0])
+        setActiveWallet(Object.values(wallets)[0])
 
         return wallets
       },
@@ -455,9 +473,10 @@ export namespace Wallet {
     )
   }
 
-  export function useGetWallet() {
+  export function useGetWallet(forceChain?: SupportedChain) {
     const chainInfos = useChainInfos()
-    const activeChain = useActiveChain()
+    const _activeChain = useActiveChain()
+    const activeChain = forceChain || _activeChain
     const { activeWallet } = useActiveWallet()
     const password = usePassword()
     return useCallback(
@@ -469,9 +488,9 @@ export namespace Wallet {
         const prefix = chainInfos[_chain].addressPrefix
         if (
           activeWallet?.walletType === WALLETTYPE.LEDGER &&
-          isLedgerEnabled(_chain, chainInfos[_chain].bip44.coinType)
+          isLedgerEnabled(_chain, chainInfos[_chain]?.bip44?.coinType)
         ) {
-          if (chainInfos[_chain].bip44.coinType === '60') {
+          if (chainInfos[_chain]?.bip44?.coinType === '60') {
             const hdPaths = [`m/44'/60'/0'/0/${activeWallet.addressIndex}`]
             const ledgerTransport = await getLedgerTransport()
             return new LeapLedgerSignerEth(ledgerTransport, { hdPaths, prefix })
@@ -489,7 +508,7 @@ export namespace Wallet {
           const walletId = activeWallet?.id
           const signer = await KeyChain.getSigner(walletId as string, password as string, {
             addressPrefix: chainInfos[_chain].addressPrefix,
-            coinType: chainInfos[_chain].bip44.coinType,
+            coinType: chainInfos[_chain]?.bip44?.coinType,
             ethWallet,
             pubKeyBech32Address: ethWallet,
           })

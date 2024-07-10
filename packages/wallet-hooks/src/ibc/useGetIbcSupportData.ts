@@ -1,13 +1,12 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { useChainsStore } from '../store';
 
 export const useGetIBCSupport = (chain: SupportedChain) => {
   const { chains } = useChainsStore();
-
-  const chainInfo = chains[chain];
-  const path = chainInfo?.chainRegistryPath;
+  const path = useMemo(() => chains[chain]?.chainRegistryPath, [chains, chain]);
 
   return useQuery<Record<string, boolean>>({
     queryKey: ['ibc-support-data', path],

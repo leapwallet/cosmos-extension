@@ -1,20 +1,26 @@
 import {
+  getSeiEvmInfo,
+  SeiEvmInfoEnum,
   SelectedAddress,
   useActiveChain,
+  useActiveWallet,
   useAddress,
   useAddressPrefixes,
   useChainsStore,
+  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getBlockChainFromAddress,
   getSeiEvmAddressToShow,
   isValidAddress,
+  SeiEvmTx,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import bech32 from 'bech32'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
+import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { motion } from 'framer-motion'
 import { useManageChainData } from 'hooks/settings/useManageChains'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
@@ -43,6 +49,8 @@ type RecipientCardProps = {
   addressError?: string
   setAddressError: (s: string) => void
   collectionAddress: string
+  associatedSeiAddress: string
+  setAssociatedSeiAddress: React.Dispatch<React.SetStateAction<string>>
 }
 
 const nameServiceMatcher = /^[a-zA-Z0-9_]+\.[a-z]+$/
@@ -54,6 +62,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   addressError,
   setAddressError,
   collectionAddress,
+  associatedSeiAddress,
+  setAssociatedSeiAddress,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const {
@@ -83,6 +93,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   const activeChain = useActiveChain()
   const activeNetwork = useSelectedNetwork()
 
+  const activeWallet = useActiveWallet()
   const activeChainInfo = chains[activeChain]
   const contactsToShow = useContactsSearch(recipientInputValue)
   const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
@@ -277,9 +288,16 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
 
   useEffect(() => {
     ;(async function () {
+      setAssociatedSeiAddress('')
+
       if (currentWalletAddress === recipientInputValue) {
         setAddressError('Cannot send to self')
       } else if (collectionAddress.toLowerCase().startsWith('0x') && recipientInputValue) {
+        if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
+          setAddressError(SEI_EVM_LEDGER_ERROR_MESSAGE)
+          return
+        }
+
         if (
           !recipientInputValue.toLowerCase().startsWith('0x') &&
           recipientInputValue.length >= 42
@@ -291,7 +309,25 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
         recipientInputValue &&
         recipientInputValue.toLowerCase().startsWith('0x')
       ) {
-        setAddressError('You can only send this NFT to a Sei address and not an EVM address.')
+        try {
+          const rpcUrl = (await getSeiEvmInfo({
+            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
+            activeChain,
+            activeNetwork,
+          })) as string
+
+          const recipientSeiAddress = await SeiEvmTx.GetSeiAddressFromHex(
+            recipientInputValue,
+            rpcUrl,
+          )
+
+          setAssociatedSeiAddress(recipientSeiAddress)
+          setAddressWarning(
+            `Recipient will receive the NFT on associated Sei address: ${recipientSeiAddress}`,
+          )
+        } catch {
+          setAddressError('You can only send this NFT to a Sei address and not an EVM address.')
+        }
       } else if (
         recipientInputValue &&
         !isValidAddress(recipientInputValue) &&
@@ -311,6 +347,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     recipientInputValue,
     setAddressError,
     showNameServiceResults,
+    activeWallet?.walletType,
+    activeChain,
+    activeNetwork,
   ])
 
   useEffect(() => {
@@ -324,8 +363,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     }
     try {
       if (
-        collectionAddress.toLowerCase().startsWith('0x') &&
-        cleanInputValue.toLowerCase().startsWith('0x')
+        cleanInputValue.toLowerCase().startsWith('0x') &&
+        (collectionAddress.toLowerCase().startsWith('0x') ||
+          (!collectionAddress.toLowerCase().startsWith('0x') && associatedSeiAddress))
       ) {
         setSelectedAddress({
           address: cleanInputValue,
@@ -359,6 +399,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     activeChainInfo.chainSymbolImageUrl,
     activeChainInfo.key,
     addressPrefixes,
+    associatedSeiAddress,
     chains,
     collectionAddress,
     currentWalletAddress,
@@ -409,8 +450,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   useEffect(() => {
     let destinationChain: string | undefined
     if (
-      collectionAddress.toLowerCase().startsWith('0x') &&
-      (selectedAddress?.address ?? '').toLowerCase().startsWith('0x')
+      (selectedAddress?.address ?? '').toLowerCase().startsWith('0x') &&
+      (collectionAddress.toLowerCase().startsWith('0x') ||
+        (!collectionAddress.toLowerCase().startsWith('0x') && associatedSeiAddress))
     ) {
       return
     }
@@ -476,6 +518,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     addressPrefixes,
     collectionAddress,
     manageChains,
+    associatedSeiAddress,
   ])
 
   useEffect(() => {

@@ -522,10 +522,7 @@ export function TxPage({
   return (
     <div className='absolute w-[400px] overflow-clip top-0 z-[10]'>
       <div className='relative'>
-        <PopupLayout
-          header={<Header title={headerTitle} topColor='transparent' />}
-          headerZIndex={11}
-        >
+        <PopupLayout header={<Header title={headerTitle} />} headerZIndex={11}>
           <div className='p-6 flex-col flex items-start justify-start gap-4 w-full !pb-24'>
             {isLoading ? (
               <TxTokensSummary

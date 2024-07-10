@@ -1,14 +1,14 @@
-import { AccountDetails, fetchAccountDetails } from '@leapwallet/cosmos-wallet-sdk';
+import { AccountDetails, fetchAccountDetails, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { FetchStatus, QueryStatus, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
 import { useChainApis } from '../store';
 
-export function useFetchAccountDetails() {
+export function useFetchAccountDetails(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<QueryStatus | FetchStatus>('idle');
   const [error, setError] = useState<string>('');
-  const { lcdUrl } = useChainApis();
+  const { lcdUrl } = useChainApis(forceChain, forceNetwork);
   const queryClient = useQueryClient();
   const [data, setData] = useState<AccountDetails>();
 

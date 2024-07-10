@@ -12,7 +12,6 @@ export function TxStatusOverview({
   destinationToken,
   unableToTrackError,
   failedActionWasSwap,
-  timeoutError,
 }: {
   isSuccessFull: boolean
   amountOut: string

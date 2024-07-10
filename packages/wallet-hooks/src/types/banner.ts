@@ -1,4 +1,4 @@
-export type BannerADType = 'popup' | 'redirect-interanlly' | 'redirect-external';
+export type BannerADType = 'popup' | 'redirect-interanlly' | 'redirect-external' | 'add-chain';
 
 export enum NumiaTrackAction {
   VIEWED = 'viewed',
@@ -27,6 +27,7 @@ export type BannerAD = {
   position_id?: string;
   display_position?: string;
   attributes?: NumiaBannerAttribute;
+  visibleOn?: 'ALL' | 'EXTENSION' | 'MOBILE';
 };
 
 export type NumiaBannerAD = NumiaBannerAttribute & {

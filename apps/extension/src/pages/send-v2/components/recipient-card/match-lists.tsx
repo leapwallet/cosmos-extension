@@ -1,10 +1,11 @@
-import { SelectedAddress, sliceAddress, useSelectedNetwork } from '@leapwallet/cosmos-wallet-hooks'
+import { SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { Avatar } from '@leapwallet/leap-ui'
 import Text from 'components/text'
 import { nameServices, useNameServiceResolver } from 'hooks/nameService/useNameService'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
+import { useSendContext } from 'pages/send-v2/context'
 import React, { useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { AddressBook } from 'utils/addressbook'
@@ -101,11 +102,10 @@ export const NameServiceMatchList: React.FC<NameServiceMatchListProps> = ({
   address,
   handleContactSelect,
 }) => {
-  const network = useSelectedNetwork()
+  const { sendSelectedNetwork } = useSendContext()
   const chainInfos = useChainInfos()
 
-  const [isLoading, nameServiceResults] = useNameServiceResolver(address, network)
-
+  const [isLoading, nameServiceResults] = useNameServiceResolver(address, sendSelectedNetwork)
   const resultsList = useMemo(() => {
     const entries = Object.entries(nameServiceResults)
 

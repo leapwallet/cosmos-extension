@@ -3,12 +3,11 @@ import {
   getAutoAdjustAmount,
   getKeyToUseForDenoms,
   Token,
-  useActiveChain,
   useChainInfo,
   useDenoms,
   useShouldShowAutoAdjustSheet,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { fromSmall, NativeDenom, toSmall } from '@leapwallet/cosmos-wallet-sdk'
+import { fromSmall, NativeDenom, SupportedChain, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import React, { useCallback, useEffect, useMemo } from 'react'
@@ -32,8 +31,6 @@ const OptionalAutoAdjustAmountSheet: React.FC<
   }
 > = ({ isOpen, tokenAmount, feeAmount, setAmount, nativeDenom, onAdjust, onCancel, onBack }) => {
   const { theme } = useTheme()
-  const activeChain = useActiveChain()
-
   const updatedAmount = useMemo(() => {
     return getAutoAdjustAmount({
       tokenAmount,
@@ -70,19 +67,29 @@ const OptionalAutoAdjustAmountSheet: React.FC<
       closeOnBackdropClick={true}
       onClose={onCancel}
       onActionButtonClick={onBack}
+      containerClassName='!max-h-[600px]'
+      contentClassName='!bg-white-100 dark:!bg-gray-950'
+      className='p-6'
     >
-      <div className='rounded-2xl p-4 dark:bg-gray-900 bg-white-100 dark:text-gray-200 text-gray-800'>
-        <p>
-          Confirming this transaction may leave you with insufficient {nativeDenom?.coinDenom ?? ''}{' '}
-          balance for future transaction fees.
-        </p>
-        <p className='mt-2'>
-          Should we adjust the amount from{' '}
-          <span className='text-green-500 font-medium'>{displayTokenAmount}</span> to{' '}
-          <span className='text-green-500 font-medium'>{displayUpdatedAmount}</span>?
-        </p>
+      <p className='text-gray-200 font-medium mb-6'>
+        Confirming this transaction may leave you with insufficient {nativeDenom?.coinDenom ?? ''}{' '}
+        balance for future transaction fees.
+      </p>
+
+      <div className='rounded-2xl p-4 dark:bg-gray-900 bg-gray-50 mb-6'>
+        <p className='text-sm text-white-100 font-bold mb-4'>Should we auto-adjust the amount?</p>
+
+        <div className='flex items-center rounded-xl p-4 dark:bg-gray-850 bg-gray-100 gap-4'>
+          <div className='flex-1 text-right text-sm text-white-100 font-bold'>
+            {displayTokenAmount}
+          </div>
+
+          <div className='material-icons-round text-gray-400 !text-lg'>east</div>
+          <div className='flex-1 text-sm text-green-500 font-bold'>{displayUpdatedAmount}</div>
+        </div>
       </div>
-      <div className='flex flex-col items-center gap-y-3 mt-5'>
+
+      <div className='flex items-center gap-6'>
         <Buttons.Generic
           color={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray300}
           size='normal'
@@ -90,16 +97,17 @@ const OptionalAutoAdjustAmountSheet: React.FC<
           title="Don't adjust"
           onClick={onCancel}
         >
-          Don&apos;t adjust
+          Cancel
         </Buttons.Generic>
+
         <Buttons.Generic
-          color={Colors.getChainColor(activeChain)}
+          color={Colors.green600}
           size='normal'
           className='w-full'
-          title='Auto-adjust'
+          title='Proceed'
           onClick={handleAdjust}
         >
-          Auto-adjust
+          Proceed
         </Buttons.Generic>
       </div>
     </BottomModal>
@@ -121,14 +129,14 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
   onCancel,
 }) => {
   const { theme } = useTheme()
-  const activeChain = useActiveChain()
-
   const updatedAmount = useMemo(() => {
     return getAutoAdjustAmount({
       tokenAmount: tokenBalance,
       feeAmount,
       nativeDenom,
     })
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feeAmount, nativeDenom, tokenAmount])
 
   const handleAdjust = useCallback(() => {
@@ -158,17 +166,29 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
       onClose={onCancel}
       closeOnBackdropClick={false}
       title='Adjust for Transaction Fees'
-      hideActionButton={true}
+      containerClassName='!bg-white-100 dark:!bg-gray-950 !max-h-[600px]'
+      contentClassName='!bg-white-100 dark:!bg-gray-950'
+      className='p-6'
     >
-      <div className='rounded-2xl p-4 dark:bg-gray-900 bg-white-100 dark:text-gray-200 text-gray-800'>
-        <p>Insufficient {nativeDenom?.coinDenom ?? ''} balance to pay transaction fees.</p>
-        <p className='mt-2'>
-          Should we adjust the amount from{' '}
-          <span className='text-green-500 font-medium'>{displayTokenAmount}</span> to{' '}
-          <span className='text-green-500 font-medium'>{displayUpdatedAmount}</span>?
-        </p>
+      <p className='text-gray-200 font-medium mb-6'>
+        You seem to have insufficient {nativeDenom?.coinDenom ?? ''} balance to pay transaction
+        fees.
+      </p>
+
+      <div className='rounded-2xl p-4 dark:bg-gray-900 bg-gray-50 mb-6'>
+        <p className='text-sm text-white-100 font-bold mb-4'>Should we auto-adjust the amount?</p>
+
+        <div className='flex items-center rounded-xl p-4 dark:bg-gray-850 bg-gray-100 gap-4'>
+          <div className='flex-1 text-right text-sm text-white-100 font-bold'>
+            {displayTokenAmount}
+          </div>
+
+          <div className='material-icons-round text-gray-400 !text-lg'>east</div>
+          <div className='flex-1 text-sm text-green-500 font-bold'>{displayUpdatedAmount}</div>
+        </div>
       </div>
-      <div className='flex flex-col items-center gap-y-3 mt-5'>
+
+      <div className='flex items-center gap-6'>
         <Buttons.Generic
           color={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray300}
           size='normal'
@@ -176,16 +196,17 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
           title="Don't adjust"
           onClick={onCancel}
         >
-          Cancel Transaction
+          Cancel
         </Buttons.Generic>
+
         <Buttons.Generic
-          color={Colors.getChainColor(activeChain)}
+          color={Colors.green600}
           size='normal'
           className='w-full'
-          title='Auto-adjust'
+          title='Proceed'
           onClick={handleAdjust}
         >
-          Auto-adjust
+          Proceed
         </Buttons.Generic>
       </div>
     </BottomModal>
@@ -205,9 +226,20 @@ export const AutoAdjustAmountSheet: React.FC<{
   // eslint-disable-next-line no-unused-vars
   setShowReviewSheet: (show: boolean) => void
   closeAdjustmentSheet: () => void
-}> = ({ amount, setAmount, selectedToken, fee, setShowReviewSheet, closeAdjustmentSheet }) => {
-  const chainInfo = useChainInfo()
-  const shouldShowAutoAdjustSheet = useShouldShowAutoAdjustSheet()
+  forceChain?: SupportedChain
+  forceNetwork?: 'mainnet' | 'testnet'
+}> = ({
+  amount,
+  setAmount,
+  selectedToken,
+  fee,
+  setShowReviewSheet,
+  closeAdjustmentSheet,
+  forceChain,
+  forceNetwork,
+}) => {
+  const chainInfo = useChainInfo(forceChain)
+  const shouldShowAutoAdjustSheet = useShouldShowAutoAdjustSheet(forceChain, forceNetwork)
   const navigate = useNavigate()
   const denoms = useDenoms()
 
@@ -281,6 +313,7 @@ export const AutoAdjustAmountSheet: React.FC<{
         onAdjust={allowReview}
         onCancel={allowReview}
       />
+
       <CompulsoryAutoAdjustAmountSheet
         isOpen={adjustmentType === AdjustmentType.COMPULSORY}
         nativeDenom={nativeDenom}

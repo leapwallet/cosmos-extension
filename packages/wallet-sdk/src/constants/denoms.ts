@@ -11,6 +11,7 @@ export type NativeDenom = {
   coinGeckoId: string;
   name?: string;
   description?: string;
+  ibcDenom?: string;
 };
 
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
@@ -1426,6 +1427,15 @@ export const denoms = {
     icon: 'https://nolus.io/theme/assets/images/nolus_token.ae04133d4ccbfd2e6db8.png',
     chain: 'nolus',
     coinGeckoId: '',
+  },
+  aheart: {
+    name: 'HEART',
+    coinDenom: 'HEART',
+    coinDecimals: 18,
+    coinMinimalDenom: 'aheart',
+    icon: 'https://assets.leapwallet.io/humans.svg',
+    chain: 'humans',
+    coinGeckoId: 'humans-ai',
   },
   ...Cw20Denoms.juno,
   ...Cw20Denoms.secret,

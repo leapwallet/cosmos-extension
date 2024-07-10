@@ -26,14 +26,16 @@ export function SearchInput({
 
   useEffect(() => {
     if (inputRef.current) {
-      inputRef.current?.focus()
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 100)
     }
   }, [])
 
   return (
     <div
       className={classNames({
-        'mx-auto w-[344px] mb-[16px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]':
+        'mx-auto w-[344px] mb-[16px] flex h-10 bg-white-100 dark:bg-gray-950 rounded-[30px] py-2 pl-5 pr-[10px]':
           !divClassName,
         [divClassName as string]: divClassName,
       })}
@@ -52,7 +54,7 @@ export function SearchInput({
       />
 
       {value.length === 0 ? (
-        <img src={Images.Misc.SearchIcon} />
+        <img src={Images.Misc.SearchWhiteIcon} />
       ) : (
         <img className='cursor-pointer' src={Images.Misc.CrossFilled} onClick={onClear} />
       )}

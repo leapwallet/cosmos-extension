@@ -12,13 +12,13 @@ import {
   getCoingeckoPricesStoreSnapshot,
   useActiveChain,
   useAutoFetchedCW20Tokens,
-  useChainInfo,
   useDenoms,
   useSecretTokenStore,
   useSelectedNetwork,
 } from '../store';
 import { Activity, ActivityCardContent } from '../types';
 import { convertSecretDenom, getDenomInfo } from '../utils';
+import { useChainInfo } from '../utils-hooks';
 
 type UseAssetDetailsProps = {
   denom: SupportedDenoms;

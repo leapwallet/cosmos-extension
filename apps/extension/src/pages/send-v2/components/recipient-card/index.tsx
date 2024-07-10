@@ -1,8 +1,9 @@
 import {
+  getSeiEvmInfo,
   INITIAL_ADDRESS_WARNING,
+  SeiEvmInfoEnum,
   SelectedAddress,
   sliceWord,
-  useActiveChain,
   useActiveWallet,
   useAddress,
   useAddressPrefixes,
@@ -18,36 +19,34 @@ import {
   getBlockChainFromAddress,
   getSeiEvmAddressToShow,
   isValidAddress,
+  SeiEvmTx,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Asset, useChains, useSkipDestinationChains } from '@leapwallet/elements-hooks'
-import { captureException } from '@sentry/react'
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import bech32 from 'bech32'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
+import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { motion } from 'framer-motion'
 import { useManageChainData } from 'hooks/settings/useManageChains'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
-import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import { sliceAddress } from 'utils/strings'
 
-import { ContactsSheet } from './contacts-sheet'
-import { IBCSettings } from './ibc-banner'
 import { NameServiceMatchList } from './match-lists'
-import { MyWalletSheet } from './my-wallet-sheet'
 import SaveAddressSheet from './save-address-sheet'
 import { SecondaryActionButton } from './secondary-action-button'
+import { DestinationType, SelectDestinationSheet } from './select-destination-sheet'
 import { SelectedAddressPreview } from './selected-address-preview'
 
 type RecipientCardProps = {
@@ -57,13 +56,15 @@ type RecipientCardProps = {
 const nameServiceMatcher = /^[a-zA-Z0-9_]+\.[a-z]+$/
 
 export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
-  const inputRef = useRef<HTMLInputElement | null>(null)
   const isERC20Token = useIsERC20Token()
 
-  const [isContactsSheetVisible, setIsContactsSheetVisible] = useState<boolean>(false)
-  const [isMyWalletSheetVisible, setIsMyWalletSheetVisible] = useState<boolean>(false)
+  const [isDestinationSheetVisible, setIsDestinationSheetVisible] =
+    useState<DestinationType | null>(null)
   const [isAddContactSheetVisible, setIsAddContactSheetVisible] = useState<boolean>(false)
   const [recipientInputValue, setRecipientInputValue] = useState<string>('')
+
+  const { theme } = useTheme()
+  const isDark = theme === ThemeName.DARK
 
   const getWallet = Wallet.useGetWallet()
   const { addressLinkState } = useSeiLinkedAddressState(getWallet)
@@ -85,15 +86,17 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     fetchAccountDetailsData,
     fetchAccountDetailsStatus,
     setFetchAccountDetailsData,
+    setAssociatedSeiAddress,
+    sendActiveChain,
+    sendSelectedNetwork,
+    associatedSeiAddress,
   } = useSendContext()
 
   const { chains } = useChainsStore()
   const [manageChains] = useManageChainData()
   const currentWalletAddress = useAddress()
   const addressPrefixes = useAddressPrefixes()
-  const activeChain = useActiveChain()
-  const activeNetwork = useSelectedNetwork()
-  const activeChainInfo = chains[activeChain]
+  const activeChainInfo = chains[sendActiveChain]
   const { data: elementsChains } = useChains()
   const { data: featureFlags } = useFeatureFlags()
 
@@ -130,7 +133,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           setRecipientInputValue(bech32Address)
           return
         } catch (e) {
-          setAddressError('Invalid Address')
+          setAddressError('The entered address is invalid')
         }
       }
 
@@ -158,13 +161,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
   const actionHandler = useCallback(
     (e: React.MouseEvent, _action: string) => {
       switch (_action) {
-        case 'paste':
-          UserClipboard.pasteText().then((text) => {
-            if (!text) return
-
-            fillRecipientInputValue(text.trim())
-          })
-          break
         case 'clear':
           setEthAddress('')
           setRecipientInputValue('')
@@ -175,6 +171,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           break
       }
     },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [fillRecipientInputValue, setEthAddress, setMemo, setSelectedAddress],
   )
 
@@ -183,17 +181,18 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       setSelectedAddress(s)
       setEthAddress(s.ethAddress ?? '')
       setRecipientInputValue(s.address ?? '')
-      if (isContactsSheetVisible) {
-        setIsContactsSheetVisible(false)
+      if (isDestinationSheetVisible) {
+        setIsDestinationSheetVisible(null)
       }
     },
-    [isContactsSheetVisible, setEthAddress, setSelectedAddress],
+    [isDestinationSheetVisible, setEthAddress, setSelectedAddress],
   )
 
   const handleWalletSelect = useCallback(
     (s: SelectedAddress) => {
       setRecipientInputValue(s.address ?? '')
       setSelectedAddress(s)
+      setIsDestinationSheetVisible(null)
     },
     [setRecipientInputValue, setSelectedAddress],
   )
@@ -208,7 +207,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       }
       setIsAddContactSheetVisible(true)
     } catch (err) {
-      setAddressError('Invalid Address')
+      setAddressError('The entered address is invalid')
     }
   }, [addressPrefixes, recipientInputValue, setAddressError])
 
@@ -216,7 +215,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     if (recipientInputValue.length > 0) {
       return 'clear'
     }
-    return 'paste'
+    return ''
   }, [recipientInputValue])
 
   const inputButtonIcon = useMemo(() => {
@@ -290,11 +289,10 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       : '',
   }
 
-  const sourceChain = elementsChains?.find((chain) => chain.chainId === chains[activeChain].chainId)
-
+  const sourceChain = elementsChains?.find((chain) => chain.chainId === activeChainInfo.chainId)
   const { data: skipSupportedDestinationChains } =
     featureFlags?.ibc?.extension !== 'disabled'
-      ? useSkipDestinationChains(asset, sourceChain, activeNetwork === 'mainnet')
+      ? useSkipDestinationChains(asset, sourceChain, sendSelectedNetwork === 'mainnet')
       : { data: null }
 
   const skipSupportedDestinationChainsIDs: string[] = useMemo(() => {
@@ -329,20 +327,22 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     recipientInputValue !== currentWalletAddress &&
     !ownWalletMatch &&
     !showNameServiceResults &&
-    !addressError?.includes('IBC transfers not supported between')
+    !addressError?.includes('The entered address is invalid')
+
   const showContactsButton =
     !isSavedContactSelected &&
     !showAddToContacts &&
     !existingContactMatch &&
     !selectedAddress &&
     !showNameServiceResults
+
   const showMyWalletButton =
     !isSavedContactSelected &&
     !showAddToContacts &&
     !existingContactMatch &&
     !selectedAddress &&
     !showNameServiceResults &&
-    activeNetwork === 'mainnet' &&
+    sendSelectedNetwork === 'mainnet' &&
     !isCompassWallet()
 
   const showSecondaryActions = showContactsButton || showMyWalletButton || showAddToContacts
@@ -401,9 +401,19 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
   useEffect(() => {
     ;(async function () {
+      setAssociatedSeiAddress('')
+
       if (currentWalletAddress === recipientInputValue) {
-        setAddressError('Cannot send to self')
+        return
       } else if (isSeiEvmChain && recipientInputValue.length && selectedToken) {
+        if (
+          recipientInputValue.toLowerCase().startsWith('0x') &&
+          activeWallet?.walletType === WALLETTYPE.LEDGER
+        ) {
+          setAddressError(SEI_EVM_LEDGER_ERROR_MESSAGE)
+          return
+        }
+
         if (addressLinkState === 'loading') {
           setAddressWarning({
             type: 'link',
@@ -438,15 +448,55 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         }
 
         if (recipientInputValue.toLowerCase().startsWith('0x')) {
+          let associatedSeiAddress = ''
+          setAssociatedSeiAddress('loading')
+
+          try {
+            const rpcUrl = (await getSeiEvmInfo({
+              infoType: SeiEvmInfoEnum.EVM_RPC_URL,
+              activeChain: sendActiveChain,
+              activeNetwork: sendSelectedNetwork,
+            })) as string
+
+            associatedSeiAddress = await SeiEvmTx.GetSeiAddressFromHex(recipientInputValue, rpcUrl)
+          } catch {
+            associatedSeiAddress = ''
+          }
+
           if (
             !selectedToken.isEvm &&
             selectedToken.coinMinimalDenom === 'usei' &&
             !['done', 'unknown'].includes(addressLinkState)
           ) {
+            if (associatedSeiAddress) {
+              setAssociatedSeiAddress(associatedSeiAddress)
+
+              setAddressWarning({
+                type: 'erc20',
+                message: `Recipient will receive the token on associated Sei address: ${associatedSeiAddress}`,
+              })
+            } else {
+              setAssociatedSeiAddress('')
+
+              setAddressWarning({
+                type: 'link',
+                message:
+                  'To send Sei tokens to EVM address, link your EVM and Sei addresses first.',
+              })
+            }
+          } else if (
+            !isERC20Token(selectedToken) &&
+            selectedToken.coinMinimalDenom !== 'usei' &&
+            associatedSeiAddress
+          ) {
+            setAssociatedSeiAddress(associatedSeiAddress)
+
             setAddressWarning({
-              type: 'link',
-              message: 'To send Sei tokens to EVM address, link your EVM and Sei addresses first.',
+              type: 'erc20',
+              message: `Recipient will receive the token on associated Sei address: ${associatedSeiAddress}`,
             })
+          } else {
+            setAssociatedSeiAddress('')
           }
 
           return
@@ -456,7 +506,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
         !isValidAddress(recipientInputValue) &&
         !showNameServiceResults
       ) {
-        setAddressError('Invalid Address')
+        setAddressError('The entered address is invalid')
       } else {
         setAddressWarning(INITIAL_ADDRESS_WARNING)
         setAddressError(undefined)
@@ -474,6 +524,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     selectedToken?.coinMinimalDenom,
     selectedToken?.isEvm,
     showNameServiceResults,
+    activeWallet?.walletType,
+    sendActiveChain,
+    sendSelectedNetwork,
   ])
 
   useEffect(() => {
@@ -524,7 +577,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       })
     } catch (err) {
       if (!(err as Error)?.message?.includes('too short')) {
-        captureException(err)
+        setAddressError('Invalid Address')
       }
     }
 
@@ -596,14 +649,17 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
   useEffect(() => {
     let destinationChain: string | undefined
-    if (isSeiEvmChain && selectedAddress?.address?.startsWith('0x')) {
+    if (
+      isSeiEvmChain &&
+      (selectedAddress?.address?.startsWith('0x') || associatedSeiAddress === 'loading')
+    ) {
       return
     }
     if (selectedAddress?.address) {
       const destChainAddrPrefix = getBlockChainFromAddress(selectedAddress.address)
 
       if (!destChainAddrPrefix) {
-        setAddressError('Invalid Address')
+        setAddressError('The entered address is invalid')
         return
       } else {
         destinationChain = addressPrefixes[destChainAddrPrefix]
@@ -612,15 +668,15 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       return
     }
 
-    const isIBC = destinationChain !== activeChain
+    const isIBC = destinationChain !== sendActiveChain
 
     if (!isIBC) {
       return
     }
 
     // ibc not supported on testnet
-    if (isIBC && activeNetwork === 'testnet') {
-      setAddressError(`IBC transfers not supported on testnet.`)
+    if (isIBC && sendSelectedNetwork === 'testnet') {
+      setAddressError(`IBC transfers are not supported on testnet.`)
       return
     }
 
@@ -629,9 +685,11 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
 
       if (!compassChains.find((chain) => chain.chainName === destinationChain)) {
         const destinationChainName = chains[destinationChain as SupportedChain].chainName
-        const sourceChainName = chains[activeChain].chainName
+        const sourceChainName = activeChainInfo.chainName
 
-        setAddressError(`IBC not supported between ${destinationChainName} and ${sourceChainName}`)
+        setAddressError(
+          `IBC transfers are not supported between ${destinationChainName} and ${sourceChainName}`,
+        )
         return
       }
     }
@@ -642,9 +700,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       chains[destinationChain as SupportedChain]?.apiStatus === false
     ) {
       setAddressError(
-        `IBC transfers not supported between ${
+        `IBC transfers are not supported between ${
           chains[destinationChain as SupportedChain]?.chainName || 'this address'
-        } and ${chains[activeChain].chainName}.`,
+        } and ${activeChainInfo.chainName}.`,
       )
       return
     } else {
@@ -659,16 +717,14 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
       )
     ) {
       setAddressError(
-        `IBC transfers not supported between ${
+        `IBC transfers are not supported between ${
           chains[destinationChain as SupportedChain]?.chainName || 'this address'
-        } and ${chains[activeChain].chainName} for ${sliceWord(selectedToken?.symbol)} token.`,
+        } and ${activeChainInfo.chainName} for ${sliceWord(selectedToken?.symbol)} token.`,
       )
     } else {
       setAddressError(undefined)
     }
   }, [
-    activeChain,
-    activeNetwork,
     activeChainInfo,
     selectedAddress,
     setAddressError,
@@ -680,6 +736,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     isIbcUnwindingDisabled,
     selectedToken?.symbol,
     isSeiEvmChain,
+    sendActiveChain,
+    sendSelectedNetwork,
+    associatedSeiAddress,
   ])
 
   useEffect(() => {
@@ -688,85 +747,15 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
     }
   }, [selectedAddress?.chainName, setCustomIbcChannelId])
 
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  const isNotIBCError = addressError
+    ? !addressError.includes('IBC transfers are not supported')
+    : false
 
   return (
     <div>
-      <motion.div className={`card-container`}>
-        <div className='flex w-full items-center justify-between mb-3'>
-          <Text
-            size='sm'
-            className='text-gray-600 dark:text-gray-200 font-bold'
-            data-testing-id='send-recipient-card'
-          >
-            Recipient
-          </Text>
-
-          <div className='flex flex-wrap space-x-1 gap-2'>
-            {showSecondaryActions ? (
-              <>
-                {showContactsButton ? (
-                  <SecondaryActionButton
-                    leftIcon={'perm_contact_calendar'}
-                    onClick={() => setIsContactsSheetVisible(true)}
-                    actionLabel='Open Contacts Sheet'
-                  >
-                    <Text
-                      size='xs'
-                      className='text-black-100 dark:text-white-100 whitespace-nowrap font-bold'
-                    >
-                      Contacts
-                    </Text>
-                  </SecondaryActionButton>
-                ) : null}
-
-                {showMyWalletButton ? (
-                  <SecondaryActionButton
-                    leftIcon={'account_balance_wallet'}
-                    onClick={() => setIsMyWalletSheetVisible(true)}
-                    actionLabel='Show My Wallets on Other Chains'
-                  >
-                    <Text
-                      size='xs'
-                      className='text-black-100 dark:text-white-100 whitespace-nowrap font-bold'
-                    >
-                      My Wallet
-                    </Text>
-                  </SecondaryActionButton>
-                ) : null}
-
-                {showAddToContacts ? (
-                  <SecondaryActionButton
-                    onClick={handleAddContact}
-                    actionLabel='Add Contact to Address Book'
-                    leftIcon={'person_add'}
-                    iconClassName={'[transform:rotateY(180deg)]'}
-                  >
-                    <Text
-                      size='xs'
-                      className='text-black-100 dark:text-white-100 whitespace-nowrap font-bold'
-                    >
-                      Add Contact
-                    </Text>
-                  </SecondaryActionButton>
-                ) : null}
-              </>
-            ) : null}
-
-            {isIBCTransfer && !isCompassWallet() && activeNetwork === 'mainnet' && destChainInfo ? (
-              <IBCSettings
-                className='rounded-b-2xl'
-                targetChain={destChainInfo.key}
-                onSelectChannel={setCustomIbcChannelId}
-              />
-            ) : null}
-          </div>
-        </div>
-
+      <motion.div className='p-4 rounded-2xl bg-white-100 dark:bg-gray-950'>
         <ActionInputWithPreview
-          invalid={!!addressError}
+          invalid={!!isNotIBCError}
           warning={!!addressWarning.message}
           action={action}
           buttonText={action}
@@ -775,15 +764,18 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           value={recipientValueToShow}
           onAction={actionHandler}
           onChange={handleOnChange}
-          placeholder='Enter name or address'
+          placeholder='Enter recipient address or contact'
           autoComplete='off'
           spellCheck='false'
-          className='rounded-lg'
+          className={`rounded-xl h-12 pl-4 py-[2px] text-md font-medium placeholder:text-gray-600 dark:placeholder:text-gray-400 text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 border ${
+            !isNotIBCError &&
+            !addressWarning.message &&
+            '!border-transparent focus-within:!border-green-600'
+          }`}
           preview={preview}
-          ref={inputRef}
         />
 
-        {addressError ? (
+        {isNotIBCError ? (
           <Text
             size='xs'
             color='text-red-300'
@@ -805,6 +797,82 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           </Text>
         ) : null}
 
+        <div className='flex w-full items-center justify-between mt-3'>
+          <div className='flex flex-wrap space-x-1 gap-2 w-full'>
+            {showSecondaryActions ? (
+              <>
+                {showContactsButton ? (
+                  <SecondaryActionButton
+                    leftIcon={'contact_page'}
+                    onClick={() => setIsDestinationSheetVisible('My Contacts')}
+                    actionLabel='Open Contacts Sheet'
+                    iconClassName='!text-sm !text-gray-800 dark:!text-gray-200'
+                  >
+                    <Text
+                      size='xs'
+                      className='text-gray-800 dark:text-gray-200 whitespace-nowrap font-medium'
+                    >
+                      Contacts
+                    </Text>
+                  </SecondaryActionButton>
+                ) : null}
+
+                {showMyWalletButton ? (
+                  <SecondaryActionButton
+                    leftIcon={'account_balance_wallet'}
+                    onClick={() => setIsDestinationSheetVisible('My Wallets')}
+                    actionLabel='Show My Wallets on Other Chains'
+                    iconClassName='!text-sm !text-gray-800 dark:!text-gray-200'
+                  >
+                    <Text
+                      size='xs'
+                      className='text-gray-800 dark:text-gray-200 whitespace-nowrap font-medium'
+                    >
+                      My Wallets
+                    </Text>
+                  </SecondaryActionButton>
+                ) : null}
+
+                {showAddToContacts ? (
+                  <SecondaryActionButton
+                    onClick={handleAddContact}
+                    actionLabel='Add Contact to Address Book'
+                    leftIcon={'person_add'}
+                    iconClassName={
+                      '[transform:rotateY(180deg)] !text-sm !text-gray-800 dark:!text-gray-200'
+                    }
+                  >
+                    <Text
+                      size='xs'
+                      className='text-gray-800 dark:text-gray-200 whitespace-nowrap font-medium'
+                    >
+                      Add Contact
+                    </Text>
+                  </SecondaryActionButton>
+                ) : null}
+              </>
+            ) : null}
+
+            {isIBCTransfer &&
+            !isCompassWallet() &&
+            sendSelectedNetwork === 'mainnet' &&
+            destChainInfo ? (
+              <div className='flex flex-1 justify-end'>
+                <div className='flex w-fit gap-1 py-1 px-[10px] bg-[#F7EDFC] dark:bg-[#290939] rounded-3xl h-8 items-center'>
+                  <Images.Misc.IbcProtocol color={isDark ? '#E0B9F4' : '#A22CDD'} />
+                  <Text
+                    size='xs'
+                    color='text-[#A22CDD] dark:text-[#E0B9F4]'
+                    className='whitespace-nowrap font-medium'
+                  >
+                    IBC Transfer
+                  </Text>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
         {showNameServiceResults ? (
           <NameServiceMatchList
             address={recipientInputValue}
@@ -812,16 +880,11 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({ themeColor }) => {
           />
         ) : null}
 
-        <ContactsSheet
-          isOpen={isContactsSheetVisible}
-          onContactSelect={handleContactSelect}
-          onClose={() => setIsContactsSheetVisible(false)}
-        />
-
-        <MyWalletSheet
-          isOpen={isMyWalletSheetVisible}
+        <SelectDestinationSheet
+          isOpenType={isDestinationSheetVisible}
           setSelectedAddress={handleWalletSelect}
-          onClose={() => setIsMyWalletSheetVisible(false)}
+          handleContactSelect={handleContactSelect}
+          onClose={() => setIsDestinationSheetVisible(null)}
           skipSupportedDestinationChainsIDs={skipSupportedDestinationChainsIDs}
         />
 

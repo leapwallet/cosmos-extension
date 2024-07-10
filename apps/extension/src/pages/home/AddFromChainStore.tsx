@@ -1,5 +1,5 @@
 import { Key as WalletKey, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
-import { sleep, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, sleep } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, GenericCard } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import { chainInfosState } from 'atoms/chains'
@@ -27,8 +27,7 @@ import browser from 'webextension-polyfill'
 type AddFromChainStoreProps = {
   readonly isVisible: boolean
   readonly onClose: VoidFunction
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  newAddChain: any
+  newAddChain: ChainInfo
 }
 
 export default function AddFromChainStore({
@@ -54,8 +53,7 @@ export default function AddFromChainStore({
     onClose()
   }
 
-  const chainName = newAddChain?.chainName
-
+  const newChainKey = newAddChain?.key ?? newAddChain?.chainName
   const onAddChain = async () => {
     if (!isCompassWallet()) {
       try {
@@ -63,7 +61,7 @@ export default function AddFromChainStore({
           buttonType: ButtonType.CHAIN_MANAGEMENT,
           buttonName: ButtonName.ADD_CHAIN_FROM_STORE,
           redirectURL: '/home',
-          addedChainName: chainName,
+          addedChainName: newAddChain?.chainName,
           time: Date.now() / 1000,
         })
       } catch (e) {
@@ -72,27 +70,27 @@ export default function AddFromChainStore({
     }
 
     setIsLoading(true)
-    setChainInfos({ ...chainInfos, [chainName]: newAddChain })
-    setChains({ ...chainInfos, [chainName]: newAddChain })
+    setChainInfos({ ...chainInfos, [newChainKey]: newAddChain })
+    setChains({ ...chainInfos, [newChainKey]: newAddChain })
     await sleep(500)
 
     browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {
       try {
         const updatedKeystore = await updateKeyStore(
           activeWallet as WalletKey,
-          chainName as unknown as SupportedChain,
+          newChainKey,
           'UPDATE',
           newAddChain,
         )
         let betaChains = resp?.[BETA_CHAINS]
         betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
-        betaChains[chainName] = newAddChain
+        betaChains[newChainKey] = newAddChain
         await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
 
         if (activeWallet) {
           await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
         }
-        await setActiveChain(chainName as unknown as SupportedChain, newAddChain)
+        await setActiveChain(newChainKey, newAddChain)
         navigate('/')
       } catch (error) {
         setErrors((s) => ({ ...s, submit: 'Unable to add chain' }))
@@ -108,6 +106,12 @@ export default function AddFromChainStore({
       onClose={onClose}
       closeOnBackdropClick={true}
       title='Add From Chain Store'
+      hideActionButton
+      secondaryActionButton={
+        <div className='absolute top-[22px] left-7'>
+          <Buttons.Back onClick={onClose} />
+        </div>
+      }
     >
       <div className='relative w-full flex flex-col justify-between items-center'>
         <div className='flex flex-col items-center'>
@@ -141,7 +145,7 @@ export default function AddFromChainStore({
               <>
                 {Divider}
                 <Key>Coin Type</Key>
-                <Value>{newAddChain?.bip44.coinType ?? ''}</Value>
+                <Value>{newAddChain?.bip44?.coinType ?? ''}</Value>
                 {Divider}
                 <Key>Address Prefix</Key>
                 <Value>{newAddChain?.addressPrefix ?? ''}</Value>

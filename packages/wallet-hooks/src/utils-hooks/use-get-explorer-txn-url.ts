@@ -1,8 +1,9 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useMemo } from 'react';
 
-import { useChainInfo, useSelectedNetwork } from '../store';
+import { useSelectedNetwork } from '../store';
 import { removeTrailingSlash, SelectedNetworkType } from '../utils';
+import { useChainInfo } from './use-chain-info';
 
 type UseGetExplorerTxnUrlParams = {
   forceChain?: SupportedChain;

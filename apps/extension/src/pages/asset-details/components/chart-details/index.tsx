@@ -10,7 +10,7 @@ import {
   useformatCurrency,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk'
+import { chainIdToChain, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk'
 import { useSkipAssets } from '@leapwallet/elements-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { useQuery as useReactQuery } from '@tanstack/react-query'
@@ -22,15 +22,18 @@ import ReadMoreText from 'components/read-more-text'
 import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
-import { KADO_BUY_SUPPORT_CHAINS } from 'config/config'
+import { PageName } from 'config/analytics'
 import { differenceInDays } from 'date-fns'
+import { useChainPageInfo } from 'hooks'
 import useGetTopCGTokens from 'hooks/explore/useGetTopCGTokens'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
+import { useKadoAssets } from 'hooks/useGetKadoDetails'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import SelectChain from 'pages/home/SelectChain'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
@@ -94,14 +97,21 @@ function TokenCTAs({
 function TokensDetails() {
   const assetType = undefined
   const chainInfos = useChainInfos()
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
   const assetsId = useQuery().get('assetName') ?? undefined
   const tokenChain = useQuery().get('tokenChain') ?? undefined
-
+  const { data: kadoSupportedAssets = [] } = useKadoAssets()
+  const [isBuySupported, setIsBuySupported] = useState(false)
   const navigate = useNavigate()
   const { data: cgTokens = [] } = useGetTopCGTokens()
   const { data: featureFlags } = useFeatureFlags()
 
+  const state = useLocation().state
+  const portfolio: Token = state as Token
+  const activeChain = useMemo(() => {
+    return portfolio?.tokenBalanceOnChain ?? _activeChain
+  }, [_activeChain, portfolio?.tokenBalanceOnChain])
+  const { headerChainImgSrc } = useChainPageInfo()
   const { data: skipAssets } = useSkipAssets((chainInfos?.[activeChain]?.chainId ?? '') as string, {
     includeCW20Assets: true,
     includeNoMetadataAssets: false,
@@ -112,9 +122,6 @@ function TokensDetails() {
       return cgTokens?.find((t: { id: string }) => t.id === assetsId)
     }
   }, [assetType, assetsId, cgTokens])
-
-  const state = useLocation().state
-  const portfolio: Token = state as Token
 
   const skipSupportsToken = useMemo(() => {
     return (
@@ -132,7 +139,6 @@ function TokensDetails() {
   const [showReceiveSheet, setShowReceiveSheet] = useState(false)
 
   const [formatCurrency] = useformatCurrency()
-  const defaultTokenLogo = useDefaultTokenLogo()
   const { handleSwapClick } = useHardCodedActions()
 
   const {
@@ -223,16 +229,27 @@ function TokensDetails() {
   }
 
   const portfolioPercentChange = portfolio?.percentChange ?? priceChange
-
   const { chartData, minMax } = chartsData ?? { chartData: undefined, minMax: undefined }
-
   const totalHoldingsInUsd = portfolio?.usdValue
-
   const filteredChartDays = ChartDays
-
   const displayChain = chainInfos[tokenChain as SupportedChain]?.chainName ?? tokenChain
 
+  const dontShowSelectChain = useDontShowSelectChain()
   const defaultIconLogo = useDefaultTokenLogo()
+
+  useEffect(() => {
+    if (kadoSupportedAssets.length > 0 && portfolio) {
+      const supportedAsset = kadoSupportedAssets.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (item: any) =>
+          item.symbol === portfolio.symbol &&
+          chainIdToChain[item.officialChainId] === portfolio.chain,
+      )
+      if (supportedAsset) {
+        setIsBuySupported(true)
+      }
+    }
+  }, [portfolio, kadoSupportedAssets])
 
   return (
     <div className='relative w-[400px] overflow-clip'>
@@ -245,10 +262,9 @@ function TokensDetails() {
               },
               type: HeaderActionType.BACK,
             }}
-            imgSrc={chainInfos[activeChain].chainSymbolImageUrl ?? defaultTokenLogo}
-            onImgClick={() => setShowChainSelector(true)}
+            imgSrc={headerChainImgSrc}
+            onImgClick={dontShowSelectChain ? undefined : () => setShowChainSelector(true)}
             title={<Text size='lg'>Asset details</Text>}
-            topColor={Colors.getChainColor(activeChain)}
           />
         }
         headerZIndex={showReceiveSheet ? 0 : 3}
@@ -415,9 +431,9 @@ function TokensDetails() {
 
                 <TokenCTAs
                   onBuyClick={() => {
-                    window.open(`https://cosmos.leapwallet.io/transact/buy`, '_blank')
+                    navigate(`/buy?pageSource=${PageName.AssetDetails}`, { state: portfolio })
                   }}
-                  isBuyDisabled={!KADO_BUY_SUPPORT_CHAINS.includes(activeChain)}
+                  isBuyDisabled={!isBuySupported}
                   onSendClick={() => {
                     navigate('/send', { state })
                   }}
@@ -466,6 +482,7 @@ function TokensDetails() {
       <ReceiveToken
         isVisible={showReceiveSheet}
         chain={denomInfo?.chain as unknown as SupportedChain}
+        tokenBalanceOnChain={portfolio?.tokenBalanceOnChain}
         onCloseHandler={() => {
           setShowReceiveSheet(false)
         }}

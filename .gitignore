@@ -15,3 +15,4 @@ apps/extension/.env.development.compass
 .zed
 .zed
 apps/extension/staging-builds
+apps/extension/src/components/header/header.tsx

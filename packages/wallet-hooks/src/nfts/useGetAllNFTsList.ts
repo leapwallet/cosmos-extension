@@ -9,11 +9,15 @@ import {
   useChainApis,
   useDisabledNFTsCollections,
   useDisabledNFTsCollectionsStore,
+  useEnabledNftsCollections,
+  useEnabledNftsCollectionsStore,
+  useIsCompassWallet,
   useSelectedNetwork,
 } from '../store';
-import { transformUrlQueryPath, useSetDisabledNFTsInStorage } from '../utils';
+import { transformUrlQueryPath, useGetStorageLayer, useSetDisabledNFTsInStorage } from '../utils';
 import { defaultQueryOptions, QueryOptions } from '../utils/useCosmWasmClient';
 import { CosmWasmClientHandler } from '../utils/useCosmWasmClient';
+import { ENABLED_NFTS_COLLECTIONS } from '../utils-init-hooks';
 import type { TokensListByCollection } from './types';
 import { getIsFractionalizedNft, getTokensQuery, useLoadNftContractsList } from './utils';
 
@@ -39,17 +43,24 @@ export const useGetAllNFTsList = (
   const walletAddress = options?.forceWalletAddress ?? _walletAddress;
 
   let disabledNFTsCollections = useDisabledNFTsCollections();
-  const { disabledNFTsCollections: storedDisabledNFTsCollections } = useDisabledNFTsCollectionsStore();
   const setDisabledNFTsCollections = useSetDisabledNFTsInStorage();
-  const betaNFTsCollections = useBetaNFTsCollections(options?.forceContractsListChain ?? chain);
+  const { disabledNFTsCollections: storedDisabledNFTsCollections } = useDisabledNFTsCollectionsStore();
 
-  const _activeNetwork = useSelectedNetwork();
-  const activeNetwork = options?.forceNetwork ?? _activeNetwork;
-  const { rpcUrl, lcdUrl } = useChainApis(chain, activeNetwork);
+  let enabledNftsCollections = useEnabledNftsCollections(options?.forceContractsListChain ?? chain);
+  const { enabledNftsCollections: storedEnabledNftsCollections, setEnabledNftsCollections } =
+    useEnabledNftsCollectionsStore();
+
+  const isCompassWallet = useIsCompassWallet();
+  const storage = useGetStorageLayer();
+  const betaNFTsCollections = useBetaNFTsCollections(options?.forceContractsListChain ?? chain);
 
   const haveToFillDisabledNFTs = useMemo(() => {
     return (storedDisabledNFTsCollections ?? {})[walletAddress] === undefined;
   }, [walletAddress, storedDisabledNFTsCollections]);
+
+  const _activeNetwork = useSelectedNetwork();
+  const activeNetwork = options?.forceNetwork ?? _activeNetwork;
+  const { rpcUrl, lcdUrl } = useChainApis(chain, activeNetwork);
 
   if (rpcUrl && lcdUrl) {
     const { data: nftContractsList, status: nftContractsListStatus } = useLoadNftContractsList(
@@ -58,8 +69,9 @@ export const useGetAllNFTsList = (
       rpcUrl,
     );
 
+    const dynamicKey = isCompassWallet ? [nftContractsList] : [haveToFillDisabledNFTs, betaNFTsCollections];
     return useQuery<TokensListByCollection[]>({
-      queryKey: ['nft-records', rpcUrl, walletAddress, haveToFillDisabledNFTs, betaNFTsCollections, lcdUrl],
+      queryKey: ['nft-records', rpcUrl, walletAddress, ...dynamicKey, lcdUrl, isCompassWallet],
       queryFn: async () => {
         const client = await CosmWasmClientHandler.getClient(rpcUrl);
 
@@ -104,13 +116,32 @@ export const useGetAllNFTsList = (
           return tokens;
         };
 
+        let isEnabledChanged = false;
+        let isDisabledChanged = false;
+
         const tokensOwned = await Promise.all(
           nftContractsList.map(async ({ address: collectionAddress }) => {
             try {
               const tokens = await fetchResponse(collectionAddress);
 
-              if (haveToFillDisabledNFTs && tokens.length === 0) {
-                disabledNFTsCollections = [...disabledNFTsCollections, collectionAddress];
+              if (isCompassWallet) {
+                if (
+                  tokens.length === 0 &&
+                  !disabledNFTsCollections.includes(collectionAddress) &&
+                  !storedEnabledNftsCollections?.[options?.forceContractsListChain ?? chain]?.includes(
+                    collectionAddress,
+                  )
+                ) {
+                  isDisabledChanged = true;
+                  disabledNFTsCollections = [...disabledNFTsCollections, collectionAddress];
+                } else if (!enabledNftsCollections.includes(collectionAddress)) {
+                  isEnabledChanged = true;
+                  enabledNftsCollections = [...enabledNftsCollections, collectionAddress];
+                }
+              } else {
+                if (haveToFillDisabledNFTs && tokens.length === 0) {
+                  disabledNFTsCollections = [...disabledNFTsCollections, collectionAddress];
+                }
               }
 
               const aboutContract: { name: string } = await client.queryContractSmart(collectionAddress, {
@@ -128,7 +159,25 @@ export const useGetAllNFTsList = (
           }),
         );
 
-        haveToFillDisabledNFTs && (await setDisabledNFTsCollections(disabledNFTsCollections));
+        if (isCompassWallet && isEnabledChanged) {
+          await setEnabledNftsCollections({
+            ...storedEnabledNftsCollections,
+            [options?.forceContractsListChain ?? chain]: [...enabledNftsCollections],
+          });
+
+          await storage.set(
+            ENABLED_NFTS_COLLECTIONS,
+            JSON.stringify({
+              ...storedEnabledNftsCollections,
+              [options?.forceContractsListChain ?? chain]: [...enabledNftsCollections],
+            }),
+          );
+
+          isDisabledChanged && (await setDisabledNFTsCollections(disabledNFTsCollections));
+        } else {
+          haveToFillDisabledNFTs && (await setDisabledNFTsCollections(disabledNFTsCollections));
+        }
+
         return tokensOwned.filter((v) => v !== null) as TokensListByCollection[];
       },
       enabled: nftContractsListStatus === 'success' && customQueryOptions.enabled !== false,

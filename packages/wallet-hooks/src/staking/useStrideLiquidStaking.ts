@@ -4,6 +4,7 @@ import {
   axiosWrapper,
   ChainInfos,
   DefaultGasEstimates,
+  defaultGasPriceStep,
   fromSmall,
   simulateStrideLiquidStaking,
   simulateStrideRedeemLiquidStaking,
@@ -40,6 +41,7 @@ import {
   getMetaDataForLsUnstakeTx,
   useNativeFeeDenom,
 } from '../utils';
+import { useChainId } from '../utils-hooks';
 
 type txMode = 'delegate' | 'undelegate';
 
@@ -73,6 +75,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
 
+  const activeChainId = useChainId('stride', selectedNetwork);
   const { lcdUrl } = useChainApis('stride');
 
   // FUNCTIONS
@@ -157,7 +160,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
 
   const getAmountAndGasPrice = useCallback(
     (amount: string) => {
-      const gasPriceStep = gasPriceSteps.stride.low.toString();
+      const gasPriceStep = (gasPriceSteps.stride?.low ?? defaultGasPriceStep.low).toString();
       const denom = Object.values(chainInfos['stride'].nativeDenoms)[0];
       const gasPrice = GasPrice.fromString(`${gasPriceStep + denom.coinMinimalDenom}`);
       return {
@@ -266,6 +269,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
           metadata,
           feeDenomination: fee.amount[0].denom,
           feeQuantity: fee.amount[0].amount,
+          chainId: activeChainId,
         });
         const txResult = tx.pollForTx(txHash);
 

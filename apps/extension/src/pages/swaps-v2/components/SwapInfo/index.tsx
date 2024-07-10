@@ -22,7 +22,7 @@ export function SwapInfo({ setShowMoreDetailsSheet }: SwapInfoProps) {
   } = useSwapContext()
 
   const defaultGasPrice = useDefaultGasPrice({
-    activeChain: sourceChain?.key,
+    activeChain: sourceChain?.key ?? 'cosmos',
   })
 
   useEffect(() => {

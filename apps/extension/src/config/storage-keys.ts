@@ -28,8 +28,13 @@ export const DISABLE_BANNER_ADS = 'disabled-banner-ads'
 export const CUSTOM_ENDPOINTS = 'custom-endpoints'
 export const V80_KEYSTORE_MIGRATION_COMPLETE = 'v80-keystore-migration-complete'
 export const V118_KEYSTORE_MIGRATION_COMPLETE = 'v118-keystore-migration-complete'
+export const V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE =
+  'v125-beta-nft-collections-migration-complete'
 export const PENDING_SWAP_TXS = 'pending-swap-txs'
 export const CURRENT_SWAP_TXS = 'current-swap-txs'
 export const NETWORK_MAP = 'networkMap'
+export const STARRED_CHAINS = 'starred-chains'
+export const NEW_CHAIN_TOOLTIP_STORAGE_KEY = 'leap-new-chain-tooltip-user-preference'
 
 export const SHOW_LINK_ADDRESS_NUDGE = 'show-link-address-nudge'
+export const ACTIVE_WALLET_ID = 'active-wallet-id'

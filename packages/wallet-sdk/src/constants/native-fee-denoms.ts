@@ -88,6 +88,7 @@ export const nativeFeeDenoms: FeeDenoms = {
     dymension: 'udym',
     saga: 'usaga',
     initia: 'uinit',
+    humans: 'aheart',
   },
   testnet: {
     akash: 'uakt',
@@ -171,5 +172,6 @@ export const nativeFeeDenoms: FeeDenoms = {
     dymension: 'udym',
     saga: 'usaga',
     initia: 'uinit',
+    humans: 'aheart',
   },
 };

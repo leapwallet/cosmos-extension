@@ -6,18 +6,6 @@ export const DEFAULT_GAS_TRANSFER = 80000
 export const DEFAULT_GAS_STAKE = 150000
 export const DEFAULT_SWAP_FEE = 0.004
 export const ON_RAMP_SUPPORT_CHAINS = ['osmosis', 'juno', 'kujira']
-export const KADO_BUY_SUPPORT_CHAINS: SupportedChain[] = [
-  'cosmos',
-  'juno',
-  'osmosis',
-  'secret',
-  'injective',
-  'stargaze',
-  'comdex',
-  'terra',
-  'migaloo',
-  'agoric',
-]
 export const LEDGER_NAME_EDITED_SUFFIX = '%LEDGER_NAME_EDITED%'
 export const LEDGER_NAME_EDITED_SUFFIX_REGEX = new RegExp(LEDGER_NAME_EDITED_SUFFIX)
 
@@ -35,6 +23,7 @@ export const LEDGER_ENABLED_EVM_CHAINS = [
   ChainInfos.injective.key,
   ChainInfos.evmos.key,
   ChainInfos.dymension.key,
+  ChainInfos.humans.key,
   'Nim' as SupportedChain,
 ]
 
@@ -45,6 +34,7 @@ export const LEDGER_ENABLED_EVM_CHAIN_IDS = [
   ChainInfos.injective.testnetChainId,
   ChainInfos.evmos.testnetChainId,
   ChainInfos.dymension.testnetChainId,
+  ChainInfos.humans.chainId,
   'nim_1122-1',
 ]
 

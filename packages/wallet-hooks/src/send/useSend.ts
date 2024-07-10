@@ -35,8 +35,6 @@ import {
   useActiveWalletStore,
   useAddress,
   useChainApis,
-  useChainId,
-  useChainInfo,
   useDefaultGasEstimates,
   useDenoms,
   useGetChains,
@@ -48,6 +46,7 @@ import { useScrtTxHandler, useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
 import { fetchCurrency, getMetaDataForIbcTx, getMetaDataForSendTx, useGetGasPrice, useNativeFeeDenom } from '../utils';
 import { sliceAddress } from '../utils';
+import { useChainId, useChainInfo } from '../utils-hooks';
 
 export function useSend(toAddress: string) {
   const chainsInfos = useGetChains();
@@ -84,7 +83,7 @@ export function useSend(toAddress: string) {
   const chainInfo = useChainInfo();
   const getGasPrice = useGetGasPrice(activeChain);
   const gasAdjustment = useGasAdjustmentForChain();
-  const chainId = useChainId();
+  const activeChainId = useChainId(activeChain, selectedNetwork);
 
   const assets = useMemo(() => {
     if (snip20Tokens && isValidAddressWithPrefix(toAddress, 'secret')) {
@@ -109,7 +108,7 @@ export function useSend(toAddress: string) {
       feeDenom.coinGeckoId,
       feeDenom.chain as unknown as SupportedChain,
       currencyDetail[preferredCurrency].currencyPointer,
-      `${chainId}-${feeDenom.coinMinimalDenom}`,
+      `${activeChainId}-${feeDenom.coinMinimalDenom}`,
     );
   });
 
@@ -217,7 +216,7 @@ export function useSend(toAddress: string) {
         const promise = _tx?.pollForTx(txHash);
 
         let metadata = isIBCTx
-          ? getMetaDataForIbcTx(ibcChannelId?.[0] ?? '', toAddress, {
+          ? await getMetaDataForIbcTx(ibcChannelId?.[0] ?? '', toAddress, {
               denom: selectedDenom?.coinMinimalDenom ?? amount[0].denom,
               amount: amount[0].amount,
             })
@@ -231,6 +230,7 @@ export function useSend(toAddress: string) {
           metadata,
           feeDenomination: fees?.amount[0].denom,
           feeQuantity: fees?.amount[0].amount,
+          chainId: activeChainId,
         });
 
         setPendingTx({
@@ -238,8 +238,8 @@ export function useSend(toAddress: string) {
           sentAmount: inputAmount,
           sentTokenInfo: selectedDenom as unknown as NativeDenom,
           sentUsdValue: inputUsdValue,
-          subtitle1: `to ${sliceAddress(toAddress)}`,
-          title1: `Sent ${selectedDenom?.symbol}`,
+          subtitle1: sliceAddress(toAddress),
+          title1: `${inputAmount} ${selectedDenom?.symbol}`,
           txStatus: 'loading',
           txType: isIBCTx ? 'ibc/transfer' : 'send',
           promise,
@@ -259,7 +259,7 @@ export function useSend(toAddress: string) {
         setLoading(false);
       }
     },
-    [toAddress, selectedDenom, inputAmount, activeChain, selectedNetwork, fees, txMetadata, chainsInfos],
+    [toAddress, selectedDenom, inputAmount, activeChain, selectedNetwork, fees, txMetadata, chainsInfos, activeChainId],
   );
 
   const simulate = useCallback(async () => {

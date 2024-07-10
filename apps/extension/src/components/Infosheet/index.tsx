@@ -8,6 +8,7 @@ export default function InfoSheet({
   title,
   isVisible,
   setVisible,
+  className,
 }: {
   heading: string
   title: string
@@ -15,6 +16,7 @@ export default function InfoSheet({
   isVisible: boolean
   // eslint-disable-next-line no-unused-vars
   setVisible: (v: boolean) => void
+  className?: string
 }) {
   return (
     <BottomModal
@@ -22,6 +24,7 @@ export default function InfoSheet({
       onClose={() => setVisible(false)}
       title={title}
       closeOnBackdropClick={true}
+      wrapperClassName={className}
     >
       <Text size='sm' color='dark:text-gray-400 text-gray-600 font-bold'>
         {heading}
