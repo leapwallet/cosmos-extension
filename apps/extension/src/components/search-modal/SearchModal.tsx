@@ -11,6 +11,7 @@ import { WALLETTYPE } from '@leapwallet/leap-keychain'
 import classNames from 'classnames'
 import { AlertStrip } from 'components/alert-strip'
 import { LoaderAnimation } from 'components/loader/Loader'
+import { PageName } from 'config/analytics'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -199,7 +200,7 @@ export function SearchModal() {
         if (actionName === 'View NFTs') {
           handleNftsClick()
         } else {
-          navigate(config.redirect_url ?? '')
+          navigate(`${config.redirect_url}?pageSource=${PageName.QuickSearch}` ?? '')
         }
 
         break

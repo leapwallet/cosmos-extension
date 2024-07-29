@@ -1,5 +1,6 @@
 import { Secp256k1 } from '@cosmjs/crypto';
-import { toBase64 } from '@cosmjs/encoding';
+import { sha256 } from '@cosmjs/crypto';
+import { fromBase64, toBase64, toHex } from '@cosmjs/encoding';
 import { EncodeObject } from '@cosmjs/proto-signing';
 import {
   calculateFee,
@@ -25,7 +26,6 @@ import {
   MsgBeginRedelegate,
   MsgDelegate,
   MsgExecuteContract,
-  MsgExecuteContractCompat,
   MsgGrant,
   MsgRevoke,
   MsgSend,
@@ -50,19 +50,7 @@ import { axiosWrapper } from '../healthy-nodes';
 import { LeapLedgerSignerEth } from '../ledger';
 import { getClientState, getRestUrl, sleep } from '../utils';
 import { buildGrantMsg } from './msgs/cosmos';
-
-enum MsgTypes {
-  GRANT = '/cosmos.authz.v1beta1.MsgGrant',
-  REVOKE = '/cosmos.authz.v1beta1.MsgRevoke',
-  SEND = '/cosmos.bank.v1beta1.MsgSend',
-  IBCTRANSFER = '/ibc.applications.transfer.v1.MsgTransfer',
-  GOV = '/cosmos.gov.v1beta1.MsgVote',
-  DELEGATE = '/cosmos.staking.v1beta1.MsgDelegate',
-  UNDELEGAGE = '/cosmos.staking.v1beta1.MsgUndelegate',
-  REDELEGATE = '/cosmos.staking.v1beta1.MsgBeginRedelegate',
-  WITHDRAW_REWARD = '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward',
-  MSG_EXECUTE_CONTRACT = '/cosmwasm.wasm.v1.MsgExecuteContract',
-}
+import { getInjAminoMessage, MsgTypes } from './msgs/injective';
 
 export class InjectiveTx {
   chainRestAuthApi: ChainRestAuthApi;
@@ -602,12 +590,17 @@ export class InjectiveTx {
       if (this.wallet instanceof LeapLedgerSignerEth) {
         const wallet = this.wallet as LeapLedgerSignerEth;
         const { eip712Tx, txRaw } = await this.createEip712Tx(signerAddress, msgs, usedFee, memo);
+
         const signature = await wallet.signEip712(signerAddress, eip712Tx);
         const signatureStr = joinSignature(signature as SignatureLike);
         const signatureBuffer = Buffer.from(signatureStr.replace('0x', ''), 'hex');
         const web3Extension = createWeb3Extension({ ethereumChainId: this.testnet ? 888 : 1 });
+
         const txRawEip712 = createTxRawEIP712(txRaw, web3Extension);
         txRawEip712.signatures.push(signatureBuffer);
+        const encodedTx = TxClient.encode(txRawEip712);
+        const txHash = toHex(sha256(fromBase64(encodedTx))).toUpperCase();
+        console.log('logging txHash', txHash);
         return txRawEip712;
       }
       const { txRaw, signBytes, signDoc } = await this.createTx(signerAddress, msgs, usedFee, memo);
@@ -664,17 +657,6 @@ export class InjectiveTx {
     const chainRestTendermintApi = new ChainRestTendermintApi(this.restEndpoint);
     const latestBlock = await chainRestTendermintApi.fetchLatestBlock();
     const latestHeight = latestBlock.header.height;
-    const formatIbcMessage = (msg: EncodeObject) => {
-      return {
-        ...msg.value,
-        timeout: '8446744073709551615',
-        height: {
-          revisionHeight: parseInt(msg.value.height.revisionHeight),
-          revisionNumber: parseInt(msg.value.height.revisionNumber),
-        },
-      };
-    };
-
     const fee = {
       amount: _fee.amount.map((amt) => {
         return {
@@ -685,30 +667,7 @@ export class InjectiveTx {
       gas: _fee.gas,
     };
 
-    const messages = msgs.map((msg) => {
-      switch (msg.typeUrl) {
-        case MsgTypes.IBCTRANSFER:
-          return MsgTransfer.fromJSON(formatIbcMessage(msg));
-        case MsgTypes.MSG_EXECUTE_CONTRACT:
-          return MsgExecuteContractCompat.fromJSON(msg.value);
-        case MsgTypes.GOV:
-          return MsgVote.fromJSON({ ...msg.value, proposalId: msg.value.proposalId.toInt() });
-        case MsgTypes.DELEGATE:
-          return MsgDelegate.fromJSON(msg.value);
-        case MsgTypes.UNDELEGAGE:
-          return MsgUndelegate.fromJSON(msg.value);
-        case MsgTypes.REDELEGATE:
-          return MsgBeginRedelegate.fromJSON(msg.value);
-        case MsgTypes.WITHDRAW_REWARD:
-          return MsgWithdrawDelegatorReward.fromJSON(msg.value);
-        case MsgTypes.GRANT:
-          return MsgGrant.fromJSON(msg.value);
-        case MsgTypes.REVOKE:
-          return MsgRevoke.fromJSON(msg.value);
-        default:
-          return MsgSend.fromJSON(msg.value);
-      }
-    });
+    const messages = getInjAminoMessage(msgs);
 
     const timeoutHeight = new BigNumber(latestHeight).plus(90);
 
@@ -797,7 +756,7 @@ export class InjectiveTx {
           return new MsgVote(msg.value);
         case MsgTypes.DELEGATE:
           return new MsgDelegate(msg.value);
-        case MsgTypes.UNDELEGAGE:
+        case MsgTypes.UNDELEGATE:
           return new MsgUndelegate(msg.value);
         case MsgTypes.REDELEGATE:
           return new MsgBeginRedelegate(msg.value);
@@ -825,5 +784,47 @@ export class InjectiveTx {
     });
 
     return tx;
+  }
+
+  async claimAndStake(
+    delegatorAddress: string,
+    validatorsWithRewards: { validator: string; amount: Coin }[],
+    fees: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    return (await this._claimAndStake(delegatorAddress, validatorsWithRewards, false, fees, memo)) as unknown as string;
+  }
+
+  async simulateClaimAndStake(delegatorAddress: string, validatorsWithRewards: { validator: string; amount: Coin }[]) {
+    return (await this._claimAndStake(delegatorAddress, validatorsWithRewards, true)) as unknown as number;
+  }
+
+  private async _claimAndStake(
+    delegatorAddress: string,
+    validatorsWithRewards: { validator: string; amount: Coin }[],
+    simulate: boolean,
+    fees?: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    const claimAndStakeMsgs: EncodeObject[] = [];
+    validatorsWithRewards.map((validatorWithReward) => {
+      const delegateMsg = {
+        typeUrl: '/cosmos.staking.v1beta1.MsgDelegate',
+        value: {
+          injectiveAddress: delegatorAddress,
+          validatorAddress: validatorWithReward.validator,
+          amount: {
+            amount: validatorWithReward.amount.amount,
+            denom: validatorWithReward.amount.denom,
+          },
+        },
+      };
+      claimAndStakeMsgs.push(delegateMsg);
+    });
+    if (simulate && !fees) {
+      return await this.simulate(delegatorAddress, claimAndStakeMsgs);
+    } else if (fees) {
+      return await this.signAndBroadcastTx(delegatorAddress, claimAndStakeMsgs, fees, memo);
+    }
   }
 }

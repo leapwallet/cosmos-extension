@@ -5,7 +5,9 @@ import {
   LeapWalletApi,
   sliceWord,
   Token,
+  useActiveStakingDenom,
   useAssetDetails,
+  useChainInfo,
   useFeatureFlags,
   useformatCurrency,
   useUserPreferredCurrency,
@@ -33,6 +35,7 @@ import { useKadoAssets } from 'hooks/useGetKadoDetails'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import SelectChain from 'pages/home/SelectChain'
+import StakeSelectSheet from 'pages/stake-v2/components/StakeSelectSheet'
 import React, { useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
@@ -46,10 +49,12 @@ import { TokensChart } from './token-chart'
 
 type TokenCTAsProps = {
   isSwapDisabled: boolean
+  isStakeDisabled: boolean
   onReceiveClick: () => void
   onSendClick: () => void
   onSwapClick: () => void
   onBuyClick: () => void
+  onStakeClick: () => void
   isBuyDisabled: boolean
   isSendDisabled?: boolean
 }
@@ -58,9 +63,11 @@ function TokenCTAs({
   onReceiveClick,
   onSendClick,
   onSwapClick,
+  onStakeClick,
   isSwapDisabled,
   isBuyDisabled,
   isSendDisabled,
+  isStakeDisabled,
   onBuyClick,
 }: TokenCTAsProps) {
   return (
@@ -90,6 +97,14 @@ function TokenCTAs({
         image={{ src: 'swap_horiz', alt: 'Swap' }}
         onClick={onSwapClick}
       />
+
+      {
+        <ClickableIcon
+          image={{ src: 'paid', alt: 'Stake' }}
+          onClick={onStakeClick}
+          disabled={isStakeDisabled}
+        />
+      }
     </div>
   )
 }
@@ -137,6 +152,7 @@ function TokensDetails() {
 
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showReceiveSheet, setShowReceiveSheet] = useState(false)
+  const [showStakeSelectSheet, setShowStakeSelectSheet] = useState(false)
 
   const [formatCurrency] = useformatCurrency()
   const { handleSwapClick } = useHardCodedActions()
@@ -236,6 +252,7 @@ function TokensDetails() {
 
   const dontShowSelectChain = useDontShowSelectChain()
   const defaultIconLogo = useDefaultTokenLogo()
+  const [activeStakingDenom] = useActiveStakingDenom()
 
   useEffect(() => {
     if (kadoSupportedAssets.length > 0 && portfolio) {
@@ -437,6 +454,10 @@ function TokensDetails() {
                   onSendClick={() => {
                     navigate('/send', { state })
                   }}
+                  onStakeClick={() => {
+                    setShowStakeSelectSheet(true)
+                  }}
+                  isStakeDisabled={activeStakingDenom.coinDenom !== denomInfo?.coinDenom}
                   onReceiveClick={() => {
                     setShowReceiveSheet(true)
                   }}
@@ -486,6 +507,11 @@ function TokensDetails() {
         onCloseHandler={() => {
           setShowReceiveSheet(false)
         }}
+      />
+      <StakeSelectSheet
+        isVisible={showStakeSelectSheet}
+        title='Stake'
+        onClose={() => setShowStakeSelectSheet(false)}
       />
       <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
     </div>

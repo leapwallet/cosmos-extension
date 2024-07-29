@@ -22,7 +22,6 @@ import { FeesView } from '../fees-view'
 import { RecipientCard } from '../recipient-card'
 import { ReviewNFTTransferSheet } from './review-transfer-sheet'
 
-const SHOW_LEDGER_POPUP = false
 const SendNftCardContext = createContext<UseSendNftReturnType | null>(null)
 
 export function useSendNftCardContext() {
@@ -67,6 +66,7 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
     isSending,
     fee,
     transferNFTContract,
+    showLedgerPopup,
     simulateTransferNFTContract,
     fetchAccountDetailsStatus,
     fetchAccountDetailsData,
@@ -241,7 +241,7 @@ export function SendNftCard({ nftDetails }: { nftDetails: NftDetailsType }) {
           loading={isProcessing || isSending}
           fee={fee}
           onConfirm={handleSendNft}
-          showLedgerPopup={SHOW_LEDGER_POPUP}
+          showLedgerPopup={showLedgerPopup}
           onClose={() => {
             setShowReviewSheet(false)
           }}

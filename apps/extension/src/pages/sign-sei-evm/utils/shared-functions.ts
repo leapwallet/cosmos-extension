@@ -9,5 +9,5 @@ export function handleRejectClick() {
 
   setTimeout(() => {
     window.close()
-  }, 1000)
+  }, 100)
 }

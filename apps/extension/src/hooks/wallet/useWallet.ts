@@ -505,12 +505,13 @@ export namespace Wallet {
             }) as unknown as OfflineSigner
           }
         } else if (activeWallet?.walletType !== WALLETTYPE.LEDGER) {
+          const coinType = chainInfos[_chain]?.bip44?.coinType
           const walletId = activeWallet?.id
           const signer = await KeyChain.getSigner(walletId as string, password as string, {
             addressPrefix: chainInfos[_chain].addressPrefix,
             coinType: chainInfos[_chain]?.bip44?.coinType,
             ethWallet,
-            pubKeyBech32Address: ethWallet,
+            pubKeyBech32Address: ethWallet && coinType !== '60',
           })
           return signer as unknown as OfflineSigner
         } else {

@@ -185,3 +185,18 @@ export function buildRevokeMsg(type: string, granter: string, grantee: string) {
     value: value,
   };
 }
+
+export function getClaimAndStakeMsgs(
+  delegatorAddress: string,
+  validatorsWithRewards: { validator: string; amount: Coin }[],
+) {
+  const claimAndStakeMsgs: {
+    typeUrl: string;
+    value: { delegatorAddress: string; validatorAddress: string; amount: Coin };
+  }[] = [];
+  validatorsWithRewards.forEach((validatorWithReward) => {
+    const delegateMsg = getDelegateMsg(delegatorAddress, validatorWithReward.validator, validatorWithReward.amount);
+    claimAndStakeMsgs.push(delegateMsg);
+  });
+  return claimAndStakeMsgs;
+}

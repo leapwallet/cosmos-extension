@@ -11,6 +11,7 @@ import {
   useInitBetaNFTsCollections,
   useInitChainCosmosSDK,
   useInitChainInfosConfig,
+  useInitChainsApr,
   useInitCoingeckoPrices,
   useInitCompassSeiEvmConfig,
   useInitCustomChannelsStore,
@@ -75,6 +76,7 @@ export default function App() {
   useInitTheme()
   useInitiateCurrencyPreference()
   useInitCoingeckoPrices()
+  useInitChainsApr()
 
   useInitHideAssets()
   useInitHideSmallBalances()

@@ -13,3 +13,4 @@ canary-builds
 canary-builds.zip
 builds.zip
 coverage
+.DS_Store

@@ -108,7 +108,10 @@ export function formatNewChainInfo(chainInfo: CustomChainsType) {
     gasPriceStep: gasPriceStep,
     ibcChannelIds: {},
     nativeDenoms: {
-      [rest.coinMinimalDenom as string]: rest as NativeDenom,
+      [rest.coinMinimalDenom as string]: {
+        ...rest,
+        chain: chainInfo.chainRegistryPath,
+      } as NativeDenom,
     },
     theme: chainInfo.theme || {
       primaryColor: '#E18881',

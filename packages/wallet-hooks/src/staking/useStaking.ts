@@ -488,6 +488,7 @@ export function useStakeTx(
   };
   const onTxSuccess = async (promise: any, txHash: string, callback?: TxCallback) => {
     const amtKey = mode === 'UNDELEGATE' || mode === 'CLAIM_REWARDS' ? 'receivedAmount' : 'sentAmount';
+    const usdAmtKey = mode === 'UNDELEGATE' || mode === 'CLAIM_REWARDS' ? 'receivedUsdValue' : 'sentUsdValue';
     let title = mode === 'CLAIM_REWARDS' ? 'claim rewards' : mode.toLowerCase();
     switch (mode) {
       case 'CLAIM_REWARDS':
@@ -514,6 +515,7 @@ export function useStakeTx(
     setPendingTx({
       img: chainInfos[activeChain].chainSymbolImageUrl,
       [amtKey]: formatTokenAmount(amount, '', 4),
+      [usdAmtKey]: formatCurrency(new BigNumber(amount).multipliedBy(tokenFiatValue ?? '')),
       sentTokenInfo: denom,
       title1: `${capitalize(title)}`,
       subtitle1,
@@ -865,7 +867,7 @@ export function useStakeTx(
     }, 750);
 
     return () => clearTimeout(timeoutID);
-  }, [amount]);
+  }, [amount, toValidator, fromValidator]);
 
   const displayFeeText =
     amount.length === 0 || !fees

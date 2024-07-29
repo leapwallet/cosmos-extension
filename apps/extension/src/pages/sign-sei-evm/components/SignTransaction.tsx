@@ -200,7 +200,7 @@ export function SignTransaction({ txnData, isEvmTokenExist }: SignTransactionPro
 
       setTimeout(async () => {
         window.close()
-      }, 1000)
+      }, 100)
     } catch (error) {
       setTxStatus('error')
       setSigningError((error as Error).message)

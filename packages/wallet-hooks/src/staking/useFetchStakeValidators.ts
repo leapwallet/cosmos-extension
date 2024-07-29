@@ -1,11 +1,4 @@
-import {
-  ChainInfo,
-  getApr,
-  getChainInfo,
-  getUnbondingTime,
-  SupportedChain,
-  Validator,
-} from '@leapwallet/cosmos-wallet-sdk';
+import { ChainInfo, getChainInfo, getUnbondingTime, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk';
 import CosmosDirectory from '@leapwallet/cosmos-wallet-sdk/dist/browser/chains/cosmosDirectory';
 import { useEffect, useMemo } from 'react';
 
@@ -19,6 +12,7 @@ import {
 } from '../store';
 import {
   cachedRemoteDataWithLastModified,
+  getChainsApr,
   getPlatformType,
   getStakingActiveChain,
   getStakingSelectedNetwork,
@@ -100,7 +94,7 @@ export function useFetchStakeValidators(forceChain?: SupportedChain, forceNetwor
           const { unbonding_time = 0 } = await getUnbondingTime(chainId, isTestnet, lcdUrl, chainInfos, chainData);
 
           if (isCancelled) return;
-          const calculatedApr = await getApr(activeChain, isTestnet, chainInfos, chainData);
+          const calculatedApr = await getChainsApr(activeChain, isTestnet, chainInfos, chainData);
           if (isCancelled) return;
 
           let priorityValidatorsByChain: PriorityValidatorByChains = {};

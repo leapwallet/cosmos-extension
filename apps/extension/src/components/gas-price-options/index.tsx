@@ -226,16 +226,12 @@ const GasPriceOptions = ({
       }
 
       if (hasToCalculateDynamicFee && feeTokenData) {
-        let isIbcDenom = false
+        let feeDenom = feeTokenData.denom?.coinMinimalDenom ?? ''
         if (feeTokenData.ibcDenom?.toLowerCase().startsWith('ibc/')) {
-          isIbcDenom = true
+          feeDenom = feeTokenData.ibcDenom ?? feeDenom
         }
 
-        const gasPriceStep = await getFeeMarketGasPricesSteps(
-          feeTokenData.denom?.coinMinimalDenom ?? '',
-          feeTokenData.gasPriceStep,
-          isIbcDenom,
-        )
+        const gasPriceStep = await getFeeMarketGasPricesSteps(feeDenom, feeTokenData.gasPriceStep)
         setFeeTokenData(() => ({ ...feeTokenData, gasPriceStep: gasPriceStep }))
       }
     }

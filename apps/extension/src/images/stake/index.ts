@@ -1,3 +1,4 @@
+import MilkywayLS from './milkyway.png'
 import NoStakeSVG from './no-stake.svg'
 
-export { NoStakeSVG }
+export { MilkywayLS, NoStakeSVG }

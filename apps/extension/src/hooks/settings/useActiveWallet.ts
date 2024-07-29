@@ -104,7 +104,7 @@ export default function useActiveWallet() {
 
       if (isCompassWallet()) {
         const store = await browser.storage.local.get([ACTIVE_CHAIN])
-        const activeChain = store[ACTIVE_CHAIN] as SupportedChain
+        const activeChain: SupportedChain = store[ACTIVE_CHAIN] ?? 'seiTestnet2'
 
         const evmAddress = getSeiEvmAddressToShow(wallet.pubKeys?.[activeChain])
         await sendMessageToTab({ event: 'accountsChanged', data: [evmAddress] })

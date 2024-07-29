@@ -76,15 +76,14 @@ export async function updateFeeTokenData({
         captureException(error)
       }
     } else if (hasToCalculateDynamicFee && foundFeeTokenData) {
-      let isIbcDenom = false
+      let feeDenom = foundFeeTokenData.denom?.coinMinimalDenom ?? ''
       if (foundFeeTokenData.ibcDenom?.toLowerCase().startsWith('ibc/')) {
-        isIbcDenom = true
+        feeDenom = foundFeeTokenData.ibcDenom ?? feeDenom
       }
 
       const gasPriceStep = await getFeeMarketGasPricesSteps(
-        foundFeeTokenData.denom?.coinMinimalDenom ?? '',
+        feeDenom,
         foundFeeTokenData.gasPriceStep,
-        isIbcDenom,
       )
 
       feeTokenDataToSet = { ...foundFeeTokenData, gasPriceStep }

@@ -403,4 +403,23 @@ export class EthermintTxHandler {
       pubkey,
     };
   }
+
+  async claimAndStake(
+    delegatorAddress: string,
+    validatorsWithRewards: { validator: string; amount: Coin }[],
+    fees: StdFee,
+    memo?: string,
+  ) {
+    const walletAccount = await this.wallet.getAccounts();
+    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const txFee = EthermintTxHandler.getFeeObject(fees);
+    const tx = transactions.createTxMsgMultipleDelegate(this.chain, sender, txFee, memo ?? '', {
+      values: validatorsWithRewards.map((validatorWithReward) => ({
+        validatorAddress: validatorWithReward.validator,
+        amount: validatorWithReward.amount.amount,
+        denom: validatorWithReward.amount.denom,
+      })),
+    });
+    return this.signAndBroadcast(delegatorAddress, sender.accountNumber, tx);
+  }
 }

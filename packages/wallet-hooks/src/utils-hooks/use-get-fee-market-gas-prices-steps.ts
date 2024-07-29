@@ -20,18 +20,10 @@ export function useGetFeeMarketGasPricesSteps(forceChain?: SupportedChain, force
   const baseGasPriceStep = useGasPriceStepForChain(activeChain, activeNetwork);
 
   return useCallback(
-    async function getFeeMarketGasPricesSteps(
-      feeDenom: string,
-      forceBaseGasPriceStep?: GasPriceStep,
-      isIbcDenom?: boolean,
-    ) {
+    async function getFeeMarketGasPricesSteps(feeDenom: string, forceBaseGasPriceStep?: GasPriceStep) {
       const feeMarketData: FeeMarketGasPrices = await getFeeMarketGasPrices(lcdUrl ?? '');
-      let feeDenomKey = feeDenom;
-      if (isIbcDenom) {
-        feeDenomKey = feeDenomKey.slice(0, 1) + 'ibc' + feeDenomKey.slice(1);
-      }
+      const feeMarketDenomData = feeMarketData.find(({ denom }) => denom === feeDenom);
 
-      const feeMarketDenomData = feeMarketData.find(({ denom }) => denom === feeDenomKey);
       if (feeMarketDenomData) {
         const minGasPrice = roundOf(Number(feeMarketDenomData.amount), 4);
 
@@ -39,7 +31,11 @@ export function useGetFeeMarketGasPricesSteps(forceChain?: SupportedChain, force
         const medium = minGasPrice * 1.2;
         const high = minGasPrice * 1.3;
 
-        return { low, medium, high };
+        return {
+          low: roundOf(low, 5),
+          medium: roundOf(medium, 5),
+          high: roundOf(high, 5),
+        };
       } else {
         return forceBaseGasPriceStep || baseGasPriceStep;
       }
