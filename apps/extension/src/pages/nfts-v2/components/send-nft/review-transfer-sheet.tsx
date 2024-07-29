@@ -49,8 +49,8 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
 }) => {
   const defaultTokenLogo = useDefaultTokenLogo()
 
-  if (showLedgerPopup && txError) {
-    return <LedgerConfirmationPopup showLedgerPopup />
+  if (showLedgerPopup && !txError) {
+    return <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />
   }
 
   return (

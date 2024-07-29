@@ -49,7 +49,9 @@ const Send = React.lazy(() => import('pages/send-v2'))
 const Buy = React.lazy(() => import('pages/buy'))
 const Sign = React.lazy(() => import('pages/sign/sign-transaction'))
 const SignSeiEvm = React.lazy(() => import('pages/sign-sei-evm/SignSeiEvmTransaction'))
-const Stake = React.lazy(() => import('pages/stake'))
+const Stake = React.lazy(() => import('pages/stake-v2'))
+const StakeInputPage = React.lazy(() => import('pages/stake-v2/StakeInputPage'))
+const StakeTxnPage = React.lazy(() => import('pages/stake-v2/StakeTxnPage'))
 const CancelUndelegation = React.lazy(() => import('pages/stake/CancelUndelegation'))
 const ChooseValidator = React.lazy(() => import('pages/stake/ChooseValidator'))
 const ValidatorDetails = React.lazy(() => import('pages/stake/ValidatorDetails'))
@@ -143,6 +145,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <ChooseValidator />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='stakeInput'
+              element={
+                <RequireAuth>
+                  <StakeInputPage />
                 </RequireAuth>
               }
             />
@@ -327,6 +337,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <PendingTx />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='stake-pending-txn'
+              element={
+                <RequireAuth>
+                  <StakeTxnPage />
                 </RequireAuth>
               }
             />

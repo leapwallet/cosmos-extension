@@ -298,7 +298,7 @@ export namespace LeapWalletApi {
       ...txLogMap,
     };
 
-    return blockchains[activeChain] ?? activeChain?.toUpperCase();
+    return blockchains[activeChain];
   }
 
   export function sanitizeUrl(url: string) {
@@ -361,10 +361,11 @@ export namespace LeapWalletApi {
         const txLogMap = await getTxLogCosmosBlockchainMapStoreSnapshot();
         const blockchain = getCosmosNetwork(activeChain, txLogMap);
 
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        //@ts-ignore
         const logReq = {
           app: getPlatform(),
           txHash,
-          blockchain,
           isMainnet,
           wallet,
           walletAddress,
@@ -379,6 +380,12 @@ export namespace LeapWalletApi {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
           logReq.amount = amount;
+        }
+
+        if (blockchain !== undefined) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          logReq.blockchain = blockchain;
         }
 
         try {
@@ -426,10 +433,11 @@ export namespace LeapWalletApi {
         const blockchain = getCosmosNetwork(chain, txLogMap);
 
         try {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          //@ts-ignore
           const logReq = {
             app: getPlatform(),
             txHash,
-            blockchain,
             isMainnet,
             wallet: primaryAddress ?? address,
             walletAddress: address,
@@ -439,6 +447,12 @@ export namespace LeapWalletApi {
             feeQuantity,
             chainId: _chainId ?? '',
           } as CosmosTxRequest;
+
+          if (blockchain !== undefined) {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            logReq.blockchain = blockchain;
+          }
 
           if (isCompassWallet) {
             await txnLeapApi.operateSeiTx(logReq);

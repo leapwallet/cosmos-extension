@@ -18,6 +18,7 @@ export namespace Colors {
   export const gray900 = '#212121'
   export const gray400 = '#9E9E9E'
   export const gray300 = '#B8B8B8'
+  export const gray200 = '#D6D6D6'
   export const gray100 = '#E8E8E8'
   export const gray800 = '#383838'
   export const gray950 = '#141414'
@@ -27,10 +28,25 @@ export namespace Colors {
   export const junoPrimary = '#E18881'
   export const osmosisPrimary = '#726FDC'
   export const white100 = '#FFFFFF'
+  export const black100 = '#000000'
 
   export const red300 = '#FF707E'
   export const red400 = '#FF3D50'
   export const red600 = '#D10014'
+
+  export const orange100 = '#FFEDD1'
+  export const orange200 = '#FFDFAD'
+  export const orange300 = '#FFC770'
+  export const orange500 = '#FF9F0A'
+  export const orange600 = '#D17F00'
+  export const orange800 = '#704400'
+  export const orange900 = '#422800'
+
+  export const blue200 = '#ADD6FF'
+  export const blue400 = '#3D9EFF'
+  export const blue600 = '#0A84FF'
+  export const blue800 = '#003870'
+  export const blue900 = '#002142'
 
   export function getChainColor(
     chainName: SupportedChain,

@@ -168,7 +168,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
         gasPrice,
       };
     },
-    [chainInfos],
+    [chainInfos, gasPriceSteps, defaultGasPriceStep, selectedDenom],
   );
 
   const executeLiquidStakeTx = async ({
@@ -270,6 +270,8 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
           feeDenomination: fee.amount[0].denom,
           feeQuantity: fee.amount[0].amount,
           chainId: activeChainId,
+          forceChain: 'stride',
+          forceWalletAddress: strideAddress,
         });
         const txResult = tx.pollForTx(txHash);
 

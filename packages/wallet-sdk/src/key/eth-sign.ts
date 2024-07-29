@@ -89,7 +89,11 @@ export async function ethSign(
     const hash = keccak256(Buffer.from(tx));
     if (wallet instanceof LeapLedgerSignerEth) {
       const signature = await wallet.signPersonalMessage(signerAddress, Buffer.from(tx).toString('hex'));
-      const formattedSignature = concat([signature.r, signature.s, Buffer.from('1b', 'hex')]);
+      const formattedSignature = concat([
+        signature.r,
+        signature.s,
+        signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+      ]);
       return {
         signed: signDoc,
         signature: {
@@ -101,7 +105,11 @@ export async function ethSign(
 
     const signature = await wallet.sign(signerAddress, hash);
 
-    const formattedSignature = concat([signature.r, signature.s, Buffer.from('1b', 'hex')]);
+    const formattedSignature = concat([
+      signature.r,
+      signature.s,
+      signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+    ]);
     return {
       signed: signDoc,
       signature: {
@@ -160,7 +168,11 @@ async function signEip712Tx(
   const data = await EIP712MessageValidator.validateAsync(JSON.parse(messageBuffer));
   if (wallet instanceof LeapLedgerSignerEth) {
     const signature = await wallet.signEip712(signerAddress, data);
-    const formattedSignature = concat([signature.r, signature.s, Buffer.from('1b', 'hex')]);
+    const formattedSignature = concat([
+      signature.r,
+      signature.s,
+      signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+    ]);
     return {
       signed: signDoc,
       signature: {

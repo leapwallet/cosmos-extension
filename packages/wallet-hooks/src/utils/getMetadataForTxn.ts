@@ -55,7 +55,7 @@ export function getMetaDataForSecretTokenTransfer(contract: string) {
 /************* Secret *************/
 
 export function getMetaDataForRedelegateTx(
-  fromValidate: string,
+  fromValidator: string,
   toValidator: string,
   token: { amount: string; denom: string },
 ) {
@@ -63,7 +63,7 @@ export function getMetaDataForRedelegateTx(
 
   return {
     ...globalTxMeta,
-    fromValidate,
+    fromValidator,
     toValidator,
     token,
   };

@@ -21,6 +21,7 @@ export * from './useBetaNativeTokens';
 export * from './useBetaNFTsCollections';
 export * from './useChainCosmosSDK';
 export * from './useChainInfosConfig';
+export * from './useChainsAprStore';
 export * from './useChainsStore';
 export * from './useCoingeckoPricesStore';
 export * from './useCustomChains';

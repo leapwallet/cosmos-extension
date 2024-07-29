@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AminoSignResponse, encodeSecp256k1Pubkey } from '@cosmjs/amino'
+import { AminoSignResponse, encodeSecp256k1Pubkey, StdSignDoc } from '@cosmjs/amino'
+import { Secp256k1 } from '@cosmjs/crypto'
 import { fromBase64 } from '@cosmjs/encoding'
+import { toBase64 } from '@cosmjs/encoding'
 import { Int53 } from '@cosmjs/math'
 import {
   DirectSignResponse,
@@ -12,9 +12,18 @@ import {
 } from '@cosmjs/proto-signing'
 import { AminoTypes } from '@cosmjs/stargate'
 import { AminoMsgTransfer } from '@cosmjs/stargate'
+import { createTransaction, SIGN_AMINO } from '@injectivelabs/sdk-ts'
 import { LeapWalletApi } from '@leapwallet/cosmos-wallet-hooks'
 import { CosmosTxType } from '@leapwallet/cosmos-wallet-hooks'
-import { getTxHashFromSignedTx, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  createSignerInfo,
+  fromEthSignature,
+  getEip712TxHash,
+  getMsgFromAmino,
+  getTxHashFromSignedTx,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
+import { ExtensionOptionsWeb3Tx } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/ethermint/web3'
 import {
   cosmosAminoConverters,
   cosmosProtoRegistry,
@@ -26,6 +35,7 @@ import {
   osmosisProtoRegistry,
 } from '@osmosis-labs/proto-codecs'
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing'
+import { AuthInfo, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import Long from 'long'
 import { strideAminoConverters } from 'stridejs'
@@ -144,6 +154,12 @@ const registry = new Registry([
 
 import LogCosmosDappTx = LeapWalletApi.LogCosmosDappTx
 
+const DAPPS_TO_SKIP_TXN_LOGGING = ['cosmos.leapwallet.io', 'swapfast.app']
+
+function shouldSkipTxnLogging(origin: string): boolean {
+  return DAPPS_TO_SKIP_TXN_LOGGING.some((dapp) => origin.trim().toLowerCase().includes(dapp))
+}
+
 export function getTxHashFromDirectSignResponse(data: DirectSignResponse): string {
   const txHash = getTxHashFromSignedTx({
     authInfoBytes: data.signed.authInfoBytes,
@@ -165,10 +181,7 @@ export async function logDirectTx(
   txPostToDb: LogCosmosDappTx,
   chainId: string,
 ) {
-  if (
-    origin.trim().toLowerCase().includes('cosmos.leapwallet.io') ||
-    origin.trim().toLowerCase().includes('swapfast.app')
-  ) {
+  if (shouldSkipTxnLogging(origin)) {
     return
   }
 
@@ -242,8 +255,56 @@ export async function logSignAmino(
   address: string,
   origin: string,
 ) {
+  if (shouldSkipTxnLogging(origin)) {
+    return
+  }
+
   if (data.signed.msgs.find((msg) => msg.type === 'query_permit')) return
   const txHash = getTxHashFromAminoSignResponse(data, pubkey)
+
+  await txPostToDb({
+    txHash,
+    txType: CosmosTxType.Dapp,
+    metadata: {
+      dapp_url: origin,
+      tx_message: data.signed.msgs,
+    },
+    feeQuantity: data.signed.fee?.amount[0]?.amount,
+    feeDenomination: data.signed.fee?.amount[0]?.denom,
+    chain,
+    chainId: data.signed.chain_id,
+    address,
+  })
+}
+
+export async function logSignAminoInj(
+  data: AminoSignResponse,
+  pubkey: Uint8Array,
+  txPostToDb: LogCosmosDappTx,
+  evmChainId: string,
+  chain: SupportedChain,
+  address: string,
+  origin: string,
+) {
+  const _signDoc = data.signed as StdSignDoc & { timeout_height: string }
+  const pubKey = toBase64(Secp256k1.compressPubkey(pubkey))
+  const arg = {
+    message: getMsgFromAmino(_signDoc.msgs as any),
+    memo: _signDoc.memo,
+    signMode: SIGN_AMINO,
+    pubKey,
+    timeoutHeight: parseInt(_signDoc.timeout_height, 10),
+    sequence: parseInt(_signDoc.sequence, 10),
+    accountNumber: parseInt(_signDoc.account_number, 10),
+    chainId: _signDoc.chain_id,
+    fee: _signDoc.fee,
+  }
+  const { txRaw } = createTransaction(arg)
+  const txHash = getEip712TxHash({
+    signature: data.signature.signature,
+    ethereumChainId: parseInt(evmChainId ?? '1'),
+    txRaw,
+  })
 
   await txPostToDb({
     txHash,

@@ -25,11 +25,13 @@ import {
   getCompassSeiEvmConfigStoreSnapshot,
   PendingTx,
   useActiveChain,
+  useActiveWalletStore,
   useChainApis,
   useDefaultGasEstimates,
   usePendingTxState,
   useSelectedNetwork,
 } from '../store';
+import { WALLETTYPE } from '../types';
 import {
   GasOptions,
   getMetaDataForNFTSendTx,
@@ -43,7 +45,7 @@ import { useChainId, useChainInfo, useFetchAccountDetails } from '../utils-hooks
 import { ExecuteInstruction, UseSendNftReturnType } from './types';
 
 export const useSendNft = (collectionId: string, forceChain?: SupportedChain): UseSendNftReturnType => {
-  const [showLedgerPopup] = useState<boolean>(false);
+  const [showLedgerPopup, setShowLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
   const chainInfo = useChainInfo();
   const { setPendingTx } = usePendingTxState();
@@ -51,6 +53,7 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
   const selectedNetwork = useSelectedNetwork();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
+  const { activeWallet } = useActiveWalletStore();
   const activeChainId = useChainId(activeChain, selectedNetwork);
   const defaultGasEstimates = useDefaultGasEstimates();
   const {
@@ -227,6 +230,10 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
         txHash = result.hash;
         isEvmTx = true;
       } else {
+        if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
+          setShowLedgerPopup(true);
+        }
+
         const pollForTx = new PollForTx(lcdUrl);
         const tx = {
           msg: {
@@ -244,7 +251,9 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
         const result: any = await client.execute(fromAddress, collectionId, tx.msg, tx.fee, tx.memo, tx.funds);
 
         if (result && result.code !== undefined && result.code !== 0) {
+          setShowLedgerPopup(false);
           setIsSending(false);
+
           return {
             success: false,
             errors: ['Transaction declined'],
@@ -303,10 +312,12 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
         txPostToDB({ ..._result.data, chainId: activeChainId });
       }
 
+      setShowLedgerPopup(false);
       setIsSending(false);
       setPendingTx({ ..._result.pendingTx, toAddress: toAddress });
       return _result;
     } catch (e) {
+      setShowLedgerPopup(false);
       setIsSending(false);
 
       if ((e as Error).message.toLowerCase().includes('out of gas')) {

@@ -1,0 +1,81 @@
+import { sliceWord, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
+import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import Text from 'components/text'
+import { Images } from 'images'
+import { GenericDark, GenericLight } from 'images/logos'
+import React from 'react'
+import { imgOnError } from 'utils/imgOnError'
+
+export type SelectValidatorCardProps = {
+  selectedValidator?: Validator
+  setShowSelectValidatorSheet: (val: boolean) => void
+  selectDisabled: boolean
+  title: string
+}
+
+export default function SelectValidatorCard({
+  selectedValidator,
+  setShowSelectValidatorSheet,
+  selectDisabled,
+  title,
+}: SelectValidatorCardProps) {
+  const { data: imageUrl } = useValidatorImage(selectedValidator)
+  const theme = useTheme().theme
+  return (
+    <div className='flex flex-col gap-y-3 p-4 rounded-2xl bg-white-100 dark:bg-gray-950'>
+      <Text size='sm' color='text-black-100 dark:text-white-100' className='font-medium'>
+        {title}
+      </Text>
+      <button
+        className='flex w-full items-center cursor-pointer py-2.5 px-4 justify-between bg-gray-50 dark:bg-gray-900 rounded-xl'
+        onClick={() => {
+          if (!selectDisabled) {
+            setShowSelectValidatorSheet(true)
+          }
+        }}
+        disabled={selectDisabled}
+      >
+        <div className='flex items-center gap-x-2'>
+          <img
+            src={
+              selectedValidator
+                ? imageUrl ?? selectedValidator?.image ?? Images.Misc.Validator
+                : theme === ThemeName.DARK
+                ? GenericDark
+                : GenericLight
+            }
+            onError={imgOnError(GenericLight)}
+            className='rounded-full'
+            width={24}
+            height={24}
+          />
+          <Text
+            size='sm'
+            color={
+              selectedValidator
+                ? 'text-black-100 dark:text-white-100'
+                : 'text-gray-700 dark:text-gray-400'
+            }
+            className=' font-bold'
+          >
+            {selectedValidator
+              ? sliceWord(selectedValidator.moniker ?? '', 30, 0)
+              : 'Select Validator'}
+          </Text>
+        </div>
+        {!selectDisabled && (
+          <span
+            className={`material-icons-round ${
+              selectedValidator
+                ? 'text-gray-800 dark:text-white-100'
+                : 'text-gray-700 dark:text-gray-400'
+            }`}
+          >
+            expand_more
+          </span>
+        )}
+      </button>
+    </div>
+  )
+}

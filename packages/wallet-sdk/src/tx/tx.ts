@@ -29,6 +29,7 @@ import {
   buildGrantMsg,
   buildRevokeMsg,
   getCancelUnDelegationMsg,
+  getClaimAndStakeMsgs,
   getDelegateMsg,
   getIbcTransferMsg,
   getRedelegateMsg,
@@ -368,5 +369,26 @@ export class Tx {
     }
 
     return await this.client?.sign(signerAddress, msgs, usedFee, memo);
+  }
+
+  async claimAndStake(
+    delegatorAddress: string,
+    validatorsWithRewards: { validator: string; amount: Coin }[],
+    fees: number | StdFee | 'auto',
+    memo?: string,
+  ) {
+    const msgs = getClaimAndStakeMsgs(delegatorAddress, validatorsWithRewards);
+    return await this.signAndBroadcastTx(delegatorAddress, msgs, fees, memo);
+  }
+
+  async simulateClaimAndStake(
+    delegatorAddress: string,
+    validatorsWithRewards: { validator: string; amount: Coin }[],
+    memo?: string,
+  ) {
+    const msgs = getClaimAndStakeMsgs(delegatorAddress, validatorsWithRewards);
+
+    const result = await this.simulateTx(delegatorAddress, msgs, memo);
+    return result;
   }
 }

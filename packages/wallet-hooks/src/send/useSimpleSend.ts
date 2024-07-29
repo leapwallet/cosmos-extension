@@ -355,14 +355,15 @@ export const useSimpleSend = (forceChain?: SupportedChain, forceNetwork?: 'mainn
           );
         }
 
+        const denomInfo = denoms[denom];
         const pendingTx: PendingTx = {
           txHash: result.hash,
           img: chainInfo.chainSymbolImageUrl,
           sentAmount: value.toString(),
-          sentTokenInfo: denoms.usei,
+          sentTokenInfo: denomInfo,
           sentUsdValue: '',
           subtitle1: sliceAddress(toAddress),
-          title1: `${value.toString()} Sei`,
+          title1: `${value.toString()} ${denomInfo.coinDenom}`,
           txStatus: 'success',
           txType: 'send',
           isEvmTx: true,

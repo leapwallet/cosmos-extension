@@ -1,10 +1,11 @@
-import { getApr, getChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { getChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 
 import { useUserPreferredCurrency } from '../settings';
 import { AggregatedStake, useAddress, useChainApis, useGetChains } from '../store';
 import {
+  getChainsApr,
   getClaimRewardsForChain,
   getDelegationsForChain,
   getPlatformType,
@@ -120,7 +121,7 @@ export function useFillAggregatedStake(
 
       // APR
       if (chainInfoResponse.status === 'fulfilled') {
-        const calculatedApr = await getApr(chain, false, chains, chainInfoResponse.value);
+        const calculatedApr = await getChainsApr(chain, false, chains, chainInfoResponse.value);
         const chainData = {
           params: { ...(chainInfoResponse.value?.params ?? {}), calculated_apr: calculatedApr },
         };

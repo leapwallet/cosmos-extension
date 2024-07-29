@@ -65,7 +65,7 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
       {
         label: BottomNavLabel.Stake,
         icon: 'monetization_on',
-        path: '/stake',
+        path: '/stake?pageSource=bottomNav',
         show: true,
         disabled: activeChainInfo?.disableStaking,
         shouldRedirect: activeChain === 'initia',

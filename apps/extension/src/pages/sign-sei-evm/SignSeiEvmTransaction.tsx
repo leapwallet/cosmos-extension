@@ -15,11 +15,13 @@ import BigNumber from 'bignumber.js'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { MessageTypes } from 'config/message-types'
+import { BG_RESPONSE } from 'config/storage-keys'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Browser from 'webextension-polyfill'
 
 import { MessageSignature, SignTransaction, SignTransactionProps } from './components'
+import { handleRejectClick } from './utils'
 
 function Loading() {
   return (
@@ -35,6 +37,15 @@ function Loading() {
 }
 
 function SeiEvmTransaction({ txnData, isEvmTokenExist }: SignTransactionProps) {
+  useEffect(() => {
+    window.addEventListener('beforeunload', handleRejectClick)
+    Browser.storage.local.remove(BG_RESPONSE)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleRejectClick)
+    }
+  }, [])
+
   switch (txnData.signTxnData.methodType) {
     case ETHEREUM_METHOD_TYPE.PERSONAL_SIGN:
     case ETHEREUM_METHOD_TYPE.ETH__SIGN:

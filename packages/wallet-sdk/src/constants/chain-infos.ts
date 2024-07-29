@@ -3682,7 +3682,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     chainName: 'Humans.ai',
     key: 'humans',
     chainRegistryPath: 'humans',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/humans.svg',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/humans.png',
     apis: {
       rest: 'https://rest.cosmos.directory/humans',
       rpc: 'https://rpc.cosmos.directory/humans',

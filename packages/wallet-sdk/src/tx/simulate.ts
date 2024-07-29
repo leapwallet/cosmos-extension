@@ -314,10 +314,10 @@ export async function simulateTx(
     throw new Error(result.data?.error);
   }
 
-  const gasUsed = parseInt(result.data.gas_info.gas_used);
-  const gasWanted = parseInt(result.data.gas_info.gas_wanted);
+  const gasUsed = parseInt(result.data?.gas_info?.gas_used);
+  const gasWanted = parseInt(result.data?.gas_info?.gas_wanted);
   if (Number.isNaN(gasUsed)) {
-    throw new Error(`Invalid integer gas: ${result.data.gas_info.gas_used}`);
+    throw new Error(`Invalid integer gas: ${result.data?.gas_info?.gas_used}`);
   }
   return {
     gasUsed,

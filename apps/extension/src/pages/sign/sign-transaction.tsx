@@ -88,6 +88,7 @@ import {
   getTxHashFromDirectSignResponse,
   logDirectTx,
   logSignAmino,
+  logSignAminoInj,
 } from './utils/tx-logger'
 
 const useGetWallet = Wallet.useGetWallet
@@ -557,7 +558,10 @@ const SignTransaction = ({
           }
         }
 
-        const wallet = (await getWallet(activeChain)) as OfflineAminoSigner & {
+        const wallet = (await getWallet(
+          activeChain,
+          !!(ethSignType || eip712Types),
+        )) as OfflineAminoSigner & {
           signAmino: (
             // eslint-disable-next-line no-unused-vars
             address: string,
@@ -584,12 +588,14 @@ const SignTransaction = ({
               )
             }
             if (eip712Types) {
-              return ethSignEip712(
+              const signature = await ethSignEip712(
                 activeAddress,
                 wallet as unknown as EthWallet,
                 signDoc as StdSignDoc,
                 eip712Types,
               )
+
+              return signature
             }
             return wallet.signAmino(activeAddress, signDoc as StdSignDoc, {
               extraEntropy: !signOptions?.enableExtraEntropy
@@ -608,14 +614,30 @@ const SignTransaction = ({
 
         if (!isSignArbitrary) {
           try {
-            await logSignAmino(
-              data as AminoSignResponse,
-              publicKey,
-              txPostToDb,
-              activeChain,
-              activeAddress,
-              siteOrigin ?? origin,
-            )
+            if (chainInfo.bip44.coinType === '60' && activeChain === 'injective') {
+              const evmChainId =
+                chainInfo.chainId === (signDoc as StdSignDoc).chain_id
+                  ? chainInfo.evmChainId
+                  : chainInfo.evmChainIdTestnet
+              await logSignAminoInj(
+                data as AminoSignResponse,
+                publicKey,
+                txPostToDb,
+                evmChainId ?? '1',
+                activeChain,
+                activeAddress,
+                siteOrigin ?? origin,
+              )
+            } else {
+              await logSignAmino(
+                data as AminoSignResponse,
+                publicKey,
+                txPostToDb,
+                activeChain,
+                activeAddress,
+                siteOrigin ?? origin,
+              )
+            }
           } catch (e) {
             captureException(e)
           }
@@ -742,19 +764,19 @@ const SignTransaction = ({
 
   const hasToShowCheckbox = useMemo(() => {
     if (isSignArbitrary) {
-      return false
+      return ''
     }
 
     return Array.isArray(messages)
       ? isGenericOrSendAuthzGrant(messages?.map((msg) => msg.parsed) ?? null)
-      : false
+      : ''
   }, [isSignArbitrary, messages])
 
   const isApproveBtnDisabled =
     !dappFeeDenom ||
     !!signingError ||
     !!gasPriceError ||
-    (hasToShowCheckbox === true && checkedGrantAuthBox === false) ||
+    (!!hasToShowCheckbox && checkedGrantAuthBox === false) ||
     (isFeesValid === false && !highFeeAccepted)
 
   return (
@@ -783,7 +805,7 @@ const SignTransaction = ({
           <div
             className='px-7 py-3 overflow-y-auto relative'
             style={{
-              height: `calc(100% - 72px - ${hasToShowCheckbox ? '110px' : '72px'})`,
+              height: `calc(100% - 72px - ${hasToShowCheckbox ? '152px' : '72px'})`,
             }}
           >
             <h2 className='text-center text-lg font-bold dark:text-white-100 text-gray-900 w-full'>
@@ -960,7 +982,7 @@ const SignTransaction = ({
                 className={classNames(
                   'text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl',
                   {
-                    'whitespace-normal break-words': isSignArbitrary,
+                    'whitespace-pre-line break-words': isSignArbitrary,
                   },
                 )}
               >
@@ -1026,16 +1048,24 @@ const SignTransaction = ({
 
           <div className='absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full'>
             {hasToShowCheckbox && (
-              <div className='flex flex-row items-center mb-3'>
-                <input
-                  type='checkbox'
-                  className='cursor-pointer mr-2 h-4 w-4 bg-black-50'
-                  checked={checkedGrantAuthBox}
-                  onChange={(e) => setCheckedGrantAuthBox(e.target.checked)}
-                />
-                <Text color='text-gray-400 text-[15px]'>
-                  I&apos;ve verified the wallet I&apos;m giving permissions to
-                </Text>
+              <div className='flex flex-row items-start mb-3 border border-yellow-600 rounded-lg p-[4px]'>
+                <div className='mr-2' onClick={() => setCheckedGrantAuthBox(!checkedGrantAuthBox)}>
+                  {!checkedGrantAuthBox ? (
+                    <span className='material-icons-round text-gray-900 cursor-pointer relative'>
+                      indeterminate_check_box
+                      <span className='absolute w-[10px] h-[6px] bg-gray-900 top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2' />
+                    </span>
+                  ) : (
+                    <span
+                      className='material-icons-round cursor-pointer'
+                      style={{ color: Colors.getChainColor(activeChain) }}
+                    >
+                      check_box
+                    </span>
+                  )}
+                </div>
+
+                <Text color='text-gray-400 text-[15px]'>{hasToShowCheckbox}</Text>
               </div>
             )}
 

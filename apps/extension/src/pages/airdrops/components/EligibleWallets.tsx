@@ -70,9 +70,6 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
         </div>
         Eligible wallets
       </Text>
-      <Text size='sm' color='text-gray-800 dark:text-gray-200' className='font-medium'>
-        The airdrop is eligible for the following wallet:
-      </Text>
       <div className='bg-white-100 dark:bg-gray-950 p-4 rounded-2xl mt-1'>
         <div className='flex items-center gap-2 mb-3'>
           {walletAvatar ? (

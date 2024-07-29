@@ -92,7 +92,7 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
 
       setTimeout(async () => {
         window.close()
-      }, 1000)
+      }, 100)
     } catch (error) {
       setTxStatus('error')
       setSigningError((error as Error).message)

@@ -1433,7 +1433,7 @@ export const denoms = {
     coinDenom: 'HEART',
     coinDecimals: 18,
     coinMinimalDenom: 'aheart',
-    icon: 'https://assets.leapwallet.io/humans.svg',
+    icon: 'https://assets.leapwallet.io/humans.png',
     chain: 'humans',
     coinGeckoId: 'humans-ai',
   },

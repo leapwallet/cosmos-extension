@@ -12,6 +12,7 @@ import {
   stakingTypes,
   vestingTypes,
 } from '@cosmjs/stargate/build/modules';
+import { createTxRawEIP712, createWeb3Extension, TxClient, TxRaw as InjTxRaw } from '@injectivelabs/sdk-ts';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
 import { PubKey } from 'cosmjs-types/cosmos/crypto/secp256k1/keys';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
@@ -90,6 +91,23 @@ export function getTxHashFromSignedTxAmino(signedTx: StdSignDoc, signature: any,
   }).finish();
 
   return toHex(sha256(txRaw)).toUpperCase();
+}
+
+export function getEip712TxHash({
+  signature,
+  ethereumChainId,
+  txRaw,
+}: {
+  signature: string;
+  ethereumChainId: number;
+  txRaw: InjTxRaw;
+}) {
+  const signatureBuffer = Buffer.from(signature, 'base64');
+  const web3Extension = createWeb3Extension({ ethereumChainId });
+  const txRawEip712 = createTxRawEIP712(txRaw, web3Extension);
+  txRawEip712.signatures = [signatureBuffer];
+  const encodedTx = TxClient.encode(txRawEip712);
+  return toHex(sha256(fromBase64(encodedTx))).toUpperCase();
 }
 
 function pubkeyTypeUrl(chain: SupportedChain) {

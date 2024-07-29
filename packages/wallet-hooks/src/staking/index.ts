@@ -1,3 +1,4 @@
+export * from './useClaimAndStakeRewards';
 export * from './useFetchStakeClaimRewards';
 export * from './useFetchStakeDelegations';
 export * from './useFetchStakeUndelegations';

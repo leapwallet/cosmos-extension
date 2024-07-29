@@ -1585,7 +1585,10 @@ function formatNewChainInfo(chainInfo: any) {
         ibcChannelIds: {},
         feeCurrencies: chainInfo.feeCurrencies,
         nativeDenoms: {
-          [rest.coinMinimalDenom]: rest,
+          [rest.coinMinimalDenom]: {
+            ...rest,
+            chain: chainInfo.chainName,
+          },
         },
         theme: chainInfo.theme || {
           primaryColor: '#E18881',

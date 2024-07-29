@@ -488,6 +488,10 @@ export default function Swap() {
         pageSourceFormatted = 'Quick Search'
         break
       }
+      case 'stake': {
+        pageSourceFormatted = PageName.Stake
+        break
+      }
       default: {
         break
       }
