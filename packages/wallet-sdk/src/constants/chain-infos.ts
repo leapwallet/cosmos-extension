@@ -900,7 +900,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       mainnet: {
         name: 'Big Dipper',
         txUrl: 'https://explorer.cheqd.io/transactions',
-        accountUrl: 'https://bigdipper.live/cheqd/accounts',
+        accountUrl: 'https://explorer.cheqd.io/accounts',
       },
     },
     bip44: {
