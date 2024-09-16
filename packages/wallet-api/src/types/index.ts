@@ -1124,6 +1124,7 @@ export enum CosmosTxType {
   StakeRedelgate = 'STAKE_REDELEGATE',
   StakeClaim = 'STAKE_CLAIM',
   StakeCancelUndelegate = 'STAKE_CANCEL_UNDELEGATE',
+  StakeClaimAndDelegate = 'STAKE_CLAIM_AND_DELEGATE',
   NFTSend = 'NFT_SEND',
   Dapp = 'DAPP',
   SecretTokenTransaction = 'SECRET_TOKEN_TRANSACTION',
@@ -1281,4 +1282,14 @@ export type PercentageChangesApiResponse = {
 
 export type APIPercentageChanges = {
   [platform: string]: PercentageChanges;
+};
+
+export declare enum V2TxOperation {
+  Cosmos = 'cosmos.tx',
+  Evm = 'evm.tx',
+  Solana = 'svm.tx',
+}
+export type V2TxRequest = Omit<CosmosTxRequest, 'blockchain' | 'type'> & {
+  chainId: string;
+  type: CosmosTxType;
 };
