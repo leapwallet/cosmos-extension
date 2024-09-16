@@ -16,13 +16,19 @@ export function CollectionAvatar({ image, className, bgColor }: CollectionAvatar
     >
       {image &&
         (image.includes('mp4') ? (
-          <video autoPlay loop playsInline muted className='rounded-full w-full h-full'>
+          <video
+            autoPlay
+            loop
+            playsInline
+            muted
+            className='rounded-full w-full h-full object-cover object-top'
+          >
             <source type='video/mp4' src={normalizeImageSrc(image)} />
             Your browser does not support this video player.
           </video>
         ) : (
           <img
-            className={classNames('rounded-full h-full w-full')}
+            className={classNames('rounded-full h-full w-full object-cover object-top')}
             src={normalizeImageSrc(image)}
             onError={({ currentTarget }: { currentTarget: HTMLImageElement }) => {
               currentTarget.onerror = null

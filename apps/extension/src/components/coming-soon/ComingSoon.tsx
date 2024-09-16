@@ -1,25 +1,28 @@
+import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import PopupLayout from 'components/layout/popup-layout'
 import { useChainPageInfo } from 'hooks'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
+import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
 
 type ComingSoonProps = {
   title: string
+  chainTagsStore: ChainTagsStore
   bottomNavLabel: BottomNavLabel
 }
 
-export function ComingSoon({ title, bottomNavLabel }: ComingSoonProps) {
+export const ComingSoon = observer(({ chainTagsStore, title, bottomNavLabel }: ComingSoonProps) => {
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const { headerChainImgSrc } = useChainPageInfo()
   const dontShowSelectChain = useDontShowSelectChain()
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip panel-height'>
       <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
       <PopupLayout
         header={
@@ -32,7 +35,7 @@ export function ComingSoon({ title, bottomNavLabel }: ComingSoonProps) {
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
               className:
-                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
+                'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={headerChainImgSrc}
             onImgClick={dontShowSelectChain ? undefined : () => setShowChainSelector(true)}
@@ -62,8 +65,12 @@ export function ComingSoon({ title, bottomNavLabel }: ComingSoonProps) {
           </p>
         </div>
       </PopupLayout>
-      <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
+      <SelectChain
+        isVisible={showChainSelector}
+        onClose={() => setShowChainSelector(false)}
+        chainTagsStore={chainTagsStore}
+      />
       <BottomNav label={bottomNavLabel} />
     </div>
   )
-}
+})

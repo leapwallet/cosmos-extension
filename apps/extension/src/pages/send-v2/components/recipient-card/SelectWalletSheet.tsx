@@ -1,5 +1,4 @@
-import { Key, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons } from '@leapwallet/leap-ui'
+import { Key, useChainInfo, useGetChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
@@ -9,6 +8,7 @@ import React, { useMemo } from 'react'
 import { formatWalletName } from 'utils/formatWalletName'
 
 import useWallets = Wallet.useWallets
+import { CheckCircle } from '@phosphor-icons/react'
 import { useChainPageInfo } from 'hooks'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
@@ -32,6 +32,7 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
   const { topChainColor } = useChainPageInfo()
   const { sendActiveChain } = useSendContext()
   const activeChainInfo = useChainInfo(sendActiveChain)
+  const chains = useGetChains()
 
   const walletsList = useMemo(() => {
     return wallets
@@ -80,14 +81,22 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
 
           if (
             wallet.walletType === WALLETTYPE.LEDGER &&
-            !isLedgerEnabled(activeChainInfo.key, activeChainInfo.bip44.coinType)
+            !isLedgerEnabled(
+              activeChainInfo.key,
+              activeChainInfo.bip44.coinType,
+              Object.values(chains),
+            )
           ) {
             addressText = `Ledger not supported on ${activeChainInfo.chainName}`
           }
 
           if (
             wallet.walletType === WALLETTYPE.LEDGER &&
-            isLedgerEnabled(activeChainInfo.key, activeChainInfo.bip44.coinType) &&
+            isLedgerEnabled(
+              activeChainInfo.key,
+              activeChainInfo.bip44.coinType,
+              Object.values(chains),
+            ) &&
             !wallet.addresses[activeChainInfo.key]
           ) {
             addressText = `Please import EVM wallet`
@@ -95,8 +104,8 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
 
           return (
             <div className='relative min-h-[56px]' key={wallet.id}>
-              <div
-                className={`w-full flex items-center gap-3 py-3 cursor-pointer`}
+              <button
+                className='w-full flex items-center gap-3 py-3 cursor-pointer'
                 onClick={() => {
                   setSelectedWallet(wallet)
                   onClose()
@@ -108,7 +117,7 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
                   className='rounded-full border border-white-30 h-10 w-10'
                 />
                 <div className='flex-1'>
-                  <p className='flex items-center gap-1 font-bold dark:text-white-100 text-gray-700 capitalize'>
+                  <p className='flex text-left items-center gap-1 font-bold dark:text-white-100 text-gray-700 capitalize'>
                     {shortenedWalletName}
                     {wallet.walletType === WALLETTYPE.LEDGER && (
                       <Text
@@ -125,11 +134,14 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
                   </p>
                 </div>
                 {selectedWallet?.id === wallet.id ? (
-                  <span className='material-icons-round ml-2' style={{ color: topChainColor }}>
-                    check_circle
-                  </span>
+                  <CheckCircle
+                    weight='fill'
+                    size={24}
+                    className='ml-2'
+                    style={{ color: topChainColor }}
+                  />
                 ) : null}
-              </div>
+              </button>
 
               {!isLast && <div className='border-b w-full border-gray-100 dark:border-gray-850' />}
             </div>

@@ -6,6 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { UploadSimple } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { AlertStrip } from 'components/alert-strip'
 import PopupLayout from 'components/layout/popup-layout'
@@ -17,9 +18,12 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 import { sessionGetItem, sessionRemoveItem } from 'utils/sessionStorage'
 
@@ -53,28 +57,27 @@ export function NftDetails() {
   const { addHiddenNFT, removeHiddenNFT } = useModifyHiddenNFTs()
 
   const isFractionalizedNft = useMemo(() => {
-    return fractionalizedNftContracts.includes(nftDetails?.collection.contractAddress ?? '')
-  }, [fractionalizedNftContracts, nftDetails?.collection.contractAddress])
+    return fractionalizedNftContracts.includes(nftDetails?.collection.address ?? '')
+  }, [fractionalizedNftContracts, nftDetails?.collection.address])
 
   const nftImages = useMemo(() => {
     if (isFractionalizedNft) {
       const _nftDetails = nftDetails as unknown as FractionalizedNftInformation
-      return _nftDetails.Images.map((image) => normalizeImageSrc(image))
+      if (_nftDetails?.Images && _nftDetails.Images.length > 0) {
+        return _nftDetails.Images.map((image) =>
+          normalizeImageSrc(image, nftDetails?.collection.address ?? ''),
+        )
+      }
     }
 
-    return [normalizeImageSrc(nftDetails?.image ?? '')]
+    return [normalizeImageSrc(nftDetails?.image ?? '', nftDetails?.collection.address ?? '')]
   }, [isFractionalizedNft, nftDetails])
 
   const nftIndex = useMemo(() => {
-    return `${nftDetails?.collection.contractAddress ?? nftDetails?.collection.address ?? ''}-${
+    return `${nftDetails?.collection.address ?? ''}-${
       nftDetails?.tokenId ?? nftDetails?.domain ?? ''
     }`
-  }, [
-    nftDetails?.collection.address,
-    nftDetails?.collection.contractAddress,
-    nftDetails?.domain,
-    nftDetails?.tokenId,
-  ])
+  }, [nftDetails?.collection.address, nftDetails?.domain, nftDetails?.tokenId])
 
   const isInFavNfts = useMemo(() => {
     return favNfts.includes(nftIndex)
@@ -110,7 +113,7 @@ export function NftDetails() {
     if (activeWallet) {
       let newWallet: Key = {
         ...activeWallet,
-        avatar: normalizeImageSrc(nftDetails?.image ?? ''),
+        avatar: normalizeImageSrc(nftDetails?.image ?? '', nftDetails?.collection.address ?? ''),
         avatarIndex: nftIndex,
       }
       if (isInProfile) {
@@ -138,7 +141,7 @@ export function NftDetails() {
   }
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip panel-height'>
       <PopupLayout
         header={
           <Header
@@ -157,7 +160,7 @@ export function NftDetails() {
             }}
             title={
               <h1 className='flex'>
-                <span className='truncate max-w-[150px]' title={nftDetails?.name ?? ''}>
+                <span className='truncate !max-w-[150px]' title={nftDetails?.name ?? ''}>
                   {showSendNFT ? 'Send' : nftDetails?.name ?? ''}
                 </span>
               </h1>
@@ -196,16 +199,23 @@ export function NftDetails() {
           />
 
           <div className='my-4 flex items-center justify-between'>
-            <div className='flex flex-col'>
+            <div className='flex flex-col flex-1'>
               <p
-                className='text-gray-800 dark:text-white-100 truncate max-w-[200px] text-lg font-bold'
+                className={classNames(
+                  'text-gray-800 dark:text-white-100 truncate max-w-[200px] text-lg font-bold',
+                  {
+                    '!max-w-[160px]': isSidePanel(),
+                  },
+                )}
                 title={nftDetails?.name ?? ''}
               >
                 {nftDetails?.name ?? ''}
               </p>
               {nftDetails?.tokenId && (
                 <p
-                  className='text-gray-300 text-sm truncate max-w-[180px] text-base'
+                  className={classNames('text-gray-300 text-sm truncate max-w-[180px] text-base', {
+                    '!max-w-[160px]': isSidePanel(),
+                  })}
                   title={nftDetails.tokenId}
                 >
                   #{nftDetails.tokenId}
@@ -214,7 +224,7 @@ export function NftDetails() {
             </div>
 
             {nftDetails?.chain && (
-              <Chip className='bg-gray-100 dark:bg-gray-900 py-[3px] px-[7px]'>
+              <Chip className='bg-gray-100 dark:bg-gray-900 py-[3px] px-[7px] shrink-0'>
                 <Chip.Image
                   className='w-[24px] h-[24px]'
                   src={chainInfos[nftDetails.chain].chainSymbolImageUrl}
@@ -231,21 +241,44 @@ export function NftDetails() {
           </div>
 
           <CardDivider />
-          {!!showSendNFT && isCompassWallet() && <SendNftCard nftDetails={nftDetails} />}
+          {!!showSendNFT && isCompassWallet() && nftDetails && (
+            <SendNftCard
+              rootDenomsStore={rootDenomsStore}
+              nftDetails={nftDetails}
+              rootBalanceStore={rootBalanceStore}
+            />
+          )}
           {!showSendNFT && (
             <div className='my-4 flex justify-between items-center'>
               <button
                 className={classNames(
-                  'rounded-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white-100 flex items-center justify-center flex-1 py-[12px] px-[30px] mr-[12px]',
+                  'rounded-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white-100 flex items-center justify-center flex-1 py-[12px] mr-[12px]',
                   {
                     'opacity-50': !nftDetails?.tokenUri,
+                    'px-[30px]': !isSidePanel(),
+                    'px-[12px] flex-wrap': isSidePanel(),
                   },
                 )}
-                onClick={() => window.open(normalizeImageSrc(nftDetails?.tokenUri ?? ''), '_blank')}
+                onClick={() =>
+                  window.open(
+                    normalizeImageSrc(
+                      nftDetails?.tokenUri ?? '',
+                      nftDetails?.collection?.address ?? '',
+                    ),
+                    '_blank',
+                  )
+                }
                 disabled={!nftDetails?.tokenUri}
               >
-                <img className='mr-2 invert dark:invert-0' src={Images.Misc.OpenLink} alt='open' />{' '}
-                {isFractionalizedNft ? 'View details' : 'View on marketplace'}
+                <div className='flex flex-row items-center'>
+                  <img
+                    className='mr-2 invert dark:invert-0'
+                    src={Images.Misc.OpenLink}
+                    alt='open'
+                  />{' '}
+                  View
+                </div>
+                <span className='ml-1'>{isFractionalizedNft ? 'details' : 'on marketplace'}</span>
               </button>
 
               {isCompassWallet() && (
@@ -256,7 +289,7 @@ export function NftDetails() {
                     setShowSendNFT(true)
                   }}
                 >
-                  <span className='material-icons-round'>{'file_upload'}</span>
+                  <UploadSimple size={16} weight='bold' className='text-current' />
                 </button>
               )}
 
@@ -294,10 +327,17 @@ export function NftDetails() {
                 />
               )}
 
-              {isFractionalizedNft ? (
-                <FractionalizedNftDescription nftDetails={nftDetails} color={topChainColor} />
-              ) : (
-                <NonFractionalizedNftDescription nftDetails={nftDetails} color={topChainColor} />
+              {nftDetails && (
+                <>
+                  {isFractionalizedNft ? (
+                    <FractionalizedNftDescription nftDetails={nftDetails} color={topChainColor} />
+                  ) : (
+                    <NonFractionalizedNftDescription
+                      nftDetails={nftDetails}
+                      color={topChainColor}
+                    />
+                  )}
+                </>
               )}
             </>
           )}

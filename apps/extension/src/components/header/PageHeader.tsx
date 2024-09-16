@@ -1,17 +1,20 @@
 import { LineDivider } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { ActionButton } from 'components/button'
+import { useDefaultTokenLogo } from 'hooks'
 import useNewChainTooltip from 'hooks/useNewChainTooltip'
 import { Images } from 'images'
 import React from 'react'
 import { PageHeaderProps } from 'types/components'
+import { imgOnError } from 'utils/imgOnError'
+import { isSidePanel } from 'utils/isSidePanel'
 
 import NewChainSupportTooltip from './NewChainSupportTooltip'
 
 const PageHeader = React.memo(
   ({ title, action, imgSrc, onImgClick, dontShowFilledArrowIcon = false }: PageHeaderProps) => {
     const { showToolTip: _showToolTip, toolTipData, handleToolTipClose } = useNewChainTooltip()
-
+    const defaultTokenLogo = useDefaultTokenLogo()
     const showToolTip = _showToolTip && !!toolTipData && !!onImgClick
 
     return (
@@ -19,11 +22,11 @@ const PageHeader = React.memo(
         {showToolTip && (
           <div
             onClick={handleToolTipClose}
-            className='absolute cursor-pointer top-0 z-[2] left-0 h-[600px] w-[400px]'
+            className='absolute cursor-pointer top-0 z-[2] left-0 panel-height panel-width'
           />
         )}
         <div
-          className={classNames('relative h-[72px] w-[400px]', {
+          className={classNames('relative h-[72px] panel-width', {
             'overflow-hidden': !showToolTip,
           })}
         >
@@ -32,43 +35,56 @@ const PageHeader = React.memo(
           </div>
 
           {action ? (
-            <div className='flex h-full absolute left-7 top-0 items-center'>
+            <div
+              className={classNames('flex h-full absolute top-0 items-center', {
+                'left-7': !isSidePanel(),
+                'left-4': isSidePanel(),
+              })}
+            >
               <ActionButton {...action} />
             </div>
           ) : null}
 
           {imgSrc ? (
             <div
-              className={classNames('flex absolute items-center right-7', {
-                'cursor-pointer bg-[#FFFFFF] dark:bg-gray-950 h-fit rounded-3xl top-4 p-2.5':
-                  onImgClick,
-                'h-full top-0': !onImgClick,
+              className={classNames('flex h-full absolute top-0 items-center', {
+                'right-7': !isSidePanel(),
+                'right-4': isSidePanel(),
               })}
-              onClick={onImgClick}
             >
-              {typeof imgSrc === 'string' ? (
-                <img
-                  src={imgSrc}
-                  className={classNames('h-7 w-7', { 'w-[20px] h-[20px]': onImgClick })}
-                />
-              ) : (
-                imgSrc
-              )}
+              <div
+                className={classNames('relative flex items-center', {
+                  'cursor-pointer bg-[#FFFFFF] dark:bg-gray-950 h-fit rounded-3xl px-3 py-2':
+                    onImgClick,
+                  'h-full': !onImgClick,
+                })}
+                onClick={onImgClick}
+              >
+                {typeof imgSrc === 'string' ? (
+                  <img
+                    src={imgSrc}
+                    className={classNames('h-7 w-7', { 'w-[20px] h-[20px]': onImgClick })}
+                    onError={imgOnError(defaultTokenLogo)}
+                  />
+                ) : (
+                  imgSrc
+                )}
 
-              {onImgClick !== undefined && !dontShowFilledArrowIcon && (
-                <img src={Images.Misc.FilledArrowDown} className='h-1.5 w-1.5 ml-2.5' />
-              )}
+                {onImgClick !== undefined && !dontShowFilledArrowIcon && (
+                  <img src={Images.Misc.FilledArrowDown} className='h-1.5 w-4 ml-1' />
+                )}
 
-              {showToolTip && (
-                <NewChainSupportTooltip
-                  toolTipData={toolTipData}
-                  handleCTAClick={() => {
-                    onImgClick()
-                    handleToolTipClose()
-                  }}
-                  handleToolTipClose={handleToolTipClose}
-                />
-              )}
+                {showToolTip && (
+                  <NewChainSupportTooltip
+                    toolTipData={toolTipData}
+                    handleCTAClick={() => {
+                      onImgClick()
+                      handleToolTipClose()
+                    }}
+                    handleToolTipClose={handleToolTipClose}
+                  />
+                )}
+              </div>
             </div>
           ) : null}
 

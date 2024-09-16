@@ -1,4 +1,5 @@
 import { AirdropEligibilityInfo, sliceAddress, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { CheckCircle, CopySimple, Wallet, WarningCircle } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { walletLabels } from 'config/constants'
@@ -62,12 +63,7 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
   return (
     <div className='flex flex-col gap-2'>
       <Text size='md' className='font-bold gap-2'>
-        <div
-          className='material-icons-round text-black-100 dark:text-white-100'
-          style={{ fontSize: 20 }}
-        >
-          account_balance_wallet
-        </div>
+        <Wallet size={20} className='text-black-100 dark:text-white-100' />
         Eligible wallets
       </Text>
       <div className='bg-white-100 dark:bg-gray-950 p-4 rounded-2xl mt-1'>
@@ -93,11 +89,18 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
                     {sliceAddress(token?.address)}
                   </Text>
                   <div
-                    className='material-icons-round text-black-100 dark:text-white-100 cursor-pointer'
-                    style={{ fontSize: 20 }}
+                    className='text-black-100 dark:text-white-100 cursor-pointer'
                     onClick={() => onCopy(token?.address)}
                   >
-                    {copied ? 'check_circle_outline' : 'copy'}
+                    {copied ? (
+                      <CheckCircle
+                        weight='fill'
+                        size={20}
+                        className='text-black-100 dark:text-white-100'
+                      />
+                    ) : (
+                      <CopySimple size={20} className='text-black-100 dark:text-white-100' />
+                    )}
                   </div>
                 </div>
               )
@@ -105,9 +108,7 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
           })}
           {showAddreessError && (
             <div className='flex items-center bg-gray-100 dark:bg-gray-900 rounded-2xl border border-red-300 p-4 gap-3'>
-              <div className='material-icons-round text-red-300' style={{ fontSize: 20 }}>
-                error_outline
-              </div>
+              <WarningCircle size={20} className='text-red-300' />
               <p className='text-sm font-medium text-gray-800 dark:text-gray-200'>
                 We are unable to fetch airdrops for some addresses. Please try again later.
               </p>

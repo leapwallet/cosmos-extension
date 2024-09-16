@@ -1,5 +1,9 @@
+import { X } from '@phosphor-icons/react'
+import classNames from 'classnames'
+import Sort from 'icons/sort'
 import { Images } from 'images'
 import React from 'react'
+import { isSidePanel } from 'utils/isSidePanel'
 
 type FilterProps = {
   readonly searchedText: string
@@ -15,28 +19,30 @@ export function Filter({ searchedText, setSearchedText, onClickSortBy }: FilterP
           type='text'
           value={searchedText}
           placeholder='search by nft collection/name...'
-          className='flex flex-grow font-medium text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
+          className={classNames(
+            'flex flex-grow font-medium text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0',
+            { 'w-[50px]': isSidePanel() },
+          )}
           onChange={(e) => setSearchedText(e.target?.value)}
         />
 
         {searchedText.length > 0 ? (
-          <span
+          <X
             onClick={() => setSearchedText('')}
-            className='material-icons-round h-8 w-8 cursor-pointer text-center text-gray-400'
-          >
-            close
-          </span>
+            size={16}
+            className='h-8 w-8 cursor-pointer text-center text-gray-400'
+          />
         ) : (
           <img src={Images.Misc.Search} />
         )}
       </div>
 
-      <div
+      <button
         onClick={onClickSortBy}
-        className='rounded-3xl h-10 w-10 cursor-pointer ml-3 justify-center items-center dark:bg-gray-900 bg-white-100'
+        className='rounded-3xl h-10 w-10 cursor-pointer ml-3 flex flex-shrink-0 justify-center items-center dark:bg-gray-900 bg-white-100'
       >
-        <span className='material-icons-round  h-10 w-10 mt-2 text-center text-gray-400'>sort</span>
-      </div>
+        <Sort size={24} className='text-center text-gray-400' />
+      </button>
     </div>
   )
 }

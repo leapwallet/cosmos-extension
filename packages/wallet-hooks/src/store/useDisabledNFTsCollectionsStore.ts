@@ -1,7 +1,7 @@
+import { DisableObject } from '@leapwallet/cosmos-wallet-store';
 import create from 'zustand';
 
 import { useAddress } from './useAddress';
-import { DisableObject } from './useDisabledCW20Tokens';
 
 type DisabledNFTsCollections = {
   disabledNFTsCollections: DisableObject | null;

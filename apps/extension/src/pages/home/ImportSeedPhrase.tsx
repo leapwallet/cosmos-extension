@@ -58,7 +58,7 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
 
   if (!isVisible) return null
   return (
-    <div className='h-[600px] overflow-scroll bg-white-100 dark:bg-black-100 absolute top-0 z-[10000000]'>
+    <div className='panel-height panel-width enclosing-panel overflow-scroll bg-white-100 dark:bg-black-100 absolute top-0 z-[10000000]'>
       {isSeiEvmChain ? (
         <button
           className='absolute top-5 right-5 w-[32px] cursor-pointer z-10'
@@ -78,7 +78,7 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
           },
         }}
       />
-      <div className='flex flex-col gap-y-4 justify-between min-h-[530px] items-center p-[28px] pt-[10px]'>
+      <div className='flex flex-col gap-y-4 justify-between min-h-[calc(100%-70px)] items-center p-[28px] pt-[10px]'>
         <SeedPhraseInput
           onChangeHandler={onChangeHandler}
           isError={!!error}

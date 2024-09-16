@@ -6,7 +6,9 @@ import { FrogPanic } from 'images/misc'
 import React from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
+import { closeSidePanel } from 'utils/closeSidePanel'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
 export function WalletNotConnected({ chain, visible }: { chain: ChainInfo; visible: boolean }) {
@@ -33,10 +35,11 @@ export function WalletNotConnected({ chain, visible }: { chain: ChainInfo; visib
           className='w-[344px]'
           onClick={() => {
             const views = Browser.extension.getViews({ type: 'popup' })
-            if (views.length === 0) {
+            if (views.length === 0 && !isSidePanel) {
               navigate('/onboardEvmLedger')
             } else {
               window.open(Browser.runtime.getURL('index.html#/onboardEvmLedger'))
+              closeSidePanel()
             }
           }}
         >

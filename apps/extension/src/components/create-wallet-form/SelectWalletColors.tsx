@@ -1,3 +1,4 @@
+import { Check } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import React from 'react'
 
@@ -30,9 +31,7 @@ export default function SelectWalletColors({ selectColorIndex, colorIndex }: Pro
               )}
               style={{ backgroundColor: color }}
             >
-              {index === colorIndex && (
-                <div className='material-icons-round text-white-100'>check</div>
-              )}
+              {index === colorIndex && <Check size={16} className='text-white-100' />}
             </div>
           </div>
         )

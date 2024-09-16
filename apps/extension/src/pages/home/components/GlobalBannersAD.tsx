@@ -12,6 +12,7 @@ import {
   useGetNumiaBanner,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { X } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import { GlobalBannersLoading } from 'components/Skeletons'
@@ -104,7 +105,7 @@ function BannerAdCard({
   return (
     <div className='relative inline-block w-[22rem] overflow-hidden mr-4 snap-center'>
       <button
-        className='overflow-hidden rounded-lg w-full items-center flex dark:bg-gray-900 bg-white-100'
+        className='overflow-hidden rounded-lg w-full items-center flex dark:bg-gray-900 bg-white-100 aspect-[11/2]'
         onClick={handleClick}
       >
         {bannerData?.image_url ? (
@@ -135,13 +136,13 @@ function BannerAdCard({
       </button>
 
       <button
-        className='absolute top-[4px] right-[4px] bg-gray-800 rounded-full w-[16px] h-[16px] flex cursor-pointer p-[2px]'
+        className='absolute top-[4px] right-[4px] bg-gray-800 rounded-full w-[16px] h-[16px] flex cursor-pointer'
         onClick={(event) => {
           event.stopPropagation()
           onClose(bannerData.id, index)
         }}
       >
-        <span className='material-icons-round text-gray-100 m-auto !text-[12px]'>close</span>
+        <X size={12} className='text-gray-100 m-auto' />
       </button>
     </div>
   )
@@ -511,7 +512,7 @@ const GlobalBannersAD = React.memo(
       <div className='flex flex-col items-center justify-center gap-2 mb-4'>
         <div
           ref={scrollableContainerRef}
-          className='w-[400px] whitespace-nowrap overflow-x-auto overflow-y-hidden text-center pl-4 h-[64px] hide-scrollbar snap-x snap-mandatory'
+          className='w-[400px] whitespace-nowrap overflow-x-auto overflow-y-hidden text-center pl-7 h-16 hide-scrollbar snap-x snap-mandatory'
           onScroll={handleScroll}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}

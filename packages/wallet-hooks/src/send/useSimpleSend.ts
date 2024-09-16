@@ -2,6 +2,8 @@ import { coin, OfflineSigner } from '@cosmjs/proto-signing';
 import { StdFee } from '@cosmjs/stargate';
 import { parseEther, parseUnits } from '@ethersproject/units';
 import {
+  denoms as DefaultDenoms,
+  DenomsRecord,
   Dict,
   EthermintTxHandler,
   getSourceChainChannelId,
@@ -14,6 +16,7 @@ import {
   SeiEvmTx,
   SigningSscrt,
   SupportedChain,
+  SupportedDenoms,
   ThorTx,
   toSmall,
   transactionDeclinedError,
@@ -21,7 +24,7 @@ import {
   txDeclinedErrorUser,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { EthWallet } from '@leapwallet/leap-keychain';
-import * as bech32 from 'bech32';
+import { bech32 } from 'bech32';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
@@ -35,22 +38,14 @@ import {
   useAddressPrefixes,
   useChainApis,
   useChainsStore,
-  useDenoms,
   useSelectedNetwork,
 } from '../store';
 import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
 import { Token } from '../types/bank';
-import {
-  convertScientificNotation,
-  getMetaDataForIbcTx,
-  getMetaDataForSendTx,
-  getSeiEvmInfo,
-  SeiEvmInfoEnum,
-  sliceAddress,
-} from '../utils';
-import { useChainInfo, useIsCW20Token } from '../utils-hooks';
+import { convertScientificNotation, getMetaDataForIbcTx, getMetaDataForSendTx, sliceAddress } from '../utils';
+import { useChainId, useChainInfo } from '../utils-hooks';
 
 type _TokenDenom = {
   ibcDenom?: string;
@@ -71,6 +66,7 @@ export type SendTokenEthParamOptions = {
   isERC20Token?: boolean;
   contractAddress?: string;
   decimals?: number;
+  nativeTokenKey?: string;
 };
 
 export type sendTokensReturnType =
@@ -105,10 +101,14 @@ const getSourceChannelIdUnsafe = async (srcChain: string, destChain: string): Pr
   }
 };
 
-export const useSimpleSend = (forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') => {
+export const useSimpleSend = (
+  denoms: DenomsRecord,
+  isCW20Token: (token: Token) => boolean,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+) => {
   const [showLedgerPopup, setShowLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
-  const denoms = useDenoms();
   const { activeWallet } = useActiveWalletStore();
 
   const _activeChain = useActiveChain();
@@ -121,11 +121,11 @@ export const useSimpleSend = (forceChain?: SupportedChain, forceNetwork?: 'mainn
   const getScrtTxHandler = useScrtTxHandler();
   const getCW20TxClient = useCWTxHandler(activeChain, selectedNetwork);
 
-  const isCW20Token = useIsCW20Token();
   const addressPrefixes = useAddressPrefixes();
   const validateIbcChannelId = useValidateIbcChannelId();
   const { chains } = useChainsStore();
   const { evmJsonRpc } = useChainApis(activeChain, selectedNetwork);
+  const evmChainId = useChainId(activeChain, selectedNetwork, true);
 
   const sendCW20 = useCallback(
     async ({
@@ -299,7 +299,7 @@ export const useSimpleSend = (forceChain?: SupportedChain, forceNetwork?: 'mainn
             txType: CosmosTxType.Send,
             metadata: getMetaDataForSendTx(
               toAddress,
-              coin(_amount.amount().toString(), selectedDenom.coinMinimalDenom),
+              coin(toSmall(_amount.amount.toString(), _amount.decimals), selectedDenom.coinMinimalDenom),
             ),
             feeDenomination: fees.amount[0].denom,
             feeQuantity: fees.amount[0].amount,
@@ -328,16 +328,14 @@ export const useSimpleSend = (forceChain?: SupportedChain, forceNetwork?: 'mainn
     ) => {
       try {
         setIsSending(true);
-        const chainId = (await getSeiEvmInfo({
-          activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
-          activeNetwork: selectedNetwork,
-          infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
-        })) as number;
+        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', Number(evmChainId));
 
-        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', chainId);
         let result = { hash: '' };
-        let denom = 'usei';
+        let denom = options?.nativeTokenKey ?? Object.keys(chainInfo.nativeDenoms)[0];
         let weiValue = parseEther(value);
+        if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
+          setShowLedgerPopup(true);
+        }
 
         if (!options?.isERC20Token) {
           result = await seiEvmTx.sendTransaction(fromAddress, toAddress, value, gas, gasPrice);
@@ -355,7 +353,7 @@ export const useSimpleSend = (forceChain?: SupportedChain, forceNetwork?: 'mainn
           );
         }
 
-        const denomInfo = denoms[denom];
+        const denomInfo = denoms[denom] ?? DefaultDenoms[denom as SupportedDenoms] ?? chainInfo?.nativeDenoms?.[denom];
         const pendingTx: PendingTx = {
           txHash: result.hash,
           img: chainInfo.chainSymbolImageUrl,

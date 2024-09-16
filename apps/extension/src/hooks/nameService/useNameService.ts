@@ -45,4 +45,6 @@ export const nameServices: Record<string, string> = {
   archIds: 'Arch ID',
   spaceIds: 'Space ID',
   sns: 'SNS',
+  degeNS: 'DegeNS',
+  bdd: 'BDD',
 }

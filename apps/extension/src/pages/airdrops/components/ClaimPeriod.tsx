@@ -1,3 +1,4 @@
+import { CalendarBlank } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { format } from 'date-fns'
 import React from 'react'
@@ -16,12 +17,7 @@ export default function ClaimPeriod({
   return (
     <div className='flex flex-col gap-2 mb-6'>
       <Text size='md' className='font-bold gap-2'>
-        <div
-          className='material-icons-round text-black-100 dark:text-white-100'
-          style={{ fontSize: 20 }}
-        >
-          calendar_today
-        </div>
+        <CalendarBlank size={20} className='text-black-100 dark:text-white-100' />
         Claim period
       </Text>
       <div>

@@ -3,13 +3,12 @@ import { createWasmAminoConverters } from '@cosmjs/cosmwasm-stargate'
 import { fromBase64 } from '@cosmjs/encoding'
 import { Int53 } from '@cosmjs/math'
 import { makeAuthInfoBytes, Registry, type TxBodyEncodeObject } from '@cosmjs/proto-signing'
+import { AminoTypes, defaultRegistryTypes, StdFee } from '@cosmjs/stargate'
 import {
-  AminoTypes,
   createDefaultAminoConverters,
-  defaultRegistryTypes,
-  StdFee,
-} from '@cosmjs/stargate'
-import { fetchAccountDetails, LeapLedgerSigner } from '@leapwallet/cosmos-wallet-sdk'
+  fetchAccountDetails,
+  LeapLedgerSigner,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing'
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx'
@@ -24,13 +23,14 @@ export async function handleCosmosTx(
   messageChain: SourceChain,
   wallet: LeapLedgerSigner,
   senderAddress: string,
+  memo = '',
 ) {
   let txRaw
   let txBytesString
   const accountDetails = await fetchAccountDetails(messageChain.restUrl, senderAddress)
   const walletAccounts = await wallet.getAccounts()
   const aminoTypes = new AminoTypes({
-    ...createDefaultAminoConverters(),
+    ...createDefaultAminoConverters('cosmos'),
     ...createWasmAminoConverters(),
   })
 
@@ -43,7 +43,7 @@ export async function handleCosmosTx(
     msgs,
     fee,
     String(messageChain.chainId),
-    '',
+    memo,
     accountDetails.accountNumber,
     accountDetails.sequence,
   )
@@ -71,7 +71,7 @@ export async function handleCosmosTx(
     const signedGasLimit = Int53.fromString(signedAminoDoc.signed.fee.gas).toNumber()
     const signedSequence = Int53.fromString(signedAminoDoc.signed.sequence).toNumber()
 
-    const signMode = SignMode.SIGN_MODE_LEGACY_AMINO_JSON
+    const signMode: SignMode = SignMode.SIGN_MODE_LEGACY_AMINO_JSON
 
     const pubkey = getPublicKey({
       chainId: String(messageChain.chainId),

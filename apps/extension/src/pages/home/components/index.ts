@@ -1,6 +1,5 @@
 export * from './AggregatedCopyAddressSheet'
 export * from './AggregatedHome'
-export * from './AggregatedHomeNullComponents'
 export * from './AggregatedTokenCard'
 export * from './AssetCard'
 export * from './ChainCard'

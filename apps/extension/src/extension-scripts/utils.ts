@@ -5,21 +5,19 @@ import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types
 import { chainIdToChain, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
+import { COMPASS_CHAINS } from 'config/config'
+import { LEAPBOARD_URL, LEAPBOARD_URL_OLD } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
-import { ACTIVE_WALLET_ID, BETA_CHAINS } from 'config/storage-keys'
+import { ACTIVE_WALLET_ID, BETA_CHAINS, BG_RESPONSE } from 'config/storage-keys'
 import CryptoJs from 'crypto-js'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import { getStorageAdapter } from 'utils/storageAdapter'
-import browser from 'webextension-polyfill'
+import browser, { Storage } from 'webextension-polyfill'
 
 import { ACTIVE_WALLET, CONNECTIONS } from '../config/storage-keys'
 
 const POPUP_WIDTH = 400
 const POPUP_HEIGHT = 600
-
-browser.tabs.onRemoved.addListener(() => {
-  //
-})
 
 export async function getExperimentalChains(): Promise<Record<string, ChainInfo> | undefined> {
   const resp = await browser.storage.local.get([BETA_CHAINS])
@@ -72,7 +70,7 @@ export async function checkChainConnections(
   msg: any,
   activeWalletId: string,
 ) {
-  const isLeapBoardOrigin = 'https://cosmos.leapwallet.io' === msg.origin
+  const isLeapBoardOrigin = msg.origin === LEAPBOARD_URL || msg.origin === LEAPBOARD_URL_OLD
   let isNewChainPresent = !activeWalletId
 
   if (activeWalletId) {
@@ -122,7 +120,7 @@ export async function checkConnection(chainIds: string[], msg: any) {
 const popupIds: Record<string, number> = {}
 const pendingPromises: Record<string, Promise<browser.Windows.Window>> = {}
 
-type Page =
+export type Page =
   | 'approveConnection'
   | 'suggestChain'
   | 'sign'
@@ -131,6 +129,7 @@ type Page =
   | 'login'
   | 'suggest-erc-20'
   | 'switch-ethereum-chain'
+  | 'suggest-ethereum-chain'
 
 async function getPopup() {
   if (popupIds.length === 0) {
@@ -150,72 +149,109 @@ function getPopupInWindows(windows: browser.Windows.Window[] | undefined) {
 }
 
 export async function openPopup(page: Page, queryString?: string) {
-  let url = `index.html#/`
-  if (page !== 'login') {
-    url = url + page
+  let response
+  try {
+    response = (await chrome.runtime.sendMessage({ type: 'side-panel-status' })) as any
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
   }
 
-  if (queryString) {
-    url = url + queryString
-  }
-
-  const popup = {
-    width: POPUP_WIDTH,
-    height: POPUP_HEIGHT,
-    type: 'popup' as const,
-    left: 0,
-    top: 0,
-    url,
-  }
-
-  if (popupIds[url] || !!pendingPromises[url]) {
+  const isSidePanelEnabled =
+    response?.type === 'side-panel-status' && response?.message?.enabled === true
+  if (isSidePanelEnabled) {
     try {
-      let popupId = popupIds[url]
-      if (!popupId) {
-        const popup = await pendingPromises[url]
-        if (popup.id) {
-          popupId = popup.id
-        }
+      let url = '/'
+      if (page !== 'login') {
+        url = url + page
       }
 
-      const existingPopup = await browser.windows.get(popupId, { populate: true })
+      if (queryString) {
+        url = url + queryString
+      }
+      await chrome.runtime.sendMessage({
+        type: 'side-panel-update',
+        message: {
+          url,
+        },
+      })
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(e)
+    }
+  } else {
+    let url = `index.html#/`
+    if (page !== 'login') {
+      url = url + page
+    }
+    if (queryString) {
+      url = url + queryString
+    }
+    const popup = {
+      width: POPUP_WIDTH,
+      height: POPUP_HEIGHT,
+      type: 'popup' as const,
+      left: 0,
+      top: 0,
+      url,
+    }
 
-      if (existingPopup.tabs?.length) {
-        const [tab] = existingPopup.tabs
-        if (tab?.id) {
-          await browser.tabs.update(tab.id, { active: true, url: url })
+    if (popupIds[url] || !!pendingPromises[url]) {
+      try {
+        let popupId = popupIds[url]
+        if (!popupId) {
+          const popup = await pendingPromises[url]
+          if (popup.id) {
+            popupId = popup.id
+          }
+        }
+
+        if (process.env.APP?.includes('compass') && popupId) {
+          throw new Error('Requests exceeded')
+        }
+
+        const existingPopup = await browser.windows.get(popupId, { populate: true })
+
+        if (existingPopup.tabs?.length) {
+          const [tab] = existingPopup.tabs
+          if (tab?.id) {
+            await browser.tabs.update(tab.id, { active: true, url: url })
+          } else {
+            throw new Error('No tabs')
+          }
         } else {
           throw new Error('No tabs')
         }
-      } else {
-        throw new Error('No tabs')
-      }
-    } catch (e: any) {
-      try {
-        if (e.message.includes(`No tab with id`)) {
-          const promise = browser.windows.create(popup)
-          pendingPromises[url] = promise
-
-          const window = await promise
-          if (window.id) {
-            popupIds[url] = window.id
-          }
+      } catch (e: any) {
+        if (e.message.includes('Requests exceeded')) {
+          throw e
         }
+        try {
+          if (e.message.includes(`No tab with id`)) {
+            const promise = browser.windows.create(popup)
+            pendingPromises[url] = promise
+
+            const window = await promise
+            if (window.id) {
+              popupIds[url] = window.id
+            }
+          }
+        } finally {
+          delete pendingPromises[url]
+        }
+      }
+    } else {
+      try {
+        const promise = browser.windows.create(popup)
+        pendingPromises[url] = promise
+        const window = await promise
+        if (window.id) {
+          popupIds[url] = window.id
+        }
+        return window
       } finally {
         delete pendingPromises[url]
       }
-    }
-  } else {
-    try {
-      const promise = browser.windows.create(popup)
-      pendingPromises[url] = promise
-      const window = await promise
-      if (window.id) {
-        popupIds[url] = window.id
-      }
-      return window
-    } finally {
-      delete pendingPromises[url]
     }
   }
 }
@@ -251,13 +287,32 @@ export async function disconnect(msg: { chainId: string; origin: string }) {
 
 export async function getSupportedChains(): Promise<Record<SupportedChain, ChainInfo>> {
   const ChainInfos = await getChains()
+
+  let allChains = ChainInfos
   try {
     const resp = await browser.storage.local.get([BETA_CHAINS])
     const betaChains = resp[BETA_CHAINS]
-    return { ...ChainInfos, ...JSON.parse(betaChains ?? '{}') }
-  } catch (e) {
-    return ChainInfos
+    allChains = { ...ChainInfos, ...JSON.parse(betaChains ?? '{}') }
+  } catch (_) {
+    //
   }
+
+  const supportedChains: Record<SupportedChain, ChainInfo> = Object.entries(allChains).reduce(
+    function (_supportedChains, [currentChainKey, currentChainValue]) {
+      if (process.env.APP?.includes('compass')) {
+        if (COMPASS_CHAINS.includes(currentChainKey)) {
+          return { ..._supportedChains, [currentChainKey]: currentChainValue }
+        } else {
+          return _supportedChains
+        }
+      }
+
+      return { ..._supportedChains, [currentChainKey]: currentChainValue }
+    },
+    {} as Record<SupportedChain, ChainInfo>,
+  )
+
+  return supportedChains
 }
 
 export async function getWalletAddress(chainId: string) {
@@ -336,6 +391,7 @@ export function requestEnableAccess(payload: {
   payloadId: string
   ecosystem?: LineType
   ethMethod?: string
+  isLeap?: boolean
 }) {
   // Store the listener function in a variable so we can remove it later
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -393,9 +449,6 @@ export async function awaitApproveChainResponse(payloadId: string) {
         reject('failed')
         browser.runtime.onMessage.removeListener(listener)
       }
-      // if (ApprovalMessageTypes.includes(message.type)) {
-      //   browser.runtime.onMessage.removeListener(listener)
-      // }
     }
     browser.runtime.onMessage.addListener(listener)
   })
@@ -428,5 +481,23 @@ export async function awaitSigningResponse(messageType: string) {
     }
 
     browser.runtime.onMessage.addListener(listener)
+  })
+}
+
+export function awaitEnableChainResponse(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const enableChainListener = (changes: Record<string, Storage.StorageChange>) => {
+      const { newValue } = changes[BG_RESPONSE] || {}
+      if (newValue) {
+        if (newValue.error) {
+          reject(newValue)
+        } else {
+          resolve(newValue)
+        }
+        resolve({})
+        browser.storage.onChanged.removeListener(enableChainListener)
+      }
+    }
+    browser.storage.onChanged.addListener(enableChainListener)
   })
 }

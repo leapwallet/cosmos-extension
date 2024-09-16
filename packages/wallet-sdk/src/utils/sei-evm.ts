@@ -8,6 +8,7 @@ import { hashPersonalMessage, isHexString, stripHexPrefix, toBuffer, toRpcSig } 
 import { Contract, ethers } from 'ethers';
 
 import { abiERC20, abiERC721, abiERC1155 } from '../constants';
+import { LeapLedgerSignerEth } from '../ledger';
 
 const erc20Interface = new Interface(abiERC20);
 const erc721Interface = new Interface(abiERC721);
@@ -78,10 +79,16 @@ export function encodedUtf8HexToText(hexValue: string) {
   }
 }
 
-export function personalSign(data: string, signerAddress: string, wallet: EthWallet) {
-  const message = isHexString(data) ? toBuffer(data) : Buffer.from(data);
-  const msgHash = hashPersonalMessage(message);
-  const signature = wallet.sign(signerAddress, msgHash);
+export async function personalSign(data: string, signerAddress: string, wallet: EthWallet | LeapLedgerSignerEth) {
+  let signature: ethers.Signature;
+
+  if (wallet instanceof LeapLedgerSignerEth) {
+    signature = (await wallet.signPersonalMessage(signerAddress, data)) as unknown as ethers.Signature;
+  } else {
+    const message = isHexString(data) ? toBuffer(data) : Buffer.from(data);
+    const msgHash = hashPersonalMessage(message);
+    signature = wallet.sign(signerAddress, msgHash);
+  }
 
   const rpcSigArgs = {
     v: signature.v,
@@ -92,9 +99,15 @@ export function personalSign(data: string, signerAddress: string, wallet: EthWal
   return rpcSignature;
 }
 
-export function signTypedData(data: any, signerAddress: string, wallet: EthWallet) {
-  const messageHash = TypedDataUtils.eip712Hash(data, SignTypedDataVersion.V4);
-  const signature = wallet.sign(signerAddress, messageHash);
+export async function signTypedData(data: any, signerAddress: string, wallet: EthWallet | LeapLedgerSignerEth) {
+  let signature: ethers.Signature;
+
+  if (wallet instanceof LeapLedgerSignerEth) {
+    signature = (await wallet.signEip712(signerAddress, data)) as unknown as ethers.Signature;
+  } else {
+    const messageHash = TypedDataUtils.eip712Hash(data, SignTypedDataVersion.V4);
+    signature = wallet.sign(signerAddress, messageHash);
+  }
 
   const rpcSigArgs = {
     v: signature.v,

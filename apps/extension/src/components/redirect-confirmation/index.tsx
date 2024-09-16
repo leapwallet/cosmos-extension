@@ -1,3 +1,4 @@
+import { Warning } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import React, { Dispatch, SetStateAction } from 'react'
 
@@ -12,9 +13,7 @@ const RedirectionConfirmation = ({ url, setUrl, onClose }: RedirectionConfirmati
   return (
     <div className='flex flex-col w-full justify-start items-center gap-6'>
       <div className='w-12 h-12 bg-red-300 rounded-full flex flex-row justify-center items-center gap-0'>
-        <span className='text-white-100 material-icons-round !leading-[24px] !text-xl'>
-          warning
-        </span>
+        <Warning size={24} className='text-white-100 !leading-[24px]' />
       </div>
       <div className='flex flex-col w-full justify-start items-center gap-[12px]'>
         <div className='dark:text-gray-200 text-gray-800 text-sm !leading-[22.4px] font-medium text-center'>

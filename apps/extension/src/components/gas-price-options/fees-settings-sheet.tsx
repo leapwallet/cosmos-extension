@@ -2,6 +2,8 @@ import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { useChainPageInfo } from 'hooks'
 import React from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import GasPriceOptions from './index'
@@ -38,7 +40,12 @@ export const FeesSettingsSheet: React.FC<FeesSettingsSheetProps> = ({
         <div className='flex justify-end w-full mt-4'>
           <GasPriceOptions.AdditionalSettingsToggle />
         </div>
-        <GasPriceOptions.AdditionalSettings className='mt-4' showGasLimitWarning={true} />
+        <GasPriceOptions.AdditionalSettings
+          className='mt-4'
+          showGasLimitWarning={true}
+          rootDenomsStore={rootDenomsStore}
+          rootBalanceStore={rootBalanceStore}
+        />
         {gasError ? (
           <p className='text-red-300 text-sm font-medium mt-3 px-1 text-center'>{gasError}</p>
         ) : null}

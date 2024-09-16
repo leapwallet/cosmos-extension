@@ -1,3 +1,4 @@
+import { ArrowSquareOut } from '@phosphor-icons/react'
 import React from 'react'
 
 export function TokenTitle({
@@ -15,9 +16,9 @@ export function TokenTitle({
       {showRedirection && (
         <button
           onClick={handleRedirectionClick}
-          className='!text-md dark:text-gray-400 !leading-4 flex items-center material-icons-round'
+          className='!text-md dark:text-gray-400 !leading-4 flex items-center'
         >
-          open_in_new
+          <ArrowSquareOut size={16} />
         </button>
       )}
     </div>

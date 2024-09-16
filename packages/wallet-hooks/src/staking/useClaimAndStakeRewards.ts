@@ -3,9 +3,11 @@ import { calculateFee, Coin, GasPrice, StdFee } from '@cosmjs/stargate';
 import {
   ChainInfo,
   DefaultGasEstimates,
+  DenomsRecord,
   feeDenoms,
   fromSmall,
   getSimulationFee,
+  LedgerError,
   NativeDenom,
   simulateTx,
   SupportedChain,
@@ -22,24 +24,25 @@ import { useGasAdjustmentForChain } from '../fees';
 import { useformatCurrency } from '../settings';
 import {
   useActiveChain,
+  useActiveWalletStore,
   useAddress,
   useChainApis,
   useDefaultGasEstimates,
-  useDenoms,
+  // useDenoms,
   useGasPriceSteps,
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
-  useStakeClaimRewards,
   useTxMetadata,
 } from '../store';
 import { useTxHandler } from '../tx';
-import { Amount } from '../types';
+import { Amount, WALLETTYPE } from '../types';
 import {
   formatTokenAmount,
   GasOptions,
   getChainId,
   getTxnLogAmountValue,
+  SelectedNetwork,
   useGasRateQuery,
   useNativeFeeDenom,
 } from '../utils';
@@ -84,39 +87,52 @@ export async function simulateClaimAndStake(
 }
 
 export function useClaimAndStakeRewards(
+  denoms: DenomsRecord,
   delegations: Record<string, Delegation> | undefined,
   chainRewards: ChainRewards,
+  refetchDelegatorRewards: () => Promise<void>,
   setError: Dispatch<SetStateAction<string>>,
   forceChain?: SupportedChain,
   forceAddress?: string,
+  forceNetwork?: SelectedNetwork,
 ) {
-  const denoms = useDenoms();
   const txMetadata = useTxMetadata();
-  const userAddress = useAddress();
-  const address = forceAddress ?? userAddress;
-  const activeChain = useActiveChain();
-  const chain = forceChain ?? activeChain;
+  const _userAddress = useAddress();
+  const userAddress = useMemo(() => forceAddress || _userAddress, [forceAddress, _userAddress]);
+
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
+
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetWork = useMemo(() => forceNetwork || _selectedNetwork, [forceNetwork, _selectedNetwork]);
+
   const chainInfos = useGetChains();
   const defaultGasEstimates = useDefaultGasEstimates();
   const gasPriceSteps = useGasPriceSteps();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-  const getTxHandler = useTxHandler();
-  const { lcdUrl } = useChainApis(chain as SupportedChain);
+  const getTxHandler = useTxHandler({
+    forceChain: activeChain,
+    forceNetwork: selectedNetWork,
+  });
+
+  const { lcdUrl } = useChainApis(activeChain, selectedNetWork);
   const { setPendingTx } = usePendingTxState();
-  const selectedNetwork = useSelectedNetwork();
-  const { refetchDelegatorRewards } = useStakeClaimRewards();
   const [formatCurrency] = useformatCurrency();
 
   const [loading, setLoading] = useState<boolean>(false);
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
-  const nativeFeeDenom = useNativeFeeDenom();
-  const gasAdjustment = useGasAdjustmentForChain();
-  const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
+  const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetWork);
+  const gasAdjustment = useGasAdjustmentForChain(activeChain);
+  const gasPrices = useGasRateQuery(denoms, activeChain, selectedNetWork);
+  const { activeWallet } = useActiveWalletStore();
 
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
   const [feeDenom, setFeeDenom] = useState<NativeDenom>(nativeFeeDenom);
-  const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
+  const [memo, setMemo] = useState<string>('');
+  const [gasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
   const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
+  const [ledgerError, setLedgerErrorMsg] = useState<string>();
+  const [showLedgerPopup, setShowLedgerPopup] = useState(false);
   const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
     return defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE.toString() ?? DefaultGasEstimates?.DEFAULT_GAS_STAKE;
   });
@@ -130,7 +146,7 @@ export function useClaimAndStakeRewards(
   }, [userPreferredGasLimit, recommendedGasLimit, userPreferredGasPrice, gasPriceOptions, gasOption, gasAdjustment]);
 
   const { validatorsWithRewards, totalRewardsToBeClaimedAndStaked } = useMemo(() => {
-    const nativeDenom = getNativeDenom(chainInfos, chain as SupportedChain, 'mainnet');
+    const nativeDenom = getNativeDenom(chainInfos, activeChain, selectedNetWork);
 
     const _validatorsWithRewards: {
       validator: string;
@@ -161,12 +177,17 @@ export function useClaimAndStakeRewards(
       validatorsWithRewards: _validatorsWithRewards,
       totalRewardsToBeClaimedAndStaked: _totalRewardsToBeClaimedAndStaked,
     };
-  }, [chain, chainRewards.rewards.rewardMap]);
+  }, [activeChain, selectedNetWork, chainRewards.rewards.rewardMap]);
+
+  const setLedgerError = useCallback((error?: string) => {
+    setLedgerErrorMsg(error);
+    setShowLedgerPopup(false);
+  }, []);
 
   const claimAndStakeRewards = useCallback(
-    async (wallet: OfflineSigner, callbacks?: { success?: () => void; error?: () => void }) => {
+    async (wallet: OfflineSigner, callbacks?: { success?: () => void }) => {
       try {
-        if (!address) {
+        if (!userAddress) {
           return;
         }
         if (delegations) {
@@ -181,15 +202,15 @@ export function useClaimAndStakeRewards(
           }
 
           const txHandler = await getTxHandler(wallet);
-
-          const defaultGasStake = defaultGasEstimates[chain as SupportedChain]?.DEFAULT_GAS_STAKE;
+          const isLedgerWallet = activeWallet?.walletType === WALLETTYPE.LEDGER;
+          const defaultGasStake = defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE;
 
           let gasEstimate = defaultGasStake;
           try {
-            const feeDenom = getNativeDenom(chainInfos, chain, selectedNetwork);
+            const feeDenom = getNativeDenom(chainInfos, activeChain, selectedNetWork);
             const fee = getSimulationFee(feeDenom?.coinMinimalDenom);
             try {
-              const { gasUsed } = await simulateClaimAndStake(lcdUrl ?? '', address, validatorsWithRewards, fee);
+              const { gasUsed } = await simulateClaimAndStake(lcdUrl ?? '', userAddress, validatorsWithRewards, fee);
               gasEstimate = gasUsed;
             } catch (e) {
               //
@@ -201,8 +222,8 @@ export function useClaimAndStakeRewards(
               throw e.message;
             }
           }
-          const gasPriceStep = gasPriceSteps[chain as SupportedChain].low.toString();
-          const denom = feeDenoms['mainnet'][chain as SupportedChain]; // fee denom for given chain
+          const gasPriceStep = gasPriceSteps[activeChain].low.toString();
+          const denom = feeDenoms[selectedNetWork][activeChain]; // fee denom for given chain
           const gasPrice = GasPrice.fromString(`${gasPriceStep + denom.coinMinimalDenom}`);
           let fee: StdFee;
           if (customFee !== undefined) {
@@ -211,8 +232,14 @@ export function useClaimAndStakeRewards(
             fee = calculateFee(Math.round((gasEstimate ?? defaultGasStake) * 1.5), gasPrice);
           }
 
+          setLedgerError(undefined);
+
+          if (isLedgerWallet) {
+            setShowLedgerPopup(true);
+          }
+
           txHandler
-            .claimAndStake(address, validatorsWithRewards, fee)
+            .claimAndStake(userAddress, validatorsWithRewards, fee, memo)
             .then(async (txHash: any) => {
               const txResult = txHandler.pollForTx(txHash);
               const metadata = {
@@ -228,8 +255,9 @@ export function useClaimAndStakeRewards(
                 coinGeckoId: denoms?.[denom.coinMinimalDenom]?.coinGeckoId,
                 chain: denoms?.[denom.coinMinimalDenom]?.chain as SupportedChain,
                 coinMinimalDenom: denom.coinMinimalDenom,
-                chainId: getChainId(denomChainInfo, selectedNetwork),
+                chainId: getChainId(denomChainInfo, selectedNetWork),
               });
+
               await txPostToDB({
                 txHash,
                 txType: CosmosTxType.StakeClaimAndDelegate,
@@ -237,9 +265,13 @@ export function useClaimAndStakeRewards(
                 feeDenomination: fee.amount[0].denom,
                 amount: txnLogAmountValue,
                 feeQuantity: fee.amount[0].amount,
+                forceChain: activeChain,
+                forceNetwork: selectedNetWork,
+                forceWalletAddress: userAddress,
               });
+
               setPendingTx({
-                img: chainInfos[chain as SupportedChain].chainSymbolImageUrl,
+                img: chainInfos[activeChain].chainSymbolImageUrl,
                 sentAmount: formatTokenAmount(chainRewards.rewardsDenomValue.toString(), '', 4),
                 sentTokenInfo: denom,
                 sentUsdValue: formatCurrency(chainRewards.rewardsUsdValue),
@@ -249,7 +281,12 @@ export function useClaimAndStakeRewards(
                 txType: 'delegate',
                 promise: txResult,
                 txHash,
+                sourceChain: activeChain,
+                sourceNetwork: selectedNetWork,
               });
+              if (showLedgerPopup) {
+                setShowLedgerPopup(false);
+              }
               setLoading(false);
               refetchDelegatorRewards();
               callbacks?.success?.();
@@ -257,9 +294,6 @@ export function useClaimAndStakeRewards(
             })
             .catch((e: any) => {
               setLoading(false);
-              if (callbacks?.error) {
-                callbacks?.error?.();
-              }
               if (typeof e === 'string') {
                 setError(e);
               } else if (e instanceof Error) {
@@ -269,21 +303,22 @@ export function useClaimAndStakeRewards(
             });
         }
       } catch (e) {
-        setLoading(false);
-        if (callbacks?.error) {
-          callbacks?.error?.();
-        }
-        if (typeof e === 'string') {
+        if (e instanceof LedgerError) {
+          setLedgerError(e.message.toString());
+        } else if (typeof e === 'string') {
           setError(e);
         } else if (e instanceof Error) {
           setError(e.message);
         }
         setTimeout(() => setError(''), 3000);
+      } finally {
+        setLoading(false);
+        setShowLedgerPopup(false);
       }
     },
     [
-      address,
-      chain,
+      userAddress,
+      activeChain,
       chainRewards.rewardsUsdValue,
       defaultGasEstimates,
       customFee,
@@ -292,19 +327,20 @@ export function useClaimAndStakeRewards(
       getTxHandler,
       lcdUrl,
       refetchDelegatorRewards,
-      selectedNetwork,
+      selectedNetWork,
       setError,
       setPendingTx,
       totalRewardsToBeClaimedAndStaked,
       txMetadata,
       txPostToDB,
       validatorsWithRewards,
+      memo,
     ],
   );
 
   const { rewardsToBeDelegated, rewardsToBeDelegatedFormatted } = useMemo(() => {
-    const nativeDenom = Object.values(chainInfos[chain].nativeDenoms).find(
-      (d) => d.coinDenom === chainInfos[chain].denom,
+    const nativeDenom = Object.values(chainInfos[activeChain].nativeDenoms).find(
+      (d) => d.coinDenom === chainInfos[activeChain].denom,
     );
 
     const amount = fromSmall(String(totalRewardsToBeClaimedAndStaked), nativeDenom?.coinDecimals ?? 6);
@@ -312,24 +348,27 @@ export function useClaimAndStakeRewards(
       rewardsToBeDelegated: amount,
       rewardsToBeDelegatedFormatted: formatTokenAmount(amount, nativeDenom?.coinDenom),
     };
-  }, [chain, totalRewardsToBeClaimedAndStaked]);
+  }, [activeChain, totalRewardsToBeClaimedAndStaked]);
 
   useEffect(() => {
     (async function () {
-      if (!address) {
+      if (!userAddress) {
+        return;
+      }
+      if (!validatorsWithRewards.length) {
         return;
       }
       const defaultGasStake =
-        defaultGasEstimates[chain as SupportedChain]?.DEFAULT_GAS_STAKE ?? DefaultGasEstimates?.DEFAULT_GAS_STAKE;
+        defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE ?? DefaultGasEstimates?.DEFAULT_GAS_STAKE;
       let gasEstimate = defaultGasStake;
-      const feeDenom = getNativeDenom(chainInfos, chain, selectedNetwork);
+      const feeDenom = getNativeDenom(chainInfos, activeChain, selectedNetWork);
       const fee = getSimulationFee(feeDenom?.coinMinimalDenom);
-      const { gasUsed } = await simulateClaimAndStake(lcdUrl ?? '', address, validatorsWithRewards, fee);
+      const { gasUsed } = await simulateClaimAndStake(lcdUrl ?? '', userAddress, validatorsWithRewards, fee);
       gasEstimate = gasUsed;
       setRecommendedGasLimit(gasEstimate.toString());
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalRewardsToBeClaimedAndStaked]);
+  }, [validatorsWithRewards]);
 
   return {
     claimAndStakeRewards,
@@ -339,9 +378,15 @@ export function useClaimAndStakeRewards(
     recommendedGasLimit,
     userPreferredGasLimit,
     setUserPreferredGasLimit,
+    setUserPreferredGasPrice,
     userPreferredGasPrice,
     gasOption,
     setGasOption,
     setFeeDenom,
+    memo,
+    setMemo,
+    showLedgerPopup,
+    setLedgerError,
+    ledgerError,
   };
 }

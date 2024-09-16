@@ -1,4 +1,5 @@
 import { useChains, useDenomData } from '@leapwallet/elements-hooks'
+import { LightbulbFilament } from '@phosphor-icons/react'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React from 'react'
 import Skeleton from 'react-loading-skeleton'
@@ -47,9 +48,7 @@ export default function SwapActionFailedSection({ transferAssetRelease }: Props)
         </span>
       </div>
       <div className='flex w-full flex-row justify-start p-2 items-start gap-2 rounded-xl dark:bg-gray-900 bg-gray-50'>
-        <span className='text-black-100 dark:text-white-100 text-sm !leading-[16px] material-icons-round'>
-          emoji_objects
-        </span>
+        <LightbulbFilament size={14} className='text-black-100 dark:text-white-100' />
         <span className='text-xs font-medium dark:text-gray-200 text:gray-800 !leading-[19.6px]'>
           Try the transaction with a higher slippage value
         </span>

@@ -17,7 +17,7 @@ type SelectTokenSheetProps = {
 }
 
 export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
-  ({ assets, selectedToken, isOpen, onClose, onTokenSelect }) => {
+  ({ assets, selectedToken, isOpen, onClose, onTokenSelect }: SelectTokenSheetProps) => {
     const activeChain = useActiveChain()
     const [searchQuery, setSearchQuery] = useState('')
     const input = useMemo(() => searchQuery.trim(), [searchQuery])
@@ -66,7 +66,9 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
                 }
 
                 return (
-                  <React.Fragment key={`${asset.symbol}-${index}`}>
+                  <React.Fragment
+                    key={`${asset.symbol}-${asset?.coinMinimalDenom}-${asset?.ibcDenom}-${asset?.amount}-${index}`}
+                  >
                     <div className='relative' onClick={() => handleSelectToken(asset)}>
                       <TokenCard
                         title={asset.symbol}
@@ -96,3 +98,5 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
     )
   },
 )
+
+SelectTokenModal.displayName = 'SelectTokenModal'

@@ -21,6 +21,7 @@ export const REMOVED_CHAINS_FROM_ONBOARDING = [
   'iov-mainnet-ibc',
   'odin-mainnet-freya',
   'gravity-bridge-3',
+  '1',
 ]
 export const ETHERMINT_CHAINS = [
   'evmos_9001-2',
@@ -30,6 +31,9 @@ export const ETHERMINT_CHAINS = [
   'dimension_37-1',
   'planq_7070-2',
 ]
+
+export const LEAPBOARD_URL = 'https://app.leapwallet.io'
+export const LEAPBOARD_URL_OLD = 'https://cosmos.leapwallet.io'
 
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']
 export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'seiDevnet', 'seiTestnet2', 'humans']

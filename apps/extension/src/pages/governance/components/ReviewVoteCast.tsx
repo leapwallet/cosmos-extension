@@ -6,6 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Memo } from '@leapwallet/leap-ui'
+import { ThumbsUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { ErrorCard } from 'components/ErrorCard'
@@ -68,10 +69,10 @@ export function ReviewVoteCast({
       title='Review Transaction'
       className='!p-0'
     >
-      <div className='flex flex-col items-center w-[400px] gap-y-[16px] mt-[28px] mb-[40px]'>
-        <div className={classNames('flex p-4 w-[344px] bg-gray-50 dark:bg-gray-900 rounded-2xl')}>
+      <div className='flex flex-col items-center w-[400px] gap-y-[16px] mt-[28px] mb-[40px] px-7'>
+        <div className={classNames('flex p-4 w-full bg-gray-50 dark:bg-gray-900 rounded-2xl')}>
           <div className='h-10 w-10 bg-green-300 rounded-full flex items-center justify-center'>
-            <span className='material-icons-round text-green-700'>thumb_up</span>
+            <ThumbsUp size={16} className='text-green-700' />
           </div>
           <div className='flex flex-col justify-center items-start px-3'>
             <div className='text-xs text-gray-400 text-left'>Vote message</div>
@@ -99,7 +100,7 @@ export function ReviewVoteCast({
         <Buttons.Generic
           color={Colors.getChainColor(activeChain)}
           size='normal'
-          className='w-[344px]'
+          className='w-full'
           title='Vote'
           disabled={showLedgerPopup}
           onClick={async () => {

@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useInvestData } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
+import { CaretRight } from '@phosphor-icons/react'
 import { BigNumber } from 'bignumber.js'
 import Text from 'components/text'
+import { LEAPBOARD_URL } from 'config/constants'
 import React, { useMemo, useState } from 'react'
 
 import DefiRow from '../DefiRow/DefiRow'
@@ -40,11 +42,13 @@ function DefiList({ tokenName }: { tokenName: string }) {
 
   const sortedTokens = useMemo(() => {
     return data
-      ?.filter(
-        (a: any) =>
-          a?.productName?.trim()?.toLowerCase()?.includes(searchInput?.trim()?.toLowerCase()) ||
-          a?.tokens?.includes(searchInput?.trim()?.toUpperCase()),
-      )
+      ?.filter((a: any) => {
+        return (
+          a?.tokens
+            ?.map((t: any) => t?.toUpperCase())
+            ?.indexOf(searchInput?.trim()?.toUpperCase()) !== -1
+        )
+      })
       ?.sort((a: any, b: any) => {
         let sortOrder = -1
         switch (selectedSortBy) {
@@ -133,7 +137,7 @@ function DefiList({ tokenName }: { tokenName: string }) {
         <div className='flex pr-3 flex-row items-center justify-end mr-3 group z-0 w-full cursor-pointer transition'>
           <div
             onClick={() => {
-              window.open(`https://cosmos.leapwallet.io/explore/defi`, '_blank')
+              window.open(`${LEAPBOARD_URL}/explore/defi`, '_blank')
             }}
             className='flex flex-row items-center justify-end gap-2'
           >
@@ -144,9 +148,10 @@ function DefiList({ tokenName }: { tokenName: string }) {
               View All
             </Text>
           </div>
-          <div className='material-icons-round flex !h-[20px] !w-[20px] flex-row items-center justify-center gap-2 !text-[16px] !text-gray-500 group-hover:!text-black-100 dark:!text-gray-500 dark:group-hover:!text-white-100'>
-            {'chevron_right'}
-          </div>
+          <CaretRight
+            size={20}
+            className='!text-gray-500 group-hover:!text-black-100 dark:!text-gray-500 dark:group-hover:!text-white-100'
+          />
         </div>
       </div>
     </div>

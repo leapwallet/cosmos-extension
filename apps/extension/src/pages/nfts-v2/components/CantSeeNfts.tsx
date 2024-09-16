@@ -51,7 +51,7 @@ export function CantSeeNfts({ openAddCollectionSheet, className }: CantSeeNftsPr
   return (
     <div
       className={classNames(
-        'bg-white-100 dark:bg-gray-900 text-gray-400 w-[344px] rounded-[16px] overflow-hidden',
+        'bg-white-100 dark:bg-gray-950 text-gray-400 w-[344px] rounded-[16px] overflow-hidden',
         className,
       )}
     >
@@ -59,6 +59,7 @@ export function CantSeeNfts({ openAddCollectionSheet, className }: CantSeeNftsPr
         onClick={() => setShowDetails(!showDetails)}
         title="Can't see your NFTs?"
         isRounded={true}
+        className='bg-white-100 dark:bg-gray-950 w-full'
         icon={
           <img
             className={classNames('w-[10px] h-[10px] ml-2', {
@@ -71,7 +72,7 @@ export function CantSeeNfts({ openAddCollectionSheet, className }: CantSeeNftsPr
 
       <div
         ref={detailsRef}
-        className={classNames('bg-white-100 dark:bg-gray-900 text-[14px]', {
+        className={classNames('bg-white-100 dark:bg-gray-950 text-[14px]', {
           'px-4 pb-4': showDetails,
           'p-0 h-0': !showDetails,
         })}

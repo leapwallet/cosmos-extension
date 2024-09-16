@@ -6,11 +6,10 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Keystore, WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Buttons } from '@leapwallet/leap-ui'
-import ExtensionPage from 'components/extension-page'
-import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
 import { KEYSTORE } from 'config/storage-keys'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 import Browser from 'webextension-polyfill'
 
 import useActiveWalletExt from '../../../hooks/settings/useActiveWallet'
@@ -29,10 +28,14 @@ export function AddEvmLedger() {
   const { setActiveWallet } = useActiveWalletExt()
   const navigate = useNavigate()
 
+  const ledgerEnabledEvmChains = useMemo(() => {
+    return getLedgerEnabledEvmChainsKey(Object.values(chains))
+  }, [chains])
+
   const getEvmLedgerAccountDetails = async () => {
     if (
       chains[activeChain].bip44.coinType !== '60' ||
-      LEDGER_ENABLED_EVM_CHAINS.includes(activeChain) === false
+      ledgerEnabledEvmChains.includes(activeChain) === false
     ) {
       throw new Error(`Import Error: Ledger is not supported on ${chains[activeChain].chainName}`)
     }
@@ -45,7 +48,7 @@ export function AddEvmLedger() {
       [0, 1, 2, 3, 4],
       useEvmApp,
       activeChain,
-      LEDGER_ENABLED_EVM_CHAINS,
+      ledgerEnabledEvmChains,
       chains,
     )
 
@@ -70,7 +73,7 @@ export function AddEvmLedger() {
       const newAddresses: Record<string, string> = {}
       const newPubKeys: Record<string, string> = {}
 
-      for (const chain of LEDGER_ENABLED_EVM_CHAINS) {
+      for (const chain of ledgerEnabledEvmChains) {
         if (chainWiseAddresses[chain] && !ledgerWallet.addresses[chain]) {
           const account = chainWiseAddresses[chain][ledgerWallet.addressIndex]
           newAddresses[chain] = account.address
@@ -127,24 +130,26 @@ export function AddEvmLedger() {
     fn()
   }, [])
   return (
-    <ExtensionPage
-      titleComponent={
-        <div className='flex flex-row w-[836px] items-center justify-between align-'>
-          <Buttons.Back isFilled={true} onClick={() => navigate('/home')} />
-          <div />
-        </div>
-      }
-    >
-      <div>
-        <ImportLedgerView
-          retry={importLedger}
-          error={error}
-          onNext={importLedger}
-          onSkip={() => navigate('/home')}
-          status={ledgerConnectionStatus}
-          isEvmLedger={true}
-        />
-      </div>
-    </ExtensionPage>
+    <div>
+      <ImportLedgerView
+        retry={importLedger}
+        error={error}
+        onNext={importLedger}
+        onSkip={() => navigate('/home')}
+        status={ledgerConnectionStatus}
+        isEvmLedger={true}
+      />
+    </div>
+  )
+}
+
+export function AddEvmTitle() {
+  const navigate = useNavigate()
+
+  return (
+    <div className='flex flex-row w-[836px] items-center justify-between align-'>
+      <Buttons.Back isFilled={true} onClick={() => navigate('/home')} />
+      <div />
+    </div>
   )
 }

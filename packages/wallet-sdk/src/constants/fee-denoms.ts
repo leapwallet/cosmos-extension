@@ -94,6 +94,10 @@ export const feeDenoms: FeeDenoms = {
     saga: denoms.usaga,
     initia: denoms.uinit,
     humans: denoms.aheart,
+    lava: denoms.ulava,
+    mantra: denoms.uom,
+    ethereum: denoms.wei,
+    forma: denoms.utia,
   },
   testnet: {
     akash: denoms.uakt,
@@ -178,5 +182,9 @@ export const feeDenoms: FeeDenoms = {
     saga: denoms.usaga,
     initia: denoms.uinit,
     humans: denoms.aheart,
+    lava: denoms.ulava,
+    mantra: denoms.uom,
+    ethereum: denoms.wei,
+    forma: denoms.utia,
   },
 };

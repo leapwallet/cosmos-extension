@@ -1,4 +1,5 @@
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { Info } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { Images } from 'images'
 import React from 'react'
@@ -26,7 +27,7 @@ export default function StakeStatusCard({
     <>
       <div className={`flex flex-col gap-y-2 w-full p-4 rounded-2xl ${backgroundColor}`}>
         <div className='flex gap-x-2'>
-          <span className={`material-icons-round !text-lg ${color}`}>info</span>
+          <Info size={16} className={`${color}`} />
           <Text size='sm' className='font-bold' color='dark:text-white-100'>
             {title}
           </Text>

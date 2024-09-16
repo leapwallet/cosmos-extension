@@ -6,7 +6,7 @@ import { useSelectedNetwork } from '../store/useSelectedNetwork';
 import { getChainId } from '../utils';
 import { useChainInfo } from './use-chain-info';
 
-export function useChainId(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+export function useChainId(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet', isEvm?: boolean) {
   const _activeChain = useActiveChain();
   const activeChain = useMemo(() => forceChain ?? _activeChain, [forceChain, _activeChain]);
 
@@ -14,7 +14,8 @@ export function useChainId(forceChain?: SupportedChain, forceNetwork?: 'mainnet'
   const selectedNetwork = useMemo(() => forceNetwork ?? _selectedNetwork, [forceNetwork, _selectedNetwork]);
 
   const chainInfo = useChainInfo(activeChain);
+
   return useMemo(() => {
-    return getChainId(chainInfo, selectedNetwork);
-  }, [selectedNetwork, chainInfo]);
+    return getChainId(chainInfo, selectedNetwork, isEvm);
+  }, [selectedNetwork, chainInfo, isEvm]);
 }

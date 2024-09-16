@@ -9,7 +9,8 @@ import {
   setPlatformType,
   setStorageLayer,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { initCachingLayer } from '@leapwallet/elements-hooks'
+import { fetchIbcTraceData, setBaseURL, setIsCompass } from '@leapwallet/cosmos-wallet-store'
+import { initCachingLayer, setLeapIntegratorID } from '@leapwallet/elements-hooks'
 import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import { createSentryConfig } from '@leapwallet/sentry-config/dist/extension'
 import * as Sentry from '@sentry/react'
@@ -40,17 +41,22 @@ axios.defaults.headers.common['x-requested-with'] = 'leap-client'
 axios.defaults.timeout = 5000
 
 setLeapapiBaseUrl(process.env.LEAP_WALLET_BACKEND_API_URL as string)
+setBaseURL(process.env.LEAP_WALLET_BACKENT_API_URL as string)
 setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
+setIsCompass(isCompassWallet())
 setPlatformType(PLATFORM_TYPE.Extension)
 
 initCachingLayer(AsyncIDBStorage)
 // setAppName is for tx logging
 setAppName(isCompassWallet() ? APP_NAME.Compass : APP_NAME.Cosmos)
+setLeapIntegratorID(process.env.ELEMENTS_INTEGRATOR_ID as string)
 const storageAdapter = getStorageAdapter()
 setStorageLayer(storageAdapter)
 
 initStorage(storageAdapter)
 initCrypto()
+
+fetchIbcTraceData()
 
 //const persister = createAsyncStoragePersister({
 //  storage: {
@@ -109,6 +115,7 @@ mixpanel.init(process.env.MIXPANEL_TOKEN as string, {
   debug: process.env.NODE_ENV === 'development',
   ignore_dnt: process.env.NODE_ENV === 'development',
   batch_requests: window.location.href.includes('sign') ? false : true,
+  batch_flush_interval_ms: 1000 * 30,
 })
 
 if (process.env.NODE_ENV === 'development') {

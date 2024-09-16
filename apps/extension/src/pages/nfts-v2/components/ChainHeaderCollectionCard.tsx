@@ -1,5 +1,6 @@
-import { OwnedCollectionTokenInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { NftInfo } from '@leapwallet/cosmos-wallet-store'
+import { EyeSlash } from '@phosphor-icons/react'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useChainPageInfo } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -13,7 +14,7 @@ import { Chip, NftCard, Text, ViewAllButton } from './index'
 
 type ChainHeaderCollectionCardProps = {
   chain: SupportedChain
-  nfts: OwnedCollectionTokenInfo[]
+  nfts: NftInfo[]
   nftsCount: number
   haveToShowLoader?: boolean
   isFetchingMore?: boolean
@@ -71,7 +72,7 @@ export function ChainHeaderCollectionCard({
       {activePage === 'CollectionDetails' && nfts.length === 0 ? (
         <div className='rounded-2xl bg-gray-900 p-8 flex flex-col items-center m-4 text-center'>
           <div className='rounded-full bg-gray-800 p-[18px] w-fit flex'>
-            <div className='material-icons-round w-6 h-6 text-gray-200'>visibility_off</div>
+            <EyeSlash size={24} className='w-6 h-6 text-gray-200' />
           </div>
           <div className='font-bold text-white-100 text-base mt-3'>NFTs hidden</div>
           <div className='text-gray-400 font-medium text-xs'>
@@ -106,13 +107,13 @@ export function ChainHeaderCollectionCard({
                 <NftCard
                   mediaType={nft.media_type}
                   chain={chain as SupportedChain}
-                  imgSrc={normalizeImageSrc(nft.image ?? '')}
+                  imgSrc={normalizeImageSrc(nft.image ?? '', nft.collection?.address ?? '')}
                   textNft={{
                     name: nft?.domain ?? '',
                     description:
                       nft.extension?.description ?? `${nft.collection?.name ?? ''} - ${nft.name}`,
                   }}
-                  imgClassName='h-[150px] w-[150px] object-contain'
+                  imgClassName='aspect-square w-[150px] object-contain'
                 />
 
                 <Text
@@ -133,12 +134,7 @@ export function ChainHeaderCollectionCard({
 
           {haveToShowLoader && (
             <div className='col-span-2'>
-              <div
-                data-loader-id={
-                  nfts[0].collection.address ?? nfts[0].collection.contractAddress ?? ''
-                }
-                className='mt-1'
-              />
+              <div data-loader-id={nfts[0].collection.address ?? ''} className='mt-1' />
               {isFetchingMore && (
                 <div className='flex items-center justify-center'>
                   <LoaderAnimation color={topChainColor} />

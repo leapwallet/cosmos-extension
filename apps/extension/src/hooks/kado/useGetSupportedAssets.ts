@@ -2,6 +2,7 @@ import { useDenoms, useTokenPriorityKado } from '@leapwallet/cosmos-wallet-hooks
 import { useQuery } from '@tanstack/react-query'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useKadoAssets } from 'hooks/useGetKadoDetails'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 export type AssetProps = {
@@ -17,7 +18,7 @@ export type AssetProps = {
 
 export function useGetSupportedAssets() {
   const chainInfos = useChainInfos()
-  const denoms = useDenoms()
+  const denoms = rootDenomsStore.allDenoms
   const { data: kadoAssets = [], isLoading: isAssetsLoading } = useKadoAssets()
   const { data: tokenPriority = {}, isLoading: isPriorityListLoading } = useTokenPriorityKado()
 
@@ -38,6 +39,7 @@ export function useGetSupportedAssets() {
       const denomData = denomsArray.find(
         (denom) => denom.coinDenom.toLowerCase() === asset.symbol.toLowerCase(),
       )
+
       if (chain) {
         acc.push({
           id: asset._id,

@@ -1,5 +1,5 @@
-import { OwnedCollectionTokenInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { NftInfo } from '@leapwallet/cosmos-wallet-store'
 import classNames from 'classnames'
 import { useChainPageInfo } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -11,7 +11,7 @@ import { useNftContext } from '../context'
 import { NftCard, Text, ViewAllButton } from './index'
 
 type TextHeaderCollectionCardProps = {
-  nfts: (OwnedCollectionTokenInfo & { chain: SupportedChain })[]
+  nfts: (NftInfo & { chain: SupportedChain })[]
   headerTitle: string
   noChip?: boolean
 }
@@ -83,7 +83,7 @@ export function TextHeaderCollectionCard({
               <NftCard
                 mediaType={nft.media_type}
                 chain={nft.chain}
-                imgSrc={normalizeImageSrc(nft.image ?? '')}
+                imgSrc={normalizeImageSrc(nft.image ?? '', nft.collection?.address ?? '')}
                 textNft={{
                   name: nft?.domain ?? '',
                   description:

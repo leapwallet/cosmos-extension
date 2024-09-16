@@ -1,4 +1,5 @@
 import React from 'react'
+import { rootCW20DenomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
 
 import { useSwapContext } from '../context'
 import { TxPage } from './index'
@@ -48,6 +49,8 @@ export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageP
       refetchSourceBalances={refetchSourceBalances}
       callbackPostTx={callbackPostTx}
       refetchDestinationBalances={refetchDestinationBalances}
+      rootDenomsStore={rootDenomsStore}
+      rootCW20DenomsStore={rootCW20DenomsStore}
     />
   )
 }

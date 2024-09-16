@@ -1,4 +1,6 @@
 import { CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { CheckCircle } from '@phosphor-icons/react'
+import classNames from 'classnames'
 import NoSearchResults from 'components/no-search-results'
 import { useChainPageInfo } from 'hooks'
 import {
@@ -10,6 +12,8 @@ import {
 import { Images } from 'images'
 import React from 'react'
 import ReactCountryFlag from 'react-country-flag'
+import { rootStore } from 'stores/root-store'
+import { isSidePanel } from 'utils/isSidePanel'
 
 const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
   const [searchQuery, setSearchQuery] = React.useState('')
@@ -30,7 +34,7 @@ const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
         )
 
   return (
-    <div className='pb-5'>
+    <div className='pb-5 panel-width enclosing-panel '>
       <Header title='Currency' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
       <div className='flex flex-col items-center px-[28px] h-full'>
         <div className='mx-auto mt-[28px] w-[344px] mb-[16px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
@@ -51,7 +55,9 @@ const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
           )}
         </div>
         <div
-          className='bg-white-100 dark:bg-gray-900 rounded-2xl min-h-fit max-h-[420px] w-fit'
+          className={classNames('bg-white-100 dark:bg-gray-900 rounded-2xl min-h-fit w-fit', {
+            ' max-h-[420px]': !isSidePanel(),
+          })}
           style={{ overflowY: 'scroll' }}
         >
           {currencyData.length > 0 ? (
@@ -63,6 +69,7 @@ const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
                   <GenericCard
                     onClick={() => {
                       currencyUpdater(currency.country)
+                      rootStore.setPreferredCurrency(currency.country)
                     }}
                     className='mx-auto'
                     img={
@@ -82,13 +89,12 @@ const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
                     title={<span className='ml-2'>{currency.name}</span>}
                     icon={
                       selectedCurrency.toString() === currency.country ? (
-                        <span
-                          className='material-icons-round'
+                        <CheckCircle
+                          weight='fill'
+                          size={24}
                           style={{ color: topChainColor }}
                           color={topChainColor}
-                        >
-                          check_circle
-                        </span>
+                        />
                       ) : null
                     }
                   />

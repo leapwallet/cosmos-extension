@@ -42,14 +42,14 @@ export const CHAIN_INFOS_CONFIG: ChainInfosConfigType = {
         'pion-1': true,
         'noble-1': true,
         'grand-1': true,
-        'thorchain-mainnet-v1': true,
+        'thorchain-1': true,
       },
     },
     governance: {
       platforms: ['All', 'Extension'],
       chains: {
         'mayachain-mainnet-v1': true,
-        'thorchain-mainnet-v1': true,
+        'thorchain-1': true,
       },
     },
   },

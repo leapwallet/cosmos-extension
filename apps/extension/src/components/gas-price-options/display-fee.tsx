@@ -4,6 +4,7 @@ import {
   useChainId,
   useformatCurrency,
   useGasAdjustmentForChain,
+  useGetChains,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -31,9 +32,11 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
   const [formatCurrency] = useformatCurrency()
   const [preferredCurrency] = useUserPreferredCurrency()
 
-  const { gasLimit, value, feeTokenData, activeChain, selectedNetwork } = useGasPriceContext()
+  const { gasLimit, value, feeTokenData, activeChain, selectedNetwork, isSeiEvmTransaction } =
+    useGasPriceContext()
   const chainId = useChainId(activeChain, selectedNetwork)
   const chainGasAdjustment = useGasAdjustmentForChain(activeChain)
+  const chains = useGetChains()
 
   const { data: feeTokenFiatValue } = useQuery(
     ['fee-token-fiat-value', feeTokenData.denom.coinGeckoId],
@@ -53,6 +56,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
       feeDenom: feeTokenData.denom,
       gasPrice: value.gasPrice.amount.toFloatApproximation(),
       gasAdjustment: chainGasAdjustment,
+      isSeiEvmTransaction: isSeiEvmTransaction || chains[activeChain]?.evmOnlyChain,
     })
 
     return {
@@ -62,9 +66,12 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
     }
   }, [
     gasLimit,
-    feeTokenData,
+    feeTokenData.denom,
     value.gasPrice.amount,
     chainGasAdjustment,
+    isSeiEvmTransaction,
+    chains,
+    activeChain,
     feeTokenFiatValue,
     formatCurrency,
   ])
@@ -80,9 +87,9 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
         className,
       )}
     >
-      <p className='font-semibold text-center text-sm'>Transaction fee: </p>
+      <p className='font-semibold text-center text-sm shrink-0'>Transaction fee: </p>
       <button
-        className='flex items-center ml-1'
+        className='flex items-center ml-1 shrink-0'
         onClick={() => (setShowFeesSettingSheet ? setShowFeesSettingSheet(true) : undefined)}
         data-testing-id='send-tx-fee-text'
       >

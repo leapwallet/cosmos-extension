@@ -2,6 +2,8 @@ import { NftPage } from '@leapwallet/cosmos-wallet-hooks'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
 import React, { useState } from 'react'
+import { chainTagsStore } from 'stores/chain-infos-store'
+import { nftStore } from 'stores/nft-store'
 
 import {
   ChainNftsDetails,
@@ -19,10 +21,12 @@ export default function NFTs() {
 
   return (
     <NftContextProvider value={value}>
-      {activePage === 'ShowNfts' && <ShowNfts />}
-      {activePage === 'CollectionDetails' && <CollectionDetails />}
+      {activePage === 'ShowNfts' && (
+        <ShowNfts nftStore={nftStore} chainTagsStore={chainTagsStore} />
+      )}
+      {activePage === 'CollectionDetails' && <CollectionDetails nftStore={nftStore} />}
       {activePage === 'NftDetails' && <NftDetails />}
-      {activePage === 'ChainNftsDetails' && <ChainNftsDetails />}
+      {activePage === 'ChainNftsDetails' && <ChainNftsDetails nftStore={nftStore} />}
     </NftContextProvider>
   )
 }

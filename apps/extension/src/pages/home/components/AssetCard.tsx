@@ -1,4 +1,9 @@
-import { isTerraClassic, Token, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  isTerraClassic,
+  Token,
+  useActiveChain,
+  useGetChains,
+} from '@leapwallet/cosmos-wallet-hooks'
 import React from 'react'
 import { useNavigate } from 'react-router'
 
@@ -22,6 +27,7 @@ export function AssetCard({ asset, style }: AssetCardProps) {
 
   const navigate = useNavigate()
   const activeChain = useActiveChain()
+  const chains = useGetChains()
 
   const handleCardClick = () => {
     let tokenChain = chain?.replace('cosmoshub', 'cosmos')
@@ -30,6 +36,8 @@ export function AssetCard({ asset, style }: AssetCardProps) {
     }
 
     if (!tokenChain) return
+
+    sessionStorage.setItem('navigate-assetDetails-state', JSON.stringify(asset))
     navigate(
       `/assetDetails?assetName=${
         coinMinimalDenom.length > 0 ? coinMinimalDenom : symbol
@@ -53,7 +61,7 @@ export function AssetCard({ asset, style }: AssetCardProps) {
         assetImg={img}
         onClick={handleCardClick}
         isEvm={isEvm}
-        hasToShowEvmTag={isEvm}
+        hasToShowEvmTag={isEvm && !chains[tokenBalanceOnChain ?? activeChain]?.evmOnlyChain}
         tokenBalanceOnChain={tokenBalanceOnChain ?? activeChain}
       />
     </div>

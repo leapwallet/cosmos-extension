@@ -1,5 +1,6 @@
 import type { DappData, ProductData } from '@leapwallet/cosmos-wallet-hooks'
 import BigNumber from 'bignumber.js'
+import { LEAPBOARD_URL } from 'config/constants'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { RightArrow } from 'images/misc'
 import React from 'react'
@@ -24,7 +25,7 @@ export const InvestmentProductItem: React.FC<InvestmentProductItemProps> = ({
         rel='noopener noreferrer'
         href={
           product.dappCategory === 'liquidStaking'
-            ? 'https://cosmos.leapwallet.io/staking/liquid'
+            ? `${LEAPBOARD_URL}/staking/liquid`
             : product.productWebsite
         }
       >

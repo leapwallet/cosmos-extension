@@ -1,7 +1,6 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { SourceChain } from 'types/swap'
 
 import { ChainsList } from './ChainsList'
@@ -28,13 +27,16 @@ export function SelectChainSheet({
     return chainsToShow.map((chainToShow) => chainToShow.chainRegistryPath)
   }, [chainsToShow])
 
-  const handleOnChainSelect = (chain: SupportedChain) => {
-    const selectedChain = chainsToShow.find((chainToShow) => chainToShow.key === chain)
+  const handleOnChainSelect = useCallback(
+    (chain: SupportedChain) => {
+      const selectedChain = chainsToShow.find((chainToShow) => chainToShow.key === chain)
 
-    if (selectedChain) {
-      onChainSelect(selectedChain)
-    }
-  }
+      if (selectedChain) {
+        onChainSelect(selectedChain)
+      }
+    },
+    [chainsToShow, onChainSelect],
+  )
 
   return (
     <BottomModal
@@ -42,7 +44,7 @@ export function SelectChainSheet({
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      contentClassName='!bg-white-100 dark:!bg-gray-950'
+      contentClassName='!bg-white-100 dark:!bg-gray-950 !overflow-hidden'
       className='p-6'
     >
       <ChainsList

@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
 const NO_TRANSACTION_ROUTES_ERROR = 'No transaction routes available'
+// Skip's API responses for which to show NO_TRANSACTION_ROUTES_ERROR
+const noTransactionRoutesErrors = ['no routes found', 'cannot swap on a chain']
 
 export function isNoRoutesAvailableError(routeError: string | undefined) {
   return routeError?.toLowerCase().includes(NO_TRANSACTION_ROUTES_ERROR?.toLowerCase())
@@ -21,7 +23,9 @@ export function useGetErrorMsg(
     }
 
     if (routeError) {
-      if (routeError.message.toLowerCase().includes('no routes found')) {
+      if (
+        noTransactionRoutesErrors?.some((error) => routeError.message.toLowerCase().includes(error))
+      ) {
         return NO_TRANSACTION_ROUTES_ERROR
       }
       if (routeError.message.toLowerCase().includes('asset metadata unavailable')) {

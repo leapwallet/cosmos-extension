@@ -1,8 +1,11 @@
 import { FeeTokenData } from '@leapwallet/cosmos-wallet-hooks'
+import BigNumber from 'bignumber.js'
 import GasPriceOptions from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import React, { Dispatch, SetStateAction, useCallback } from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 
 import { useSwapContext } from '../context'
 
@@ -43,12 +46,16 @@ const FeesSheet = ({
     <GasPriceOptions
       recommendedGasLimit={gasEstimate.toString()}
       gasLimit={userPreferredGasLimit?.toString() ?? gasEstimate.toString()}
-      setGasLimit={(value: number) => setUserPreferredGasLimit(Number(value.toString()))}
+      setGasLimit={(value: number | string | BigNumber) =>
+        setUserPreferredGasLimit(Number(value.toString()))
+      }
       gasPriceOption={gasPriceOption}
       onGasPriceOptionChange={handleGasPriceOptionChange}
       error={gasError}
       setError={setGasError}
       chain={sourceChain?.key}
+      rootDenomsStore={rootDenomsStore}
+      rootBalanceStore={rootBalanceStore}
     >
       <FeesSettingsSheet
         showFeesSettingSheet={showFeesSettingSheet}

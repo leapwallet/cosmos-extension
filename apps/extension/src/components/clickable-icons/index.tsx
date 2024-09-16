@@ -4,15 +4,16 @@ import { Images } from 'images'
 import React from 'react'
 import { ComponentPropsWithoutRef, forwardRef } from 'react'
 
-/** The `'type'` prop will be `'button'` if `undefined`. */
-export type ClickableIconProps = ComponentPropsWithoutRef<'button'> & {
-  readonly image: { src: string; alt: string; type?: string }
-  readonly darker?: boolean
-  readonly disabled?: boolean
+interface ClickableIconProps extends ComponentPropsWithoutRef<'button'> {
+  darker?: boolean
+  disabled?: boolean
+  label: string
+  icon: React.ReactNode
+  iconType?: 'image' | 'icon'
 }
 
 const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
-  ({ type, image, disabled, ...rest }, ref) => {
+  ({ disabled, icon, label, iconType = 'icon', ...rest }, ref) => {
     const { theme } = useTheme()
     const isDark = theme === ThemeName.DARK
 
@@ -31,31 +32,26 @@ const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
           )}
           disabled={disabled}
           ref={ref}
-          type={type ?? 'button'}
           {...rest}
         >
           <Images.Nav.ActionButton
             fill={isDark ? 'white' : 'black'}
             color={isDark ? 'white' : ''}
-            className='absolute top-0'
+            className='absolute top-0 pointer-events-none'
           />
           <div className={'flex flex-col justify-center items-center'}>
-            {image.type === 'url' ? (
-              <img src={image.src} alt={image.alt} className='invert dark:invert-0 w-4 h-4' />
+            {iconType === 'image' && typeof icon === 'string' ? (
+              <img src={icon} alt={label} className='invert dark:invert-0 w-4 h-4' />
             ) : (
-              <span className='material-icons-round' style={{ fontSize: 20 }}>
-                {image.src}
-              </span>
+              icon
             )}
           </div>
         </button>
-        {image.alt !== '' ? (
+        {label ? (
           <p className='font-medium text-xs pt-3 tracking-wide text-black-100 dark:text-white-100'>
-            {image.alt}
+            {label}
           </p>
-        ) : (
-          <></>
-        )}
+        ) : null}
       </div>
     )
   },

@@ -89,7 +89,11 @@ export type SupportedChain =
   | 'odin'
   | 'saga'
   | 'initia'
-  | 'humans';
+  | 'humans'
+  | 'lava'
+  | 'mantra'
+  | 'ethereum'
+  | 'forma';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -171,7 +175,11 @@ export type AddressPrefix =
   | 'odin'
   | 'saga'
   | 'init'
-  | 'human';
+  | 'human'
+  | 'lava@'
+  | 'mantra'
+  | 'ethereum'
+  | 'forma';
 
 export type Denom =
   | 'JUNO'
@@ -254,7 +262,10 @@ export type Denom =
   | 'ODIN'
   | 'SAGA'
   | 'INIT'
-  | 'HEART';
+  | 'HEART'
+  | 'LAVA'
+  | 'OM'
+  | 'ETH';
 
 export type CoinType =
   | '118'
@@ -335,7 +346,7 @@ export type ChainInfo = {
     average: number;
   };
   enabled: boolean;
-  ibcChannelIds: Record<string, [string]>;
+  ibcChannelIds?: Record<string, [string]>;
   theme: {
     primaryColor: string;
     gradient: string;
@@ -347,6 +358,7 @@ export type ChainInfo = {
   readonly evmChainId?: string;
   readonly evmChainIdTestnet?: string;
   apiStatus?: boolean;
+  readonly evmOnlyChain?: boolean;
 };
 
 export const ChainInfos: Record<SupportedChain, ChainInfo> = {
@@ -571,7 +583,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
   },
   aura: {
-    chainId: 'xstaxy-1',
+    chainId: 'aura_6322-2',
     key: 'aura',
     chainName: 'Aura',
     chainRegistryPath: 'aura',
@@ -584,8 +596,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     txExplorer: {
       mainnet: {
         name: 'AuraScan',
-        txUrl: 'https://aurascan.io/transaction',
-        accountUrl: 'https://aurascan.io/account',
+        txUrl: 'https://aurascan.io/tx',
+        accountUrl: 'https://aurascan.io/address',
       },
     },
     bip44: {
@@ -3103,6 +3115,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: false,
   },
   seiTestnet2: {
+    evmChainId: '1329',
+    evmChainIdTestnet: '1328',
     chainId: 'pacific-1',
     testnetChainId: 'atlantic-2',
     key: 'seiTestnet2',
@@ -3116,7 +3130,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       restTest: 'https://rest.wallet.atlantic-2.sei.io',
       alternateRpcTest: 'https://sei-testnet-rpc.polkachu.com',
       alternateRestTest: 'https://sei-testnet-api.polkachu.com',
-      evmJsonRpc: 'https://evm-rpc-arctic-1.sei-apis.com',
+      evmJsonRpc: 'https://evm-rpc.sei-apis.com',
       evmJsonRpcTest: 'https://evm-rpc-testnet.sei-apis.com',
     },
     denom: 'SEI',
@@ -3148,6 +3162,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
   },
   seiDevnet: {
+    evmChainId: '713715',
     chainId: 'arctic-1',
     testnetChainId: '',
     key: 'seiDevnet',
@@ -3159,7 +3174,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       alternateRpc: 'https://rpc.wallet.arctic-1.sei.io',
       rest: 'https://rest-arctic-1.sei-apis.com',
       alternateRest: 'https://rest.wallet.arctic-1.sei.io',
-      evmJsonRpc: 'https://evm-rpc.sei-apis.com',
+      evmJsonRpc: 'https://evm-rpc-arctic-1.sei-apis.com',
     },
     denom: 'SEI',
     txExplorer: {
@@ -3562,7 +3577,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
   },
   thorchain: {
-    chainId: 'thorchain-mainnet-v1',
+    chainId: 'thorchain-1',
     key: 'thorchain',
     chainName: 'THORChain',
     chainRegistryPath: 'thorchain',
@@ -3715,5 +3730,166 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#3281fa',
     },
     enabled: true,
+  },
+  lava: {
+    chainId: 'lava-mainnet-1',
+    testnetChainId: 'lava-testnet-2',
+    key: 'lava',
+    chainName: 'Lava',
+    chainRegistryPath: 'lava',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/lava.png',
+    apis: {
+      rest: 'https://lava.rest.lava.build',
+      rpc: 'https://lava.tendermintrpc.lava.build',
+      restTest: 'https://public-rpc-testnet2.lavanet.xyz:443/rest',
+      rpcTest: 'https://public-rpc-testnet2.lavanet.xyz:443/rpc',
+    },
+    denom: 'LAVA',
+    txExplorer: {
+      mainnet: {
+        name: 'w3coins',
+        txUrl: 'https://lava-explorer.w3coins.io/Lava/tx',
+        accountUrl: 'https://lava-explorer.w3coins.io/Lava/account',
+      },
+      testnet: {
+        name: 'Explorers Guru',
+        txUrl: 'https://testnet.lava.explorers.guru/transaction',
+        accountUrl: 'https://testnet.lava.explorers.guru/account',
+      },
+    },
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'lava@',
+    gasPriceStep: {
+      low: 0.00002,
+      average: 0.025,
+      high: 0.05,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      ulava: denoms.ulava,
+    },
+    theme: {
+      primaryColor: '#EF8107',
+      gradient: 'linear-gradient(180deg, rgba(239, 129, 7, 0.32) 0%, rgba(0, 177, 255, 0) 100%)',
+    },
+    enabled: true,
+  },
+  mantra: {
+    chainId: 'mantra-hongbai-1',
+    testnetChainId: 'mantra-hongbai-1',
+    chainName: 'MANTRA Hongbai Testnet',
+    apis: {
+      restTest: 'https://rest.testcosmos.directory/mantrachaintestnet',
+      rpcTest: 'https://rpc.testcosmos.directory/mantrachaintestnet',
+    },
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/mantra.png',
+    testnetChainRegistryPath: 'mantrachaintestnet',
+    chainRegistryPath: 'mantrachaintestnet',
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'mantra',
+    txExplorer: {
+      testnet: {
+        name: '🔥STAVR🔥',
+        txUrl: 'https://explorer.stavr.tech/MANTRA-Hongbai/tx',
+        accountUrl: 'https://explorer.stavr.tech/MANTRA-Hongbai/account',
+      },
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    key: 'mantra',
+    nativeDenoms: {
+      uom: denoms.uom,
+    },
+    ibcChannelIds: {},
+    denom: 'OM',
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.03,
+    },
+    enabled: true,
+  },
+  ethereum: {
+    chainId: '1',
+    evmChainId: '1',
+    key: 'ethereum',
+    chainName: 'Ethereum',
+    chainRegistryPath: 'ethereum',
+    chainSymbolImageUrl:
+      'https://raw.githubusercontent.com/chainapsis/keplr-chain-registry/main/images/centauri/eth.png',
+    apis: {
+      rpc: 'https://mainnet.infura.io/v3/37b42f2d421b43f481788b4e18807191',
+      evmJsonRpc: 'https://mainnet.infura.io/v3/37b42f2d421b43f481788b4e18807191',
+    },
+    denom: 'ETH',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'ethereum',
+    txExplorer: {
+      mainnet: {
+        name: 'Etherscan',
+        txUrl: 'https://etherscan.io/tx',
+        accountUrl: 'https://etherscan.io/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      wei: denoms.wei,
+    },
+    theme: {
+      primaryColor: '#343434',
+      gradient: 'linear-gradient(180deg, rgba(52, 52, 52, 0.32) 0%, rgba(52, 52, 52, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  forma: {
+    chainId: '984122',
+    evmChainId: '984122',
+    key: 'forma',
+    chainName: 'Forma',
+    chainRegistryPath: 'forma',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/forma-1.png',
+    apis: {
+      rpc: 'https://rpc.forma.art',
+      evmJsonRpc: 'https://rpc.forma.art',
+    },
+    denom: 'TIA',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'forma',
+    txExplorer: {
+      mainnet: {
+        name: 'Forma Art',
+        txUrl: 'https://explorer.forma.art/tx',
+        accountUrl: 'https://explorer.forma.art/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      utia: denoms.utia,
+    },
+    theme: {
+      primaryColor: '#ff6b6b',
+      gradient: 'linear-gradient(180deg, rgba(255, 107, 107, 0.32) 0%, rgba(255, 107, 107, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
   },
 };

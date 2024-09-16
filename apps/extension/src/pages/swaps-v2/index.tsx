@@ -1,6 +1,7 @@
-import { useActiveWallet, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveWallet, useGetChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
+import { ArrowSquareOut } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import PopupLayout from 'components/layout/popup-layout'
@@ -11,6 +12,19 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { activeChainStore } from 'stores/active-chain-store'
+import { cw20TokenBalanceStore } from 'stores/balance-store'
+import {
+  autoFetchedCW20DenomsStore,
+  betaCW20DenomsStore,
+  cw20DenomsStore,
+  disabledCW20DenomsStore,
+  enabledCW20DenomsStore,
+  rootDenomsStore,
+  whitelistedFactoryTokensStore,
+} from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
+import { SourceChain, SourceToken } from 'types/swap'
 import { isLedgerEnabledChainId } from 'utils/isLedgerEnabled'
 
 import {
@@ -58,15 +72,8 @@ function SwapPage() {
   const [ledgerError, setLedgerError] = useState<string>()
   const [isInputInUSDC, setIsInputInUSDC] = useState<boolean>(false)
 
+  const chains = useGetChains()
   const pageViewSource = useQuery().get('pageSource') ?? undefined
-
-  const handleOnBackClick = useCallback(() => {
-    if (pageViewSource === 'swapAgain') {
-      navigate('/home')
-    } else {
-      navigate(-1)
-    }
-  }, [navigate, pageViewSource])
 
   const {
     inAmount,
@@ -103,7 +110,9 @@ function SwapPage() {
     route,
   } = useSwapContext()
 
-  const checkNeeded = getConversionRateRemark(route) === 'request-confirmation'
+  const checkNeeded = useMemo(() => {
+    return getConversionRateRemark(route) === 'request-confirmation'
+  }, [route])
 
   useEffect(() => {
     if (checkNeeded) {
@@ -170,11 +179,14 @@ function SwapPage() {
         )
         if (!chainInfo) return false
         const hasAddress = activeWallet.addresses[chainInfo.key]
-        return isLedgerEnabledChainId(chain.chainId as string, chain.coinType) && hasAddress
+        return (
+          isLedgerEnabledChainId(chain.chainId as string, chain.coinType, Object.values(chains)) &&
+          hasAddress
+        )
       })
     }
     return chainsToShow
-  }, [chainsToShow, activeWallet])
+  }, [activeWallet, chainsToShow, chains])
 
   const reviewBtnText = useMemo(() => {
     if (invalidAmount) {
@@ -189,20 +201,203 @@ function SwapPage() {
     return 'Review Swap'
   }, [amountExceedsBalance, errorMsg, invalidAmount])
 
-  const reviewDisabled = reviewBtnDisabled || isRefreshing || (checkNeeded && !isPriceImpactChecked)
+  const reviewDisabled = useMemo(() => {
+    return reviewBtnDisabled || isRefreshing || (checkNeeded && !isPriceImpactChecked)
+  }, [checkNeeded, isPriceImpactChecked, isRefreshing, reviewBtnDisabled])
+
+  const autoAdjustAmountFee = useMemo(() => {
+    if (!displayFee || !feeDenom) return null
+
+    return {
+      amount: toSmall(String(displayFee.value), feeDenom.coinDecimals),
+      denom: feeDenom.coinMinimalDenom,
+    }
+  }, [displayFee, feeDenom])
+
+  const autoAdjustAmountToken = useMemo(() => {
+    if (!sourceToken) return null
+
+    return {
+      amount: sourceToken.amount,
+      coinMinimalDenom: sourceToken.coinMinimalDenom,
+    }
+  }, [sourceToken])
+
+  const handleOnBackClick = useCallback(() => {
+    if (pageViewSource === 'swapAgain') {
+      navigate('/home')
+    } else {
+      navigate(-1)
+    }
+  }, [navigate, pageViewSource])
+
+  const handleOnRefreshClick = useCallback(() => {
+    refresh()
+  }, [refresh])
+
+  const handleOnSettingsClick = useCallback(() => {
+    setShowSlippageSheet(true)
+  }, [setShowSlippageSheet])
+
+  const handleInputAmountChange = useCallback(
+    (value) => {
+      handleInAmountChange(value)
+      uncheckWarnings()
+    },
+    [handleInAmountChange, uncheckWarnings],
+  )
+
+  const handleInputTokenSelectSheetOpen = useCallback(() => {
+    setShowTokenSelectSheet(true)
+    setShowSelectSheetFor('source')
+    uncheckWarnings()
+  }, [setShowTokenSelectSheet, setShowSelectSheetFor, uncheckWarnings])
+
+  const handleInputChainSelectSheetOpen = useCallback(() => {
+    setShowChainSelectSheet(true)
+    setShowSelectSheetFor('source')
+    uncheckWarnings()
+  }, [uncheckWarnings, setShowChainSelectSheet, setShowSelectSheetFor])
+
+  const handleOutputTokenSelectSheetOpen = useCallback(() => {
+    setShowTokenSelectSheet(true)
+    setShowSelectSheetFor('destination')
+    uncheckWarnings()
+  }, [setShowTokenSelectSheet, setShowSelectSheetFor, uncheckWarnings])
+
+  const handleOutputChainSelectSheetOpen = useCallback(() => {
+    setShowChainSelectSheet(true)
+    setShowSelectSheetFor('destination')
+    uncheckWarnings()
+  }, [uncheckWarnings, setShowChainSelectSheet, setShowSelectSheetFor])
+
+  const handleOnChainSelectSheetClose = useCallback(() => {
+    setShowChainSelectSheet(false)
+    setShowSelectSheetFor('')
+  }, [setShowChainSelectSheet, setShowSelectSheetFor])
+
+  const handleOnChainSelect = useCallback(
+    (chain: SourceChain) => {
+      if (showSelectSheetFor === 'source' && chain.chainId !== sourceChain?.chainId) {
+        setSourceChain(chain)
+        setSourceToken(null)
+      } else if (
+        showSelectSheetFor === 'destination' &&
+        chain.chainId !== destinationChain?.chainId
+      ) {
+        setDestinationChain(chain)
+        setDestinationToken(null)
+      }
+
+      setShowChainSelectSheet(false)
+      setShowSelectSheetFor('')
+    },
+    [
+      showSelectSheetFor,
+      sourceChain?.chainId,
+      destinationChain?.chainId,
+      setSourceChain,
+      setSourceToken,
+      setDestinationChain,
+      setDestinationToken,
+    ],
+  )
+
+  const handleOnTokenSelectSheetClose = useCallback(() => {
+    setShowTokenSelectSheet(false)
+    setShowSelectSheetFor('')
+  }, [setShowTokenSelectSheet, setShowSelectSheetFor])
+
+  const handleOnTokenSelect = useCallback(
+    (token: SourceToken) => {
+      if (showSelectSheetFor === 'source') {
+        setSourceToken(token)
+      } else if (showSelectSheetFor === 'destination') {
+        setDestinationToken(token)
+      }
+
+      setShowTokenSelectSheet(false)
+      setShowSelectSheetFor('')
+    },
+    [
+      showSelectSheetFor,
+      setDestinationToken,
+      setShowSelectSheetFor,
+      setShowTokenSelectSheet,
+      setSourceToken,
+    ],
+  )
+
+  const handleOnSlippageInfoClick = useCallback(() => {
+    setShowSlippageInfo(true)
+  }, [setShowSlippageInfo])
+
+  const handleOnSlippageInfoSheetClose = useCallback(() => {
+    setShowSlippageInfo(false)
+  }, [setShowSlippageInfo])
+
+  const handleOnSlippageSheetClose = useCallback(() => {
+    setShowSlippageSheet(false)
+  }, [setShowSlippageSheet])
+
+  const handleOnMoreDetailsSheetClose = useCallback(() => {
+    setShowMoreDetailsSheet(false)
+  }, [setShowMoreDetailsSheet])
+
+  const handleOnAutoAdjustmentSheetClose = useCallback(() => {
+    setCheckForAutoAdjust(false)
+  }, [setCheckForAutoAdjust])
+
+  const handleOnTxReviewSheetClose = useCallback(() => {
+    setShowTxReviewSheet(false)
+  }, [setShowTxReviewSheet])
+
+  const handleOnTxReviewSheetProceed = useCallback(() => {
+    setShowTxReviewSheet(false)
+    setShowTxPage(true)
+    ledgerError && setLedgerError(undefined)
+  }, [setShowTxReviewSheet, setShowTxPage, ledgerError])
+
+  const handleOnTxPageClose = useCallback(
+    (
+      sourceChainId?: string,
+      sourceToken?: string,
+      destinationChainId?: string,
+      destinationToken?: string,
+    ) => {
+      if (sourceChainId || sourceToken || destinationChainId || destinationToken) {
+        let queryStr = ''
+        queryStr = `?${qs.stringify({
+          sourceChainId,
+          sourceToken,
+          destinationChainId,
+          destinationToken,
+          pageSource: 'swapAgain',
+        })}`
+        navigate(`/swap${queryStr}`)
+      }
+      setShowTxPage(false)
+      setInAmount('')
+    },
+    [navigate, setInAmount, setShowTxPage],
+  )
+
+  const swapTxPageSetLedgerError = useCallback(
+    (ledgerError?: string) => {
+      setLedgerError(ledgerError)
+      ledgerError && setShowTxPage(false)
+    },
+    [setLedgerError, setShowTxPage],
+  )
 
   return (
-    <div className='w-[400px] overflow-clip'>
+    <div className='panel-width panel-height enclosing-panel overflow-clip'>
       <PopupLayout
         header={
           <InputPageHeader
             onBack={handleOnBackClick}
-            onRefresh={() => {
-              refresh()
-            }}
-            onSettings={() => {
-              setShowSlippageSheet(true)
-            }}
+            onRefresh={handleOnRefreshClick}
+            onSettings={handleOnSettingsClick}
             topColor='transparent'
           />
         }
@@ -215,29 +410,17 @@ function SwapPage() {
                 value={inAmount}
                 isInputInUSDC={isInputInUSDC}
                 setIsInputInUSDC={setIsInputInUSDC}
-                placeholder='0'
                 token={sourceToken}
                 balanceStatus={sourceTokenBalanceStatus}
                 loadingAssets={loadingChains || loadingSourceAssets}
                 loadingChains={loadingChains}
                 chainName={sourceChain?.chainName}
                 chainLogo={sourceChain?.icon ?? defaultTokenLogo}
-                onChange={(value) => {
-                  handleInAmountChange(value)
-                  uncheckWarnings()
-                }}
+                onChange={handleInputAmountChange}
                 selectTokenDisabled={sourceAssets.length === 0 || !sourceChain}
                 selectChainDisabled={_chainsToShow.length === 0}
-                onTokenSelectSheet={() => {
-                  setShowTokenSelectSheet(true)
-                  setShowSelectSheetFor('source')
-                  uncheckWarnings()
-                }}
-                onChainSelectSheet={() => {
-                  setShowChainSelectSheet(true)
-                  setShowSelectSheetFor('source')
-                  uncheckWarnings()
-                }}
+                onTokenSelectSheet={handleInputTokenSelectSheetOpen}
+                onChainSelectSheet={handleInputChainSelectSheetOpen}
                 amountError={amountExceedsBalance || invalidAmount}
                 showFor='source'
               />
@@ -252,7 +435,6 @@ function SwapPage() {
                 isInputInUSDC={isInputInUSDC}
                 setIsInputInUSDC={setIsInputInUSDC}
                 value={amountOut ? Number(amountOut).toFixed(6) : amountOut}
-                placeholder='0'
                 token={destinationToken}
                 balanceStatus={destinationTokenBalancesStatus}
                 loadingChains={loadingChains}
@@ -261,16 +443,8 @@ function SwapPage() {
                 chainLogo={destinationChain?.icon ?? defaultTokenLogo}
                 selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}
                 selectChainDisabled={_chainsToShow.length === 0}
-                onTokenSelectSheet={() => {
-                  setShowTokenSelectSheet(true)
-                  setShowSelectSheetFor('destination')
-                  uncheckWarnings()
-                }}
-                onChainSelectSheet={() => {
-                  setShowChainSelectSheet(true)
-                  setShowSelectSheetFor('destination')
-                  uncheckWarnings()
-                }}
+                onTokenSelectSheet={handleOutputTokenSelectSheetOpen}
+                onChainSelectSheet={handleOutputChainSelectSheetOpen}
               />
             </div>
 
@@ -280,7 +454,10 @@ function SwapPage() {
               ledgerError={ledgerError}
             />
 
-            <SwapInfo setShowMoreDetailsSheet={setShowMoreDetailsSheet} />
+            <SwapInfo
+              setShowMoreDetailsSheet={setShowMoreDetailsSheet}
+              rootDenomsStore={rootDenomsStore}
+            />
           </div>
 
           {isMoreThanOneStepTransaction ? (
@@ -290,8 +467,7 @@ function SwapPage() {
               style={{ boxShadow: 'none' }}
             >
               <span className='flex items-center gap-1'>
-                Swap on Swapfast{' '}
-                <span className='!leading-[20px] !text-lg material-icons-round'>open_in_new</span>
+                Swap on Swapfast <ArrowSquareOut size={20} className='!leading-[20px] !text-lg' />
               </span>
             </Buttons.Generic>
           ) : (
@@ -325,99 +501,56 @@ function SwapPage() {
         selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
         destinationToken={destinationToken}
         showFor={showSelectSheetFor}
-        onClose={() => {
-          setShowTokenSelectSheet(false)
-          setShowSelectSheetFor('')
-        }}
-        onTokenSelect={(token) => {
-          if (showSelectSheetFor === 'source') {
-            setSourceToken(token)
-          } else if (showSelectSheetFor === 'destination') {
-            setDestinationToken(token)
-          }
-
-          setShowTokenSelectSheet(false)
-          setShowSelectSheetFor('')
-        }}
+        onClose={handleOnTokenSelectSheetClose}
+        onTokenSelect={handleOnTokenSelect}
+        rootDenomsStore={rootDenomsStore}
+        whitelistedFactorTokenStore={whitelistedFactoryTokensStore}
       />
 
       <SelectChainSheet
         isOpen={showChainSelectSheet}
         chainsToShow={_chainsToShow}
-        onClose={() => {
-          setShowChainSelectSheet(false)
-          setShowSelectSheetFor('')
-        }}
+        onClose={handleOnChainSelectSheetClose}
         selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
-        onChainSelect={(chain) => {
-          if (showSelectSheetFor === 'source' && chain.chainId !== sourceChain?.chainId) {
-            setSourceChain(chain)
-            setSourceToken(null)
-          } else if (
-            showSelectSheetFor === 'destination' &&
-            chain.chainId !== destinationChain?.chainId
-          ) {
-            setDestinationChain(chain)
-            setDestinationToken(null)
-          }
-
-          setShowChainSelectSheet(false)
-          setShowSelectSheetFor('')
-        }}
+        onChainSelect={handleOnChainSelect}
       />
 
       <MoreDetailsSheet
         isOpen={showMoreDetailsSheet}
-        onClose={() => {
-          setShowMoreDetailsSheet(false)
-        }}
-        onSlippageInfoClick={() => {
-          setShowSlippageInfo(true)
-        }}
+        onClose={handleOnMoreDetailsSheetClose}
+        onSlippageInfoClick={handleOnSlippageInfoClick}
         setShowFeesSettingSheet={setShowFeesSettingSheet}
       />
 
       <SlippageSheet
         isOpen={showSlippageSheet}
-        onClose={() => setShowSlippageSheet(false)}
-        onSlippageInfoClick={() => {
-          setShowSlippageInfo(true)
-        }}
+        onClose={handleOnSlippageSheetClose}
+        onSlippageInfoClick={handleOnSlippageInfoClick}
       />
 
-      <SlippageInfoSheet
-        isOpen={showSlippageInfo}
-        onClose={() => {
-          setShowSlippageInfo(false)
-        }}
-      />
+      <SlippageInfoSheet isOpen={showSlippageInfo} onClose={handleOnSlippageInfoSheetClose} />
 
-      {checkForAutoAdjust && displayFee && sourceToken && inAmount && sourceChain && (
-        <AutoAdjustAmountSheet
-          amount={inAmount}
-          setAmount={setInAmount}
-          selectedToken={{
-            amount: sourceToken.amount,
-            coinMinimalDenom: sourceToken.coinMinimalDenom,
-          }}
-          fee={{
-            amount: toSmall(String(displayFee.value), feeDenom.coinDecimals),
-            denom: feeDenom.coinMinimalDenom,
-          }}
-          forceChain={sourceChain?.key}
-          setShowReviewSheet={setShowTxReviewSheet}
-          closeAdjustmentSheet={() => setCheckForAutoAdjust(false)}
-        />
-      )}
+      {checkForAutoAdjust &&
+        autoAdjustAmountFee &&
+        autoAdjustAmountToken &&
+        inAmount &&
+        sourceChain && (
+          <AutoAdjustAmountSheet
+            rootDenomsStore={rootDenomsStore}
+            amount={inAmount}
+            setAmount={setInAmount}
+            selectedToken={autoAdjustAmountToken}
+            fee={autoAdjustAmountFee}
+            forceChain={sourceChain?.key}
+            setShowReviewSheet={setShowTxReviewSheet}
+            closeAdjustmentSheet={handleOnAutoAdjustmentSheetClose}
+          />
+        )}
 
       <TxReviewSheet
         isOpen={showTxReviewSheet}
-        onClose={() => setShowTxReviewSheet(false)}
-        onProceed={() => {
-          setShowTxReviewSheet(false)
-          setShowTxPage(true)
-          ledgerError && setLedgerError(undefined)
-        }}
+        onClose={handleOnTxReviewSheetClose}
+        onProceed={handleOnTxReviewSheetProceed}
         setShowFeesSettingSheet={setShowFeesSettingSheet}
       />
 
@@ -430,30 +563,8 @@ function SwapPage() {
 
       {showTxPage ? (
         <SwapTxPage
-          onClose={(
-            sourceChainId?: string,
-            sourceToken?: string,
-            destinationChainId?: string,
-            destinationToken?: string,
-          ) => {
-            if (sourceChainId || sourceToken || destinationChainId || destinationToken) {
-              let queryStr = ''
-              queryStr = `?${qs.stringify({
-                sourceChainId,
-                sourceToken,
-                destinationChainId,
-                destinationToken,
-                pageSource: 'swapAgain',
-              })}`
-              navigate(`/swap${queryStr}`)
-            }
-            setShowTxPage(false)
-            setInAmount('')
-          }}
-          setLedgerError={(ledgerError?: string) => {
-            setLedgerError(ledgerError)
-            ledgerError && setShowTxPage(false)
-          }}
+          onClose={handleOnTxPageClose}
+          setLedgerError={swapTxPageSetLedgerError}
           ledgerError={ledgerError}
         />
       ) : null}
@@ -503,7 +614,17 @@ export default function Swap() {
   usePageView(PageName.SwapsStart, true, pageViewAdditionalProperties)
 
   return (
-    <SwapContextProvider>
+    <SwapContextProvider
+      rootDenomsStore={rootDenomsStore}
+      rootBalanceStore={rootBalanceStore}
+      activeChainStore={activeChainStore}
+      autoFetchedCW20DenomsStore={autoFetchedCW20DenomsStore}
+      betaCW20DenomsStore={betaCW20DenomsStore}
+      cw20DenomsStore={cw20DenomsStore}
+      cw20DenomBalanceStore={cw20TokenBalanceStore}
+      disabledCW20DenomsStore={disabledCW20DenomsStore}
+      enabledCW20DenomsStore={enabledCW20DenomsStore}
+    >
       <SwapPage />
     </SwapContextProvider>
   )

@@ -1,4 +1,3 @@
-import { estimateStakingAPR, getQueryClient } from '@sei-js/core';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { isNumber } from 'lodash';
@@ -6,12 +5,12 @@ import { isNumber } from 'lodash';
 import { getChainInfo } from '../chains';
 import { ChainInfo, ChainInfos, NativeDenom, SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
+import { estimateStakingAPR } from '../sei-js/core';
 import { ChainData } from '../types';
 import { getRestUrl } from '../utils';
 
 export async function getAprSei(restUrl: string) {
-  const queryClient = await getQueryClient(restUrl);
-  const apr = await estimateStakingAPR(queryClient);
+  const apr = await estimateStakingAPR(restUrl);
   return apr;
 }
 

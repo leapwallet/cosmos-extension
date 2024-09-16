@@ -1,10 +1,12 @@
-import { NftAttribute, NftDetails } from '@leapwallet/cosmos-wallet-hooks'
+import { NftAttribute } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import { ProposalDescription } from 'components/proposal-description'
 import React from 'react'
 
+import { NftDetailsType } from '../context'
+
 export type NonFractionalizedNftDescriptionProps = {
-  nftDetails: NftDetails
+  nftDetails: NftDetailsType
   color: string
 }
 

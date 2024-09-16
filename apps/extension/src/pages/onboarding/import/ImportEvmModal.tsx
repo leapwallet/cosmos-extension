@@ -1,4 +1,5 @@
 import { Buttons, LineDivider, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { X } from '@phosphor-icons/react'
 import { Divider } from 'components/dapp'
 import Text from 'components/text'
 import { LedgerEvmChains } from 'images/logos'
@@ -20,9 +21,7 @@ export default function ImportEvmModal({ onYes, onNo, onClose }: ImportEvmModalP
       <div className='w-[540px] bg-gray-950 rounded-3xl'>
         <div className='flex justify-between py-6 px-6 border-b border-gray-900'>
           <Text className='font-[700] text-[18px]'>Cosmos import successful</Text>
-          <div className='material-icons-round text-gray-500 cursor-pointer' onClick={onClose}>
-            close
-          </div>
+          <X size={24} className='text-gray-500 cursor-pointer' onClick={onClose} />
         </div>
         <div className='flex flex-col items-center justify-center gap-4 mb-8 mt-11'>
           <img src={CheckGreenNew} className='height-[72px] width-[72px]' />

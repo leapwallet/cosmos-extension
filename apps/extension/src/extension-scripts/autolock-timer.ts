@@ -7,16 +7,12 @@ import { PasswordManager } from './password-manager'
 let lastPopupPing = Date.now()
 
 const DEFAULT_AUTOLOCK_TIME = 1440
-const WORKER_RESET_MESSAGE = 'WORKER_RESET_MESSAGE'
 // listening to this message so that the service worker stays active
 browser.runtime.onMessage.addListener((message, sender) => {
   if (sender.id !== browser.runtime.id) return
 
   if (message.type === 'popup-ping') {
     lastPopupPing = message.data.timestamp
-  }
-  if (message.name === WORKER_RESET_MESSAGE) {
-    //
   }
 })
 

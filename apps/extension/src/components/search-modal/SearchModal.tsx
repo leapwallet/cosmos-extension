@@ -5,6 +5,7 @@ import {
   useActiveWallet,
   useChainInfo,
   useFetchDappListForQuickSearch,
+  useGetChains,
   useGetQuickSearchOptions,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { WALLETTYPE } from '@leapwallet/leap-keychain'
@@ -36,6 +37,7 @@ export function SearchModal() {
   const { data: dappsList } = useFetchDappListForQuickSearch()
   const activeChain = useActiveChain()
   const chain = useChainInfo()
+  const chains = useGetChains()
   const navigate = useNavigate()
   const [showModal, setShowSearchModal] = useRecoilState(searchModalState)
   const [searchModalActiveOption, setSearchModalActiveOption] = useRecoilState(
@@ -153,7 +155,7 @@ export function SearchModal() {
         if (!activeWallet) return
         if (
           activeWallet.walletType === WALLETTYPE.LEDGER &&
-          isLedgerEnabled(chain?.key, chain?.bip44?.coinType)
+          isLedgerEnabled(chain?.key, chain?.bip44?.coinType, Object.values(chains))
         ) {
           break
         }
@@ -210,7 +212,7 @@ export function SearchModal() {
 
   return (
     <div
-      className='w-[400px] h-[600px] max-h-[600px] overflow-y-auto absolute top-0 inset-0 pointer-events-none'
+      className='panel-width panel-height max-panel-height overflow-y-auto absolute top-0 inset-0 pointer-events-none'
       style={{ zIndex: 9999999999 }}
     >
       {showAlert && (

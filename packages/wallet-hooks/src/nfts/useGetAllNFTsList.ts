@@ -139,7 +139,11 @@ export const useGetAllNFTsList = (
                   enabledNftsCollections = [...enabledNftsCollections, collectionAddress];
                 }
               } else {
-                if (haveToFillDisabledNFTs && tokens.length === 0) {
+                if (
+                  haveToFillDisabledNFTs &&
+                  tokens.length === 0 &&
+                  !disabledNFTsCollections.includes(collectionAddress)
+                ) {
                   disabledNFTsCollections = [...disabledNFTsCollections, collectionAddress];
                 }
               }

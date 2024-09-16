@@ -9,12 +9,22 @@ import {
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
-  ChainInfos,
   DefaultGasEstimates,
   GasPrice,
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  ActiveChainStore,
+  AutoFetchedCW20DenomsStore,
+  BetaCW20DenomsStore,
+  CW20DenomBalanceStore,
+  CW20DenomsStore,
+  DisabledCW20DenomsStore,
+  EnabledCW20DenomsStore,
+  RootBalanceStore,
+  RootDenomsStore,
+} from '@leapwallet/cosmos-wallet-store'
 import {
   SwapVenue,
   useDebouncedValue,
@@ -28,11 +38,10 @@ import BigNumber from 'bignumber.js'
 import { calculateFeeAmount, useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
+import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
-import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import {
@@ -69,8 +78,8 @@ export type SwapsTxType = {
   reviewBtnDisabled: boolean
   setSourceToken: React.Dispatch<React.SetStateAction<SourceToken | null>>
   setDestinationToken: React.Dispatch<React.SetStateAction<SourceToken | null>>
-  setSourceChain: React.Dispatch<React.SetStateAction<SourceChain | undefined>>
-  setDestinationChain: React.Dispatch<React.SetStateAction<SourceChain | undefined>>
+  setSourceChain: (value: SourceChain | undefined) => void
+  setDestinationChain: (value: SourceChain | undefined) => void
   callbackPostTx: () => void
   infoMsg: string
   redirectUrl: string
@@ -120,13 +129,37 @@ export type SwapsTxType = {
 }
 
 const SEI_ASTROPORT_SWAP_VENUE: SwapVenue = { chain_id: 'pacific-1', name: 'sei-astroport' }
+const swapVenue = isCompassWallet() ? [SEI_ASTROPORT_SWAP_VENUE] : undefined
 export const SWAP_NETWORK = 'mainnet'
 
-export function useSwapsTx(): SwapsTxType {
-  const activeChain = useActiveChain()
+export function useSwapsTx({
+  rootDenomsStore,
+  rootBalanceStore,
+  activeChainStore,
+  autoFetchedCW20DenomsStore,
+  betaCW20DenomsStore,
+  cw20DenomsStore,
+  disabledCW20DenomsStore,
+  enabledCW20DenomsStore,
+  cw20DenomBalanceStore,
+}: {
+  rootDenomsStore: RootDenomsStore
+  rootBalanceStore: RootBalanceStore
+  activeChainStore: ActiveChainStore
+  autoFetchedCW20DenomsStore: AutoFetchedCW20DenomsStore
+  betaCW20DenomsStore: BetaCW20DenomsStore
+  cw20DenomsStore: CW20DenomsStore
+  disabledCW20DenomsStore: DisabledCW20DenomsStore
+  enabledCW20DenomsStore: EnabledCW20DenomsStore
+  cw20DenomBalanceStore: CW20DenomBalanceStore
+}): SwapsTxType {
+  const denoms = rootDenomsStore.allDenoms
+  const { getLoadingStatusForChain, getSpendableBalancesForChain } = rootBalanceStore
+  const activeChain = activeChainStore.activeChain
   const activeChainInfo = useChainInfo(
-    (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY ? 'cosmos' : activeChain,
+    activeChain === AGGREGATED_CHAIN_KEY ? 'cosmos' : activeChain,
   )
+  const chainInfos = useChainInfos()
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
   const isSwitchedRef = useRef(false)
@@ -155,17 +188,59 @@ export function useSwapsTx(): SwapsTxType {
    */
   const debouncedInAmount = useDebouncedValue(inAmount, 500)
   const { chainsToShow, chainsToShowLoading } = useGetChainsToShow()
-  const { data: sourceAssetsData, isLoading: loadingSourceAssets } = useGetSwapAssets(sourceChain)
-  const { data: destinationAssetsData, isLoading: loadingDestinationAssets } =
-    useGetSwapAssets(destinationChain)
+
+  const sourceChainTokens = sourceChain ? getSpendableBalancesForChain(sourceChain?.key) ?? [] : []
+  const destinationChainTokens = destinationChain
+    ? getSpendableBalancesForChain(destinationChain?.key) ?? []
+    : []
+
+  const sourceTokensLoading = sourceChain ? getLoadingStatusForChain(sourceChain?.key) : false
+
+  const destinationTokensLoading = destinationChain
+    ? getLoadingStatusForChain(destinationChain?.key)
+    : false
+
+  useEffect(() => {
+    if (sourceChain && sourceChainTokens?.length === 0) {
+      rootBalanceStore.loadBalances(sourceChain.key)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceChain])
+
+  useEffect(() => {
+    if (destinationChain && destinationChainTokens?.length === 0) {
+      rootBalanceStore.loadBalances(destinationChain.key)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destinationChain])
+
+  const { data: sourceAssetsData, isLoading: loadingSourceAssets } = useGetSwapAssets(
+    denoms,
+    sourceChainTokens,
+    sourceTokensLoading,
+    sourceChain,
+    autoFetchedCW20DenomsStore,
+  )
+
+  const { data: destinationAssetsData, isLoading: loadingDestinationAssets } = useGetSwapAssets(
+    denoms,
+    destinationChainTokens,
+    destinationTokensLoading,
+    destinationChain,
+    autoFetchedCW20DenomsStore,
+  )
 
   const refetchSourceBalances = useCallback(() => {
-    sourceAssetsData?.refetchBalances?.()
-  }, [sourceAssetsData])
+    if (sourceChain?.key) {
+      rootBalanceStore.refetchBalances(sourceChain.key)
+    }
+  }, [rootBalanceStore, sourceChain?.key])
 
   const refetchDestinationBalances = useCallback(() => {
-    destinationAssetsData?.refetchBalances?.()
-  }, [destinationAssetsData])
+    if (destinationChain?.key) {
+      rootBalanceStore.refetchBalances(destinationChain.key)
+    }
+  }, [rootBalanceStore, destinationChain?.key])
 
   /**
    * states for fee
@@ -177,7 +252,8 @@ export function useSwapsTx(): SwapsTxType {
     undefined,
   )
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined)
-  const defaultGasPrice = useDefaultGasPrice({
+
+  const defaultGasPrice = useDefaultGasPrice(denoms, {
     activeChain: sourceChain?.key ?? 'cosmos',
   })
 
@@ -186,7 +262,7 @@ export function useSwapsTx(): SwapsTxType {
     gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
   })
 
-  const nativeFeeDenom = useNativeFeeDenom(sourceChain?.key ?? 'cosmos', SWAP_NETWORK)
+  const nativeFeeDenom = useNativeFeeDenom(denoms, sourceChain?.key ?? 'cosmos', SWAP_NETWORK)
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom)
   const gasAdjustment = useGasAdjustmentForChain(sourceChain?.key ?? '')
 
@@ -210,8 +286,24 @@ export function useSwapsTx(): SwapsTxType {
   /**
    * Function to enable a disabled token
    */
-  const { enableToken: enableSourceToken } = useEnableToken(sourceChain, sourceToken)
-  const { enableToken: enableDestinationToken } = useEnableToken(destinationChain, destinationToken)
+  const { enableToken: enableSourceToken } = useEnableToken(
+    sourceChain,
+    sourceToken,
+    autoFetchedCW20DenomsStore,
+    betaCW20DenomsStore,
+    cw20DenomsStore,
+    disabledCW20DenomsStore,
+    enabledCW20DenomsStore,
+  )
+  const { enableToken: enableDestinationToken } = useEnableToken(
+    destinationChain,
+    destinationToken,
+    autoFetchedCW20DenomsStore,
+    betaCW20DenomsStore,
+    cw20DenomsStore,
+    disabledCW20DenomsStore,
+    enabledCW20DenomsStore,
+  )
 
   const callbackPostTx = useCallback(() => {
     enableDestinationToken()
@@ -234,11 +326,12 @@ export function useSwapsTx(): SwapsTxType {
       )
 
       const firstNotActiveChainToShow = chainsToShow.find((chain) => {
+        if (isCompassWallet()) return false
         /**
          * If active chain is Osmosis, set Cosmos as the starting destination chain
          */
-        if (activeChainInfo.chainId === ChainInfos.osmosis.chainId) {
-          if (chain.chainId === ChainInfos.cosmos.chainId) {
+        if (activeChainInfo.chainId === chainInfos.osmosis.chainId) {
+          if (chain.chainId === chainInfos.cosmos.chainId) {
             return true
           }
 
@@ -248,7 +341,7 @@ export function useSwapsTx(): SwapsTxType {
         /**
          * Else, set Osmosis as the starting destination chain
          */
-        return chain.chainId === ChainInfos.osmosis.chainId
+        return chain.chainId === chainInfos.osmosis.chainId
       })
 
       if (sourceChainParams && !searchedAssetsSetRef.current.sourceChain) {
@@ -275,6 +368,7 @@ export function useSwapsTx(): SwapsTxType {
       }
       destinationTokenNotYetSelectedRef.current = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeChainInfo.chainId,
     chainsToShow,
@@ -406,10 +500,28 @@ export function useSwapsTx(): SwapsTxType {
   ])
 
   const { data: sourceTokenWithBalance, status: sourceTokenWithBalanceStatus } =
-    useTokenWithBalances(sourceToken, sourceChain)
+    useTokenWithBalances(
+      sourceToken,
+      sourceChain,
+      autoFetchedCW20DenomsStore,
+      betaCW20DenomsStore,
+      cw20DenomsStore,
+      disabledCW20DenomsStore,
+      enabledCW20DenomsStore,
+      cw20DenomBalanceStore,
+    )
 
   const { data: destinationTokenWithBalance, status: destinationTokenWithBalanceStatus } =
-    useTokenWithBalances(destinationToken, destinationChain)
+    useTokenWithBalances(
+      destinationToken,
+      destinationChain,
+      autoFetchedCW20DenomsStore,
+      betaCW20DenomsStore,
+      cw20DenomsStore,
+      disabledCW20DenomsStore,
+      enabledCW20DenomsStore,
+      cw20DenomBalanceStore,
+    )
 
   /**
    * element hooks
@@ -428,7 +540,7 @@ export function useSwapsTx(): SwapsTxType {
     destinationChain,
     isRouteQueryEnabled,
     undefined,
-    isCompassWallet() ? SEI_ASTROPORT_SWAP_VENUE : undefined,
+    swapVenue,
   )
 
   const invalidAmount = useMemo(() => {
@@ -493,9 +605,13 @@ export function useSwapsTx(): SwapsTxType {
    */
   useEffect(() => {
     if (skipGasFee && skipGasFee.gasFeesAmount) {
-      setGasEstimate(
-        Number(skipGasFee.gasFeesAmount?.[0]?.gas) ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
-      )
+      if (isNaN(Number(skipGasFee.gasFeesAmount?.[0]?.gas))) {
+        setGasEstimate(DefaultGasEstimates.DEFAULT_GAS_TRANSFER)
+      } else {
+        setGasEstimate(
+          Number(skipGasFee.gasFeesAmount?.[0]?.gas) ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
+        )
+      }
     }
   }, [skipGasFee])
 
@@ -573,7 +689,10 @@ export function useSwapsTx(): SwapsTxType {
     destinationChain,
     userAddressesError,
   )
-  const loadingMsg = loadingRoutes && inAmount && sourceToken ? 'Finding transaction routes' : ''
+  const loadingMsg = useMemo(() => {
+    return loadingRoutes && inAmount && sourceToken ? 'Finding transaction routes' : ''
+  }, [inAmount, loadingRoutes, sourceToken])
+
   const infoMsg = useGetInfoMsg(routeResponse?.transactionCount ?? 0)
 
   /**
@@ -600,27 +719,44 @@ export function useSwapsTx(): SwapsTxType {
   /**
    * review button disabled
    */
-  const reviewBtnDisabled =
-    !!gasError ||
-    loadingDestinationAssets ||
-    loadingSourceAssets ||
-    loadingRoutes ||
-    errorMsg !== '' ||
-    Number(inAmount) <= 0 ||
-    amountExceedsBalance ||
-    invalidAmount ||
-    sourceToken === null ||
-    destinationToken === null ||
-    !sourceChain ||
-    !destinationChain ||
-    inAmount === '' ||
-    isSkipGasFeeLoading
+  const reviewBtnDisabled = useMemo(() => {
+    return (
+      !!gasError ||
+      loadingDestinationAssets ||
+      loadingSourceAssets ||
+      loadingRoutes ||
+      errorMsg !== '' ||
+      Number(inAmount) <= 0 ||
+      amountExceedsBalance ||
+      invalidAmount ||
+      sourceToken === null ||
+      destinationToken === null ||
+      !sourceChain ||
+      !destinationChain ||
+      inAmount === '' ||
+      isSkipGasFeeLoading
+    )
+  }, [
+    amountExceedsBalance,
+    destinationChain,
+    destinationToken,
+    errorMsg,
+    gasError,
+    inAmount,
+    invalidAmount,
+    isSkipGasFeeLoading,
+    loadingDestinationAssets,
+    loadingRoutes,
+    loadingSourceAssets,
+    sourceChain,
+    sourceToken,
+  ])
 
   const isSwitchOrderPossible = useMemo(() => {
     return !!destinationToken
   }, [destinationToken])
 
-  const handleSwitchOrder = () => {
+  const handleSwitchOrder = useCallback(() => {
     if (isSwitchOrderPossible) {
       isSwitchedRef.current = true
       setSourceChain(destinationChain)
@@ -634,80 +770,152 @@ export function useSwapsTx(): SwapsTxType {
     } else {
       isSwitchedRef.current = false
     }
-  }
-
-  const handleInAmountChange = (value: string) => {
-    setInAmount(value)
-  }
-
-  return {
-    inAmount,
-    sourceToken: sourceTokenWithBalance,
-    sourceTokenBalanceStatus: sourceTokenWithBalanceStatus,
-    sourceChain,
-    handleInAmountChange,
-    sourceAssets: sourceAssetsData?.assets ?? [],
-    loadingSourceAssets,
-    chainsToShow,
-    loadingChains: chainsToShowLoading,
-    amountExceedsBalance,
-    invalidAmount,
-    amountOut,
-    destinationToken: destinationTokenWithBalance,
+  }, [
     destinationChain,
-    loadingDestinationAssets,
-    destinationAssets: destinationAssetsData?.assets ?? [],
-    loadingRoutes,
-    destinationTokenBalancesStatus: destinationTokenWithBalanceStatus,
-    errorMsg,
-    loadingMsg,
-    reviewBtnDisabled,
-    setSourceToken,
+    destinationToken,
+    isSwitchOrderPossible,
+    setDestinationChain,
     setDestinationToken,
-    setSourceChain: (value) => {
-      sourceTokenNotYetSelectedRef.current = true
-      setSourceChain(value)
+    setSourceChain,
+    setSourceToken,
+    sourceChain,
+    sourceToken,
+  ])
+
+  const handleInAmountChange = useCallback(
+    (value: string) => {
+      setInAmount(value)
     },
-    setDestinationChain: (value) => {
-      destinationTokenNotYetSelectedRef.current = true
-      setDestinationChain(value)
-    },
-    infoMsg,
-    redirectUrl,
-    isMoreThanOneStepTransaction,
-    gasPriceOption,
-    setGasPriceOption,
-    gasError,
-    setGasError,
-    feeDenom,
-    userPreferredGasLimit,
-    userPreferredGasPrice,
-    isSkipGasFeeLoading,
-    gasOption,
-    gasEstimate,
-    setUserPreferredGasLimit,
-    setUserPreferredGasPrice,
-    callbackPostTx,
-    setGasOption,
-    setFeeDenom,
-    displayFee,
-    route: {
+    [setInAmount],
+  )
+
+  const route = useMemo(() => {
+    return {
       ...(routeResponse ?? {}),
       messages: messages ?? [],
       userAddresses: userAddresses ?? [],
-    },
-    refresh,
+    }
+  }, [messages, routeResponse, userAddresses])
+
+  const value = useMemo(() => {
+    return {
+      inAmount,
+      sourceToken: sourceTokenWithBalance,
+      sourceTokenBalanceStatus: sourceTokenWithBalanceStatus,
+      sourceChain,
+      handleInAmountChange,
+      sourceAssets: sourceAssetsData?.assets ?? [],
+      loadingSourceAssets,
+      chainsToShow,
+      loadingChains: chainsToShowLoading,
+      amountExceedsBalance,
+      invalidAmount,
+      amountOut,
+      destinationToken: destinationTokenWithBalance,
+      destinationChain,
+      loadingDestinationAssets,
+      destinationAssets: destinationAssetsData?.assets ?? [],
+      loadingRoutes,
+      destinationTokenBalancesStatus: destinationTokenWithBalanceStatus,
+      errorMsg,
+      loadingMsg,
+      reviewBtnDisabled,
+      setSourceToken,
+      setDestinationToken,
+      setSourceChain: (value: SourceChain | undefined) => {
+        sourceTokenNotYetSelectedRef.current = true
+        setSourceChain(value)
+      },
+      setDestinationChain: (value: SourceChain | undefined) => {
+        destinationTokenNotYetSelectedRef.current = true
+        setDestinationChain(value)
+      },
+      infoMsg,
+      redirectUrl,
+      isMoreThanOneStepTransaction,
+      gasPriceOption,
+      setGasPriceOption,
+      gasError,
+      setGasError,
+      feeDenom,
+      userPreferredGasLimit,
+      userPreferredGasPrice,
+      isSkipGasFeeLoading,
+      gasOption,
+      gasEstimate,
+      setUserPreferredGasLimit,
+      setUserPreferredGasPrice,
+      callbackPostTx,
+      setGasOption,
+      setFeeDenom,
+      displayFee,
+      route,
+      refresh,
+      handleSwitchOrder,
+      isSwitchOrderPossible,
+      slippagePercent,
+      setSlippagePercent,
+      setInAmount,
+      priceImpactWarning,
+      priceImpactPercentage: priceImpactPercentage as BigNumber | undefined,
+      priceImpactPercent,
+      usdPriceImpactPercentage,
+      usdValueAvailableForPair,
+      refetchSourceBalances,
+      refetchDestinationBalances,
+    }
+  }, [
+    amountExceedsBalance,
+    amountOut,
+    callbackPostTx,
+    chainsToShow,
+    chainsToShowLoading,
+    destinationAssetsData?.assets,
+    destinationChain,
+    destinationTokenWithBalance,
+    destinationTokenWithBalanceStatus,
+    displayFee,
+    errorMsg,
+    feeDenom,
+    gasError,
+    gasEstimate,
+    gasOption,
+    gasPriceOption,
+    handleInAmountChange,
     handleSwitchOrder,
+    inAmount,
+    infoMsg,
+    invalidAmount,
+    isMoreThanOneStepTransaction,
+    isSkipGasFeeLoading,
     isSwitchOrderPossible,
-    slippagePercent,
-    setSlippagePercent,
-    setInAmount,
-    priceImpactWarning,
-    priceImpactPercentage: priceImpactPercentage as BigNumber | undefined,
+    loadingDestinationAssets,
+    loadingMsg,
+    loadingRoutes,
+    loadingSourceAssets,
     priceImpactPercent,
+    priceImpactPercentage,
+    priceImpactWarning,
+    redirectUrl,
+    refetchDestinationBalances,
+    refetchSourceBalances,
+    refresh,
+    reviewBtnDisabled,
+    route,
+    setDestinationChain,
+    setDestinationToken,
+    setSourceChain,
+    setSourceToken,
+    slippagePercent,
+    sourceAssetsData?.assets,
+    sourceChain,
+    sourceTokenWithBalance,
+    sourceTokenWithBalanceStatus,
     usdPriceImpactPercentage,
     usdValueAvailableForPair,
-    refetchSourceBalances,
-    refetchDestinationBalances,
-  }
+    userPreferredGasLimit,
+    userPreferredGasPrice,
+  ])
+
+  return value
 }

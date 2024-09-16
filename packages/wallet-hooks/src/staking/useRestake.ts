@@ -7,9 +7,7 @@ import {
   EthermintTxHandler,
   fromSmall,
   GasPrice,
-  INJECTIVE_DEFAULT_STD_FEE,
   InjectiveTx,
-  SeiTxHandler,
   simulateGrantRestake,
   simulateRevokeRestake,
   SupportedChain,
@@ -231,10 +229,7 @@ export function useRestake() {
       }
 
       // FEES
-      let fee = calculateFee(Math.round((gasEstimate ?? defaultGasStake) * 1.5), gasPrice);
-      if (activeChain === 'injective') {
-        fee = INJECTIVE_DEFAULT_STD_FEE;
-      }
+      const fee = calculateFee(Math.round((gasEstimate ?? defaultGasStake) * 1.5), gasPrice);
       if (isSimulation) {
         const feeCurrencyValue = await fetchCurrency(
           fromSmall(fee.amount[0].amount, denom?.coinDecimals),
@@ -254,11 +249,6 @@ export function useRestake() {
       if (tx) {
         if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
           setShowLedgerPopup(true);
-        }
-
-        /** do not support restake for sei atlantic 2 yet till restake support is added */
-        if (tx instanceof SeiTxHandler) {
-          return;
         }
 
         const txHash = mode === 'grant' ? await executeGrantTx(fee, tx) : await executeRevokeTx(fee, tx);

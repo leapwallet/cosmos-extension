@@ -30,7 +30,7 @@ export const getId = (proposal: any, shouldPreferFallback: boolean) => {
 
 export const getTurnout = (proposal: any, totalVotes: any, shouldUseFallback: boolean) => {
   return shouldUseFallback === true
-    ? (totalVotes / proposal?.proposal?.total_power ?? 1) * 100
+    ? (totalVotes / (proposal?.proposal?.total_power ?? 1)) * 100
     : proposal?.turnout
 }
 

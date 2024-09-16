@@ -1,6 +1,7 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, Coin, StdFee } from '@cosmjs/stargate';
 import {
+  DenomsRecord,
   fromSmall,
   getSimulationFee,
   LedgerError,
@@ -9,7 +10,6 @@ import {
   SupportedChain,
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/default-gasprice-step';
 import { BigNumber } from 'bignumber.js';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { useCallback, useMemo, useState } from 'react';
@@ -68,11 +68,12 @@ export function useSimulateVote(forceChain?: SupportedChain, forceNetwork?: 'mai
 
 export type UseGovParams = {
   proposalId: string;
+  denoms: DenomsRecord;
   forceChain?: SupportedChain;
   forceNetwork?: 'mainnet' | 'testnet';
 };
 
-export function useGov({ proposalId, forceChain, forceNetwork }: UseGovParams) {
+export function useGov({ proposalId, forceChain, forceNetwork, denoms }: UseGovParams) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [ledgerError, setLedgerErrorMsg] = useState<string>();
@@ -98,7 +99,7 @@ export function useGov({ proposalId, forceChain, forceNetwork }: UseGovParams) {
 
   const address = useAddress(activeChain);
   const { setPendingTx } = usePendingTxState();
-  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
+  const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetwork);
   const activeChainId = useChainId(activeChain, selectedNetwork);
 
   const defaultGasEstimates = useDefaultGasEstimates();
@@ -176,9 +177,6 @@ export function useGov({ proposalId, forceChain, forceNetwork }: UseGovParams) {
             }
 
             fee = calculateFee(Math.round((gasEstimate ?? 250000) * gasAdjustment), gasPrice);
-            if (activeChain === 'injective') {
-              fee = INJECTIVE_DEFAULT_STD_FEE;
-            }
 
             if (fee.amount[0].amount === '0') {
               fee = {

@@ -1,4 +1,5 @@
-import { Leap, LeapEvm } from '@leapwallet/cosmos-wallet-provider'
+import { Leap } from '@leapwallet/cosmos-wallet-provider/dist/provider/core'
+import { LeapEvm } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-evm'
 
 import manifest from '../../public/base_manifest.json'
 import { init } from './init'

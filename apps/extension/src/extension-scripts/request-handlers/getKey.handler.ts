@@ -21,10 +21,10 @@ type GetKeyRequest = {
   sendResponse: (eventName: string, payload: any, payloadId: number) => void
 }
 
-async function getKey(_chain: string, passwordManager: PasswordManager) {
+export async function getKey(chainId: string, passwordManager: PasswordManager) {
   let { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
-  let chain = _chainIdToChain[_chain]
+  let chain = _chainIdToChain[chainId]
 
   chain = chain === 'cosmoshub' ? 'cosmos' : chain
   const password = passwordManager.getPassword()

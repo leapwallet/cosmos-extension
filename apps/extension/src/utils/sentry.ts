@@ -7,6 +7,7 @@ export const beforeCapture = (scope: Scope, error: Error | null, componentStack:
     level: 'error',
     data: {
       componentStack,
+      errorStack: error?.stack,
     },
   })
   scope.setTag('extension-crash', 'true')

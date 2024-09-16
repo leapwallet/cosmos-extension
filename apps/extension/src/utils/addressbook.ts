@@ -4,6 +4,7 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 import {
   getBlockChainFromAddress,
+  isEthAddress,
   isValidAddress,
 } from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/validateAddress'
 import { useEffect, useState } from 'react'
@@ -54,7 +55,7 @@ export namespace AddressBook {
    */
 
   export async function save(entry: SavedAddress) {
-    if (!isValidAddress(entry.address)) {
+    if (!isValidAddress(entry.address) && !isEthAddress(entry.address)) {
       DEBUG('Save contact', 'Address not valid')
       return
     }

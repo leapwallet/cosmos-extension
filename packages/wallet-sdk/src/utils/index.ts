@@ -1,5 +1,7 @@
 export * from './address-conversion';
 export * from './crypto';
+export * from './format-new-evm-chain-info';
+export * from './get-evm-chain-id-map';
 export * from './get-hdpath';
 export * from './getBaseAccount';
 export * from './getErrorMessageFromCode';

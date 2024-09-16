@@ -1,4 +1,5 @@
 import { useChains } from '@leapwallet/elements-hooks'
+import { WarningCircle } from '@phosphor-icons/react'
 import React, { useMemo } from 'react'
 
 import { useOnline } from '../hooks/useOnline'
@@ -43,7 +44,7 @@ export function TxErrorSection({
     }
 
     if (unableToTrackError) {
-      return 'We couldn’t track the status of your transaction due to a technical error.'
+      return "We couldn't track the status of your transaction due to a technical error."
     }
 
     if (firstTxnError) {
@@ -60,9 +61,10 @@ export function TxErrorSection({
   return (
     <div className='w-full p-4 flex flex-col dark:bg-gray-950 bg-white-100 justify-start items-start gap-3 rounded-xl'>
       <div className='flex flex-row justify-start items-start gap-3 dark:text-white-100 text-black-100'>
-        <div className='mt-1 !text-md material-icons-round text-red-300 rounded-full w-[12px] h-[12px] flex flex-row items-center justify-center !leading-4 bg-white-100'>
-          error
-        </div>
+        <WarningCircle
+          size={12}
+          className='mt-1 text-red-300 rounded-full w-[12px] h-[12px] flex items-center justify-center leading-4 bg-white-100'
+        />
         <div className='text-sm !leading-[22.4px] font-medium'>{errorMessage}</div>
       </div>
       {unableToTrackError && route && intermediateChainsInvolved && (

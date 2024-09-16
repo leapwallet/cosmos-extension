@@ -100,11 +100,11 @@ export function AggregatedTokenCard({
 
       <div className='flex flex-col items-end'>
         {formattedFiatValue !== '-' && (
-          <p className='text-black-100 dark:text-white-100 font-[700] text-[14px]'>
+          <p className='text-black-100 dark:text-white-100 font-[700] text-[14px] text-right'>
             {formatHideBalance(formattedFiatValue)}
           </p>
         )}
-        <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500]'>
+        <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500] text-right'>
           {formatHideBalance(
             formatTokenAmount(
               amount,

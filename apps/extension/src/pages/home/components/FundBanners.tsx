@@ -1,9 +1,11 @@
 import { useActiveWallet, useChainInfo, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
+import { type Icon, Path, ShoppingBag, Wallet } from '@phosphor-icons/react'
+import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr'
 import { captureException } from '@sentry/react'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { AGGREGATED_CHAIN_KEY, LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useAddress } from 'hooks/wallet/useAddress'
 import mixpanel from 'mixpanel-browser'
@@ -16,7 +18,7 @@ import { trim } from 'utils/strings'
 import FundsSheet from './FundSheet'
 
 export type FundBannerData = {
-  icon: string
+  icon: Icon
   title: string
   content: string
   textColor: string
@@ -57,7 +59,7 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
   const transactUrl = useCallback(
     (type: 'swap' | 'bridge') => {
       if (type === 'swap') {
-        return `https://cosmos.leapwallet.io/transact/${type}${
+        return `${LEAPBOARD_URL}/transact/${type}${
           isAggregatedView ? '' : `?destinationChainId=${chain?.chainId}`
         }`
       }
@@ -95,7 +97,7 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
     () =>
       [
         {
-          icon: 'account_balance_wallet',
+          icon: Wallet,
           title: 'Receive / Deposit',
           content: isAggregatedView
             ? 'Copy wallet address to deposit Cosmos tokens'
@@ -115,7 +117,7 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
           },
         },
         {
-          icon: 'sync_alt',
+          icon: ArrowsLeftRight,
           title: 'Swap from Cosmos tokens',
           content: `Swap into ${token} from 300+ other tokens`,
           textColor: '#70B7FF',
@@ -129,7 +131,7 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
           hide: isAggregatedView,
         },
         {
-          icon: 'local_mall',
+          icon: ShoppingBag,
           title: 'On-ramp from fiat',
           content: `Buy ${isAggregatedView ? 'Cosmos tokens' : token} using USD, EUR, GBP & others`,
           textColor: '#F47CCE',
@@ -139,7 +141,7 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
           },
         },
         {
-          icon: 'route',
+          icon: Path,
           title: 'Bridge from EVMs, Solana',
           content: 'Swap & bridge tokens from other ecosystems',
           textColor: '#3ACF92',
@@ -176,11 +178,8 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
                 key={index}
                 className='flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-850 w-9 h-9 rounded-3xl ml-[-4px]'
               >
-                <div
-                  className='material-icons-outlined !text-[20px]'
-                  style={{ color: d.textColor }}
-                >
-                  {d.icon}
+                <div className='!h-5 !w-5' style={{ color: d.textColor }}>
+                  <d.icon size={20} />
                 </div>
               </div>
             ))}
@@ -196,7 +195,7 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
         <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
           The interchain is more fun with some tokens!
           <br />
-          Use Leap’s in-wallet options to get started.
+          Use Leap&apos;s in-wallet options to get started.
         </Text>
       </div>
       <FundsSheet

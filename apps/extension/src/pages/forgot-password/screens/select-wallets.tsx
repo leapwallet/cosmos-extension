@@ -1,4 +1,5 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { CaretDown, CaretUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import WalletInfoCard from 'components/wallet-info-card'
@@ -83,7 +84,7 @@ function SelectWallets({
               )}
               onClick={toggleViewMore}
             >
-              <span className='material-icons-round'>expand_less</span>
+              <CaretUp size={16} className='dark:text-white-100 text-gray-800' />
               <span>Show Less Wallets</span>
             </button>
           ) : (
@@ -100,9 +101,7 @@ function SelectWallets({
               )}
               onClick={toggleViewMore}
             >
-              <span className='material-icons-round dark:text-white-100 text-gray-800'>
-                expand_more
-              </span>
+              <CaretDown size={16} className='dark:text-white-100 text-gray-800' />
               <span>Show More Wallets</span>
             </button>
           )}

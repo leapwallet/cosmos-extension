@@ -1,4 +1,5 @@
 import { Buttons, Input } from '@leapwallet/leap-ui'
+import { Lock } from '@phosphor-icons/react'
 import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
 import { Images } from 'images'
@@ -98,12 +99,7 @@ const SetPassword: React.FC<PropsType> = ({ loading, resetPassword }) => {
     <PopupLayout>
       <div className='flex flex-col h-full pt-[25%]'>
         <div className='mx-5 bg-gray-900 dark:bg-gray-100 rounded-[16px] mb-4 h-[36px] w-[36px] flex flex-col justify-center text-center'>
-          <div
-            style={{ fontSize: 20 }}
-            className='material-icons-round dark:text-gray-900 text-gray-100'
-          >
-            lock
-          </div>
+          <Lock size={20} className='dark:text-gray-900 text-gray-100' />
         </div>
         <Text size='xxl' className='font-bold px-5'>
           Choose a password

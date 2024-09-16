@@ -1,5 +1,6 @@
 import { SecretToken, useSecretTokenStore } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Plus } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
@@ -80,7 +81,7 @@ export default function SecretManageTokens() {
 
   return (
     <Snip20ManageTokensProvider>
-      <div className='relative w-[400px] overflow-clip'>
+      <div className='relative w-full overflow-clip panel-height'>
         <PopupLayout
           header={
             <Header
@@ -131,7 +132,7 @@ export default function SecretManageTokens() {
                         })}
                         title={tokenData.symbol}
                         subtitle={tokenData.name}
-                        icon={<span className='material-icons-round text-gray-400'>add</span>}
+                        icon={<Plus size={16} className='text-gray-400' />}
                         img={
                           <img
                             src={tokenData.icon === '' ? defaultLogo : tokenData.icon}

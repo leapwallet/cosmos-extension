@@ -88,6 +88,10 @@ export const stakingDenoms: StakingDenoms = {
     saga: ['usaga'],
     initia: ['uinit'],
     humans: ['aheart'],
+    lava: ['ulava'],
+    mantra: ['uom'],
+    ethereum: [],
+    forma: [],
   },
   testnet: {
     akash: ['uakt'],
@@ -172,5 +176,9 @@ export const stakingDenoms: StakingDenoms = {
     saga: ['usaga'],
     initia: ['uinit'],
     humans: ['aheart'],
+    lava: ['ulava'],
+    mantra: ['uom'],
+    ethereum: [],
+    forma: [],
   },
 };

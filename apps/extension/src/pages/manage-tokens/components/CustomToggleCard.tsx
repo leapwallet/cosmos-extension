@@ -9,6 +9,7 @@ type CustomToggleCardProps = GenericCardProps & {
   TokenType?: React.ReactNode
   onToggleChange: (isEnabled: boolean) => void
   isToggleChecked: boolean
+  className?: string
   onDeleteClick: () => void
 }
 
@@ -21,6 +22,7 @@ export function CustomToggleCard({
   onToggleChange,
   isToggleChecked,
   onDeleteClick,
+  className,
 }: CustomToggleCardProps) {
   const defaultTokenLogo = useDefaultTokenLogo()
 
@@ -52,6 +54,7 @@ export function CustomToggleCard({
           </button>
         </div>
       }
+      className={className}
     />
   )
 }

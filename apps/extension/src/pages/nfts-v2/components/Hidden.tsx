@@ -1,16 +1,22 @@
-import { useHiddenNftsList } from '@leapwallet/cosmos-wallet-hooks'
+import { NftContextType, useHiddenNftsList } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { NftInfo, NftStore } from '@leapwallet/cosmos-wallet-store'
 import { useHiddenNFTs } from 'hooks/settings'
+import { observer } from 'mobx-react-lite'
 import React from 'react'
 
-import { useNftContext } from '../context'
 import { TextHeaderCollectionCard } from './index'
 
-export function Hidden() {
+type HiddenProps = {
+  nftStore: NftStore
+}
+
+export const Hidden = observer(({ nftStore }: HiddenProps) => {
   const hiddenNfts = useHiddenNFTs()
-  const { collectionData } = useNftContext()
 
   const { hiddenNftsList } = useHiddenNftsList({
-    collectionData,
+    collectionData: nftStore.nftDetails
+      .collectionData as unknown as NftContextType['collectionData'],
     hiddenNfts,
   })
 
@@ -18,7 +24,7 @@ export function Hidden() {
   return (
     <TextHeaderCollectionCard
       headerTitle={`${hiddenNftsList.length} NFT${hiddenNftsList.length > 1 ? 's' : ''}`}
-      nfts={hiddenNftsList}
+      nfts={hiddenNftsList as unknown as (NftInfo & { chain: SupportedChain })[]}
     />
   )
-}
+})

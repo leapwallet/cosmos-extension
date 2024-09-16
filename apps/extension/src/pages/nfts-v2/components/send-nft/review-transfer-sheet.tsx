@@ -9,6 +9,8 @@ import Text from 'components/text'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { SelectedAddress } from 'pages/send-v2/types'
 import React from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
@@ -78,7 +80,12 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
               <Card
                 avatar={
                   <Avatar
-                    avatarImage={normalizeImageSrc(nftDetails?.image ?? '') ?? defaultTokenLogo}
+                    avatarImage={
+                      normalizeImageSrc(
+                        nftDetails?.image ?? '',
+                        nftDetails?.collection?.address ?? '',
+                      ) ?? defaultTokenLogo
+                    }
                     size='sm'
                     avatarOnError={imgOnError(defaultTokenLogo)}
                   />
@@ -130,7 +137,14 @@ export const ReviewNFTTransferSheet: React.FC<ReviewNFTTransactionSheetProps> = 
             />
           ) : null}
 
-          {!!fee && <FeesView fee={fee} nftDetails={nftDetails} />}
+          {!!fee && (
+            <FeesView
+              fee={fee}
+              nftDetails={nftDetails}
+              rootDenomsStore={rootDenomsStore}
+              rootBalanceStore={rootBalanceStore}
+            />
+          )}
           <Buttons.Generic
             color={themeColor}
             size='normal'

@@ -1,5 +1,5 @@
 import { addressPrefixes, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import bech32, { fromWords } from 'bech32'
+import { bech32 } from 'bech32'
 
 export class Bech32Address {
   // eslint-disable-next-line no-unused-vars
@@ -43,7 +43,7 @@ export class Bech32Address {
       throw new Error('Unmatched prefix')
     }
 
-    return new Bech32Address(new Uint8Array(fromWords(decoded.words)))
+    return new Bech32Address(new Uint8Array(bech32.fromWords(decoded.words)))
   }
 
   static validate(bech32Address: string, prefix?: string) {

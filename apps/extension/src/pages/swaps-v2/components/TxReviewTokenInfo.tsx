@@ -48,7 +48,7 @@ export function TxReviewTokenInfo({
   }, [amount, token?.symbol])
 
   return (
-    <div className='flex flex-col items-center w-full max-w-[140px] gap-4'>
+    <div className='flex flex-col items-center w-full max-w-[140px] max-[399px]:!max-w-[calc(min(140px,45%))] gap-4 max-[399px]:overflow-visible'>
       <div className='relative'>
         <img
           className={classNames(
@@ -74,11 +74,11 @@ export function TxReviewTokenInfo({
         />
       </div>
 
-      <div className='flex flex-col justify-start items-center w-full'>
-        <p className='text-black-100 dark:text-white-100 text-sm !leading-[19.2px] font-bold w-full overflow-hidden text-ellipsis text-center whitespace-nowrap'>
+      <div className='flex flex-col justify-start items-center w-full text-center max-[399px]:shrink-0 max-[399px]:overflow-visible'>
+        <p className='text-black-100 dark:text-white-100 text-sm max-[350px]:!text-[13px] !leading-[19.2px] font-bold w-full overflow-hidden max-[399px]:!overflow-visible max-[399px]:flex max-[399px]:justify-center text-ellipsis text-center whitespace-nowrap'>
           {balanceAmount}
         </p>
-        <p className='text-gray-800 dark:text-gray-200 text-xs !leading-[19.2px] font-medium w-full overflow-hidden text-ellipsis text-center whitespace-nowrap'>
+        <p className='text-gray-800 dark:text-gray-200 text-xs max-[350px]:!text-[11px] !leading-[19.2px] font-medium w-full overflow-hidden max-[399px]:!overflow-visible max-[399px]:flex max-[399px]:justify-center text-ellipsis text-center whitespace-nowrap'>
           {dollarAmount}
           {chain ? ` • on ${chain?.chainName}` : null}
         </p>

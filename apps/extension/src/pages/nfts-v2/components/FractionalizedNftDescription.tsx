@@ -1,4 +1,5 @@
 import { FractionalizedNftInformation } from '@leapwallet/cosmos-wallet-hooks'
+import { MapPin } from '@phosphor-icons/react'
 import React, { useMemo } from 'react'
 
 import { NonFractionalizedNftDescriptionProps } from './index'
@@ -38,10 +39,7 @@ export function FractionalizedNftDescription({ nftDetails }: NonFractionalizedNf
 
       {location ? (
         <p className='text-left text-gray-900 dark:text-gray-50 text-xs mt-2 flex items-center gap-1'>
-          <span className='material-icons-round text-gray-900 dark:text-gray-50 text-xs'>
-            pin_drop
-          </span>{' '}
-          {location}
+          <MapPin size={16} className='text-gray-900 dark:text-gray-50' /> {location}
         </p>
       ) : null}
 

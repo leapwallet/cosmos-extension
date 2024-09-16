@@ -15,7 +15,6 @@ export type InitialFaucetResp = {
 export type GeneralHomeProps = {
   _allAssets: Token[]
   _allAssetsCurrencyInFiat: BigNumber
-  isWalletHasFunds?: boolean
   s3IbcTokensStatus?: TransactionStatus
   nonS3IbcTokensStatus?: TransactionStatus
   nativeTokensStatus?: TransactionStatus

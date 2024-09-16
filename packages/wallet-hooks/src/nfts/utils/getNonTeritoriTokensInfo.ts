@@ -26,7 +26,7 @@ export async function getNonTeritoriTokensInfo({
   const { tokenId, extension } = tokensInfo;
   let { tokenUri } = tokensInfo;
   try {
-    const res = await fetch(options?.tokenUriModifier?.(tokenUri) ?? tokenUri);
+    const res = await fetch(options?.tokenUriModifier?.(tokenUri, collection?.contractAddress ?? '') ?? tokenUri);
 
     /**
      * The below fix is to fetch details properly on android, the request was

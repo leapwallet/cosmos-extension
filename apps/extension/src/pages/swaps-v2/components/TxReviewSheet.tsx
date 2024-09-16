@@ -1,6 +1,8 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { CaretDown, CaretUp, GasPump } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { PageName } from 'config/analytics'
+import { AnimatePresence, motion } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
 import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -70,13 +72,22 @@ export function TxReviewSheet({
     setShowMoreDetails((prevShowMoreDetails) => !prevShowMoreDetails)
   }, [setShowMoreDetails])
 
+  const handleAccordingKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleAccordionClick()
+      }
+    },
+    [handleAccordionClick],
+  )
+
   return (
     <BottomModal
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
       contentClassName='!bg-white-100 dark:!bg-gray-950'
-      className='p-6'
+      className='p-6 max-[399px]:!px-4'
       title='Review Transaction'
     >
       <div className='flex flex-col items-center w-full gap-6'>
@@ -90,10 +101,13 @@ export function TxReviewSheet({
             destinationChain={destinationChain}
           />
 
-          <div className='w-full flex-col bg-gray-50 dark:bg-gray-900 flex items-center justify-between p-4 gap-3 rounded-2xl'>
-            <button
+          <div className='w-full flex-col bg-gray-50 dark:bg-gray-900 flex items-center justify-between p-4 gap-3 rounded-2xl overflow-hidden'>
+            <div
+              role='button'
+              tabIndex={0}
               onClick={handleAccordionClick}
-              className='w-full flex-row flex justify-between items-center gap-2'
+              onKeyDown={handleAccordingKeyDown}
+              className='w-full flex-row flex justify-between items-center gap-2 cursor-pointer'
             >
               <ConversionRateDisplay
                 onClick={() => {
@@ -101,23 +115,32 @@ export function TxReviewSheet({
                 }}
               />
               <div className='flex items-center justify-end gap-1'>
-                <span className='!leading-5 [transform:rotateY(180deg)] rotate-180 !text-md material-icons-round dark:text-white-100'>
-                  local_gas_station
-                </span>
+                <GasPump size={16} className='dark:text-white-100' />
                 <span className='dark:text-white-100 text-xs font-medium'>
                   {displayFee?.fiatValue}
                 </span>
-                <span className='!leading-5 !text-md material-icons-round dark:text-white-100'>
-                  {showMoreDetails ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
-                </span>
+                {showMoreDetails ? (
+                  <CaretUp size={16} className='dark:text-white-100' />
+                ) : (
+                  <CaretDown size={16} className='dark:text-white-100' />
+                )}
               </div>
-            </button>
-            {showMoreDetails && (
-              <>
-                <div className='border-b w-full border-gray-200 dark:border-gray-800' />
-                <MoreDetails showInfo={false} setShowFeesSettingSheet={setShowFeesSettingSheet} />
-              </>
-            )}
+            </div>
+            <AnimatePresence initial={false}>
+              {showMoreDetails && (
+                <motion.div
+                  key='more-details'
+                  initial={{ height: 0, opacity: 0.6 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0.6 }}
+                  transition={{ duration: 0.1 }}
+                  className='w-full'
+                >
+                  <div className='border-b w-full border-gray-200 dark:border-gray-800 mb-3' />
+                  <MoreDetails showInfo={false} setShowFeesSettingSheet={setShowFeesSettingSheet} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

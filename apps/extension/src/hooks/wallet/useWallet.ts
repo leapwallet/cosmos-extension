@@ -33,6 +33,7 @@ import {
 import { useAuth } from 'context/auth-context'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { closeSidePanel } from 'utils/closeSidePanel'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { getChainInfosList } from 'utils/getChainInfosList'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -191,6 +192,7 @@ export namespace Wallet {
               `index.html#/onboarding?name=${name}&colorIndex=${colorIndex}`,
             ),
           )
+          closeSidePanel()
           return ''
         }
         const otherWallet = Object.values(wallets).find(
@@ -488,7 +490,7 @@ export namespace Wallet {
         const prefix = chainInfos[_chain].addressPrefix
         if (
           activeWallet?.walletType === WALLETTYPE.LEDGER &&
-          isLedgerEnabled(_chain, chainInfos[_chain]?.bip44?.coinType)
+          isLedgerEnabled(_chain, chainInfos[_chain]?.bip44?.coinType, Object.values(chainInfos))
         ) {
           if (chainInfos[_chain]?.bip44?.coinType === '60') {
             const hdPaths = [`m/44'/60'/0'/0/${activeWallet.addressIndex}`]

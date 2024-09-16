@@ -3,6 +3,7 @@ import { usePrimaryWalletAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Key, WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Buttons, Header, HeaderActionType, Input, QrCode } from '@leapwallet/leap-ui'
+import { Lock } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import CountDownTimer from 'components/countdown-timer'
 import Resize from 'components/resize'
@@ -116,18 +117,15 @@ function EnterPasswordView({
   }
 
   return (
-    <div className='h-[600px]'>
+    <div className='panel-height enclosing-panel'>
       <Header
         title='Sync with mobile app'
         action={{ type: HeaderActionType.BACK, onClick: goBack }}
       />
-      <div className='relative flex flex-col items-center h-[528px] px-7'>
+      <div className='relative flex flex-col items-center h-[calc(100%-72px)] px-7'>
         <div className='dark:bg-gray-900 bg-white-100 rounded-2xl mt-7'>
-          <div
-            style={{ fontSize: 48 }}
-            className='p-[12px] material-icons-round text-gray-400 dark:text-white-100'
-          >
-            lock
+          <div className='p-[12px] text-gray-400 dark:text-white-100'>
+            <Lock size={48} />
           </div>
         </div>
         <Text size='lg' className='dark:text-white-100 text-gray-900 font-bold mt-4 text-center'>
@@ -179,7 +177,7 @@ function QrCodeView({
   usePageView(PageName.SyncWithMobileApp)
 
   return (
-    <div className='h-[600px]'>
+    <div className='panel-height enclosing-panel'>
       <Header
         title='Sync with mobile app'
         action={{ type: HeaderActionType.BACK, onClick: goBack }}
@@ -196,8 +194,8 @@ function QrCodeView({
         </div>
         <div className='rounded-[48px] overflow-hidden bg-white-100 p-4 shadow-[0_4px_16px_8px_rgba(0,0,0,0.04)]'>
           <QrCode
-            height={312}
-            width={312}
+            height={Math.min(400, window.innerWidth) - 88}
+            width={Math.min(400, window.innerWidth) - 88}
             data={qrData as string}
             margin={0}
             qrOptions={{ errorCorrectionLevel: 'M' }}

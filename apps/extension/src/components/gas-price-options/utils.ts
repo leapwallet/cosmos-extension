@@ -16,10 +16,11 @@ type UpdateFeeTokenDataParams = {
   lcdUrl: string | undefined
   baseGasPriceStep: GasPriceStep
   chainNativeFeeTokenData: FeeTokenData
-  setFeeTokenData: React.Dispatch<React.SetStateAction<FeeTokenData | undefined>>
+  setFeeTokenData: (feeDenom: FeeTokenData) => void
   onGasPriceOptionChange: (value: GasPriceOptionValue, feeDenom: FeeTokenData) => void
   notUpdateGasPrice?: boolean
   hasToCalculateDynamicFee: boolean
+  defaultGasPriceOption?: GasOptions
   getFeeMarketGasPricesSteps: (
     feeDenom: string,
     forceBaseGasPriceStep?: GasPriceStep,
@@ -49,6 +50,7 @@ export async function updateFeeTokenData({
   notUpdateGasPrice = false,
   hasToCalculateDynamicFee,
   getFeeMarketGasPricesSteps,
+  defaultGasPriceOption = GasOptions.LOW,
 }: UpdateFeeTokenDataParams) {
   let feeTokenDataToSet = foundFeeTokenData
   if (foundFeeTokenData) {
@@ -60,7 +62,7 @@ export async function updateFeeTokenData({
       try {
         const gasPriceStep = await getGasPricesForOsmosisFee(
           lcdUrl ?? '',
-          foundFeeTokenData.ibcDenom ?? '',
+          foundFeeTokenData.ibcDenom ?? foundFeeTokenData?.denom?.coinMinimalDenom ?? '',
           baseGasPriceStep,
         )
         feeTokenDataToSet = { ...foundFeeTokenData, gasPriceStep }
@@ -100,7 +102,7 @@ export async function updateFeeTokenData({
     !notUpdateGasPrice &&
       onGasPriceOptionChange(
         {
-          option: GasOptions.LOW,
+          option: defaultGasPriceOption,
           gasPrice: GasPrice.fromUserInput(
             feeTokenDataToSet.gasPriceStep.low.toString(),
             feeTokenDataToSet.ibcDenom ?? feeTokenDataToSet?.denom?.coinMinimalDenom,

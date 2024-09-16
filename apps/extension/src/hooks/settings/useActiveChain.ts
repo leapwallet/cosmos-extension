@@ -1,13 +1,12 @@
 import {
-  getSeiEvmInfo,
   Key,
-  SeiEvmInfoEnum,
   SelectedNetworkType,
   useActiveChain as useActiveChainWalletHooks,
   useFeatureFlags,
   useGetChains,
   usePendingTxState,
   useSetActiveChain as useSetActiveChainWalletHooks,
+  useSetLastEvmActiveChain,
   useSetSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -15,11 +14,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { selectedChainAlertState } from 'atoms/selected-chain-alert'
 import { COMPASS_CHAINS } from 'config/config'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { ACTIVE_CHAIN, KEYSTORE } from 'config/storage-keys'
+import { ACTIVE_CHAIN, KEYSTORE, LAST_EVM_ACTIVE_CHAIN } from 'config/storage-keys'
 import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useEffect } from 'react'
 import { useSetRecoilState } from 'recoil'
+import { rootStore } from 'stores/root-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { sendMessageToTab } from 'utils'
 import browser from 'webextension-polyfill'
@@ -41,11 +41,11 @@ export function useSetActiveChain() {
   const updateKeyStore = useUpdateKeyStore()
   const { activeWallet, setActiveWallet } = useActiveWallet()
   const setActiveChain = useSetActiveChainWalletHooks()
-
+  const setLastEvmActiveChain = useSetLastEvmActiveChain()
   const queryClient = useQueryClient()
 
   return async (chain: AggregatedSupportedChain, chainInfo?: ChainInfo) => {
-    const storage = await browser.storage.local.get(['networkMap', KEYSTORE])
+    const storage = await browser.storage.local.get(['networkMap', KEYSTORE, ACTIVE_CHAIN])
     if (chain !== AGGREGATED_CHAIN_KEY) {
       const keystore = storage[KEYSTORE]
       if (keystore) {
@@ -62,6 +62,7 @@ export function useSetActiveChain() {
 
     await queryClient.cancelQueries()
     setActiveChain(chain as SupportedChain)
+    rootStore.setActiveChain(chain)
     setSelectedChainAlert(true)
     browser.storage.local.set({ [ACTIVE_CHAIN]: chain })
     setPendingTx(null)
@@ -75,6 +76,11 @@ export function useSetActiveChain() {
         setSelectedNetwork('mainnet')
         setNetwork('mainnet')
       } else {
+        if (_chainInfo?.evmOnlyChain) {
+          setLastEvmActiveChain(chain)
+          await browser.storage.local.set({ [LAST_EVM_ACTIVE_CHAIN]: chain })
+        }
+
         if (networkMap[chain]) {
           let network = networkMap[chain]
           let hasChainOnlyTestnet = false
@@ -104,14 +110,12 @@ export function useSetActiveChain() {
         }
       }
 
-      if (isCompassWallet()) {
-        const chainId = await getSeiEvmInfo({
-          activeChain: chain as 'seiDevnet' | 'seiTestnet2',
-          activeNetwork: _network,
-          infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
-        })
-        await sendMessageToTab({ event: 'chainChanged', data: chainId })
-      }
+      const chainId =
+        (_network === 'testnet' ? _chainInfo?.evmChainIdTestnet : _chainInfo?.evmChainId) ?? ''
+      await sendMessageToTab({ event: 'chainChanged', data: chainId })
+    } else {
+      setSelectedNetwork('mainnet')
+      setNetwork('mainnet')
     }
   }
 }
@@ -120,10 +124,11 @@ export function useInitActiveChain() {
   const chainInfos = useChainInfos()
   const chains = useGetChains()
   const setActiveChain = useSetActiveChainWalletHooks()
+  const setLastEvmActiveChain = useSetLastEvmActiveChain()
   const { data: featureFlags } = useFeatureFlags()
 
   useEffect(() => {
-    browser.storage.local.get(ACTIVE_CHAIN).then((storage) => {
+    browser.storage.local.get([ACTIVE_CHAIN, LAST_EVM_ACTIVE_CHAIN]).then((storage) => {
       let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
       const leapFallbackChain =
         featureFlags?.give_all_chains_option_in_wallet?.extension === 'active'
@@ -131,6 +136,7 @@ export function useInitActiveChain() {
           : chainInfos.cosmos.key
 
       const defaultActiveChain = isCompassWallet() ? chainInfos.seiTestnet2.key : leapFallbackChain
+      setLastEvmActiveChain(storage[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum')
 
       if (
         (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY &&
@@ -138,6 +144,8 @@ export function useInitActiveChain() {
         !isCompassWallet()
       ) {
         setActiveChain(activeChain)
+        rootStore.setActiveChain(activeChain)
+
         return
       }
 
@@ -150,6 +158,7 @@ export function useInitActiveChain() {
       }
 
       setActiveChain(activeChain)
+      rootStore.setActiveChain(activeChain)
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

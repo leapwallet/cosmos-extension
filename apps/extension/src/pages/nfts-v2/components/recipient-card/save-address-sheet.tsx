@@ -1,7 +1,7 @@
 import { SelectedAddress, useAddressPrefixes } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, Buttons, Input, Memo } from '@leapwallet/leap-ui'
-import bech32 from 'bech32'
+import { bech32 } from 'bech32'
 import BottomModal from 'components/bottom-modal'
 import IconButton from 'components/icon-button'
 import { LoaderAnimation } from 'components/loader/Loader'
@@ -111,7 +111,7 @@ export default function SaveAddressSheet({
         chainIcon: chainIcon ?? '',
         emoji: emoji,
         name: name,
-        avatarIcon: undefined ?? '',
+        avatarIcon: '',
         chainName: chainInfos[chain].chainName,
         selectionType: 'saved',
       })

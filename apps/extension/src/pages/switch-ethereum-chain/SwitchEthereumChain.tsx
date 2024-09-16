@@ -1,17 +1,34 @@
-import { useActiveWallet, useChainInfo, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useActiveWallet,
+  useChainInfo,
+  useGetChains,
+  useSetSelectedNetwork,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header } from '@leapwallet/leap-ui'
+import { ArrowRight } from '@phosphor-icons/react'
 import assert from 'assert'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { ACTIVE_CHAIN, BG_RESPONSE, REDIRECT_REQUEST, SELECTED_NETWORK } from 'config/storage-keys'
+import {
+  ACTIVE_CHAIN,
+  BG_RESPONSE,
+  LAST_EVM_ACTIVE_CHAIN,
+  REDIRECT_REQUEST,
+  SELECTED_NETWORK,
+} from 'config/storage-keys'
 import { useChainPageInfo } from 'hooks'
+import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
+import { addToConnections } from 'pages/ApproveConnection/utils'
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 import Browser from 'webextension-polyfill'
 
@@ -22,6 +39,9 @@ export default function SwitchEthereumChain() {
   const activeWallet = useActiveWallet()
   const { topChainColor } = useChainPageInfo()
 
+  const setActiveChain = useSetActiveChain()
+  const setSelectedNetwork = useSetSelectedNetwork()
+
   assert(activeWallet !== null, 'activeWallet is null')
   const walletName = useMemo(() => {
     return formatWalletName(activeWallet.name)
@@ -31,14 +51,17 @@ export default function SwitchEthereumChain() {
   const [isLoading, setIsLoading] = useState(false)
   const [requestedActiveChain, setRequestedActiveChain] = useState('')
   const [setNetworkTo, setSetNetworkTo] = useState()
+  const navigate = useNavigate()
+  const [origin, setOrigin] = useState<string>('')
 
   useEffect(() => {
     Browser.storage.local
       .get([REDIRECT_REQUEST])
       .then(async function initializeContractInfo(response) {
-        const { requestedActiveChain, setNetworkTo } = response[REDIRECT_REQUEST].msg
+        const { requestedActiveChain, setNetworkTo, origin } = response[REDIRECT_REQUEST].msg
         setRequestedActiveChain(requestedActiveChain)
         setSetNetworkTo(setNetworkTo)
+        setOrigin(origin)
       })
   }, [])
 
@@ -48,17 +71,35 @@ export default function SwitchEthereumChain() {
     setTimeout(async () => {
       await Browser.storage.local.remove([REDIRECT_REQUEST])
       await Browser.storage.local.remove(BG_RESPONSE)
-      window.close()
+      if (isSidePanel()) {
+        navigate('/home')
+      } else {
+        window.close()
+      }
     }, 10)
   }
 
   const handleSwitchChainClick = async () => {
     setIsLoading(true)
+    const requestedChainId =
+      (setNetworkTo === 'testnet'
+        ? chains[requestedActiveChain as SupportedChain]?.testnetChainId
+        : chains[requestedActiveChain as SupportedChain]?.chainId) ?? ''
+
+    await addToConnections([requestedChainId], [activeWallet.id], origin)
     await Browser.storage.local.set({
       [ACTIVE_CHAIN]: requestedActiveChain,
     })
 
+    setActiveChain(requestedActiveChain as SupportedChain)
+    rootStore.setActiveChain(requestedActiveChain as SupportedChain)
+    if (chains[requestedActiveChain as SupportedChain]?.evmOnlyChain) {
+      await Browser.storage.local.set({ [LAST_EVM_ACTIVE_CHAIN]: requestedActiveChain })
+    }
+
     if (setNetworkTo) {
+      setSelectedNetwork(setNetworkTo)
+      rootStore.setSelectedNetwork(setNetworkTo)
       await Browser.storage.local.set({
         [SELECTED_NETWORK]: setNetworkTo,
       })
@@ -73,13 +114,17 @@ export default function SwitchEthereumChain() {
       await Browser.storage.local.remove(BG_RESPONSE)
 
       setIsLoading(false)
-      window.close()
+      if (isSidePanel()) {
+        navigate('/home')
+      } else {
+        window.close()
+      }
     }, 50)
   }
 
   return (
     <div className='w-[400px] h-full relative self-center justify-self-center flex justify-center items-center mt-2'>
-      <div className='relative w-[400px] overflow-clip rounded-md border border-gray-300 dark:border-gray-900'>
+      <div className='panel-height relative w-full overflow-clip rounded-md border border-gray-300 dark:border-gray-900'>
         <PopupLayout
           header={
             <div className='w-[396px]'>
@@ -106,7 +151,8 @@ export default function SwitchEthereumChain() {
             </h2>
 
             <p className='text-center text-sm dark:text-gray-300 text-gray-500 w-full'>
-              This will switch the selected chain within Compass to a previously added chain:
+              This will switch the selected chain within {isCompassWallet() ? 'Compass' : 'Leap'} to
+              a previously added chain:
             </p>
 
             <div className='flex w-full p-8 items-center justify-between'>
@@ -117,9 +163,7 @@ export default function SwitchEthereumChain() {
               />
 
               <div className='bg-gray-100 dark:bg-gray-850 shrink-0 flex justify-center items-center w-[36px] h-[36px] rounded-full'>
-                <span className='dark:text-white-100 text-black-100 material-icons-round !leading-[24px] text-lg'>
-                  arrow_forward
-                </span>
+                <ArrowRight size={24} className='dark:text-white-100 text-black-100' />
               </div>
 
               <ChainDiv

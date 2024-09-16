@@ -93,7 +93,7 @@ export async function getDelegationsForChain({
   const delegations = Object.entries(rawDelegations)
     .filter(([, d]) => new BigNumber(d.balance.amount).gt(0))
     .reduce((formattedDelegations, [validator, d]) => {
-      d.balance.currenyAmount = new BigNumber(d.balance.amount).multipliedBy(denomFiatValue ?? '0').toString();
+      d.balance.currencyAmount = new BigNumber(d.balance.amount).multipliedBy(denomFiatValue ?? '0').toString();
       d.balance.formatted_amount = formatTokenAmount(d.balance.amount, activeStakingDenom.coinDenom, 6);
       return { [validator]: d, ...formattedDelegations };
     }, {});

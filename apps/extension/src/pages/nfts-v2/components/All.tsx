@@ -1,33 +1,39 @@
 import {
-  OwnedCollectionTokenInfo,
   sliceSearchWord,
   sortStringArr,
   useDisabledNFTsCollections,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { NftInfo, NftStore } from '@leapwallet/cosmos-wallet-store'
 import { EmptyCard } from 'components/empty-card'
+import { useHiddenNFTs } from 'hooks/settings'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 
-import { useNftContext } from '../context'
 import { AllNftsHidden, ChainHeaderCollectionCard, Favourites } from './index'
 
 type AllProps = {
   searchedText: string
   selectedSortsBy: SupportedChain[]
+  nftStore: NftStore
 }
 
-export function All({ searchedText, selectedSortsBy }: AllProps) {
-  const { _collectionData, sortedCollectionChains, areAllNftsHiddenRef } = useNftContext()
+export const All = observer(({ searchedText, selectedSortsBy, nftStore }: AllProps) => {
   const disabledNFTsCollections = useDisabledNFTsCollections()
+  const hiddenNfts = useHiddenNFTs()
 
-  const _nfts: { [key: string]: OwnedCollectionTokenInfo[] } = useMemo(() => {
+  const sortedCollectionChains = nftStore.getSortedCollectionChains(
+    disabledNFTsCollections,
+    hiddenNfts,
+  )
+  const _collectionData = nftStore.getVisibleCollectionData(hiddenNfts)
+  const areAllNftsHidden = nftStore.getAreAllNftsHidden(hiddenNfts)
+
+  const _nfts: { [key: string]: NftInfo[] } = useMemo(() => {
     return Object.keys(_collectionData?.nfts ?? {}).reduce((tempNfts, chain) => {
       const chainNfts = _collectionData?.nfts[chain].filter(
-        (nft) =>
-          !disabledNFTsCollections.includes(
-            nft.collection.address ?? nft.collection.contractAddress ?? '',
-          ),
+        (nft) => !disabledNFTsCollections.includes(nft.collection.address ?? ''),
       )
 
       return { ...tempNfts, [chain]: chainNfts }
@@ -35,7 +41,7 @@ export function All({ searchedText, selectedSortsBy }: AllProps) {
   }, [_collectionData?.nfts, disabledNFTsCollections])
 
   const { filteredChains, filteredNfts } = useMemo(() => {
-    const filteredNfts: { [key: string]: OwnedCollectionTokenInfo[] } = {}
+    const filteredNfts: { [key: string]: NftInfo[] } = {}
 
     if (selectedSortsBy.length) {
       sortedCollectionChains.forEach((chain) => {
@@ -73,7 +79,7 @@ export function All({ searchedText, selectedSortsBy }: AllProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_nfts, searchedText, selectedSortsBy.length, sortedCollectionChains])
 
-  if (areAllNftsHiddenRef.current) {
+  if (areAllNftsHidden) {
     return <AllNftsHidden />
   }
 
@@ -107,7 +113,7 @@ export function All({ searchedText, selectedSortsBy }: AllProps) {
 
   return (
     <>
-      <Favourites />
+      <Favourites nftStore={nftStore} />
       {sortedCollectionChains.map((chain) => {
         const nfts = _nfts[chain] ?? []
         return (
@@ -121,4 +127,4 @@ export function All({ searchedText, selectedSortsBy }: AllProps) {
       })}
     </>
   )
-}
+})

@@ -1,5 +1,6 @@
 import {
   ENABLED_NFTS_COLLECTIONS,
+  normalizeImageSrc,
   sliceSearchWord,
   useActiveChain,
   useDisabledNFTsCollections,
@@ -8,22 +9,26 @@ import {
   useSetDisabledNFTsInStorage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { NftStore } from '@leapwallet/cosmos-wallet-store'
 import { CardDivider } from '@leapwallet/leap-ui'
+import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { useChainPageInfo } from 'hooks'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
+import { nftStore } from 'stores/nft-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
-import { useNftContext } from '../context'
 import { NftAvatar, NftToggleCard, NoCollectionCard, Text } from './index'
 
 export type ManageCollectionsProps = {
   isVisible: boolean
   onClose: VoidFunction
   openAddCollectionSheet: () => void
+  nftStore: NftStore
 }
 
 export function ManageCollections({
@@ -31,7 +36,7 @@ export function ManageCollections({
   onClose,
   openAddCollectionSheet,
 }: ManageCollectionsProps) {
-  const { collectionData, setTriggerRerender } = useNftContext()
+  const collectionData = nftStore.nftDetails.collectionData
   const { topChainColor } = useChainPageInfo()
   const activeChain = useActiveChain()
   const { data } = useFetchCompassManageNftCollections({})
@@ -129,7 +134,6 @@ export function ManageCollections({
           [chain]: _enabledNftsCollections,
         }),
       })
-      setTriggerRerender((prev) => !prev)
     }
   }
 
@@ -140,7 +144,7 @@ export function ManageCollections({
       title={'Manage Collections'}
       closeOnBackdropClick={true}
     >
-      <div className='w-full h-[420px] flex flex-col sticky top-[72px] bg-gray-50 dark:bg-black-100'>
+      <div className='w-full h-[calc(100%-180px)] flex flex-col sticky top-[72px] bg-gray-50 dark:bg-black-100'>
         <div className='flex items-center justify-between'>
           <div className='w-[344px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] mb-4 py-2 pl-5 pr-[10px]'>
             <input
@@ -156,7 +160,7 @@ export function ManageCollections({
           </button>
         </div>
 
-        <div className='overflow-y-auto pb-20'>
+        <div className='overflow-y-auto'>
           {filteredCollections.length === 0 ? (
             <>
               {searchedText ? (
@@ -194,10 +198,16 @@ export function ManageCollections({
               return (
                 <React.Fragment key={`${address}-${index}`}>
                   <NftToggleCard
-                    title={<Text className='capitalize'>{name.toLowerCase()}</Text>}
+                    title={
+                      <Text
+                        className={classNames('capitalize', { '!max-w-[95px]': isSidePanel() })}
+                      >
+                        {name.toLowerCase()}
+                      </Text>
+                    }
                     isRounded={isLast}
                     size='md'
-                    avatar={<NftAvatar image={image} />}
+                    avatar={<NftAvatar image={normalizeImageSrc(image ?? '', address)} />}
                     isEnabled={
                       isCompassWallet()
                         ? enabledNftsCollections?.[chain]?.includes(address) ?? false

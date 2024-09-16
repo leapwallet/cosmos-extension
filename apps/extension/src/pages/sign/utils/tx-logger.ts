@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AminoSignResponse, encodeSecp256k1Pubkey, StdSignDoc } from '@cosmjs/amino'
 import { Secp256k1 } from '@cosmjs/crypto'
 import { fromBase64 } from '@cosmjs/encoding'
@@ -16,14 +18,16 @@ import { createTransaction, SIGN_AMINO } from '@injectivelabs/sdk-ts'
 import { LeapWalletApi } from '@leapwallet/cosmos-wallet-hooks'
 import { CosmosTxType } from '@leapwallet/cosmos-wallet-hooks'
 import {
-  createSignerInfo,
-  fromEthSignature,
   getEip712TxHash,
   getMsgFromAmino,
   getTxHashFromSignedTx,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { ExtensionOptionsWeb3Tx } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/ethermint/web3'
+import {
+  initiaAminoConverters,
+  initiaProtoRegistry,
+} from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/initia/client'
+import { strideAminoConverters } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/stride/client'
 import {
   cosmosAminoConverters,
   cosmosProtoRegistry,
@@ -34,11 +38,10 @@ import {
   osmosisAminoConverters as originalOsmosisAminoConverters,
   osmosisProtoRegistry,
 } from '@osmosis-labs/proto-codecs'
+import { LEAPBOARD_URL, LEAPBOARD_URL_OLD } from 'config/constants'
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing'
-import { AuthInfo, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import Long from 'long'
-import { strideAminoConverters } from 'stridejs'
 
 const osmosisAminoConverters: Record<
   keyof typeof originalOsmosisAminoConverters,
@@ -143,6 +146,7 @@ const aminoTypes = new AminoTypes({
   ...osmosisAminoConverters,
   ...cosmwasmAminoConverters,
   ...strideAminoConverters,
+  ...initiaAminoConverters,
 })
 
 const registry = new Registry([
@@ -150,11 +154,12 @@ const registry = new Registry([
   ...osmosisProtoRegistry,
   ...cosmwasmProtoRegistry,
   ...ibcProtoRegistry,
+  ...initiaProtoRegistry,
 ])
 
 import LogCosmosDappTx = LeapWalletApi.LogCosmosDappTx
 
-const DAPPS_TO_SKIP_TXN_LOGGING = ['cosmos.leapwallet.io', 'swapfast.app']
+const DAPPS_TO_SKIP_TXN_LOGGING = [LEAPBOARD_URL, LEAPBOARD_URL_OLD, 'swapfast.app']
 
 function shouldSkipTxnLogging(origin: string): boolean {
   return DAPPS_TO_SKIP_TXN_LOGGING.some((dapp) => origin.trim().toLowerCase().includes(dapp))
@@ -286,6 +291,9 @@ export async function logSignAminoInj(
   address: string,
   origin: string,
 ) {
+  if (shouldSkipTxnLogging(origin)) {
+    return
+  }
   const _signDoc = data.signed as StdSignDoc & { timeout_height: string }
   const pubKey = toBase64(Secp256k1.compressPubkey(pubkey))
   const arg = {

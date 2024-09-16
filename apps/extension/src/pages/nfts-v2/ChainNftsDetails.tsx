@@ -1,29 +1,31 @@
-import {
-  OwnedCollectionTokenInfo,
-  useDisabledNFTsCollections,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useDisabledNFTsCollections } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { NftInfo, NftStore } from '@leapwallet/cosmos-wallet-store'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import { getChainName } from 'utils/getChainName'
 
 import { CollectionAvatar, TextHeaderCollectionCard } from './components'
 import { useNftContext } from './context'
 
-export function ChainNftsDetails() {
-  const { collectionData, setActivePage, showChainNftsFor } = useNftContext()
+type ChainNftsDetailsProps = {
+  nftStore: NftStore
+}
+
+export const ChainNftsDetails = observer(({ nftStore }: ChainNftsDetailsProps) => {
+  const { setActivePage, showChainNftsFor } = useNftContext()
+  const collectionData = nftStore.nftDetails.collectionData
   const chainInfos = useChainInfos()
   const chainInfo = chainInfos[showChainNftsFor]
   const disabledNFTsCollections = useDisabledNFTsCollections()
 
   const nfts = useMemo(() => {
     return (collectionData?.nfts[showChainNftsFor] ?? []).reduce(
-      (_nfts: (OwnedCollectionTokenInfo & { chain: SupportedChain })[], nft) => {
-        if (
-          disabledNFTsCollections.includes(nft.collection.address ?? nft.collection.address ?? '')
-        ) {
+      (_nfts: (NftInfo & { chain: SupportedChain })[], nft) => {
+        if (disabledNFTsCollections.includes(nft.collection?.address ?? '')) {
           return _nfts
         }
 
@@ -40,7 +42,7 @@ export function ChainNftsDetails() {
   }, [collectionData?.nfts, disabledNFTsCollections, showChainNftsFor])
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip panel-height'>
       <PopupLayout
         header={
           <Header
@@ -54,7 +56,7 @@ export function ChainNftsDetails() {
                   className='h-[30px] w-[30px]'
                   image={chainInfo.chainSymbolImageUrl}
                 />
-                <span className='truncate max-w-[150px]' title={getChainName(chainInfo.chainName)}>
+                <span className='truncate !max-w-[150px]' title={getChainName(chainInfo.chainName)}>
                   {getChainName(chainInfo.chainName)}
                 </span>
               </h1>
@@ -72,4 +74,4 @@ export function ChainNftsDetails() {
       </PopupLayout>
     </div>
   )
-}
+})

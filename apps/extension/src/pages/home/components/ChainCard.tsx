@@ -1,6 +1,6 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { CheckCircle, Star } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
-import classNames from 'classnames'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
@@ -76,15 +76,22 @@ export function ChainCard({
     >
       <div className='flex items-center flex-1 gap-2'>
         {showStars && (
-          <span
-            className={classNames('material-icons-round', {
-              'text-yellow-500': isStarred,
-              'text-gray-200 dark:text-gray-800': !isStarred,
-            })}
-            onClick={onStarToggle}
-          >
-            {isStarred ? 'star' : 'star_outline'}
-          </span>
+          <>
+            {isStarred ? (
+              <Star
+                size={16}
+                weight='fill'
+                className='text-yellow-500 cursor-pointer'
+                onClick={onStarToggle}
+              />
+            ) : (
+              <Star
+                size={16}
+                className='text-gray-200 dark:text-gray-800 cursor-pointer'
+                onClick={onStarToggle}
+              />
+            )}
+          </>
         )}
 
         <img
@@ -110,18 +117,17 @@ export function ChainCard({
 
       <div className='ml-auto flex items-center'>
         {selectedChain === chainName ? (
-          <span
-            className='material-icons-round ml-2'
+          <CheckCircle
+            size={24}
+            weight='fill'
+            className='ml-2'
             style={{
-              fontSize: 20,
               color:
                 selectedChain === AGGREGATED_CHAIN_KEY
                   ? Colors.green600
                   : Colors.getChainColor(selectedChain),
             }}
-          >
-            check_circle
-          </span>
+          />
         ) : null}
       </div>
     </div>

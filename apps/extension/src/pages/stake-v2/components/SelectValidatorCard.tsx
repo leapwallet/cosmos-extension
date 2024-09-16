@@ -1,11 +1,13 @@
 import { sliceWord, useValidatorImage } from '@leapwallet/cosmos-wallet-hooks'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { CaretDown } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { Images } from 'images'
 import { GenericDark, GenericLight } from 'images/logos'
 import React from 'react'
 import { imgOnError } from 'utils/imgOnError'
+import { isSidePanel } from 'utils/isSidePanel'
 
 export type SelectValidatorCardProps = {
   selectedValidator?: Validator
@@ -60,20 +62,25 @@ export default function SelectValidatorCard({
             className=' font-bold'
           >
             {selectedValidator
-              ? sliceWord(selectedValidator.moniker ?? '', 30, 0)
+              ? sliceWord(
+                  selectedValidator.moniker ?? '',
+                  isSidePanel()
+                    ? 21 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                    : 30,
+                  0,
+                )
               : 'Select Validator'}
           </Text>
         </div>
         {!selectDisabled && (
-          <span
-            className={`material-icons-round ${
+          <CaretDown
+            size={16}
+            className={
               selectedValidator
                 ? 'text-gray-800 dark:text-white-100'
                 : 'text-gray-700 dark:text-gray-400'
-            }`}
-          >
-            expand_more
-          </span>
+            }
+          />
         )}
       </button>
     </div>

@@ -16,7 +16,6 @@ import {
   useInitCompassSeiEvmConfig,
   useInitCustomChannelsStore,
   useInitDefaultGasEstimates,
-  useInitDenoms,
   useInitDisabledCW20Tokens,
   useInitDisabledNFTsCollections,
   useInitEnabledCW20Tokens,
@@ -27,7 +26,6 @@ import {
   useInitGasPriceSteps,
   useInitIbcTraceStore,
   useInitInteractedTokens,
-  useInitInvestData,
   useInitIteratedUriNftContracts,
   useInitKadoBuyChains,
   useInitNftChains,
@@ -42,6 +40,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useInitSnipDenoms } from '@leapwallet/cosmos-wallet-hooks/dist/utils/useInitSnipDenoms'
 import { LeapUiTheme } from '@leapwallet/leap-ui'
+import { IconContext } from '@phosphor-icons/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import {
@@ -104,7 +103,7 @@ export default function App() {
 
   useGetFaucetApi()
   useGetBannerApi()
-  useInitDenoms()
+  //useInitDenoms()
   useInitWhitelistedFactoryTokens()
 
   useInitSpamProposals()
@@ -114,14 +113,13 @@ export default function App() {
   useInitGasPriceSteps()
   useInitGasAdjustments()
   useInitFeeDenoms()
-  useInitDisabledCW20Tokens()
-  useInitEnabledCW20Tokens()
-  useInitInteractedTokens()
+  // useInitDisabledCW20Tokens()
+  // useInitEnabledCW20Tokens()
+  // useInitInteractedTokens()
   useInitDisabledNFTsCollections()
 
   useInitBetaNFTsCollections()
   useInitEnabledNftsCollections()
-  useInitInvestData()
   useInitSnipDenoms()
   useInitIbcTraceStore()
 
@@ -153,7 +151,13 @@ export default function App() {
         baseColor={theme === 'dark' ? Colors.gray800 : Colors.gray300}
         highlightColor={theme === 'dark' ? Colors.gray900 : Colors.gray400}
       >
-        {!nodeUrlsInitialised ? <AppInitLoader /> : <Routes />}
+        <IconContext.Provider
+          value={{
+            weight: 'bold',
+          }}
+        >
+          {!nodeUrlsInitialised ? <AppInitLoader /> : <Routes />}
+        </IconContext.Provider>
       </SkeletonTheme>
     </LeapUiTheme>
   )

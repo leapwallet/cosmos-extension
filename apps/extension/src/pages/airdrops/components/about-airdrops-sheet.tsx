@@ -1,3 +1,4 @@
+import { Info } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import React from 'react'
@@ -19,18 +20,13 @@ export const AboutAirdropsSheet: React.FC<AboutAirdropsSheetProps> = ({ isOpen, 
     >
       <Text size='sm' color='text-gray-800 dark:text-gray-200' className='font-medium mb-3'>
         Only active airdrops that Leap has partnered with for eligibility tracking are displayed
-        here. For information on other airdrops, visit our web dashboard.
+        here. For information on other airdrops, visit our Leap Dashboard.
       </Text>
 
       <GoToLeapboard />
 
       <div className='flex gap-2 mt-8 mb-2 items-center'>
-        <div
-          className='material-icons-round text-black-100 dark:text-white-100'
-          style={{ fontSize: 20 }}
-        >
-          info
-        </div>
+        <Info size={20} className='text-black-100 dark:text-white-100' />
         <Text size='md' className='font-bold'>
           Disclaimer
         </Text>

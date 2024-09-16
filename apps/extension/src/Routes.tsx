@@ -1,30 +1,29 @@
 import {
-  useFetchAutoFetchedCW20Tokens,
-  useFetchCW20Tokens,
-  useFetchERC20Tokens,
-  useFetchStakeClaimRewards,
-  useFetchStakeDelegations,
-  useFetchStakeUndelegations,
-  useFetchStakeValidators,
-  useGetNtrnProposals,
+  useFetchDualStakeDelegations,
+  useFetchDualStakeProviderRewards,
+  useFetchDualStakeProviders,
   useInitCustomChains,
-  useInitGovProposals,
 } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
+import { SidePanelNavigation } from 'components/side-panel-navigation'
 import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
-import {
-  useFillBetaCW20Tokens,
-  useFillBetaERC20Tokens,
-  useFillBetaNativeTokens,
-} from 'hooks/settings'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useAirdropsData } from 'hooks/useAirdropsData'
-import { AddEvmLedger } from 'pages/onboarding/import/AddEvmLedger'
+import { AddEvmLedger, AddEvmTitle } from 'pages/onboarding/import/AddEvmLedger'
 import { lazy, Suspense, useEffect } from 'react'
 import React from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
+import { chainTagsStore } from 'stores/chain-infos-store'
+import { denomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
+import {
+  claimRewardsStore,
+  delegationsStore,
+  unDelegationsStore,
+  validatorsStore,
+} from 'stores/stake-store'
 
 import { ledgerPopupState } from './atoms/ledger-popup'
 import LedgerConfirmationPopup from './components/ledger-confirmation/LedgerConfirmationPopup'
@@ -52,9 +51,6 @@ const SignSeiEvm = React.lazy(() => import('pages/sign-sei-evm/SignSeiEvmTransac
 const Stake = React.lazy(() => import('pages/stake-v2'))
 const StakeInputPage = React.lazy(() => import('pages/stake-v2/StakeInputPage'))
 const StakeTxnPage = React.lazy(() => import('pages/stake-v2/StakeTxnPage'))
-const CancelUndelegation = React.lazy(() => import('pages/stake/CancelUndelegation'))
-const ChooseValidator = React.lazy(() => import('pages/stake/ChooseValidator'))
-const ValidatorDetails = React.lazy(() => import('pages/stake/ValidatorDetails'))
 
 const AddChain = React.lazy(() => import('pages/suggestChain/addChain'))
 const SuggestChain = React.lazy(() => import('pages/suggestChain/suggestChain'))
@@ -69,6 +65,7 @@ const ManageTokens = React.lazy(() => import('pages/manage-tokens'))
 const Proposals = React.lazy(() => import('pages/governance/Proposals'))
 
 const SwitchEthereumChain = React.lazy(() => import('pages/switch-ethereum-chain'))
+const SuggestEthereumChain = React.lazy(() => import('pages/suggestChain/SuggestEthereumChain'))
 const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
 export default function AppRoutes(): JSX.Element {
@@ -76,21 +73,11 @@ export default function AppRoutes(): JSX.Element {
   const { activeWallet } = useActiveWallet()
   const fetchAirdropsData = useAirdropsData()
 
-  useFetchCW20Tokens()
-  useFetchAutoFetchedCW20Tokens()
-  useFillBetaCW20Tokens()
-  useFillBetaNativeTokens()
-  useFillBetaERC20Tokens()
-  useFetchERC20Tokens()
-
   useInitAnalytics()
-  useInitGovProposals()
   useInitCustomChains()
-  useGetNtrnProposals()
-  useFetchStakeClaimRewards()
-  useFetchStakeDelegations()
-  useFetchStakeUndelegations()
-  useFetchStakeValidators()
+  useFetchDualStakeDelegations(rootDenomsStore.allDenoms)
+  useFetchDualStakeProviders(rootDenomsStore.allDenoms)
+  useFetchDualStakeProviderRewards(rootDenomsStore.allDenoms)
 
   useEffect(() => {
     if (activeWallet) {
@@ -102,6 +89,7 @@ export default function AppRoutes(): JSX.Element {
     <Suspense fallback={<AppInitLoader />}>
       <AuthProvider>
         <HashRouter>
+          <SidePanelNavigation />
           <RoutesMatch>
             <Route path='/' element={<Login />} />
             <Route
@@ -135,40 +123,8 @@ export default function AppRoutes(): JSX.Element {
             <Route
               path='onboardEvmLedger'
               element={
-                <RequireAuth>
+                <RequireAuth titleComponent={<AddEvmTitle />}>
                   <AddEvmLedger />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path='stakeChooseValidator'
-              element={
-                <RequireAuth>
-                  <ChooseValidator />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path='stakeInput'
-              element={
-                <RequireAuth>
-                  <StakeInputPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path='stakeValidatorDetails'
-              element={
-                <RequireAuth>
-                  <ValidatorDetails />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path='stakeCancelUndelegation'
-              element={
-                <RequireAuth>
-                  <CancelUndelegation />
                 </RequireAuth>
               }
             />
@@ -184,7 +140,11 @@ export default function AppRoutes(): JSX.Element {
               path='assetDetails'
               element={
                 <RequireAuth>
-                  <TokensDetails />
+                  <TokensDetails
+                    denomsStore={denomsStore}
+                    chainTagsStore={chainTagsStore}
+                    rootDenomsStore={rootDenomsStore}
+                  />
                 </RequireAuth>
               }
             />
@@ -248,7 +208,7 @@ export default function AppRoutes(): JSX.Element {
               path='earn'
               element={
                 <RequireAuth>
-                  <Earn />
+                  <Earn chainTagsStore={chainTagsStore} />
                 </RequireAuth>
               }
             />
@@ -336,15 +296,33 @@ export default function AppRoutes(): JSX.Element {
               path='pending-tx'
               element={
                 <RequireAuth>
-                  <PendingTx />
+                  <PendingTx rootBalanceStore={rootBalanceStore} rootStakeStore={rootStakeStore} />
                 </RequireAuth>
               }
             />
             <Route
-              path='stake-pending-txn'
+              path='stake/input'
               element={
                 <RequireAuth>
-                  <StakeTxnPage />
+                  <StakeInputPage
+                    rootDenomsStore={rootDenomsStore}
+                    delegationsStore={delegationsStore}
+                    validatorsStore={validatorsStore}
+                    unDelegationsStore={unDelegationsStore}
+                    claimRewardsStore={claimRewardsStore}
+                    rootBalanceStore={rootBalanceStore}
+                  />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='stake/pending-txn'
+              element={
+                <RequireAuth>
+                  <StakeTxnPage
+                    rootBalanceStore={rootBalanceStore}
+                    rootStakeStore={rootStakeStore}
+                  />
                 </RequireAuth>
               }
             />
@@ -385,6 +363,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <SwitchEthereumChain />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='suggest-ethereum-chain'
+              element={
+                <RequireAuth hideBorder={true}>
+                  <SuggestEthereumChain />
                 </RequireAuth>
               }
             />

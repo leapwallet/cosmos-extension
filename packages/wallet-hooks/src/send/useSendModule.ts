@@ -4,12 +4,13 @@ import {
   AccountDetails,
   ChainInfos,
   DefaultGasEstimates,
+  DenomsRecord,
   Dict,
   fromSmall,
-  getSeiEvmAddressToShow,
   getSimulationFee,
   isEthAddress,
   NativeDenom,
+  pubKeyToEvmAddressToShow,
   SeiEvmTx,
   simulateIbcTransfer,
   simulateSend,
@@ -17,7 +18,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { FetchStatus, QueryStatus, useQuery } from '@tanstack/react-query';
-import bech32 from 'bech32';
+import { bech32 } from 'bech32';
 import { BigNumber } from 'bignumber.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ReactNode } from 'react';
@@ -33,7 +34,6 @@ import {
   useAddress,
   useChainApis,
   useDefaultGasEstimates,
-  useDenoms,
   useGasPriceSteps,
   useGetChains,
   usePendingTxState,
@@ -46,9 +46,7 @@ import {
   getChainId,
   getErrorMsg,
   getOsmosisGasPriceSteps,
-  getSeiEvmInfo,
   getTxnLogAmountValue,
-  SeiEvmInfoEnum,
   useGasRateQuery,
   useNativeFeeDenom,
 } from '../utils';
@@ -57,8 +55,6 @@ import {
   useFetchAccountDetails,
   useGetFeeMarketGasPricesSteps,
   useHasToCalculateDynamicFee,
-  useIsCW20Token,
-  useIsERC20Token,
   useIsSeiEvmChain,
 } from '../utils-hooks';
 import { useSendIbcChains } from './useSendIbcChains';
@@ -155,10 +151,19 @@ export type SendModuleType = Readonly<{
   setAssociatedSeiAddress: React.Dispatch<React.SetStateAction<string>>;
 }>;
 
-export function useSendModule(): SendModuleType {
+export function useSendModule({
+  denoms,
+  cw20Denoms,
+  erc20Denoms,
+}: {
+  denoms: DenomsRecord;
+  cw20Denoms: DenomsRecord;
+  erc20Denoms: DenomsRecord;
+}): SendModuleType {
   /**
    * Universal Hooks
    */
+
   const _activeChain = useActiveChain();
   const _selectedNetwork = useSelectedNetwork();
   const activeWallet = useActiveWallet();
@@ -166,9 +171,25 @@ export function useSendModule(): SendModuleType {
   const defaultGasEstimates = useDefaultGasEstimates();
   const [preferredCurrency] = useUserPreferredCurrency();
   const allChainsGasPriceSteps = useGasPriceSteps();
-  const isCW20Token = useIsCW20Token();
-  const isERC20Token = useIsERC20Token();
-  const denoms = useDenoms();
+  const isCW20Token = useCallback(
+    (token: Token) => {
+      if (!token) {
+        return false;
+      }
+      return Object.keys(cw20Denoms).includes(token.coinMinimalDenom);
+    },
+    [cw20Denoms],
+  );
+  const isERC20Token = useCallback(
+    (token: Token) => {
+      if (!token) {
+        return false;
+      }
+      return Object.keys(erc20Denoms).includes(token.coinMinimalDenom);
+    },
+    [erc20Denoms],
+  );
+  //const denoms = useDenoms();
 
   /**
    * Local State Variables
@@ -200,7 +221,7 @@ export function useSendModule(): SendModuleType {
   }, [_selectedNetwork, _activeChain]);
 
   const isSeiEvmChain = useIsSeiEvmChain(activeChain);
-  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
+  const { lcdUrl, evmJsonRpc } = useChainApis(activeChain, selectedNetwork);
   const fromAddress = useAddress(activeChain);
   const activeChainId = useChainId(activeChain, selectedNetwork);
 
@@ -234,9 +255,14 @@ export function useSendModule(): SendModuleType {
   const { setPendingTx } = usePendingTxState();
   const getIbcChannelId = useGetIbcChannelId();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-  const { isSending, sendTokens, showLedgerPopup, sendTokenEth } = useSimpleSend(activeChain, selectedNetwork);
+  const { isSending, sendTokens, showLedgerPopup, sendTokenEth } = useSimpleSend(
+    denoms,
+    isCW20Token,
+    activeChain,
+    selectedNetwork,
+  );
   const { data: ibcSupportData, isLoading: isIbcSupportDataLoading } = useGetIBCSupport(activeChain);
-  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
+  const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetwork);
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
 
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
@@ -254,7 +280,7 @@ export function useSendModule(): SendModuleType {
         toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
         fetchAccountDetailsData?.pubKey.key
       ) {
-        toAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key);
+        toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key);
       }
 
       if (isSeiEvmChain && isEthAddress(toAddress)) {
@@ -267,7 +293,7 @@ export function useSendModule(): SendModuleType {
 
   const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork);
   const getFeeMarketGasPricesSteps = useGetFeeMarketGasPricesSteps(activeChain, selectedNetwork);
-  const gasPrices = useGasRateQuery(activeChain, selectedNetwork, isSeiEvmTransaction);
+  const gasPrices = useGasRateQuery(denoms, activeChain, selectedNetwork, isSeiEvmTransaction);
   const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
   const displayAccounts = useSendIbcChains(activeChain);
 
@@ -485,15 +511,21 @@ export function useSendModule(): SendModuleType {
 
           const txLogAmountValue = await getTxnLogAmountValue(inputAmount, txLogAmountDenom);
           const evmTxHash = result.data.txHash;
-          const evmRpcUrl = await getSeiEvmInfo({
-            activeChain,
-            activeNetwork: selectedNetwork,
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-          });
 
           try {
-            const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmRpcUrl as string);
-            txPostToDB({ ...result.data, amount: txLogAmountValue, txHash: cosmosTxHash, chainId: activeChainId });
+            if (chains[activeChain]?.evmOnlyChain) {
+              txPostToDB({
+                ...result.data,
+                amount: txLogAmountValue,
+                txHash: evmTxHash,
+                chainId: activeChainId,
+                isEvmOnly: true,
+                forceWalletAddress: pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]),
+              });
+            } else {
+              const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmJsonRpc ?? '');
+              txPostToDB({ ...result.data, amount: txLogAmountValue, txHash: cosmosTxHash, chainId: activeChainId });
+            }
           } catch {
             // GetCosmosTxHash is currently failing
           }
@@ -556,32 +588,30 @@ export function useSendModule(): SendModuleType {
       const channelId = customIbcChannelId ?? ibcChannelId ?? '';
 
       try {
-        if (isEthAddress(selectedAddress.address) && isSeiEvmChain && !associatedSeiAddress) {
+        if (
+          isEthAddress(selectedAddress.address) &&
+          (isSeiEvmChain || chains[activeChain]?.evmOnlyChain) &&
+          !associatedSeiAddress
+        ) {
           const erc20Token = isERC20Token(selectedToken);
           const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
 
-          if (!erc20Token) {
-            try {
-              const fromEthAddress = getSeiEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]);
-              const rpc = (await getSeiEvmInfo({
-                activeChain: activeChain,
-                activeNetwork: selectedNetwork,
-                infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-              })) as string;
+          try {
+            const fromEthAddress = pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]);
+            const gasUsed = await SeiEvmTx.SimulateTransaction(
+              selectedAddress.address ?? '',
+              inputAmountNumber.toString(),
+              evmJsonRpc,
+              undefined,
+              undefined,
+              fromEthAddress,
+              erc20Token ? selectedToken.coinMinimalDenom : undefined,
+              erc20Token ? selectedToken.coinDecimals : undefined,
+            );
 
-              const gasUsed = await SeiEvmTx.SimulateTransaction(
-                selectedAddress.address ?? '',
-                inputAmountNumber.toString(),
-                rpc,
-                undefined,
-                undefined,
-                fromEthAddress,
-              );
-
-              setGasEstimate(gasUsed);
-            } catch (_) {
-              setGasEstimate(ARCTIC_EVM_GAS_LIMIT);
-            }
+            setGasEstimate(gasUsed);
+          } catch (_) {
+            setGasEstimate(ARCTIC_EVM_GAS_LIMIT);
           }
 
           return;
@@ -627,6 +657,7 @@ export function useSendModule(): SendModuleType {
     isSeiEvmChain,
     activeWallet?.pubKeys,
     associatedSeiAddress,
+    chains,
   ]);
 
   return {

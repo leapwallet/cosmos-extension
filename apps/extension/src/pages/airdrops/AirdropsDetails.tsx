@@ -1,4 +1,5 @@
 import { AirdropEligibilityInfo, useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
+import { Info } from '@phosphor-icons/react'
 import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
@@ -53,14 +54,7 @@ export default function AirdropsDetails() {
         header={
           <PageHeader
             title={trim(selectedAirdrop?.name, 18)}
-            imgSrc={
-              <div
-                className='material-icons-round text-black-100 dark:text-white-100'
-                style={{ fontSize: 20 }}
-              >
-                info_outline
-              </div>
-            }
+            imgSrc={<Info size={20} className='text-black-100 dark:text-white-100' />}
             onImgClick={handleShowAboutAirdropsSheet}
             action={{
               onClick: () => navigate(-1),

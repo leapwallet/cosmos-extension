@@ -51,13 +51,13 @@ function PrivateKeyView({ password, goBack }: PrivateKeyViewProps): ReactElement
   }, [activeWallet])
 
   return (
-    <div className='h-[600px] '>
+    <div className='panel-height '>
       <Header title='Private Key' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
       <div className='flex flex-col items-center p-7 pt-[10px]'>
         <div className='p-4 rounded-2xl dark:bg-gray-900 bg-white-100'>
           <img src={Images.Misc.KeyVpn} />
         </div>
-        <div className='dark:text-white-100 text-black-100 text-base mt-4 mb-1 font-bold'>
+        <div className='dark:text-white-100 text-black-100 text-base mt-4 mb-1 font-bold text-center'>
           These words are the keys to your wallet
         </div>
         <div className='dark:text-gray-400 text-gray-600 text-xs mb-5 w-4/5 text-center'>

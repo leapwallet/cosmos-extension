@@ -7,4 +7,3 @@ export * from './key';
 export * from './leap';
 export * from './leap-evm';
 export * from './msgs';
-export * from './PostMessageStream';

@@ -3,6 +3,8 @@ import GasPriceOptions from 'components/gas-price-options'
 import { GasPriceOptionValue, useGasPriceContext } from 'components/gas-price-options/context'
 import { Images } from 'images'
 import React from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 
 export const NotAllowSignTxGasOptions = ({
   gasPriceOption,
@@ -31,7 +33,12 @@ export const NotAllowSignTxGasOptions = ({
         </Tooltip>
       </div>
       <GasPriceOptions.Selector className='mt-2' preSelected={false} />
-      <GasPriceOptions.AdditionalSettings className='mt-5 p-0' showGasLimitWarning={true} />
+      <GasPriceOptions.AdditionalSettings
+        className='mt-5 p-0'
+        showGasLimitWarning={true}
+        rootDenomsStore={rootDenomsStore}
+        rootBalanceStore={rootBalanceStore}
+      />
       {gasPriceError ? (
         <p className='text-red-300 text-sm font-medium mt-2 px-1'>{gasPriceError}</p>
       ) : null}

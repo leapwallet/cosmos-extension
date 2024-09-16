@@ -5,7 +5,17 @@ import {
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import {
+  ArrowsLeftRight,
+  CurrencyDollar,
+  Parachute,
+  Pulse,
+  Tag,
+  Wallet,
+} from '@phosphor-icons/react'
+import { CurrencyCircleDollar } from '@phosphor-icons/react/dist/ssr'
 import classNames from 'classnames'
+import { LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import React, { useCallback, useMemo, useState } from 'react'
@@ -40,7 +50,7 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
   const isDark = theme === ThemeName.DARK
 
   const airdropRedirectHandler = useCallback(() => {
-    const redirectUrl = `https://cosmos.leapwallet.io/airdrops`
+    const redirectUrl = `${LEAPBOARD_URL}/airdrops`
     window.open(redirectUrl, '_blank')
   }, [])
 
@@ -58,43 +68,44 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
     return [
       {
         label: BottomNavLabel.Home,
-        icon: 'account_balance_wallet',
+        icon: <Wallet size={22} weight='fill' />,
         path: '/home',
         show: true,
       },
       {
         label: BottomNavLabel.Stake,
-        icon: 'monetization_on',
+        icon: <CurrencyDollar size={22} weight='fill' />,
         path: '/stake?pageSource=bottomNav',
         show: true,
-        disabled: activeChainInfo?.disableStaking,
+        disabled: activeChainInfo?.disableStaking || activeChainInfo?.evmOnlyChain,
         shouldRedirect: activeChain === 'initia',
         redirectHandler: stakeRedirectForInitiaHandler,
       },
       {
         label: BottomNavLabel.Swap,
-        icon: 'sync_alt',
+        icon: <ArrowsLeftRight size={22} weight='bold' />,
         path: '/swap?pageSource=bottomNav',
         show: true,
         disabled: isSwapDisabled,
       },
       {
         label: BottomNavLabel.NFTs,
-        icon: 'sell',
+        icon: <Tag size={22} weight='fill' />,
         path: '/nfts',
         show: isCompassWallet(),
       },
       {
         label: BottomNavLabel.Airdrops,
-        icon: 'paragliding',
+        icon: <Parachute size={22} weight='fill' />,
         path: '/airdrops',
         show: !isCompassWallet() && featureFlags?.airdrops?.extension !== 'disabled',
         shouldRedirect: featureFlags?.airdrops?.extension === 'redirect',
         redirectHandler: airdropRedirectHandler,
+        disabled: activeChainInfo?.evmOnlyChain,
       },
       {
         label: BottomNavLabel.Activity,
-        icon: 'broken_image',
+        icon: <Pulse size={22} weight='fill' />,
         path: '/activity',
         show: true,
       },
@@ -105,12 +116,13 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
     activeChain,
     activeNetwork,
     activeChainInfo?.disableStaking,
+    activeChainInfo?.evmOnlyChain,
     stakeRedirectForInitiaHandler,
     airdropRedirectHandler,
   ])
 
   return (
-    <div className='flex absolute justify-around bottom-0 h-[65px] w-full rounded-b-lg z-[0] shadow-[0_-8px_20px_0px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_20px_0px_rgba(0,0,0,0.26)]'>
+    <div className='flex absolute justify-around bottom-0 h-[65px] w-full rounded-b-lg z-[0] bg-white-100 dark:bg-gray-950 shadow-[0_-8px_20px_0px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_20px_0px_rgba(0,0,0,0.26)]'>
       <Images.Nav.BottomNav
         fill={isDark ? '#141414' : '#FFF'}
         stroke={isDark ? '#2C2C2C' : '#E8E8E8'}
@@ -147,7 +159,7 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
                   <div
                     style={{ fontSize: 24 }}
                     className={classNames(
-                      'material-icons-round mt-[-20px] w-10 h-10 rounded-full flex items-center justify-center',
+                      'mt-[-20px] w-10 h-10 rounded-full flex items-center justify-center',
                       {
                         'bg-green-600 text-white-100': !isDisabled,
                         'bg-gray-100 text-gray-400 dark:bg-gray-900 dark:text-gray-600': isDisabled,
@@ -159,7 +171,7 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
                 ) : (
                   <div
                     style={{ fontSize: 20 }}
-                    className={classNames('material-icons-round', {
+                    className={classNames({
                       'text-black-100 dark:text-white-100': selected === label,
                       'text-gray-400 dark:text-gray-600': selected !== label,
                     })}

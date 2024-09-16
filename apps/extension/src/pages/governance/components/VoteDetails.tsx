@@ -1,8 +1,10 @@
 import { Proposal, ProposalApi } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, CardDivider } from '@leapwallet/leap-ui'
+import { ThumbsUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import dayjs from 'dayjs'
+import Vote from 'icons/vote'
 import React, { useEffect, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { Colors } from 'theme/colors'
@@ -97,7 +99,7 @@ export function VoteDetails({
               )}
             >
               <div className='h-10 w-10 bg-green-400 rounded-full flex items-center justify-center'>
-                <span className='material-icons-round text-green-700'>thumb_up</span>
+                <ThumbsUp size={16} className='text-green-700' />
               </div>
 
               <div className='flex flex-col justify-center items-start px-3'>
@@ -115,7 +117,7 @@ export function VoteDetails({
             disabled={!hasMinStaked}
           >
             <div className={'flex justify-center text-white-100 items-center'}>
-              <span className='mr-2 material-icons-round'>how_to_vote</span>
+              <Vote size={20} className='mr-2' />
               <span>Vote</span>
             </div>
           </Buttons.Generic>
@@ -160,10 +162,16 @@ export function VoteDetails({
               {voteRatio(
                 (proposal as unknown as ProposalApi).tally || proposal.final_tally_result,
               ).map((values) => (
-                <div key={values.label} className='flex rounded-2xl relative overflow-clip'>
+                <div
+                  key={values.label}
+                  className={classNames(
+                    'flex relative overflow-clip border-2 rounded-2xl',
+                    values.selectedBorderCSS,
+                  )}
+                >
                   <div
                     className={classNames(
-                      'text-black-100 dark:text-white-100 w-52 font-bold py-2 border-y-2 border-l-2 rounded-l-2xl z-10',
+                      'text-black-100 dark:text-white-100 font-bold py-2 z-10 flex-1',
                       values.selectedBorderCSS,
                     )}
                   >
@@ -171,7 +179,7 @@ export function VoteDetails({
                   </div>
                   <div
                     className={classNames(
-                      'w-full text-black-100 py-[10px] dark:text-white-100 border-y-2 border-r-2 rounded-r-2xl',
+                      'text-black-100 py-[10px] dark:text-white-100 shrink-0',
                       values.selectedBorderCSS,
                     )}
                   >
@@ -182,7 +190,7 @@ export function VoteDetails({
                   <div
                     style={{ width: (values.percentage * 3.12).toString() + 'px' }}
                     className={classNames(
-                      'h-10 absolute l-0 m-[2px] rounded-2xl',
+                      'h-10 absolute l-0 rounded-xl',
                       values.selectedBackgroundCSS,
                     )}
                   ></div>

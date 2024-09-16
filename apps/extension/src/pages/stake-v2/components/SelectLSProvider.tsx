@@ -1,5 +1,8 @@
-import { LSProvider, useActiveStakingDenom } from '@leapwallet/cosmos-wallet-hooks'
+import { LSProvider, SelectedNetwork, useActiveStakingDenom } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { GenericCard } from '@leapwallet/leap-ui'
+import { ArrowSquareOut } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { ValidatorItemSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
@@ -14,15 +17,32 @@ interface SelectLSProviderProps {
   isVisible: boolean
   onClose: () => void
   providers: LSProvider[]
+  rootDenomsStore: RootDenomsStore
+  forceChain?: SupportedChain
+  forceNetwork?: SelectedNetwork
 }
 
 interface ProviderCardProps {
   provider: LSProvider
   backgroundColor: string
+  rootDenomsStore: RootDenomsStore
+  activeChain?: SupportedChain
+  activeNetwork?: SelectedNetwork
 }
 
-export function ProviderCard({ provider, backgroundColor }: ProviderCardProps) {
-  const [activeStakingDenom] = useActiveStakingDenom()
+export function ProviderCard({
+  provider,
+  backgroundColor,
+  rootDenomsStore,
+  activeChain,
+  activeNetwork,
+}: ProviderCardProps) {
+  const [activeStakingDenom] = useActiveStakingDenom(
+    rootDenomsStore.allDenoms,
+    activeChain,
+    activeNetwork,
+  )
+
   return (
     <GenericCard
       onClick={() => {
@@ -66,15 +86,20 @@ export function ProviderCard({ provider, backgroundColor }: ProviderCardProps) {
         </Text>
       }
       icon={
-        <span className='material-icons-outlined dark:text-white-100 text-black-100 !text-lg'>
-          open_in_new
-        </span>
+        <ArrowSquareOut size={16} weight='bold' className='dark:text-white-100 text-black-100' />
       }
     />
   )
 }
 
-export default function SelectLSProvider({ isVisible, onClose, providers }: SelectLSProviderProps) {
+export default function SelectLSProvider({
+  isVisible,
+  onClose,
+  providers,
+  rootDenomsStore,
+  forceChain,
+  forceNetwork,
+}: SelectLSProviderProps) {
   return (
     <BottomModal
       isOpen={isVisible}
@@ -98,6 +123,9 @@ export default function SelectLSProvider({ isVisible, onClose, providers }: Sele
                 backgroundColor={`${
                   provider.priority ? '!bg-[#29A87426]' : 'bg-white-100 dark:bg-gray-950'
                 }`}
+                rootDenomsStore={rootDenomsStore}
+                activeChain={forceChain}
+                activeNetwork={forceNetwork}
               />
             </div>
           ))}

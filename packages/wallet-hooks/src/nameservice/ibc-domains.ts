@@ -1,6 +1,6 @@
 import { addressPrefixes } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
-import bech32 from 'bech32';
+import { bech32 } from 'bech32';
 
 import { useChainApis } from '../store';
 import { useCosmWasmClient } from '../utils/useCosmWasmClient';

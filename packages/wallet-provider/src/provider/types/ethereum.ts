@@ -8,6 +8,7 @@ export const ETHEREUM_POPUP_METHOD_TYPE = {
   WALLET__REQUEST_PERMISSIONS: 'wallet_requestPermissions',
   WALLET__WATCH_ASSET: 'wallet_watchAsset',
   WALLET__SWITCH_ETHEREUM_CHAIN: 'wallet_switchEthereumChain',
+  WALLET__ADD_ETHEREUM_CHAIN: 'wallet_addEthereumChain',
 };
 
 export const ETHEREUM_NO_POPUP_METHOD_TYPE = {
@@ -17,6 +18,7 @@ export const ETHEREUM_NO_POPUP_METHOD_TYPE = {
   ETH__GET_BALANCE: 'eth_getBalance',
   ETH__BLOCK_NUMBER: 'eth_blockNumber',
   ETH__ESTIMATE_GAS: 'eth_estimateGas',
+  ETH__GAS_PRICE: 'eth_gasPrice',
 
   ETH__GET_BLOCK_BY_NUMBER: 'eth_getBlockByNumber',
   WALLET__REVOKE_PERMISSIONS: 'wallet_revokePermissions',
@@ -118,6 +120,24 @@ export type WalletSwitchEthereumChainParams = {
 export type WalletSwitchEthereumChain = {
   method: typeof ETHEREUM_METHOD_TYPE.WALLET__SWITCH_ETHEREUM_CHAIN;
   params: [WalletSwitchEthereumChainParams];
+};
+
+export type WalletAddEthereumChainParams = {
+  chainId: string;
+  chainName: string;
+  nativeCurrency: {
+    name?: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrls: string[];
+  blockExplorerUrls?: string[];
+  iconUrls?: string[];
+};
+
+export type WalletAddEthereumChain = {
+  method: typeof ETHEREUM_METHOD_TYPE.WALLET__ADD_ETHEREUM_CHAIN;
+  params: [WalletAddEthereumChainParams];
 };
 
 export const ETHEREUM_RPC_ERROR = {

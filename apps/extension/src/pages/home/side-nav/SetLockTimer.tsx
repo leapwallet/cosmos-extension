@@ -1,5 +1,6 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
+import { CheckCircle } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import Text from 'components/text'
@@ -41,12 +42,11 @@ export default function SetLockTimerDropUp({
                     {time[0]}
                   </Text>
                   {lockTime === time[1] && (
-                    <span
-                      className='material-icons-round'
+                    <CheckCircle
+                      weight='fill'
+                      size={24}
                       style={{ color: Colors.getChainColor(activeChain) }}
-                    >
-                      check_circle
-                    </span>
+                    />
                   )}
                 </div>
                 {/* <Card

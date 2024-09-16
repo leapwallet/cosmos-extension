@@ -1,4 +1,5 @@
 import { Buttons, LineDivider } from '@leapwallet/leap-ui'
+import { ArrowClockwise, GearSix } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import React, { useCallback, useState } from 'react'
 
@@ -33,20 +34,14 @@ function InputPageHeader({ onBack, onRefresh, onSettings, topColor }: InputPageH
         <div className='absolute top-6 right-6 flex justify-end items-center gap-4'>
           <button
             onClick={handleRefreshClick}
-            className={classNames(
-              'material-icons-round !text-xl !leading-[24px] text-black-100 dark:text-white-100',
-              {
-                'animate-[spin_500ms_linear_0.7]': animate,
-              },
-            )}
+            className={classNames('text-black-100 dark:text-white-100', {
+              'animate-[spin_500ms_linear_0.7]': animate,
+            })}
           >
-            refresh
+            <ArrowClockwise size={20} className='!leading-[24px]' />
           </button>
-          <button
-            onClick={onSettings}
-            className='material-icons-outlined !text-xl !leading-[24px] text-black-100 dark:text-white-100'
-          >
-            settings
+          <button onClick={onSettings} className='text-black-100 dark:text-white-100'>
+            <GearSix size={20} className='!leading-[24px]' />
           </button>
         </div>
       </div>

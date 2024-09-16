@@ -1,6 +1,7 @@
-import { Avatar, CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Avatar, Buttons, CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import classnames from 'classnames'
+import classNames from 'classnames'
 import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import { CONNECTIONS } from 'config/storage-keys'
@@ -12,6 +13,7 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { imgOnError } from 'utils/imgOnError'
+import { isSidePanel } from 'utils/isSidePanel'
 import Browser, { Storage } from 'webextension-polyfill'
 
 import { GENERAL_SECURITY_PAGES } from './GeneralSecurity'
@@ -47,13 +49,18 @@ const ConnectedSiteCard = ({ site, onClick, className }: ConnectedSiteCardProps)
             avatarImage={siteLogo}
             avatarOnError={imgOnError(Images.Misc.Globe)}
             size='sm'
-            className='rounded-full overflow-hidden'
+            className={classNames('rounded-full overflow-hidden', {
+              'h-5 w-5': isSidePanel(),
+            })}
           />
         </div>
         <div className='flex flex-col justify-center items-start ml-3 w-full'>
           <h3
             title={name}
-            className='capitalize font-bold text-black-100 dark:text-white-100 text-left w-full text-ellipsis overflow-clip'
+            className={classNames(
+              'capitalize font-bold text-black-100 dark:text-white-100 text-left w-full text-ellipsis overflow-clip',
+              { 'text-sm !leading-[19.6px]': isSidePanel() },
+            )}
           >
             {name}
           </h3>
@@ -65,12 +72,16 @@ const ConnectedSiteCard = ({ site, onClick, className }: ConnectedSiteCardProps)
           </p>
         </div>
       </div>
-      <button
-        className='text-base block flex-shrink-0 px-3 py-1 font-bold text-sm text-red-300 bg-red-300/10 rounded-full text-right cursor-pointer'
-        onClick={onClick}
-      >
-        Disconnect
-      </button>
+      {!isSidePanel() ? (
+        <button
+          className='text-base block flex-shrink-0 px-3 py-1 font-bold text-sm text-red-300 bg-red-300/10 rounded-full text-right cursor-pointer'
+          onClick={onClick}
+        >
+          Disconnect
+        </button>
+      ) : (
+        <Buttons.Cancel onClick={onClick} className='h-5 w-5' />
+      )}
     </div>
   )
 }
@@ -165,9 +176,9 @@ const ConnectedSites = ({ setPage }: Props) => {
   )
 
   return (
-    <div className='h-[600px]'>
+    <div className='panel-height enclosing-panel'>
       <Header title='Connected Sites' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
-      <div className='h-[528px] overflow-y-auto'>
+      <div className='h-[calc(100%-72px)] overflow-y-auto'>
         <div className='flex flex-col items-center mx-7 mt-7 px-4 py-6 dark:bg-gray-900 bg-white-100 rounded-2xl'>
           <div className='w-full flex flex-col justify-center align-middle'>
             <img src={Images.Misc.ConnectedSitesIcon} className='h-12 mx-2' />
@@ -191,7 +202,7 @@ const ConnectedSites = ({ setPage }: Props) => {
           </div>
         </div>
 
-        <div className='sticky top-0 z-[1] bg-white-100 dark:bg-black-100 px-7 py-4'>
+        <div className='sticky top-0 z-[1] bg-gray-50 dark:bg-black-100 px-7 py-4'>
           <SearchInput
             divClassName='flex items-center h-10 bg-white-100 dark:bg-gray-900 rounded-full pl-4 pr-3'
             placeholder='Search sites...'

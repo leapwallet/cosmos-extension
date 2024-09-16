@@ -5,18 +5,20 @@ import Text from 'components/text'
 import { useChainPageInfo } from 'hooks'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
+import { chainTagsStore } from 'stores/chain-infos-store'
 
-export function NoStake() {
+export const NoStake = observer(() => {
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const { headerChainImgSrc } = useChainPageInfo()
   const dontShowSelectChain = useDontShowSelectChain()
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip panel-height'>
       <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
       <PopupLayout
         header={
@@ -29,7 +31,7 @@ export function NoStake() {
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
               className:
-                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
+                'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={headerChainImgSrc}
             onImgClick={dontShowSelectChain ? undefined : () => setShowChainSelector(true)}
@@ -47,8 +49,12 @@ export function NoStake() {
           </Text>
         </div>
       </PopupLayout>
-      <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
+      <SelectChain
+        isVisible={showChainSelector}
+        chainTagsStore={chainTagsStore}
+        onClose={() => setShowChainSelector(false)}
+      />
       <BottomNav label={BottomNavLabel.Stake} />
     </div>
   )
-}
+})

@@ -300,6 +300,8 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'saga' },
   { enabled: true, name: 'initia' },
   { enabled: true, name: 'humans' },
+  { enabled: true, name: 'lava' },
+  { enabled: true, name: 'mantra' },
 ];
 
 export default networkData;

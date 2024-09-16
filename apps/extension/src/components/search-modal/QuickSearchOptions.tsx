@@ -4,6 +4,7 @@ import {
   useFeatureFlags,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { MagnifyingGlass } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
@@ -109,12 +110,7 @@ export function QuickSearchOptions({
   ) : (
     <div className='w-full h-[420px] flex flex-col items-center justify-center'>
       <div className='rounded-full bg-gray-50 dark:bg-gray-800 p-[18px] w-[60px] h-[60px] flex'>
-        <div
-          className='material-icons-round w-6 h-6 text-gray-200 -mt-[2px] -ml-[2px]'
-          style={{ fontSize: '30px' }}
-        >
-          search
-        </div>
+        <MagnifyingGlass size={30} className='w-6 h-6 text-gray-200 -mt-[2px] -ml-[2px]' />
       </div>
       <div className='font-bold text-gray-800 dark:text-white-100 text-base mt-3'>
         No result found

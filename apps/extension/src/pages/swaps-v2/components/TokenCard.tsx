@@ -8,6 +8,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useChains } from '@leapwallet/elements-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { ArrowSquareOut, CopySimple } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Text from 'components/text'
@@ -190,22 +191,16 @@ export function TokenCard({
               </Text>
 
               {_showRedirection ? (
-                <button
-                  onClick={handleRedirectionClick}
-                  className='material-icons-round text-gray-400 !text-md !leading-[20px]'
-                >
-                  open_in_new
+                <button onClick={handleRedirectionClick} className='text-gray-400'>
+                  <ArrowSquareOut size={16} className='!text-md !leading-[20px]' />
                 </button>
               ) : null}
 
               {showAddressCopy ? (
                 <>
                   {!isAddressCopied ? (
-                    <button
-                      onClick={handleContentCopyClick}
-                      className='material-symbols-rounded text-gray-400 !text-md !leading-[20px]'
-                    >
-                      content_copy
+                    <button onClick={handleContentCopyClick} className='text-gray-400'>
+                      <CopySimple size={16} />
                     </button>
                   ) : (
                     <button className='text-gray-400 text-xs font-bold ml-[0.5px]'>copied</button>

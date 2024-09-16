@@ -1,6 +1,7 @@
 import {
   currencyDetail,
   fetchCurrency,
+  Token,
   useChainApis,
   useChainId,
   useFeeTokens,
@@ -8,7 +9,7 @@ import {
   useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
-  denoms,
+  DenomsRecord,
   fromSmallBN,
   NativeDenom,
   SupportedChain,
@@ -59,11 +60,20 @@ type UseFeeValidationReturn = (
   onValidationFailed: (tokenData: NativeDenom, isFeesValid: boolean | null) => void,
 ) => Promise<boolean | null>
 
-export function useFeeValidation(chain: SupportedChain): UseFeeValidationReturn {
+export function useFeeValidation(
+  allAssets: Token[],
+  denoms: DenomsRecord,
+  chain: SupportedChain,
+): UseFeeValidationReturn {
   const { data: txConfig } = useTransactionConfigs()
   const selectedNetwork = useSelectedNetwork()
 
-  const { data: feeTokens, status } = useFeeTokens(chain, selectedNetwork ?? 'mainnet')
+  const { data: feeTokens, status } = useFeeTokens(
+    allAssets,
+    denoms,
+    chain,
+    selectedNetwork ?? 'mainnet',
+  )
   const { lcdUrl } = useChainApis(chain)
   const chainId = useChainId()
 

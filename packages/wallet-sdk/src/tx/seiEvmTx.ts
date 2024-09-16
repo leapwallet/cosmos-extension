@@ -1,11 +1,19 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { BytesLike } from '@ethersproject/bytes';
-import { JsonRpcProvider } from '@ethersproject/providers';
 import { parseEther, parseUnits } from '@ethersproject/units';
 import { EthWallet, pubkeyToAddress } from '@leapwallet/leap-keychain';
+import BigNumber from 'bignumber.js';
 import { hashPersonalMessage, intToHex } from 'ethereumjs-util';
-import { Contract } from 'ethers';
+import { Contract, providers } from 'ethers';
 
-import { abiERC20 } from '../constants';
+import {
+  abiERC20,
+  EVM_FEE_HISTORY_BLOCK_COUNT,
+  EVM_FEE_HISTORY_NEWEST_BLOCK,
+  EVM_FEE_HISTORY_REWARD_PERCENTILES,
+  EVM_FEE_SETTINGS,
+  EvmFeeType,
+} from '../constants';
 import { getFetchParams, personalSign, sleep, trimLeadingZeroes } from '../utils';
 
 export type JsonRpcResponse = {
@@ -20,11 +28,151 @@ export class SeiEvmTx {
   private constructor(private rpc: string, private wallet: EthWallet) {}
 
   public static GetSeiEvmClient(wallet: EthWallet, rpc: string, chainId: number) {
-    const provider = new JsonRpcProvider(rpc, chainId);
+    const provider = new providers.JsonRpcProvider(rpc, chainId);
     this.rpcUrl = rpc;
 
     wallet.setProvider(provider);
     return new SeiEvmTx(rpc, wallet);
+  }
+
+  // EIP-1559 fee mechanism
+  public static async GasPrices(rpc?: string) {
+    const feeHistory = await SeiEvmTx.EthFeeHistory(
+      EVM_FEE_HISTORY_BLOCK_COUNT,
+      EVM_FEE_HISTORY_NEWEST_BLOCK,
+      EVM_FEE_HISTORY_REWARD_PERCENTILES,
+      rpc,
+    );
+
+    const latestBaseFeePerGas = parseInt(feeHistory?.baseFeePerGas?.pop() ?? '0');
+    if (feeHistory && latestBaseFeePerGas) {
+      // @ts-ignore
+      const baseFeePerGases: Record<EvmFeeType, BigNumber> = {};
+      // @ts-ignore
+      const medianOfPriorityFeesPerGases: Record<EvmFeeType, string> = {};
+
+      for (const key in EVM_FEE_SETTINGS) {
+        baseFeePerGases[key as EvmFeeType] = new BigNumber(latestBaseFeePerGas).multipliedBy(
+          EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier,
+        );
+
+        const priorityFeesPerGas = feeHistory.reward?.map(
+          (priorityFeeByRewardPercentileIndex: string[]) =>
+            priorityFeeByRewardPercentileIndex[
+              EVM_FEE_HISTORY_REWARD_PERCENTILES.findIndex(
+                (percentile) => percentile === EVM_FEE_SETTINGS[key as EvmFeeType]?.percentile,
+              )
+            ],
+        );
+
+        medianOfPriorityFeesPerGases[key as EvmFeeType] =
+          priorityFeesPerGas?.sort((a: string, b: string) => Number(BigInt(a) - BigInt(b)))[
+            Math.floor((priorityFeesPerGas.length - 1) / 2)
+          ] ?? '0';
+      }
+
+      const medianOfPriorityFeesPerGas = medianOfPriorityFeesPerGases.low;
+      if (new BigNumber(medianOfPriorityFeesPerGas).isZero()) {
+        const maxPriorityFeePerGas = await SeiEvmTx.EthMaxPriorityFeePerGas(rpc);
+
+        if (maxPriorityFeePerGas) {
+          return {
+            maxPriorityFeePerGas: {
+              low: new BigNumber(maxPriorityFeePerGas).toString(),
+              medium: new BigNumber(maxPriorityFeePerGas).toString(),
+              high: new BigNumber(maxPriorityFeePerGas).toString(),
+            },
+            maxFeePerGas: {
+              low: baseFeePerGases.low.plus(new BigNumber(maxPriorityFeePerGas)).toString(),
+              medium: baseFeePerGases.medium.plus(new BigNumber(maxPriorityFeePerGas)).toString(),
+              high: baseFeePerGases.high.plus(new BigNumber(maxPriorityFeePerGas)).toString(),
+            },
+          };
+        }
+      }
+
+      return {
+        maxPriorityFeePerGas: {
+          low: new BigNumber(medianOfPriorityFeesPerGases.low).toString(),
+          medium: new BigNumber(medianOfPriorityFeesPerGases.medium).toString(),
+          high: new BigNumber(medianOfPriorityFeesPerGases.high).toString(),
+        },
+        maxFeePerGas: {
+          low: baseFeePerGases.low.plus(new BigNumber(medianOfPriorityFeesPerGases.low)).toString(),
+          medium: baseFeePerGases.medium.plus(new BigNumber(medianOfPriorityFeesPerGases.medium)).toString(),
+          high: baseFeePerGases.high.plus(new BigNumber(medianOfPriorityFeesPerGases.high)).toString(),
+        },
+      };
+    } else {
+      const block = await SeiEvmTx.GetBlockByNumber(['latest', true], rpc);
+      const latestBaseFeePerGas = parseInt(block?.baseFeePerGas ?? '0');
+      const maxPriorityFeePerGas = await SeiEvmTx.EthMaxPriorityFeePerGas(rpc);
+
+      if (block && latestBaseFeePerGas && maxPriorityFeePerGas) {
+        const baseFeePerGases = Object.keys(EVM_FEE_SETTINGS).reduce((acc: Record<EvmFeeType, BigNumber>, key) => {
+          acc[key as EvmFeeType] = new BigNumber(latestBaseFeePerGas).multipliedBy(
+            EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier,
+          );
+          return acc;
+        }, {} as Record<EvmFeeType, BigNumber>);
+
+        return {
+          maxPriorityFeePerGas: {
+            low: new BigNumber(maxPriorityFeePerGas).toString(),
+            medium: new BigNumber(maxPriorityFeePerGas).toString(),
+            high: new BigNumber(maxPriorityFeePerGas).toString(),
+          },
+          maxFeePerGas: {
+            low: baseFeePerGases.low.plus(new BigNumber(maxPriorityFeePerGas)).toString(),
+            medium: baseFeePerGases.medium.plus(new BigNumber(maxPriorityFeePerGas)).toString(),
+            high: baseFeePerGases.high.plus(new BigNumber(maxPriorityFeePerGas)).toString(),
+          },
+        };
+      } else {
+        const gasPrice = await SeiEvmTx.EthGasPrice(rpc);
+
+        if (gasPrice) {
+          const gasPrices = Object.keys(EVM_FEE_SETTINGS).reduce((acc: Record<EvmFeeType, string>, key) => {
+            acc[key as EvmFeeType] = new BigNumber(Number(gasPrice))
+              .multipliedBy(EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier)
+              .toString();
+
+            return acc;
+          }, {} as Record<EvmFeeType, string>);
+
+          return {
+            gasPrice: {
+              ...gasPrices,
+            },
+          };
+        }
+      }
+    }
+
+    return {
+      gasPrice: { low: '0', medium: '0', high: '0' },
+    };
+  }
+
+  public static async EthFeeHistory(
+    blockCount: number,
+    newestBlock: string,
+    rewardPercentiles: number[],
+    rpc?: string,
+  ) {
+    const txParams = [`0x${blockCount.toString(16)}`, newestBlock, rewardPercentiles];
+    const fetchParams = getFetchParams(txParams, 'eth_feeHistory');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
+  public static async EthMaxPriorityFeePerGas(rpc?: string) {
+    const fetchParams = getFetchParams([], 'eth_maxPriorityFeePerGas');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
+  public static async EthGasPrice(rpc?: string) {
+    const fetchParams = getFetchParams([], 'eth_gasPrice');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
   }
 
   public static async SimulateTransaction(
@@ -34,6 +182,8 @@ export class SeiEvmTx {
     data?: BytesLike,
     gasAdjustment?: number,
     fromAddress?: string,
+    contractAddress?: string,
+    decimals?: number,
   ) {
     const txParams: { to: string; value?: string; data?: BytesLike; from?: string } = {
       to: toAddress,
@@ -52,7 +202,17 @@ export class SeiEvmTx {
       txParams.data = data;
     }
 
-    const result = await SeiEvmTx.ExecuteEthEstimateGAs([txParams], rpc);
+    if (contractAddress) {
+      const weiValue = parseUnits(value, decimals);
+      const contract = new Contract(contractAddress, abiERC20);
+      const data = contract.interface.encodeFunctionData('transfer', [toAddress, weiValue]);
+
+      txParams.to = contractAddress;
+      txParams.data = data;
+      txParams.value = '0x0';
+    }
+
+    const result = await SeiEvmTx.ExecuteEthEstimateGas([txParams], rpc);
     const gasEstimate = Math.ceil(Number(result));
 
     if (gasAdjustment) {
@@ -62,7 +222,7 @@ export class SeiEvmTx {
     return gasEstimate;
   }
 
-  public static async ExecuteEthEstimateGAs(txParams: any, rpc?: string) {
+  public static async ExecuteEthEstimateGas(txParams: any, rpc?: string) {
     const fetchParams = getFetchParams(txParams, 'eth_estimateGas');
     return await SeiEvmTx.fetchRequest(fetchParams, rpc);
   }
@@ -177,7 +337,7 @@ export class SeiEvmTx {
     return txn;
   }
 
-  public async pollLinkAddressWithoutFunds(ethAddress: string, chainId: string, retryCount = 20): Promise<any> {
+  public async pollLinkAddressWithoutFunds(ethAddress: string, chainId: string, retryCount = 40): Promise<any> {
     if (retryCount === 0) {
       throw new Error('Failed to link address');
     }
@@ -226,7 +386,7 @@ export class SeiEvmTx {
     const accounts = await this.wallet.getAccounts();
     const account = accounts[0];
 
-    const data = Buffer.alloc(32);
+    const data = Buffer.alloc(4);
     const msgHash = hashPersonalMessage(data);
 
     const signature = this.wallet.sign(account.address, msgHash);
@@ -236,7 +396,7 @@ export class SeiEvmTx {
       r: signature.r,
       s: signature.s,
       v: `0x${compactV}`,
-      custom_message: `\x19Ethereum Signed Message:\n32${data.toString()}`,
+      custom_message: `\x19Ethereum Signed Message:\n4${data.toString()}`,
     };
     const response = await this.submitAssociationTx(params);
     return response;

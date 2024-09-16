@@ -1,3 +1,4 @@
+import { Warning } from '@phosphor-icons/react'
 import { CustomCheckbox } from 'components/custom-checkbox'
 import React, { Dispatch, SetStateAction } from 'react'
 
@@ -14,9 +15,7 @@ export function WarningWithCheck({ isChecked, setIsChecked, title, message, titl
     <div className='flex flex-col w-full justify-start items-start gap-2 px-4 py-3 rounded-2xl bg-red-200 dark:bg-red-900'>
       <div className='flex w-full flex-row justify-between items-start gap-2'>
         <div className='flex flex-row justify-start items-start gap-2'>
-          <span className='material-icons-round !text-md text-red-400 dark:text-red-300 !leading-[20px]'>
-            warning
-          </span>
+          <Warning size={16} className='text-red-400 dark:text-red-300' />
           <span className='font-bold text-left text-sm !leading-[20px] text-black-100 dark:text-white-100'>
             {title}
           </span>

@@ -1,4 +1,11 @@
-import { axiosWrapper, ChainInfo, fromSmall, RewardsResponse, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  axiosWrapper,
+  ChainInfo,
+  fromSmall,
+  NativeDenom,
+  RewardsResponse,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 
 import { currencyDetail } from '../settings';
@@ -13,6 +20,7 @@ export type GetClaimRewardsForChainParams = {
   preferredCurrency: SupportedCurrencies;
   chainInfos: Record<SupportedChain, ChainInfo>;
   getIbcDenomInfo: any;
+  activeStakingDenom: NativeDenom;
 };
 
 export async function getClaimRewardsForChain({
@@ -23,6 +31,7 @@ export async function getClaimRewardsForChain({
   preferredCurrency,
   chainInfos,
   getIbcDenomInfo,
+  activeStakingDenom,
 }: GetClaimRewardsForChainParams) {
   const res = await axiosWrapper({
     baseURL: lcdUrl,
@@ -36,7 +45,8 @@ export async function getClaimRewardsForChain({
   const claimTotal = await Promise.all(
     total.map(async (claim) => {
       const { amount: _amount, denom } = claim;
-      const { denomInfo } = await getIbcDenomInfo(denom);
+      const { denomInfo: _denomInfo } = await getIbcDenomInfo(denom);
+      const denomInfo = _denomInfo || activeStakingDenom;
       const amount = fromSmall(_amount, denomInfo?.coinDecimals ?? 6);
 
       let denomFiatValue = '0';
@@ -54,7 +64,7 @@ export async function getClaimRewardsForChain({
           )) ?? '0';
       }
 
-      const currenyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
+      const currencyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
 
       let formatted_amount = '';
       if (denomInfo) {
@@ -68,7 +78,7 @@ export async function getClaimRewardsForChain({
       return {
         ...claim,
         amount,
-        currenyAmount,
+        currencyAmount,
         formatted_amount,
         tokenInfo: denomInfo,
         denomFiatValue,
@@ -81,7 +91,7 @@ export async function getClaimRewardsForChain({
   if (claimTotal[0]) {
     totalRewardsDollarAmt = claimTotal
       .reduce((totalSum, token) => {
-        return totalSum.plus(new BigNumber(token.currenyAmount ?? ''));
+        return totalSum.plus(new BigNumber(token.currencyAmount ?? ''));
       }, new BigNumber('0'))
       .toString();
   }

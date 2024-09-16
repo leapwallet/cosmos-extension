@@ -16,15 +16,28 @@ import { ImportPrivateKey } from './ImportPrivateKey'
 import { ImportSeedPhrase } from './ImportSeedPhrase'
 import useWallets = Wallet.useWallets
 
-import { Key, useActiveChain, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  Key,
+  useActiveChain,
+  useChainInfo,
+  useGetChains,
+  WALLETTYPE,
+} from '@leapwallet/cosmos-wallet-hooks'
+import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfosStore } from '@leapwallet/cosmos-wallet-store'
+import { DotsThree, DownloadSimple, PlusCircle, Usb } from '@phosphor-icons/react'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { AGGREGATED_CHAIN_KEY, walletLabels } from 'config/constants'
 import { useChainPageInfo } from 'hooks'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
+import { activeChainStore } from 'stores/active-chain-store'
+import { chainInfoStore } from 'stores/chain-infos-store'
 import { AggregatedSupportedChain } from 'types/utility'
+import { closeSidePanel } from 'utils/closeSidePanel'
 import { formatWalletName } from 'utils/formatWalletName'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
+import { isSidePanel } from 'utils/isSidePanel'
 
 type SelectWalletProps = {
   readonly isVisible: boolean
@@ -54,6 +67,7 @@ export default function SelectWallet({
   const [editWallet, setEditWallet] = useState<Key>()
   const navigate = useNavigate()
 
+  const chains = useGetChains()
   const { topChainColor } = useChainPageInfo()
   const [showImportPrivateKey, setShowImportPrivateKey] = useState(false)
   const [showImportSeedPhrase, setShowImportSeedPhrase] = useState(false)
@@ -88,6 +102,7 @@ export default function SelectWallet({
       setIsNewWalletFormVisible(true)
     } else {
       window.open(extension.runtime.getURL(`index.html#/onboarding`))
+      closeSidePanel()
     }
   }
 
@@ -160,21 +175,31 @@ export default function SelectWallet({
                   : walletName
 
               let addressText = `${sliceAddress(
-                wallet.addresses[activeChainInfo?.key],
+                activeChainInfo?.evmOnlyChain
+                  ? pubKeyToEvmAddressToShow(wallet.pubKeys?.[activeChainInfo?.key])
+                  : wallet.addresses[activeChainInfo?.key],
               )}${walletLabel}`
 
               let disableEdit = false
 
               if (
                 wallet.walletType === WALLETTYPE.LEDGER &&
-                !isLedgerEnabled(activeChainInfo?.key, activeChainInfo?.bip44?.coinType)
+                !isLedgerEnabled(
+                  activeChainInfo?.key,
+                  activeChainInfo?.bip44?.coinType,
+                  Object.values(chains),
+                )
               ) {
                 addressText = `Ledger not supported on ${activeChainInfo?.chainName}`
                 disableEdit = true
               }
               if (
                 wallet.walletType === WALLETTYPE.LEDGER &&
-                isLedgerEnabled(activeChainInfo?.key, activeChainInfo?.bip44?.coinType) &&
+                isLedgerEnabled(
+                  activeChainInfo?.key,
+                  activeChainInfo?.bip44?.coinType,
+                  Object.values(chains),
+                ) &&
                 !wallet.addresses[activeChainInfo?.key]
               ) {
                 addressText = `Please import EVM wallet`
@@ -183,8 +208,8 @@ export default function SelectWallet({
               return (
                 <div className='relative min-h-[56px]' key={wallet.id}>
                   <WalletCard
-                    onClick={() => {
-                      setActiveWallet(wallet)
+                    onClick={async () => {
+                      await setActiveWallet(wallet)
                       onClose()
                     }}
                     key={formatWalletName(wallet.name)}
@@ -204,7 +229,7 @@ export default function SelectWallet({
                     }
                     icon={
                       <div
-                        className='flex h-[28px] w-[28px] hover:cursor-pointer justify-center text-gray-400 items-center bg-white-100 dark:bg-gray-900 material-icons-round'
+                        className='flex h-[28px] w-[28px] hover:cursor-pointer justify-center text-gray-400 items-center bg-white-100 dark:bg-gray-900'
                         onClick={(e) => {
                           e.stopPropagation()
                           if (disableEdit) return
@@ -213,7 +238,7 @@ export default function SelectWallet({
                         }}
                         data-testing-id={isLast ? 'btn-more-horiz' : ''}
                       >
-                        more_horiz
+                        <DotsThree size={20} className='text-gray-400' />
                       </div>
                     }
                     subtitle={
@@ -240,7 +265,7 @@ export default function SelectWallet({
                   onClick={handleCreateNewWalletClick}
                   className='flex items-center px-4 pb-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
                 >
-                  <span className='material-icons-round text-gray-400 mr-4'>add_circle</span>
+                  <PlusCircle size={20} className='text-gray-400 mr-4' />
                   <Text size='md' className='font-bold'>
                     Create new wallet
                   </Text>
@@ -251,7 +276,7 @@ export default function SelectWallet({
                   onClick={() => setShowImportSeedPhrase(true)}
                   className='flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
                 >
-                  <span className='material-icons-round text-gray-400 mr-4'>download</span>
+                  <DownloadSimple size={20} className='text-gray-400 mr-4' />
                   <Text size='md' className='font-bold'>
                     Import using recovery phrase
                   </Text>
@@ -272,15 +297,16 @@ export default function SelectWallet({
               <div
                 onClick={() => {
                   const views = extension.extension.getViews({ type: 'popup' })
-                  if (views.length === 0) {
+                  if (views.length === 0 && !isSidePanel()) {
                     navigate('/onboardingImport?walletName=hardwarewallet')
                   } else {
                     window.open('index.html#/onboardingImport?walletName=hardwarewallet')
+                    closeSidePanel()
                   }
                 }}
                 className='flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 cursor-pointer rounded-2xl'
               >
-                <span className='material-icons-round text-gray-400 mr-4'>usb</span>
+                <Usb size={20} className='text-gray-400 mr-4' />
                 <Text size='md' className='font-bold'>
                   Connect Ledger
                 </Text>
@@ -296,6 +322,8 @@ export default function SelectWallet({
         onClose={() => {
           setIsEditWalletVisible(false)
         }}
+        activeChainStore={activeChainStore}
+        chainInfosStore={chainInfoStore}
       />
 
       <NewWalletForm

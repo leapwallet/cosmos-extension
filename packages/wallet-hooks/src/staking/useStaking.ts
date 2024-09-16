@@ -5,12 +5,13 @@ import { calculateFee, coin, StdFee } from '@cosmjs/stargate';
 import {
   DefaultGasEstimates,
   Delegation,
+  DenomsRecord,
   EthermintTxHandler,
   fromSmall,
   getSimulationFee,
   InjectiveTx,
   LedgerError,
-  SeiTxHandler,
+  RewardsResponse,
   simulateCancelUndelegation,
   simulateDelegate,
   simulateRedelegate,
@@ -18,6 +19,7 @@ import {
   simulateWithdrawRewards,
   toSmall,
   Tx,
+  UnbondingDelegation,
   Validator,
 } from '@leapwallet/cosmos-wallet-sdk';
 import {
@@ -27,13 +29,19 @@ import {
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
-import Network from '@leapwallet/cosmos-wallet-sdk/dist/browser/stake/network';
+import { Network } from '@leapwallet/cosmos-wallet-sdk/dist/browser/stake/network';
+import {
+  ChainClaimRewards,
+  ChainDelegations,
+  ChainUndelegations,
+  ChainValidators,
+  Undelegations,
+} from '@leapwallet/cosmos-wallet-store/dist/types';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { useGetTokenSpendableBalances } from '../bank';
 import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { currencyDetail, useformatCurrency, useUserPreferredCurrency } from '../settings';
@@ -44,18 +52,13 @@ import {
   useChainApis,
   useChainsStore,
   useDefaultGasEstimates,
-  useDenoms,
   useGasPriceSteps,
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
-  useStakeClaimRewardsStore,
-  useStakeDelegationsStore,
-  useStakeUndelegationsStore,
-  useStakeValidatorsStore,
 } from '../store';
 import { useTxHandler } from '../tx';
-import { TxCallback, WALLETTYPE } from '../types';
+import { Token, TxCallback, WALLETTYPE } from '../types';
 import { STAKE_MODE } from '../types';
 import {
   GasOptions,
@@ -65,6 +68,7 @@ import {
   getMetaDataForRedelegateTx,
   getOsmosisGasPriceSteps,
   getTxnLogAmountValue,
+  SelectedNetwork,
   useActiveStakingDenom,
   useGasRateQuery,
   useGetGasPrice,
@@ -75,7 +79,7 @@ import { getNativeDenom } from '../utils/getNativeDenom';
 import { capitalize, formatTokenAmount } from '../utils/strings';
 import { useChainId, useGetFeeMarketGasPricesSteps, useHasToCalculateDynamicFee } from '../utils-hooks';
 
-type StakeTxHandler = Tx | InjectiveTx | EthermintTxHandler | SeiTxHandler;
+type StakeTxHandler = Tx | InjectiveTx | EthermintTxHandler;
 
 function getTypeUrl(mode: STAKE_MODE, chain: SupportedChain) {
   if (chain === 'initia') {
@@ -109,8 +113,24 @@ function getStakeTxType(mode: STAKE_MODE): CosmosTxType {
   }
 }
 
-export function useInvalidateDelegations() {
-  const { refetchDelegations, refetchUnboundingDelegations } = useStaking();
+export function useInvalidateDelegations(
+  denoms: DenomsRecord,
+  delegations: ChainDelegations,
+  validators: ChainValidators,
+  unDelegations: ChainUndelegations,
+  claimRewards: ChainClaimRewards,
+  forceChain?: SupportedChain,
+  forceNetwork?: SelectedNetwork,
+) {
+  const { refetchDelegations, refetchUnboundingDelegations } = useStaking(
+    denoms,
+    delegations,
+    validators,
+    unDelegations,
+    claimRewards,
+    forceChain,
+    forceNetwork,
+  );
 
   return useCallback(() => {
     refetchDelegations();
@@ -118,86 +138,49 @@ export function useInvalidateDelegations() {
   }, []);
 }
 
-export function useStaking(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
-  const { allAssets } = useGetTokenSpendableBalances(forceChain, forceNetwork);
+interface Staking {
+  isTestnet: boolean;
+  rewards: RewardsResponse | undefined;
+  totalRewardsDollarAmt: string | undefined;
+  formattedTotalRewardAmount: string | undefined;
+  totalRewards: string | undefined;
+  network: Network | undefined;
+  minMaxApy: number[] | undefined;
+  delegations: Record<string, Delegation>;
+  totalDelegation: BigNumber | undefined;
+  token: Token | undefined;
+  totalDelegationAmount: string | undefined;
+  currencyAmountDelegation: string | undefined;
+  unboundingDelegationsInfo: Undelegations | undefined;
+  loadingUnboundingDelegations: boolean;
+  loadingRewards: boolean;
+  isFetchingRewards: boolean;
+  loadingNetwork: boolean;
+  loadingDelegations: boolean;
+  refetchAllStakingData: () => Promise<void>;
+  refetchDelegations: () => Promise<void>;
+  refetchDelegatorRewards: () => Promise<void>;
+  refetchNetwork: () => Promise<void>;
+  refetchUnboundingDelegations: () => Promise<void>;
+}
+
+export function useStaking(
+  denoms: DenomsRecord,
+  delegations: ChainDelegations,
+  validators: ChainValidators,
+  unDelegations: ChainUndelegations,
+  claimRewards: ChainClaimRewards,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+  allAssets?: Token[],
+): Staking {
   const isTestnet = useSelectedNetwork() === 'testnet';
-  const activeChain = useActiveChain();
+  const { delegationInfo, loadingDelegations, refetchDelegations } = delegations;
+  const { validatorData, validatorDataStatus, refetchNetwork } = validators;
+  const { unboundingDelegationsInfo, loadingUnboundingDegStatus, refetchUnboundingDelegations } = unDelegations;
+  const { rewards, loadingRewardsStatus, isFetchingRewards, refetchDelegatorRewards } = claimRewards;
 
-  const {
-    rewards,
-    loadingRewardsStatus,
-    isFetchingRewards,
-    refetchDelegatorRewards,
-    setClaimStatus,
-    setClaimPushForceChain,
-    setClaimPushForceNetwork,
-  } = useStakeClaimRewardsStore();
-
-  const {
-    delegationInfo,
-    loadingDelegations,
-    refetchDelegations,
-    setStakeDelegationLoading,
-    setStakeDelegationPushForceChain,
-    setStakeDelegationPushForceNetwork,
-  } = useStakeDelegationsStore();
-
-  const {
-    validatorData,
-    validatorDataStatus,
-    refetchNetwork,
-    setStakeValidatorStatus,
-    setStakeValidatorPushForceChain,
-    setStakeValidatorPushForceNetwork,
-  } = useStakeValidatorsStore();
-
-  const {
-    unboundingDelegationsInfo,
-    loadingUnboundingDegStatus,
-    refetchUnboundingDelegations,
-    setStakeUndelegationsStatus,
-    setStakeUndelegationsPushForceChain,
-    setStakeUndelegationsPushForceNetwork,
-  } = useStakeUndelegationsStore();
-
-  useLayoutEffect(() => {
-    if (forceChain && (activeChain as SupportedChain & 'aggregated') === 'aggregated') {
-      setStakeDelegationLoading(true);
-      setStakeUndelegationsStatus('loading');
-      setStakeValidatorStatus('loading');
-      setClaimStatus('loading');
-    }
-  }, [forceChain, activeChain]);
-
-  useLayoutEffect(() => {
-    if (forceChain) {
-      setStakeValidatorPushForceChain(forceChain);
-      setStakeDelegationPushForceChain(forceChain);
-      setClaimPushForceChain(forceChain);
-      setStakeUndelegationsPushForceChain(forceChain);
-    }
-
-    if (forceNetwork) {
-      setStakeValidatorPushForceNetwork(forceNetwork);
-      setStakeDelegationPushForceNetwork(forceNetwork);
-      setClaimPushForceNetwork(forceNetwork);
-      setStakeUndelegationsPushForceNetwork(forceNetwork);
-    }
-
-    return () => {
-      setStakeValidatorPushForceChain(undefined);
-      setStakeDelegationPushForceChain(undefined);
-      setClaimPushForceChain(undefined);
-      setStakeUndelegationsPushForceChain(undefined);
-
-      setStakeValidatorPushForceNetwork(undefined);
-      setStakeDelegationPushForceNetwork(undefined);
-      setClaimPushForceNetwork(undefined);
-      setStakeUndelegationsPushForceNetwork(undefined);
-    };
-  }, [forceChain, forceNetwork]);
-
-  const [activeStakingDenom] = useActiveStakingDenom(forceChain, forceNetwork);
+  const [activeStakingDenom] = useActiveStakingDenom(denoms, forceChain, forceNetwork);
   const token = allAssets?.find((e) => e.symbol === activeStakingDenom.coinDenom);
 
   const networkData = useMemo(() => {
@@ -246,6 +229,7 @@ export function useStaking(forceChain?: SupportedChain, forceNetwork?: 'mainnet'
 }
 
 export function useSimulateStakeTx(
+  denoms: DenomsRecord,
   mode: STAKE_MODE,
   toValidator: Validator,
   fromValidator?: Validator,
@@ -254,7 +238,7 @@ export function useSimulateStakeTx(
   const address = useAddress();
   const { lcdUrl } = useChainApis();
   const activeChain = useActiveChain();
-  const [activeStakingDenom] = useActiveStakingDenom();
+  const [activeStakingDenom] = useActiveStakingDenom(denoms);
 
   const getAmount = useCallback(
     (amount: string) => {
@@ -339,6 +323,7 @@ export function useSimulateStakeTx(
 }
 
 export function useStakeTx(
+  denoms: DenomsRecord,
   mode: STAKE_MODE,
   toValidator: Validator,
   fromValidator?: Validator,
@@ -347,7 +332,7 @@ export function useStakeTx(
   forceNetwork?: 'mainnet' | 'testnet',
 ) {
   // HOOKS
-  const denoms = useDenoms();
+
   const chainInfos = useGetChains();
   const _activeChain = useActiveChain();
   const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
@@ -366,7 +351,7 @@ export function useStakeTx(
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const defaultGasEstimates = useDefaultGasEstimates();
   const gasPriceSteps = useGasPriceSteps();
-  const [activeStakingDenom] = useActiveStakingDenom(activeChain, selectedNetwork);
+  const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, selectedNetwork);
 
   // STATES
   const [memo, setMemo] = useState<string>('');
@@ -395,8 +380,8 @@ export function useStakeTx(
    */
 
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
-  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
-  const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
+  const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetwork);
+  const gasPrices = useGasRateQuery(denoms, activeChain, selectedNetwork);
   const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork);
   const getFeeMarketGasPricesSteps = useGetFeeMarketGasPricesSteps(activeChain, selectedNetwork);
 
@@ -514,7 +499,7 @@ export function useStakeTx(
 
     setPendingTx({
       img: chainInfos[activeChain].chainSymbolImageUrl,
-      [amtKey]: formatTokenAmount(amount, '', 4),
+      [amtKey]: formatTokenAmount(amount, activeStakingDenom.coinDenom, 4),
       [usdAmtKey]: formatCurrency(new BigNumber(amount).multipliedBy(tokenFiatValue ?? '')),
       sentTokenInfo: denom,
       title1: `${capitalize(title)}`,
@@ -619,7 +604,7 @@ export function useStakeTx(
         }
 
         case 'CANCEL_UNDELEGATION': {
-          return await (txHandler as Tx | SeiTxHandler).cancelUnDelegation(
+          return await (txHandler as Tx).cancelUnDelegation(
             address,
             toValidator?.address ?? '',
             amount,
@@ -684,7 +669,7 @@ export function useStakeTx(
     if (mode === 'REDELEGATE' && (!toValidator || !fromValidator || !delegations)) {
       return;
     }
-    if (mode === 'CLAIM_REWARDS' && (!delegations || new BigNumber(amount).lte(0.00001))) {
+    if (mode === 'CLAIM_REWARDS' && (!delegations?.length || new BigNumber(amount).lte(0.00001))) {
       setError('Reward is too low');
       return;
     }
@@ -910,7 +895,11 @@ export function useStakeTx(
   };
 }
 
-export function useIsCancleUnstakeSupported(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+export function useIsCancleUnstakeSupported(
+  unboundingDelegation: UnbondingDelegation,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+) {
   const _activeChain = useActiveChain();
   const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
 
@@ -920,18 +909,20 @@ export function useIsCancleUnstakeSupported(forceChain?: SupportedChain, forceNe
   const address = useAddress(activeChain);
   const { chains } = useChainsStore();
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
-
+  const getGasPrice = useGetGasPrice(activeChain, selectedNetwork);
   const checkIsCancelUnstakeSupported = useCallback(async () => {
     try {
       const denom = getNativeDenom(chains, activeChain, selectedNetwork);
-      const amount = coin(toSmall('1', denom?.coinDecimals), denom.coinMinimalDenom);
+      const gasPrice = await getGasPrice();
+      const fee = getSimulationFee(gasPrice.denom);
+      const amount = coin('1', denom.coinMinimalDenom);
       await simulateCancelUndelegation(
         lcdUrl ?? '',
         address,
-        'cosmosvaloper13n6wqhq8la352je00nwq847ktp47pgknseu6kk',
+        unboundingDelegation?.validator_address,
         amount,
-        '500',
-        [amount],
+        unboundingDelegation?.entries?.[0]?.creation_height?.toString() ?? '',
+        fee,
         getTypeUrl('CANCEL_UNDELEGATION', activeChain),
       );
       return true;
@@ -943,10 +934,10 @@ export function useIsCancleUnstakeSupported(forceChain?: SupportedChain, forceNe
         return true;
       }
     }
-  }, [activeChain, selectedNetwork]);
+  }, [activeChain, selectedNetwork, unboundingDelegation]);
 
   const { data: isCancleUnstakeSupported } = useQuery(
-    [['@cancelUnstakingSupport', activeChain, selectedNetwork]],
+    [['@cancelUnstakingSupport', activeChain, selectedNetwork, unboundingDelegation?.validator_address]],
     async () => {
       if (chains[activeChain].bip44.coinType === '60' || activeChain === 'injective') return false;
       return await checkIsCancelUnstakeSupported();
@@ -954,6 +945,7 @@ export function useIsCancleUnstakeSupported(forceChain?: SupportedChain, forceNe
     {
       cacheTime: 1000 * 60 * 60 * 24 * 3, //3days
       staleTime: 1000 * 60 * 60 * 5, // 5 hour
+      enabled: !!unboundingDelegation,
     },
   );
 

@@ -1,13 +1,10 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DisableObject } from '@leapwallet/cosmos-wallet-store';
 import { useMemo } from 'react';
 import create from 'zustand';
 
 import { useActiveChain } from './useActiveChain';
 import { useAddress } from './useAddress';
-
-export type DisableObject = {
-  [key: string]: string[];
-};
 
 type DisabledCW20Tokens = {
   disabledCW20Tokens: DisableObject | null;

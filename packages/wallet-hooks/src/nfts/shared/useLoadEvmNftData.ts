@@ -54,9 +54,22 @@ export function useLoadEvmNftData({
           const nfts = await Promise.allSettled(
             tokenIds.map(async (tokenId) => {
               const { tokenURI } = await getNftTokenIdInfo(address, tokenId, walletAddress, evmJsonRpc);
-              const res = await fetch(normalizeImageSrc(tokenURI));
-              const nftDisplayInfo = await JSON.parse((await res.text()).trim());
-              const nftImage = nftDisplayInfo.image ? normalizeImageSrc(nftDisplayInfo.image) : '';
+
+              let nftDisplayInfo = {
+                name: '',
+                description: '',
+                image: '',
+                attributes: [],
+              };
+
+              try {
+                const res = await fetch(normalizeImageSrc(tokenURI, address));
+                nftDisplayInfo = await JSON.parse((await res.text()).trim());
+              } catch (_) {
+                //
+              }
+
+              const nftImage = nftDisplayInfo.image ? normalizeImageSrc(nftDisplayInfo.image, address) : tokenURI;
 
               const nft: OmniflixNft = {
                 extension: null,

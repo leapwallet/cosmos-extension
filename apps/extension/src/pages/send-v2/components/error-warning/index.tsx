@@ -7,6 +7,7 @@ import {
   SupportedChain as SupportedChains,
 } from '@leapwallet/elements-core'
 import { SkipCosmosMsg, useSkipSupportedChains } from '@leapwallet/elements-hooks'
+import { Info, Warning } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -118,9 +119,7 @@ function ErrorWarning() {
   if (cw20Error || isAddressNotSupported) {
     return (
       <div className='p-4 rounded-2xl bg-red-100 dark:bg-red-900 items-center flex gap-2'>
-        <span className='!text-lg material-icons-round text-red-400 dark:text-red-300'>
-          warning
-        </span>
+        <Warning size={24} className='text-red-400 dark:text-red-300' />
         <Text size='xs' className='font-medium'>
           {amountError}
         </Text>
@@ -163,9 +162,7 @@ function ErrorWarning() {
   if (!pfmEnabled && !isIbcUnwindingDisabled) {
     return (
       <div className='p-4 rounded-2xl bg-orange-200 dark:bg-orange-900 items-center flex gap-2'>
-        <span className='material-icons-round text-[#FFB33D] dark:text-orange-300 self-start'>
-          info
-        </span>
+        <Info size={16} className='text-[#FFB33D] dark:text-orange-300 self-start' />
         <Text size='xs' className='flex-1 font-medium'>
           You will have to send this token to {assetChain?.chainName} first to able to use it.
         </Text>
@@ -184,9 +181,7 @@ function ErrorWarning() {
   if (currentWalletAddress === selectedAddress?.address) {
     return (
       <div className='p-4 rounded-2xl bg-orange-200 dark:bg-orange-900 items-center flex gap-2'>
-        <span className='material-icons-round text-[#FFB33D] dark:text-orange-300 self-start'>
-          info
-        </span>
+        <Info size={16} className='text-[#FFB33D] dark:text-orange-300 self-start' />
         <Text size='xs' className='font-medium'>
           You&apos;re transferring funds to the same address within your own wallet
         </Text>
@@ -198,9 +193,7 @@ function ErrorWarning() {
   if (switchToUSDDisabled && selectedToken?.chain) {
     return (
       <div className='py-3 px-4 rounded-2xl bg-orange-200 dark:bg-orange-900 items-center flex gap-2'>
-        <span className='material-icons-round text-[#FFB33D] dark:text-orange-300 self-start'>
-          warning
-        </span>
+        <Warning size={16} className='text-[#FFB33D] dark:text-orange-300 self-start' />
         <Text size='xs' className='font-medium'>
           USD value cannot be calculated for this transaction
         </Text>

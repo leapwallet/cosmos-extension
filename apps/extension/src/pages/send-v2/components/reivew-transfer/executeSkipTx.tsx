@@ -12,7 +12,6 @@ import {
   useChainId,
   useChainsStore,
   useDenoms,
-  useGetChains,
   usePendingTxState,
   useTxMetadata,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -22,6 +21,7 @@ import {
   getClientState,
   getErrorMessageFromCode,
   InjectiveTx,
+  LeapLedgerSigner,
   sleep,
   SupportedChain,
   toSmall,
@@ -36,12 +36,14 @@ import {
   TxClient,
 } from '@leapwallet/elements-core'
 import { useChains } from '@leapwallet/elements-hooks'
-import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import { useWalletClient } from 'hooks/useWalletClient'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useSendContext } from 'pages/send-v2/context'
-import { useState } from 'react'
+import { handleCosmosTx } from 'pages/swaps-v2/tx/cosmosTxHandler'
+import { useMemo, useState } from 'react'
+import { SourceChain } from 'types/swap'
+import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 import { useTxCallBack } from 'utils/txCallback'
 
 export const useExecuteSkipTx = () => {
@@ -71,9 +73,12 @@ export const useExecuteSkipTx = () => {
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
   const [showLedgerPopupSkipTx, setShowLedgerPopup] = useState(false)
   const getWallet = Wallet.useGetWallet()
-  const chainInfos = useGetChains()
   const activeWalletAddress = useAddress(sendActiveChain)
   const activeChainId = useChainId(sendActiveChain, sendSelectedNetwork)
+
+  const ledgerEnabledEvmChains = useMemo(() => {
+    return getLedgerEnabledEvmChainsKey(Object.values(chains))
+  }, [chains])
 
   const confirmSkipTx = async () => {
     if (
@@ -145,8 +150,17 @@ export const useExecuteSkipTx = () => {
       )
 
       try {
-        if (!LEDGER_ENABLED_EVM_CHAINS.includes(messageChain.key as SupportedChain)) {
-          txBytesString = await tx.sign(senderAddress, [encodedMessage], fee, memo)
+        if (!ledgerEnabledEvmChains.includes(messageChain.key as SupportedChain)) {
+          const wallet = await getWallet(messageChain.key as SupportedChain)
+          const res = await handleCosmosTx(
+            encodedMessage,
+            fee,
+            messageChain as SourceChain,
+            wallet as LeapLedgerSigner,
+            senderAddress,
+            memo,
+          )
+          txBytesString = res.txBytesString
         } else {
           if (messageChain.key === 'injective') {
             const wallet = await getWallet(messageChain.key)
@@ -181,7 +195,11 @@ export const useExecuteSkipTx = () => {
             }
             const txRaw = await injectiveTx.signTx(senderAddress, [newEncodedMessage], fee, memo)
             txBytesString = InjectiveTxClient.encode(txRaw)
-          } else if (messageChain.key === 'dymension' || messageChain.key === 'evmos') {
+          } else if (
+            messageChain.key === 'dymension' ||
+            messageChain.key === 'evmos' ||
+            messageChain.key === 'humans'
+          ) {
             const wallet = await getWallet(messageChain.key)
             const ethermintTx = new EthermintTxHandler(
               messageChain.restUrl,
@@ -296,7 +314,7 @@ export const useExecuteSkipTx = () => {
         }
 
         const denomChainInfo =
-          chainInfos[(denoms[selectedToken?.coinMinimalDenom ?? '']?.chain ?? '') as SupportedChain]
+          chains[(denoms[selectedToken?.coinMinimalDenom ?? '']?.chain ?? '') as SupportedChain]
         const txnLogAmountValue = await getTxnLogAmountValue(inputAmount, {
           coinGeckoId: denoms[selectedToken?.coinMinimalDenom ?? '']?.coinGeckoId,
           coinMinimalDenom: selectedToken?.coinMinimalDenom ?? '',

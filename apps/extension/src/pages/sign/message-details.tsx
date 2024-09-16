@@ -1,5 +1,4 @@
 import {
-  denomFetcher,
   formatBigNumber,
   sliceAddress,
   useActiveChain,
@@ -8,10 +7,11 @@ import {
 import { parfait, ParsedMessage, ParsedMessageType, Token } from '@leapwallet/parser-parfait'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
+import { ibcTraceFetcher } from 'stores/balance-store'
 
 const tokenToString = async (token: Token, restUrl: string, chainId: string) => {
   try {
-    const trace = await denomFetcher.fetchDenomTrace(token.denomination, restUrl, chainId)
+    const trace = await ibcTraceFetcher.fetchIbcTrace(token.denomination, restUrl, chainId)
     if (!trace) {
       throw new Error('No')
     }

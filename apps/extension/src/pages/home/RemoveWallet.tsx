@@ -1,5 +1,6 @@
 import { Key, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { MinusCircle } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { DISABLE_BANNER_ADS } from 'config/storage-keys'
 import React from 'react'
@@ -48,8 +49,8 @@ export function RemoveWallet({ isVisible, wallet, onClose }: EditWalletFormProps
       closeOnBackdropClick={true}
     >
       <div className='flex flex-col justify-center gap-y-[16px] items-center'>
-        <div className='mt-[28px] rounded-2xl bg-white-100 dark:bg-gray-900 p-[12px] w-[48px] h-[48px] text-red-300 material-icons-round'>
-          remove_circle
+        <div className='mt-[28px] rounded-2xl bg-white-100 dark:bg-gray-900 p-[12px] w-[48px] h-[48px] text-red-300 flex items-center justify-center'>
+          <MinusCircle size={24} className='text-red-300' />
         </div>
 
         <Text size='md' className='font-bold w-[246px] mb-[16px] text-center'>

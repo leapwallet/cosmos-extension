@@ -7,6 +7,7 @@ import {
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { AggregatedLoading } from 'components/aggregated'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { PageHeader } from 'components/header'
@@ -14,7 +15,9 @@ import PopupLayout from 'components/layout/popup-layout'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useChainPageInfo } from 'hooks'
 import { SelectedNetwork } from 'hooks/settings/useNetwork'
+import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useCallback, useMemo, useState } from 'react'
@@ -26,7 +29,6 @@ import { reduceActivityInSections } from '../utils'
 import { SelectedTx } from './ChainActivity'
 import {
   ActivityCard,
-  AggregatedActivityNullComponents,
   ErrorActivityView,
   NoActivityView,
   SelectAggregatedActivityChain,
@@ -38,16 +40,18 @@ type GeneralActivityProps = {
   filteredChains?: string[]
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
+  chainTagsStore: ChainTagsStore
   setSelectedChain?: React.Dispatch<React.SetStateAction<SupportedChain>>
 }
 
-const GeneralActivity = React.memo(
+const GeneralActivity = observer(
   ({
     txResponse,
     filteredChains,
     forceChain,
     forceNetwork,
     setSelectedChain,
+    chainTagsStore,
   }: GeneralActivityProps) => {
     /**
      * Custom hooks
@@ -65,7 +69,15 @@ const GeneralActivity = React.memo(
 
       return forceChain ?? chains.cosmos.key
     }, [activeChain, forceChain, chains.cosmos.key])
-    const address = useAddress(selectedChain)
+    const _address = useAddress(selectedChain)
+    const walletAddresses = useGetWalletAddresses()
+    const address = useMemo(() => {
+      if (chains[selectedChain]?.evmOnlyChain) {
+        return walletAddresses[0]
+      }
+
+      return _address
+    }, [_address, chains, selectedChain, walletAddresses])
 
     /**
      * Local states
@@ -85,6 +97,16 @@ const GeneralActivity = React.memo(
 
     const accountExplorerLink = useMemo(() => {
       if (chains[selectedChain]?.txExplorer?.[activeNetwork]?.accountUrl) {
+        const accountUrl = chains[selectedChain]?.txExplorer?.[activeNetwork]?.accountUrl
+
+        if (accountUrl?.includes('PLACEHOLDER_FOR_WALLET_ADDRESS')) {
+          return (
+            removeTrailingSlash(
+              (accountUrl ?? '').replace('PLACEHOLDER_FOR_WALLET_ADDRESS', address),
+            ) ?? ''
+          )
+        }
+
         return `${removeTrailingSlash(
           chains[selectedChain]?.txExplorer?.[activeNetwork]?.accountUrl ?? '',
         )}/${address}`
@@ -195,9 +217,7 @@ const GeneralActivity = React.memo(
      */
 
     return (
-      <div className='relative w-[400px] overflow-clip'>
-        <AggregatedActivityNullComponents />
-
+      <div className='relative w-full overflow-clip panel-height'>
         {selectedTx ? (
           <TxDetails
             content={selectedTx.content}
@@ -217,7 +237,8 @@ const GeneralActivity = React.memo(
                   action={{
                     onClick: handleOpenSideNavSheet,
                     type: HeaderActionType.NAVIGATION,
-                    className: 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
+                    className:
+                      'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
                   }}
                 />
               }
@@ -255,11 +276,13 @@ const GeneralActivity = React.memo(
                 onChainSelect={onChainSelect}
                 chainsToShow={filteredChains}
                 selectedChain={selectedChain}
+                chainTagsStore={chainTagsStore}
               />
             ) : null}
             <SelectChain
               isVisible={showChainSelector}
               onClose={() => setShowChainSelector(false)}
+              chainTagsStore={chainTagsStore}
             />
             <BottomNav label={BottomNavLabel.Activity} />
           </>

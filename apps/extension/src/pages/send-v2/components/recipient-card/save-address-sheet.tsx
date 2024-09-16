@@ -1,12 +1,18 @@
-import { SelectedAddress, useAddressPrefixes } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  SelectedAddress,
+  useAddressPrefixes,
+  useGetChains,
+  useIsSeiEvmChain,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, Buttons, Input } from '@leapwallet/leap-ui'
-import bech32 from 'bech32'
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { bech32 } from 'bech32'
 import BottomModal from 'components/bottom-modal'
 import { CustomCheckbox } from 'components/custom-checkbox'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
-import { useChainInfos } from 'hooks/useChainInfos'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useContacts } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
@@ -54,13 +60,23 @@ export default function SaveAddressSheet({
 
   const existingContact = AddressBook.useGetContact(address)
   const { contacts: savedContacts, loading: savedContactsLoading } = useContacts()
-  const chainInfos = useChainInfos()
   const addressPrefixes = useAddressPrefixes()
   const defaultTokenLogo = useDefaultTokenLogo()
   const enterNameRef = useRef<HTMLInputElement | null>(null)
 
+  const chains = useGetChains()
+  const activeChain = useActiveChain()
+  const isSeiEvmChain = useIsSeiEvmChain()
+
   const chain = useMemo(() => {
     try {
+      if (
+        (isSeiEvmChain || chains[activeChain]?.evmOnlyChain) &&
+        address.toLowerCase().startsWith('0x')
+      ) {
+        return activeChain
+      }
+
       const { prefix } = bech32.decode(address)
       const _chain = addressPrefixes[prefix]
       if (_chain === 'cosmoshub') {
@@ -70,8 +86,7 @@ export default function SaveAddressSheet({
     } catch (e) {
       return isCompassWallet() ? 'seiTestnet2' : 'cosmos'
     }
-  }, [address, addressPrefixes])
-  const chainIcon = chainInfos[chain]?.chainSymbolImageUrl ?? defaultTokenLogo
+  }, [activeChain, address, addressPrefixes, chains, isSeiEvmChain])
 
   useEffect(() => {
     if (existingContact) {
@@ -125,11 +140,11 @@ export default function SaveAddressSheet({
       onSave?.({
         ethAddress,
         address: address,
-        chainIcon: chainIcon ?? '',
+        chainIcon: chains[chain]?.chainSymbolImageUrl ?? defaultTokenLogo ?? '',
         emoji: emoji,
         name: name,
-        avatarIcon: undefined ?? '',
-        chainName: chainInfos[chain]?.chainName,
+        avatarIcon: '',
+        chainName: chains[chain]?.chainName,
         selectionType: 'saved',
       })
       onClose()
@@ -143,7 +158,7 @@ export default function SaveAddressSheet({
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      containerClassName='!max-h-[600px]'
+      containerClassName='!max-panel-height'
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
     >
@@ -157,17 +172,21 @@ export default function SaveAddressSheet({
         <div className='flex flex-col gap-y-4 w-full bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 justify-center items-center'>
           <div className='flex flex-row justify-center items-center gap-5'>
             <div
-              className='!text-[32px] text-black-100 dark:text-white-100 material-icons-round p-1 bg-gray-100 dark:bg-gray-850 rounded-full cursor-pointer'
+              className='p-1 bg-gray-100 dark:bg-gray-850 rounded-full cursor-pointer'
               onClick={() => setEmoji(subtract(emoji))}
             >
-              chevron_left
+              <CaretLeft size={32} className='text-black-100 dark:text-white-100' />
             </div>
-            <Avatar size='lg' chainIcon={chainIcon} emoji={emoji ?? 0} />
+            <Avatar
+              size='lg'
+              chainIcon={chains[chain]?.chainSymbolImageUrl ?? defaultTokenLogo}
+              emoji={emoji ?? 0}
+            />
             <div
-              className='!text-[32px] text-black-100 dark:text-white-100 material-icons-round p-1 bg-gray-100 dark:bg-gray-850 rounded-full cursor-pointer'
+              className='p-1 bg-gray-100 dark:bg-gray-850 rounded-full cursor-pointer'
               onClick={() => setEmoji(add(emoji))}
             >
-              chevron_right
+              <CaretRight size={32} className='text-black-100 dark:text-white-100' />
             </div>
           </div>
 
@@ -193,26 +212,30 @@ export default function SaveAddressSheet({
           </div>
         </div>
 
-        <div className='p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 w-full'>
-          <p className='font-medium text-sm text-gray-600 dark:text-gray-400 mb-3'>Add Memo</p>
-          <input
-            type='text'
-            value={memo}
-            placeholder='Required for CEX transfers...'
-            className='w-full h-10 rounded-xl px-4 py-2 font-medium text-sm placeholder:text-gray-600 dark:placeholder:text-gray-400 text-black-100 dark:text-white-100 outline-none border border-[transparent] focus-within:border-green-600 bg-gray-100 dark:bg-gray-850'
-            onChange={(e) => setMemo(e.target?.value)}
-          />
-        </div>
+        {chains[chain]?.evmOnlyChain ? null : (
+          <>
+            <div className='p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 w-full'>
+              <p className='font-medium text-sm text-gray-600 dark:text-gray-400 mb-3'>Add Memo</p>
+              <input
+                type='text'
+                value={memo}
+                placeholder='Required for CEX transfers...'
+                className='w-full h-10 rounded-xl px-4 py-2 font-medium text-sm placeholder:text-gray-600 dark:placeholder:text-gray-400 text-black-100 dark:text-white-100 outline-none border border-[transparent] focus-within:border-green-600 bg-gray-100 dark:bg-gray-850'
+                onChange={(e) => setMemo(e.target?.value)}
+              />
+            </div>
 
-        <div className='flex gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 w-full'>
-          <CustomCheckbox
-            checked={saveAsCEX}
-            onClick={() => setSaveAsCEX((prevValue) => !prevValue)}
-          />
-          <p className='text-sm font-medium text-gray-800 dark:text-gray-200'>
-            Save as Centralized Exchange Address
-          </p>
-        </div>
+            <div className='flex gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 w-full'>
+              <CustomCheckbox
+                checked={saveAsCEX}
+                onClick={() => setSaveAsCEX((prevValue) => !prevValue)}
+              />
+              <p className='text-sm font-medium text-gray-800 dark:text-gray-200'>
+                Save as Centralized Exchange Address
+              </p>
+            </div>
+          </>
+        )}
 
         {isSaving ? (
           <LoaderAnimation color={Colors.white100} />

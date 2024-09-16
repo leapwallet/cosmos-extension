@@ -26,7 +26,7 @@ function SeedPhraseView({
 
   return (
     <div
-      className={classNames('h-[600px] overflow-scroll', {
+      className={classNames('panel-height enclosing-panel overflow-scroll', {
         relative: isSeiEvmChain,
       })}
     >
@@ -51,7 +51,7 @@ function SeedPhraseView({
         <div className='p-4 rounded-2xl dark:bg-gray-900 bg-white-100'>
           <img src={Images.Misc.TextSnippet} />
         </div>
-        <div className='dark:text-white-100 text-black-100 text-base mt-4 mb-1 font-bold'>
+        <div className='dark:text-white-100 text-black-100 text-base mt-4 mb-1 font-bold text-center'>
           These words are the keys to your wallet
         </div>
         <div className='dark:text-gray-400 text-gray-600 text-xs mb-5 w-4/5 text-center'>

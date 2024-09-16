@@ -1,3 +1,4 @@
+import { Info } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import React, { useEffect, useRef } from 'react'
 
@@ -22,7 +23,7 @@ export function ErrorCard({ text, className, ...props }: ErrorCardProps) {
         className,
       )}
     >
-      <span className='mr-2 dark:text-red-200 text-red-300 text-lg material-icons-round'>info</span>
+      <Info size={24} className='mr-2 dark:text-red-200 text-red-300' />
       <p
         className='dark:text-red-100 text-red-300 font-medium text-sm overflow-x-auto'
         data-testing-id={props['data-testing-id']}

@@ -2,10 +2,20 @@ import { useAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, LineDivider, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { sha256 } from '@noble/hashes/sha256'
 import { utils } from '@noble/secp256k1'
+import {
+  ArrowDown,
+  ArrowRight,
+  Coins,
+  CurrencyDollar,
+  Image,
+  Path,
+  TrendUp,
+} from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import ExtensionPage from 'components/extension-page'
 import Text from 'components/text'
 import { ButtonName, EventName } from 'config/analytics'
+import { LEAPBOARD_URL } from 'config/constants'
 import dayjs from 'dayjs'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
@@ -41,18 +51,16 @@ export default function OnboardingSuccess() {
       cardColor: '#64D1E9',
       cards: [
         {
-          cardIcons: [{ icon: 'arrow_downward' }],
+          cardIcons: [{ icon: ArrowDown }],
           cardTitle: 'Receive Assets',
           cardContent: 'Transfer from your existing Cosmos wallet',
           onCardClick: () => {
-            window.open(
-              'https://cosmos.leapwallet.io/explore/tokens/uatom?chain=cosmos&receive=true',
-            )
+            window.open(`${LEAPBOARD_URL}/explore/tokens/uatom?chain=cosmos&receive=true`)
             trackCTAEvent(ButtonName.RECEIVE)
           },
         },
         {
-          cardIcons: [{ icon: 'route' }],
+          cardIcons: [{ icon: Path }],
           cardTitle: 'Bridge',
           cardContent: 'Move assets from other ecosystems',
           onCardClick: () => {
@@ -61,11 +69,11 @@ export default function OnboardingSuccess() {
           },
         },
         {
-          cardIcons: [{ icon: 'add' }],
+          cardIcons: [{ icon: CurrencyDollar }],
           cardTitle: 'Fiat on-ramp',
           cardContent: 'Buy assets using any currency',
           onCardClick: () => {
-            window.open('https://cosmos.leapwallet.io/transact/buy')
+            window.open(`${LEAPBOARD_URL}/transact/buy`)
             trackCTAEvent(ButtonName.BUY)
           },
         },
@@ -76,7 +84,7 @@ export default function OnboardingSuccess() {
       cardColor: '#3ACF92',
       cards: [
         {
-          cardIcons: [{ image: 'Appstore' }, { image: 'Playstore' }],
+          cardIcons: [{ image: 'Appstore' as const }, { image: 'Playstore' as const }],
           cardTitle: 'Mobile app',
           cardContent: 'Explore dApps & manage funds, from your phone',
           onCardClick: () => {
@@ -85,11 +93,11 @@ export default function OnboardingSuccess() {
           },
         },
         {
-          cardIcons: [{ image: 'Dashboard' }],
+          cardIcons: [{ image: 'Dashboard' as const }],
           cardTitle: 'Leapboard',
           cardContent: 'The dashboard for comprehensive portfolio management',
           onCardClick: () => {
-            window.open('https://cosmos.leapwallet.io')
+            window.open(LEAPBOARD_URL)
             trackCTAEvent(ButtonName.LEAPBOARD)
           },
         },
@@ -100,29 +108,29 @@ export default function OnboardingSuccess() {
       cardColor: '#B558E4',
       cards: [
         {
-          cardIcons: [{ icon: 'auto_graph' }],
+          cardIcons: [{ icon: TrendUp }],
           cardTitle: 'Dive into DeFi',
           cardContent: 'Low fees, high volumes!',
           onCardClick: () => {
-            window.open('https://cosmos.leapwallet.io/explore/defi')
+            window.open(`${LEAPBOARD_URL}/explore/defi`)
             trackCTAEvent(ButtonName.EXPLORE_DEFI)
           },
         },
         {
-          cardIcons: [{ icon: 'image' }],
+          cardIcons: [{ icon: Image }],
           cardTitle: 'Explore NFTs',
           cardContent: 'Trade & showoff the best JPEGs ever',
           onCardClick: () => {
-            window.open('https://cosmos.leapwallet.io/explore/nfts')
+            window.open(`${LEAPBOARD_URL}/explore/nfts`)
             trackCTAEvent(ButtonName.EXPLORE_NFTS)
           },
         },
         {
-          cardIcons: [{ icon: 'toll' }],
+          cardIcons: [{ icon: Coins }],
           cardTitle: 'Explore Tokens',
           cardContent: 'Fill up your bags',
           onCardClick: () => {
-            window.open('https://cosmos.leapwallet.io/explore/tokens')
+            window.open(`${LEAPBOARD_URL}/explore/tokens`)
             trackCTAEvent(ButtonName.EXPLORE_TOKENS)
           },
         },
@@ -259,7 +267,7 @@ export default function OnboardingSuccess() {
           >
             <p className='flex items-center'>
               Launch Extension
-              <span className='material-icons-round w-5 h-5 ml-5'>arrow_forward</span>
+              <ArrowRight size={20} className='w-5 h-5 ml-5' />
             </p>
           </Buttons.Generic>
         </div>

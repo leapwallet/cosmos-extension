@@ -5,6 +5,7 @@ import { Images } from 'images'
 import React, { useCallback } from 'react'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
 const ErrorBoundaryFallback = () => {
@@ -15,12 +16,13 @@ const ErrorBoundaryFallback = () => {
     } else {
       browser.storage.local.set({ [ACTIVE_CHAIN]: 'cosmos', [SELECTED_NETWORK]: 'mainnet' })
     }
-    window.location.href = browser.runtime.getURL('/index.html#/home')
+    const url = isSidePanel() ? `/sidepanel.html#/home` : `/index.html#/home`
+    window.location.href = browser.runtime.getURL(url)
     window.location.reload()
   }, [])
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip enclosing-panel panel-height'>
       <PopupLayout header={<Header title={isCompassWallet() ? 'Compass Wallet' : 'Leap Wallet'} />}>
         <div
           className='flex flex-col items-center justify-center w-full'

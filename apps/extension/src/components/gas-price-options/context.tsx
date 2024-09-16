@@ -1,5 +1,6 @@
 import { FeeTokenData, GasOptions } from '@leapwallet/cosmos-wallet-hooks'
 import { GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import assert from 'assert'
 import BigNumber from 'bignumber.js'
 import { createContext, useContext } from 'react'
@@ -15,7 +16,7 @@ export type GasPriceOptionValue = { option: GasOptions; gasPrice: GasPrice }
 
 export type GasPriceOptionsContextType = {
   gasLimit: BigNumber | string
-  setGasLimit: React.Dispatch<React.SetStateAction<BigNumber | string>>
+  setGasLimit: (gasLimit: number | string | BigNumber) => void
   recommendedGasLimit: string
   feeTokenData: FeeTokenData
   // eslint-disable-next-line no-unused-vars
@@ -35,6 +36,9 @@ export type GasPriceOptionsContextType = {
   considerGasAdjustment: boolean
   activeChain: SupportedChain
   selectedNetwork: 'mainnet' | 'testnet'
+  isSeiEvmTransaction?: boolean
+  chainNativeFeeTokenData: FeeTokenData
+  rootDenomsStore: RootDenomsStore
 }
 
 export const GasPriceOptionsContext = createContext<GasPriceOptionsContextType | null>(null)

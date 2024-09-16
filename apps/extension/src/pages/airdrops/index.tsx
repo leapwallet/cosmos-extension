@@ -1,3 +1,4 @@
+import { Info } from '@phosphor-icons/react'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
@@ -20,24 +21,17 @@ export default function Airdrops() {
   const handleOpenSideNavSheet = useCallback(() => setShowSideNav(true), [])
 
   return (
-    <motion.div className='relative h-full w-full'>
+    <motion.div className='relative h-full w-full enclosing-panel'>
       <PopupLayout
         header={
           <PageHeader
             title='Airdrops'
-            imgSrc={
-              <div
-                className='material-icons-round text-black-100 dark:text-white-100'
-                style={{ fontSize: 20 }}
-              >
-                info_outline
-              </div>
-            }
+            imgSrc={<Info size={20} className='text-black-100 dark:text-white-100' />}
             onImgClick={handleShowAboutAirdropsSheet}
             action={{
               onClick: handleOpenSideNavSheet,
               type: HeaderActionType.NAVIGATION,
-              className: 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
+              className: 'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
             }}
             dontShowFilledArrowIcon={true}
           />

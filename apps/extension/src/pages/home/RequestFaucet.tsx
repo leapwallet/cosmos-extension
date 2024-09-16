@@ -1,12 +1,7 @@
 import HCaptcha from '@hcaptcha/react-hcaptcha'
-import {
-  Faucet,
-  useActiveChain,
-  useChainInfo,
-  useGetFaucet,
-  useInvalidateTokenBalances,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { Faucet, useActiveChain, useChainInfo, useGetFaucet } from '@leapwallet/cosmos-wallet-hooks'
 import { getBlockChainFromAddress } from '@leapwallet/cosmos-wallet-sdk'
+import { RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
 import { useMutation } from '@tanstack/react-query'
 import CssLoader from 'components/css-loader/CssLoader'
 import { Recaptcha } from 'components/re-captcha'
@@ -14,7 +9,8 @@ import Text from 'components/text'
 import { RECAPTCHA_CHAINS } from 'config/config'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
-import React, { useEffect, useRef } from 'react'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -24,14 +20,23 @@ type RequestFaucetProps = {
   address: string
   // eslint-disable-next-line no-unused-vars
   setShowFaucetResp: (data: { msg: string; status: 'success' | 'fail' | null }) => void
+  rootBalanceStore: RootBalanceStore
 }
 
-export default function RequestFaucet({ address, setShowFaucetResp }: RequestFaucetProps) {
+export default function RequestFaucet({
+  rootBalanceStore,
+  address,
+  setShowFaucetResp,
+}: RequestFaucetProps) {
   const chain = useChainInfo()
   const activeChain = useActiveChain()
-  const invalidateBalances = useInvalidateTokenBalances()
+  const selectedNetwork = useSelectedNetwork()
   const hCaptchaRef = useRef<HCaptcha>(null)
   const reCaptchaRef = useRef<Recaptcha>(null)
+
+  const invalidateBalances = useCallback(() => {
+    rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
+  }, [activeChain, rootBalanceStore, selectedNetwork])
 
   let faucetDetails: Faucet = useGetFaucet(chain?.testnetChainId ?? chain?.chainId ?? '')
 
@@ -175,7 +180,7 @@ export default function RequestFaucet({ address, setShowFaucetResp }: RequestFau
         }
 
         if (faucetResponse.status === 200 && data?.status !== 'fail') {
-          invalidateBalances(activeChain)
+          invalidateBalances()
           setShowFaucetResp({
             status: 'success',
             msg: 'Your wallet will receive the tokens shortly',

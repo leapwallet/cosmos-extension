@@ -1,3 +1,4 @@
+import { Info } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import React, { ReactNode } from 'react'
 
@@ -9,9 +10,7 @@ type InfoCardProps = {
 export function InfoCard({ message, className }: InfoCardProps) {
   return (
     <div className={classNames('p-4 bg-[#002142] rounded-2xl flex gap-3 items-center', className)}>
-      <div className='material-icons-round' style={{ color: '#ADD6FF' }}>
-        info
-      </div>
+      <Info size={16} className='text-[#ADD6FF]' />
       <p className='text-sm text-blue-100 font-medium'>{message}</p>
     </div>
   )

@@ -1,4 +1,5 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { Wallet as WalletIcon } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import React, { useCallback, useState } from 'react'
 
@@ -56,13 +57,13 @@ export function NewWalletForm({ isVisible, onClose }: NewWalletFormProps) {
       closeOnBackdropClick={true}
     >
       <div className='flex flex-col justify-center gap-y-[16px] items-center'>
-        <div className='flex w-[344px] rounded-2xl flex-col dark:bg-gray-900 bg-white-100 items-center py-[24px] gap-y-[20px] px-[16]'>
+        <div className='flex w-[344px] px-4 rounded-2xl flex-col dark:bg-gray-900 bg-white-100 items-center py-[24px] gap-y-[20px]'>
           <div
             className='rounded-full'
             style={{ backgroundColor: Colors.walletColors[colorIndex] }}
           >
-            <div className='p-[24px] material-icons-round text-white-100' style={{ fontSize: 40 }}>
-              account_balance_wallet
+            <div className='p-[24px] text-white-100'>
+              <WalletIcon size={40} className='text-white-100' />
             </div>
           </div>
           <CreateWalletInput

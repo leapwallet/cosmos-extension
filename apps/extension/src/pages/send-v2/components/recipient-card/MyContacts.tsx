@@ -1,6 +1,7 @@
 import { SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar } from '@leapwallet/leap-ui'
+import { UserList } from '@phosphor-icons/react'
 import { SearchInput } from 'components/search-input'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useContactsSearch } from 'hooks/useContacts'
@@ -46,7 +47,7 @@ function MyContacts({ handleContactSelect }: MyContactsProps) {
         inputClassName='flex flex-grow text-base outline-none bg-white-0 font-bold text-black-100 dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400 !leading-[21px]'
       />
 
-      <div className='mt-4 w-full h-[300px] overflow-auto'>
+      <div className='mt-4 w-full h-[calc(100%-300px)]] overflow-auto'>
         {contacts.length > 0 ? (
           contacts.map((contact, index) => {
             const chainImage =
@@ -55,14 +56,14 @@ function MyContacts({ handleContactSelect }: MyContactsProps) {
 
             return (
               <React.Fragment key={contact.address}>
-                <div
-                  className={`w-full flex items-center gap-3 py-3`}
+                <button
+                  className='w-full flex items-center gap-3 py-3'
                   onClick={() => handleAvatarClick(contact, chainImage)}
                 >
                   <Avatar chainIcon={chainImage} emoji={contact.emoji ?? 0} />
 
                   <div>
-                    <p className='font-bold dark:text-white-100 text-gray-700 capitalize'>
+                    <p className='font-bold text-left dark:text-white-100 text-gray-700 capitalize'>
                       {contact.name}
                     </p>
 
@@ -70,7 +71,7 @@ function MyContacts({ handleContactSelect }: MyContactsProps) {
                       {sliceAddress(contact.ethAddress ? contact.ethAddress : contact.address)}
                     </p>
                   </div>
-                </div>
+                </button>
 
                 {!isLast && (
                   <div className='border-b w-full border-gray-100 dark:border-gray-850' />
@@ -80,9 +81,7 @@ function MyContacts({ handleContactSelect }: MyContactsProps) {
           })
         ) : (
           <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4'>
-            <div className='material-icons-round !text-[40px] !leading-[40px] dark:text-white-100'>
-              person_search
-            </div>
+            <UserList size={40} className='text-black-100 dark:text-white-100 !leading-[40px]' />
 
             <div className='flex flex-col justify-start items-center w-full gap-1'>
               <div className='text-md text-center font-bold !leading-[21.5px] dark:text-white-100'>

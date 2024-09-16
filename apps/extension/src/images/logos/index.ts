@@ -3,9 +3,11 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/const
 
 import Appstore from './appstore.svg'
 import ArchId from './archId.svg'
+import Bidds from './bidds.png'
 import CompassCircle from './compass-circle.svg'
 import CosmoStation from './cosmo-station.svg'
 import Dashboard from './dashboard.svg'
+import DegeNS from './degens.svg'
 import GenericDark from './generic-dark.svg'
 import GenericLight from './generic-light.svg'
 import IBCDomains from './ibc-domains.svg'
@@ -25,6 +27,7 @@ import NamedSkip from './named-skip.svg'
 import NftLogo from './nft-logo.svg'
 import NomicFullnameLogo from './nomic-fullname-logo.svg'
 import Osmosis from './osmosis.svg'
+import Pallet from './pallet.svg'
 import Playstore from './playstore.svg'
 import SeiV2 from './sei-v2.svg'
 import SNS from './sns.svg'
@@ -150,6 +153,10 @@ export const getNameServiceLogo = (name: string) => {
       return SpaceId
     case 'sns':
       return SNS
+    case 'degeNS':
+      return DegeNS
+    case 'bdd':
+      return Bidds
     default:
       return GenericLight
   }
@@ -158,10 +165,12 @@ export const getNameServiceLogo = (name: string) => {
 export {
   Appstore,
   ArchId,
+  Bidds,
   ChainLogos,
   CompassCircle,
   CosmoStation,
   Dashboard,
+  DegeNS,
   GenericDark,
   GenericLight,
   IBCDomains,
@@ -180,6 +189,7 @@ export {
   NamedSkip,
   NftLogo,
   NomicFullnameLogo,
+  Pallet,
   Playstore,
   SeiV2,
   SNS,

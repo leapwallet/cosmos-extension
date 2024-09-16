@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
 import { Buttons, Input, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { Lock } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import CssLoader from 'components/css-loader/CssLoader'
 import ExtensionPage from 'components/extension-page'
@@ -13,7 +14,9 @@ import { Images } from 'images'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
+import { closeSidePanel } from 'utils/closeSidePanel'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
 import Loader from '../../components/loader/Loader'
@@ -68,15 +71,16 @@ function LoginView(props: {
       </div>
       <form
         onSubmit={props.onSubmit}
-        className='relative flex p-[48px] items-center justify-center flex-col h-[504px]'
+        className={classNames(
+          'relative flex items-center justify-center flex-col h-[calc(100%-96px)]',
+          {
+            'p-[48px]': !isSidePanel(),
+            'p-7': isSidePanel(),
+          },
+        )}
       >
-        <div className='dark:bg-gray-900 bg-white-100 rounded-[16px] mb-4'>
-          <div
-            style={{ fontSize: 48 }}
-            className='p-[12px] material-icons-round text-gray-400 dark:text-white-100'
-          >
-            lock
-          </div>
+        <div className='dark:bg-gray-900 bg-white-100 rounded-[16px] mb-4 p-4'>
+          <Lock size={48} className='text-gray-400 dark:text-white-100' />
         </div>
         <Text size='lg' className='dark:text-white-100 text-gray-900 font-bold mb-1'>
           Welcome back
@@ -163,8 +167,9 @@ export default function Login() {
 
         const thisIsAPopup = popups.findIndex((popup) => popup === window) !== -1
 
-        if (thisIsAPopup) {
+        if (thisIsAPopup || isSidePanel()) {
           browser.tabs.create({ url: browser.runtime.getURL('index.html#/onboarding') })
+          closeSidePanel()
         } else {
           const otherTabs = tabs.filter((tab) => tab !== window)
           otherTabs.forEach((tab) => tab.close())
@@ -217,7 +222,11 @@ export default function Login() {
           const searchParams = new URLSearchParams(location.search)
           if (searchParams.has('close-on-login')) {
             browser.runtime.sendMessage({ type: 'user-logged-in', payload: { status: 'success' } })
-            window.close()
+            if (isSidePanel()) {
+              navigate('/home')
+            } else {
+              window.close()
+            }
             return
           }
 
@@ -250,10 +259,23 @@ export default function Login() {
 
   const views = browser.extension.getViews({ type: 'popup' })
 
-  return views.length === 0 && !isPopup ? (
+  const forgetPasswordHandler = useCallback(() => {
+    if (views.length === 0 && !isSidePanel()) {
+      navigate('/forgotPassword')
+    } else {
+      window.open(browser.runtime.getURL('index.html#/forgotPassword'))
+      closeSidePanel()
+    }
+  }, [navigate, views.length])
+
+  return (views.length === 0 && !isPopup) || isSidePanel() ? (
     <ExtensionPage>
-      <div className='absolute top-0 flex h-full w-1/2 z-5 justify-center items-center'>
-        <div className='dark:shadow-sm shadow-xl dark:shadow-gray-700'>
+      <div
+        className={classNames('absolute top-0 flex h-full z-5 justify-center items-center', {
+          'w-1/2': !isSidePanel(),
+        })}
+      >
+        <div className='dark:shadow-sm shadow-xl dark:shadow-gray-700 enclosing-panel panel-height'>
           <LoginView
             unlockLoader={showUnlockLoader}
             loading={(auth as AuthContextType).loading}
@@ -264,14 +286,7 @@ export default function Login() {
               setPasswordInput(event.target.value)
             }}
             onClick={signIn}
-            onClick1={() => {
-              const views = browser.extension.getViews({ type: 'popup' })
-              if (views.length === 0) {
-                navigate('/forgotPassword')
-              } else {
-                window.open(browser.runtime.getURL('index.html#/forgotPassword'))
-              }
-            }}
+            onClick1={forgetPasswordHandler}
           />
         </div>
       </div>
@@ -288,14 +303,7 @@ export default function Login() {
         setPasswordInput(event.target.value)
       }}
       onClick={signIn}
-      onClick1={() => {
-        const views = browser.extension.getViews({ type: 'popup' })
-        if (views.length === 0) {
-          navigate('/forgotPassword')
-        } else {
-          window.open(browser.runtime.getURL('index.html#/forgotPassword'))
-        }
-      }}
+      onClick1={forgetPasswordHandler}
     />
   )
 }

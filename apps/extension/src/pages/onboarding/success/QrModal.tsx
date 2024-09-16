@@ -1,4 +1,5 @@
 import { QrCode } from '@leapwallet/leap-ui'
+import { X } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { Images } from 'images'
 import React, { Dispatch, SetStateAction } from 'react'
@@ -22,10 +23,10 @@ export function QrModal({ setShowQrModal }: { setShowQrModal: Dispatch<SetStateA
               Don’t have this app yet?✋
             </Text>
             <div
-              className='flex !h-6 !w-6 cursor-pointer material-icons-round items-center justify-center p-1 text-gray-500 dark:text-gray-500'
+              className='flex !h-6 !w-6 cursor-pointer items-center justify-center p-1 text-gray-500 dark:text-gray-500'
               onClick={() => setShowQrModal(false)}
             >
-              close
+              <X size={16} className='text-gray-500 dark:text-gray-500' />
             </div>
           </div>
           <div className='overflow-hidden rounded-3xl !pt-3 p-6'>

@@ -1,10 +1,12 @@
 import { useAggregatedActivity, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
 
 import { AggregatedActivityNullComponents, GeneralActivity } from './index'
 
-const AggregatedActivity = React.memo(() => {
+const AggregatedActivity = observer(({ chainTagsStore }: { chainTagsStore: ChainTagsStore }) => {
   const { perChainActivity } = useAggregatedActivity()
   const chains = useGetChains()
   const [selectedChain, setSelectedChain] = useState(chains.cosmos.key)
@@ -30,6 +32,7 @@ const AggregatedActivity = React.memo(() => {
         forceNetwork='mainnet'
         forceChain={selectedChain}
         setSelectedChain={setSelectedChain}
+        chainTagsStore={chainTagsStore}
       />
     </>
   )
