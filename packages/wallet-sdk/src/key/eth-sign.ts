@@ -104,11 +104,12 @@ export async function ethSign(
     }
 
     const signature = await wallet.sign(signerAddress, hash);
+    const v = Number(signature.v) - 27;
 
     const formattedSignature = concat([
       signature.r,
       signature.s,
-      signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+      v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
     ]);
     return {
       signed: signDoc,
@@ -136,11 +137,12 @@ export async function ethSign(
     }
     const hash = keccak256(Buffer.from(serialize(tx).replace('0x', ''), 'hex'));
     const signature = await wallet.sign(signerAddress, hash);
+    const v = Number(signature.v) - 27;
 
     const formattedSignature = concat([
       signature.r,
       signature.s,
-      signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+      v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
     ]);
 
     return {
@@ -195,11 +197,12 @@ async function signEip712Tx(
   );
 
   const rawSignature = await wallet.sign(signerAddress, hash);
+  const v = Number(rawSignature.v) - 27;
 
   const signature = Buffer.concat([
     Buffer.from(rawSignature.r.replace('0x', ''), 'hex'),
     Buffer.from(rawSignature.s.replace('0x', ''), 'hex'),
-    rawSignature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+    v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
   ]);
   return {
     signed: signDoc,

@@ -7,7 +7,7 @@ type TextProps = ComponentPropsWithoutRef<'p'> & {
 
 export function Text({ children, className, ...rest }: TextProps) {
   return (
-    <p className={classNames('max-w-[150px] truncate', className)} {...rest}>
+    <p className={classNames('!max-w-[150px] truncate', className)} {...rest}>
       {children}
     </p>
   )

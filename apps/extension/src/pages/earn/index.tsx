@@ -1,3 +1,4 @@
+import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { TestnetAlertStrip } from 'components/alert-strip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
@@ -7,7 +8,9 @@ import { PageName } from 'config/analytics'
 import { useChainPageInfo } from 'hooks'
 import { usePageView } from 'hooks/analytics/usePageView'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
+import Sort from 'icons/sort'
 import { LeapCosmos } from 'images/logos'
+import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
@@ -16,7 +19,7 @@ import { DisplaySettingsModal } from './display-settings-modal'
 import InvestViewContainer from './invest-view'
 import type { DisplaySettings } from './types'
 
-export default function EarnPage() {
+const EarnPage = observer(({ chainTagsStore }: { chainTagsStore: ChainTagsStore }) => {
   usePageView(PageName.Earn)
 
   const [showSideNav, setShowSideNav] = useState(false)
@@ -31,7 +34,7 @@ export default function EarnPage() {
 
   if (!activeWallet) {
     return (
-      <div className='relative w-[400px] overflow-clip'>
+      <div className='relative w-full overflow-clip panel-height'>
         <PopupLayout>
           <div>
             <EmptyCard src={LeapCosmos} heading='No wallet found' />
@@ -42,7 +45,7 @@ export default function EarnPage() {
   }
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip panel-height'>
       <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
       <PopupLayout
         header={
@@ -55,7 +58,7 @@ export default function EarnPage() {
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
               className:
-                'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
+                'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
             }}
             imgSrc={headerChainImgSrc}
             onImgClick={() => setShowChainSelector(true)}
@@ -80,7 +83,7 @@ export default function EarnPage() {
                 className='flex items-center justify-center h-9 w-9 bg-white-100 dark:bg-gray-900 rounded-full ml-3'
                 onClick={() => setShowDisplaySettings(true)}
               >
-                <span className='material-icons-round dark:text-white-100 text-gray-800'>sort</span>
+                <Sort size={20} className='dark:text-white-100 text-gray-800' />
               </button>
             </div>
           </div>
@@ -93,8 +96,14 @@ export default function EarnPage() {
           onSettingsChange={setDisplaySettings}
         />
       </PopupLayout>
-      <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
+      <SelectChain
+        isVisible={showChainSelector}
+        onClose={() => setShowChainSelector(false)}
+        chainTagsStore={chainTagsStore}
+      />
       <BottomNav label={BottomNavLabel.Earn} />
     </div>
   )
-}
+})
+
+export default EarnPage

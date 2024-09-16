@@ -4,12 +4,14 @@ import {
   getKeyToUseForDenoms,
   Token,
   useChainInfo,
-  useDenoms,
   useShouldShowAutoAdjustSheet,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { fromSmall, NativeDenom, SupportedChain, toSmall } from '@leapwallet/cosmos-wallet-sdk'
+import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { ArrowRight } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
@@ -67,7 +69,7 @@ const OptionalAutoAdjustAmountSheet: React.FC<
       closeOnBackdropClick={true}
       onClose={onCancel}
       onActionButtonClick={onBack}
-      containerClassName='!max-h-[600px]'
+      containerClassName={'!max-panel-height'}
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
     >
@@ -84,12 +86,12 @@ const OptionalAutoAdjustAmountSheet: React.FC<
             {displayTokenAmount}
           </div>
 
-          <div className='material-icons-round text-gray-400 !text-lg'>east</div>
+          <ArrowRight size={24} className='text-gray-400' />
           <div className='flex-1 text-sm text-green-500 font-bold'>{displayUpdatedAmount}</div>
         </div>
       </div>
 
-      <div className='flex items-center gap-6'>
+      <div className='flex items-center gap-6 mt-auto'>
         <Buttons.Generic
           color={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray300}
           size='normal'
@@ -166,7 +168,7 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
       onClose={onCancel}
       closeOnBackdropClick={false}
       title='Adjust for Transaction Fees'
-      containerClassName='!bg-white-100 dark:!bg-gray-950 !max-h-[600px]'
+      containerClassName={'!bg-white-100 dark:!bg-gray-950 !max-panel-height'}
       contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6'
     >
@@ -183,12 +185,12 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
             {displayTokenAmount}
           </div>
 
-          <div className='material-icons-round text-gray-400 !text-lg'>east</div>
+          <ArrowRight size={24} className='text-gray-400' />
           <div className='flex-1 text-sm text-green-500 font-bold'>{displayUpdatedAmount}</div>
         </div>
       </div>
 
-      <div className='flex items-center gap-6'>
+      <div className='flex items-center gap-6 mt-auto'>
         <Buttons.Generic
           color={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray300}
           size='normal'
@@ -213,117 +215,121 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
   )
 }
 
-export const AutoAdjustAmountSheet: React.FC<{
-  amount: string
-  // eslint-disable-next-line no-unused-vars
-  setAmount: (amount: string) => void
-  selectedToken: {
-    amount: Token['amount']
-    coinMinimalDenom: Token['coinMinimalDenom']
-    chain?: Token['chain']
-  }
-  fee: { amount: string; denom: string }
-  // eslint-disable-next-line no-unused-vars
-  setShowReviewSheet: (show: boolean) => void
-  closeAdjustmentSheet: () => void
-  forceChain?: SupportedChain
-  forceNetwork?: 'mainnet' | 'testnet'
-}> = ({
-  amount,
-  setAmount,
-  selectedToken,
-  fee,
-  setShowReviewSheet,
-  closeAdjustmentSheet,
-  forceChain,
-  forceNetwork,
-}) => {
-  const chainInfo = useChainInfo(forceChain)
-  const shouldShowAutoAdjustSheet = useShouldShowAutoAdjustSheet(forceChain, forceNetwork)
-  const navigate = useNavigate()
-  const denoms = useDenoms()
-
-  const nativeDenom = useMemo(() => {
-    if (chainInfo.beta) {
-      return Object.values(chainInfo.nativeDenoms)[0]
+export const AutoAdjustAmountSheet = observer(
+  ({
+    amount,
+    setAmount,
+    selectedToken,
+    fee,
+    setShowReviewSheet,
+    closeAdjustmentSheet,
+    forceChain,
+    forceNetwork,
+    rootDenomsStore,
+  }: {
+    amount: string
+    // eslint-disable-next-line no-unused-vars
+    setAmount: (amount: string) => void
+    selectedToken: {
+      amount: Token['amount']
+      coinMinimalDenom: Token['coinMinimalDenom']
+      chain?: Token['chain']
     }
+    fee: { amount: string; denom: string }
+    // eslint-disable-next-line no-unused-vars
+    setShowReviewSheet: (show: boolean) => void
+    closeAdjustmentSheet: () => void
+    forceChain?: SupportedChain
+    forceNetwork?: 'mainnet' | 'testnet'
+    rootDenomsStore: RootDenomsStore
+  }) => {
+    const chainInfo = useChainInfo(forceChain)
+    const denoms = rootDenomsStore.allDenoms
+    const shouldShowAutoAdjustSheet = useShouldShowAutoAdjustSheet(denoms, forceChain, forceNetwork)
+    const navigate = useNavigate()
 
-    const key = getKeyToUseForDenoms(selectedToken.coinMinimalDenom, selectedToken.chain ?? '')
-    return denoms[key]
-  }, [
-    chainInfo.beta,
-    chainInfo.nativeDenoms,
-    denoms,
-    selectedToken.chain,
-    selectedToken.coinMinimalDenom,
-  ])
+    const nativeDenom = useMemo(() => {
+      if (chainInfo.beta) {
+        return Object.values(chainInfo.nativeDenoms)[0]
+      }
 
-  const allowReview = useCallback(() => {
-    closeAdjustmentSheet()
-    setShowReviewSheet(true)
-  }, [closeAdjustmentSheet, setShowReviewSheet])
+      const key = getKeyToUseForDenoms(selectedToken.coinMinimalDenom, selectedToken.chain ?? '')
+      return denoms[key]
+    }, [
+      chainInfo.beta,
+      chainInfo.nativeDenoms,
+      denoms,
+      selectedToken.chain,
+      selectedToken.coinMinimalDenom,
+    ])
 
-  const handleCompulsoryCancel = useCallback(() => {
-    closeAdjustmentSheet()
-    navigate('/home')
-  }, [closeAdjustmentSheet, navigate])
+    const allowReview = useCallback(() => {
+      closeAdjustmentSheet()
+      setShowReviewSheet(true)
+    }, [closeAdjustmentSheet, setShowReviewSheet])
 
-  const tokenBalance = useMemo(
-    () => toSmall(selectedToken?.amount ?? '0', nativeDenom?.coinDecimals ?? 6),
-    [nativeDenom?.coinDecimals, selectedToken?.amount],
-  )
+    const handleCompulsoryCancel = useCallback(() => {
+      closeAdjustmentSheet()
+      navigate('/home')
+    }, [closeAdjustmentSheet, navigate])
 
-  const tokenAmount = useMemo(
-    () => toSmall(amount, nativeDenom?.coinDecimals ?? 6),
-    [amount, nativeDenom?.coinDecimals],
-  )
+    const tokenBalance = useMemo(
+      () => toSmall(selectedToken?.amount ?? '0', nativeDenom?.coinDecimals ?? 6),
+      [nativeDenom?.coinDecimals, selectedToken?.amount],
+    )
 
-  const adjustmentType = useMemo(() => {
-    return shouldShowAutoAdjustSheet({
-      feeAmount: fee.amount,
-      feeDenom: fee.denom,
-      tokenAmount: tokenAmount,
-      tokenDenom: selectedToken.coinMinimalDenom,
-      tokenBalance: tokenBalance,
-    })
-  }, [
-    fee.amount,
-    fee.denom,
-    selectedToken.coinMinimalDenom,
-    shouldShowAutoAdjustSheet,
-    tokenAmount,
-    tokenBalance,
-  ])
+    const tokenAmount = useMemo(
+      () => toSmall(amount, nativeDenom?.coinDecimals ?? 6),
+      [amount, nativeDenom?.coinDecimals],
+    )
 
-  useEffect(() => {
-    if (adjustmentType === AdjustmentType.NONE) {
-      allowReview()
-    }
-  }, [adjustmentType, allowReview])
+    const adjustmentType = useMemo(() => {
+      return shouldShowAutoAdjustSheet({
+        feeAmount: fee.amount,
+        feeDenom: fee.denom,
+        tokenAmount: tokenAmount,
+        tokenDenom: selectedToken.coinMinimalDenom,
+        tokenBalance: tokenBalance,
+      })
+    }, [
+      fee.amount,
+      fee.denom,
+      selectedToken.coinMinimalDenom,
+      shouldShowAutoAdjustSheet,
+      tokenAmount,
+      tokenBalance,
+    ])
 
-  return (
-    <>
-      <OptionalAutoAdjustAmountSheet
-        isOpen={adjustmentType === AdjustmentType.OPTIONAL}
-        nativeDenom={nativeDenom}
-        tokenAmount={tokenAmount}
-        feeAmount={fee.amount}
-        setAmount={setAmount}
-        onBack={closeAdjustmentSheet}
-        onAdjust={allowReview}
-        onCancel={allowReview}
-      />
+    useEffect(() => {
+      if (adjustmentType === AdjustmentType.NONE) {
+        allowReview()
+      }
+    }, [adjustmentType, allowReview])
 
-      <CompulsoryAutoAdjustAmountSheet
-        isOpen={adjustmentType === AdjustmentType.COMPULSORY}
-        nativeDenom={nativeDenom}
-        tokenAmount={tokenAmount}
-        tokenBalance={tokenBalance}
-        feeAmount={fee.amount}
-        setAmount={setAmount}
-        onAdjust={allowReview}
-        onCancel={handleCompulsoryCancel}
-      />
-    </>
-  )
-}
+    return (
+      <>
+        <OptionalAutoAdjustAmountSheet
+          isOpen={adjustmentType === AdjustmentType.OPTIONAL}
+          nativeDenom={nativeDenom}
+          tokenAmount={tokenAmount}
+          feeAmount={fee.amount}
+          setAmount={setAmount}
+          onBack={closeAdjustmentSheet}
+          onAdjust={allowReview}
+          onCancel={allowReview}
+        />
+
+        <CompulsoryAutoAdjustAmountSheet
+          isOpen={adjustmentType === AdjustmentType.COMPULSORY}
+          nativeDenom={nativeDenom}
+          tokenAmount={tokenAmount}
+          tokenBalance={tokenBalance}
+          feeAmount={fee.amount}
+          setAmount={setAmount}
+          onAdjust={allowReview}
+          onCancel={handleCompulsoryCancel}
+        />
+      </>
+    )
+  },
+)

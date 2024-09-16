@@ -6,6 +6,7 @@ export * from './use-fill-aggregated-governance';
 export * from './use-fill-aggregated-spendable-tokens';
 export * from './use-fill-aggregated-stake';
 export * from './use-fill-aggregated-tokens';
+export * from './use-get-evm-gas-price';
 export * from './use-get-explorer-account-url';
 export * from './use-get-explorer-txn-url';
 export * from './use-get-fee-market-gas-prices-steps';

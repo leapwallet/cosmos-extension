@@ -1,5 +1,6 @@
 import { useActiveWallet } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType, Input } from '@leapwallet/leap-ui'
+import { Lock } from '@phosphor-icons/react'
 import Resize from 'components/resize'
 import Text from 'components/text'
 import { useChainPageInfo } from 'hooks'
@@ -54,15 +55,12 @@ export function EnterPasswordView({
   }
 
   return (
-    <div className='h-[600px]'>
+    <div className='panel-height'>
       <Header title='Enter Password' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
-      <div className='relative flex flex-col items-center h-[528px] px-7'>
+      <div className='relative flex flex-col items-center h-[calc(100%-72px)] px-7'>
         <div className='dark:bg-gray-900 bg-white-100 rounded-2xl mt-7'>
-          <div
-            style={{ fontSize: 48 }}
-            className='p-[12px] material-icons-round text-gray-400 dark:text-white-100'
-          >
-            lock
+          <div className='p-[12px] text-gray-400 dark:text-white-100'>
+            <Lock size={48} />
           </div>
         </div>
         <Text

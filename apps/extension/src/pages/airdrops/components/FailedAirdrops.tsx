@@ -1,4 +1,5 @@
 import { useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
+import { CaretRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import { Images } from 'images'
@@ -44,9 +45,7 @@ export default function FailedAirdrops() {
                 className='w-5 h-5 rounded-full ml-2 rotate-180'
               />
             </Text>
-            <div className='material-icons-round text-gray-600 dark:text-gray-400'>
-              chevron_right
-            </div>
+            <CaretRight size={16} className='text-gray-600 dark:text-gray-400' />
           </div>
         ))}
       </div>

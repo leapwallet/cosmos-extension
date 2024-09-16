@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SKIP_TXN_STATUS } from '@leapwallet/elements-core'
+import { ArrowRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { PENDING_SWAP_TXS } from 'config/storage-keys'
 import { Images } from 'images'
@@ -28,7 +29,7 @@ function ViewButton({
     <button
       onClick={handleOnClick}
       className={classNames(
-        'rounded-full py-[6px] px-3 text-white-100 text-sm !leading-[19.6px] font-bold',
+        'rounded-full py-1.5 px-3 text-white-100 text-sm font-bold flex justify-center items-center gap-1',
         {
           'bg-green-700': swapsState === 'loading' || swapsState === 'success',
           'bg-red-700': swapsState === 'error',
@@ -37,10 +38,8 @@ function ViewButton({
       )}
       disabled={chainsToShowLoading}
     >
-      View{' '}
-      <span className='material-icons-round !text-xs text-white-100 !leading-[12px]'>
-        arrow_forward_ios
-      </span>
+      <span>View</span>
+      <ArrowRight size={14} />
     </button>
   )
 }

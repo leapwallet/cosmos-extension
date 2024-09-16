@@ -1,18 +1,18 @@
 import { DenomData, TRANSFER_STATE } from '@leapwallet/elements-core'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
+import { TransferState } from '@skip-router/core'
 import classNames from 'classnames'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useMemo } from 'react'
 import { imgOnError } from 'utils/imgOnError'
 
-type TransferState = TRANSFER_STATE | undefined
-
 export function TxStepsStatusIcon({
   state,
   denomData,
 }: {
-  state: TransferState
+  state: TransferState | undefined
   denomData: DenomData | undefined
 }) {
   const { theme } = useTheme()
@@ -26,15 +26,15 @@ export function TxStepsStatusIcon({
         TRANSFER_STATE.TRANSFER_RECEIVED,
         TRANSFER_STATE.TRANSFER_PENDING,
       ] as TransferState[]
-    ).includes(state)
+    ).includes(state ?? TRANSFER_STATE.TRANSFER_UNKNOWN)
 
     const _isCompleted = (
       [TRANSFER_STATE.TRANSFER_SUCCESS, TRANSFER_STATE.TRANSFER_FAILURE] as TransferState[]
-    ).includes(state)
+    ).includes(state ?? TRANSFER_STATE.TRANSFER_UNKNOWN)
 
     const _isPending = (
       [TRANSFER_STATE.TRANSFER_PENDING, TRANSFER_STATE.TRANSFER_RECEIVED] as TransferState[]
-    ).includes(state)
+    ).includes(state ?? TRANSFER_STATE.TRANSFER_UNKNOWN)
 
     return {
       isNotYetStarted: _isNotYetStarted,
@@ -49,14 +49,18 @@ export function TxStepsStatusIcon({
       {isCompleted && (
         <div
           className={classNames(
-            'rounded-full w-5 h-5 text-white-100 material-icons-round !text-[10px] flex flex-row justify-center items-center !leading-[12px]',
+            'rounded-full w-5 h-5 text-white-100 flex flex-row justify-center items-center',
             {
               'bg-green-600': state === TRANSFER_STATE.TRANSFER_SUCCESS,
               'bg-red-300': state === TRANSFER_STATE.TRANSFER_FAILURE,
             },
           )}
         >
-          {state === TRANSFER_STATE.TRANSFER_FAILURE ? 'priority_high' : 'done'}
+          {state === TRANSFER_STATE.TRANSFER_FAILURE ? (
+            <WarningCircle size={16} className='text-white-100' />
+          ) : (
+            <CheckCircle weight='fill' size={16} className='text-white-100' />
+          )}
         </div>
       )}
       {isPending && (

@@ -4,14 +4,13 @@ import {
   getKeyToUseForDenoms,
   LeapWalletApi,
   sortTokenBalances,
-  useAutoFetchedCW20Tokens,
-  useDenoms,
-  useGetTokenSpendableBalances,
+  Token,
   useIbcTraceStore,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { useSkipAssets } from '@leapwallet/elements-hooks'
+import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { AutoFetchedCW20DenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { SkipSupportedAsset, useAllSkipAssets } from '@leapwallet/elements-hooks'
 import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
@@ -21,36 +20,40 @@ import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
 import { getSortFnBasedOnWhiteListing } from '../utils'
-import { useInitializeCW20TokensForChain } from './useInitializeCW20TokensForChain'
-import { SWAP_NETWORK } from './useSwapsTx'
 
-export function useGetSwapAssets(swapChain: SourceChain | undefined) {
-  const {
-    allAssets,
-    refetchBalances,
-    s3IbcTokensStatus,
-    nonS3IbcTokensStatus,
-    nativeTokensStatus,
-    cw20TokensStatus,
-  } = useGetTokenSpendableBalances(swapChain?.key, SWAP_NETWORK)
-  const { data: skipAssets } = useSkipAssets((swapChain?.chainId ?? '') as string, {
-    includeCW20Assets: true,
-    includeNoMetadataAssets: false,
-  })
-  const denoms = useDenoms()
-  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens(swapChain?.key ?? undefined)
-  const combinedDenoms = { ...denoms, ...autoFetchedCW20Tokens }
+const useAllSkipAssetsParams = {
+  includeCW20Assets: true,
+  includeNoMetadataAssets: false,
+}
+
+export function useGetSwapAssets(
+  denoms: DenomsRecord,
+  allAssets: Array<Token>,
+  allAssetsLoading: boolean,
+  swapChain: SourceChain | undefined,
+  autoFetchedCW20DenomsStore: AutoFetchedCW20DenomsStore,
+) {
+  const { data: addSkipAssets } = useAllSkipAssets(useAllSkipAssetsParams)
+
+  const skipAssets = useMemo(() => {
+    return addSkipAssets?.[swapChain?.chainId ?? '']
+  }, [addSkipAssets, swapChain])
+
+  const autoFetchedCW20Tokens = autoFetchedCW20DenomsStore.getAutoFetchedCW20DenomsForChain(
+    (swapChain?.chainId ?? '') as SupportedChain,
+  )
+  const combinedDenoms = useMemo(() => {
+    return { ...denoms, ...autoFetchedCW20Tokens }
+  }, [denoms, autoFetchedCW20Tokens])
+
   const [preferredCurrency] = useUserPreferredCurrency()
   const { ibcTraceData } = useIbcTraceStore()
   const chainInfos = useChainInfos()
   const selectedNetwork = useSelectedNetwork()
-  const { isLoading: initializingCW20TokensForChain } = useInitializeCW20TokensForChain(swapChain)
 
-  const anyTokensLoading = useMemo(() => {
-    return [s3IbcTokensStatus, nonS3IbcTokensStatus, nativeTokensStatus, cw20TokensStatus].includes(
-      'loading',
-    )
-  }, [cw20TokensStatus, nativeTokensStatus, nonS3IbcTokensStatus, s3IbcTokensStatus])
+  const isQueryEnabled = useMemo(() => {
+    return !!swapChain && !!skipAssets?.length && !allAssetsLoading
+  }, [swapChain, skipAssets?.length, allAssetsLoading])
 
   return useQuery(
     [
@@ -61,7 +64,6 @@ export function useGetSwapAssets(swapChain: SourceChain | undefined) {
       combinedDenoms,
       swapChain,
       ibcTraceData,
-      refetchBalances,
     ],
     async function () {
       if (swapChain && skipAssets && skipAssets.length > 0) {
@@ -78,12 +80,17 @@ export function useGetSwapAssets(swapChain: SourceChain | undefined) {
 
           if (token) {
             const decimals = skipAsset.decimals || token.coinDecimals
-            const updatedSkipAsset = decimals
+            const _skipAsset: SkipSupportedAsset = {
+              ...skipAsset,
+              coingeckoId: token.coinGeckoId ?? skipAsset.coingeckoId,
+              isCw20: skipAsset.isCw20,
+            }
+            const updatedSkipAsset: SkipSupportedAsset = decimals
               ? {
-                  ...skipAsset,
+                  ..._skipAsset,
                   decimals,
                 }
-              : skipAsset
+              : _skipAsset
             _swapAssets.push({
               ...token,
               skipAsset: updatedSkipAsset,
@@ -231,15 +238,15 @@ export function useGetSwapAssets(swapChain: SourceChain | undefined) {
           assets: sortTokenBalances(_swapAssets).sort(
             getSortFnBasedOnWhiteListing(autoFetchedTokensList, nativeDenoms),
           ) as SourceToken[],
-          refetchBalances,
         }
       }
 
-      return { assets: [], refetchBalances }
+      return {
+        assets: [],
+      }
     },
     {
-      enabled:
-        !!swapChain && !!skipAssets?.length && !anyTokensLoading && !initializingCW20TokensForChain,
+      enabled: isQueryEnabled,
     },
   )
 }

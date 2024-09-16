@@ -4,6 +4,7 @@ export * from './chain-infos-config';
 export * from './chainIds';
 export * from './default-gasprice-step';
 export * from './denoms';
+export * from './evm-gas-prices';
 export * from './fee-denoms';
 export * from './gas-adjustments';
 export * from './gas-price-steps';

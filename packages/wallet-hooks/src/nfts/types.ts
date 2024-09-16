@@ -70,7 +70,7 @@ export type NFTDetailedInformation = {
   tokenId: string;
 };
 
-export type TokenUriModifierFn = (_: string) => string;
+export type TokenUriModifierFn = (image: string, collection?: string) => string;
 
 export type OwnedCollectionTokenInfo = {
   name: string;

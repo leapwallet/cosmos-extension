@@ -1,4 +1,4 @@
-import { fromSmall, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, fromSmall, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
 import { useCallback } from 'react';
 
@@ -98,10 +98,11 @@ export type shouldShowAutoAdjustArgs = {
  * Make sure all the amounts are in same denom and coin decimals. Recommend passing in base denom (e.g. uatom)
  */
 export const useShouldShowAutoAdjustSheet = (
+  denoms: DenomsRecord,
   forceChain?: SupportedChain,
   forceNetwork?: 'mainnet' | 'testnet',
 ): ((args: shouldShowAutoAdjustArgs) => AdjustmentType) => {
-  const nativeDenom = useNativeFeeDenom(forceChain, forceNetwork);
+  const nativeDenom = useNativeFeeDenom(denoms, forceChain, forceNetwork);
   const coinMinimalDenom = nativeDenom.coinMinimalDenom;
 
   const shouldShowAutoAdjustSheet = useCallback(

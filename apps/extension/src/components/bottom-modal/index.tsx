@@ -2,6 +2,7 @@ import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import React, { useCallback } from 'react'
 import Sheet from 'react-modal-sheet'
+import { isSidePanel } from 'utils/isSidePanel'
 
 type BottomModalProps = React.PropsWithChildren<{
   /*
@@ -98,11 +99,15 @@ const BottomModal: React.FC<BottomModalProps> = ({
       isOpen={isOpen}
       detent='content-height'
       onClose={handleCloseAction}
-      className={classNames('w-[400px] h-[600px] mx-auto !absolute', wrapperClassName)}
+      className={classNames(
+        'panel-width enclosing-panel mx-auto !absolute panel-height',
+        wrapperClassName,
+      )}
     >
       <Sheet.Container
         className={classNames(
           'bg-gray-50 dark:bg-black-100 !rounded-t-2xl overflow-hidden',
+          { 'max-panel-height': !isSidePanel() },
           containerClassName,
         )}
         transition={{
@@ -126,7 +131,9 @@ const BottomModal: React.FC<BottomModalProps> = ({
                   </div>
                 )}
           </div>
-          <div className={classNames('p-7 max-h-[488px] overflow-auto', className)}>{children}</div>
+          <div className={classNames('p-7 max-h-[calc(100%-112px)] overflow-auto', className)}>
+            {children}
+          </div>
         </Sheet.Content>
       </Sheet.Container>
 

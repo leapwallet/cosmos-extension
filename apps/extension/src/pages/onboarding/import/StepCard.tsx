@@ -1,3 +1,4 @@
+import { CheckCircle } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import { Images } from 'images'
@@ -58,9 +59,7 @@ export default function StepCard({ stepNo, description, suggestion, status }: St
               className={`h-6 w-6 rounded-full bg-white-100 z-[10] flex items-center justify-center ${transition}`}
             >
               {status === 'done' && (
-                <div className='material-icons-round text-green-600' style={{ fontSize: '32px' }}>
-                  check_circle
-                </div>
+                <CheckCircle weight='fill' size={32} className='text-green-600' />
               )}
             </div>
           </div>

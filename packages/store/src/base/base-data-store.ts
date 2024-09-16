@@ -1,0 +1,69 @@
+import { action, makeObservable, runInAction } from 'mobx';
+
+export abstract class BaseQueryStore<T> {
+  data: T | null = null;
+  lastFetchedAt: number | null = null;
+  isLoading = false;
+  error: Error | null = null;
+
+  protected staleTime: number;
+
+  constructor(staleTime: number = 5 * 60 * 1000) {
+    this.staleTime = staleTime;
+    makeObservable(this);
+  }
+
+  @action
+  protected setData(newData: T) {
+    this.data = newData;
+    this.lastFetchedAt = Date.now();
+  }
+
+  protected isDataStale() {
+    if (!this.lastFetchedAt) return true;
+    return Date.now() - this.lastFetchedAt > this.staleTime;
+  }
+
+  @action setLoading(isLoading: boolean) {
+    this.isLoading = isLoading;
+  }
+
+  @action setError(error: Error | null) {
+    this.error = error;
+  }
+
+  @action
+  invalidateCache() {
+    this.lastFetchedAt = null;
+  }
+
+  abstract fetchData(): Promise<T>;
+
+  async getData(): Promise<T> {
+    if (!this.isDataStale() && this.data !== null) {
+      return this.data;
+    }
+    this.setLoading(true);
+    this.setError(null);
+
+    try {
+      const newData = await this.fetchData();
+      runInAction(() => {
+        this.setData(newData);
+        this.setLoading(false);
+      });
+      return newData;
+    } catch (error) {
+      runInAction(() => {
+        this.setError(error instanceof Error ? error : new Error(String(error)));
+        this.setLoading(false);
+      });
+      throw error;
+    }
+  }
+
+  async refetchData(): Promise<T> {
+    this.invalidateCache();
+    return this.getData();
+  }
+}

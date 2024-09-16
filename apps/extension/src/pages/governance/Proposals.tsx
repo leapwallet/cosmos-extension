@@ -1,10 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  useActiveChain,
-  useGetNtrnProposals,
-  useGovProposals,
-  useIsFeatureExistForChain,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain, useIsFeatureExistForChain } from '@leapwallet/cosmos-wallet-hooks'
 import { QueryStatus } from '@tanstack/react-query'
 import { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { ComingSoon } from 'components/coming-soon'
@@ -12,44 +7,65 @@ import { PageName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
+import { chainTagsStore } from 'stores/chain-infos-store'
+import { governanceStore } from 'stores/governance-store'
+import {
+  claimRewardsStore,
+  delegationsStore,
+  unDelegationsStore,
+  validatorsStore,
+} from 'stores/stake-store'
 import { AggregatedSupportedChain } from 'types/utility'
 
-import { AggregatedGovernance, ProposalDetails, ProposalStatusEnum } from './components'
+import {
+  AggregatedGovernance,
+  ProposalDetails,
+  ProposalList,
+  ProposalsProps,
+  ProposalStatusEnum,
+} from './components'
 import { NtrnProposalDetails, NtrnProposalList, NtrnProposalStatus } from './neutron'
-import ProposalList from './ProposalList'
 
-function GeneralProposals() {
+const GeneralProposals = observer(({ governanceStore, chainTagsStore }: ProposalsProps) => {
   const [selectedProposal, setSelectedProposal] = useState<string | undefined>()
-  const { data: proposalsList, status, fetchMore, shouldUseFallback } = useGovProposals()
 
   usePerformanceMonitor({
     page: 'governance',
-    queryStatus: status as QueryStatus,
+    queryStatus: governanceStore.chainProposals.status as QueryStatus,
     op: 'governancePageLoad',
     description: 'loading state on governance page',
   })
 
   return selectedProposal === undefined ? (
     <ProposalList
-      proposalListStatus={status}
-      proposalList={proposalsList}
       onClick={(id) => setSelectedProposal(id)}
-      fetchMore={fetchMore}
+      governanceStore={governanceStore}
+      delegationsStore={delegationsStore}
+      validatorsStore={validatorsStore}
+      unDelegationsStore={unDelegationsStore}
+      claimRewardsStore={claimRewardsStore}
+      chainTagsStore={chainTagsStore}
     />
   ) : (
     <ProposalDetails
+      governanceStore={governanceStore}
       selectedProp={selectedProposal}
       onBack={() => setSelectedProposal(undefined)}
-      proposalList={proposalsList}
-      shouldUseFallback={shouldUseFallback}
     />
   )
-}
+})
 
-function NeutronProposals() {
+const NeutronProposals = observer(({ governanceStore, chainTagsStore }: ProposalsProps) => {
   const [selectedProposal, setSelectedProposal] = useState<string | undefined>()
-  const { data: proposalsList, status, shouldPreferFallback } = useGetNtrnProposals()
+
+  const {
+    data: proposalsList,
+    status,
+    shouldUseFallback: shouldPreferFallback,
+    fetchMore,
+  } = governanceStore.chainProposals
 
   usePerformanceMonitor({
     page: 'governance',
@@ -98,6 +114,8 @@ function NeutronProposals() {
       proposalList={allProposals}
       shouldPreferFallback={shouldPreferFallback}
       onClick={(id) => setSelectedProposal(id)}
+      chainTagsStore={chainTagsStore}
+      fetchMore={fetchMore}
     />
   ) : (
     <NtrnProposalDetails
@@ -107,7 +125,7 @@ function NeutronProposals() {
       shouldUseFallback={shouldPreferFallback}
     />
   )
-}
+})
 
 function Proposals() {
   usePageView(PageName.Governance)
@@ -119,14 +137,26 @@ function Proposals() {
   })
 
   if (activeChain === AGGREGATED_CHAIN_KEY) {
-    return <AggregatedGovernance />
+    return (
+      <AggregatedGovernance governanceStore={governanceStore} chainTagsStore={chainTagsStore} />
+    )
   }
 
   if (isGovernanceComingSoon) {
-    return <ComingSoon title='Governance' bottomNavLabel={BottomNavLabel.Governance} />
+    return (
+      <ComingSoon
+        chainTagsStore={chainTagsStore}
+        title='Governance'
+        bottomNavLabel={BottomNavLabel.Governance}
+      />
+    )
   }
 
-  return activeChain === 'neutron' ? <NeutronProposals /> : <GeneralProposals />
+  return activeChain === 'neutron' ? (
+    <NeutronProposals governanceStore={governanceStore} chainTagsStore={chainTagsStore} />
+  ) : (
+    <GeneralProposals governanceStore={governanceStore} chainTagsStore={chainTagsStore} />
+  )
 }
 
 export default Proposals

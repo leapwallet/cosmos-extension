@@ -1,6 +1,8 @@
+import classNames from 'classnames'
 import Text from 'components/text'
 import { Images } from 'images'
 import React from 'react'
+import { isSidePanel } from 'utils/isSidePanel'
 
 import GoToLeapboard from './GoToLeapboard'
 
@@ -19,8 +21,14 @@ export default function MoreAirdrops() {
         <br />
         eligibility for other addresses.
       </Text>
-      <GoToLeapboard />
-      <img src={Images.Misc.FrogHappy} alt='FrogHappy' className='absolute right-0 bottom-0' />
+      <GoToLeapboard className='relative z-[2]' />
+      <img
+        src={Images.Misc.FrogHappy}
+        alt='FrogHappy'
+        className={classNames('absolute right-0 bottom-0 z-[1]', {
+          'min-[350px]:!max-w-[40%] max-[349px]:!max-w-[32%]': isSidePanel(),
+        })}
+      />
     </div>
   )
 }

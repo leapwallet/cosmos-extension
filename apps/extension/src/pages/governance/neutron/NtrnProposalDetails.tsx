@@ -6,6 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { getNeutronProposalVote, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType, LineDivider } from '@leapwallet/leap-ui'
+import { ArrowSquareOut, ThumbsUp, User } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import classNames from 'classnames'
@@ -21,7 +22,7 @@ import { PieChart } from 'react-minimal-pie-chart'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
-import { ProposalDetailsProps, ProposalStatusEnum, ShowVotes, Turnout } from '../components'
+import { ProposalStatusEnum, ShowVotes, Turnout } from '../components'
 import { convertTime, getPercentage, voteRatio } from '../utils'
 import { NtrnCastVote, NtrnStatus } from './index'
 import { NtrnProposalStatus } from './NtrnStatus'
@@ -109,7 +110,7 @@ function VoteDetails({
               )}
             >
               <div className='h-10 w-10 bg-green-400 rounded-full flex items-center justify-center'>
-                <span className='material-icons-round text-green-700'>thumb_up</span>
+                <ThumbsUp size={16} className='text-green-700' />
               </div>
               <div className='flex flex-col justify-center items-start px-3'>
                 <div className='text-base text-white-100 text-left'>Vote submitted</div>
@@ -127,7 +128,7 @@ function VoteDetails({
             onClick={() => onVote()}
           >
             <div className={'flex justify-center text-white-100 items-center'}>
-              <span className='mr-2 material-icons-round'>how_to_vote</span>
+              <ThumbsUp size={16} className='mr-2' />
               <span>Vote</span>
             </div>
           </Buttons.Generic>
@@ -189,6 +190,16 @@ function VoteDetails({
   return <></>
 }
 
+type NtrnProposalDetailsProps = {
+  selectedProp: string | undefined
+  onBack: () => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  proposalList: any[]
+  shouldUseFallback: boolean
+  forceChain?: SupportedChain
+  forceNetwork?: 'mainnet' | 'testnet'
+}
+
 export function NtrnProposalDetails({
   selectedProp,
   onBack,
@@ -196,7 +207,7 @@ export function NtrnProposalDetails({
   shouldUseFallback,
   forceChain,
   forceNetwork,
-}: ProposalDetailsProps) {
+}: NtrnProposalDetailsProps) {
   const { chains } = useChainsStore()
   const _activeChain = useActiveChain()
   const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
@@ -292,7 +303,7 @@ export function NtrnProposalDetails({
   )
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip panel-height enclosing-panel'>
       <PopupLayout>
         <Header
           action={{
@@ -301,7 +312,7 @@ export function NtrnProposalDetails({
           }}
           title='Proposal'
         />
-        <div className='flex flex-col py-6 px-7 max-h-[520px] overflow-y-scroll'>
+        <div className='flex flex-col py-6 px-7 max-h-[calc(100%-80px)] overflow-y-scroll'>
           <div className='text-gray-600 dark:text-gray-200 text-sm mb-1'>
             #{getId(proposal, shouldUseFallback)} ·{' '}
             <NtrnStatus status={getStatus(proposal, shouldUseFallback)} />
@@ -346,7 +357,7 @@ export function NtrnProposalDetails({
                   style={{ backgroundColor: '#FFECA8', lineHeight: 28 }}
                   className='relative h-10 w-10 rounded-full flex items-center justify-center text-lg'
                 >
-                  <span className='leading-none'>👤</span>
+                  <User size={16} className='leading-none' />
                   <img
                     src={chain.chainSymbolImageUrl ?? defaultTokenLogo}
                     onError={imgOnError(defaultTokenLogo)}
@@ -382,7 +393,7 @@ export function NtrnProposalDetails({
                   )
                 }
               >
-                <span className='material-icons-round text-gray-400 text-[18px]'>open_in_new</span>
+                <ArrowSquareOut size={18} className='text-gray-400' />
               </button>
             </div>
           )}
@@ -404,6 +415,7 @@ export function NtrnProposalDetails({
         <NtrnCastVote
           refetchVote={refetch}
           proposalId={getId(proposal, shouldUseFallback)}
+          isProposalInVotingPeriod={isProposalInVotingPeriod}
           showCastVoteSheet={showCastVoteSheet}
           setShowCastVoteSheet={setShowCastVoteSheet}
           forceChain={forceChain}

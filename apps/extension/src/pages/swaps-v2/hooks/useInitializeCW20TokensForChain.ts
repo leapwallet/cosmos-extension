@@ -48,6 +48,8 @@ export function useInitializeCW20TokensForChain(chain: SourceChain | undefined) 
       }
     }
     fetchCW20TokensFiles()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chain])
 
   return { isLoading }

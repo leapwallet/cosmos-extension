@@ -1,0 +1,4 @@
+{
+  "moduleDirectories": ["node_modules", "src"],
+  "testTimeout": 30000
+}

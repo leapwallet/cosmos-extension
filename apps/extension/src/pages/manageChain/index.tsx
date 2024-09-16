@@ -1,6 +1,7 @@
 import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { MinusCircle } from '@phosphor-icons/react'
 import { chainInfosState } from 'atoms/chains'
 import { deleteChain } from 'atoms/delete-chain'
 import BottomModal from 'components/bottom-modal'
@@ -10,7 +11,7 @@ import PopupLayout from 'components/layout/popup-layout'
 import NoSearchResults from 'components/no-search-results'
 import Text from 'components/text'
 import { BETA_CHAINS } from 'config/storage-keys'
-import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
+import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
 import type { ManageChainSettings } from 'hooks/settings/useManageChains'
 import {
@@ -69,8 +70,8 @@ const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
     <BottomModal isOpen={!!chain} onClose={() => setDeleteChain(null)} title={'Remove Chain?'}>
       <div className='flex flex-col gap-y-1'>
         <div className='text-center px-5'>
-          <div className='rounded-2xl bg-white-100 dark:bg-gray-800 p-[12px] w-[48px] h-[48px] text-red-300 material-icons-round mb-4'>
-            remove_circle
+          <div className='rounded-2xl bg-white-100 dark:bg-gray-800 p-[12px] w-[48px] h-[48px] text-red-300 mb-4'>
+            <MinusCircle size={24} className='text-red-300' />
           </div>
           <Text size='md' color='text-gray-800 dark:text-gray-200 font-medium'>
             Are you sure you want to remove {chain?.chainName}?
@@ -104,7 +105,6 @@ const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
 export default function ManageChain(): ReactElement {
   const [searchQuery, setSearchQuery] = React.useState('')
   const navigate = useNavigate()
-  const activeChain = useActiveChain()
   const [chains] = useManageChainData()
   const [updateChainData] = useToggleChainState()
   const [updatePreferenceOrder] = useUpdatePreferenceOrder()

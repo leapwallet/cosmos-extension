@@ -1,6 +1,8 @@
 import { useGetExplorerTxnUrl } from '@leapwallet/cosmos-wallet-hooks'
 import { PacketContent, TRANSFER_STATE } from '@leapwallet/elements-core'
 import { Action, useChains, useDenomData } from '@leapwallet/elements-hooks'
+import { ArrowSquareOut } from '@phosphor-icons/react'
+import { TransferState } from '@skip-router/core'
 import React, { useCallback, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { TransferInfo } from 'types/swap'
@@ -92,7 +94,7 @@ export function TxPageStepsType({
 
   const { status, txData } = useMemo(() => {
     const packetTxs = response?.packet_txs
-    let _status
+    let _status: TransferState | undefined
     let _txData
 
     if (!packetTxs) {
@@ -179,7 +181,7 @@ export function TxPageStepsType({
       </div>
       <div className='flex w-full flex-col justify-start items-start gap-0'>
         <div className='flex-row flex w-full justify-between items-center'>
-          <div className='dark:text-white-100 font-bold text-black-100 text-md !leading-[21.6px]'>
+          <div className='dark:text-white-100 font-bold text-black-100 text-md max-[350px]:!text-sm !leading-[21.6px] max-[350px]:!leading-[19.6px]'>
             {action.type === 'SWAP' ? 'Swap ' : 'Transfer '}
             {action.type === 'TRANSFER' || action.type === 'SEND' ? (
               isSrcDenomLoading ? (
@@ -223,15 +225,15 @@ export function TxPageStepsType({
             {txHash && chainId && (
               <button
                 onClick={() => handleViewInExplorer(chainId, txHash)}
-                className='material-icons-round text-gray-400 dark:text-gray-600 !leading-4 !text-md'
+                className='text-gray-400 dark:text-gray-600'
               >
-                open_in_new
+                <ArrowSquareOut size={16} className='!leading-4 !text-md' />
               </button>
             )}
           </>
         </div>
         <div>
-          <div className='text-gray-400 font-medium dark:text-gray-600 text-sm !leading-[18.9px]'>
+          <div className='text-gray-400 font-medium dark:text-gray-600 text-sm max-[350px]:!text-xs !leading-[18.9px]'>
             {action.type === 'TRANSFER' || action.type === 'SEND' ? (
               <>
                 from{' '}

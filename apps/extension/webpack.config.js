@@ -189,6 +189,12 @@ const base_config = {
   plugins: [
     new HtmlWebpackPlugin({
       template: `./${publicDir}/index.html`,
+      filename: 'index.html',
+      chunks: ['index'],
+    }),
+    new HtmlWebpackPlugin({
+      template: `./${publicDir}/sidepanel.html`,
+      filename: 'sidepanel.html',
       chunks: ['index'],
     }),
     new CopyPlugin({
@@ -196,7 +202,8 @@ const base_config = {
         {
           from: publicDir,
           to: '.',
-          filter: (filepath) => !filepath.endsWith('index.html'),
+          filter: (filepath) =>
+            !filepath.endsWith('index.html') && !filepath.endsWith('sidepanel.html'),
         },
         {
           from: 'public/hcaptcha.js',

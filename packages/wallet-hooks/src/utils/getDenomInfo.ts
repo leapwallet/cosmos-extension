@@ -1,4 +1,10 @@
-import { DenomsRecord, getChainInfo, NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  denoms as DefaultDenoms,
+  DenomsRecord,
+  getChainInfo,
+  NativeDenom,
+  SupportedDenoms,
+} from '@leapwallet/cosmos-wallet-sdk';
 
 export async function getDenomInfo(
   denom: string,
@@ -25,19 +31,20 @@ export async function getDenomInfo(
   if (!denomInfo) {
     const chainInfo = await getChainInfo(chain, testnet);
     if (!chainInfo) {
-      return undefined;
-    }
-    const assetInfo = chainInfo?.assets?.find((asset) => asset.denom === denom);
-    if (assetInfo) {
-      denomInfo = {
-        name: assetInfo.name,
-        chain: chainInfo.chain_name,
-        coinDenom: assetInfo.symbol,
-        coinDecimals: assetInfo.decimals,
-        coinGeckoId: assetInfo.coingecko_id,
-        coinMinimalDenom: assetInfo.denom,
-        icon: assetInfo.image ?? assetInfo.logo_URIs.png ?? assetInfo.logo_URIs.svg,
-      };
+      denomInfo = DefaultDenoms[denom as SupportedDenoms];
+    } else {
+      const assetInfo = chainInfo?.assets?.find((asset) => asset.denom === denom);
+      if (assetInfo) {
+        denomInfo = {
+          name: assetInfo.name,
+          chain: chainInfo.chain_name,
+          coinDenom: assetInfo.symbol,
+          coinDecimals: assetInfo.decimals,
+          coinGeckoId: assetInfo.coingecko_id,
+          coinMinimalDenom: assetInfo.denom,
+          icon: assetInfo.image ?? assetInfo.logo_URIs.png ?? assetInfo.logo_URIs.svg,
+        };
+      }
     }
   }
 

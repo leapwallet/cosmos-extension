@@ -14,10 +14,12 @@ import {
   encodedUtf8HexToText,
   formatEtherValue,
   getRestUrl,
-  getSeiEvmAddressToShow,
+  pubKeyToEvmAddressToShow,
   parseStandardTokenTransactionData,
   fetchERC20Balances,
   SeiEvmTx,
+  SupportedChain,
+  getEvmChainIdMap,
 } from '@leapwallet/cosmos-wallet-sdk'
 
 import { decrypt, initCrypto, initStorage } from '@leapwallet/leap-keychain'
@@ -26,9 +28,9 @@ import {
   ACTIVE_WALLET,
   AUTO_LOCK_TIME,
   BETA_CHAINS,
-  BG_RESPONSE,
   ENCRYPTED_ACTIVE_WALLET,
   KEYSTORE,
+  LAST_EVM_ACTIVE_CHAIN,
   REDIRECT_REQUEST,
   SELECTED_NETWORK,
   V118_KEYSTORE_MIGRATION_COMPLETE,
@@ -37,18 +39,12 @@ import {
   VIEWING_KEYS,
 } from 'config/storage-keys'
 import PortStream from 'extension-port-stream'
-import browser, { Storage } from 'webextension-polyfill'
+import browser from 'webextension-polyfill'
 
-import customIcon from '../images/logos/generic-light.svg'
 import { getStorageAdapter } from '../utils/storageAdapter'
 import { NEW_CHAIN_REQUEST, SUGGEST_TOKEN } from './../config/storage-keys'
 
-import {
-  getChains,
-  getCompassSeiEvmConfigStoreSnapshot,
-  getSeiEvmInfo,
-  SeiEvmInfoEnum,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { formatNewChainInfo, getChains } from '@leapwallet/cosmos-wallet-hooks'
 import { getEvmError } from '@leapwallet/cosmos-wallet-provider/dist/utils/get-evm-error'
 import {
   ETHEREUM_METHOD_TYPE,
@@ -71,6 +67,7 @@ import { initiatePendingSwapTxTracking, listenPendingSwapTx } from './pending-sw
 
 import {
   awaitApproveChainResponse,
+  awaitEnableChainResponse,
   awaitSigningResponse,
   awaitUIResponse,
   checkConnection,
@@ -80,12 +77,14 @@ import {
   getWalletAddress,
   isConnected,
   openPopup,
+  Page,
   requestEnableAccess,
   requestSignTransaction,
   validateNewChainInfo,
 } from './utils'
 import { addTxToPendingTxList } from 'utils/pendingSwapsTxsStore'
-import { handleGetKey } from './request-handlers/getKey.handler'
+import { getKey, handleGetKey } from './request-handlers/getKey.handler'
+import { addLeapEthereumChain } from './utils-provider-method-functions'
 
 global.window = self
 
@@ -117,6 +116,20 @@ const connectRemote = (remotePort: any) => {
     portStream.write({ name, payload, id })
   }
 
+  const customOpenPopup = async (
+    page: Page,
+    queryString?: string,
+    response?: [string, any, number],
+  ) => {
+    try {
+      await openPopup(page, queryString)
+    } catch (e: any) {
+      if (response && e.message.includes('Requests exceeded')) {
+        return sendResponse(...response)
+      }
+    }
+  }
+
   browser.runtime.onMessage.addListener(async (message, sender) => {
     if (sender.id !== browser.runtime.id) return
 
@@ -124,8 +137,13 @@ const connectRemote = (remotePort: any) => {
       case 'chain-enabled':
         if (message.payload?.ecosystem === LINE_TYPE.ETHEREUM) {
           const store = await browser.storage.local.get([ACTIVE_WALLET, ACTIVE_CHAIN])
-          const activeChain = store[ACTIVE_CHAIN] ?? 'seiTestnet2'
-          const seiEvmAddress = getSeiEvmAddressToShow(store[ACTIVE_WALLET].pubKeys?.[activeChain])
+          const lastEvmActiveChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum'
+          const activeChain: SupportedChain = message.payload?.isLeap
+            ? lastEvmActiveChain
+            : store[ACTIVE_CHAIN] ?? 'seiTestnet2'
+          const seiEvmAddress = pubKeyToEvmAddressToShow(
+            store[ACTIVE_WALLET].pubKeys?.[activeChain],
+          )
 
           if (seiEvmAddress.startsWith('0x')) {
             const successResponse =
@@ -159,12 +177,6 @@ const connectRemote = (remotePort: any) => {
               message.payload.payloadId,
             )
           }
-        } else {
-          // sendResponse(
-          //   `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
-          //   { success: 'Chain enabled' },
-          //   message.payload.payloadId,
-          // )
         }
 
         break
@@ -176,12 +188,6 @@ const connectRemote = (remotePort: any) => {
             { error: getEvmError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
             message.payload.payloadId,
           )
-        } else {
-          // sendResponse(
-          //   `on${SUPPORTED_METHODS.ENABLE_ACCESS}`,
-          //   { error: 'Request rejected' },
-          //   message.payload.payloadId,
-          // )
         }
 
         break
@@ -189,14 +195,19 @@ const connectRemote = (remotePort: any) => {
       case 'pending-swaps':
         await addTxToPendingTxList(message.payload, message.override)
         break
-      // case 'popup-closed':
-      //   enableAccessRequests.clear()
-      //   break
     }
   })
 
   const requestHandler = async (data: any) => {
     const { type, ...payload } = data
+
+    const cosmosCustomOpenPopup = async (page: Page, queryString?: string) => {
+      return await customOpenPopup(page, queryString, [
+        `on${type.toUpperCase()}`,
+        { error: 'Requests exceeded' },
+        payload.id,
+      ])
+    }
 
     let popupWindowId = 0
     // let hasUnApprovedTx = false
@@ -230,13 +241,12 @@ const connectRemote = (remotePort: any) => {
 
       case SUPPORTED_METHODS.ADD_SUGGESTED_CHAIN: {
         try {
-          const newChainName = payload.chainInfo.chainName
           try {
             validateNewChainInfo(payload.chainInfo)
           } catch (e: any) {
             return sendResponse(`on${type.toUpperCase()}`, { error: e.message }, payload.id)
           }
-          const newChain = formatNewChainInfo(payload.chainInfo)
+          const newChain = formatNewChainInfo({ ...payload.chainInfo, status: 'live' })
           return getSupportedChains()
             .then((_chains) => {
               const supportedChains = Object.values(_chains)
@@ -262,44 +272,54 @@ const connectRemote = (remotePort: any) => {
                   .set({
                     [REDIRECT_REQUEST]: { type },
                     [NEW_CHAIN_REQUEST]: {
-                      chainInfo: newChain[newChainName],
+                      chainInfo: newChain,
                       origin: payload.origin,
                     },
                   })
                   .then(() =>
-                    openPopup('suggestChain').then(async (window) => {
-                      popupWindowId = window?.id ?? 0
-                      windowIdForPayloadId[popupWindowId] = {
-                        type: type.toUpperCase(),
-                        payloadId: payload.id,
-                      }
+                    openPopup('suggestChain')
+                      .then(async (window) => {
+                        popupWindowId = window?.id ?? 0
+                        windowIdForPayloadId[popupWindowId] = {
+                          type: type.toUpperCase(),
+                          payloadId: payload.id,
+                        }
 
-                      return awaitEnableChainResponse()
-                        .then(async () =>
-                          browser.storage.local.get([BETA_CHAINS]).then(async () => {
-                            try {
-                              return sendResponse(
-                                `on${type.toUpperCase()}`,
-                                {
-                                  success: 'Chain added successfully',
-                                },
-                                payload.id,
-                              )
-                            } catch (error: any) {
-                              return sendResponse(
-                                `on${type.toUpperCase()}`,
-                                {
-                                  error: error.error,
-                                },
-                                payload.id,
-                              )
-                            }
-                          }),
-                        )
-                        .catch(({ error }) =>
-                          sendResponse(`on${type.toUpperCase()}`, { error }, payload.id),
-                        )
-                    }),
+                        return awaitEnableChainResponse()
+                          .then(async () =>
+                            browser.storage.local.get([BETA_CHAINS]).then(async () => {
+                              try {
+                                return sendResponse(
+                                  `on${type.toUpperCase()}`,
+                                  {
+                                    success: 'Chain added successfully',
+                                  },
+                                  payload.id,
+                                )
+                              } catch (error: any) {
+                                return sendResponse(
+                                  `on${type.toUpperCase()}`,
+                                  {
+                                    error: error.error,
+                                  },
+                                  payload.id,
+                                )
+                              }
+                            }),
+                          )
+                          .catch(({ error }) =>
+                            sendResponse(`on${type.toUpperCase()}`, { error }, payload.id),
+                          )
+                      })
+                      .catch((error: any) => {
+                        if (error.message.includes('Requests exceeded')) {
+                          return sendResponse(
+                            `on${type.toUpperCase()}`,
+                            { error: 'Requests exceeded' },
+                            payload.id,
+                          )
+                        }
+                      }),
                   )
               }
             })
@@ -344,7 +364,7 @@ const connectRemote = (remotePort: any) => {
               })
               enableAccessRequests.delete(queryString)
               enableAccessRequests.set(queryString, popupWindowId)
-              await openPopup('approveConnection', '?unlock-to-approve')
+              await cosmosCustomOpenPopup('approveConnection', '?unlock-to-approve')
               requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
               windowIdForPayloadId[popupWindowId] = {
                 type: type.toUpperCase(),
@@ -395,7 +415,7 @@ const connectRemote = (remotePort: any) => {
           signOptions: msg.signOptions,
         })
 
-        await openPopup('sign')
+        await cosmosCustomOpenPopup('sign')
         try {
           const response = await awaitSigningResponse(MessageTypes.signResponse)
           sendResponse(`on${type.toUpperCase()}`, { directSignResponse: response }, payload.id)
@@ -421,7 +441,7 @@ const connectRemote = (remotePort: any) => {
           eip712Types: msg.eip712,
         })
 
-        await openPopup('sign')
+        await cosmosCustomOpenPopup('sign')
         try {
           const response = await awaitSigningResponse(MessageTypes.signResponse)
           sendResponse(`on${type.toUpperCase()}`, { aminoSignResponse: response }, payload.id)
@@ -463,7 +483,7 @@ const connectRemote = (remotePort: any) => {
 
         if (!passwordManager.getPassword()) {
           try {
-            await openPopup('login', '?close-on-login=true')
+            await cosmosCustomOpenPopup('login', '?close-on-login=true')
             await awaitUIResponse('user-logged-in')
           } catch {
             sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
@@ -516,17 +536,25 @@ const connectRemote = (remotePort: any) => {
                 },
               })
               .then(async () =>
-                openPopup('add-secret-token').then((window) => {
-                  popupWindowId = window?.id ?? 0
-                  windowIdForPayloadId[popupWindowId] = {
-                    type: eventName,
-                    payloadId: payload.id,
-                  }
+                openPopup('add-secret-token')
+                  .then((window) => {
+                    popupWindowId = window?.id ?? 0
+                    windowIdForPayloadId[popupWindowId] = {
+                      type: eventName,
+                      payloadId: payload.id,
+                    }
 
-                  return awaitEnableChainResponse()
-                    .then(() => sendResponse(eventName, { payload: '' }, payload.id))
-                    .catch(() => sendResponse(eventName, { error: 'Request rejected' }, payload.id))
-                }),
+                    return awaitEnableChainResponse()
+                      .then(() => sendResponse(eventName, { payload: '' }, payload.id))
+                      .catch(() =>
+                        sendResponse(eventName, { error: 'Request rejected' }, payload.id),
+                      )
+                  })
+                  .catch((error: any) => {
+                    if (error.message.includes('Requests exceeded')) {
+                      return sendResponse(eventName, { error: 'Requests exceeded' }, payload.id)
+                    }
+                  }),
               )
           })
         }
@@ -568,7 +596,7 @@ const connectRemote = (remotePort: any) => {
           const store = await browser.storage.local.get([ACTIVE_WALLET])
           if (!store[ACTIVE_WALLET]) {
             try {
-              await openPopup('login', '?close-on-login=true')
+              await cosmosCustomOpenPopup('login', '?close-on-login=true')
               await awaitUIResponse('user-logged-in')
             } catch {
               sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
@@ -626,77 +654,97 @@ const connectRemote = (remotePort: any) => {
     const popupWindowId = 0
     const sendResponseName = `on${method.toUpperCase()}`
     const payloadId = payload.id as unknown as number
-    const store = await browser.storage.local.get([ACTIVE_CHAIN, SELECTED_NETWORK])
-    const activeChain = store[ACTIVE_CHAIN] ?? 'seiTestnet2'
+    const store = await browser.storage.local.get([
+      ACTIVE_CHAIN,
+      SELECTED_NETWORK,
+      LAST_EVM_ACTIVE_CHAIN,
+    ])
+    const lastEvmActiveChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum'
+    const activeChain: SupportedChain = payload.isLeap
+      ? lastEvmActiveChain
+      : store[ACTIVE_CHAIN] ?? 'seiTestnet2'
     const activeNetwork: 'mainnet' | 'testnet' = store[SELECTED_NETWORK] ?? 'mainnet'
+    const supportedChains = await getSupportedChains()
+    const evmChainIdMap = getEvmChainIdMap(supportedChains)
+    const chainInfo = supportedChains[activeChain]
 
-    const {
-      COMPASS_EVM_CHAIN_IDS,
-      ATLANTIC_COSMOS_CHAIN_ID,
-      PACIFIC_COSMOS_CHAIN_ID,
-      ATLANTIC_ETH_CHAIN_ID,
-    } = await getCompassSeiEvmConfigStoreSnapshot()
+    const evmRpcUrl =
+      (activeNetwork === 'testnet'
+        ? chainInfo?.apis?.evmJsonRpcTest
+        : chainInfo?.apis?.evmJsonRpc) ?? ''
+
+    const evmChainId = Number(
+      (activeNetwork === 'testnet' ? chainInfo?.evmChainIdTestnet : chainInfo?.evmChainId) ?? '',
+    )
+
+    const cosmosChainId =
+      (activeNetwork === 'testnet' ? chainInfo?.testnetChainId : chainInfo?.chainId) ?? ''
+
+    async function evmCustomOpenPopup(page: Page, queryString?: string) {
+      return await customOpenPopup(page, queryString, [
+        sendResponseName,
+        { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, 'Requests exceeded') },
+        payloadId,
+      ])
+    }
 
     async function getWalletAddress(payloadId: number) {
-      const store = await browser.storage.local.get([ACTIVE_WALLET])
+      let store = await browser.storage.local.get([ACTIVE_WALLET])
 
-      if (!store[ACTIVE_WALLET]) {
+      if (!passwordManager.getPassword()) {
         try {
           await openPopup('login', '?close-on-login=true')
           await awaitUIResponse('user-logged-in')
-        } catch {
-          sendResponse(
-            sendResponseName,
-            { error: getEvmError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
-            payloadId,
-          )
+          store = await browser.storage.local.get([ACTIVE_WALLET])
+        } catch (e: any) {
+          if (e.message.includes('Requests exceeded')) {
+            sendResponse(
+              sendResponseName,
+              { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, 'Requests exceeded') },
+              payloadId,
+            )
+          } else {
+            sendResponse(
+              sendResponseName,
+              { error: getEvmError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
+              payloadId,
+            )
+          }
 
           return 'error'
         }
       }
 
-      const seiEvmAddress = getSeiEvmAddressToShow(store[ACTIVE_WALLET].pubKeys?.[activeChain])
-      return seiEvmAddress
+      let pubkey = store[ACTIVE_WALLET].pubKeys?.[activeChain]
+      if (!pubkey) {
+        const key = await getKey(chainInfo.chainId, passwordManager)
+        pubkey = key.pubKey
+      }
+
+      const evmAddress = pubKeyToEvmAddressToShow(pubkey)
+      return evmAddress
     }
 
     switch (method) {
       case ETHEREUM_METHOD_TYPE.WALLET__REVOKE_PERMISSIONS: {
         try {
-          const chainId = (await getSeiEvmInfo({
-            activeChain,
-            activeNetwork,
-            infoType: SeiEvmInfoEnum.COSMOS_CHAIN_ID,
-          })) as string
-
-          await disconnect({ chainId, origin: payload.origin })
+          await disconnect({ chainId: cosmosChainId, origin: payload.origin })
           sendResponse(sendResponseName, { success: null }, payloadId)
-        } catch (_) {
-          sendResponse(sendResponseName, { success: null }, payloadId)
+        } catch (error) {
+          sendResponse(sendResponseName, { error: (error as Error).message }, payloadId)
         }
 
         break
       }
 
       case ETHEREUM_METHOD_TYPE.ETH__CHAIN_ID: {
-        const chainId = await getSeiEvmInfo({
-          activeChain,
-          activeNetwork,
-          infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
-        })
-
-        sendResponse(sendResponseName, { success: `0x${chainId.toString(16)}` }, payloadId)
+        sendResponse(sendResponseName, { success: `0x${evmChainId.toString(16)}` }, payloadId)
         break
       }
 
       case ETHEREUM_METHOD_TYPE.ETH__BLOCK_NUMBER: {
         try {
-          const rpcUrl = (await getSeiEvmInfo({
-            activeChain,
-            activeNetwork,
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-          })) as string
-
-          const blockNumber = await SeiEvmTx.GetBlockNumber(rpcUrl)
+          const blockNumber = await SeiEvmTx.GetBlockNumber(evmRpcUrl)
           sendResponse(sendResponseName, { success: blockNumber }, payloadId)
         } catch (error) {
           sendResponse(
@@ -710,13 +758,7 @@ const connectRemote = (remotePort: any) => {
 
       case ETHEREUM_METHOD_TYPE.ETH__GET_BLOCK_BY_NUMBER: {
         try {
-          const rpcUrl = (await getSeiEvmInfo({
-            activeChain,
-            activeNetwork,
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-          })) as string
-
-          const result = await SeiEvmTx.GetBlockByNumber(payload.params, rpcUrl)
+          const result = await SeiEvmTx.GetBlockByNumber(payload.params, evmRpcUrl)
           sendResponse(sendResponseName, { success: result }, payloadId)
         } catch (error) {
           sendResponse(
@@ -730,13 +772,7 @@ const connectRemote = (remotePort: any) => {
 
       case ETHEREUM_METHOD_TYPE.ETH__GET_BALANCE: {
         try {
-          const rpcUrl = (await getSeiEvmInfo({
-            activeChain,
-            activeNetwork,
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-          })) as string
-
-          const result = await SeiEvmTx.EthGetBalance(payload.params, rpcUrl)
+          const result = await SeiEvmTx.EthGetBalance(payload.params, evmRpcUrl)
           sendResponse(sendResponseName, { success: result }, payloadId)
         } catch (error) {
           sendResponse(
@@ -754,21 +790,18 @@ const connectRemote = (remotePort: any) => {
 
         if (transactionHash) {
           try {
-            const rpcUrl = (await getSeiEvmInfo({
-              activeChain,
-              activeNetwork,
-              infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-            })) as string
-
             if (method === ETHEREUM_METHOD_TYPE.ETH__GET_TRANSACTION_RECEIPT) {
               const transactionReceipt = await SeiEvmTx.GetTransactionReceipt(
                 transactionHash,
-                rpcUrl,
+                evmRpcUrl,
               )
 
               sendResponse(sendResponseName, { success: transactionReceipt }, payloadId)
             } else {
-              const transactionByHash = await SeiEvmTx.GetTransactionByHash(transactionHash, rpcUrl)
+              const transactionByHash = await SeiEvmTx.GetTransactionByHash(
+                transactionHash,
+                evmRpcUrl,
+              )
               sendResponse(sendResponseName, { success: transactionByHash }, payloadId)
             }
           } catch (error) {
@@ -793,13 +826,7 @@ const connectRemote = (remotePort: any) => {
 
       case ETHEREUM_METHOD_TYPE.ETH__CALL: {
         try {
-          const rpcUrl = (await getSeiEvmInfo({
-            activeChain,
-            activeNetwork,
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-          })) as string
-
-          const result = await SeiEvmTx.ExecuteEthCall(payload.params, rpcUrl)
+          const result = await SeiEvmTx.ExecuteEthCall(payload.params, evmRpcUrl)
           sendResponse(sendResponseName, { success: result }, payloadId)
         } catch (error) {
           sendResponse(
@@ -814,13 +841,22 @@ const connectRemote = (remotePort: any) => {
 
       case ETHEREUM_METHOD_TYPE.ETH__ESTIMATE_GAS: {
         try {
-          const rpcUrl = (await getSeiEvmInfo({
-            activeChain,
-            activeNetwork,
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-          })) as string
+          const result = await SeiEvmTx.ExecuteEthEstimateGas(payload.params, evmRpcUrl)
+          sendResponse(sendResponseName, { success: result }, payloadId)
+        } catch (error) {
+          sendResponse(
+            sendResponseName,
+            { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, (error as Error).message) },
+            payloadId,
+          )
+        }
 
-          const result = await SeiEvmTx.ExecuteEthEstimateGAs(payload.params, rpcUrl)
+        break
+      }
+
+      case ETHEREUM_METHOD_TYPE.ETH__GAS_PRICE: {
+        try {
+          const result = await SeiEvmTx.EthGasPrice(evmRpcUrl)
           sendResponse(sendResponseName, { success: result }, payloadId)
         } catch (error) {
           sendResponse(
@@ -846,7 +882,7 @@ const connectRemote = (remotePort: any) => {
             {
               error: getEvmError(
                 ETHEREUM_RPC_ERROR.INVALID_PARAMS,
-                'Compass only supports ERC-20 asset type today.',
+                `${payload.isLeap ? 'Leap' : 'Compass'} only supports ERC-20 asset type today.`,
               ),
             },
             payloadId,
@@ -900,13 +936,7 @@ const connectRemote = (remotePort: any) => {
 
           break
         } else {
-          const rpcUrl = (await getSeiEvmInfo({
-            activeChain,
-            activeNetwork,
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-          })) as string
-
-          const balance = await fetchERC20Balances(rpcUrl, seiEvmAddress, [options.address])
+          const balance = await fetchERC20Balances(evmRpcUrl, seiEvmAddress, [options.address])
           if (balance.length === 0) {
             sendResponse(
               sendResponseName,
@@ -926,7 +956,7 @@ const connectRemote = (remotePort: any) => {
         await browser.storage.local.set({
           [SUGGEST_TOKEN]: { ...payload },
         })
-        await openPopup('suggest-erc-20')
+        await evmCustomOpenPopup('suggest-erc-20')
 
         try {
           await awaitEnableChainResponse()
@@ -986,7 +1016,7 @@ const connectRemote = (remotePort: any) => {
 
             if (
               method === ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4 &&
-              !COMPASS_EVM_CHAIN_IDS.includes(data.domain.chainId)
+              !evmChainIdMap[Number(data.domain.chainId).toString()]
             ) {
               sendResponse(
                 sendResponseName,
@@ -1017,7 +1047,7 @@ const connectRemote = (remotePort: any) => {
               signTxnData,
             })
 
-            await openPopup('signSeiEvm')
+            await evmCustomOpenPopup('signSeiEvm')
 
             try {
               const response = await awaitSigningResponse(MessageTypes.signSeiEvmResponse)
@@ -1069,7 +1099,7 @@ const connectRemote = (remotePort: any) => {
               data,
               gas,
               details: {
-                Value: value ? `${formatEtherValue(value)} SEI` : '0',
+                Value: value ? `${formatEtherValue(value)} ${chainInfo?.denom ?? ''}` : '0',
                 'Contract Interaction': to,
                 'HEX Data': data,
               },
@@ -1144,7 +1174,7 @@ const connectRemote = (remotePort: any) => {
             signTxnData,
           })
 
-          await openPopup('signSeiEvm')
+          await evmCustomOpenPopup('signSeiEvm')
 
           try {
             const response = await awaitSigningResponse(MessageTypes.signSeiEvmResponse)
@@ -1173,44 +1203,44 @@ const connectRemote = (remotePort: any) => {
         }
 
         const msg = payload
-        const chainIds: string[] = [ATLANTIC_COSMOS_CHAIN_ID, PACIFIC_COSMOS_CHAIN_ID]
+        const chainIds: string[] = [cosmosChainId]
 
         let queryString = `?origin=${msg?.origin}`
         chainIds?.forEach((chainId: string) => {
           queryString += `&chainIds=${chainId}`
         })
 
-        const seiEvmAddress = await getWalletAddress(payloadId)
-        if (seiEvmAddress === 'error') {
-          break
-        }
-
         checkConnection(chainIds, msg)
           .then(async ({ validChainIds, isNewChainPresent }) => {
             if (validChainIds.length > 0) {
-              const successResponse =
-                method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
-                  ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
-                    [
-                      {
-                        id: payloadId,
-                        parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
-                        invoker: msg?.origin,
-                        caveats: [
-                          {
-                            type: 'restrictReturnedAccounts',
-                            value: [seiEvmAddress],
-                          },
-                        ],
-                        date: Date.now(),
-                      },
-                    ]
-                  : [seiEvmAddress]
-
               if (isNewChainPresent) {
                 if (method === ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS) {
                   sendResponse(sendResponseName, { success: [] }, payloadId)
                 } else {
+                  const seiEvmAddress = await getWalletAddress(payloadId)
+                  if (seiEvmAddress === 'error') {
+                    throw new Error('Unable to get wallet address')
+                  }
+
+                  const successResponse =
+                    method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
+                      ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
+                        [
+                          {
+                            id: payloadId,
+                            parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
+                            invoker: msg?.origin,
+                            caveats: [
+                              {
+                                type: 'restrictReturnedAccounts',
+                                value: [seiEvmAddress],
+                              },
+                            ],
+                            date: Date.now(),
+                          },
+                        ]
+                      : [seiEvmAddress]
+
                   await browser.storage.local.set({
                     [REDIRECT_REQUEST]: { type: method, msg: { ...msg, validChainIds } },
                   })
@@ -1222,7 +1252,8 @@ const connectRemote = (remotePort: any) => {
                   if (shouldOpenPopup) {
                     enableAccessRequests.delete(queryString)
                     enableAccessRequests.set(queryString, popupWindowId)
-                    await openPopup('approveConnection')
+
+                    await evmCustomOpenPopup('approveConnection')
 
                     requestEnableAccess({
                       origin: msg.origin,
@@ -1230,6 +1261,7 @@ const connectRemote = (remotePort: any) => {
                       payloadId: payloadId as unknown as string,
                       ecosystem: LINE_TYPE.ETHEREUM,
                       ethMethod: method,
+                      isLeap: payload.isLeap,
                     })
 
                     windowIdForPayloadId[popupWindowId] = {
@@ -1272,6 +1304,32 @@ const connectRemote = (remotePort: any) => {
                   }
                 }
               } else {
+                // When wallet is in locked state, on visiting any EVM dApp the pop-up comes up,
+                // to avoid that copy the same code at two place
+                const seiEvmAddress = await getWalletAddress(payloadId)
+                if (seiEvmAddress === 'error') {
+                  throw new Error('Unable to get wallet address')
+                }
+
+                const successResponse =
+                  method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
+                    ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
+                      [
+                        {
+                          id: payloadId,
+                          parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
+                          invoker: msg?.origin,
+                          caveats: [
+                            {
+                              type: 'restrictReturnedAccounts',
+                              value: [seiEvmAddress],
+                            },
+                          ],
+                          date: Date.now(),
+                        },
+                      ]
+                    : [seiEvmAddress]
+
                 if (seiEvmAddress.startsWith('0x')) {
                   sendResponse(sendResponseName, { success: successResponse }, payloadId)
                 } else {
@@ -1308,34 +1366,30 @@ const connectRemote = (remotePort: any) => {
         if (payload.params) {
           const { chainId } = payload.params[0]
           if (chainId) {
-            if (COMPASS_EVM_CHAIN_IDS.includes(Number(chainId))) {
+            const requestedActiveChain = evmChainIdMap[Number(chainId).toString()]
+
+            if (requestedActiveChain) {
               const seiEvmAddress = await getWalletAddress(payloadId)
               if (seiEvmAddress === 'error') {
                 break
               }
 
-              const requestedActiveChain = await getSeiEvmInfo({
-                evmChainId: Number(chainId),
-                infoType: SeiEvmInfoEnum.COSMOS_CHAIN_KEY_USING_EVM_CHAIN_ID,
-              })
-
               if (activeChain) {
-                const storedActiveChain = activeChain
-                const setNetworkTo =
-                  Number(chainId) === ATLANTIC_ETH_CHAIN_ID ? 'testnet' : 'mainnet'
+                const setNetworkTo = requestedActiveChain.isTestnet ? 'testnet' : 'mainnet'
 
-                if (storedActiveChain !== requestedActiveChain) {
+                if (evmChainId !== Number(chainId)) {
                   await browser.storage.local.set({
                     [REDIRECT_REQUEST]: {
                       type: method,
                       msg: {
-                        requestedActiveChain,
+                        requestedActiveChain: requestedActiveChain.key,
                         setNetworkTo,
+                        origin: payload.origin,
                       },
                     },
                   })
 
-                  await openPopup('switch-ethereum-chain')
+                  await evmCustomOpenPopup('switch-ethereum-chain')
 
                   try {
                     await awaitEnableChainResponse()
@@ -1351,7 +1405,7 @@ const connectRemote = (remotePort: any) => {
                   sendResponse(sendResponseName, { success: { chainId } }, payloadId)
                 }
               } else {
-                await browser.storage.local.set({ [ACTIVE_CHAIN]: requestedActiveChain })
+                await browser.storage.local.set({ [ACTIVE_CHAIN]: requestedActiveChain.key })
                 sendResponse(sendResponseName, { success: { chainId } }, payloadId)
               }
             } else {
@@ -1394,13 +1448,38 @@ const connectRemote = (remotePort: any) => {
         break
       }
 
+      case ETHEREUM_METHOD_TYPE.WALLET__ADD_ETHEREUM_CHAIN: {
+        if (payload.isLeap) {
+          if (payload.params && payload.params.length > 0) {
+            const result = await addLeapEthereumChain(payload, evmChainIdMap, evmCustomOpenPopup)
+            sendResponse(sendResponseName, result, payloadId)
+          } else {
+            sendResponse(
+              sendResponseName,
+              {
+                error: getEvmError(
+                  ETHEREUM_RPC_ERROR.INVALID_PARAMS,
+                  `Params are required for ${method} method.`,
+                ),
+              },
+              payloadId,
+            )
+          }
+
+          break
+        }
+      }
+
+      // eslint-disable-next-line no-fallthrough
       default: {
         sendResponse(
           sendResponseName,
           {
             error: getEvmError(
               ETHEREUM_RPC_ERROR.INTERNAL,
-              `Compass does not support '${method}' method as of now.`,
+              `${
+                payload.isLeap ? 'Leap' : 'Compass'
+              } does not support '${method}' method as of now.`,
             ),
           },
           payloadId,
@@ -1487,7 +1566,7 @@ const openAuthPage = async function (message: any) {
       active: true,
     })
   } else {
-    await browser.action.setPopup({ popup: 'index.html' })
+    await browser.action.setPopup({ popup: 'index.html#/home' })
   }
 }
 
@@ -1522,87 +1601,3 @@ if (!browser.action.onClicked.hasListener(openAuthPage)) {
 //     browser.storage.onChanged.addListener(directSignResponseListener)
 //   })
 // }
-
-function awaitEnableChainResponse(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const enableChainListener = (changes: Record<string, Storage.StorageChange>) => {
-      const { newValue } = changes[BG_RESPONSE] || {}
-      if (newValue) {
-        if (newValue.error) {
-          reject(newValue)
-        } else {
-          resolve(newValue)
-        }
-        resolve({})
-        browser.storage.onChanged.removeListener(enableChainListener)
-      }
-    }
-    browser.storage.onChanged.addListener(enableChainListener)
-  })
-}
-
-function removeTrailingSlash(url?: string) {
-  if (!url) return ''
-  return url.replace(/\/$/, '')
-}
-
-function formatNewChainInfo(chainInfo: any) {
-  const apis = {
-    rest: removeTrailingSlash(chainInfo.rest),
-    rpc: removeTrailingSlash(chainInfo.rpc),
-    rpcTest: removeTrailingSlash(chainInfo.rpcTest) || '',
-    restTest: removeTrailingSlash(chainInfo.restTest) || '',
-  }
-  if (chainInfo.rpcTest) apis.rpcTest = chainInfo.rpcTest
-  if (chainInfo.restTest) apis.restTest = chainInfo.restTest
-  try {
-    const { gasPriceStep, ...rest } = chainInfo.feeCurrencies[0]
-    const addressPrefix = chainInfo.bech32Config.bech32PrefixAccAddr
-    let testnetData = {}
-    if (chainInfo?.rpcTest || chainInfo?.restTest) {
-      testnetData = {
-        testnetChainId: chainInfo.chainId,
-        testnetChainRegistryPath: chainInfo.chainRegistryPath ?? addressPrefix,
-      }
-    }
-    return {
-      [chainInfo.chainName]: {
-        chainId: chainInfo.chainId,
-        chainName: chainInfo.chainName,
-        chainRegistryPath: chainInfo.chainRegistryPath ?? addressPrefix,
-        key: chainInfo.chainName,
-        chainSymbolImageUrl: chainInfo.image || customIcon,
-        txExplorer: {
-          mainnet: chainInfo.txExplorer?.mainnet || {},
-        },
-        apis,
-        denom: rest.coinDenom,
-        bip44: {
-          coinType: `${chainInfo.bip44.coinType}`,
-        },
-        addressPrefix: addressPrefix,
-        gasPriceStep: gasPriceStep,
-        ibcChannelIds: {},
-        feeCurrencies: chainInfo.feeCurrencies,
-        nativeDenoms: {
-          [rest.coinMinimalDenom]: {
-            ...rest,
-            chain: chainInfo.chainName,
-          },
-        },
-        theme: chainInfo.theme || {
-          primaryColor: '#E18881',
-          gradient:
-            'linear-gradient(180deg, rgba(225, 136, 129, 0.32) 0%, rgba(225, 136, 129, 0) 100%)',
-        },
-        enabled: true,
-        beta: true,
-        features: chainInfo.features || [],
-        apiStatus: chainInfo?.apiStatus,
-        ...testnetData,
-      },
-    }
-  } catch (error) {
-    throw Error('missing params')
-  }
-}

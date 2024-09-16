@@ -1,3 +1,4 @@
+import { CaretRight } from '@phosphor-icons/react'
 import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
 import { Images } from 'images'
@@ -64,9 +65,10 @@ export default function DefiRow({ token }: { token: any }) {
       </div>
 
       <div className='flex flex-row items-center justify-end mr-3'>
-        <div className='material-icons-round flex !h-[20px] !w-[20px] flex-row items-center justify-center gap-2 !text-[16px] !text-gray-500 group-hover:!text-black-100 dark:!text-gray-500 dark:group-hover:!text-white-100'>
-          {'chevron_right'}
-        </div>
+        <CaretRight
+          size={20}
+          className='!text-gray-500 group-hover:!text-black-100 dark:!text-gray-500 dark:group-hover:!text-white-100'
+        />
       </div>
     </div>
   )

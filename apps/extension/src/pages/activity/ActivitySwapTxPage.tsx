@@ -1,15 +1,26 @@
 import { TxPage, TxPageProps } from 'pages/swaps-v2/components'
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
+import { rootCW20DenomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
 import { generateObjectKey, removePendingSwapTxs } from 'utils/pendingSwapsTxsStore'
 
 export function ActivitySwapTxPage({ onClose, ...rest }: TxPageProps) {
+  const txKey = useMemo(() => {
+    return generateObjectKey(rest?.route)
+  }, [rest?.route])
+
   useEffect(() => {
-    const route = rest?.route
-    const txKey = generateObjectKey(route)
     if (txKey) {
       removePendingSwapTxs(txKey)
     }
-  }, [rest])
+  }, [txKey])
 
-  return <TxPage onClose={onClose} {...rest} isTrackingPage={true} />
+  return (
+    <TxPage
+      onClose={onClose}
+      {...rest}
+      isTrackingPage={true}
+      rootDenomsStore={rootDenomsStore}
+      rootCW20DenomsStore={rootCW20DenomsStore}
+    />
+  )
 }

@@ -4,19 +4,17 @@ import React from 'react'
 type SecondaryActionButtonProps = {
   // eslint-disable-next-line no-unused-vars
   onClick: (e: React.MouseEvent) => void
-  leftIcon?: string
+  leftIcon?: React.ReactNode
   className?: string
-  iconClassName?: string
   actionLabel: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } & React.PropsWithChildren<any>
 
 export const SecondaryActionButton: React.FC<SecondaryActionButtonProps> = ({
-  leftIcon,
+  leftIcon = null,
   onClick,
   children,
   className,
-  iconClassName,
 }) => {
   return (
     <button
@@ -26,16 +24,7 @@ export const SecondaryActionButton: React.FC<SecondaryActionButtonProps> = ({
       )}
       onClick={onClick}
     >
-      {leftIcon && (
-        <div
-          className={classNames(
-            iconClassName,
-            'material-icons-round text-base text-black-100 dark:text-white-100',
-          )}
-        >
-          {leftIcon}
-        </div>
-      )}
+      {leftIcon}
       <span>{children}</span>
     </button>
   )

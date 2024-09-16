@@ -4,6 +4,7 @@ import classNames from 'classnames'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { MouseEventHandler, useMemo, useState } from 'react'
+import { closeSidePanel } from 'utils/closeSidePanel'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
@@ -47,6 +48,7 @@ export function EthCopyWalletAddress({
 
   const redirectOnboarding = () => {
     window.open(browser.runtime.getURL('index.html#/onboardEvmLedger'))
+    closeSidePanel()
   }
 
   const handleClick: MouseEventHandler<HTMLDivElement | HTMLButtonElement> = async (event) => {

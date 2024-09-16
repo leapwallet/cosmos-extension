@@ -11,12 +11,15 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
+import { Prohibit, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { LoaderAnimation } from 'components/loader/Loader'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
+
+import { ProposalStatusEnum } from './ProposalStatus'
 
 export enum VoteOptions {
   YES = 'Yes',
@@ -28,22 +31,22 @@ export enum VoteOptions {
 const VoteOptionsList = [
   {
     label: VoteOptions.YES,
-    icon: 'thumb_up',
+    icon: <ThumbsUp size={20} />,
     selectedCSS: 'text-white-100 bg-green-600',
   },
   {
     label: VoteOptions.NO,
-    icon: 'thumb_down',
+    icon: <ThumbsDown size={20} />,
     selectedCSS: 'text-white-100 bg-red-300',
   },
   {
     label: VoteOptions.NO_WITH_VETO,
-    icon: 'thumb_down',
+    icon: <ThumbsDown size={20} />,
     selectedCSS: 'text-white-100 bg-indigo-300',
   },
   {
     label: VoteOptions.ABSTAIN,
-    icon: 'block',
+    icon: <Prohibit size={20} />,
     selectedCSS: 'text-white-100 bg-yellow-600',
   },
 ]
@@ -59,6 +62,7 @@ export type CastVoteSheetProps = {
   setGasLimit: React.Dispatch<React.SetStateAction<string>>
   forceChain?: SupportedChain
   forceNetwork?: 'mainnet' | 'testnet'
+  isProposalInVotingPeriod: boolean
 }
 
 export function CastVoteSheet({
@@ -66,6 +70,7 @@ export function CastVoteSheet({
   setShowFeesSettingSheet,
   setRecommendedGasLimit,
   proposalId,
+  isProposalInVotingPeriod,
   setGasLimit,
   feeDenom,
   forceChain,
@@ -111,13 +116,15 @@ export function CastVoteSheet({
       }
     }
 
-    simulate().catch(captureException)
+    if (isProposalInVotingPeriod) {
+      simulate().catch(captureException)
+    }
     return () => {
       cancelled = true
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feeDenom.coinMinimalDenom, proposalId, simulateVote])
+  }, [feeDenom.coinMinimalDenom, proposalId, simulateVote, isProposalInVotingPeriod])
 
   return (
     <>
@@ -126,13 +133,13 @@ export function CastVoteSheet({
           <button
             key={option.label}
             onClick={() => setSelectedOption(option.label)}
-            className={classNames('flex w-[344px] p-4 rounded-2xl cursor-pointer', {
+            className={classNames('flex items-center w-[344px] p-4 rounded-2xl cursor-pointer', {
               'dark:text-gray-200 dark:bg-gray-900 text-gray-600 bg-white-100':
                 selectedOption !== option.label,
               [option.selectedCSS]: selectedOption === option.label,
             })}
           >
-            <span className='material-icons-round mr-3'>{option.icon}</span>
+            <span className='mr-3'>{option.icon}</span>
             <span className='text-base font-bold dark:text-white-100'>{option.label}</span>
           </button>
         ))}

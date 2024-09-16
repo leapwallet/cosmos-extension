@@ -1,10 +1,14 @@
-import { useActiveChain, useSetBetaERC20Tokens } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { BG_RESPONSE, SUGGEST_TOKEN } from 'config/storage-keys'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { observer } from 'mobx-react-lite'
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { betaERC20DenomsStore, enabledCW20DenomsStore } from 'stores/denoms-store-instance'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
 import {
@@ -18,10 +22,9 @@ import {
   TokenContractInfo,
 } from './components'
 
-function SuggestErc20({ handleRejectBtnClick }: ChildrenParams) {
+const SuggestErc20 = observer(({ handleRejectBtnClick }: ChildrenParams) => {
   const defaultTokenLogo = useDefaultTokenLogo()
   const [isLoading, setIsLoading] = useState(false)
-  const setBetaERC20Tokens = useSetBetaERC20Tokens()
   const activeChain = useActiveChain()
   const [contractInfo, setContractInfo] = useState({
     address: '',
@@ -30,6 +33,9 @@ function SuggestErc20({ handleRejectBtnClick }: ChildrenParams) {
     decimals: 0,
     coinGeckoId: '',
   })
+
+  const enabledCW20Tokens = enabledCW20DenomsStore.getEnabledCW20DenomsForChain(activeChain)
+  const navigate = useNavigate()
 
   useEffect(() => {
     Browser.storage.local
@@ -53,7 +59,10 @@ function SuggestErc20({ handleRejectBtnClick }: ChildrenParams) {
       chain: activeChain,
     }
 
-    await setBetaERC20Tokens(contractInfo.address, erc20Token, activeChain)
+    await betaERC20DenomsStore.setBetaERC20Denoms(contractInfo.address, erc20Token, activeChain)
+    const _enabledCW20Tokens = [...enabledCW20Tokens, contractInfo.address]
+    await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Tokens, activeChain)
+
     window.removeEventListener('beforeunload', handleRejectBtnClick)
     await Browser.storage.local.set({
       [BG_RESPONSE]: { data: 'Approved' },
@@ -64,7 +73,11 @@ function SuggestErc20({ handleRejectBtnClick }: ChildrenParams) {
       await Browser.storage.local.remove(BG_RESPONSE)
 
       setIsLoading(false)
-      window.close()
+      if (isSidePanel()) {
+        navigate('/home')
+      } else {
+        window.close()
+      }
     }, 50)
   }
 
@@ -101,7 +114,7 @@ function SuggestErc20({ handleRejectBtnClick }: ChildrenParams) {
       </Footer>
     </>
   )
-}
+})
 
 export default function SuggestErc20Wrapper() {
   return (

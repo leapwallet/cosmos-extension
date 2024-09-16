@@ -69,6 +69,21 @@ export function getMetaDataForRedelegateTx(
   };
 }
 
+export function getMetaDataForProviderRedelegateTx(
+  fromProvider: string,
+  toProvider: string,
+  token: { amount: string; denom: string },
+) {
+  const globalTxMeta = useTxMetadataStore.getState().txMetadata;
+
+  return {
+    ...globalTxMeta,
+    fromProvider,
+    toProvider,
+    token,
+  };
+}
+
 export function getMetaDataForDelegateTx(validatorAddress: string, token: { amount: string; denom: string }) {
   const globalTxMeta = useTxMetadataStore.getState().txMetadata;
 

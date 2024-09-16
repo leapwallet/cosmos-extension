@@ -10,15 +10,12 @@ import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useGetTokenSpendableBalances } from '../bank';
 import {
   fetchIbcTrace,
   IbcDenomData,
   useChainApis,
   useChainsStore,
-  useCompassSeiEvmConfigStore,
   useDappDefaultFee,
-  useDenoms,
   useIbcTraceStore,
 } from '../store';
 import { Token } from '../types';
@@ -29,6 +26,7 @@ import {
   useGasPriceStepForChain,
   useNativeFeeDenom,
 } from '../utils';
+import { useGetEvmGasPrices } from '../utils-hooks';
 
 export type FeeTokenData = {
   denom: NativeDenom;
@@ -79,15 +77,18 @@ export const getOsmosisFeeTokens = async ({
       });
     });
 
-    const feeTokensWithDenom = feeTokensData.reduce((acc: { ibcDenom: string; denom: NativeDenom }[], curr: Token) => {
-      const key = getKeyToUseForDenoms(curr.coinMinimalDenom, curr.chain ?? '');
-      const feeToken = {
-        ibcDenom: curr.ibcDenom ? curr.ibcDenom : curr.coinMinimalDenom,
-        denom: denoms[key],
-      };
+    const feeTokensWithDenom = feeTokensData.reduce(
+      (acc: { ibcDenom: string | undefined; denom: NativeDenom }[], curr: Token) => {
+        const key = getKeyToUseForDenoms(curr.coinMinimalDenom, curr.chain ?? '');
+        const feeToken = {
+          ibcDenom: curr.ibcDenom,
+          denom: denoms[key],
+        };
 
-      return [...acc, feeToken];
-    }, []);
+        return [...acc, feeToken];
+      },
+      [],
+    );
 
     return [nativeFeeToken, ...feeTokensWithDenom].filter((token) => !!token.denom) as FeeTokenData[];
   } catch (e) {
@@ -252,14 +253,15 @@ export const getFeeTokens = async ({
 };
 
 export const useFeeTokens = (
+  allAssets: Token[],
+  denoms: DenomsRecord,
   chain: SupportedChain,
   forceNetwork?: 'mainnet' | 'testnet',
-  isSeiEvmTransaction?: GasPriceStep,
+  isSeiEvmTransaction?: boolean,
 ) => {
   // fetched from s3
-  const denoms = useDenoms();
+
   const { lcdUrl } = useChainApis(chain, forceNetwork);
-  const { compassSeiEvmConfig } = useCompassSeiEvmConfigStore();
   const { defaultFee } = useDappDefaultFee();
   const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
   const { chains } = useChainsStore();
@@ -332,18 +334,18 @@ export const useFeeTokens = (
   }, [chains, chain, denoms, ibcTraceData, lcdUrl, defaultFee]);
 
   // hardcoded
-  const baseDenom = useNativeFeeDenom(chain, forceNetwork);
+  const baseDenom = useNativeFeeDenom(denoms, chain, forceNetwork);
   const additionalFeeDenoms = useAdditionalFeeDenoms(chain);
+  const { gasPrice: evmGasPrice } = useGetEvmGasPrices(chain, forceNetwork);
   const _gasPriceStep = useGasPriceStepForChain(chain, forceNetwork);
   const gasPriceStep = useMemo(() => {
-    if (isSeiEvmTransaction) {
-      return compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS;
+    if (isSeiEvmTransaction || chains[chain]?.evmOnlyChain) {
+      return evmGasPrice;
     }
 
     return _gasPriceStep;
-  }, [isSeiEvmTransaction, _gasPriceStep, compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS]);
+  }, [isSeiEvmTransaction, _gasPriceStep, evmGasPrice, chains, chain]);
 
-  const { allAssets } = useGetTokenSpendableBalances(chain, forceNetwork);
   return useQuery<FeeTokenData[]>({
     queryKey: [
       'fee-tokens',

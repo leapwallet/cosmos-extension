@@ -48,7 +48,7 @@ export default function AssetCard({
         </div>
       }
       isRounded={true}
-      className={'my-2'}
+      className={'my-2 bg-white-100 dark:bg-gray-950'}
       onClick={onClick}
       size={'md'}
     />

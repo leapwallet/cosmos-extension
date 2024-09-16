@@ -4,7 +4,7 @@ import { AccountData, DirectSignResponse, makeSignBytes, OfflineDirectSigner } f
 import * as bytes from '@ethersproject/bytes';
 import { Wallet as EthWallet } from '@ethersproject/wallet';
 import { PrivateKey } from '@injectivelabs/sdk-ts';
-import bech32 from 'bech32';
+import { bech32 } from 'bech32';
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { keccak256 } from 'ethereumjs-util';
 import { Address as EthereumUtilsAddress } from 'ethereumjs-util/dist/address';

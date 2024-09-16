@@ -6,7 +6,13 @@ import { PENDING_SWAP_TXS } from 'config/storage-keys'
 import Browser from 'webextension-polyfill'
 import { addTxToPendingTxList } from 'utils/pendingSwapsTxsStore'
 
-const pendingTxTrackPromises: Record<string, Promise<void> | undefined> = {}
+const pendingTxTrackPromises: Record<string, Promise<'not-tracked' | 'resolved'> | undefined> = {}
+
+const SKIP_TERMINAL_STATES = [
+  SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS,
+  SKIP_TXN_STATUS.STATE_COMPLETED_ERROR,
+  SKIP_TXN_STATUS.STATE_ABANDONED,
+]
 
 async function getTxnStatus(args: { tx_hash: string; chain_id: string }) {
   const result = await originalFetch(
@@ -32,7 +38,13 @@ async function getTxnStatus(args: { tx_hash: string; chain_id: string }) {
   }
 }
 
-export async function trackPendingSwapTx(pendingTx: any) {
+export async function isTransactionStillPending(key: string): Promise<boolean> {
+  const storage = await Browser.storage.local.get([PENDING_SWAP_TXS])
+  const pendingSwapTxs: any = JSON.parse(storage[PENDING_SWAP_TXS]) ?? {}
+  return !!pendingSwapTxs[key]
+}
+
+export async function trackPendingSwapTx(key: string, pendingTx: any) {
   const { route } = pendingTx
 
   for (let messageIndex = 0; messageIndex < (route?.messages?.length ?? 0); messageIndex++) {
@@ -40,18 +52,16 @@ export async function trackPendingSwapTx(pendingTx: any) {
     const { customTxHash: txHash, customMessageChainId: msgChainId } = message
 
     try {
-      if (
-        [
-          SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS,
-          SKIP_TXN_STATUS.STATE_COMPLETED_ERROR,
-          SKIP_TXN_STATUS.STATE_ABANDONED,
-        ].includes(pendingTx?.state)
-      ) {
+      if (SKIP_TERMINAL_STATES.includes(pendingTx?.state)) {
         continue
       }
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
+        const isStillPending = await isTransactionStillPending(key)
+        if (!isStillPending) {
+          return 'not-tracked'
+        }
         const txnStatus = await getTxnStatus({
           chain_id: msgChainId,
           tx_hash: txHash,
@@ -60,14 +70,8 @@ export async function trackPendingSwapTx(pendingTx: any) {
         if (txnStatus.success) {
           const { state, error } = txnStatus.response
           pendingTx.state = state
-          await addTxToPendingTxList(pendingTx)
-          if (
-            [
-              SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS,
-              SKIP_TXN_STATUS.STATE_COMPLETED_ERROR,
-              SKIP_TXN_STATUS.STATE_ABANDONED,
-            ].includes(state)
-          ) {
+          if (SKIP_TERMINAL_STATES.includes(state)) {
+            await addTxToPendingTxList(pendingTx)
             break
           }
 
@@ -83,6 +87,7 @@ export async function trackPendingSwapTx(pendingTx: any) {
       console.log('track background error', error)
     }
   }
+  return 'resolved'
 }
 
 export async function initiatePendingSwapTxTracking() {
@@ -91,12 +96,15 @@ export async function initiatePendingSwapTxTracking() {
   if (storage[PENDING_SWAP_TXS]) {
     const pendingSwapTxs: any = JSON.parse(storage[PENDING_SWAP_TXS]) ?? {}
 
-    Object.keys(pendingSwapTxs).forEach((pendingTxKey) => {
+    Object.keys(pendingSwapTxs).map(async (pendingTxKey) => {
       if (pendingTxTrackPromises[pendingTxKey]) {
-        return
+        const res = await pendingTxTrackPromises[pendingTxKey]
+        if (res === 'resolved') {
+          return
+        }
       }
       const pendingSwapTx = pendingSwapTxs[pendingTxKey]
-      pendingTxTrackPromises[pendingTxKey] = trackPendingSwapTx(pendingSwapTx)
+      pendingTxTrackPromises[pendingTxKey] = trackPendingSwapTx(pendingTxKey, pendingSwapTx)
     })
   }
 }

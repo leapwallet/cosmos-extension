@@ -17,6 +17,14 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms = {
+  wei: {
+    coinDenom: 'ETH',
+    coinMinimalDenom: 'wei',
+    coinDecimals: 18,
+    coinGeckoId: 'ethereum',
+    icon: 'https://raw.githubusercontent.com/chainapsis/keplr-chain-registry/main/images/centauri/eth.png',
+    chain: 'ethereum',
+  },
   uinit: {
     coinDenom: 'INIT',
     coinMinimalDenom: 'uinit',
@@ -1436,6 +1444,22 @@ export const denoms = {
     icon: 'https://assets.leapwallet.io/humans.png',
     chain: 'humans',
     coinGeckoId: 'humans-ai',
+  },
+  ulava: {
+    coinDenom: 'LAVA',
+    coinMinimalDenom: 'ulava',
+    coinDecimals: 6,
+    icon: 'https://assets.leapwallet.io/lava.png',
+    chain: 'lava',
+    coinGeckoId: '',
+  },
+  uom: {
+    coinDenom: 'OM',
+    coinMinimalDenom: 'uom',
+    coinDecimals: 6,
+    icon: 'https://assets.leapwallet.io/mantra.png',
+    chain: 'mantra',
+    coinGeckoId: '',
   },
   ...Cw20Denoms.juno,
   ...Cw20Denoms.secret,

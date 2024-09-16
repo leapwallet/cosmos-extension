@@ -6,6 +6,7 @@ import {
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { SkipMsg, SkipMsgV2, UseRouteResponse, useTransactions } from '@leapwallet/elements-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
+import { Info, MinusCircle, PlusCircle, Question, Warning } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
 import BottomModal from 'components/bottom-modal'
@@ -150,16 +151,14 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
           },
         )}
       >
-        <span
-          className={classNames(
-            '!text-lg material-icons-round text-red-400 dark:text-red-300 self-start',
-            {
-              '!text-[#FFB33D] !dark:text-orange-300': customIbcChannelId,
-            },
-          )}
-        >
-          {customIbcChannelId ? 'info' : 'warning'}
-        </span>
+        {customIbcChannelId ? (
+          <Info
+            size={16}
+            className={classNames('text-[#FFB33D] dark:text-orange-300 self-start')}
+          />
+        ) : (
+          <Warning size={16} className={classNames('text-red-400 dark:text-red-300 self-start')} />
+        )}
         <div className='flex-1'>
           <Text size='xs' className='font-bold mb-2'>
             {customIbcChannelId ? 'Unverified Channel' : 'No verified routes available.'}
@@ -185,7 +184,7 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
         onClose={() => setIsSettingsOpen(false)}
         title='Advanced IBC Settings'
         closeOnBackdropClick={true}
-        containerClassName='!max-h-[600px]'
+        containerClassName='!max-panel-height'
         contentClassName='!bg-white-100 dark:!bg-gray-950'
         className='p-6'
       >
@@ -202,9 +201,7 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
                 }
               >
                 <div className='relative flex'>
-                  <div className='!text-lg text-gray-600 dark:text-gray-400 material-icons-round'>
-                    help_outline
-                  </div>
+                  <Question size={20} className='text-gray-600 dark:text-gray-400' />
                 </div>
               </Tooltip>
             </div>
@@ -212,9 +209,19 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
               className='bg-gray-100 dark:bg-gray-850 rounded-3xl px-[10px] py-1 flex gap-1 items-center cursor-pointer'
               onClick={handleAddChannel}
             >
-              <span className='material-icons-round !text-xs text-black-100 dark:text-white-100'>
-                {!isAddChannel && hasChannelId ? 'add_circle' : 'remove_circle'}
-              </span>
+              {!isAddChannel && hasChannelId ? (
+                <PlusCircle
+                  size={16}
+                  weight='bold'
+                  className='text-black-100 dark:text-white-100'
+                />
+              ) : (
+                <MinusCircle
+                  size={16}
+                  weight='bold'
+                  className='text-black-100 dark:text-white-100'
+                />
+              )}
               <Text size='xs' className='font-medium'>
                 Add Channel
               </Text>
@@ -248,9 +255,11 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
 
         <div className='p-4 rounded-2xl bg-red-100 dark:bg-red-900 my-4'>
           <div className='items-center flex gap-2'>
-            <span className='!text-lg material-icons-round text-red-400 dark:text-red-300 self-start'>
-              warning
-            </span>
+            <Warning
+              size={24}
+              weight='bold'
+              className='text-red-400 dark:text-red-300 self-start'
+            />
             <Text size='sm' className='font-bold mb-2'>
               Sending via unverified channel.
             </Text>

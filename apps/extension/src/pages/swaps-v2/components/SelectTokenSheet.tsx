@@ -1,11 +1,64 @@
-import { useDenoms, useWhitelistedFactoryTokens } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons } from '@leapwallet/leap-ui'
+import { RootDenomsStore, WhitelistedFactoryTokensStore } from '@leapwallet/cosmos-wallet-store'
+import { Question, SealCheck, WarningCircle } from '@phosphor-icons/react'
+import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { SearchInput } from 'components/search-input'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { observer } from 'mobx-react-lite'
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { GroupedVirtuoso } from 'react-virtuoso'
 import { SourceChain, SourceToken } from 'types/swap'
 
 import { TokenCard } from './TokenCard'
+
+const TokenCardWrapper = observer(
+  ({
+    tokensLength,
+    index,
+    token,
+    selectedToken,
+    selectedChain,
+    onTokenSelect,
+    header,
+  }: {
+    index: number
+    tokensLength: number
+    selectedChain: SourceChain | undefined
+    token: SourceToken
+    onTokenSelect: (token: SourceToken) => void
+    selectedToken: SourceToken | null
+    header: ReactNode
+  }) => {
+    const isLast = index === tokensLength - 1
+    const isFirst = index === 0
+
+    const isSelected = useMemo(() => {
+      let _isSelected = token.coinMinimalDenom === selectedToken?.coinMinimalDenom
+
+      if (token.ibcDenom !== undefined && selectedToken?.ibcDenom !== undefined) {
+        _isSelected = _isSelected && token.ibcDenom === selectedToken.ibcDenom
+      }
+      return _isSelected
+    }, [selectedToken, token])
+
+    return (
+      <>
+        {isFirst ? header : null}
+
+        <TokenCard
+          onTokenSelect={onTokenSelect}
+          token={token}
+          hideAmount={token.amount === '0'}
+          isSelected={isSelected}
+          verified={true}
+          selectedChain={selectedChain}
+          showRedirection={false}
+        />
+
+        {!isLast && <div className='border-b w-full border-gray-100 dark:border-gray-850' />}
+      </>
+    )
+  },
+)
 
 type SelectTokenSheetProps = {
   sourceAssets: SourceToken[]
@@ -18,6 +71,8 @@ type SelectTokenSheetProps = {
   selectedChain: SourceChain | undefined
   // eslint-disable-next-line no-unused-vars
   onTokenSelect: (token: SourceToken) => void
+  rootDenomsStore: RootDenomsStore
+  whitelistedFactorTokenStore: WhitelistedFactoryTokensStore
 }
 
 export function SelectTokenSheet({
@@ -30,10 +85,12 @@ export function SelectTokenSheet({
   showFor,
   onTokenSelect,
   selectedChain,
+  rootDenomsStore,
+  whitelistedFactorTokenStore,
 }: SelectTokenSheetProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const baseDenoms = useDenoms()
-  const whitelistedFactoryTokens = useWhitelistedFactoryTokens()
+  const baseDenoms = rootDenomsStore.allDenoms
+  const whitelistedFactoryTokens = whitelistedFactorTokenStore.allWhitelistedFactoryTokens
 
   useEffect(() => {
     if (isOpen) {
@@ -101,7 +158,7 @@ export function SelectTokenSheet({
     [whitelistedFactoryTokens, baseTokensList],
   )
 
-  const [whitelistedTokens, unverifiedTokens] = useMemo(() => {
+  const tokenGroups = useMemo(() => {
     const _unverifiedTokens: SourceToken[] = []
     const _whitelistedTokens: SourceToken[] = []
 
@@ -113,7 +170,37 @@ export function SelectTokenSheet({
       }
     })
 
-    return [_whitelistedTokens, _unverifiedTokens]
+    return [
+      {
+        type: 'whitelisted' as const,
+        items: _whitelistedTokens,
+        Component: TokenCardWrapper,
+        headerComponent: (
+          <div className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'>
+            <SealCheck size={16} weight='bold' className='!leading-[20px]' />
+            <span className='font-bold text-xs'>Whitelisted tokens</span>
+          </div>
+        ),
+      },
+      {
+        type: 'unverified' as const,
+        items: _unverifiedTokens,
+        Component: TokenCardWrapper,
+        headerComponent: (
+          <div
+            className={classNames(
+              'mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400',
+              {
+                'mt-4': _whitelistedTokens.length > 0,
+              },
+            )}
+          >
+            <WarningCircle size={16} className='!leading-[20px] !text-md' />
+            <span className='font-bold text-xs'>Unverified tokens</span>
+          </div>
+        ),
+      },
+    ]
   }, [filteredTokens, isWhiteListedToken])
 
   return (
@@ -122,7 +209,7 @@ export function SelectTokenSheet({
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}
-      contentClassName='!bg-white-100 dark:!bg-gray-950'
+      contentClassName='!bg-white-100 dark:!bg-gray-950 !overflow-hidden'
       className='p-6'
     >
       <div className='flex flex-col items-center w-full h-full'>
@@ -138,12 +225,10 @@ export function SelectTokenSheet({
           />
         </div>
 
-        <div className='max-h-[400px] w-full' style={{ overflowY: 'scroll' }}>
+        <div className='w-full' style={{ height: window.innerHeight - 200, overflowY: 'scroll' }}>
           {filteredTokens.length === 0 ? (
             <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4'>
-              <div className='material-icons-round !text-[40px] !leading-[40px] dark:text-white-100'>
-                help_outline
-              </div>
+              <Question size={40} className='!leading-[40px] dark:text-white-100' />
               <div className='flex flex-col justify-start items-center w-full gap-1'>
                 <div className='text-md text-center font-bold !leading-[21.5px] dark:text-white-100'>
                   No tokens found for &apos;{searchQuery}&apos;
@@ -154,80 +239,49 @@ export function SelectTokenSheet({
               </div>
             </div>
           ) : (
-            <div className='w-full flex flex-col justify-start items-start gap-[16px]'>
-              {whitelistedTokens?.length > 0 && (
-                <div className='w-full flex flex-col justify-start items-start'>
-                  <div className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'>
-                    <span className='material-icons-outlined !leading-[20px] !text-md'>
-                      verified
-                    </span>
-                    <span className='font-bold text-xs'>Whitelisted tokens</span>
-                  </div>
-                  {whitelistedTokens.map((token, index) => {
-                    const isLast = index === whitelistedTokens.length - 1
-
-                    let isSelected = token.coinMinimalDenom === selectedToken?.coinMinimalDenom
-
-                    if (token.ibcDenom !== undefined && selectedToken?.ibcDenom !== undefined) {
-                      isSelected = isSelected && token.ibcDenom === selectedToken.ibcDenom
-                    }
-
+            <>
+              <GroupedVirtuoso
+                style={{ flexGrow: '1', width: '100%' }}
+                groupContent={() => <div className='w-[1px] h-[1px] bg-transparent'></div>} //This is to avoid virtuoso errors in console logs
+                groupCounts={tokenGroups.map((group) => group.items.length)}
+                itemContent={(index, groupIndex) => {
+                  const group = tokenGroups[groupIndex]
+                  if (group.type === 'whitelisted') {
+                    const { Component } = group
+                    const item = group.items[index]
                     return (
-                      <React.Fragment key={`${token.coinMinimalDenom}-${index}`}>
-                        <TokenCard
-                          onTokenSelect={onTokenSelect}
-                          token={token}
-                          hideAmount={token.amount === '0'}
-                          isSelected={isSelected}
-                          verified={true}
-                          selectedChain={selectedChain}
-                          showRedirection={false}
-                        />
-                        {!isLast && (
-                          <div className='border-b w-full border-gray-100 dark:border-gray-850' />
-                        )}
-                      </React.Fragment>
+                      <Component
+                        key={`${item.coinMinimalDenom}`}
+                        index={index}
+                        token={item}
+                        selectedToken={selectedToken}
+                        selectedChain={selectedChain}
+                        onTokenSelect={onTokenSelect}
+                        tokensLength={group.items.length}
+                        header={group.headerComponent}
+                      />
                     )
-                  })}
-                </div>
-              )}
-              {searchQuery.trim() !== '' && unverifiedTokens?.length > 0 && (
-                <div className='w-full flex flex-col justify-start items-start'>
-                  <div className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'>
-                    <span className='material-icons-round !leading-[20px] !text-md'>
-                      warning_amber
-                    </span>
-                    <span className='font-bold text-xs'>Unverified tokens</span>
-                  </div>
-                  {unverifiedTokens.map((token, index) => {
-                    const isLast = index === unverifiedTokens.length - 1
+                  }
 
-                    let isSelected = token.coinMinimalDenom === selectedToken?.coinMinimalDenom
+                  const { Component } = group
+                  const effectiveIndex = index - tokenGroups[0].items.length
+                  const item = group.items[effectiveIndex]
 
-                    if (token.ibcDenom !== undefined && selectedToken?.ibcDenom !== undefined) {
-                      isSelected = isSelected && token.ibcDenom === selectedToken.ibcDenom
-                    }
-
-                    return (
-                      <React.Fragment key={`${token.coinMinimalDenom}-${index}`}>
-                        <TokenCard
-                          onTokenSelect={onTokenSelect}
-                          token={token}
-                          hideAmount={token.amount === '0'}
-                          isSelected={isSelected}
-                          verified={false}
-                          selectedChain={selectedChain}
-                          showRedirection={true}
-                        />
-                        {!isLast && (
-                          <div className='border-b w-full border-gray-100 dark:border-gray-850' />
-                        )}
-                      </React.Fragment>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+                  return (
+                    <Component
+                      index={effectiveIndex}
+                      key={`${item?.coinMinimalDenom ?? effectiveIndex}`}
+                      token={item}
+                      selectedToken={selectedToken}
+                      selectedChain={selectedChain}
+                      onTokenSelect={onTokenSelect}
+                      tokensLength={group.items.length}
+                      header={group.headerComponent}
+                    />
+                  )
+                }}
+              />
+            </>
           )}
         </div>
       </div>

@@ -2,7 +2,7 @@ export type Amount = {
   denom: string;
   amount: string;
   formatted_amount?: string;
-  currenyAmount?: string;
+  currencyAmount?: string;
   tokenInfo?: any;
   denomFiatValue?: string;
 };
@@ -54,5 +54,41 @@ export type UnbondingDelegationResponse = {
   pagination: {
     next_key: null;
     total: '1';
+  };
+};
+
+export type ProviderDelegation = {
+  provider: string;
+  chainID: string;
+  delegator: string;
+  amount: Amount;
+  timestamp: string;
+};
+
+export type ProviderDelegationResponse = {
+  delegations: ProviderDelegation[];
+};
+
+export type Provider = {
+  provider: string;
+  address?: string;
+  moniker?: string;
+  spec: string;
+  chain: string;
+  image?: string;
+};
+
+export type ProvidersResponse = {
+  data: {
+    height: number;
+    datetime: number;
+    providers: {
+      provider: string;
+      specs: {
+        spec: string;
+        moniker: string;
+        chain: string;
+      }[];
+    }[];
   };
 };

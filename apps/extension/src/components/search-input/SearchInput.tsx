@@ -54,9 +54,13 @@ export function SearchInput({
       />
 
       {value.length === 0 ? (
-        <img src={Images.Misc.SearchWhiteIcon} />
+        <img className='h-5 w-5 mt-0.5' src={Images.Misc.SearchWhiteIcon} />
       ) : (
-        <img className='cursor-pointer' src={Images.Misc.CrossFilled} onClick={onClear} />
+        <img
+          className='cursor-pointer h-4 w-4 mt-1'
+          src={Images.Misc.CrossFilled}
+          onClick={onClear}
+        />
       )}
     </div>
   )

@@ -12,13 +12,13 @@ import {
   useChainId,
   useGetExplorerTxnUrl,
   useInvalidateActivity,
-  useInvalidateDelegations,
-  useInvalidateTokenBalances,
   useMobileAppBanner,
   usePendingTxState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { RootBalanceStore, RootStakeStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { ArrowSquareOut, CopySimple, UserCircle } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classnames from 'classnames'
 import PopupLayout from 'components/layout/popup-layout'
@@ -26,7 +26,8 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { Images } from 'images'
 import { Cross } from 'images/misc'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { observer } from 'mobx-react-lite'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { TxResponse } from 'secretjs'
 import { Colors } from 'theme/colors'
@@ -69,7 +70,12 @@ function MobileQrCode({
   )
 }
 
-export default function PendingTx() {
+type PendingTxProps = {
+  rootBalanceStore: RootBalanceStore
+  rootStakeStore: RootStakeStore
+}
+
+const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps) => {
   const navigate = useNavigate()
   const [txHash, setTxHash] = useState('')
   const [showMobileQrCode, setShowMobileQrCode] = useState(
@@ -79,10 +85,6 @@ export default function PendingTx() {
   const copyTxHashRef = useRef<HTMLButtonElement>(null)
   const { pendingTx, setPendingTx } = usePendingTxState()
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
-
-  const invalidateBalances = useInvalidateTokenBalances()
-  const invalidateDelegations = useInvalidateDelegations()
-  const invalidateActivity = useInvalidateActivity()
 
   const {
     txType,
@@ -111,9 +113,19 @@ export default function PendingTx() {
   const activeChainId = useChainId(activeChain, selectedNetwork)
   const address = useAddress(activeChain)
 
+  const invalidateBalances = useCallback(() => {
+    rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
+  }, [activeChain, rootBalanceStore, selectedNetwork])
+
+  const invalidateDelegations = useCallback(() => {
+    rootStakeStore.updateStake(activeChain, selectedNetwork, true)
+  }, [activeChain, rootStakeStore, selectedNetwork])
+
+  const invalidateActivity = useInvalidateActivity()
+
   useEffect(() => {
     const invalidateQueries = () => {
-      invalidateBalances(activeChain)
+      invalidateBalances()
       invalidateDelegations()
       invalidateActivity(activeChain)
     }
@@ -225,7 +237,7 @@ export default function PendingTx() {
   return (
     <PopupLayout>
       <Header title={`Transaction ${txStatusStyles[txStatus ?? 'loading'].title}`} />
-      <div className='flex h-[528px] p-6 flex-col items-center overflow-y-auto'>
+      <div className='flex h-[calc(100%-72px)] p-6 flex-col items-center overflow-y-auto'>
         <div className='bg-white-100 dark:bg-gray-950 rounded-2xl w-full flex flex-col items-center p-4 mb-4'>
           {txStatus === 'loading' && (
             <LoaderAnimation color={Colors.green600} className='w-20 h-20' />
@@ -249,9 +261,7 @@ export default function PendingTx() {
           ) : null}
           {isSendTxn ? (
             <div className='flex rounded-full gap-[6px] py-[6px] pl-2 pr-3 bg-gray-50 dark:bg-gray-900 text-sm font-bold text-black-100 dark:text-white-100 mt-2 items-center'>
-              <div className='material-icons-round !text-[18px] text-gray-200 dark:text-gray-800'>
-                account_circle
-              </div>
+              <UserCircle size={18} className='text-gray-200 dark:text-gray-800' />
               {subtitle1}
             </div>
           ) : (
@@ -319,7 +329,6 @@ export default function PendingTx() {
                 {sliceAddress(txHash)}
               </div>
             </div>
-
             <Buttons.CopyWalletAddress
               copyIcon={Images.Activity.Copy}
               ref={copyTxHashRef}
@@ -329,7 +338,7 @@ export default function PendingTx() {
 
             {!isCopiedClick && (
               <span
-                className='!text-lg material-icons-round text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2'
+                className='text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2'
                 onClick={() => {
                   copyTxHashRef.current?.click()
                   UserClipboard.copyText(txHash)
@@ -337,19 +346,19 @@ export default function PendingTx() {
                   setTimeout(() => setIsCopiedClick(false), 2000)
                 }}
               >
-                content_copy
+                <CopySimple size={20} />
               </span>
             )}
 
             {txnUrl && !isCopiedClick ? (
               <span
-                className='!text-lg material-icons-round text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2'
+                className='text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2'
                 onClick={(event) => {
                   event.stopPropagation()
                   window.open(txnUrl, '_blank')
                 }}
               >
-                open_in_new
+                <ArrowSquareOut size={20} className='text-black-100 dark:text-white-100' />
               </span>
             ) : null}
           </div>
@@ -359,7 +368,7 @@ export default function PendingTx() {
           <MobileQrCode setShowMobileQrCode={setShowMobileQrCode} data={data} />
         ) : null}
 
-        <div className='w-full flex gap-4'>
+        <div className='w-full flex gap-4 mt-auto'>
           <Buttons.Generic
             color={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray300}
             size='normal'
@@ -390,4 +399,6 @@ export default function PendingTx() {
       </div>
     </PopupLayout>
   )
-}
+})
+
+export default PendingTx

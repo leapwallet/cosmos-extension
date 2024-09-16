@@ -2,10 +2,10 @@ import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { importLedgerAccount } from '@leapwallet/cosmos-wallet-sdk'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { KeyChain } from '@leapwallet/leap-keychain'
-import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useEffect, useRef, useState } from 'react'
+import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 export type Addresses = Record<number, Record<string, { address: string; pubKey: Uint8Array }>>
@@ -107,11 +107,12 @@ export function useOnboarding() {
     const useEvmApp = true
     const defaultChainCosmos = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
     const defaultChainEth = 'injective'
+    const ledgerEnabledEvmChains = getLedgerEnabledEvmChainsKey(Object.values(chains))
     const { chainWiseAddresses } = await importLedgerAccount(
       [0, 1, 2, 3, 4],
       useEvmApp,
       useEvmApp ? defaultChainEth : defaultChainCosmos,
-      LEDGER_ENABLED_EVM_CHAINS,
+      ledgerEnabledEvmChains,
       chains,
     )
 

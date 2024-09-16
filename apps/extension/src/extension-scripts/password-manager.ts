@@ -1,15 +1,8 @@
 import { KeyChain } from '@leapwallet/leap-keychain'
-import {
-  ACTIVE_WALLET,
-  ENCRYPTED_ACTIVE_WALLET,
-  ENCRYPTED_KEY_STORE,
-  KEYSTORE,
-  V80_KEYSTORE_MIGRATION_COMPLETE,
-} from 'config/storage-keys'
+import { ACTIVE_WALLET } from 'config/storage-keys'
 import browser from 'webextension-polyfill'
 
 import { startAutoLockTimer } from './autolock-timer'
-import { migrateEncryptedKeyStore, migrateKeyStore } from './migrations/v80'
 export class PasswordManager {
   private password: string | undefined
 

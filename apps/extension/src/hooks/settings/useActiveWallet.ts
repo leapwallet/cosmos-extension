@@ -1,11 +1,11 @@
-import { Key, useActiveWalletStore } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, getSeiEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Key, useActiveWalletStore, useIsCompassWallet } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
 import { useCallback, useEffect } from 'react'
+import { rootStore } from 'stores/root-store'
 import { sendMessageToTab } from 'utils'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
 import {
@@ -13,6 +13,7 @@ import {
   ACTIVE_WALLET,
   ACTIVE_WALLET_ID,
   KEYSTORE,
+  LAST_EVM_ACTIVE_CHAIN,
   MANAGE_CHAIN_SETTINGS,
 } from '../../config/storage-keys'
 import { usePassword } from './usePassword'
@@ -97,21 +98,24 @@ export function useInitActiveWallet() {
 
 export default function useActiveWallet() {
   const { setActiveWallet: setState, activeWallet } = useActiveWalletStore()
+  const isCompassWallet = useIsCompassWallet()
 
   const setActiveWallet = useCallback(
     async (wallet: Key | null) => {
       if (!wallet) return
 
-      if (isCompassWallet()) {
-        const store = await browser.storage.local.get([ACTIVE_CHAIN])
-        const activeChain: SupportedChain = store[ACTIVE_CHAIN] ?? 'seiTestnet2'
+      const store = await browser.storage.local.get([ACTIVE_CHAIN, LAST_EVM_ACTIVE_CHAIN])
+      const lastEvmActiveChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum'
+      const activeChain: SupportedChain = isCompassWallet
+        ? store[ACTIVE_CHAIN] ?? 'seiTestnet2'
+        : lastEvmActiveChain
 
-        const evmAddress = getSeiEvmAddressToShow(wallet.pubKeys?.[activeChain])
-        await sendMessageToTab({ event: 'accountsChanged', data: [evmAddress] })
-      }
+      const evmAddress = pubKeyToEvmAddressToShow(wallet.pubKeys?.[activeChain])
+      await sendMessageToTab({ event: 'accountsChanged', data: [evmAddress] })
 
       await sendMessageToTab({ event: 'leap_keystorechange' })
       await browser.storage.local.set({ [ACTIVE_WALLET]: wallet, [ACTIVE_WALLET_ID]: wallet.id })
+      rootStore.reloadAddresses()
       try {
         setState(wallet)
       } catch (e) {

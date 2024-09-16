@@ -16,6 +16,8 @@ import {
   MarketPricesResponse,
   Platform,
   V2MarketPricesResponse,
+  V2TxOperation,
+  V2TxRequest,
 } from '../connectors';
 import {
   getCoingeckoPricesStoreSnapshot,
@@ -43,6 +45,7 @@ export namespace LeapWalletApi {
     readonly forceChain?: string;
     readonly forceNetwork?: 'mainnet' | 'testnet';
     readonly amount?: number; // $value of in-amount
+    readonly isEvmOnly?: boolean;
   };
 
   export type OperateCosmosTx = (info: LogInfo) => Promise<void>;
@@ -347,6 +350,7 @@ export namespace LeapWalletApi {
         forceChain,
         forceNetwork,
         amount,
+        isEvmOnly,
       }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
         const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`);
@@ -361,8 +365,6 @@ export namespace LeapWalletApi {
         const txLogMap = await getTxLogCosmosBlockchainMapStoreSnapshot();
         const blockchain = getCosmosNetwork(activeChain, txLogMap);
 
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        //@ts-ignore
         const logReq = {
           app: getPlatform(),
           txHash,
@@ -374,7 +376,7 @@ export namespace LeapWalletApi {
           feeDenomination,
           feeQuantity,
           chainId: _chainId ?? '',
-        } as CosmosTxRequest;
+        } as V2TxRequest;
 
         if (amount !== undefined) {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -389,10 +391,13 @@ export namespace LeapWalletApi {
         }
 
         try {
-          if (isCompassWallet) {
-            await txnLeapApi.operateSeiTx(logReq);
+          if (isEvmOnly) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
+          } else if (isCompassWallet) {
+            await txnLeapApi.operateSeiTx(logReq as unknown as CosmosTxRequest);
           } else {
-            await txnLeapApi.operateCosmosTx(logReq);
+            await txnLeapApi.operateCosmosTx(logReq as unknown as CosmosTxRequest);
           }
         } catch (err) {
           console.error(err);
@@ -423,6 +428,7 @@ export namespace LeapWalletApi {
         feeDenomination,
         feeQuantity,
         txType,
+        isEvmOnly,
       }: LogInfo & { chain: SupportedChain; address: string }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
         const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`);
@@ -433,8 +439,6 @@ export namespace LeapWalletApi {
         const blockchain = getCosmosNetwork(chain, txLogMap);
 
         try {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          //@ts-ignore
           const logReq = {
             app: getPlatform(),
             txHash,
@@ -446,7 +450,7 @@ export namespace LeapWalletApi {
             feeDenomination,
             feeQuantity,
             chainId: _chainId ?? '',
-          } as CosmosTxRequest;
+          } as V2TxRequest;
 
           if (blockchain !== undefined) {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -454,10 +458,13 @@ export namespace LeapWalletApi {
             logReq.blockchain = blockchain;
           }
 
-          if (isCompassWallet) {
-            await txnLeapApi.operateSeiTx(logReq);
+          if (isEvmOnly) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
+          } else if (isCompassWallet) {
+            await txnLeapApi.operateSeiTx(logReq as unknown as CosmosTxRequest);
           } else {
-            await txnLeapApi.operateCosmosTx(logReq);
+            await txnLeapApi.operateCosmosTx(logReq as unknown as CosmosTxRequest);
           }
         } catch (err) {
           console.error(err);

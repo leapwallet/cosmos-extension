@@ -23,6 +23,7 @@ export enum ButtonType {
   ADD_FUNDS = 'zero balance wallet - add funds',
   CHAIN_MANAGEMENT = 'chain management',
   AIRDROPS = 'airdrops',
+  SIDE_PANEL = 'side panel',
 }
 
 export enum ButtonName {
@@ -44,6 +45,8 @@ export enum ButtonName {
   RETRY_AIRDROP = 'retry airdrop',
   CLAIM_AIRDROP = 'claim airdrop',
   GO_TO_LEAPBOARD = 'go to leapboard',
+  SIDE_PANEL_OPENED = 'side panel opened',
+  SIDE_PANEL_CLOSED = 'side panel closed',
 }
 
 export enum PageName {

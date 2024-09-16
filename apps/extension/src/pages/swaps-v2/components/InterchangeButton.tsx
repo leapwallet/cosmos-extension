@@ -1,6 +1,6 @@
 import classNames from 'classnames'
 import { SwapVert } from 'images/misc'
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 
 type InterchangeButtonProps = {
   isSwitchOrderPossible: boolean
@@ -13,13 +13,13 @@ export function InterchangeButton({
 }: InterchangeButtonProps) {
   const [animate, setAnimate] = useState<boolean>(false)
 
-  const handleBtnClick = () => {
+  const handleBtnClick = useCallback(() => {
     handleSwitchOrder()
     setAnimate(true)
     setTimeout(() => {
       setAnimate(false)
     }, 600)
-  }
+  }, [handleSwitchOrder, setAnimate])
 
   return (
     <div

@@ -25,12 +25,15 @@ export default function PopupLayout({
     <div
       id='popup-layout'
       className={classNames(
-        'w-[400px] h-[600px] max-h-[600px] overflow-y-auto bg-gray-50 dark:bg-black-100 relative',
+        'panel-width enclosing-panel panel-height max-panel-height overflow-y-auto bg-gray-50 dark:bg-black-100 relative',
         className,
       )}
     >
       {header && (
-        <div className='fixed dark:bg-black-100 bg-gray-50 z-5' style={{ zIndex: headerZIndex }}>
+        <div
+          className='fixed dark:bg-black-100 bg-gray-50 z-5 panel-width enclosing-panel'
+          style={{ zIndex: headerZIndex }}
+        >
           {showBetaTag && (
             <Text
               size='xs'

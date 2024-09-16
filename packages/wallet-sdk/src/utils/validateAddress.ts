@@ -1,4 +1,4 @@
-import bech32 from 'bech32';
+import { bech32 } from 'bech32';
 import { isValidAddress as isValidEthAddress } from 'ethereumjs-util';
 export function getBlockChainFromAddress(address: string): string | undefined {
   try {

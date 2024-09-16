@@ -6,6 +6,8 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import { useCreateViewingKey } from 'hooks/secret/useCreateViewingKey'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 
@@ -135,7 +137,9 @@ export function ImportKeySheet({
           ref={inputEleRef}
         />
 
-        {type !== 'import' && !showCopyKey ? <Fee /> : null}
+        {type !== 'import' && !showCopyKey ? (
+          <Fee rootDenomsStore={rootDenomsStore} rootBalanceStore={rootBalanceStore} />
+        ) : null}
         {error ? (
           <div className='mb-2'>
             <ErrorCard text={error} className='mb-4' />

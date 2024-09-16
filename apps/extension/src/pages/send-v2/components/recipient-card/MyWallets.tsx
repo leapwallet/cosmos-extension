@@ -1,5 +1,6 @@
 import { Key, SelectedAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Question } from '@phosphor-icons/react'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -103,7 +104,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
         selectedWallet={selectedWallet as Key}
       />
 
-      <div className='relative mt-4 h-[300px] overflow-auto'>
+      <div className='relative mt-4 h-[calc(100%-300px)] overflow-auto'>
         {displayAccounts.length > 0 ? (
           displayAccounts.map(([_chain, address], index) => {
             const chain = _chain as unknown as SupportedChain
@@ -113,8 +114,8 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
 
             return (
               <React.Fragment key={_chain}>
-                <div
-                  className={`w-full flex items-center gap-3 py-3`}
+                <button
+                  className='w-full flex items-center gap-3 py-3'
                   onClick={() => {
                     setSelectedAddress({
                       address: address,
@@ -136,7 +137,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
                   />
 
                   <div>
-                    <p className='font-bold dark:text-white-100 text-gray-700 capitalize'>
+                    <p className='font-bold text-left dark:text-white-100 text-gray-700 capitalize'>
                       {chainName}
                     </p>
 
@@ -144,7 +145,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
                       {sliceAddress(address)}
                     </p>
                   </div>
-                </div>
+                </button>
 
                 {!isLast && (
                   <div className='border-b w-full border-gray-100 dark:border-gray-850' />
@@ -154,9 +155,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
           })
         ) : (
           <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4'>
-            <div className='material-icons-round !text-[40px] !leading-[40px] dark:text-white-100'>
-              help_outline
-            </div>
+            <Question size={40} className='dark:text-white-100' />
 
             <div className='flex flex-col justify-start items-center w-full gap-1'>
               <div className='text-md text-center font-bold !leading-[21.5px] dark:text-white-100'>

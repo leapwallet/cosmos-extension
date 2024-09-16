@@ -6,9 +6,9 @@ import {
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { LEDGER_ENABLED_EVM_CHAIN_IDS } from 'config/config'
 import { ManageChainSettings, useManageChainData } from 'hooks/settings/useManageChains'
 import React, { useMemo } from 'react'
+import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 type AggregatedNullComponentsProps = {
@@ -33,6 +33,10 @@ export const AggregatedNullComponents = React.memo(function ({
   const aggregatedChains = useAggregatedChainsList()
   const activeWallet = useActiveWallet()
 
+  const ledgerEnabledEvmChainsIds = useMemo(() => {
+    return getLedgerEnabledEvmChainsIds(Object.values(chains))
+  }, [chains])
+
   const chainsToFetch = useMemo(() => {
     return aggregatedChains.reduce((acc: ManageChainSettings[], chain) => {
       const chainInfo = chains[chain]
@@ -42,7 +46,7 @@ export const AggregatedNullComponents = React.memo(function ({
       if (
         noAddress &&
         activeWallet?.walletType === WALLETTYPE.LEDGER &&
-        LEDGER_ENABLED_EVM_CHAIN_IDS.includes(chainInfo?.chainId)
+        ledgerEnabledEvmChainsIds.includes(chainInfo?.chainId)
       ) {
         return acc
       }
@@ -51,7 +55,7 @@ export const AggregatedNullComponents = React.memo(function ({
       if (
         noAddress &&
         activeWallet?.walletType === WALLETTYPE.LEDGER &&
-        !LEDGER_ENABLED_EVM_CHAIN_IDS.includes(chainInfo?.chainId)
+        !ledgerEnabledEvmChainsIds.includes(chainInfo?.chainId)
       ) {
         return acc
       }
@@ -68,7 +72,7 @@ export const AggregatedNullComponents = React.memo(function ({
       // If `disabled` check is true, then we will skip the chain
       if (
         activeWallet?.walletType === WALLETTYPE.LEDGER &&
-        !isLedgerEnabled(chain, chainInfo?.bip44?.coinType)
+        !isLedgerEnabled(chain, chainInfo?.bip44?.coinType, Object.values(chains))
       ) {
         return acc
       }
@@ -81,7 +85,14 @@ export const AggregatedNullComponents = React.memo(function ({
 
       return acc
     }, [])
-  }, [activeWallet?.addresses, activeWallet?.walletType, aggregatedChains, chains, managedChains])
+  }, [
+    activeWallet?.addresses,
+    activeWallet?.walletType,
+    aggregatedChains,
+    chains,
+    ledgerEnabledEvmChainsIds,
+    managedChains,
+  ])
 
   return (
     <>

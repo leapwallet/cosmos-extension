@@ -2,7 +2,7 @@ import { axiosWrapper, ChainInfos, getRestUrl, SupportedChain } from '@leapwalle
 import { OnboardCard as Card } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
-import bech32 from 'bech32'
+import { bech32 } from 'bech32'
 import Tooltip from 'components/better-tooltip'
 import Text from 'components/text'
 import { REMOVED_CHAINS_FROM_ONBOARDING } from 'config/constants'

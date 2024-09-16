@@ -1,4 +1,4 @@
-import { fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 import { useEffect, useMemo } from 'react';
 
@@ -23,7 +23,11 @@ import {
 } from '../utils';
 import { useIsFeatureExistForChain } from '../utils-hooks';
 
-export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+export function useFetchStakeClaimRewards(
+  denoms: DenomsRecord,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+) {
   const { setClaimRewards, setClaimStatus, setClaimIsFetching, setClaimRefetch, pushForceChain, pushForceNetwork } =
     useStakeClaimRewardsStore();
 
@@ -42,9 +46,8 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
   const getIbcDenomInfo = useGetIbcDenomInfo(activeChain);
   const [preferredCurrency] = useUserPreferredCurrency();
 
-  const denoms = useDenoms();
   const chainInfos = useGetChains();
-  const [activeStakingDenom] = useActiveStakingDenom(activeChain, selectedNetwork);
+  const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, selectedNetwork);
   const activeChainInfo = chainInfos[activeChain];
 
   const isStakeComingSoon = useIsFeatureExistForChain({
@@ -86,6 +89,7 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
             preferredCurrency,
             chainInfos,
             getIbcDenomInfo,
+            activeStakingDenom,
           });
 
           if (isCancelled || response === undefined) return;
@@ -101,7 +105,7 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
                   const amount = fromSmall(_amount, denomInfo?.tokenInfo?.coinDecimals ?? 6);
 
                   const denomFiatValue = denomInfo?.denomFiatValue ?? '0';
-                  const currenyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
+                  const currencyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
 
                   let formatted_amount = '';
                   if (denomInfo && denomInfo.tokenInfo) {
@@ -116,7 +120,7 @@ export function useFetchStakeClaimRewards(forceChain?: SupportedChain, forceNetw
                   return {
                     ...claim,
                     amount,
-                    currenyAmount,
+                    currencyAmount,
                     formatted_amount,
                     tokenInfo: denomInfo?.tokenInfo,
                   };

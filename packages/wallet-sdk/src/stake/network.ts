@@ -44,7 +44,9 @@ export class Network {
         if (opts.status) return validator.status === opts.status;
         return validator;
       })
-      .reduce((a, v) => ({ ...a, [v.operator_address]: v }), {});
+      .reduce((a, v) => {
+        return Object.assign(a, { [v.operator_address]: v });
+      }, {});
   }
 
   /**
@@ -80,5 +82,3 @@ export class Network {
     return (1 + apr / N) ** N - 1;
   }
 }
-
-export default Network;

@@ -1,24 +1,25 @@
-import {
-  ActivePage,
-  NftContextType,
-  NftDetails,
-  useGetContextProviderValue,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { ActivePage, NftPage } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { useHiddenNFTs } from 'hooks/settings'
-import { useChainInfos } from 'hooks/useChainInfos'
-import React, { createContext, ReactNode, useContext } from 'react'
+import { NftInfo } from '@leapwallet/cosmos-wallet-store'
+import React, { createContext, ReactNode, useContext, useState } from 'react'
 import { assert } from 'utils/assert'
 
-export type NftDetailsType = NftDetails
+export type NftDetailsType = NftInfo & { chain: SupportedChain }
+
+type NftContextType = {
+  activeTab: string
+  setActiveTab: React.Dispatch<React.SetStateAction<string>>
+  showCollectionDetailsFor: string
+  setShowCollectionDetailsFor: React.Dispatch<React.SetStateAction<string>>
+  nftDetails: NftDetailsType | null
+  setNftDetails: React.Dispatch<React.SetStateAction<NftDetailsType | null>>
+  showChainNftsFor: SupportedChain
+  setShowChainNftsFor: React.Dispatch<React.SetStateAction<SupportedChain>>
+  setActivePage: React.Dispatch<React.SetStateAction<NftPage>>
+  activePage: NftPage
+}
 
 const NftContext = createContext<NftContextType>({
-  collectionData: null,
-  _collectionData: null,
-  isLoading: {},
-  setCollectionData: () => undefined,
-  setIsLoading: () => undefined,
-  _isLoading: false,
   setActivePage: () => undefined,
   activePage: 'ShowNfts',
   activeTab: 'All',
@@ -27,13 +28,8 @@ const NftContext = createContext<NftContextType>({
   setShowCollectionDetailsFor: () => undefined,
   nftDetails: null,
   setNftDetails: () => undefined,
-  nftChains: [],
-  sortedCollectionChains: [],
   showChainNftsFor: '' as SupportedChain,
   setShowChainNftsFor: () => undefined,
-  setTriggerRerender: () => undefined,
-  areAllNftsHiddenRef: { current: false },
-  triggerRerender: false,
 })
 
 type NftContextProviderProps = {
@@ -42,12 +38,20 @@ type NftContextProviderProps = {
 }
 
 export function NftContextProvider({ children, value: _value }: NftContextProviderProps) {
-  const hiddenNfts = useHiddenNFTs()
-  const chainInfos = useChainInfos()
-  const contextProviderValue = useGetContextProviderValue({ hiddenNfts, chainInfos })
+  const [nftDetails, setNftDetails] = useState<NftDetailsType | null>(null)
+  const [activeTab, setActiveTab] = useState('All')
+  const [showCollectionDetailsFor, setShowCollectionDetailsFor] = useState('')
+  const [showChainNftsFor, setShowChainNftsFor] = useState<SupportedChain>('' as SupportedChain)
 
   const value = {
-    ...contextProviderValue,
+    nftDetails,
+    activeTab,
+    showChainNftsFor,
+    showCollectionDetailsFor,
+    setNftDetails,
+    setActiveTab,
+    setShowChainNftsFor,
+    setShowCollectionDetailsFor,
     ..._value,
   }
 

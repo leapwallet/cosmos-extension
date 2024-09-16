@@ -7,9 +7,9 @@ import {
   useGetChains,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ENCRYPTED_ACTIVE_WALLET } from '@leapwallet/leap-keychain'
-import { KeyChain } from '@leapwallet/leap-keychain'
+import { ENCRYPTED_ACTIVE_WALLET, KeyChain } from '@leapwallet/leap-keychain'
 import * as Sentry from '@sentry/react'
+import classNames from 'classnames'
 import ExtensionPage from 'components/extension-page'
 import { SearchModal } from 'components/search-modal'
 import { QUICK_SEARCH_DISABLED_PAGES } from 'config/config'
@@ -27,14 +27,23 @@ import { migratePicassoAddress } from 'extension-scripts/migrations/v118-migrate
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
 import SideNav from 'pages/home/side-nav'
-import React, { ReactElement, ReactNode, useCallback, useContext, useEffect, useState } from 'react'
-import { useRef } from 'react'
+import React, {
+  ReactElement,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import KeyboardEventHandler from 'react-keyboard-event-handler'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useRecoilState, useSetRecoilState } from 'recoil'
+import { rootStore } from 'stores/root-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import browser, { extension } from 'webextension-polyfill'
 
 import {
@@ -199,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
           setNoAccount(false)
           setLoading(false)
           setPassword(password)
+          rootStore.initStores()
           callback && callback()
         } catch (e) {
           setLoading(false)
@@ -206,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         }
       }
     },
-    [setPassword, testPassword, chains],
+    [testPassword, setPassword, chains],
   )
 
   const signout = useCallback(
@@ -255,7 +265,6 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         setTimeout(() => {
           if (loading) {
             setLoading(false)
-            //browser.runtime.onMessage.removeListener(listener)
           }
         }, 1000)
       } else {
@@ -290,9 +299,11 @@ export function useAuth() {
 export function RequireAuth({
   children,
   hideBorder,
+  titleComponent,
 }: {
   children: JSX.Element
   hideBorder?: boolean
+  titleComponent?: ReactElement
 }) {
   const auth = useAuth()
   const location = useLocation()
@@ -303,6 +314,10 @@ export function RequireAuth({
   const setSearchModalEnteredOption = useSetRecoilState(searchModalEnteredOptionState)
   const [showSideNav, setShowSideNav] = useRecoilState(showSideNavFromSearchModalState)
   const activeChain = useActiveChain() as AggregatedSupportedChain
+
+  // if (!auth || auth?.loading === true) {
+  //   return <AppInitLoader />
+  // }
 
   if (auth?.locked) {
     return <Navigate to='/' state={{ from: location }} replace />
@@ -387,7 +402,10 @@ export function RequireAuth({
     return (
       <div
         id='search-modal-container'
-        className='relative flex flex-col w-screen h-screen p-[20px] z-0 dark:bg-black-100 overflow-y-scroll pt-0'
+        className={classNames(
+          'relative flex flex-col w-screen h-screen z-0 dark:bg-black-100 overflow-y-scroll pt-0',
+          { 'p-[20px]': !isSidePanel() },
+        )}
       >
         {Children}
       </div>
@@ -395,11 +413,20 @@ export function RequireAuth({
   }
 
   return views.length === 0 ? (
-    <ExtensionPage>
-      <div className='absolute top-0 rounded-2xl flex bottom-0 w-1/2 z-5 justify-center items-center'>
+    <ExtensionPage titleComponent={titleComponent}>
+      <div
+        className={classNames(
+          'absolute top-0 rounded-2xl flex bottom-0 z-5 justify-center items-center',
+          { 'panel-height max-w-full': isSidePanel(), 'w-1/2': !isSidePanel() },
+        )}
+      >
         <div
           id='search-modal-container'
-          className='dark:shadow-sm shadow-xl dark:shadow-gray-700 relative'
+          className={classNames('relative panel-height', {
+            'dark:shadow-sm shadow-xl dark:shadow-gray-700':
+              !location.pathname.includes('onboardEvmLedger'),
+            'max-w-full': isSidePanel(),
+          })}
         >
           {Children}
         </div>

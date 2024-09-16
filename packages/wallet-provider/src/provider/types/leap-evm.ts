@@ -5,6 +5,7 @@ import {
   EthSignTypedData,
   PersonalSign,
   ValueOf,
+  WalletAddEthereumChain,
   WalletRequestPermissions,
   WalletSwitchEthereumChain,
   WalletWatchAsset,
@@ -26,7 +27,8 @@ export type EthereumRequestMessage =
   | PersonalSign
   | WalletRequestPermissions
   | WalletWatchAsset
-  | WalletSwitchEthereumChain;
+  | WalletSwitchEthereumChain
+  | WalletAddEthereumChain;
 
 export interface Ethereum {
   request: (message: EthereumRequestMessage) => Promise<unknown>;

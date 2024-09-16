@@ -10,10 +10,11 @@ import {
   LINE_TYPE,
 } from './types';
 
-const IDENTIFIER = 'compass';
+const IDENTIFIER = process.env.APP?.includes('compass') ? 'compass' : 'leap';
 
 export class LeapEvm implements Ethereum {
-  public isCompass: boolean = true;
+  public isCompass: boolean = IDENTIFIER === 'compass';
+  public isLeap: boolean = IDENTIFIER === 'leap';
   private inpageStream: WindowPostMessageStream;
   private origin: string;
   private requestQueue: { [origin: string]: string[] };
@@ -77,22 +78,47 @@ export class LeapEvm implements Ethereum {
 
     setTimeout(removeMethodFromRequestQueue, 2000);
     return new Promise((res, rej) => {
-      const id = this.send(method, { ...restMessage, origin, ecosystem: LINE_TYPE.ETHEREUM });
+      const id = this.send(method, {
+        ...restMessage,
+        origin,
+        ecosystem: LINE_TYPE.ETHEREUM,
+        isLeap: this.isLeap,
+        isCompass: this.isCompass,
+      });
 
       this.inpageStream.on('data', (data: any) => {
         if (data.id === id) {
           if (data.payload?.error) {
+            if (data.name === `on${ETHEREUM_METHOD_TYPE.WALLET__REVOKE_PERMISSIONS.toUpperCase()}`) {
+              const customEvent = new CustomEvent('disconnect', { detail: { data: data.payload?.error } });
+              window.dispatchEvent(customEvent);
+            }
+
             rej(data.payload.error);
           } else {
-            if (data.name === `on${ETHEREUM_METHOD_TYPE.WALLET__SWITCH_ETHEREUM_CHAIN.toUpperCase()}`) {
+            if (
+              [
+                `on${ETHEREUM_METHOD_TYPE.WALLET__SWITCH_ETHEREUM_CHAIN.toUpperCase()}`,
+                `on${ETHEREUM_METHOD_TYPE.WALLET__ADD_ETHEREUM_CHAIN.toUpperCase()}`,
+              ].includes(data.name)
+            ) {
               const chainId = data.payload.success.chainId;
               const customEvent = new CustomEvent('chainChanged', { detail: { data: chainId } });
               window.dispatchEvent(customEvent);
 
+              const connectCustomEvent = new CustomEvent('connect', { detail: { data: { chainId } } });
+              window.dispatchEvent(connectCustomEvent);
+
               res(null);
-            } else {
-              res(data.payload.success);
+              return;
             }
+
+            if (data.name === `on${ETHEREUM_METHOD_TYPE.WALLET__REVOKE_PERMISSIONS.toUpperCase()}`) {
+              const customEvent = new CustomEvent('disconnect', { detail: { data: data.payload?.success } });
+              window.dispatchEvent(customEvent);
+            }
+
+            res(data.payload.success);
           }
 
           removeMethodFromRequestQueue();
@@ -110,6 +136,18 @@ export class LeapEvm implements Ethereum {
 
     if (eventName === 'accountsChanged') {
       window.addEventListener('accountsChanged', (event: any) => {
+        eventHandler(event.detail.data);
+      });
+    }
+
+    if (eventName === 'disconnect') {
+      window.addEventListener('disconnect', (event: any) => {
+        eventHandler(event.detail.data);
+      });
+    }
+
+    if (eventName === 'connect') {
+      window.addEventListener('connect', (event: any) => {
         eventHandler(event.detail.data);
       });
     }

@@ -1,6 +1,7 @@
 import { isLedgerUnlocked } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { Buttons, ProgressBar } from '@leapwallet/leap-ui'
+import { CaretDown, CaretUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import ChoosePasswordView from 'components/choose-password-view'
 import CssLoader from 'components/css-loader/CssLoader'
@@ -130,7 +131,7 @@ function SelectWalletView({
               )}
               onClick={toggleViewMore}
             >
-              <span className='material-icons-round'>expand_less</span>
+              <CaretUp size={16} />
               <span>Show Less Wallets</span>
             </button>
           ) : (
@@ -147,7 +148,7 @@ function SelectWalletView({
               )}
               onClick={toggleViewMore}
             >
-              <span className='material-icons-round'>expand_more</span>
+              <CaretDown size={16} />
               <span>Show More Wallets</span>
             </button>
           )}

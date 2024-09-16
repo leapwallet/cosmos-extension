@@ -1,4 +1,5 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { Lock } from '@phosphor-icons/react'
 import PopupLayout from 'components/layout/popup-layout'
 import { SeedPhraseInput } from 'components/seed-phrase-input'
 import Text from 'components/text'
@@ -62,12 +63,7 @@ const RequireSeedPhrase: React.FC<PropsType> = ({ incrementStep, setMnemonicAtRo
     <PopupLayout>
       <div className='flex flex-col min-h-full px-5 pb-5 pt-[15%]'>
         <div className='bg-gray-900 dark:bg-gray-100 rounded-[16px] mb-4 h-[36px] w-[36px] flex flex-col justify-center text-center'>
-          <div
-            style={{ fontSize: 20 }}
-            className='material-icons-round dark:text-gray-900 text-gray-100'
-          >
-            lock
-          </div>
+          <Lock size={20} className='dark:text-gray-900 text-gray-100' />
         </div>
         <Text size='xxl' className='font-bold'>
           Enter recovery phrase

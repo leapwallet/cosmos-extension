@@ -1,60 +1,56 @@
-import {
-  useAutoFetchedCW20Tokens,
-  useBetaCW20Tokens,
-  useBetaERC20Tokens,
-  useBetaNativeTokens,
-  useChainApis,
-  useCW20Tokens,
-  useDisabledCW20Tokens,
-  useEnabledCW20Tokens,
-  useERC20Tokens,
-  useGetTokenBalances,
-  useInteractedTokens,
-  useSetBetaCW20Tokens,
-  useSetDisabledCW20InStorage,
-  useSetEnabledCW20InStorage,
-  useSetInteractedTokensInStorage,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Plus } from '@phosphor-icons/react'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { autorun } from 'mobx'
+import { observer } from 'mobx-react-lite'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { GroupedVirtuoso } from 'react-virtuoso'
+import { activeChainStore } from 'stores/active-chain-store'
+import { cw20TokenBalanceStore, erc20TokenBalanceStore } from 'stores/balance-store'
+import { chainInfoStore } from 'stores/chain-infos-store'
+import {
+  autoFetchedCW20DenomsStore,
+  betaCW20DenomsStore,
+  betaERC20DenomsStore,
+  betaNativeDenomsStore,
+  cw20DenomsStore,
+  disabledCW20DenomsStore,
+  enabledCW20DenomsStore,
+  erc20DenomsStore,
+  interactedDenomsStore,
+} from 'stores/denoms-store-instance'
+import { selectedNetworkStore } from 'stores/selected-network-store'
 import { getContractInfo } from 'utils/getContractInfo'
 import extension from 'webextension-polyfill'
 
-import {
-  DeleteTokenSheet,
-  ManageTokensEmptyCard,
-  ManuallyAddedTokens,
-  SupportedToken,
-  SupportedTokens,
-} from './components'
+import { DeleteTokenSheet, ManageTokensEmptyCard, SupportedToken } from './components'
+import { ManuallyAddedTokenCard } from './components/ManuallyAddedTokenCard'
+import { SupportedTokenCard } from './components/SupportedTokenCard'
 import { sortBySymbols } from './utils'
 
-export default function ManageTokens() {
-  const betaNativeTokens = useBetaNativeTokens()
-  const betaCw20Tokens = useBetaCW20Tokens()
-  const betaERC20Tokens = useBetaERC20Tokens()
-  const disabledCW20Tokens = useDisabledCW20Tokens()
-  const enabledCW20Tokens = useEnabledCW20Tokens()
-  const cw20Tokens = useCW20Tokens()
-  const erc20Tokens = useERC20Tokens()
+const ManageTokens = observer(() => {
+  const { activeChain } = activeChainStore
+  const { selectedNetwork } = selectedNetworkStore
+  const { disabledCW20Denoms } = disabledCW20DenomsStore
+  const { enabledCW20Denoms } = enabledCW20DenomsStore
+  const betaCW20Denoms = betaCW20DenomsStore.betaCW20Denoms
+  const { cw20Denoms } = cw20DenomsStore
+  const { interactedDenoms } = interactedDenomsStore
+  const betaNativeDenoms = betaNativeDenomsStore.betaNativeDenoms
+  const betaERC20Denoms = betaERC20DenomsStore.betaERC20Denoms
+  const { erc20Denoms } = erc20DenomsStore
+  const { autoFetchedCW20Denoms } = autoFetchedCW20DenomsStore
 
-  const interactedTokens = useInteractedTokens()
-  const setDisabledCW20Tokens = useSetDisabledCW20InStorage()
-  const setEnabledCW20Tokens = useSetEnabledCW20InStorage()
-  const setInteractedTokens = useSetInteractedTokensInStorage()
-  const activeChain = useActiveChain()
+  const { cw20Tokens: cw20TokensBalances } = cw20TokenBalanceStore
+  const { erc20Tokens: erc20TokensBalances } = erc20TokenBalanceStore
 
   const navigate = useNavigate()
-  const setBetaCW20Tokens = useSetBetaCW20Tokens()
   const { lcdUrl } = useChainApis()
-  const { cw20TokensBalances, erc20TokensBalances } = useGetTokenBalances()
-  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
 
   const [showDeleteSheet, setShowDeleteSheet] = useState(false)
   const [tokenToDelete, setTokenToDelete] = useState<NativeDenom>()
@@ -64,38 +60,37 @@ export default function ManageTokens() {
   const [fetchingContract, setFetchingContract] = useState(false)
   const timeoutIdRef = useRef<NodeJS.Timeout>()
   const [manuallyAddedTokens, setManuallyAddedTokens] = useState<NativeDenom[]>([])
-  const [supportedTokens, setSupportedTokens] = useState<SupportedToken[]>([])
 
   /**
    * Initialize supported tokens
    */
-  useEffect(() => {
+  const supportedTokens = useMemo(() => {
     let _supportedTokens: SupportedToken[] = []
 
     const _nativeCW20Tokens =
-      Object.values(cw20Tokens)?.map((token) => {
+      Object.values(cw20Denoms)?.map((token) => {
         const tokenBalance = cw20TokensBalances?.find(
           (balance) => balance.coinMinimalDenom === token.coinMinimalDenom,
         )
         return {
           ...token,
           enabled:
-            String(tokenBalance?.amount) === '0'
-              ? enabledCW20Tokens?.includes(token.coinMinimalDenom)
-              : !disabledCW20Tokens?.includes(token.coinMinimalDenom),
+            !tokenBalance || String(tokenBalance?.amount) === '0'
+              ? enabledCW20Denoms?.includes(token.coinMinimalDenom)
+              : !disabledCW20Denoms?.includes(token.coinMinimalDenom),
           verified: true,
         }
       }) ?? []
 
     const _autoFetchedCW20Tokens =
-      Object.values(autoFetchedCW20Tokens)?.map((token) => ({
+      Object.values(autoFetchedCW20Denoms)?.map((token) => ({
         ...token,
-        enabled: enabledCW20Tokens?.includes(token.coinMinimalDenom),
+        enabled: enabledCW20Denoms?.includes(token.coinMinimalDenom),
         verified: false,
       })) ?? []
 
     const _nativeERC20Tokens =
-      Object.values(erc20Tokens)?.map((token) => {
+      Object.values(erc20Denoms)?.map((token) => {
         const tokenBalance = erc20TokensBalances?.find(
           (balance) => balance.coinMinimalDenom === token.coinMinimalDenom,
         )
@@ -103,9 +98,9 @@ export default function ManageTokens() {
         return {
           ...token,
           enabled:
-            String(tokenBalance?.amount) === '0'
-              ? enabledCW20Tokens?.includes(token.coinMinimalDenom)
-              : !disabledCW20Tokens?.includes(token.coinMinimalDenom),
+            !tokenBalance || String(tokenBalance?.amount) === '0'
+              ? enabledCW20Denoms?.includes(token.coinMinimalDenom)
+              : !disabledCW20Denoms?.includes(token.coinMinimalDenom),
           verified: true,
         }
       }) ?? []
@@ -117,48 +112,58 @@ export default function ManageTokens() {
       ..._nativeERC20Tokens,
     ]
 
-    setSupportedTokens(_supportedTokens)
+    return _supportedTokens
   }, [
-    autoFetchedCW20Tokens,
-    cw20Tokens,
+    autoFetchedCW20Denoms,
+    cw20Denoms,
     cw20TokensBalances,
-    disabledCW20Tokens,
-    enabledCW20Tokens,
-    erc20Tokens,
+    disabledCW20Denoms,
+    enabledCW20Denoms,
+    erc20Denoms,
     erc20TokensBalances,
   ])
 
   /**
+   * Replace with AllBetaTokensStore ?
    * Initialize manually added tokens
    */
-  useEffect(() => {
-    let _manuallyAddedTokens: NativeDenom[] = []
+  useEffect(
+    () =>
+      autorun(() => {
+        let _manuallyAddedTokens: NativeDenom[] = []
+        if (betaNativeDenoms) {
+          _manuallyAddedTokens = [
+            ..._manuallyAddedTokens,
+            ...(Object.values(betaNativeDenoms) ?? []),
+          ]
+        }
 
-    if (betaNativeTokens) {
-      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaNativeTokens)]
-    }
+        if (betaCW20Denoms) {
+          _manuallyAddedTokens = [..._manuallyAddedTokens, ...(Object.values(betaCW20Denoms) ?? [])]
+        }
 
-    if (betaCw20Tokens) {
-      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaCw20Tokens)]
-    }
+        if (betaERC20Denoms) {
+          _manuallyAddedTokens = [
+            ..._manuallyAddedTokens,
+            ...(Object.values(betaERC20Denoms) ?? []),
+          ]
+        }
 
-    if (betaERC20Tokens) {
-      _manuallyAddedTokens = [..._manuallyAddedTokens, ...Object.values(betaERC20Tokens)]
-    }
-
-    setManuallyAddedTokens(_manuallyAddedTokens)
-  }, [betaCw20Tokens, betaERC20Tokens, betaNativeTokens])
+        setManuallyAddedTokens(_manuallyAddedTokens)
+      }),
+    [betaCW20Denoms, betaERC20Denoms, betaNativeDenoms],
+  )
 
   /**
    * Remove disabled tokens from fetched tokens
    */
   useEffect(() => {
     setFetchedTokens((prevValue) => {
-      return (prevValue ?? []).filter((tokenDenom) => !disabledCW20Tokens.includes(tokenDenom))
+      return (prevValue ?? []).filter((tokenDenom) => !disabledCW20Denoms.includes(tokenDenom))
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabledCW20Tokens.length])
+  }, [disabledCW20Denoms.length])
 
   /**
    * Filter manually added tokens
@@ -217,10 +222,10 @@ export default function ManageTokens() {
           if (!isEnabledA && isEnabledB) return 1
 
           const isNativeCW20A = !!(
-            cw20Tokens?.[tokenA.coinMinimalDenom] || erc20Tokens?.[tokenA.coinMinimalDenom]
+            cw20Denoms?.[tokenA.coinMinimalDenom] || erc20Denoms?.[tokenA.coinMinimalDenom]
           )
           const isNativeCW20B = !!(
-            cw20Tokens?.[tokenB.coinMinimalDenom] || erc20Tokens?.[tokenB.coinMinimalDenom]
+            cw20Denoms?.[tokenB.coinMinimalDenom] || erc20Denoms?.[tokenB.coinMinimalDenom]
           )
 
           if (isNativeCW20A && !isNativeCW20B) return -1
@@ -229,7 +234,7 @@ export default function ManageTokens() {
           return sortBySymbols(tokenA, tokenB)
         }) ?? []
     )
-  }, [supportedTokens, searchedText, cw20Tokens, erc20Tokens])
+  }, [supportedTokens, searchedText, cw20Denoms, erc20Denoms])
 
   /**
    * Fetch contract info from the chain
@@ -280,75 +285,119 @@ export default function ManageTokens() {
   /**
    * Handle add new token click
    */
-  const handleAddNewTokenClick = (passState = false) => {
-    const views = extension.extension.getViews({ type: 'popup' })
+  const handleAddNewTokenClick = useCallback(
+    (passState = false) => {
+      const views = extension.extension.getViews({ type: 'popup' })
 
-    if (views.length === 0) {
-      const params: { replace: boolean; state?: { coinMinimalDenom: string } } = { replace: true }
-      if (passState) params['state'] = { coinMinimalDenom: searchedText }
+      if (views.length === 0) {
+        const params: { replace: boolean; state?: { coinMinimalDenom: string } } = { replace: true }
+        if (passState) params['state'] = { coinMinimalDenom: searchedText }
 
-      navigate('/add-token', params)
-    } else {
-      window.open(extension.runtime.getURL('index.html#/add-token'))
-    }
-  }
+        navigate('/add-token', params)
+      } else {
+        window.open(extension.runtime.getURL('index.html#/add-token'))
+      }
+    },
+    [navigate, searchedText],
+  )
 
   /**
    * Handle toggle change
    */
-  const handleToggleChange = async (isEnabled: boolean, coinMinimalDenom: string) => {
-    const hasUserInteracted = interactedTokens.some((token) => token === coinMinimalDenom)
-    if (!hasUserInteracted) {
-      await setInteractedTokens([...interactedTokens, coinMinimalDenom])
-    }
-
-    let _disabledCW20Tokens: string[] = []
-    let _enabledCW20Tokens: string[] = []
-    let hasToUpdateBetaCW20Tokens = false
-
-    if (isEnabled) {
-      _disabledCW20Tokens = disabledCW20Tokens.filter((token) => token !== coinMinimalDenom)
-      _enabledCW20Tokens = [...enabledCW20Tokens, coinMinimalDenom]
-
-      const tokenInfo = manuallyAddedTokens.find(
-        (token) => token.coinMinimalDenom === coinMinimalDenom,
-      )
-      if (fetchedTokens.includes(coinMinimalDenom) && tokenInfo) {
-        hasToUpdateBetaCW20Tokens = true
+  const handleToggleChange = useCallback(
+    async (isEnabled: boolean, coinMinimalDenom: string) => {
+      const hasUserInteracted = interactedDenoms.some((token) => token === coinMinimalDenom)
+      if (!hasUserInteracted) {
+        await interactedDenomsStore.setInteractedDenoms([...interactedDenoms, coinMinimalDenom])
       }
-    } else {
-      _disabledCW20Tokens = [...disabledCW20Tokens, coinMinimalDenom]
-      _enabledCW20Tokens = enabledCW20Tokens.filter((token) => token !== coinMinimalDenom)
-    }
 
-    await setDisabledCW20Tokens(_disabledCW20Tokens)
-    await setEnabledCW20Tokens(_enabledCW20Tokens)
-    if (hasToUpdateBetaCW20Tokens) {
-      const tokenInfo = manuallyAddedTokens.find(
-        (token) => token.coinMinimalDenom === coinMinimalDenom,
-      ) as NativeDenom
-      const _fetchTokens = fetchedTokens.filter((tokenDenom) => tokenDenom !== coinMinimalDenom)
+      let _disabledCW20Tokens: string[] = []
+      let _enabledCW20Denoms: string[] = []
+      let hasToUpdateBetaCW20Tokens = false
 
-      setFetchedTokens(_fetchTokens)
+      if (isEnabled) {
+        _disabledCW20Tokens = disabledCW20Denoms.filter((token) => token !== coinMinimalDenom)
+        _enabledCW20Denoms = [...enabledCW20Denoms, coinMinimalDenom]
 
-      await setBetaCW20Tokens(
-        coinMinimalDenom,
-        {
-          chain: activeChain,
-          name: tokenInfo.name,
-          coinDenom: tokenInfo.coinDenom,
-          coinMinimalDenom: tokenInfo.coinMinimalDenom,
-          coinDecimals: tokenInfo.coinDecimals,
-          icon: tokenInfo?.icon,
-          coinGeckoId: tokenInfo?.coinGeckoId,
-        },
-        activeChain,
-      )
-    }
-  }
+        const tokenInfo = manuallyAddedTokens.find(
+          (token) => token.coinMinimalDenom === coinMinimalDenom,
+        )
+        if (fetchedTokens.includes(coinMinimalDenom) && tokenInfo) {
+          hasToUpdateBetaCW20Tokens = true
+        }
+        if (activeChain !== 'aggregated') {
+          cw20TokenBalanceStore.fetchCW20TokenBalances(activeChain, selectedNetwork, [
+            coinMinimalDenom,
+          ])
+        }
+      } else {
+        _disabledCW20Tokens = [...disabledCW20Denoms, coinMinimalDenom]
+        _enabledCW20Denoms = enabledCW20Denoms.filter((token) => token !== coinMinimalDenom)
+      }
+
+      await disabledCW20DenomsStore.setDisabledCW20Denoms(_disabledCW20Tokens)
+      await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Denoms)
+      if (hasToUpdateBetaCW20Tokens) {
+        const tokenInfo = manuallyAddedTokens.find(
+          (token) => token.coinMinimalDenom === coinMinimalDenom,
+        ) as NativeDenom
+        const _fetchTokens = fetchedTokens.filter((tokenDenom) => tokenDenom !== coinMinimalDenom)
+
+        setFetchedTokens(_fetchTokens)
+
+        await betaCW20DenomsStore.setBetaCW20Denoms(
+          coinMinimalDenom,
+          {
+            chain: activeChain,
+            name: tokenInfo.name,
+            coinDenom: tokenInfo.coinDenom,
+            coinMinimalDenom: tokenInfo.coinMinimalDenom,
+            coinDecimals: tokenInfo.coinDecimals,
+            icon: tokenInfo?.icon,
+            coinGeckoId: tokenInfo?.coinGeckoId,
+          },
+          activeChain,
+        )
+      }
+    },
+    [
+      activeChain,
+      selectedNetwork,
+      disabledCW20Denoms,
+      enabledCW20Denoms,
+      fetchedTokens,
+      interactedDenoms,
+      manuallyAddedTokens,
+    ],
+  )
+
+  const onCloseDeleteTokenSheet = useCallback(() => {
+    setShowDeleteSheet(false)
+    setTokenToDelete(undefined)
+  }, [])
+
+  const onDeleteClick = useCallback((token: NativeDenom) => {
+    setShowDeleteSheet(true)
+    setTokenToDelete(token)
+  }, [])
+
+  const groups = useMemo(() => {
+    return [
+      {
+        type: 'supported' as const,
+        items: filteredSupportedTokens,
+        Component: SupportedTokenCard,
+      },
+      {
+        type: 'manually-added' as const,
+        items: filteredManuallyAddedTokens,
+        Component: ManuallyAddedTokenCard,
+      },
+    ]
+  }, [filteredManuallyAddedTokens, filteredSupportedTokens])
 
   return (
-    <div className='relative w-[400px] overflow-clip'>
+    <div className='relative w-full overflow-clip panel-height'>
       <PopupLayout
         header={
           <Header
@@ -360,33 +409,29 @@ export default function ManageTokens() {
           />
         }
       >
-        <div className='w-full flex flex-col justify-center py-[28px] items-center px-7 gap-[16px]'>
+        <div className='w-full h-[calc(100%-72px)] flex flex-col justify-start py-[28px] items-center px-7 gap-[16px]'>
           <div className='w-full flex items-center justify-between gap-[10px]'>
             <div className='w-[296px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
               <input
                 placeholder='Search by token or paste address...'
-                className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
+                className='flex flex-grow text-base text-gray-600 dark:text-gray-200 max-[399px]:!w-[50px]  outline-none bg-white-0'
                 onChange={(event) => setSearchedText(event.target.value)}
               />
-              <img src={Images.Misc.Search} />
+              <img src={Images.Misc.Search} className='shrink-0' />
             </div>
 
             <button
-              className='h-10 bg-white-100 dark:bg-gray-900 w-10 flex justify-center items-center rounded-full'
+              className='h-10 bg-white-100 dark:bg-gray-900 w-10 flex justify-center items-center rounded-full shrink-0'
               onClick={() => handleAddNewTokenClick()}
             >
-              <span className='material-icons-round !text-lg text-gray-400 dark:text-gray-400'>
-                add
-              </span>
+              <Plus size={16} className='text-gray-400 dark:text-gray-400' />
             </button>
           </div>
-
           {fetchingContract === true ? (
             <div className='flex items-center justify-center'>
               <LoaderAnimation color='#29a874' />
             </div>
           ) : null}
-
           {fetchingContract === false &&
           filteredManuallyAddedTokens.length === 0 &&
           filteredSupportedTokens.length === 0 ? (
@@ -395,36 +440,68 @@ export default function ManageTokens() {
               searchedText={searchedText}
             />
           ) : null}
+          {filteredManuallyAddedTokens.length + filteredSupportedTokens.length !== 0 ? (
+            <GroupedVirtuoso
+              style={{ flexGrow: '1', width: '100%' }}
+              groupContent={() => <div className='w-[1px] h-[1px] bg-transparent'></div>} //This is to avoid virtuoso errors in console logs
+              groupCounts={groups.map((group) => group.items.length)}
+              itemContent={(index, groupIndex) => {
+                const group = groups[groupIndex]
+                if (group.type === 'supported') {
+                  const { Component } = group
+                  const item = group.items[index]
+                  return (
+                    <Component
+                      key={`${item.coinMinimalDenom}`}
+                      activeChainStore={activeChainStore}
+                      cw20DenomsStore={cw20DenomsStore}
+                      autoFetchedCW20DenomsStore={autoFetchedCW20DenomsStore}
+                      token={item}
+                      tokensLength={group.items.length}
+                      index={index}
+                      handleToggleChange={handleToggleChange}
+                    />
+                  )
+                }
 
-          {filteredSupportedTokens.length > 0 ? (
-            <SupportedTokens
-              tokens={filteredSupportedTokens}
-              handleToggleChange={handleToggleChange}
-            />
-          ) : null}
+                const { Component } = group
+                const effectiveIndex = index - groups[0].items.length
+                const item = group.items[effectiveIndex]
 
-          {filteredManuallyAddedTokens.length > 0 ? (
-            <ManuallyAddedTokens
-              onDeleteClick={(token: NativeDenom) => {
-                setShowDeleteSheet(true)
-                setTokenToDelete(token)
+                return (
+                  <Component
+                    index={effectiveIndex}
+                    key={`${item?.coinMinimalDenom ?? effectiveIndex}`}
+                    token={item}
+                    hasSupportedTokens={filteredSupportedTokens?.length !== 0}
+                    tokensLength={group.items.length}
+                    handleToggleChange={handleToggleChange}
+                    fetchedTokens={fetchedTokens}
+                    onDeleteClick={onDeleteClick}
+                    betaCW20DenomsStore={betaCW20DenomsStore}
+                    disabledCW20DenomsStore={disabledCW20DenomsStore}
+                    enabledCW20DenomsStore={enabledCW20DenomsStore}
+                    betaERC20DenomsStore={betaERC20DenomsStore}
+                  />
+                )
               }}
-              tokens={filteredManuallyAddedTokens}
-              handleToggleChange={handleToggleChange}
-              fetchedTokens={fetchedTokens}
             />
           ) : null}
         </div>
       </PopupLayout>
 
       <DeleteTokenSheet
+        activeChainStore={activeChainStore}
+        chainInfosStore={chainInfoStore}
+        betaNativeDenomsStore={betaNativeDenomsStore}
+        betaERC20DenomsStore={betaERC20DenomsStore}
+        betaCW20DenomsStore={betaCW20DenomsStore}
         isOpen={showDeleteSheet}
-        onClose={() => {
-          setShowDeleteSheet(false)
-          setTokenToDelete(undefined)
-        }}
+        onClose={onCloseDeleteTokenSheet}
         tokenToDelete={tokenToDelete}
       />
     </div>
   )
-}
+})
+
+export default ManageTokens

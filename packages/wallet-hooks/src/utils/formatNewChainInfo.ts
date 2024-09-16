@@ -1,9 +1,9 @@
 import { AddressPrefix, CoinType, Denom, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 
 type Currency = {
-  coinDenom?: string | undefined;
-  coinMinimalDenom?: string | undefined;
-  coinDecimals?: number | undefined;
+  coinDenom: string;
+  coinMinimalDenom: string;
+  coinDecimals: number;
   coinGeckoId?: string | undefined;
 };
 
@@ -82,18 +82,19 @@ export function formatNewChainInfo(chainInfo: CustomChainsType) {
   if (chainInfo?.restTest) apis.restTest = chainInfo.restTest;
   const { gasPriceStep, ...rest } = chainInfo.feeCurrencies[0];
   const addressPrefix = chainInfo.bech32Config.bech32PrefixAccAddr;
+  const path = chainInfo.chainRegistryPath ?? addressPrefix ?? chainInfo.chainName;
   let testnetData = {};
   if (chainInfo?.rpcTest || chainInfo?.restTest) {
     testnetData = {
       testnetChainId: chainInfo.chainId,
-      testnetChainRegistryPath: chainInfo.chainRegistryPath ?? addressPrefix,
+      testnetChainRegistryPath: path,
     };
   }
   return {
     chainId: chainInfo.chainId,
     chainName: chainInfo.chainName,
-    chainRegistryPath: chainInfo.chainRegistryPath ?? addressPrefix,
-    key: chainInfo.chainRegistryPath as SupportedChain,
+    chainRegistryPath: path,
+    key: path as SupportedChain,
     chainSymbolImageUrl: chainInfo?.image,
     txExplorer: {
       mainnet: chainInfo.txExplorer?.mainnet,
@@ -113,6 +114,12 @@ export function formatNewChainInfo(chainInfo: CustomChainsType) {
         chain: chainInfo.chainRegistryPath,
       } as NativeDenom,
     },
+    feeCurrencies: chainInfo.feeCurrencies?.map((c) => ({
+      ...c,
+      coinGeckoId: c.coinGeckoId || '',
+      icon: '',
+      chain: chainInfo.chainRegistryPath,
+    })),
     theme: chainInfo.theme || {
       primaryColor: '#E18881',
       gradient: 'linear-gradient(180deg, rgba(225, 136, 129, 0.32) 0%, rgba(225, 136, 129, 0) 100%)',

@@ -1,6 +1,7 @@
 import {
   axiosWrapper,
   ChainInfo,
+  DenomsRecord,
   fromSmall,
   SupportedChain,
   UnbondingDelegation,
@@ -31,7 +32,11 @@ import {
 } from '../utils';
 import { useChainId, useIsFeatureExistForChain } from '../utils-hooks';
 
-export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+export function useFetchStakeUndelegations(
+  denoms: DenomsRecord,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+) {
   const {
     setStakeUndelegationsInfo,
     setStakeUndelegationsStatus,
@@ -54,9 +59,8 @@ export function useFetchStakeUndelegations(forceChain?: SupportedChain, forceNet
   const address = useAddress(activeChain);
   const [preferredCurrency] = useUserPreferredCurrency();
 
-  const denoms = useDenoms();
   const chainInfos = useGetChains();
-  const [activeStakingDenom] = useActiveStakingDenom(activeChain, selectedNetwork);
+  const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, selectedNetwork);
   const activeChainInfo: ChainInfo = chainInfos[activeChain];
   const chainId = useChainId(activeChain, selectedNetwork);
 

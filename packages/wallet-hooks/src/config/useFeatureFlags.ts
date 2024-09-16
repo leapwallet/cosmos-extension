@@ -39,6 +39,9 @@ export type FeatureFlags = {
     mobile: FeatureFlagState;
     extension: FeatureFlagState;
   };
+  restaking: {
+    extension: FeatureFlagState;
+  };
 };
 
 export const FEATURE_FLAG_STORAGE_KEY = 'feature-flag-v1';

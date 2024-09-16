@@ -1,6 +1,6 @@
 import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Key } from '@leapwallet/leap-keychain'
-import bech32 from 'bech32'
+import { bech32 } from 'bech32'
 
 function convertBech32Address(address: string, prefix: string) {
   const { words } = bech32.decode(address)

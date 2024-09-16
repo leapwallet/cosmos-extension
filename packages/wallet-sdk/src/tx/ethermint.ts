@@ -1,13 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Coin as StargateCoin } from '@cosmjs/amino/build/coins';
 import { fromBase64 } from '@cosmjs/encoding';
 import { Coin, DeliverTxResponse, StdFee, TimeoutError } from '@cosmjs/stargate';
-import { arrayify, concat, joinSignature, SignatureLike, splitSignature } from '@ethersproject/bytes';
+import { arrayify, concat, splitSignature } from '@ethersproject/bytes';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import { Fee, SignDoc, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 import dayjs from 'dayjs';
-import { proto, transactions } from 'evmosjs';
 
 import { fetchAccountDetails } from '../accounts';
 import { axiosWrapper } from '../healthy-nodes';
@@ -15,7 +15,21 @@ import { LeapLedgerSignerEth } from '../ledger';
 import { ExtensionOptionsWeb3Tx } from '../proto/ethermint/web3';
 import { getClientState } from '../utils';
 import { sleep } from '../utils/sleep';
-import { createTxIBCMsgTransfer, createTxRawEIP712 } from './msgs/ethermint';
+import {
+  createMessageSend,
+  createTxIBCMsgTransfer,
+  createTxMsgBeginRedelegate,
+  createTxMsgDelegate,
+  createTxMsgGenericRevoke,
+  createTxMsgMultipleDelegate,
+  createTxMsgMultipleWithdrawDelegatorReward,
+  createTxMsgStakeAuthorization,
+  createTxMsgStakeRevokeAuthorization,
+  createTxMsgUndelegate,
+  createTxMsgVote,
+  createTxRaw,
+  createTxRawEIP712,
+} from './msgs/ethermint';
 import { fromEthSignature } from './utils';
 
 type SignIbcArgs = {
@@ -31,8 +45,93 @@ type SignIbcArgs = {
   txMemo?: string;
 };
 
+type SignSendArgs = {
+  fromAddress: string;
+  toAddress: string;
+  amount: Coin[];
+  fee: StdFee;
+  memo: string;
+};
+
+type SignVoteArgs = {
+  fromAddress: string;
+  proposalId: string;
+  option: VoteOption;
+  fee: StdFee;
+  memo: string;
+};
+
+type SignDelegateArgs = {
+  delegatorAddress: string;
+  validatorAddress: string;
+  amount: Coin;
+  fee: StdFee;
+  memo: string;
+};
+
+type signGrantRestakeArgs = {
+  fromAddress: string;
+  stakeAuthorization: {
+    botAddress: string;
+    validatorAddress: string;
+    expiryDate: string;
+    maxTokens?: {
+      denom?: string | undefined;
+      amount?: string | undefined;
+    };
+  };
+  fee: StdFee;
+  memo: string;
+};
+
+type signRevokeRestakeArgs = {
+  fromAddress: string;
+  grantee: string;
+  fee: StdFee;
+  memo: string;
+};
+
+type signRevokeGrantArgs = {
+  msgType: string;
+  fromAddress: string;
+  grantee: string;
+  fee: StdFee;
+  memo: string;
+};
+
+type signUnDelegateArgs = {
+  delegatorAddress: string;
+  validatorAddress: string;
+  amount: Coin;
+  fee: StdFee;
+  memo: string;
+};
+
+type signWithdrawRewardsArgs = {
+  delegatorAddress: string;
+  validatorAddresses: string[];
+  fee: StdFee;
+  memo: string;
+};
+
+type signReDelegateArgs = {
+  delegatorAddress: string;
+  validatorDstAddress: string;
+  validatorSrcAddress: string;
+  amount: Coin;
+  fee: StdFee;
+  memo: string;
+};
+
+type signClaimAndStakeArgs = {
+  delegatorAddress: string;
+  validatorsWithRewards: { validator: string; amount: Coin }[];
+  fee: StdFee;
+  memo: string;
+};
+
 export class EthermintTxHandler {
-  protected chain: transactions.Chain;
+  protected chain;
 
   constructor(
     private restUrl: string,
@@ -46,7 +145,7 @@ export class EthermintTxHandler {
     };
   }
 
-  protected static getFeeObject(fee: StdFee): transactions.Fee {
+  protected static getFeeObject(fee: StdFee) {
     return {
       amount: fee.amount[0].amount,
       denom: fee.amount[0].denom,
@@ -54,258 +153,25 @@ export class EthermintTxHandler {
     };
   }
 
-  async sendTokens(fromAddress: string, toAddress: string, amount: Coin[], fee: StdFee, memo = '') {
-    const walletAccount = await this.wallet.getAccounts();
-
-    const sender: transactions.Sender = await this.getSender(
-      fromAddress,
-      Buffer.from(walletAccount[0].pubkey).toString('base64'),
-    );
-
-    const txFee = EthermintTxHandler.getFeeObject(fee);
-
-    const tx = transactions.createMessageSend(this.chain, sender, txFee, memo, {
-      destinationAddress: toAddress,
-      amount: amount[0].amount,
-      denom: amount[0].denom,
-    });
-
-    return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
-  }
-
-  async signIbcTx({
-    fromAddress,
-    toAddress,
-    transferAmount,
-    sourcePort,
-    sourceChannel,
-    timeoutTimestamp = undefined,
-    fee,
-    memo,
-    txMemo,
-  }: SignIbcArgs) {
-    const walletAccount = await this.wallet.getAccounts();
-
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const clientState = await getClientState(this.restUrl ?? '', sourceChannel, sourcePort);
-    const stdFee = Fee.fromPartial({
-      amount: [
-        {
-          amount: fee.amount[0].amount,
-          denom: fee.amount[0].denom,
-        },
-      ],
-      gasLimit: fee.gas,
-      payer: fromAddress,
-    });
-
-    const tx = createTxIBCMsgTransfer(this.chain, sender, stdFee, memo ?? '', {
-      sourcePort,
-      sourceChannel,
-      amount: transferAmount.amount,
-      denom: transferAmount.denom,
-      receiver: toAddress,
-      memo: txMemo ?? '',
-      revisionHeight:
-        parseInt(clientState?.data?.identified_client_state.client_state.latest_height.revision_height ?? '0') + 200,
-      revisionNumber: parseInt(
-        clientState?.data?.identified_client_state.client_state.latest_height.revision_number ?? '0',
-      ),
-      timeoutTimestamp: timeoutTimestamp
-        ? ((timeoutTimestamp + 100_000) * 1_000_000_000).toString()
-        : ((Date.now() + 1_000_000) * 1_000_000).toString(),
-    });
-
-    return this.sign(fromAddress, sender.accountNumber, tx, true);
-  }
-
-  async sendIBCTokens(
-    fromAddress: string,
-    toAddress: string,
-    transferAmount: StargateCoin,
-    sourcePort: string,
-    sourceChannel: string,
-    timeoutHeight: Height | undefined,
-    timeoutTimestamp: number | undefined,
-    fee: StdFee,
-    memo: string | undefined,
-    txMemo: string = '',
-  ) {
-    const txRaw = await this.signIbcTx({
-      fromAddress,
-      toAddress,
-      transferAmount,
-      sourcePort,
-      sourceChannel,
-      timeoutHeight,
-      timeoutTimestamp,
-      fee,
-      memo,
-      txMemo,
-    });
-
-    return this.broadcastTx(txRaw);
-  }
-
-  async vote(fromAddress: string, proposalId: string, option: VoteOption, fees: StdFee, memo?: string) {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fees);
-    const tx = transactions.createTxMsgVote(this.chain, sender, txFee, memo ?? '', {
-      proposalId: parseInt(proposalId),
-      option,
-    });
-    return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
-  }
-
-  async delegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fees: StdFee, memo?: string) {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fees);
-    const tx = transactions.createTxMsgDelegate(this.chain, sender, txFee, memo ?? '', {
-      validatorAddress,
-      amount: amount.amount,
-      denom: amount.denom,
-    });
-    return this.signAndBroadcast(delegatorAddress, sender.accountNumber, tx);
-  }
-
-  async grantRestake(
-    fromAddress: string,
-    {
-      botAddress,
-      validatorAddress,
-      expiryDate,
-    }: {
-      botAddress: string;
-      validatorAddress: string;
-      expiryDate: string;
-      maxTokens?: {
-        denom?: string | undefined;
-        amount?: string | undefined;
-      };
-    },
-    fee: StdFee,
-    memo: string,
-  ) {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fee);
-    const tx = transactions.createTxMsgStakeAuthorization(this.chain, sender, txFee, memo ?? '', {
-      bot_address: botAddress,
-      validator_address: validatorAddress,
-      duration_in_seconds: dayjs(expiryDate).unix(),
-      maxTokens: undefined,
-      denom: txFee.denom,
-    });
-    return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
-  }
-
-  async revokeRestake(fromAddress: string, grantee: string, fee: StdFee, memo: string) {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fee);
-    const tx = transactions.createTxMsgStakeRevokeAuthorization(this.chain, sender, txFee, memo ?? '', {
-      bot_address: grantee,
-    });
-    return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
-  }
-
-  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: StdFee, memo = '') {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fee);
-    const tx = transactions.createTxMsgGenericRevoke(this.chain, sender, txFee, memo ?? '', {
-      botAddress: grantee,
-      typeUrl: msgType,
-    });
-
-    return this.signAndBroadcast(fromAddress, sender.accountNumber, tx);
-  }
-
-  async unDelegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee, memo?: string) {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fee);
-    const tx = transactions.createTxMsgUndelegate(this.chain, sender, txFee, memo ?? '', {
-      validatorAddress,
-      amount: amount.amount,
-      denom: amount.denom,
-    });
-    return this.signAndBroadcast(delegatorAddress, sender.accountNumber, tx);
-  }
-
-  async withdrawRewards(delegatorAddress: string, validatorAddresses: string[], fee: StdFee, memo?: string) {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fee);
-    const tx = transactions.createTxMsgMultipleWithdrawDelegatorReward(this.chain, sender, txFee, memo ?? '', {
-      validatorAddresses,
-    });
-    return this.signAndBroadcast(delegatorAddress, sender.accountNumber, tx);
-  }
-
-  async reDelegate(
-    delegatorAddress: string,
-    validatorDstAddress: string,
-    validatorSrcAddress: string,
-    amount: Coin,
-    fee: StdFee,
-    memo?: string,
-  ) {
-    const walletAccount = await this.wallet.getAccounts();
-    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-
-    const txFee = EthermintTxHandler.getFeeObject(fee);
-    const tx = transactions.createTxMsgBeginRedelegate(this.chain, sender, txFee, memo ?? '', {
-      validatorSrcAddress,
-      validatorDstAddress,
-      amount: amount.amount,
-      denom: amount.denom,
-    });
-
-    proto.createSigDoc(
-      tx.signDirect.body.serializeBinary(),
-      tx.signDirect.authInfo.serializeBinary(),
-      this.chain.cosmosChainId,
-      sender.accountNumber,
-    );
-
-    return this.signAndBroadcast(delegatorAddress, sender.accountNumber, tx);
-  }
-
-  async sign(signerAddress: string, accountNumber: number, tx: any, ibcTx?: boolean) {
+  async sign(signerAddress: string, accountNumber: number, tx: any) {
     if (this.wallet instanceof LeapLedgerSignerEth) {
       const signature = await (this.wallet as LeapLedgerSignerEth).signEip712(signerAddress, tx.eipToSign);
 
-      if (ibcTx) {
-        const extension = {
-          typeUrl: '/ethermint.types.v1.ExtensionOptionsWeb3Tx',
-          value: ExtensionOptionsWeb3Tx.encode(
-            ExtensionOptionsWeb3Tx.fromPartial({
-              typedDataChainId: BigInt(this.chain.chainId.toString()),
-              feePayer: signerAddress,
-              feePayerSig: fromEthSignature(signature),
-            }),
-          ).finish(),
-        };
-        tx.legacyAmino.body.extensionOptions = [extension];
-        const body = TxBody.fromPartial(tx.legacyAmino.body);
-        const txRaw = createTxRawEIP712(body, tx.legacyAmino.authInfo);
+      const extension = {
+        typeUrl: '/ethermint.types.v1.ExtensionOptionsWeb3Tx',
+        value: ExtensionOptionsWeb3Tx.encode(
+          ExtensionOptionsWeb3Tx.fromPartial({
+            typedDataChainId: BigInt(this.chain.chainId.toString()),
+            feePayer: signerAddress,
+            feePayerSig: fromEthSignature(signature),
+          }),
+        ).finish(),
+      };
+      tx.legacyAmino.body.extensionOptions = [extension];
+      const body = TxBody.fromPartial(tx.legacyAmino.body);
+      const txRaw = createTxRawEIP712(body, tx.legacyAmino.authInfo);
 
-        return Buffer.from(txRaw as Uint8Array).toString('base64');
-      } else {
-        const extension = transactions.signatureToWeb3Extension(
-          this.chain,
-          {
-            accountAddress: signerAddress,
-          } as transactions.Sender,
-          joinSignature(signature as SignatureLike),
-        );
-
-        const txRaw = transactions.createTxRawEIP712(tx.legacyAmino.body, tx.legacyAmino.authInfo, extension);
-        return Buffer.from(txRaw.message.serialize()).toString('base64');
-      }
+      return Buffer.from(txRaw as Uint8Array).toString('base64');
     }
 
     if (!(this.wallet instanceof EthWallet)) {
@@ -316,19 +182,19 @@ export class EthermintTxHandler {
         accountNumber: accountNumber,
       });
       const signedData = await (this.wallet as any).signDirect(signerAddress, signDoc);
-      const txRaw = proto.createTxRaw(tx.signDirect.body.serializeBinary(), tx.signDirect.authInfo.serializeBinary(), [
+      const txRaw = createTxRaw(tx.signDirect.body.serializeBinary(), tx.signDirect.authInfo.serializeBinary(), [
         fromBase64(signedData.signature.signature),
       ]);
-      return Buffer.from(txRaw.message.serialize()).toString('base64');
+      return Buffer.from(txRaw.value).toString('base64');
     } else {
       const dataToSign = `0x${Buffer.from(tx.signDirect.signBytes, 'base64').toString('hex')}`;
 
       const rawSignature = this.wallet.sign(signerAddress, dataToSign);
       const _splitSignature = splitSignature(rawSignature);
-      const txRaw = proto.createTxRaw(tx.signDirect.body.serializeBinary(), tx.signDirect.authInfo.serializeBinary(), [
+      const txRaw = createTxRaw(tx.signDirect.body.serializeBinary(), tx.signDirect.authInfo.serializeBinary(), [
         arrayify(concat([_splitSignature.r, _splitSignature.s])),
       ]);
-      return Buffer.from(txRaw.message.serialize()).toString('base64');
+      return Buffer.from(txRaw.value).toString('base64');
     }
   }
 
@@ -393,7 +259,7 @@ export class EthermintTxHandler {
     };
   }
 
-  protected async getSender(address: string, pubkey: string): Promise<transactions.Sender> {
+  protected async getSender(address: string, pubkey: string) {
     const account = await fetchAccountDetails(this.restUrl ?? '', address);
 
     return {
@@ -404,22 +270,409 @@ export class EthermintTxHandler {
     };
   }
 
-  async claimAndStake(
-    delegatorAddress: string,
-    validatorsWithRewards: { validator: string; amount: Coin }[],
-    fees: StdFee,
-    memo?: string,
-  ) {
+  async signIbcTx({
+    fromAddress,
+    toAddress,
+    transferAmount,
+    sourcePort,
+    sourceChannel,
+    timeoutTimestamp = undefined,
+    fee,
+    memo,
+    txMemo,
+  }: SignIbcArgs) {
     const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const clientState = await getClientState(this.restUrl ?? '', sourceChannel, sourcePort);
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: fromAddress,
+    });
+
+    const tx = createTxIBCMsgTransfer(this.chain, sender, stdFee, memo ?? '', {
+      sourcePort,
+      sourceChannel,
+      amount: transferAmount.amount,
+      denom: transferAmount.denom,
+      receiver: toAddress,
+      memo: txMemo ?? '',
+      revisionHeight:
+        parseInt(clientState?.data?.identified_client_state.client_state.latest_height.revision_height ?? '0') + 200,
+      revisionNumber: parseInt(
+        clientState?.data?.identified_client_state.client_state.latest_height.revision_number ?? '0',
+      ),
+      timeoutTimestamp: timeoutTimestamp
+        ? ((timeoutTimestamp + 100_000) * 1_000_000_000).toString()
+        : ((Date.now() + 1_000_000) * 1_000_000).toString(),
+    });
+
+    return this.sign(fromAddress, sender.accountNumber, tx);
+  }
+
+  async sendIBCTokens(
+    fromAddress: string,
+    toAddress: string,
+    transferAmount: StargateCoin,
+    sourcePort: string,
+    sourceChannel: string,
+    timeoutHeight: Height | undefined,
+    timeoutTimestamp: number | undefined,
+    fee: StdFee,
+    memo: string | undefined,
+    txMemo: string = '',
+  ) {
+    const txRaw = await this.signIbcTx({
+      fromAddress,
+      toAddress,
+      transferAmount,
+      sourcePort,
+      sourceChannel,
+      timeoutHeight,
+      timeoutTimestamp,
+      fee,
+      memo,
+      txMemo,
+    });
+
+    return this.broadcastTx(txRaw);
+  }
+
+  async signSendTx({ fromAddress, toAddress, amount, fee, memo }: SignSendArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: fromAddress,
+    });
+
+    const tx = createMessageSend(this.chain, sender, stdFee, memo, {
+      destinationAddress: toAddress,
+      amount: amount[0].amount,
+      denom: amount[0].denom,
+    });
+
+    return this.sign(fromAddress, sender.accountNumber, tx);
+  }
+
+  async sendTokens(fromAddress: string, toAddress: string, amount: Coin[], fee: StdFee, memo = '') {
+    const txRaw = await this.signSendTx({ fromAddress, toAddress, amount, fee, memo });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signVoteTx({ fromAddress, proposalId, option, fee, memo }: SignVoteArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: fromAddress,
+    });
+    const tx = createTxMsgVote(this.chain, sender, stdFee, memo, {
+      proposalId: parseInt(proposalId),
+      option,
+    });
+    return this.sign(fromAddress, sender.accountNumber, tx);
+  }
+
+  async vote(fromAddress: string, proposalId: string, option: VoteOption, fee: StdFee, memo = '') {
+    const txRaw = await this.signVoteTx({ fromAddress, proposalId, option, fee, memo });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signDelegateTx({ delegatorAddress, validatorAddress, amount, fee, memo }: SignDelegateArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
     const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
-    const txFee = EthermintTxHandler.getFeeObject(fees);
-    const tx = transactions.createTxMsgMultipleDelegate(this.chain, sender, txFee, memo ?? '', {
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: delegatorAddress,
+    });
+    const tx = createTxMsgDelegate(this.chain, sender, stdFee, memo, {
+      validatorAddress,
+      amount: amount.amount,
+      denom: amount.denom,
+    });
+    return this.sign(delegatorAddress, sender.accountNumber, tx);
+  }
+
+  async delegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee, memo = '') {
+    const txRaw = await this.signDelegateTx({ delegatorAddress, validatorAddress, amount, fee, memo });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signGrantRestakeTx({
+    fromAddress,
+    fee,
+    memo,
+    stakeAuthorization: { botAddress, validatorAddress, expiryDate, maxTokens },
+  }: signGrantRestakeArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: fromAddress,
+    });
+
+    const tx = createTxMsgStakeAuthorization(this.chain, sender, stdFee, memo, {
+      bot_address: botAddress,
+      validator_address: validatorAddress,
+      duration_in_seconds: dayjs(expiryDate).unix(),
+      maxTokens: maxTokens?.amount,
+      denom: stdFee.amount[0].denom,
+    });
+    return this.sign(fromAddress, sender.accountNumber, tx);
+  }
+
+  async grantRestake(
+    fromAddress: string,
+    {
+      botAddress,
+      validatorAddress,
+      expiryDate,
+      maxTokens,
+    }: {
+      botAddress: string;
+      validatorAddress: string;
+      expiryDate: string;
+      maxTokens?: {
+        denom?: string | undefined;
+        amount?: string | undefined;
+      };
+    },
+    fee: StdFee,
+    memo = '',
+  ) {
+    const txRaw = await this.signGrantRestakeTx({
+      fromAddress,
+      fee,
+      memo,
+      stakeAuthorization: {
+        botAddress,
+        validatorAddress,
+        expiryDate,
+        maxTokens,
+      },
+    });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signRevokeRestakeTx({ fromAddress, grantee, fee, memo }: signRevokeRestakeArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: fromAddress,
+    });
+    const tx = createTxMsgStakeRevokeAuthorization(this.chain, sender, stdFee, memo, {
+      bot_address: grantee,
+    });
+    return this.sign(fromAddress, sender.accountNumber, tx);
+  }
+
+  async revokeRestake(fromAddress: string, grantee: string, fee: StdFee, memo = '') {
+    const txRaw = await this.signRevokeRestakeTx({ fromAddress, grantee, fee, memo });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signRevokeGrantTx({ msgType, fee, fromAddress, grantee, memo }: signRevokeGrantArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: fromAddress,
+    });
+    const tx = createTxMsgGenericRevoke(this.chain, sender, stdFee, memo ?? '', {
+      botAddress: grantee,
+      typeUrl: msgType,
+    });
+    return this.sign(fromAddress, sender.accountNumber, tx);
+  }
+
+  async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: StdFee, memo = '') {
+    const txRaw = await this.signRevokeGrantTx({ msgType, fromAddress, grantee, fee, memo });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signUnDelegateTx({ amount, delegatorAddress, fee, memo, validatorAddress }: signUnDelegateArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: delegatorAddress,
+    });
+    const tx = createTxMsgUndelegate(this.chain, sender, stdFee, memo ?? '', {
+      validatorAddress,
+      amount: amount.amount,
+      denom: amount.denom,
+    });
+    return this.sign(delegatorAddress, sender.accountNumber, tx);
+  }
+
+  async unDelegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee, memo = '') {
+    const txRaw = await this.signUnDelegateTx({ delegatorAddress, validatorAddress, amount, fee, memo });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signWithdrawRewardsTx({ delegatorAddress, fee, memo, validatorAddresses }: signWithdrawRewardsArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: delegatorAddress,
+    });
+    const tx = createTxMsgMultipleWithdrawDelegatorReward(this.chain, sender, stdFee, memo ?? '', {
+      validatorAddresses,
+    });
+    return this.sign(delegatorAddress, sender.accountNumber, tx);
+  }
+
+  async withdrawRewards(delegatorAddress: string, validatorAddresses: string[], fee: StdFee, memo = '') {
+    const txRaw = await this.signWithdrawRewardsTx({ delegatorAddress, validatorAddresses, fee, memo });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signReDelegateTx({
+    amount,
+    delegatorAddress,
+    fee,
+    memo,
+    validatorDstAddress,
+    validatorSrcAddress,
+  }: signReDelegateArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: delegatorAddress,
+    });
+    const tx = createTxMsgBeginRedelegate(this.chain, sender, stdFee, memo ?? '', {
+      validatorSrcAddress,
+      validatorDstAddress,
+      amount: amount.amount,
+      denom: amount.denom,
+    });
+    return this.sign(delegatorAddress, sender.accountNumber, tx);
+  }
+
+  async reDelegate(
+    delegatorAddress: string,
+    validatorDstAddress: string,
+    validatorSrcAddress: string,
+    amount: Coin,
+    fee: StdFee,
+    memo = '',
+  ) {
+    const txRaw = await this.signReDelegateTx({
+      delegatorAddress,
+      validatorDstAddress,
+      validatorSrcAddress,
+      amount,
+      fee,
+      memo,
+    });
+    return this.broadcastTx(txRaw);
+  }
+
+  async signClaimAndStakeTx({ delegatorAddress, fee, memo, validatorsWithRewards }: signClaimAndStakeArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: delegatorAddress,
+    });
+    const tx = createTxMsgMultipleDelegate(this.chain, sender, stdFee, memo ?? '', {
       values: validatorsWithRewards.map((validatorWithReward) => ({
         validatorAddress: validatorWithReward.validator,
         amount: validatorWithReward.amount.amount,
         denom: validatorWithReward.amount.denom,
       })),
     });
-    return this.signAndBroadcast(delegatorAddress, sender.accountNumber, tx);
+    return this.sign(delegatorAddress, sender.accountNumber, tx);
+  }
+
+  async claimAndStake(
+    delegatorAddress: string,
+    validatorsWithRewards: { validator: string; amount: Coin }[],
+    fee: StdFee,
+    memo = '',
+  ) {
+    const txRaw = await this.signClaimAndStakeTx({ delegatorAddress, fee, memo, validatorsWithRewards });
+    return this.broadcastTx(txRaw);
   }
 }

@@ -7,8 +7,8 @@ import {
   fromSmall,
   getBlockChainFromAddress,
   getEthereumAddress,
-  getSeiEvmAddressToShow,
   NativeDenom,
+  pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -403,6 +403,7 @@ function useGetERC20TokenBalances(
 
   const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
   const retry = isApiUnavailable ? false : 10;
+  const isEvmOnlyChain = chains?.[activeChain]?.evmOnlyChain;
 
   const { data, status: rawBalancesStatus } = useQuery(
     [
@@ -412,12 +413,15 @@ function useGetERC20TokenBalances(
       erc20TokenAddresses,
       activeWallet?.pubKeys?.[activeChain],
       isSeiEvm,
+      evmJsonRpc,
+      isEvmOnlyChain,
     ],
     async () => {
       if (erc20TokenAddresses.length && evmJsonRpc) {
-        const ethWalletAddress = isSeiEvm
-          ? getSeiEvmAddressToShow(activeWallet?.pubKeys?.[activeChain])
-          : getEthereumAddress(address);
+        const ethWalletAddress =
+          isSeiEvm || isEvmOnlyChain
+            ? pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain])
+            : getEthereumAddress(address);
 
         if (ethWalletAddress.startsWith('0x')) {
           const erc20Balances = await fetchERC20Balances(evmJsonRpc, ethWalletAddress, erc20TokenAddresses);
@@ -691,6 +695,7 @@ export function useGetRawBalances(
 
   const isApiUnavailable = chains?.[activeChain as SupportedChain]?.apiStatus === false;
   const retry = isApiUnavailable ? false : 10;
+  const isEvmOnlyChain = chains?.[activeChain]?.evmOnlyChain;
 
   const address = useAddress(activeChain);
   const { lcdUrl, rpcUrl } = useChainApis(activeChain, selectedNetwork);
@@ -699,7 +704,9 @@ export function useGetRawBalances(
   const { data, status, refetch } = useQuery(
     [`${activeChain}-${bankQueryIds.rawBalances}`, address, lcdUrl, rpcUrl],
     async () => {
-      const balances = await fetchAllBalancesRestApi(lcdUrl ?? '', address, rpcUrl, fetchSpendableBalance);
+      const balances = isEvmOnlyChain
+        ? []
+        : await fetchAllBalancesRestApi(lcdUrl ?? '', address, rpcUrl, fetchSpendableBalance);
       queryClient.setQueryData([`${activeChain}-${bankQueryIds.rawBalances}`, address, lcdUrl], balances);
       return balances;
     },

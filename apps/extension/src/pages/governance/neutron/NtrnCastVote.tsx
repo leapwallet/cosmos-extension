@@ -7,6 +7,8 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
+import { Prohibit, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
+import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
@@ -16,7 +18,10 @@ import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sh
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { useTxCallBack } from 'utils/txCallback'
 
@@ -29,23 +34,24 @@ const useGetWallet = Wallet.useGetWallet
 const VoteOptionsList = [
   {
     label: VoteOptions.YES,
-    icon: 'thumb_up',
+    icon: <ThumbsUp size={20} />,
     selectedCSS: 'text-white-100 bg-green-600',
   },
   {
     label: VoteOptions.NO,
-    icon: 'thumb_down',
+    icon: <ThumbsDown size={20} />,
     selectedCSS: 'text-white-100 bg-red-300',
   },
   {
     label: VoteOptions.ABSTAIN,
-    icon: 'block',
+    icon: <Prohibit size={20} />,
     selectedCSS: 'text-white-100 bg-yellow-600',
   },
 ]
 
 type CastVoteSheetProps = {
   proposalId: string
+  isProposalInVotingPeriod: boolean
   // eslint-disable-next-line no-unused-vars
   onSubmitVote: (option: VoteOptions) => void
   setShowFeesSettingSheet: React.Dispatch<React.SetStateAction<boolean>>
@@ -63,6 +69,7 @@ type CastVoteSheetProps = {
 
 function CastVoteSheet({
   proposalId,
+  isProposalInVotingPeriod,
   isOpen,
   setShowFeesSettingSheet,
   onCloseHandler,
@@ -81,7 +88,7 @@ function CastVoteSheet({
   const [isSimulating, setIsSimulating] = useState(false)
 
   useEffect(() => {
-    if (proposalId && selectedOption) {
+    if (proposalId && selectedOption && isProposalInVotingPeriod) {
       ;(async () => {
         try {
           setIsSimulating(true)
@@ -97,7 +104,7 @@ function CastVoteSheet({
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposalId, selectedOption])
+  }, [proposalId, selectedOption, isProposalInVotingPeriod])
 
   useCaptureTxError(simulateError)
 
@@ -113,13 +120,13 @@ function CastVoteSheet({
           <button
             key={option.label}
             onClick={() => setSelectedOption(option.label)}
-            className={classNames('flex w-[344px] p-4 rounded-2xl cursor-pointer', {
+            className={classNames('flex items-center w-[344px] p-4 rounded-2xl cursor-pointer', {
               'dark:text-gray-200 dark:bg-gray-900 text-gray-600 bg-white-100':
                 selectedOption !== option.label,
               [option.selectedCSS]: selectedOption === option.label,
             })}
           >
-            <span className='material-icons-round mr-3'>{option.icon}</span>
+            <span className='mr-3'>{option.icon}</span>
             <span className='text-base font-bold dark:text-white-100'>{option.label}</span>
           </button>
         ))}
@@ -144,140 +151,149 @@ function CastVoteSheet({
   )
 }
 
-export function NtrnCastVote({
-  proposalId,
-  refetchVote,
-  showCastVoteSheet,
-  setShowCastVoteSheet,
-  className,
-  forceChain,
-  forceNetwork,
-}: CastVoteProps) {
-  const getWallet = useGetWallet(forceChain)
-  const defaultGasPrice = useDefaultGasPrice({
-    activeChain: forceChain,
-    selectedNetwork: forceNetwork,
-  })
-  const txCallback = useTxCallBack()
+export const NtrnCastVote = observer(
+  ({
+    isProposalInVotingPeriod,
+    proposalId,
+    refetchVote,
+    showCastVoteSheet,
+    setShowCastVoteSheet,
+    className,
+    forceChain,
+    forceNetwork,
+  }: CastVoteProps) => {
+    const getWallet = useGetWallet(forceChain)
+    const denoms = rootDenomsStore.allDenoms
+    const defaultGasPrice = useDefaultGasPrice(denoms, {
+      activeChain: forceChain,
+      selectedNetwork: forceNetwork,
+    })
+    const txCallback = useTxCallBack()
 
-  const {
-    setFeeDenom,
-    userPreferredGasPrice,
-    userPreferredGasLimit,
-    setGasOption,
-    gasOption,
-    gasEstimate,
-    setUserPreferredGasLimit,
-    setUserPreferredGasPrice,
-    clearTxError,
-    txError,
-    memo,
-    setMemo,
-    isVoting,
-    handleVote,
-    simulateNtrnVote,
-  } = useNtrnGov(forceChain, forceNetwork)
+    const {
+      setFeeDenom,
+      userPreferredGasPrice,
+      userPreferredGasLimit,
+      setGasOption,
+      gasOption,
+      gasEstimate,
+      setUserPreferredGasLimit,
+      setUserPreferredGasPrice,
+      clearTxError,
+      txError,
+      memo,
+      setMemo,
+      isVoting,
+      handleVote,
+      simulateNtrnVote,
+    } = useNtrnGov(denoms, forceChain, forceNetwork)
 
-  const [selectedVoteOption, setSelectedVoteOption] = useState<VoteOptions | undefined>(undefined)
-  const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
-  const [gasError, setGasError] = useState<string | null>(null)
-  const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
-    option: GasOptions.LOW,
-    gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
-  })
-
-  const handleGasPriceOptionChange = useCallback(
-    (value: GasPriceOptionValue, feeBaseDenom: FeeTokenData) => {
-      setGasPriceOption(value)
-      setFeeDenom(feeBaseDenom.denom)
-    },
-    [setFeeDenom],
-  )
-
-  // initialize gasPriceOption with correct defaultGasPrice.gasPrice
-  useEffect(() => {
-    setGasPriceOption({
-      option: gasOption,
-      gasPrice: defaultGasPrice.gasPrice,
+    const [selectedVoteOption, setSelectedVoteOption] = useState<VoteOptions | undefined>(undefined)
+    const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
+    const [gasError, setGasError] = useState<string | null>(null)
+    const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
+      option: GasOptions.LOW,
+      gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
     })
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultGasPrice.gasPrice])
+    const handleGasPriceOptionChange = useCallback(
+      (value: GasPriceOptionValue, feeBaseDenom: FeeTokenData) => {
+        setGasPriceOption(value)
+        setFeeDenom(feeBaseDenom.denom)
+      },
+      [setFeeDenom],
+    )
 
-  useEffect(() => {
-    setGasOption(gasPriceOption.option)
-    setUserPreferredGasPrice(gasPriceOption.gasPrice)
-  }, [gasPriceOption, setGasOption, setUserPreferredGasPrice])
-
-  const handleCloseReviewVoteCastSheet = useCallback(() => {
-    setSelectedVoteOption(undefined)
-    setShowCastVoteSheet(false)
-    clearTxError()
-  }, [clearTxError, setShowCastVoteSheet])
-
-  const submitVote = async () => {
-    clearTxError()
-
-    try {
-      const wallet = await getWallet()
-      await handleVote({
-        wallet,
-        callback: txCallback,
-        voteOption: selectedVoteOption as VoteOptions,
-        proposalId: Number(proposalId),
+    // initialize gasPriceOption with correct defaultGasPrice.gasPrice
+    useEffect(() => {
+      setGasPriceOption({
+        option: gasOption,
+        gasPrice: defaultGasPrice.gasPrice,
       })
-      return true
-    } catch (err: unknown) {
-      return false
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [defaultGasPrice.gasPrice])
+
+    useEffect(() => {
+      setGasOption(gasPriceOption.option)
+      setUserPreferredGasPrice(gasPriceOption.gasPrice)
+    }, [gasPriceOption, setGasOption, setUserPreferredGasPrice])
+
+    const handleCloseReviewVoteCastSheet = useCallback(() => {
+      setSelectedVoteOption(undefined)
+      setShowCastVoteSheet(false)
+      clearTxError()
+    }, [clearTxError, setShowCastVoteSheet])
+
+    const submitVote = async () => {
+      clearTxError()
+
+      try {
+        const wallet = await getWallet()
+        await handleVote({
+          wallet,
+          callback: txCallback,
+          voteOption: selectedVoteOption as VoteOptions,
+          proposalId: Number(proposalId),
+        })
+        return true
+      } catch (err: unknown) {
+        return false
+      }
     }
-  }
 
-  return (
-    <div className={classNames('', className)}>
-      <GasPriceOptions
-        recommendedGasLimit={gasEstimate.toString()}
-        gasLimit={userPreferredGasLimit?.toString() ?? gasEstimate.toString()}
-        setGasLimit={(value: number) => setUserPreferredGasLimit(Number(value.toString()))}
-        gasPriceOption={gasPriceOption}
-        onGasPriceOptionChange={handleGasPriceOptionChange}
-        error={gasError}
-        setError={setGasError}
-        chain={forceChain}
-        network={forceNetwork}
-      >
-        <CastVoteSheet
-          proposalId={proposalId}
-          isOpen={showCastVoteSheet}
-          setShowFeesSettingSheet={setShowFeesSettingSheet}
-          onCloseHandler={() => setShowCastVoteSheet(false)}
-          onSubmitVote={setSelectedVoteOption}
-          showFeesSettingSheet={showFeesSettingSheet}
-          gasError={gasError ?? ''}
-          simulateNtrnVote={simulateNtrnVote}
-          forceChain={forceChain}
-        />
+    return (
+      <div className={classNames('', className)}>
+        <GasPriceOptions
+          recommendedGasLimit={gasEstimate.toString()}
+          gasLimit={userPreferredGasLimit?.toString() ?? gasEstimate.toString()}
+          setGasLimit={(gasLimit: number | string | BigNumber) =>
+            setUserPreferredGasLimit(Number(gasLimit.toString()))
+          }
+          gasPriceOption={gasPriceOption}
+          onGasPriceOptionChange={handleGasPriceOptionChange}
+          error={gasError}
+          setError={setGasError}
+          chain={forceChain}
+          network={forceNetwork}
+          rootDenomsStore={rootDenomsStore}
+          rootBalanceStore={rootBalanceStore}
+        >
+          <CastVoteSheet
+            proposalId={proposalId}
+            isProposalInVotingPeriod={isProposalInVotingPeriod}
+            isOpen={showCastVoteSheet}
+            setShowFeesSettingSheet={setShowFeesSettingSheet}
+            onCloseHandler={() => setShowCastVoteSheet(false)}
+            onSubmitVote={setSelectedVoteOption}
+            showFeesSettingSheet={showFeesSettingSheet}
+            gasError={gasError ?? ''}
+            simulateNtrnVote={simulateNtrnVote}
+            forceChain={forceChain}
+          />
 
-        <FeesSettingsSheet
-          showFeesSettingSheet={showFeesSettingSheet}
-          onClose={() => setShowFeesSettingSheet(false)}
-          gasError={gasError}
-        />
+          <FeesSettingsSheet
+            showFeesSettingSheet={showFeesSettingSheet}
+            onClose={() => setShowFeesSettingSheet(false)}
+            gasError={gasError}
+          />
 
-        <NtrnReviewVoteCast
-          isOpen={selectedVoteOption !== undefined}
-          proposalId={proposalId}
-          error={txError}
-          loading={isVoting}
-          memo={memo}
-          setMemo={setMemo}
-          selectedVote={selectedVoteOption}
-          onSubmitVote={submitVote}
-          refetchCurrVote={refetchVote}
-          onCloseHandler={handleCloseReviewVoteCastSheet}
-          gasOption={gasPriceOption.option}
-          forceChain={forceChain}
-        />
-      </GasPriceOptions>
-    </div>
-  )
-}
+          <NtrnReviewVoteCast
+            isOpen={selectedVoteOption !== undefined}
+            proposalId={proposalId}
+            error={txError}
+            loading={isVoting}
+            memo={memo}
+            setMemo={setMemo}
+            selectedVote={selectedVoteOption}
+            onSubmitVote={submitVote}
+            refetchCurrVote={refetchVote}
+            onCloseHandler={handleCloseReviewVoteCastSheet}
+            gasOption={gasPriceOption.option}
+            forceChain={forceChain}
+          />
+        </GasPriceOptions>
+      </div>
+    )
+  },
+)

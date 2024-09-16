@@ -1,4 +1,5 @@
-import { axiosWrapper, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper } from '@leapwallet/cosmos-wallet-sdk/dist/browser/healthy-nodes/axiosWrapper';
 import { fromSmall } from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/token-converter';
 import { ParsedMessageType, type ParsedTransaction, TransactionParser } from '@leapwallet/parser-parfait';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -181,6 +182,7 @@ function unionOfTxs(_txs1: ParsedTransaction[], _txs2: ParsedTransaction[]): Par
 const txnParser = new TransactionParser();
 
 export function useActivity(
+  denoms: DenomsRecord,
   forceChain?: SupportedChain,
   forceAddress?: string,
   forceNetwork?: 'mainnet' | 'testnet',
@@ -197,7 +199,7 @@ export function useActivity(
 
   const { lcdUrl: restUrl = '' } = useChainApis(activeChain, selectedNetwork);
   const { chains } = useChainsStore();
-  const denoms = useDenoms();
+  /*   const denoms = useDenoms(); */
 
   const [activity, setActivity] = useState<Activity[]>([]);
   const resetActivity = () => setActivity([]);
@@ -216,7 +218,9 @@ export function useActivity(
           try {
             const chainId =
               selectedNetwork === 'testnet' ? chains[activeChain].testnetChainId : chains[activeChain].chainId;
-            const { data } = await LeapWalletApi.getActivity(address, 0, chainId ?? '');
+            const { data } = chains[activeChain]?.evmOnlyChain
+              ? { data: [] }
+              : await LeapWalletApi.getActivity(address, 0, chainId ?? '');
             parsedData = data;
           } catch (_) {
             let sendParsedData: ParsedTransaction[] = [];

@@ -5,6 +5,7 @@ import {
   ChainInfos,
   DefaultGasEstimates,
   defaultGasPriceStep,
+  DenomsRecord,
   fromSmall,
   simulateStrideLiquidStaking,
   simulateStrideRedeemLiquidStaking,
@@ -46,7 +47,13 @@ import { useChainId } from '../utils-hooks';
 type txMode = 'delegate' | 'undelegate';
 
 // For this hook to calculate txFees, manually call simulateTransaction on frontend within proper useeffects.
-export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddress?: string }) {
+export function useStrideLiquidStaking({
+  denoms,
+  forceStrideAddress,
+}: {
+  denoms: DenomsRecord;
+  forceStrideAddress?: string;
+}) {
   // HOOKS
   const supportedDenoms = useLSStrideEnabledDenoms();
   const gasPriceSteps = useGasPriceSteps();
@@ -62,7 +69,7 @@ export function useStrideLiquidStaking({ forceStrideAddress }: { forceStrideAddr
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const selectedNetwork = useSelectedNetwork();
 
-  const denom = useNativeFeeDenom('stride');
+  const denom = useNativeFeeDenom(denoms, 'stride');
 
   // STATES
   const [memo, setMemo] = useState<string>('');

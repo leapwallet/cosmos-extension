@@ -1,5 +1,6 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
+import { CheckCircle } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import React from 'react'
 import { Colors } from 'theme/colors'
@@ -41,12 +42,11 @@ export const DisplaySettingsModal: React.FC<DisplaySettingsModalProps> = ({
             >
               <span>{label}</span>
               {settings.sortBy === key ? (
-                <span
-                  className='material-icons-round'
+                <CheckCircle
+                  weight='fill'
+                  size={24}
                   style={{ color: Colors.getChainColor(activeChain) }}
-                >
-                  check_circle
-                </span>
+                />
               ) : null}
             </button>
             {index === options.length - 1 ? null : <CardDivider />}

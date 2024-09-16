@@ -1,14 +1,18 @@
-import { getSeiEvmInfo, SeiEvmInfoEnum } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainId } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
+import { CheckCircle } from '@phosphor-icons/react'
+import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useSelectedNetwork, useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router'
+import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { sendMessageToTab } from 'utils'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 
 import Text from '../../../components/text'
 
@@ -25,6 +29,8 @@ export default function NetworkDropUp({
   const navigate = useNavigate()
   const adjustedSetCurrentChainName = useSetNetwork()
   const currentChainName = useSelectedNetwork()
+  const mainnetEvmChainId = useChainId(activeChain, 'mainnet', true)
+  const testnetEvmChainId = useChainId(activeChain, 'testnet', true)
 
   const chains = useMemo(
     () => [
@@ -36,17 +42,10 @@ export default function NetworkDropUp({
         onClick: async () => {
           if (chainInfos[activeChain]?.apis?.rpc) {
             adjustedSetCurrentChainName('mainnet')
+            rootStore.setSelectedNetwork('mainnet')
             navigate('/', { replace: true })
-
             try {
-              if (isCompassWallet()) {
-                const chainId = await getSeiEvmInfo({
-                  activeChain: 'seiTestnet2',
-                  activeNetwork: 'mainnet',
-                  infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
-                })
-                await sendMessageToTab({ event: 'chainChanged', data: chainId })
-              }
+              await sendMessageToTab({ event: 'chainChanged', data: mainnetEvmChainId })
             } catch (_) {
               //
             }
@@ -61,17 +60,11 @@ export default function NetworkDropUp({
         onClick: async () => {
           if (chainInfos[activeChain]?.apis?.rpcTest) {
             adjustedSetCurrentChainName('testnet')
+            rootStore.setSelectedNetwork('testnet')
             navigate('/', { replace: true })
 
             try {
-              if (isCompassWallet()) {
-                const chainId = await getSeiEvmInfo({
-                  activeChain: 'seiTestnet2',
-                  activeNetwork: 'testnet',
-                  infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
-                })
-                await sendMessageToTab({ event: 'chainChanged', data: chainId })
-              }
+              await sendMessageToTab({ event: 'chainChanged', data: testnetEvmChainId })
             } catch (_) {
               //
             }
@@ -97,7 +90,7 @@ export default function NetworkDropUp({
                 title={
                   <Text
                     size='md'
-                    className='w-[400px]'
+                    className={classNames({ 'w-[400px]': !isSidePanel() })}
                     color={chain.enabled ? undefined : 'dark:text-gray-400 text-gray-300'}
                   >{`${chain.title} ${unavailable}`}</Text>
                 }
@@ -113,17 +106,15 @@ export default function NetworkDropUp({
                 size='md'
                 icon={
                   chain.isSelected && activeChain ? (
-                    <span
-                      className='material-icons-round'
+                    <CheckCircle
+                      weight='fill'
+                      size={24}
+                      className='text-gray-600 dark:text-gray-400'
                       style={{
                         color: Colors.getChainColor(activeChain),
                       }}
-                    >
-                      check_circle
-                    </span>
-                  ) : (
-                    <></>
-                  )
+                    />
+                  ) : null
                 }
               />
             </React.Fragment>

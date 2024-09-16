@@ -1,7 +1,9 @@
+import { CheckCircle } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { motion } from 'framer-motion'
 import { CopySvg, FilledDownArrowSvg } from 'images/misc'
 import React from 'react'
+import { sliceWord } from 'utils/strings'
 
 type WalletButtonProps = {
   showWalletAvatar?: boolean
@@ -30,7 +32,7 @@ const WalletButton = React.memo(
     return (
       <div
         className={classNames(
-          'relative bg-white-100 dark:bg-gray-950 border-[1px] border-solid flex rounded-3xl',
+          'relative bg-white-100 dark:bg-gray-950 border-[1px] border-solid flex rounded-3xl h-[36px]',
           {
             'border-yellow-600': isToAddLinkAddressNudgeText,
             'border-gray-100 dark:border-gray-850': !isToAddLinkAddressNudgeText,
@@ -52,10 +54,10 @@ const WalletButton = React.memo(
           ) : null}
 
           <span
-            className='dark:text-white-100 text-black-100 truncate text-[14px] font-bold max-w-[96px]'
+            className='dark:text-white-100 text-black-100 truncate text-[14px] font-bold max-w-[96px] !leading-[19.6px]'
             title={walletName}
           >
-            {walletName}
+            {sliceWord(walletName, 8, 0)}
           </span>
 
           {showDropdown ? (
@@ -85,9 +87,8 @@ const WalletButton = React.memo(
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3, ease: 'easeIn', delay: 0.2 }}
-              className='material-icons-round !text-white-100 !text-[18px]'
             >
-              check_circle
+              <CheckCircle weight='fill' size={24} className='text-white-100' />
             </motion.div>
             <span className='text-white-100 text-[14px] font-bold'>Copied!</span>
           </motion.div>

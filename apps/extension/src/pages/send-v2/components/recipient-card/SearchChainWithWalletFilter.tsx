@@ -1,4 +1,5 @@
 import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { CaretDown } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { walletLabels } from 'config/constants'
@@ -61,7 +62,7 @@ export default function SearchChainWithWalletFilter({
       <input
         placeholder={'Search chain'}
         className={
-          'flex flex-1 min-w-[160px] text-base outline-none bg-white-0 font-bold text-black-100 dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400 !leading-[21px]'
+          'flex flex-1 min-[400px]:min-w-[160px] w-[50px] text-base outline-none bg-white-0 font-bold text-black-100 dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400 !leading-[21px]'
         }
         value={value}
         onChange={onChange}
@@ -69,7 +70,7 @@ export default function SearchChainWithWalletFilter({
       />
 
       <div
-        className='flex items-center gap-2 bg-gray-50 dark:bg-gray-900 cursor-pointer border-l-2 border-gray-200 dark:border-gray-800 pl-4 pr-1'
+        className='flex items-center gap-2 bg-gray-50 dark:bg-gray-900 cursor-pointer border-l-2 border-gray-200 dark:border-gray-800 pl-4 pr-1 shrink-0'
         onClick={() => setisWalletSheetVisible(true)}
       >
         {walletAvatar ? (
@@ -80,7 +81,7 @@ export default function SearchChainWithWalletFilter({
         <Text size='sm' className='font-bold'>
           {trim(walletName, 8)}
         </Text>
-        <p className='!text-sm material-icons-round dark:text-white-100'>expand_more</p>
+        <CaretDown size={16} className='dark:text-white-100' />
       </div>
 
       <SelectWalletSheet

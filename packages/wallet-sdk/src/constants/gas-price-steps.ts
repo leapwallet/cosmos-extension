@@ -428,4 +428,6 @@ export const GAS_PRICE_STEPS = {
   saga: { low: 0.01, average: 0.025, high: 0.04 },
   initia: { low: 0.15, average: 0.15, high: 0.4 },
   humans: { low: 80000000000, average: 100000000000, high: 160000000000 },
+  lava: { low: 0.00002, average: 0.025, high: 0.05 },
+  mantra: { low: 0.01, average: 0.025, high: 0.03 },
 };

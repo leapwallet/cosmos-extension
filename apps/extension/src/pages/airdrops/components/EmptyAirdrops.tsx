@@ -1,4 +1,5 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { ArrowCounterClockwise } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import Loader from 'components/loader/Loader'
@@ -98,12 +99,11 @@ export default function EmptyAirdrops({
           ) : (
             <div className='flex items-center gap-2'>
               Retry
-              <span
-                className='material-icons-round'
-                style={{ fontSize: 20, transform: 'rotateY(180deg)' }}
-              >
-                replay
-              </span>
+              <ArrowCounterClockwise
+                size={20}
+                className='text-white-100 dark:text-black-100'
+                style={{ transform: 'rotateY(180deg)' }}
+              />
             </div>
           )}
         </Buttons.Generic>

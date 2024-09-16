@@ -1,22 +1,21 @@
 import {
-  getSeiEvmInfo,
-  SeiEvmInfoEnum,
   SelectedAddress,
   useActiveChain,
   useActiveWallet,
   useAddress,
   useAddressPrefixes,
+  useChainApis,
   useChainsStore,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getBlockChainFromAddress,
-  getSeiEvmAddressToShow,
   isValidAddress,
+  pubKeyToEvmAddressToShow,
   SeiEvmTx,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import bech32 from 'bech32'
+import { bech32 } from 'bech32'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
@@ -53,7 +52,7 @@ type RecipientCardProps = {
   setAssociatedSeiAddress: React.Dispatch<React.SetStateAction<string>>
 }
 
-const nameServiceMatcher = /^[a-zA-Z0-9_]+\.[a-z]+$/
+const nameServiceMatcher = /^[a-zA-Z0-9_-]+\.[a-z]+$/
 
 export const RecipientCard: React.FC<RecipientCardProps> = ({
   themeColor,
@@ -98,6 +97,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   const contactsToShow = useContactsSearch(recipientInputValue)
   const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
   const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
+  const { evmJsonRpc } = useChainApis(activeChain, activeNetwork)
 
   const handleOnChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,6 +178,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
       ...Object.keys(addressPrefixes), // for ibcdomains, icns, stargazenames
       'arch', // for archId
       'sol', // for injective .sol domains by SNS
+      ...['sei', 'pp'], // for degeNS
+      'core', // for bdd
     ]
     // ex: leap.arch --> name = leap, domain = arch
     const [, domain] = recipientInputValue.split('.')
@@ -259,7 +261,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
 
       case 'success': {
         if (fetchAccountDetailsData?.pubKey.key) {
-          const recipient0xAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+          const recipient0xAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
           if (recipient0xAddress.toLowerCase().startsWith('0x')) {
             setAddressWarning(
               `Recipient will receive the NFT on associated EVM address: ${recipient0xAddress}`,
@@ -310,15 +312,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
         recipientInputValue.toLowerCase().startsWith('0x')
       ) {
         try {
-          const rpcUrl = (await getSeiEvmInfo({
-            infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-            activeChain,
-            activeNetwork,
-          })) as string
-
           const recipientSeiAddress = await SeiEvmTx.GetSeiAddressFromHex(
             recipientInputValue,
-            rpcUrl,
+            evmJsonRpc,
           )
 
           setAssociatedSeiAddress(recipientSeiAddress)
@@ -610,9 +606,9 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
             ) : null}
             {showAddToContacts ? (
               <SecondaryActionButton
+                leftIcon={Images.Misc.AddContact}
                 onClick={handleAddContact}
                 actionLabel='Add Contact to Address Book'
-                leftIcon={Images.Misc.AddContact}
               >
                 <Text size='sm' className='text-gray-600 dark:text-gray-200 whitespace-nowrap'>
                   Add Contact

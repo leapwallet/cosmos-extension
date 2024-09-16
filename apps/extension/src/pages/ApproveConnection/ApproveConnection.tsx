@@ -1,7 +1,8 @@
 import { Key, sliceAddress, useActiveWallet, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
+import { CaretUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { Divider } from 'components/dapp'
 import { Header } from 'components/header'
@@ -13,8 +14,10 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useWindowSize } from 'hooks/utility/useWindowSize'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
 import { addToConnections } from './utils'
@@ -72,7 +75,7 @@ async function sendMessage(message: { type: string; payload: any; status: 'succe
 
 const ApproveConnection = () => {
   const [selectedWallets, setSelectedWallets] = useState<[Key] | [] | Key[]>([])
-
+  const navigate = useNavigate()
   const { width } = useWindowSize()
 
   const [requestedChains, setRequestedChains] = useState<
@@ -109,7 +112,11 @@ const ApproveConnection = () => {
 
   const handleCancel = useCallback(async () => {
     if (!approvalRequests[0]) {
-      closeWindow()
+      if (isSidePanel()) {
+        navigate('/home')
+      } else {
+        closeWindow()
+      }
       return
     }
 
@@ -129,8 +136,12 @@ const ApproveConnection = () => {
       })
     }
     window.removeEventListener('beforeunload', handleCancel)
-    closeWindow()
-  }, [approvalRequests])
+    if (isSidePanel()) {
+      navigate('/home')
+    } else {
+      closeWindow()
+    }
+  }, [navigate, approvalRequests])
 
   useEffect(() => {
     if (activeWallet) {
@@ -157,6 +168,7 @@ const ApproveConnection = () => {
         payloadId: string
         ecosystem: LineType
         ethMethod: string
+        isLeap?: boolean
       }
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,10 +205,15 @@ const ApproveConnection = () => {
             payloadId: message.payload.payloadId,
             ecosystem: message.payload.ecosystem,
             ethMethod: message.payload.ethMethod,
+            isLeap: message.payload.isLeap,
           },
           status: 'success',
         })
-        closeWindow()
+        if (isSidePanel()) {
+          navigate('/home')
+        } else {
+          closeWindow()
+        }
       }
     }
   }
@@ -226,20 +243,25 @@ const ApproveConnection = () => {
           payloadId: currentApprovalRequest.payloadId,
           ecosystem: currentApprovalRequest.ecosystem,
           ethMethod: currentApprovalRequest.ethMethod,
+          isLeap: currentApprovalRequest.isLeap,
         },
         status: 'success',
       })
     }
     window.removeEventListener('beforeunload', handleCancel)
-    closeWindow()
+    if (isSidePanel()) {
+      navigate('/home')
+    } else {
+      closeWindow()
+    }
   }
 
   const isFullScreen = width && width > 800
 
   if (!showApprovalUi) {
     return (
-      <div className='relative w-screen max-w-3xl h-full self-center p-5 pt-0'>
-        <div className='flex justify-center items-center h-[600px]'>
+      <div className='panel-height enclosing-panel relative w-screen max-w-3xl h-full self-center p-5 pt-0'>
+        <div className='flex justify-center items-center panel-height'>
           <Loader />
         </div>
       </div>
@@ -247,8 +269,8 @@ const ApproveConnection = () => {
   }
 
   return (
-    <div className='relative w-screen max-w-3xl h-full self-center px-5'>
-      <div className='flex flex-col mx-auto max-w-2xl box-border h-full overflow-scroll py-5'>
+    <div className='relative w-screen max-w-3xl h-full self-center px-5 enclosing-panel'>
+      <div className='flex flex-col mx-auto max-w-2xl box-border h-full overflow-scroll pt-5 pb-[72px]'>
         <Header
           HeadingComponent={() => (
             <Heading name={approvalRequests?.[0]?.origin || 'Connect Leap'} />
@@ -274,9 +296,7 @@ const ApproveConnection = () => {
               className='text-white-100 font-bold'
             >{`Connecting ${activeWallet?.name}`}</Text>
             {displayedRequestedChains?.length > 1 && readMoreEnabled ? (
-              <span className='h-[16px] w-[16px] ml-auto material-icons-round text-gray-500'>
-                keyboard_arrow_up
-              </span>
+              <CaretUp size={16} className='ml-auto text-gray-500' />
             ) : null}
           </div>
           <div
@@ -288,6 +308,20 @@ const ApproveConnection = () => {
           >
             {displayedRequestedChains.map((requestedChain, index: number) => {
               const isLast = index === displayedRequestedChains.length - 1
+              const hasAddress = selectedWallets?.[0]?.addresses?.[requestedChain.chain]
+              let address
+              if (hasAddress) {
+                address = chains[requestedChain.chain]?.evmOnlyChain
+                  ? pubKeyToEvmAddressToShow(selectedWallets?.[0]?.pubKeys?.[requestedChain.chain])
+                  : selectedWallets?.[0]?.addresses?.[requestedChain.chain]
+              } else {
+                // If the address does not exist in keystore we generate addresses for cointype 60. For other chains it would be an empty string
+                const evmosPubkey = selectedWallets?.[0]?.pubKeys?.['evmos']
+                const canGenerateEvmAddress =
+                  chains[requestedChain.chain]?.evmOnlyChain && evmosPubkey
+                address = canGenerateEvmAddress ? pubKeyToEvmAddressToShow(evmosPubkey) : ''
+              }
+
               return (
                 <React.Fragment key={requestedChain.payloadId}>
                   <div
@@ -299,14 +333,14 @@ const ApproveConnection = () => {
                     }}
                   >
                     <img
-                      src={chains[requestedChain.chain].chainSymbolImageUrl ?? defaultTokenLogo}
+                      src={chains[requestedChain.chain]?.chainSymbolImageUrl ?? defaultTokenLogo}
                       className='h-[16px] w-[16px] mr-2'
                     />
                     <Text size='xs' color='text-gray-400'>
-                      {chains[requestedChain.chain].chainName}
+                      {chains[requestedChain.chain]?.chainName ?? ''}
                     </Text>
                     <Text className='ml-auto' size='xs' color='text-gray-400'>
-                      {sliceAddress(selectedWallets?.[0]?.addresses[requestedChain.chain])}
+                      {sliceAddress(address)}
                     </Text>
                   </div>
                   <div

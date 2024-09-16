@@ -1,6 +1,7 @@
 import { useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
 import { CardDivider } from '@leapwallet/leap-ui'
 import { Buttons } from '@leapwallet/leap-ui'
+import { CaretDoubleDown, CaretRight } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import ClickableIcon from 'components/clickable-icons'
@@ -133,7 +134,8 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
           </div>
           <ClickableIcon
             darker={true}
-            image={{ src: 'keyboard_double_arrow_down', alt: '' }}
+            label='Swap'
+            icon={<CaretDoubleDown size={20} />}
             onClick={onSwapClick}
             style={{ zIndex: 1 }}
           />
@@ -199,7 +201,7 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
                   <p className='font-bold text-black-100 dark:text-white-100'>{slippage}%</p>
                 </div>
                 <div className='flex flex-col justify-center text-right text-gray-400'>
-                  <span className='material-icons-round'>keyboard_arrow_right</span>
+                  <CaretRight size={16} className='text-gray-400' />
                 </div>
               </div>
             </div>

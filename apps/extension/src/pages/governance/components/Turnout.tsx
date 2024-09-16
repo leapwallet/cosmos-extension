@@ -1,4 +1,5 @@
 import { CardDivider } from '@leapwallet/leap-ui'
+import { Info } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import React, { Fragment, useState } from 'react'
@@ -21,12 +22,7 @@ export function Turnout({ tallying }: { tallying: ITally[] }) {
               <div className='flex flex-row items-center'>
                 <p className='text-md font-bold text-gray-800 dark:text-white-100'>{tally.label}</p>
                 <button onClick={() => showDetail(tally.label)} className='h-[18px] w-[18px]'>
-                  <span
-                    className='material-icons-round text-gray-400 ml-1'
-                    style={{ fontSize: '18px' }}
-                  >
-                    info
-                  </span>
+                  <Info size={18} className='text-gray-400 ml-1' />
                 </button>
               </div>
 

@@ -1,8 +1,7 @@
-import { isValidAddressWithPrefix, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, isValidAddressWithPrefix, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
 import { ParsedTransaction } from '@leapwallet/parser-parfait';
 import { useQuery } from '@tanstack/react-query';
 import { differenceInDays } from 'date-fns';
-import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 
 import { useActivity } from '../activity';
@@ -12,25 +11,23 @@ import {
   getCoingeckoPricesStoreSnapshot,
   useActiveChain,
   useAutoFetchedCW20Tokens,
-  useDenoms,
   useSecretTokenStore,
   useSelectedNetwork,
 } from '../store';
-import { Activity, ActivityCardContent } from '../types';
 import { convertSecretDenom, getDenomInfo } from '../utils';
 import { useChainInfo } from '../utils-hooks';
 
 type UseAssetDetailsProps = {
+  denoms: DenomsRecord;
   denom: SupportedDenoms;
   tokenChain: SupportedChain;
 };
 
-export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
+export function useAssetDetails({ denoms, denom, tokenChain }: UseAssetDetailsProps) {
   const activeChain = useActiveChain();
   const [selectedDays, setSelectedDays] = useState<string>('1D');
   const [preferredCurrency] = useUserPreferredCurrency();
   const { secretTokens } = useSecretTokenStore();
-  const denoms = useDenoms();
   const chainInfo = useChainInfo(tokenChain);
   const selectedNetwork = useSelectedNetwork();
   const chainId = selectedNetwork === 'mainnet' ? chainInfo?.chainId : chainInfo?.testnetChainId;
@@ -42,7 +39,7 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
     };
   }, [denoms, autoFetchedCW20Tokens]);
 
-  const { txResponse } = useActivity(tokenChain ? tokenChain : undefined);
+  const { txResponse } = useActivity(denoms, tokenChain ? tokenChain : undefined);
 
   const ChartDays: Record<string, number> = {
     '1D': 1,
@@ -139,27 +136,6 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
     { enabled: !!denomInfo, retry: 2 },
   );
 
-  const { activity } = txResponse;
-
-  const sections = useMemo(() => {
-    const txsByDate = activity
-      ?.filter((tx: Activity) => {
-        return tx.content?.sentTokenInfo?.coinMinimalDenom.includes(denom);
-      })
-      .reduce((acc: Record<string, { parsedTx: ParsedTransaction; content: ActivityCardContent }[]>, tx) => {
-        if (!tx.parsedTx) return acc;
-
-        const date = dayjs(tx.parsedTx.timestamp).format('MMMM DD');
-        if (acc[date]) {
-          acc[date].push(tx);
-        } else {
-          acc = { ...acc, [date]: [tx] };
-        }
-        return acc;
-      }, {});
-    return Object.entries(txsByDate ?? {}).map((entry) => ({ title: entry[0], data: entry[1] }));
-  }, [activity, denom]);
-
   return {
     activeChain,
     chartData,
@@ -171,8 +147,6 @@ export function useAssetDetails({ denom, tokenChain }: UseAssetDetailsProps) {
     setSelectedDays,
     selectedDays,
     loadingPrice,
-    activityList: [sections[0]],
-    isActivityLoading: txResponse.loading && !txResponse.error,
     denomInfo,
   };
 }

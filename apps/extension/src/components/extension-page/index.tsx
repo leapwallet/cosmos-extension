@@ -1,5 +1,6 @@
 import { Label, ThemeName } from '@leapwallet/leap-ui'
 import { useTheme } from '@leapwallet/leap-ui'
+import classNames from 'classnames'
 import IconButton from 'components/icon-button'
 import { useThemeState } from 'hooks/settings/useTheme'
 import { Images } from 'images'
@@ -7,6 +8,7 @@ import { CompassCircle, LeapLogo } from 'images/logos'
 import React, { PropsWithChildren, ReactNode } from 'react'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 
 // Page layout for full screen pages
 type ExtensionPageProps = {
@@ -23,7 +25,11 @@ export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProp
   const isDark = theme === ThemeName.DARK
 
   return (
-    <div className='relative flex flex-col w-screen h-screen p-[20px] z-0 dark:bg-black-100'>
+    <div
+      className={classNames('relative flex flex-col w-screen h-screen z-0 dark:bg-black-100', {
+        'p-[20px]': !isSidePanel(),
+      })}
+    >
       {!isCompassWallet() && (
         <div className='w-screen absolute z-1 top-0 left-0 h-40 bg-gradient-to-b from-mainChainTheme-100 to-transparent' />
       )}
@@ -34,50 +40,59 @@ export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProp
         />
       )}
 
-      <div className='flex z-10 overflow-scroll mt-16 items-start justify-center'>{children}</div>
-
-      {/* Header */}
-      <div className='absolute top-5 left-5 right-5 flex flex-row justify-between'>
-        <img
-          src={isCompassWallet() ? CompassCircle : LeapLogo}
-          className='h-[36px] w-[36px] z-10'
-        />
-        {!!headerRightComponent && headerRightComponent}
-        {!headerRightComponent && (
-          <div className='absolute right-0 flex flex-row gap-x-[8px] z-20'>
-            <IconButton
-              isFilled={true}
-              onClick={() => {
-                setTheme(isDark ? ThemeName.LIGHT : ThemeName.DARK)
-                setThemeState(isDark ? ThemeName.LIGHT : ThemeName.DARK)
-              }}
-              image={{
-                src: isDark ? Images.Misc.LightTheme : Images.Misc.DarkTheme,
-                alt: 'Back',
-              }}
+      <div
+        className={classNames('flex z-10 overflow-scroll mt-16 items-start justify-center', {
+          'panel-height enclosing-panel': isSidePanel(),
+        })}
+      >
+        {children}
+      </div>
+      {!isSidePanel() && window.innerWidth >= 450 && (
+        <>
+          {/* Header */}
+          <div className='absolute top-5 left-5 right-5 flex flex-row justify-between'>
+            <img
+              src={isCompassWallet() ? CompassCircle : LeapLogo}
+              className='h-[36px] w-[36px] z-10'
             />
+            {!!headerRightComponent && headerRightComponent}
+            {!headerRightComponent && (
+              <div className='absolute right-0 flex flex-row gap-x-[8px] z-20'>
+                <IconButton
+                  isFilled={true}
+                  onClick={() => {
+                    setTheme(isDark ? ThemeName.LIGHT : ThemeName.DARK)
+                    setThemeState(isDark ? ThemeName.LIGHT : ThemeName.DARK)
+                  }}
+                  image={{
+                    src: isDark ? Images.Misc.LightTheme : Images.Misc.DarkTheme,
+                    alt: 'Back',
+                  }}
+                />
 
-            {!isCompassWallet() && (
-              <Label
-                imgSrc={Images.Misc.HelpIcon}
-                title={'Visit Help Center'}
-                type={'normal'}
-                onClick={() =>
-                  window.open(
-                    'https://leapwallet.notion.site/Leap-Wallet-Help-Center-Cosmos-ba1da3c05d3341eaa44a1850ed3260ee',
-                  )
-                }
-                isRounded={true}
-              />
+                {!isCompassWallet() && (
+                  <Label
+                    imgSrc={Images.Misc.HelpIcon}
+                    title={'Visit Help Center'}
+                    type={'normal'}
+                    onClick={() =>
+                      window.open(
+                        'https://leapwallet.notion.site/Leap-Wallet-Help-Center-Cosmos-ba1da3c05d3341eaa44a1850ed3260ee',
+                      )
+                    }
+                    isRounded={true}
+                  />
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {!!titleComponent && (
-        <div className='flex w-screen absolute left-0 right-0  z-10 item-center justify-center'>
-          {titleComponent}
-        </div>
+          {!!titleComponent && (
+            <div className='flex w-screen absolute left-0 right-0  z-10 item-center justify-center'>
+              {titleComponent}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

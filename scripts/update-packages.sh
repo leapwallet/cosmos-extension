@@ -14,10 +14,12 @@ packagesDir="./packages"
 walletSdk="wallet-sdk"
 walletHooks="wallet-hooks"
 walletProvider="wallet-provider"
+walletStore="store"
 
 walletSdkPackage="@leapwallet/cosmos-wallet-sdk"
 walletHooksPackage="@leapwallet/cosmos-wallet-hooks"
 walletProviderPackage="@leapwallet/cosmos-wallet-provider"
+walletStorePackage="@leapwallet/cosmos-wallet-store"
 
 update_version() {
     local packageDir="$packagesDir/$1"
@@ -34,12 +36,14 @@ update_dependency() {
 
 
 update_version $walletSdk
+update_version $walletStore
 update_version $walletHooks
 update_version $walletProvider
 
 
+update_dependency $walletStore $walletSdkPackage
 update_dependency $walletHooks $walletSdkPackage
+update_dependency $walletHooks $walletStorePackage
 update_dependency $walletProvider $walletSdkPackage
-
 
 echo "Updated all package versions to $newVersion"

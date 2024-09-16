@@ -2,6 +2,7 @@ import { coins } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, StdFee } from '@cosmjs/stargate';
 import {
+  DenomsRecord,
   fromSmall,
   getBlockChainFromAddress,
   getSimulationFee,
@@ -16,7 +17,6 @@ import {
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { transactionDeclinedError } from '@leapwallet/cosmos-wallet-sdk';
-import { INJECTIVE_DEFAULT_STD_FEE } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/default-gasprice-step';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import currency from 'currency.js';
@@ -48,10 +48,10 @@ import { fetchCurrency, getMetaDataForIbcTx, getMetaDataForSendTx, useGetGasPric
 import { sliceAddress } from '../utils';
 import { useChainId, useChainInfo } from '../utils-hooks';
 
-export function useSend(toAddress: string) {
+export function useSend(denoms: DenomsRecord, toAddress: string) {
   const chainsInfos = useGetChains();
-  const denoms = useDenoms();
-  let feeDenom = useNativeFeeDenom();
+
+  let feeDenom = useNativeFeeDenom(denoms);
 
   const [inputAmount, setInputAmount] = useState<string>('');
   const [memo, setMemo] = useState<string>('');
@@ -333,11 +333,7 @@ export function useSend(toAddress: string) {
           }
         }
 
-        let fee = calculateFee(Math.round(gasEstimate * gasAdjustment), gasPrice.toString());
-
-        if (activeChain === 'injective' || activeChain === 'planq') {
-          fee = INJECTIVE_DEFAULT_STD_FEE;
-        }
+        const fee = calculateFee(Math.round(gasEstimate * gasAdjustment), gasPrice.toString());
 
         const feedDenomValue = allAssets.find((asset) => {
           if (asset.ibcDenom) {

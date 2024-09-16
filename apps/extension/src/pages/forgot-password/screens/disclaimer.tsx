@@ -1,4 +1,5 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { Lock } from '@phosphor-icons/react'
 import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
 import React from 'react'
@@ -19,12 +20,7 @@ const Disclaimer: React.FC<PropsType> = ({ incrementStep }) => {
     <PopupLayout>
       <div className='p-5 flex flex-col justify-center h-full'>
         <div className='bg-gray-900 dark:bg-gray-100 rounded-[16px] mb-4 h-[36px] w-[36px] flex flex-col justify-center text-center'>
-          <div
-            style={{ fontSize: 20 }}
-            className='material-icons-round dark:text-gray-900 text-gray-100'
-          >
-            lock
-          </div>
+          <Lock size={20} className='dark:text-gray-900 text-gray-100' />
         </div>
         <Text size='xxl' className='font-bold'>
           Forgot your password?

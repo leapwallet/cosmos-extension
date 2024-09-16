@@ -14,10 +14,14 @@ import Text from 'components/text'
 import { BG_RESPONSE, SUGGEST_TOKEN } from 'config/storage-keys'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useCreateViewingKey, verifyViewingKey } from 'hooks/secret/useCreateViewingKey'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { betaCW20DenomsStore, enabledCW20DenomsStore } from 'stores/denoms-store-instance'
 import { Colors } from 'theme/colors'
 import { getContractInfo } from 'utils/getContractInfo'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
 import {
@@ -31,11 +35,11 @@ import {
   TokenContractInfo,
 } from './components'
 
-function SuggestSecret({ handleRejectBtnClick }: ChildrenParams) {
+const SuggestSecret = observer(({ handleRejectBtnClick }: ChildrenParams) => {
   const chains = useGetChains()
   const createViewingKey = useCreateViewingKey()
   const secretTokens = useSnipDenoms()
-
+  const navigate = useNavigate()
   const getChainApis = useGetChainApis('secret', 'mainnet', chains)
   const setBetaCW20Tokens = useSetBetaCW20Tokens()
   const setSnip20Tokens = useSetBetaSnip20Tokens()
@@ -175,7 +179,7 @@ function SuggestSecret({ handleRejectBtnClick }: ChildrenParams) {
     } else {
       setIsLoading(true)
       const chainIdToChain = await decodeChainIdToChain()
-      const chain = chainIdToChain[payload.chainId]
+      const chain = chainIdToChain[payload.chainId] as SupportedChain
 
       const cw20Token = {
         coinDenom: contractInfo.symbol,
@@ -185,8 +189,13 @@ function SuggestSecret({ handleRejectBtnClick }: ChildrenParams) {
         icon: '',
         chain,
       }
+
       window.removeEventListener('beforeunload', handleRejectBtnClick)
-      await setBetaCW20Tokens(payload.contractAddress, cw20Token, chain)
+      await betaCW20DenomsStore.setBetaCW20Denoms(payload.contractAddress, cw20Token, chain)
+
+      const enabledCW20Tokens = enabledCW20DenomsStore.getEnabledCW20DenomsForChain(chain)
+      const _enabledCW20Tokens = [...enabledCW20Tokens, payload.contractAddress]
+      await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Tokens, chain)
     }
     window.removeEventListener('beforeunload', handleRejectBtnClick)
     await Browser.storage.local.set({
@@ -197,7 +206,11 @@ function SuggestSecret({ handleRejectBtnClick }: ChildrenParams) {
       await Browser.storage.local.remove([SUGGEST_TOKEN])
       await Browser.storage.local.remove(BG_RESPONSE)
       setIsLoading(false)
-      window.close()
+      if (isSidePanel()) {
+        navigate('/home')
+      } else {
+        window.close()
+      }
     }, 50)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -214,6 +227,7 @@ function SuggestSecret({ handleRejectBtnClick }: ChildrenParams) {
     payload.type,
     payload.viewingKey,
     secretTokens,
+    navigate,
     setBetaCW20Tokens,
     setSnip20Tokens,
     verifyViewingKeyOnChange,
@@ -302,7 +316,7 @@ function SuggestSecret({ handleRejectBtnClick }: ChildrenParams) {
       </Footer>
     </>
   )
-}
+})
 
 export default function SuggestSecretWrapper() {
   return (

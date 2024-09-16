@@ -1,8 +1,4 @@
-import { DEFAULT_STD_FEE } from '@injectivelabs/sdk-ts';
-
 import { SupportedChain } from './chain-infos';
-
-export const INJECTIVE_DEFAULT_STD_FEE = DEFAULT_STD_FEE;
 
 export const defaultGasPriceStep = {
   low: 0.01,
@@ -119,4 +115,8 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   saga: DefaultGasEstimates,
   initia: DefaultGasEstimates,
   humans: DefaultGasEstimates,
+  lava: DefaultGasEstimates,
+  mantra: DefaultGasEstimates,
+  ethereum: DefaultGasEstimates,
+  forma: DefaultGasEstimates,
 };

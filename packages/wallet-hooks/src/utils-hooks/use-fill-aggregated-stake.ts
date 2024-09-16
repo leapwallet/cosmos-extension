@@ -1,4 +1,4 @@
-import { getChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, getChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 
@@ -17,12 +17,13 @@ import { useChainId, useIsFeatureExistForChain } from './index';
 const NETWORK = 'mainnet';
 
 export function useFillAggregatedStake(
+  denoms: DenomsRecord,
   chain: SupportedChain,
   setAggregatedStake: (aggregatedStake: AggregatedStake) => void,
 ) {
   const { lcdUrl } = useChainApis(chain, NETWORK);
   const address = useAddress(chain);
-  const [activeStakingDenom] = useActiveStakingDenom(chain);
+  const [activeStakingDenom] = useActiveStakingDenom(denoms, chain);
   const chainId = useChainId(chain, NETWORK);
   const [preferredCurrency] = useUserPreferredCurrency();
   const chains = useGetChains();
@@ -100,6 +101,7 @@ export function useFillAggregatedStake(
           preferredCurrency,
           chainInfos: chains,
           getIbcDenomInfo,
+          activeStakingDenom,
         }),
       ]);
 

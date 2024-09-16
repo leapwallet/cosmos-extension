@@ -19,6 +19,8 @@ import mixpanel from 'mixpanel-browser'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useSetRecoilState } from 'recoil'
+import { chainInfoStore } from 'stores/chain-infos-store'
+import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -72,6 +74,7 @@ export default function AddFromChainStore({
     setIsLoading(true)
     setChainInfos({ ...chainInfos, [newChainKey]: newAddChain })
     setChains({ ...chainInfos, [newChainKey]: newAddChain })
+    rootStore.setChains({ ...chainInfos, [newChainKey]: newAddChain })
     await sleep(500)
 
     browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {

@@ -12,6 +12,7 @@ export async function handleInjectiveTx(
   _encodedMessage: { typeUrl: string; value: MsgTransfer | MsgExecuteContract },
   senderAddress: string,
   fee: StdFee,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rawMessage: { typeUrl: string; message: any },
 ) {
   const injectiveTx = new InjectiveTx(false, wallet, messageChain.restUrl)

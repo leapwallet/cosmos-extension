@@ -151,7 +151,7 @@ export default function CanvasTextBox({
   return (
     <div
       className={classNames(
-        'rounded-2xl dark:bg-gray-900 bg-white-100 text-xs font-medium box-border font-Satoshi',
+        'rounded-2xl dark:bg-gray-900 bg-white-100 text-xs font-medium box-border font-Satoshi max-[350px]:!px-1',
         {
           'h-[184px]': textLength !== 24,
           'h-[328px]': textLength === 24,

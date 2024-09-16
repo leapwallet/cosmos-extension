@@ -1,6 +1,8 @@
+import { NftStore } from '@leapwallet/cosmos-wallet-store'
 import classNames from 'classnames'
 import { useFavNFTs, useHiddenNFTs } from 'hooks/settings'
 import React, { ReactNode, useLayoutEffect, useMemo } from 'react'
+import { nftStore } from 'stores/nft-store'
 
 import { useNftContext } from '../context'
 import { Chip } from './index'
@@ -41,12 +43,14 @@ function ChainChip({ isActive, title, children, onClick }: ChainChipProps) {
 type ChainChipsProps = {
   // eslint-disable-next-line no-unused-vars
   handleTabClick: (selectedTab: string) => void
+  nftStore: NftStore
 }
 
 export function ChainChips({ handleTabClick }: ChainChipsProps) {
   const hiddenNfts = useHiddenNFTs()
   const favNfts = useFavNFTs()
-  const { _collectionData, activeTab, setActiveTab } = useNftContext()
+  const { activeTab, setActiveTab } = useNftContext()
+  const _collectionData = nftStore.getVisibleCollectionData(hiddenNfts)
 
   const chips = useMemo(() => {
     const _chips = ['All']

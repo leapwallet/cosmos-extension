@@ -9,6 +9,7 @@ import {
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
+import { ArrowSquareOut } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { CopyAddressCard } from 'components/card'
@@ -17,20 +18,23 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
-import React, { useMemo, useRef, useState } from 'react'
+import React, { Dispatch, SetStateAction, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
 type LinkAddressesSheetProps = {
   isVisible: boolean
   onClose: (refetch?: boolean) => void
   walletAddresses: string[]
+  setIsToAddLinkAddressNudgeText: Dispatch<SetStateAction<boolean>>
 }
 
 export function LinkAddressesSheet({
   isVisible,
   onClose,
   walletAddresses,
+  setIsToAddLinkAddressNudgeText,
 }: LinkAddressesSheetProps) {
   const getWallet = Wallet.useGetWallet()
   const [error, setError] = useState<string>()
@@ -50,7 +54,8 @@ export function LinkAddressesSheet({
     setShowLoadingMessage('')
 
     if (showRefreshText) {
-      window.location.href = Browser.runtime.getURL('/index.html#/home')
+      const homePageUrl = isSidePanel() ? `/sidepanel.html#/home` : `/index.html#/home`
+      window.location.href = Browser.runtime.getURL(homePageUrl)
       window.location.reload()
     } else if (featureFlags?.link_evm_address?.extension === 'redirect') {
       const dAppLink = (await getSeiEvmInfo({
@@ -72,7 +77,10 @@ export function LinkAddressesSheet({
 
         await updateAddressLinkState({
           setError,
-          onClose,
+          onClose: (refetch?: boolean) => {
+            setIsToAddLinkAddressNudgeText(false)
+            onClose(refetch)
+          },
           ethAddress: walletAddresses[0],
           token: result.response,
           setShowLoadingMessage,
@@ -81,7 +89,14 @@ export function LinkAddressesSheet({
         setHCaptchaError('Failed to verify captcha. Please try again.')
       }
     } else {
-      await updateAddressLinkState({ setError, onClose, ethAddress: walletAddresses[0] })
+      await updateAddressLinkState({
+        setError,
+        onClose: (refetch?: boolean) => {
+          setIsToAddLinkAddressNudgeText(false)
+          onClose(refetch)
+        },
+        ethAddress: walletAddresses[0],
+      })
     }
   }
 
@@ -98,7 +113,7 @@ export function LinkAddressesSheet({
       return (
         <span className='flex items-center gap-1'>
           Link Addresses
-          <span className='!leading-[20px] !text-lg material-icons-round'>open_in_new</span>
+          <ArrowSquareOut size={20} className='!leading-[20px]' />
         </span>
       )
     }

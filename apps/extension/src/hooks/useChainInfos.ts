@@ -4,6 +4,7 @@ import { chainInfosState } from 'atoms/chains'
 import { BETA_CHAINS, CUSTOM_ENDPOINTS } from 'config/storage-keys'
 import { useEffect } from 'react'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { chainInfoStore } from 'stores/chain-infos-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
@@ -127,6 +128,7 @@ export function useInitChainInfos() {
 
         setChainInfos(_chains)
         setChains(_chains)
+        chainInfoStore.setChainInfos(_chains)
       })
     }
 

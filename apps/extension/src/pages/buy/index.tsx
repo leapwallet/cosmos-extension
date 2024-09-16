@@ -1,6 +1,7 @@
 import { formatTokenAmount, useDebounce } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { ArrowSquareOut } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import BigNumber from 'bignumber.js'
 import PopupLayout from 'components/layout/popup-layout'
@@ -22,7 +23,9 @@ import { convertObjInQueryParams } from 'pages/home/utils'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
+import { Colors } from 'theme/colors'
 import { getCountryLogo } from 'utils/getCountryLogo'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { removeLeadingZeroes } from 'utils/strings'
 
 import SelectAssetSheet from './components/SelectAssetSheet'
@@ -90,6 +93,13 @@ const Buy = () => {
         }
       } catch (error) {
         captureException(error)
+
+        const message = error instanceof Error ? error.message : 'An error occurred'
+        if (message.toLowerCase().includes('timeout')) {
+          setError('Request timed out. Unable to fetch quote.')
+        } else {
+          setError(message)
+        }
       } finally {
         setLoadingQuote(false)
       }
@@ -207,172 +217,168 @@ const Buy = () => {
   ])
 
   return (
-    <div>
-      <motion.div className='relative h-full w-full'>
-        <PopupLayout
-          header={
-            <Header
-              action={{
-                onClick: () => navigate(-1),
-                type: HeaderActionType.BACK,
-              }}
-              imgSrc={undefined}
-              title='Buy'
-              topColor={themeColor}
-            />
-          }
-        >
-          <div className='flex flex-col justify-between' style={{ height: 'calc(100% - 72px)' }}>
-            <div>
-              <div className='p-4 space-y-4 overflow-y-auto'>
-                <motion.div className={`card-container`}>
-                  <div className='flex w-full items-center justify-between mb-3'>
-                    <Text size='sm' className='text-gray-600 dark:text-gray-200 font-bold'>
-                      You Pay
-                    </Text>
-                  </div>
+    <motion.div className='relative h-full w-full'>
+      <PopupLayout
+        header={
+          <Header
+            action={{
+              onClick: () => navigate(-1),
+              type: HeaderActionType.BACK,
+            }}
+            imgSrc={undefined}
+            title='Buy'
+            topColor={themeColor}
+          />
+        }
+      >
+        <div className='flex flex-col justify-between' style={{ height: 'calc(100% - 72px)' }}>
+          <div>
+            <div className='p-4 space-y-4 overflow-y-auto'>
+              <motion.div className={`card-container dark:bg-gray-950`}>
+                <div className='flex w-full items-center justify-between mb-3'>
+                  <Text size='sm' className='text-gray-600 dark:text-gray-200 font-bold'>
+                    You Pay
+                  </Text>
+                </div>
 
-                  <div
-                    className={`border border-gray-50 dark:border-gray-900 bg-gray-50 dark:bg-gray-900 rounded-lg focus-within:${
-                      error ? 'border-red-300' : 'border-green-600'
-                    } dark:focus-within:${
-                      error ? 'border-red-300' : 'border-green-600'
-                    } flex w-full justify-between items-center px-4`}
-                  >
-                    <input
-                      className=' bg-gray-50 dark:bg-gray-900 text-md outline-none font-bold text-black-100 dark:text-white-100 py-2'
-                      value={payFiatAmount}
-                      onChange={(e) => {
-                        setError(null)
-                        const val = e.target.value
-                        const amount = removeLeadingZeroes(val)
-                        if (parseFloat(amount) < 0) {
-                          setError('Please enter a valid positive number.')
-                        } else {
-                          setPayFiatAmount(amount)
-                        }
-                      }}
-                      type='number'
-                      placeholder={'Amount'}
-                      ref={inputAmountRef}
-                    />
-                    <SelectCurrencyButton
-                      onClick={() => setShowSelectCurrencySheet(true)}
-                      logo={getCountryLogo(selectedCurrency)}
-                      title={selectedCurrency}
-                    />
-                  </div>
-                  {error && (
-                    <Text size='xs' className='text-red-600 dark:text-red-300 pt-1.5'>
-                      {error}
-                    </Text>
-                  )}
-                </motion.div>
-
-                <motion.div className={`card-container`}>
-                  <div className='flex w-full items-center justify-between mb-3'>
-                    <Text size='sm' className='text-gray-600 dark:text-gray-200 font-bold'>
-                      You Get
-                    </Text>
-                  </div>
-
-                  {selectedAsset && (
-                    <div className='border border-gray-50 dark:border-gray-900 bg-gray-50 dark:bg-gray-900 rounded-lg flex w-full justify-between items-center px-4'>
-                      {!loadingQuote && (
-                        <Text size='md' className='font-bold text-black-100 dark:text-white-100'>
-                          {parseFloat(getAssetAmount) * 10000 > 0
-                            ? formatTokenAmount(getAssetAmount, undefined, 4)
-                            : getAssetAmount}
-                        </Text>
-                      )}
-                      {loadingQuote && (
-                        <div className='w-[50px] z-0'>
-                          <Skeleton className='rounded-full bg-gray-50 dark:bg-gray-800' />
-                        </div>
-                      )}
-                      <SelectAssetButton
-                        onClick={() => setShowSelectTokenSheet(true)}
-                        logo={selectedAsset.assetImg}
-                        chainImg={selectedAsset.chainSymbolImageUrl}
-                        title={selectedAsset.symbol}
-                        subtitle={selectedAsset.chainName}
-                      />
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-            </div>
-
-            <div className='mt-auto mb-4'>
-              <div className='flex items-center justify-center'>
-                <Text
-                  size='sm'
-                  className='text-gray-600 dark:text-gray-200 text-center font-extrabold'
+                <div
+                  className={`border border-transparent bg-gray-50 dark:bg-gray-900 rounded-lg focus-within:${
+                    error ? 'border-red-300' : 'border-green-600'
+                  } dark:focus-within:${
+                    error ? 'border-red-300' : 'border-green-600'
+                  } flex w-full justify-between items-center px-4`}
                 >
-                  Powered by Kado
-                </Text>
-                <img
-                  src={theme === ThemeName.DARK ? kadoLightLogo : kadoDarkLogo}
-                  className='w-[28px] h-[28px] rounded-full dark:border-[#333333] border-[#cccccc]'
-                />
-              </div>
-              <div className='flex items-center justify-center mt-auto'>
-                <Text size='xs' className='text-gray-600 dark:text-gray-200 text-center mb-2'>
-                  You&apos;ll be redirected to Kado&apos;s website for this transaction
-                </Text>
-              </div>
-              <div className='flex w-full justify-center'>
-                <Buttons.Generic
-                  size='normal'
-                  color={error ? '#FF707E' : '#29A874'}
-                  onClick={handleBuyClick}
-                  disabled={
-                    !new BigNumber(getAssetAmount).isGreaterThan(0) ||
-                    loadingQuote ||
-                    isString(error)
-                  }
-                >
-                  <div className='flex'>
-                    <span>Buy</span>
-                    <span className='material-icons-outlined ml-1.5'>open_in_new</span>
+                  <input
+                    className=' bg-gray-50 dark:bg-gray-900 text-md outline-none font-bold text-black-100 dark:text-white-100 py-2'
+                    value={payFiatAmount}
+                    onChange={(e) => {
+                      setError(null)
+                      const val = e.target.value
+                      const amount = removeLeadingZeroes(val)
+                      if (parseFloat(amount) < 0) {
+                        setError('Please enter a valid positive number.')
+                      } else {
+                        setPayFiatAmount(amount)
+                      }
+                    }}
+                    type='number'
+                    placeholder={'Amount'}
+                    ref={inputAmountRef}
+                  />
+                  <SelectCurrencyButton
+                    onClick={() => setShowSelectCurrencySheet(true)}
+                    logo={getCountryLogo(selectedCurrency)}
+                    title={selectedCurrency}
+                  />
+                </div>
+                {error && (
+                  <Text size='xs' className='text-red-600 dark:text-red-300 pt-1.5'>
+                    {error}
+                  </Text>
+                )}
+              </motion.div>
+
+              <motion.div className={`card-container dark:bg-gray-950`}>
+                <div className='flex w-full items-center justify-between mb-3'>
+                  <Text size='sm' className='text-gray-600 dark:text-gray-200 font-bold'>
+                    You Get
+                  </Text>
+                </div>
+
+                {selectedAsset && (
+                  <div className='border border-gray-50 dark:border-gray-900 bg-gray-50 dark:bg-gray-900 rounded-lg flex w-full justify-between items-center px-4'>
+                    {!loadingQuote && (
+                      <Text size='md' className='font-bold text-black-100 dark:text-white-100'>
+                        {parseFloat(getAssetAmount) * 10000 > 0
+                          ? formatTokenAmount(getAssetAmount, undefined, 4)
+                          : getAssetAmount}
+                      </Text>
+                    )}
+                    {loadingQuote && (
+                      <div className='w-[50px] z-0'>
+                        <Skeleton className='rounded-full bg-gray-50 dark:bg-gray-800' />
+                      </div>
+                    )}
+                    <SelectAssetButton
+                      onClick={() => setShowSelectTokenSheet(true)}
+                      logo={selectedAsset.assetImg}
+                      chainImg={selectedAsset.chainSymbolImageUrl}
+                      title={selectedAsset.symbol}
+                      subtitle={selectedAsset.chainName}
+                    />
                   </div>
-                </Buttons.Generic>
-              </div>
+                )}
+              </motion.div>
             </div>
           </div>
-        </PopupLayout>
 
-        <SelectCurrencySheet
-          isVisible={showSelectCurrencySheet}
-          onClose={() => setShowSelectCurrencySheet(false)}
-          onCurrencySelect={(currency) => {
-            setSelectedCurrency(currency)
-            setShowSelectCurrencySheet(false)
-            if (inputAmountRef.current) {
-              ;(inputAmountRef.current as HTMLElement).focus()
-            }
-          }}
-        />
+          <div className='mx-4 mt-auto mb-4'>
+            <div className='flex items-center justify-center'>
+              <Text
+                size='sm'
+                className='text-gray-600 dark:text-gray-200 text-center font-extrabold'
+              >
+                Powered by Kado
+              </Text>
+              <img
+                src={theme === ThemeName.DARK ? kadoLightLogo : kadoDarkLogo}
+                className='w-[28px] h-[28px] rounded-full dark:border-[#333333] border-[#cccccc]'
+              />
+            </div>
+            <div className='flex items-center justify-center mt-auto'>
+              <Text size='xs' className='text-gray-600 dark:text-gray-200 text-center mb-2'>
+                You&apos;ll be redirected to Kado&apos;s website for this transaction
+              </Text>
+            </div>
+            <div className='flex w-full justify-center'>
+              <Buttons.Generic
+                size='normal'
+                color={error ? '#FF707E' : !isCompassWallet() ? '#29A874' : Colors.compassPrimary}
+                onClick={handleBuyClick}
+                disabled={
+                  !new BigNumber(getAssetAmount).isGreaterThan(0) || loadingQuote || isString(error)
+                }
+              >
+                <div className='flex items-center'>
+                  <span>Buy</span>
+                  <ArrowSquareOut size={16} weight='bold' className='ml-1.5' />
+                </div>
+              </Buttons.Generic>
+            </div>
+          </div>
+        </div>
+      </PopupLayout>
 
-        <SelectAssetSheet
-          isVisible={showSelectTokenSheet}
-          onClose={() => {
-            if (!selectedAsset) {
-              navigate(-1)
-            } else {
-              setShowSelectTokenSheet(false)
-            }
-          }}
-          onAssetSelect={(asset) => {
-            setSelectedAsset(asset)
+      <SelectCurrencySheet
+        isVisible={showSelectCurrencySheet}
+        onClose={() => setShowSelectCurrencySheet(false)}
+        onCurrencySelect={(currency) => {
+          setSelectedCurrency(currency)
+          setShowSelectCurrencySheet(false)
+          if (inputAmountRef.current) {
+            ;(inputAmountRef.current as HTMLElement).focus()
+          }
+        }}
+      />
+
+      <SelectAssetSheet
+        isVisible={showSelectTokenSheet}
+        onClose={() => {
+          if (!selectedAsset) {
+            navigate(-1)
+          } else {
             setShowSelectTokenSheet(false)
-            if (inputAmountRef.current) {
-              ;(inputAmountRef.current as HTMLElement).focus()
-            }
-          }}
-        />
-      </motion.div>
-    </div>
+          }
+        }}
+        onAssetSelect={(asset) => {
+          setSelectedAsset(asset)
+          setShowSelectTokenSheet(false)
+          if (inputAmountRef.current) {
+            ;(inputAmountRef.current as HTMLElement).focus()
+          }
+        }}
+      />
+    </motion.div>
   )
 }
 

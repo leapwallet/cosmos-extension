@@ -9,7 +9,7 @@ type Props = {
 
 export default function CreateWalletInput({ value, onChange }: Props) {
   return (
-    <div className={classNames('flex relative justify-center shrink w-[312px]')}>
+    <div className={classNames('flex relative justify-center shrink w-full')}>
       <Input
         data-testing-id='input-enter-wallet-name'
         placeholder='Enter wallet Name'

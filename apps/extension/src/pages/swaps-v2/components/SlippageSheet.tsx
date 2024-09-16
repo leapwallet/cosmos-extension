@@ -1,4 +1,5 @@
 import { Buttons } from '@leapwallet/leap-ui'
+import { Info, Warning } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -33,6 +34,8 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
         inputRef.current?.focus()
       }
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   useEffect(() => {
@@ -73,11 +76,8 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
           <h1 className='text-[18px] text-black-100 dark:text-white-100 !leading-[24.3px] font-bold'>
             Max. Slippage
           </h1>
-          <button
-            onClick={onSlippageInfoClick}
-            className='dark:text-gray-400 text-gray-600 text-lg leading-[20px] material-icons-round'
-          >
-            info_outline
+          <button onClick={onSlippageInfoClick} className='dark:text-gray-400 text-gray-600'>
+            <Info size={20} />
           </button>
         </div>
       }
@@ -89,8 +89,8 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
           <span className='dark:text-white-100 text-sm !leading-[19.6px] font-bold text-black-100'>
             Select a slippage value
           </span>
-          <div className='flex flex-col gap-2 justify-start items-start w-full p-2 bg-gray-100 dark:bg-gray-850 rounded-2xl'>
-            <div className='flex flex-row w-full justify-between items-center gap-4'>
+          <div className='flex flex-col gap-2 justify-start items-start w-full p-2 bg-gray-100 dark:bg-gray-850 rounded-2xl hide-scrollbar overflow-scroll'>
+            <div className='flex flex-row w-full justify-between items-center'>
               {SLIPPAGE_OPTIONS.map((option) => (
                 <button
                   key={option}
@@ -152,14 +152,13 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
           </div>
           {slippageRemarks && (
             <div className='flex flex-row w-full justify-start items-start gap-2'>
-              <span
-                className={classNames('material-icons-round !text-md !leading-[16px]', {
+              <Warning
+                size={16}
+                className={classNames('!leading-[16px]', {
                   'text-orange-500 dark:text-orange-300': slippageRemarks.color === 'orange',
                   'text-red-400 dark:text-red-300': slippageRemarks.color === 'red',
                 })}
-              >
-                warning
-              </span>
+              />
               <span
                 className={classNames('font-medium text-xs !leading-[19.2px]', {
                   'text-orange-500 dark:text-orange-300': slippageRemarks.color === 'orange',

@@ -1,19 +1,14 @@
+import { Token } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
-  bankQueryIds,
-  currencyDetail,
-  fetchCurrency,
-  useAddress,
-  useAutoFetchedCW20Tokens,
-  useBetaCW20Tokens,
-  useChainApis,
-  useCW20Tokens,
-  useDisabledCW20Tokens,
-  useEnabledCW20Tokens,
-  useUserPreferredCurrency,
-} from '@leapwallet/cosmos-wallet-hooks'
-import { fetchCW20Balances, fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import BigNumber from 'bignumber.js'
+  AutoFetchedCW20DenomsStore,
+  BetaCW20DenomsStore,
+  CW20DenomBalanceStore,
+  CW20DenomsStore,
+  DisabledCW20DenomsStore,
+  EnabledCW20DenomsStore,
+} from '@leapwallet/cosmos-wallet-store'
+import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
@@ -22,29 +17,38 @@ import { SWAP_NETWORK } from './useSwapsTx'
 export function useTokenWithBalances(
   token: SourceToken | null,
   chain: SourceChain | undefined,
+  autoFetchedCW20DenomsStore: AutoFetchedCW20DenomsStore,
+  betaCW20DenomsStore: BetaCW20DenomsStore,
+  cw20DenomsStore: CW20DenomsStore,
+  disabledCW20DenomsStore: DisabledCW20DenomsStore,
+  enabledCW20DenomsStore: EnabledCW20DenomsStore,
+  cw20DenomBalanceStore: CW20DenomBalanceStore,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): { data: any; status: any } {
-  const disabledCW20Tokens = useDisabledCW20Tokens(chain?.key ?? undefined)
-  const enabledCW20Tokens = useEnabledCW20Tokens(chain?.key ?? undefined)
-  const cw20Tokens = useCW20Tokens(chain?.key ?? undefined)
-  const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens(chain?.key ?? undefined)
-  const betaCw20Tokens = useBetaCW20Tokens(chain?.key ?? undefined)
-  const queryClient = useQueryClient()
-  const { rpcUrl } = useChainApis(chain?.key ?? undefined, SWAP_NETWORK)
-  const [preferredCurrency] = useUserPreferredCurrency()
+  const disabledCW20Tokens = disabledCW20DenomsStore.getDisabledCW20DenomsForChain(
+    (chain?.key ?? '') as SupportedChain,
+  )
+  const enabledCW20Tokens = enabledCW20DenomsStore.getEnabledCW20DenomsForChain(
+    (chain?.key ?? '') as SupportedChain,
+  )
+  const cw20Tokens = cw20DenomsStore.getCW20DenomsForChain((chain?.key ?? '') as SupportedChain)
+  const betaCw20Tokens = betaCW20DenomsStore.getBetaCW20DenomsForChain(
+    (chain?.key ?? '') as SupportedChain,
+  )
+  const autoFetchedCW20Denoms = autoFetchedCW20DenomsStore.getAutoFetchedCW20DenomsForChain(
+    (chain?.key ?? '') as SupportedChain,
+  )
 
-  const preferredCurrencyPointer = currencyDetail[preferredCurrency].currencyPointer
-
-  const address = useAddress(chain?.key ?? undefined)
   /**
    * Managed Tokens Coin Minimal Denoms
    */
   const managedTokens = useMemo(() => {
     return [
       ...Object.values(cw20Tokens),
-      ...Object.values(autoFetchedCW20Tokens),
+      ...Object.values(autoFetchedCW20Denoms),
       ...Object.values(betaCw20Tokens ?? {}),
     ].map((token) => token.coinMinimalDenom)
-  }, [autoFetchedCW20Tokens, betaCw20Tokens, cw20Tokens])
+  }, [autoFetchedCW20Denoms, betaCw20Tokens, cw20Tokens])
 
   const { data, status } = useQuery(
     [
@@ -61,7 +65,7 @@ export function useTokenWithBalances(
       if (
         !(
           disabledCW20Tokens.includes(token.coinMinimalDenom) ||
-          (Object.keys(autoFetchedCW20Tokens).includes(token.coinMinimalDenom) &&
+          (Object.keys(autoFetchedCW20Denoms).includes(token.coinMinimalDenom) &&
             !enabledCW20Tokens?.includes(token.coinMinimalDenom))
         )
       ) {
@@ -69,45 +73,28 @@ export function useTokenWithBalances(
       }
 
       try {
-        let balances: any[]
+        let balances: Token[]
         if (token?.coinMinimalDenom) {
-          balances = await fetchCW20Balances(rpcUrl ?? '', address, [token?.coinMinimalDenom ?? ''])
+          balances =
+            (await cw20DenomBalanceStore.fetchCW20TokenBalances(
+              chain.key,
+              SWAP_NETWORK,
+              [token?.coinMinimalDenom ?? ''],
+              true,
+            )) ?? []
         } else {
           balances = []
         }
+
         if (!balances?.length) return token
 
-        const balance = balances?.[0]
-        queryClient.setQueryData(
-          [
-            `${chain?.key}-${bankQueryIds.cw20TokenBalancesRaw}`,
-            chain?.key,
-            address,
-            [token?.coinMinimalDenom],
-          ],
-          balances,
-        )
-
-        const amount = fromSmall(new BigNumber(balance.amount).toString(), token?.coinDecimals)
-
-        let usdPrice
-        try {
-          usdPrice = await fetchCurrency(
-            '1',
-            token?.coinGeckoId,
-            (token?.chain ?? '') as SupportedChain,
-            preferredCurrencyPointer,
-            `${chain?.chainId}-${token?.coinMinimalDenom}`,
-          )
-        } catch (error) {
-          //
-        }
+        const [tokenBalance] = balances
 
         return {
           ...token,
-          amount,
-          usdPrice,
-          usdValue: usdPrice ? new BigNumber(amount).multipliedBy(usdPrice).toString() : undefined,
+          amount: tokenBalance?.amount,
+          usdPrice: tokenBalance?.usdPrice,
+          usdValue: tokenBalance?.usdValue,
         }
       } catch (error) {
         return token

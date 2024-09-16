@@ -1,9 +1,15 @@
+import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
 import { useSendContext } from 'pages/send-v2/context'
 import React from 'react'
 
 export const Memo: React.FC = () => {
-  const { memo, setMemo, addressWarning } = useSendContext()
+  const { memo, setMemo, addressWarning, sendActiveChain } = useSendContext()
+  const chains = useGetChains()
+
+  if (chains?.[sendActiveChain]?.evmOnlyChain) {
+    return null
+  }
 
   return (
     <div

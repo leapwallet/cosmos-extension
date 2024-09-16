@@ -1,5 +1,6 @@
 import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -26,7 +27,6 @@ type TokenInputCardProps = {
   isInputInUSDC: boolean
   setIsInputInUSDC: Dispatch<SetStateAction<boolean>>
   value: string
-  placeholder?: string
   token?: SourceToken | null
   balanceStatus?: QueryStatus
   chainName?: string
@@ -48,7 +48,6 @@ export function TokenInputCard({
   setIsInputInUSDC,
   readOnly,
   value,
-  placeholder,
   token,
   chainName,
   chainLogo,
@@ -84,6 +83,8 @@ export function TokenInputCard({
     if (showFor === 'source' && !selectedAssetUSDPrice && isInputInUSDC) {
       setIsInputInUSDC(false)
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAssetUSDPrice, isInputInUSDC])
 
   const { dollarAmount, formattedDollarAmount } = useMemo(() => {
@@ -153,19 +154,19 @@ export function TokenInputCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textInputValue, isInputInUSDC, selectedAssetUSDPrice])
 
-  const handleInputFocus = () => {
+  const handleInputFocus = useCallback(() => {
     if (!readOnly) {
       setIsFocused(true)
     }
-  }
+  }, [readOnly, setIsFocused])
 
-  const handleInputBlur = () => {
+  const handleInputBlur = useCallback(() => {
     if (!readOnly) {
       setIsFocused(false)
     }
-  }
+  }, [readOnly, setIsFocused])
 
-  const onMaxBtnClick = () => {
+  const onMaxBtnClick = useCallback(() => {
     if (isInputInUSDC) {
       if (!selectedAssetUSDPrice) throw 'USD price is not available'
 
@@ -174,7 +175,7 @@ export function TokenInputCard({
     } else {
       setTextInputValue(token?.amount ?? '0')
     }
-  }
+  }, [isInputInUSDC, selectedAssetUSDPrice, token?.amount, setTextInputValue])
 
   const handleInputTypeSwitchClick = useCallback(() => {
     if (!selectedAssetUSDPrice) {
@@ -190,7 +191,7 @@ export function TokenInputCard({
       const usdAmount = new BigNumber(textInputValue).multipliedBy(selectedAssetUSDPrice)
       setTextInputValue(usdAmount.toString())
     }
-  }, [isInputInUSDC, selectedAssetUSDPrice, textInputValue])
+  }, [isInputInUSDC, selectedAssetUSDPrice, setIsInputInUSDC, textInputValue])
 
   return (
     <div
@@ -224,9 +225,7 @@ export function TokenInputCard({
                 onError={imgOnError(defaultTokenLogo)}
               />
               <p className='dark:text-white-100 text-xs font-bold'>{chainName ?? 'Select Chain'}</p>
-              <p className='!text-lg material-icons-round dark:text-white-100 flex items-center'>
-                expand_more
-              </p>
+              <CaretDown size={14} className='dark:text-white-100' />
             </button>
           ))}
       </div>
@@ -262,7 +261,7 @@ export function TokenInputCard({
               <input
                 type='number'
                 className='bg-transparent outline-none w-full text-left dark:text-white-100 placeholder:font-bold placeholder:text-[18px] placeholder:text-gray-400 font-bold text-[18px]'
-                placeholder={isFocused && showFor === 'source' ? '' : placeholder}
+                placeholder={isFocused && showFor === 'source' ? '' : '0'}
                 readOnly={readOnly}
                 value={showFor === 'source' ? textInputValue : isInputInUSDC ? dollarAmount : value}
                 ref={inputRef}
@@ -290,18 +289,16 @@ export function TokenInputCard({
               >
                 {token?.symbol ? sliceWord(token?.symbol ?? '', 4, 4) : 'Select Token'}
               </p>
-              <p className='!text-lg material-icons-round dark:text-white-100 flex items-center'>
-                expand_more
-              </p>
+              <CaretDown size={14} className='dark:text-white-100' />
             </button>
           </>
         )}
       </div>
 
-      <div className='flex flex-row items-center justify-between text-gray-200 text-xs font-normal w-full h-[24px]'>
+      <div className='flex flex-row items-center justify-between max-[399px]:!items-start text-gray-200 text-xs font-normal w-full min-h-[24px]'>
         <div className='flex items-center gap-1'>
           {value !== '' && (
-            <span className='text-gray-800 dark:text-gray-200 font-normal text-xs'>
+            <span className='text-gray-800 dark:text-gray-200 font-normal text-xs !leading-[24px]'>
               {isInputInUSDC ? formattedInputValue : formattedDollarAmount}
             </span>
           )}
@@ -310,7 +307,7 @@ export function TokenInputCard({
               disabled={switchToUSDDisabled}
               onClick={handleInputTypeSwitchClick}
               className={classNames(
-                'rounded-full h-6 bg-gray-50 dark:bg-gray-900 items-center flex gap-1 justify-center',
+                'rounded-full h-6 bg-gray-50 dark:bg-gray-900 items-center flex gap-1 justify-center shrink-0',
                 {
                   'opacity-50 pointer-events-none': switchToUSDDisabled,
                   'w-6': value !== '',
@@ -323,16 +320,17 @@ export function TokenInputCard({
                   Switch to {isInputInUSDC ? 'Token' : 'USD'}
                 </span>
               )}
-              <span className='text-black-100 dark:text-white-100 material-icons-round !text-xs !leading-[12px]'>
-                swap_vert
-              </span>
+              <ArrowsLeftRight
+                size={12}
+                className='text-black-100 dark:text-white-100 !leading-[12px] rotate-90'
+              />
             </button>
           )}
         </div>
 
-        <div className='flex justify-end items-center gap-2'>
+        <div className='flex justify-end items-center gap-2 max-[399px]:flex-col max-[399px]:justify-start max-[399px]:!items-end'>
           <span
-            className={classNames({
+            className={classNames('!leading-[24px]', {
               'text-red-400 dark:text-red-300': amountError,
               'text-gray-800 dark:text-gray-200': !amountError,
             })}

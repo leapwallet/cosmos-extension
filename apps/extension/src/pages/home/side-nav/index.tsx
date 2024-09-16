@@ -1,4 +1,5 @@
 import { useActiveChain, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import {
   CardDivider,
   NavCard,
@@ -18,11 +19,14 @@ import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurr
 import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { ReactElement, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { chainTagsStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { DEBUG } from 'utils/debug'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import { capitalize } from 'utils/strings'
 import browser from 'webextension-polyfill'
 
@@ -92,7 +96,7 @@ export function OverflowSideNavSection({ children }: { children: ReactNode }) {
   return <div className='rounded-2xl mt-4 min-h-fit'>{children}</div>
 }
 
-export default function SideNav({ isShown, toggler }: SideNavProps): ReactElement {
+const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
   const { theme } = useTheme()
   const currentNetwork = useSelectedNetwork()
   const [showGSDropUp, setShowGSDropUp] = useState(false)
@@ -270,7 +274,12 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
           </div>
         )
       case NavPages.ChangeEndpoints:
-        return <CustomEndpoints goBack={() => setShowNavPage(undefined)} />
+        return (
+          <CustomEndpoints
+            goBack={() => setShowNavPage(undefined)}
+            chainTagsStore={chainTagsStore}
+          />
+        )
     }
   }, [showNavPage])
 
@@ -306,7 +315,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
       data-testing-id='side-nav'
       ref={containerRef}
       className={classnames(
-        'absolute left-0 top-0 w-[400px] overflow-clip overflow-y-auto rounded-[10px] max-h-[600px] z-[1000] transition-transform ease-in-out duration-500 dark:bg-black-100 bg-gray-50',
+        'absolute left-0 top-0 enclosing-panel panel-width panel-height overflow-clip overflow-y-auto rounded-[10px] z-[1000] transition-transform ease-in-out duration-500 dark:bg-black-100 bg-gray-50',
         {
           '-translate-x-[400px] ': !isShown,
           'translate-x-0': isShown,
@@ -319,6 +328,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
           goBack={() => {
             setShowGSDropUp(false)
           }}
+          chainTagsStore={chainTagsStore}
         />
       )}
       {showNavPage !== undefined && getPage()}
@@ -337,7 +347,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
         </div>
       )}
       {showNavPage === undefined && !showGSDropUp && (
-        <div className='flex flex-col h-full'>
+        <div className='flex flex-col h-full enclosing-panel'>
           <div className='fixed dark:bg-black-100 bg-gray-50'>
             <div className='w-full h-1' style={{ backgroundColor: topChainColor }} />
             <SideNavHeader
@@ -356,7 +366,7 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
             />
           </div>
           <div className='p-7 mt-[72px] overflow-scroll'>
-            {isInExpandView ? null : (
+            {isInExpandView || isSidePanel() ? null : (
               <NavCard
                 property='Expand View'
                 isRounded
@@ -446,4 +456,6 @@ export default function SideNav({ isShown, toggler }: SideNavProps): ReactElemen
       <ThemeDropUp isVisible={showThemeDropUp} onCloseHandler={() => setShowThemeDropUp(false)} />
     </div>
   )
-}
+})
+
+export default SideNav

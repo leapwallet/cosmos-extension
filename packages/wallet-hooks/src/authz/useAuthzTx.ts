@@ -1,6 +1,7 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, StdFee } from '@cosmjs/stargate';
 import {
+  DenomsRecord,
   GasPrice,
   getSimulationFee,
   NativeDenom,
@@ -8,11 +9,11 @@ import {
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { Coin } from '@leapwallet/parser-parfait';
 import { useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
+import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import {
   useActiveChain,
@@ -63,7 +64,7 @@ export type AuthzTxType = {
   selectedChainHasMainnetOnly: boolean;
 };
 
-export function useAuthzTx() {
+export function useAuthzTx({ denoms }: { denoms: DenomsRecord }) {
   const chainInfos = useGetChains();
   const { setPendingTx } = usePendingTxState();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
@@ -109,7 +110,8 @@ export function useAuthzTx() {
   }, [_activeChain, _selectedNetwork]);
 
   const activeChainId = useChainId(selectedChain, selectedNetwork);
-  const nativeFeeDenom = useNativeFeeDenom(selectedChain, selectedChainHasMainnetOnly ? 'mainnet' : undefined);
+
+  const nativeFeeDenom = useNativeFeeDenom(denoms, selectedChain, selectedChainHasMainnetOnly ? 'mainnet' : undefined);
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
   const activeAddress = useAddress(selectedChain);
   const { lcdUrl } = useChainApis(selectedChain, selectedChainHasMainnetOnly ? 'mainnet' : undefined);
@@ -119,7 +121,7 @@ export function useAuthzTx() {
   });
 
   const gasAdjustment = useGasAdjustmentForChain(selectedChain);
-  const gasPrices = useGasRateQuery(selectedChain, selectedChainHasMainnetOnly ? 'mainnet' : undefined);
+  const gasPrices = useGasRateQuery(denoms, selectedChain, selectedChainHasMainnetOnly ? 'mainnet' : undefined);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
 
   const onTxSuccess = async (promise: any, txHash: string, callback?: TxCallback) => {

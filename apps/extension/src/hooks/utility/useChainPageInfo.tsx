@@ -18,7 +18,7 @@ export function useChainPageInfo() {
       return Images.Misc.AggregatedViewSvg
     }
 
-    return chains[activeChain]?.chainSymbolImageUrl ?? defaultTokenLogo
+    return chains[activeChain]?.chainSymbolImageUrl || defaultTokenLogo
   }, [activeChain, chains, defaultTokenLogo])
 
   const gradientChainColor = useMemo(() => {

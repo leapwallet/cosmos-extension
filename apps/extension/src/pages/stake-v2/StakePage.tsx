@@ -1,11 +1,24 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  SelectedNetwork,
+  useActiveChain,
   useActiveStakingDenom,
+  useFeatureFlags,
   useLiquidStakingProviders,
+  useSelectedNetwork,
   useStaking,
-  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
+import {
+  ChainTagsStore,
+  ClaimRewardsStore,
+  DelegationsStore,
+  RootBalanceStore,
+  RootDenomsStore,
+  UndelegationsStore,
+  ValidatorsStore,
+} from '@leapwallet/cosmos-wallet-store'
 import { Buttons, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
@@ -15,16 +28,14 @@ import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
 import { AmountCardSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { walletLabels } from 'config/constants'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
-import { useChainPageInfo } from 'hooks'
+import { useChainPageInfo, useWalletInfo } from 'hooks'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
-import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SelectWallet from 'pages/home/SelectWallet'
 import SideNav from 'pages/home/side-nav'
@@ -33,7 +44,6 @@ import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
-import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import ClaimInfo from './components/ClaimInfo'
@@ -44,320 +54,480 @@ import SelectLSProvider from './components/SelectLSProvider'
 import StakeAmountCard from './components/StakeAmountCard'
 import StakeHeading from './components/StakeHeading'
 import TabList from './components/TabList'
+import LavaClaimInfo from './restaking/LavaClaimInfo'
+import { ReviewClaimLavaTx } from './restaking/ReviewClaimLavaTx'
 import { StakeInputPageState } from './StakeInputPage'
 
-export default function StakePage() {
-  const { headerChainImgSrc } = useChainPageInfo()
-  const dontShowSelectChain = useDontShowSelectChain()
-  const walletAddresses = useGetWalletAddresses()
-  const setActiveChain = useSetActiveChain()
+type StakePageProps = {
+  forceChain?: SupportedChain
+  forceNetwork?: SelectedNetwork
+  showBackAction?: boolean
+  onBackClick?: () => void
+  rootDenomsStore: RootDenomsStore
+  delegationsStore: DelegationsStore
+  validatorsStore: ValidatorsStore
+  unDelegationsStore: UndelegationsStore
+  claimRewardsStore: ClaimRewardsStore
+  rootBalanceStore: RootBalanceStore
+  chainTagsStore: ChainTagsStore
+}
 
-  const query = useQuery()
-  const paramValidatorAddress = query.get('validatorAddress') ?? undefined
-  const paramChainId = query.get('chainId') ?? undefined
-  const paramAction = query.get('action') ?? undefined
+const StakePage = observer(
+  ({
+    forceChain,
+    forceNetwork,
+    showBackAction,
+    onBackClick,
+    rootDenomsStore,
+    delegationsStore,
+    validatorsStore,
+    unDelegationsStore,
+    claimRewardsStore,
+    rootBalanceStore,
+    chainTagsStore,
+  }: StakePageProps) => {
+    const _activeChain = useActiveChain()
+    const setActiveChain = useSetActiveChain()
+    const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
 
-  const navigate = useNavigate()
-  const { activeWallet } = useActiveWallet()
-  const {
-    network,
-    rewards,
-    delegations,
-    loadingDelegations,
-    loadingNetwork,
-    loadingRewards,
-    loadingUnboundingDelegations,
-  } = useStaking()
+    const _activeNetwork = useSelectedNetwork()
+    const activeNetwork = useMemo(
+      () => forceNetwork || _activeNetwork,
+      [_activeNetwork, forceNetwork],
+    )
 
-  const isLoadingAll = useMemo(() => {
-    return loadingDelegations || loadingNetwork || loadingRewards || loadingUnboundingDelegations
-  }, [loadingDelegations, loadingNetwork, loadingRewards, loadingUnboundingDelegations])
+    const { walletAvatar, walletName, activeWallet } = useWalletInfo()
+    const { headerChainImgSrc } = useChainPageInfo()
+    const dontShowSelectChain = useDontShowSelectChain()
+    const walletAddresses = useGetWalletAddresses(activeChain)
 
-  const [activeStakingDenom] = useActiveStakingDenom()
-  const { theme } = useTheme()
+    const query = useQuery()
+    const paramValidatorAddress = query.get('validatorAddress') ?? undefined
+    const paramChainId = query.get('chainId') ?? undefined
+    const paramAction = query.get('action') ?? undefined
 
-  const [showChainSelector, setShowChainSelector] = useState(false)
-  const [showSelectWallet, setShowSelectWallet] = useState(false)
-  const [showSideNav, setShowSideNav] = useState(false)
-  const [showReviewClaimTx, setShowReviewClaimTx] = useState(false)
-  const [showReviewClaimAndStakeTx, setShowReviewClaimAndStakeTx] = useState(false)
-  const [showClaimInfo, setShowClaimInfo] = useState(false)
-  const [showSelectLSProvider, setShowSelectLSProvider] = useState(false)
-  const [isWalletAddressCopied, setIsWalletAddressCopied] = useState(false)
+    const navigate = useNavigate()
 
-  const { isLoading: isLSProvidersLoading, data: lsProviders } = useLiquidStakingProviders()
+    const denoms = rootDenomsStore.allDenoms
+    const chainDelegations = delegationsStore.delegationsForChain(activeChain)
+    const chainValidators = validatorsStore.validatorsForChain(activeChain)
+    const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
+    const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
-  const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])
-  const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
-  const handleCopyClick = useCallback(() => {
-    setIsWalletAddressCopied(true)
-    setTimeout(() => setIsWalletAddressCopied(false), 2000)
+    const {
+      network,
+      rewards,
+      delegations,
+      loadingDelegations,
+      loadingNetwork,
+      loadingRewards,
+      loadingUnboundingDelegations,
+    } = useStaking(
+      denoms,
+      chainDelegations,
+      chainValidators,
+      chainUnDelegations,
+      chainClaimRewards,
+      activeChain,
+      activeNetwork,
+      rootBalanceStore.allSpendableTokens,
+    )
 
-    UserClipboard.copyText(walletAddresses?.[0])
-  }, [walletAddresses])
+    const isLoadingAll = useMemo(() => {
+      return loadingDelegations || loadingNetwork || loadingRewards || loadingUnboundingDelegations
+    }, [loadingDelegations, loadingNetwork, loadingRewards, loadingUnboundingDelegations])
 
-  const tokenLSProviders = useMemo(() => {
-    const _sortedTokenProviders = lsProviders[activeStakingDenom.coinDenom]?.sort((a, b) => {
-      const priorityA = a.priority
-      const priorityB = b.priority
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
+    const { theme } = useTheme()
 
-      if (priorityA !== undefined && priorityB !== undefined) {
-        return priorityA - priorityB
-      } else if (priorityA !== undefined) {
-        return -1
-      } else if (priorityB !== undefined) {
-        return 1
-      } else {
-        return 0
-      }
-    })
-    return _sortedTokenProviders
-  }, [activeStakingDenom.coinDenom, lsProviders])
+    const [showChainSelector, setShowChainSelector] = useState(false)
+    const [showSelectWallet, setShowSelectWallet] = useState(false)
+    const [showSideNav, setShowSideNav] = useState(false)
+    const [showReviewClaimTx, setShowReviewClaimTx] = useState(false)
+    const [showReviewClaimLavaTx, setShowReviewClaimLavaTx] = useState(false)
+    const [showReviewClaimAndStakeTx, setShowReviewClaimAndStakeTx] = useState(false)
+    const [showClaimInfo, setShowClaimInfo] = useState(false)
+    const [showLavaClaimInfo, setShowLavaClaimInfo] = useState(false)
+    const [showSelectLSProvider, setShowSelectLSProvider] = useState(false)
+    const [isWalletAddressCopied, setIsWalletAddressCopied] = useState(false)
 
-  const walletAvatar = useMemo(() => {
-    if (activeWallet?.avatar) {
-      return activeWallet.avatar
-    }
+    const { isLoading: isLSProvidersLoading, data: lsProviders = {} } = useLiquidStakingProviders()
+    const { data: featureFlags } = useFeatureFlags()
+    const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])
+    const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
+    const handleCopyClick = useCallback(() => {
+      setIsWalletAddressCopied(true)
+      setTimeout(() => setIsWalletAddressCopied(false), 2000)
 
-    if (isCompassWallet()) {
-      return Images.Logos.CompassCircle
-    }
+      UserClipboard.copyText(walletAddresses?.[0])
+    }, [walletAddresses])
 
-    return Images.Logos.LeapLogo28
-  }, [activeWallet?.avatar])
+    const tokenLSProviders = useMemo(() => {
+      const _sortedTokenProviders = lsProviders[activeStakingDenom?.coinDenom]?.sort((a, b) => {
+        const priorityA = a.priority
+        const priorityB = b.priority
 
-  const chainRewards = useMemo(() => {
-    const rewardMap: Record<string, any> = {}
-
-    rewards?.rewards?.forEach((rewardObj: any) => {
-      const validatorAddress = rewardObj.validator_address
-
-      if (!rewardMap[validatorAddress]) {
-        rewardMap[validatorAddress] = {
-          validator_address: validatorAddress,
-          reward: [],
-        }
-      }
-      const accumulatedAmounts: any = {}
-      rewardObj.reward.forEach((reward: any) => {
-        const { denom, amount, tokenInfo } = reward
-        const numAmount = parseFloat(amount)
-
-        if (accumulatedAmounts[denom]) {
-          accumulatedAmounts[denom] += numAmount * Math.pow(10, tokenInfo?.coinDecimals ?? 6)
+        if (priorityA !== undefined && priorityB !== undefined) {
+          return priorityA - priorityB
+        } else if (priorityA !== undefined) {
+          return -1
+        } else if (priorityB !== undefined) {
+          return 1
         } else {
-          accumulatedAmounts[denom] = numAmount * Math.pow(10, tokenInfo?.coinDecimals ?? 6)
+          return 0
         }
       })
-      rewardMap[validatorAddress].reward.push(
-        ...Object.keys(accumulatedAmounts).map((denom) => ({
-          denom,
-          amount: accumulatedAmounts[denom],
-        })),
-      )
-    })
+      return _sortedTokenProviders
+    }, [activeStakingDenom?.coinDenom, lsProviders])
 
-    const totalRewards = rewards?.total.find(
-      (reward) => reward.denom === activeStakingDenom.coinMinimalDenom,
-    )
+    const chainRewards = useMemo(() => {
+      const rewardMap: Record<string, any> = {}
 
-    const rewardsStatus = ''
-    const usdValueStatus = ''
-    return {
-      rewardsUsdValue: new BigNumber(totalRewards?.currenyAmount ?? '0'),
-      rewardsStatus,
-      usdValueStatus,
-      denom: totalRewards?.denom,
-      rewardsDenomValue: new BigNumber(totalRewards?.amount ?? '0'),
-      rewards: {
-        rewardMap,
-      },
-    }
-  }, [activeStakingDenom, rewards])
+      rewards?.rewards?.forEach((rewardObj: any) => {
+        const validatorAddress = rewardObj.validator_address
 
-  useEffect(() => {
-    async function updateChain() {
-      if (paramChainId) {
-        const chainIdToChain = await decodeChainIdToChain()
-        const chain = chainIdToChain[paramChainId] as SupportedChain
-        setActiveChain(chain)
-      }
-    }
-    updateChain()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paramChainId])
-
-  const redirectToInputPage = useCallback(() => {
-    const validators = network?.getValidators() as Record<string, Validator>
-    navigate('/stakeInput', {
-      state: {
-        mode: 'DELEGATE',
-        toValidator: paramValidatorAddress ? validators[paramValidatorAddress] : undefined,
-      } as StakeInputPageState,
-      replace: true,
-    })
-  }, [navigate, network, paramValidatorAddress])
-
-  useEffect(() => {
-    switch (paramAction) {
-      case 'CLAIM_REWARDS':
-        setShowReviewClaimTx(true)
-        break
-      case 'OPEN_LIQUID_STAKING':
-        setShowSelectLSProvider(true)
-        break
-      case 'DELEGATE':
-        redirectToInputPage()
-        break
-      default:
-        break
-    }
-  }, [paramAction, redirectToInputPage])
-
-  const handleCloseLSProviderSheet = useCallback(() => {
-    setShowSelectLSProvider(false)
-  }, [])
-
-  const walletName = useMemo(() => {
-    if (!activeWallet) {
-      return '-'
-    }
-    return activeWallet.walletType === WALLETTYPE.LEDGER &&
-      !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(activeWallet.name)
-      ? `${walletLabels[activeWallet.walletType]} Wallet ${activeWallet.addressIndex + 1}`
-      : formatWalletName(activeWallet.name)
-  }, [activeWallet])
-
-  if (!activeWallet) {
-    return (
-      <div className='relative w-full overflow-clip'>
-        <PopupLayout>
-          <div>
-            <EmptyCard src={Images.Logos.LeapCosmos} heading='No wallet found' />
-          </div>
-        </PopupLayout>
-      </div>
-    )
-  }
-
-  return (
-    <div className='relative w-full overflow-clip'>
-      <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-      <PopupLayout
-        header={
-          <PageHeader
-            action={{
-              onClick: () => setShowSideNav(true),
-              type: HeaderActionType.NAVIGATION,
-              className: 'w-[48px] h-[40px] px-3 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
-            }}
-            imgSrc={headerChainImgSrc}
-            onImgClick={dontShowSelectChain ? undefined : handleOpenSelectChainSheet}
-            title={
-              <WalletButton
-                walletName={walletName}
-                showWalletAvatar={true}
-                walletAvatar={walletAvatar}
-                showDropdown={true}
-                handleDropdownClick={handleOpenWalletSheet}
-                giveCopyOption={true}
-                handleCopyClick={handleCopyClick}
-                isAddressCopied={isWalletAddressCopied}
-              />
-            }
-          />
+        if (!rewardMap[validatorAddress]) {
+          rewardMap[validatorAddress] = {
+            validator_address: validatorAddress,
+            reward: [],
+          }
         }
-      >
-        <div className='flex flex-col gap-y-6 p-6 mb-10 overflow-scroll'>
-          <StakeHeading />
-          {isLoadingAll && <AmountCardSkeleton />}
-          {!isLoadingAll &&
-            (Object.values(delegations ?? {}).length > 0 ? (
-              <StakeAmountCard
-                onClaim={() => setShowReviewClaimTx(true)}
-                onClaimAndStake={() => setShowClaimInfo(true)}
-              />
-            ) : (
-              <NotStakedCard />
-            ))}
-          <div className='flex gap-x-4 w-full'>
-            {isLSProvidersLoading && <Skeleton width={352} borderRadius={100} height={50} />}
-            {!isLSProvidersLoading && (
-              <>
-                {tokenLSProviders?.length > 0 && (
+        const accumulatedAmounts: any = {}
+        rewardObj.reward.forEach((reward: any) => {
+          const { denom, amount, tokenInfo } = reward
+          const numAmount = parseFloat(amount)
+
+          if (accumulatedAmounts[denom]) {
+            accumulatedAmounts[denom] += numAmount * Math.pow(10, tokenInfo?.coinDecimals ?? 6)
+          } else {
+            accumulatedAmounts[denom] = numAmount * Math.pow(10, tokenInfo?.coinDecimals ?? 6)
+          }
+        })
+        rewardMap[validatorAddress].reward.push(
+          ...Object.keys(accumulatedAmounts).map((denom) => ({
+            denom,
+            amount: accumulatedAmounts[denom],
+          })),
+        )
+      })
+
+      const totalRewards = rewards?.total.find(
+        (reward: any) => reward.denom === activeStakingDenom?.coinMinimalDenom,
+      )
+
+      const rewardsStatus = ''
+      const usdValueStatus = ''
+      return {
+        rewardsUsdValue: new BigNumber(totalRewards?.currencyAmount ?? '0'),
+        rewardsStatus,
+        usdValueStatus,
+        denom: totalRewards?.denom,
+        rewardsDenomValue: new BigNumber(totalRewards?.amount ?? '0'),
+        rewards: {
+          rewardMap,
+        },
+      }
+    }, [activeStakingDenom, rewards])
+
+    if (!activeWallet) {
+      return (
+        <div className='relative w-full overflow-clip'>
+          <PopupLayout>
+            <div>
+              <EmptyCard src={Images.Logos.LeapCosmos} heading='No wallet found' />
+            </div>
+          </PopupLayout>
+        </div>
+      )
+    }
+
+    useEffect(() => {
+      async function updateChain() {
+        if (paramChainId) {
+          const chainIdToChain = await decodeChainIdToChain()
+          const chain = chainIdToChain[paramChainId] as SupportedChain
+          setActiveChain(chain)
+        }
+      }
+      updateChain()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paramChainId])
+
+    const redirectToInputPage = useCallback(() => {
+      const validators = network?.getValidators() as Record<string, Validator>
+      navigate('/stake/input', {
+        state: {
+          mode: 'DELEGATE',
+          toValidator: paramValidatorAddress ? validators[paramValidatorAddress] : undefined,
+        } as StakeInputPageState,
+        replace: true,
+      })
+    }, [navigate, network, paramValidatorAddress])
+
+    useEffect(() => {
+      switch (paramAction) {
+        case 'CLAIM_REWARDS':
+          setShowReviewClaimTx(true)
+          break
+        case 'OPEN_LIQUID_STAKING':
+          setShowSelectLSProvider(true)
+          break
+        case 'DELEGATE':
+          redirectToInputPage()
+          break
+        default:
+          break
+      }
+    }, [paramAction, redirectToInputPage])
+
+    const onClaim = useCallback(() => {
+      if (activeChain === 'lava' && featureFlags?.restaking?.extension) {
+        setShowLavaClaimInfo(true)
+      } else {
+        setShowReviewClaimTx(true)
+      }
+    }, [activeChain, featureFlags?.restaking?.extension])
+
+    const onClaimAndStake = useCallback(() => setShowClaimInfo(true), [])
+
+    if (!activeWallet) {
+      return (
+        <div className='relative w-full overflow-clip panel-height'>
+          <PopupLayout>
+            <div>
+              <EmptyCard src={Images.Logos.LeapCosmos} heading='No wallet found' />
+            </div>
+          </PopupLayout>
+        </div>
+      )
+    }
+    return (
+      <div className='relative w-full overflow-clip panel-height'>
+        <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
+        <PopupLayout
+          header={
+            <PageHeader
+              action={
+                showBackAction && onBackClick
+                  ? {
+                      onClick: onBackClick,
+                      type: HeaderActionType.BACK,
+                    }
+                  : {
+                      onClick: () => setShowSideNav(true),
+                      type: HeaderActionType.NAVIGATION,
+                      className:
+                        'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
+                    }
+              }
+              imgSrc={headerChainImgSrc}
+              onImgClick={dontShowSelectChain ? undefined : handleOpenSelectChainSheet}
+              title={
+                <WalletButton
+                  walletName={walletName}
+                  showWalletAvatar={true}
+                  walletAvatar={walletAvatar}
+                  showDropdown={true}
+                  handleDropdownClick={handleOpenWalletSheet}
+                  giveCopyOption={true}
+                  handleCopyClick={handleCopyClick}
+                  isAddressCopied={isWalletAddressCopied}
+                />
+              }
+            />
+          }
+        >
+          <div className='flex flex-col gap-y-6 p-6 mb-10 overflow-scroll'>
+            <StakeHeading
+              rootDenomsStore={rootDenomsStore}
+              delegationsStore={delegationsStore}
+              validatorsStore={validatorsStore}
+              unDelegationsStore={unDelegationsStore}
+              claimRewardsStore={claimRewardsStore}
+              forceChain={activeChain}
+              forceNetwork={activeNetwork}
+            />
+
+            {isLoadingAll && <AmountCardSkeleton />}
+            {!isLoadingAll &&
+              (Object.values(delegations ?? {}).length > 0 ? (
+                <StakeAmountCard
+                  onClaim={onClaim}
+                  onClaimAndStake={onClaimAndStake}
+                  rootDenomsStore={rootDenomsStore}
+                  delegationsStore={delegationsStore}
+                  validatorsStore={validatorsStore}
+                  unDelegationsStore={unDelegationsStore}
+                  claimRewardsStore={claimRewardsStore}
+                  forceChain={activeChain}
+                  forceNetwork={activeNetwork}
+                />
+              ) : (
+                <NotStakedCard
+                  rootDenomsStore={rootDenomsStore}
+                  activeChain={activeChain}
+                  activeNetwork={activeNetwork}
+                />
+              ))}
+
+            <div className='flex gap-x-4 w-full'>
+              {isLSProvidersLoading && <Skeleton width={352} borderRadius={100} height={50} />}
+
+              {!isLSProvidersLoading && (
+                <>
+                  {tokenLSProviders?.length > 0 && (
+                    <Buttons.Generic
+                      size='normal'
+                      className='w-full'
+                      color={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray200}
+                      disabled={isLSProvidersLoading}
+                      onClick={() => setShowSelectLSProvider(true)}
+                    >
+                      <Text color='dark:text-white-100 text-black-100'>Liquid Stake</Text>
+                    </Buttons.Generic>
+                  )}
                   <Buttons.Generic
                     size='normal'
                     className='w-full'
-                    color={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray200}
-                    disabled={isLSProvidersLoading}
-                    onClick={() => setShowSelectLSProvider(true)}
+                    color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+                    onClick={async () => {
+                      navigate('/stake/input', {
+                        state: {
+                          mode: 'DELEGATE',
+                          forceChain: activeChain,
+                          forceNetwork: activeNetwork,
+                        } as StakeInputPageState,
+                      })
+                    }}
                   >
-                    <Text color='dark:text-white-100 text-black-100'>Liquid Stake</Text>
+                    Stake
                   </Buttons.Generic>
-                )}
-                <Buttons.Generic
-                  size='normal'
-                  className='w-full'
-                  color={Colors.green600}
-                  onClick={async () => {
-                    navigate('/stakeInput', {
-                      state: {
-                        mode: 'DELEGATE',
-                      } as StakeInputPageState,
-                    })
-                  }}
-                >
-                  Stake
-                </Buttons.Generic>
-              </>
-            )}
-          </div>
-          <TabList />
-        </div>
-      </PopupLayout>
-      <SelectChain isVisible={showChainSelector} onClose={() => setShowChainSelector(false)} />
-      <SelectWallet
-        isVisible={showSelectWallet}
-        onClose={() => setShowSelectWallet(false)}
-        title='Wallets'
-      />
-      {!loadingNetwork && (
-        <>
-          <ReviewClaimTx
-            isOpen={showReviewClaimTx}
-            onClose={() => setShowReviewClaimTx(false)}
-            validators={network?.getValidators({}) as Record<string, Validator>}
-          />
-          <ClaimInfo
-            isOpen={showClaimInfo}
-            onClose={() => setShowClaimInfo(false)}
-            onClaim={() => {
-              setShowClaimInfo(false)
-              setShowReviewClaimTx(true)
-            }}
-            onClaimAndStake={() => {
-              setShowClaimInfo(false)
-              setShowReviewClaimAndStakeTx(true)
-            }}
-          />
-          {chainRewards && (
-            <ReviewClaimAndStakeTx
-              isOpen={showReviewClaimAndStakeTx}
-              onClose={() => setShowReviewClaimAndStakeTx(false)}
-              validators={network?.getValidators({}) as Record<string, Validator>}
-              chainRewards={chainRewards}
+                </>
+              )}
+            </div>
+
+            <TabList
+              rootDenomsStore={rootDenomsStore}
+              delegationsStore={delegationsStore}
+              validatorsStore={validatorsStore}
+              unDelegationsStore={unDelegationsStore}
+              claimRewardsStore={claimRewardsStore}
+              forceChain={activeChain}
+              forceNetwork={activeNetwork}
+              rootBalanceStore={rootBalanceStore}
             />
-          )}
-        </>
-      )}
-      {tokenLSProviders && (
-        <SelectLSProvider
-          isVisible={showSelectLSProvider}
-          onClose={handleCloseLSProviderSheet}
-          providers={tokenLSProviders}
+          </div>
+        </PopupLayout>
+
+        <SelectChain
+          isVisible={showChainSelector}
+          onClose={() => setShowChainSelector(false)}
+          chainTagsStore={chainTagsStore}
         />
-      )}
-      <BottomNav label={BottomNavLabel.Stake} />
-    </div>
-  )
-}
+        <SelectWallet
+          isVisible={showSelectWallet}
+          onClose={() => setShowSelectWallet(false)}
+          title='Wallets'
+        />
+
+        {!loadingNetwork && (
+          <>
+            <ReviewClaimTx
+              isOpen={showReviewClaimTx}
+              onClose={() => setShowReviewClaimTx(false)}
+              validators={network?.getValidators({}) as Record<string, Validator>}
+              rootDenomsStore={rootDenomsStore}
+              rootBalanceStore={rootBalanceStore}
+              delegationsStore={delegationsStore}
+              validatorsStore={validatorsStore}
+              unDelegationsStore={unDelegationsStore}
+              claimRewardsStore={claimRewardsStore}
+              forceChain={activeChain}
+              forceNetwork={activeNetwork}
+            />
+
+            {activeChain === 'lava' && featureFlags?.restaking?.extension === 'active' && (
+              <ReviewClaimLavaTx
+                isOpen={showReviewClaimLavaTx}
+                onClose={() => setShowReviewClaimLavaTx(false)}
+                rootDenomsStore={rootDenomsStore}
+                rootBalanceStore={rootBalanceStore}
+              />
+            )}
+
+            <ClaimInfo
+              isOpen={showClaimInfo}
+              onClose={() => setShowClaimInfo(false)}
+              onClaim={() => {
+                setShowClaimInfo(false)
+                setShowReviewClaimTx(true)
+              }}
+              onClaimAndStake={() => {
+                setShowClaimInfo(false)
+                setShowReviewClaimAndStakeTx(true)
+              }}
+              rootDenomsStore={rootDenomsStore}
+              delegationsStore={delegationsStore}
+              validatorsStore={validatorsStore}
+              unDelegationsStore={unDelegationsStore}
+              claimRewardsStore={claimRewardsStore}
+              forceChain={activeChain}
+              forceNetwork={activeNetwork}
+            />
+            {activeChain === 'lava' && featureFlags?.restaking?.extension === 'active' && (
+              <LavaClaimInfo
+                isOpen={showLavaClaimInfo}
+                onClose={() => setShowLavaClaimInfo(false)}
+                onClaimValidatorRewards={() => {
+                  setShowLavaClaimInfo(false)
+                  setShowReviewClaimTx(true)
+                }}
+                onClaimProviderRewards={() => {
+                  setShowLavaClaimInfo(false)
+                  setShowReviewClaimLavaTx(true)
+                }}
+                rootDenomsStore={rootDenomsStore}
+                delegationsStore={delegationsStore}
+                validatorsStore={validatorsStore}
+                unDelegationsStore={unDelegationsStore}
+                claimRewardsStore={claimRewardsStore}
+                rootBalanceStore={rootBalanceStore}
+              />
+            )}
+
+            {chainRewards && (
+              <ReviewClaimAndStakeTx
+                isOpen={showReviewClaimAndStakeTx}
+                onClose={() => setShowReviewClaimAndStakeTx(false)}
+                validators={network?.getValidators({}) as Record<string, Validator>}
+                chainRewards={chainRewards}
+                rootDenomsStore={rootDenomsStore}
+                delegationsStore={delegationsStore}
+                validatorsStore={validatorsStore}
+                unDelegationsStore={unDelegationsStore}
+                claimRewardsStore={claimRewardsStore}
+                rootBalanceStore={rootBalanceStore}
+                forceChain={activeChain}
+                forceNetwork={activeNetwork}
+              />
+            )}
+          </>
+        )}
+
+        {tokenLSProviders && (
+          <SelectLSProvider
+            isVisible={showSelectLSProvider}
+            onClose={() => setShowSelectLSProvider(false)}
+            providers={tokenLSProviders}
+            rootDenomsStore={rootDenomsStore}
+            forceChain={activeChain}
+            forceNetwork={activeNetwork}
+          />
+        )}
+        <BottomNav label={BottomNavLabel.Stake} />
+      </div>
+    )
+  },
+)
+
+export default StakePage

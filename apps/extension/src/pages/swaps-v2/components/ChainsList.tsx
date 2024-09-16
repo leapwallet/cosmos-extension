@@ -1,5 +1,6 @@
 import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
+import { Question } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
@@ -9,6 +10,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import React, { useMemo, useState } from 'react'
+import { Virtuoso } from 'react-virtuoso'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -18,6 +20,7 @@ export type ListChainsProps = {
   chainsToShow?: string[]
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
 function PopularChains({
   popularChains,
   onClickHandler,
@@ -54,13 +57,69 @@ function PopularChains({
 
 const POPULAR_CHAINS: string[] = []
 
+export function ChainCard({
+  itemsLength,
+  chain,
+  index,
+  setSearchedChain,
+  onChainSelect,
+  selectedChain,
+}: {
+  chain: ManageChainSettings
+  index: number
+  itemsLength: number
+  setSearchedChain: (chain: string) => void
+  onChainSelect: (chainName: SupportedChain) => void
+  selectedChain: SupportedChain
+}) {
+  const customChains = isCompassWallet() ? [] : useCustomChains()
+  const chainInfos = useChainInfos()
+
+  const img =
+    chainInfos[chain.chainName as SupportedChain]?.chainSymbolImageUrl ??
+    customChains.find((d) => d.chainName === chain.chainName)?.chainSymbolImageUrl ??
+    GenericLight
+  const chainName =
+    chainInfos[chain.chainName as unknown as SupportedChain]?.chainName ?? chain.chainName
+  const isLast = index === itemsLength - 1
+  const defaultTokenLogo = useDefaultTokenLogo()
+
+  return (
+    <React.Fragment key={chain.chainName + index}>
+      <div
+        onClick={() => {
+          setSearchedChain('')
+          onChainSelect(chain.chainName)
+        }}
+        className={classNames('flex flex-1 items-center py-3 cursor-pointer', {
+          'opacity-20': selectedChain === chain.chainName,
+        })}
+      >
+        <div className='flex items-center flex-1'>
+          <img
+            src={img ?? defaultTokenLogo}
+            className='h-10 w-10 mr-3'
+            onError={imgOnError(defaultTokenLogo)}
+          />
+          <Text
+            size='md'
+            className='font-bold'
+            data-testing-id={`switch-chain-${chainName.toLowerCase()}-ele`}
+          >
+            {chainName}
+          </Text>
+        </div>
+      </div>
+      {!isLast && <div className='border-b w-full border-gray-100 dark:border-gray-850' />}
+    </React.Fragment>
+  )
+}
+
 export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListChainsProps) {
   const [searchedChain, setSearchedChain] = useState('')
-  const customChains = isCompassWallet() ? [] : useCustomChains()
 
   const [chains] = useManageChainData()
   const chainInfos = useChainInfos()
-  const defaultTokenLogo = useDefaultTokenLogo()
 
   const filteredChains = useMemo(() => {
     return chains.filter(function (chain) {
@@ -81,6 +140,7 @@ export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListC
     })
   }, [chainInfos, chains, chainsToShow, searchedChain])
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   const popularChains = useMemo(() => {
     return POPULAR_CHAINS.filter(function (chain) {
       if (isCompassWallet() && chainInfos[chain as SupportedChain]?.chainName === 'cosmos') {
@@ -114,12 +174,10 @@ export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListC
         />
       </div>
 
-      <div className='max-h-[400px] w-full' style={{ overflowY: 'scroll' }}>
+      <div className='w-full' style={{ height: window.innerHeight - 200, overflowY: 'scroll' }}>
         {filteredChains.length === 0 ? (
           <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4'>
-            <div className='material-icons-round !text-[40px] !leading-[40px] dark:text-white-100'>
-              help_outline
-            </div>
+            <Question size={40} className='dark:text-white-100' />
             <div className='flex flex-col justify-start items-center w-full gap-1'>
               <div className='text-md text-center font-bold !leading-[21.5px] dark:text-white-100'>
                 No chains found for &apos;{searchedChain}&apos;
@@ -130,59 +188,21 @@ export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListC
             </div>
           </div>
         ) : (
-          <>
-            {popularChains.length > 0 && (
-              <PopularChains
-                popularChains={popularChains as SupportedChain[]}
-                onClickHandler={(chain: SupportedChain) => {
-                  setSearchedChain('')
-                  onChainSelect(chain)
-                }}
+          <Virtuoso
+            data={filteredChains}
+            style={{ flexGrow: '1', width: '100%' }}
+            itemContent={(index, chain) => (
+              <ChainCard
+                key={chain?.id}
+                chain={chain}
+                index={index}
+                itemsLength={filteredChains.length}
+                selectedChain={selectedChain}
+                onChainSelect={onChainSelect}
+                setSearchedChain={setSearchedChain}
               />
             )}
-            {filteredChains.map((chain: ManageChainSettings, index: number, array) => {
-              const img =
-                chainInfos[chain.chainName as SupportedChain]?.chainSymbolImageUrl ??
-                customChains.find((d) => d.chainName === chain.chainName)?.chainSymbolImageUrl ??
-                GenericLight
-              const chainName =
-                chainInfos[chain.chainName as unknown as SupportedChain]?.chainName ??
-                chain.chainName
-              const isLast = index === array.length - 1
-
-              return (
-                <React.Fragment key={chain.chainName + index}>
-                  <div
-                    onClick={() => {
-                      setSearchedChain('')
-                      onChainSelect(chain.chainName)
-                    }}
-                    className={classNames('flex flex-1 items-center py-3 cursor-pointer', {
-                      'opacity-20': selectedChain === chain.chainName,
-                    })}
-                  >
-                    <div className='flex items-center flex-1'>
-                      <img
-                        src={img ?? defaultTokenLogo}
-                        className='h-10 w-10 mr-3'
-                        onError={imgOnError(defaultTokenLogo)}
-                      />
-                      <Text
-                        size='md'
-                        className='font-bold'
-                        data-testing-id={`switch-chain-${chainName.toLowerCase()}-ele`}
-                      >
-                        {chainName}
-                      </Text>
-                    </div>
-                  </div>
-                  {!isLast && (
-                    <div className='border-b w-full border-gray-100 dark:border-gray-850' />
-                  )}
-                </React.Fragment>
-              )
-            })}
-          </>
+          />
         )}
       </div>
     </>

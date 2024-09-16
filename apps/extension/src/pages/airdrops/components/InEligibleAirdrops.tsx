@@ -1,7 +1,9 @@
 import { useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
+import { CaretDown, CaretUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import React, { useState } from 'react'
+import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 
 export default function InEligibleAirdrops() {
@@ -18,15 +20,17 @@ export default function InEligibleAirdrops() {
           Ineligible Airdrops
         </Text>
         <div
-          className='flex items-center cursor-pointer'
+          className='flex items-center cursor-pointer gap-1'
           onClick={() => setShowMore((prev) => !prev)}
         >
           <Text size='sm' color='text-gray-600 dark:text-gray-400' className='font-bold'>
             Show {showMore ? 'less' : 'more'}
           </Text>
-          <div className='material-icons-round text-gray-600 dark:text-gray-400'>
-            expand_{showMore ? 'less' : 'more'}
-          </div>
+          {showMore ? (
+            <CaretUp size={16} className='text-gray-600 dark:text-gray-400' />
+          ) : (
+            <CaretDown size={16} className='text-gray-600 dark:text-gray-400' />
+          )}
         </div>
       </div>
       {showMore && (
@@ -44,7 +48,12 @@ export default function InEligibleAirdrops() {
             >
               <img src={d.airdropIcon} alt='airdrop-icon' className='w-8 h-8 rounded-full' />
               <Text size='sm' className='flex-1 font-medium'>
-                {trim(d.name, 34)}
+                {trim(
+                  d.name,
+                  isSidePanel()
+                    ? 28 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                    : 34,
+                )}
               </Text>
             </div>
           ))}

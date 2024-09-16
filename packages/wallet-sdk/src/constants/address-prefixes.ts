@@ -107,4 +107,6 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   saga: 'saga',
   init: 'initia',
   humans: 'human',
+  'lava@': 'lava',
+  mantra: 'mantra',
 };

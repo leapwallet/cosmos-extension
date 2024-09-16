@@ -14,6 +14,8 @@ import { useCreateQueryPermit } from 'hooks/secret/useCreateQueryPermit'
 import { useCreateViewingKey } from 'hooks/secret/useCreateViewingKey'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React, { useCallback, useEffect, useState } from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 
@@ -131,7 +133,9 @@ export function CreateKeySheet({ isVisible, onClose, token, onSuccess }: Props) 
           />
         </div>
 
-        {!generatedViewingKey && !token?.snip24Enabled ? <Fee /> : null}
+        {!generatedViewingKey && !token?.snip24Enabled ? (
+          <Fee rootDenomsStore={rootDenomsStore} rootBalanceStore={rootBalanceStore} />
+        ) : null}
 
         {generatedViewingKey ? (
           <CopyViewingKey

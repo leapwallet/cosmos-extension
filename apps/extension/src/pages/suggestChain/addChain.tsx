@@ -267,7 +267,7 @@ const AddChainForm = ({
     Object.values(errors).length > 0
 
   return (
-    <form className='mx-auto w-[344px] mb-5' onSubmit={handleSubmit}>
+    <form className='w-full mb-5' onSubmit={handleSubmit}>
       <InputComponent
         placeholder='Chain Id (Ex: juno-1)'
         value={chainId}
@@ -385,8 +385,8 @@ export default function AddChain() {
           />
         }
       >
-        <div className='w-[400px] h-[600px] max-h-[600px] overflow-y-auto bg-gray-50 dark:bg-black-100'>
-          <div className='rounded-xl mx-auto w-[344px] flex items-center h-[68px] bg-white-100 dark:bg-gray-900 py-2 pl-5 pr-[10px] mt-7 mb-4'>
+        <div className='panel-width panel-height max-panel-height px-7 overflow-y-auto bg-gray-50 dark:bg-black-100'>
+          <div className='rounded-xl w-full flex items-center h-[68px] bg-white-100 dark:bg-gray-900 py-2 pl-5 pr-[10px] mt-7 mb-4'>
             <img className='mr-[16px]' src={Images.Misc.Warning} width='40' height='40' />
             <div className='flex flex-col gap-y-[2px]'>
               <Text size='sm' color='text-gray-400 font-medium'>

@@ -1,3 +1,4 @@
+import { Warning } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import React from 'react'
 
@@ -18,14 +19,13 @@ export function WarningBox({
         },
       )}
     >
-      <span
-        className={classNames('material-icons-round !text-lg  !leading-[20px]', {
+      <Warning
+        size={16}
+        className={classNames('!leading-[20px]', {
           'text-orange-500 dark:text-orange-300': type === 'warning',
           'text-red-400 dark:text-red-300': type === 'error',
         })}
-      >
-        warning
-      </span>
+      />
       <span className='font-medium text-left text-xs !leading-[20px] text-black-100 dark:text-white-100'>
         {message}
       </span>

@@ -4,11 +4,13 @@ import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
 import {
   DefaultGasEstimates,
+  DenomsRecord,
   encodeErc72TransferData,
   EthermintTxHandler,
   fromSmall,
   InjectiveTx,
   NativeDenom,
+  pubKeyToEvmAddressToShow,
   SeiEvmTx,
   SupportedChain,
   Tx,
@@ -28,23 +30,20 @@ import {
   useActiveWalletStore,
   useChainApis,
   useDefaultGasEstimates,
+  useGetChains,
   usePendingTxState,
   useSelectedNetwork,
 } from '../store';
 import { WALLETTYPE } from '../types';
-import {
-  GasOptions,
-  getMetaDataForNFTSendTx,
-  getSeiEvmInfo,
-  SeiEvmInfoEnum,
-  sliceAddress,
-  useGasRateQuery,
-  useNativeFeeDenom,
-} from '../utils';
+import { GasOptions, getMetaDataForNFTSendTx, sliceAddress, useGasRateQuery, useNativeFeeDenom } from '../utils';
 import { useChainId, useChainInfo, useFetchAccountDetails } from '../utils-hooks';
 import { ExecuteInstruction, UseSendNftReturnType } from './types';
 
-export const useSendNft = (collectionId: string, forceChain?: SupportedChain): UseSendNftReturnType => {
+export const useSendNft = (
+  denoms: DenomsRecord,
+  collectionId: string,
+  forceChain?: SupportedChain,
+): UseSendNftReturnType => {
   const [showLedgerPopup, setShowLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
   const chainInfo = useChainInfo();
@@ -68,15 +67,17 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
   );
 
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
-  const gasPrices = useGasRateQuery(activeChain, selectedNetwork, collectionId.toLowerCase().startsWith('0x'));
+  const gasPrices = useGasRateQuery(denoms, activeChain, selectedNetwork, collectionId.toLowerCase().startsWith('0x'));
 
   // Change when using forceChain
-  const nativeFeeDenom = useNativeFeeDenom(forceChain);
+  const nativeFeeDenom = useNativeFeeDenom(denoms, forceChain);
   const [feeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
 
   const [addressWarning, setAddressWarning] = useState<ReactNode>('');
-  const { lcdUrl, rpcUrl, evmJsonRpc } = useChainApis();
+  const { lcdUrl, rpcUrl, evmJsonRpc } = useChainApis(activeChain, selectedNetwork);
+  const evmChainId = useChainId(activeChain, selectedNetwork, true);
+  const chains = useGetChains();
 
   /**
    * Fee Calculation:
@@ -131,14 +132,15 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
 
     if (collectionId.toLowerCase().startsWith('0x')) {
       try {
-        const rpc = (await getSeiEvmInfo({
-          activeChain: activeChain as 'seiDevnet' | 'seiTestnet2',
-          activeNetwork: selectedNetwork,
-          infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-        })) as string;
-
         const data = encodeErc72TransferData([fromAddress, toAddress, tokenId]);
-        const gasUsed = await SeiEvmTx.SimulateTransaction(collectionId ?? '', '', rpc, data, undefined, fromAddress);
+        const gasUsed = await SeiEvmTx.SimulateTransaction(
+          collectionId ?? '',
+          '',
+          evmJsonRpc,
+          data,
+          undefined,
+          fromAddress,
+        );
 
         setGasEstimate(gasUsed);
         return gasUsed;
@@ -212,13 +214,7 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
       });
 
       if (collectionId.toLowerCase().startsWith('0x')) {
-        const chainId = (await getSeiEvmInfo({
-          activeChain: activeChain,
-          activeNetwork: selectedNetwork,
-          infoType: SeiEvmInfoEnum.EVM_CHAIN_ID,
-        })) as number;
-
-        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet as unknown as EthWallet, evmJsonRpc ?? '', chainId);
+        const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet as unknown as EthWallet, evmJsonRpc ?? '', Number(evmChainId));
         const result = await seiEvmTx.transferErc721Token({
           erc721ContractAddress: collectionId,
           tokenId,
@@ -291,20 +287,26 @@ export const useSendNft = (collectionId: string, forceChain?: SupportedChain): U
 
       if (collectionId.toLowerCase().startsWith('0x')) {
         const evmTxHash = _result.data.txHash;
-        const evmRpcUrl = await getSeiEvmInfo({
-          activeChain,
-          activeNetwork: selectedNetwork,
-          infoType: SeiEvmInfoEnum.EVM_RPC_URL,
-        });
 
         try {
-          const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmRpcUrl as string);
-          txPostToDB({
-            txHash: cosmosTxHash,
-            txType: _result.data.txType,
-            metadata: _result.data.metadata,
-            chainId: activeChainId,
-          });
+          if (chains[activeChain]?.evmOnlyChain) {
+            txPostToDB({
+              txHash: evmTxHash,
+              txType: _result.data.txType,
+              metadata: _result.data.metadata,
+              chainId: activeChainId,
+              isEvmOnly: true,
+              forceWalletAddress: pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]),
+            });
+          } else {
+            const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmJsonRpc);
+            txPostToDB({
+              txHash: cosmosTxHash,
+              txType: _result.data.txType,
+              metadata: _result.data.metadata,
+              chainId: activeChainId,
+            });
+          }
         } catch {
           // GetCosmosTxHash is currently failing
         }

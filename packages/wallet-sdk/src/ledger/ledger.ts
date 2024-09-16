@@ -10,12 +10,14 @@ import { Secp256k1Signature } from '@cosmjs/crypto';
 import { Algo } from '@cosmjs/proto-signing';
 import * as bytes from '@ethersproject/bytes';
 import { _TypedDataEncoder as TypedDataEncoder } from '@ethersproject/hash';
+import { JsonRpcProvider, Provider, TransactionRequest, TransactionResponse } from '@ethersproject/providers';
 import { encodeSecp256k1Signature, Secp256k1 } from '@leapwallet/leap-keychain';
 import EthereumApp from '@ledgerhq/hw-app-eth';
 import Transport from '@ledgerhq/hw-transport';
 import { CosmosApp } from '@zondax/ledger-cosmos-js';
-import bech32 from 'bech32';
-import { Address as EthereumUtilsAddress } from 'ethereumjs-util';
+import { bech32 } from 'bech32';
+import { Address as EthereumUtilsAddress, isHexString } from 'ethereumjs-util';
+import { BigNumber, Signer, utils } from 'ethers';
 
 import { ChainInfo, SupportedChain } from '../constants';
 import { getBech32Address, getEthereumAddress } from '../utils';
@@ -39,9 +41,71 @@ import {
 } from './ledger-errors';
 import { isAppOpen, openApp } from './utils';
 
+class LedgerSignerEthers extends Signer {
+  constructor(
+    private readonly signer: LeapLedgerSignerEth,
+    private eth: EthereumApp,
+    public path: string,
+    public provider?: Provider,
+  ) {
+    super();
+  }
+
+  async getAddress() {
+    const accounts = await this.signer.getAccounts();
+    return getEthereumAddress(accounts[0].address);
+  }
+
+  async signMessage(message: utils.Bytes | string) {
+    if (typeof message === 'string') {
+      message = utils.toUtf8Bytes(message);
+    }
+
+    const messageHex = utils.hexlify(message).substring(2);
+
+    const sig = await this.eth.signPersonalMessage(this.path, messageHex);
+
+    sig.r = '0x' + sig.r;
+    sig.s = '0x' + sig.s;
+    return utils.joinSignature(sig);
+  }
+
+  async signTransaction(transaction: TransactionRequest): Promise<string> {
+    const tx = await utils.resolveProperties(transaction);
+    const baseTx: utils.UnsignedTransaction = {
+      chainId: tx.chainId || undefined,
+      data: tx.data || undefined,
+      gasLimit: tx.gasLimit || undefined,
+      gasPrice: tx.maxPriorityFeePerGas || undefined,
+      nonce: tx.nonce ? BigNumber.from(tx.nonce).toNumber() : undefined,
+      to: tx.to || undefined,
+      value: tx.value || undefined,
+    };
+    const unsignedTx = utils.serializeTransaction(baseTx).substring(2);
+    const resolution = {
+      domains: [],
+      plugin: [],
+      externalPlugin: [],
+      nfts: [],
+      erc20Tokens: [],
+    };
+
+    const signature = await this.eth.signTransaction(this.path, unsignedTx, resolution);
+    return utils.serializeTransaction(baseTx, {
+      v: BigNumber.from('0x' + signature.v).toNumber(),
+      r: '0x' + signature.r,
+      s: '0x' + signature.s,
+    });
+  }
+
+  connect(provider: Provider): Signer {
+    return new LedgerSignerEthers(this.signer, this.eth, this.path, provider);
+  }
+}
+
 const isWindows = () => navigator.platform.indexOf('Win') > -1;
 
-export async function getLedgerTransport() {
+export async function getLedgerTransport(): Promise<Transport> {
   let transport;
 
   if (isWindows()) {
@@ -67,6 +131,7 @@ export async function getLedgerTransport() {
       );
     }
   }
+
   transport.setExchangeTimeout(60_000);
   return transport;
 }
@@ -203,6 +268,7 @@ export class LeapLedgerSignerEth {
     prefix: string;
   };
   ledger: EthereumApp;
+  provider?: JsonRpcProvider;
 
   constructor(private transport: Transport, options: { hdPaths: string[]; prefix: string }) {
     this.options = options;
@@ -236,11 +302,11 @@ export class LeapLedgerSignerEth {
     ).hash(message.message);
   }
 
-  async getAccounts(closeTransport?: boolean): Promise<readonly AccountData[]> {
+  private async _getAccounts(closeTransport?: boolean): Promise<Array<AccountData & { hexAddress: string }>> {
     try {
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPaths = this.options.hdPaths ?? [defaultHdPath];
-      const accounts: AccountData[] = [];
+      const accounts: Array<AccountData & { hexAddress: string }> = [];
       const isEthAppOpen = await isAppOpen(this.transport, 'Ethereum');
       try {
         if (!isEthAppOpen) {
@@ -263,6 +329,7 @@ export class LeapLedgerSignerEth {
           address: bech32Address,
           algo: 'secp256k1' as Algo,
           pubkey: compressedPubKey,
+          hexAddress: address,
         };
 
         accounts.push(account);
@@ -275,6 +342,11 @@ export class LeapLedgerSignerEth {
       await this.transport.close();
       throw handleError(e);
     }
+  }
+
+  async getAccounts(closeTransport?: boolean): Promise<readonly AccountData[]> {
+    const accounts = await this._getAccounts(closeTransport);
+    return accounts;
   }
 
   async signAmino(signerAddress: string, signDoc: StdSignDoc) {
@@ -304,10 +376,7 @@ export class LeapLedgerSignerEth {
 
   async sign(signerAddress: string, eipToSign: any) {
     try {
-      const accounts = await this.getAccounts();
-      const account = accounts?.find((account) => account.address === signerAddress);
-      if (!account) throw new Error('Account not found');
-
+      this.getAccount(signerAddress);
       return this.signEip712(signerAddress, eipToSign);
     } catch (e) {
       await this.transport.close();
@@ -317,8 +386,13 @@ export class LeapLedgerSignerEth {
 
   async getAccount(signerAddress: string) {
     try {
-      const accounts = await this.getAccounts();
-      const account = accounts?.find((account) => account.address === signerAddress);
+      const accounts = await this._getAccounts();
+      const account = accounts?.find((account) => {
+        if (isHexString(signerAddress)) {
+          return account.hexAddress === signerAddress;
+        }
+        return account.address === signerAddress;
+      });
       if (!account) throw new Error('Account not found');
       return account;
     } catch (e) {
@@ -340,7 +414,9 @@ export class LeapLedgerSignerEth {
       await this.getAccount(signerAddress);
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPath = this.options.hdPaths?.toString() ?? defaultHdPath;
-      const signature = await this.ledger.signPersonalMessage(hdPath, message);
+      const messageHex = utils.hexlify(message).substring(2);
+
+      const signature = await this.ledger.signPersonalMessage(hdPath, messageHex);
       await this.transport.close();
       return LeapLedgerSignerEth.formatSignature(signature);
     } catch (e) {
@@ -349,15 +425,43 @@ export class LeapLedgerSignerEth {
     }
   }
 
+  async signMessage(message: utils.Bytes | string): Promise<string> {
+    const leapLedgerSignerEthers = new LedgerSignerEthers(this, this.ledger, this.options.hdPaths[0], this.provider);
+    const response = await leapLedgerSignerEthers.signMessage(message);
+    return response;
+  }
+
   async signTransaction(signerAddress: string, transaction: string) {
     try {
       await this.getAccount(signerAddress);
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPath = this.options.hdPaths?.toString() ?? defaultHdPath;
+      const resolution = {
+        domains: [],
+        plugin: [],
+        externalPlugin: [],
+        nfts: [],
+        erc20Tokens: [],
+      };
 
-      const signature = await this.ledger.signTransaction(hdPath, transaction);
+      const signature = await this.ledger.signTransaction(hdPath, transaction, resolution);
       await this.transport.close();
-      return LeapLedgerSignerEth.formatSignature(signature);
+      return LeapLedgerSignerEth.formatSignature(signature) as { r: string; s: string; v: number };
+    } catch (e) {
+      await this.transport.close();
+      throw handleError(e);
+    }
+  }
+
+  setProvider(provider: JsonRpcProvider) {
+    this.provider = provider;
+  }
+
+  async sendTransaction(transactionRequest: TransactionRequest): Promise<TransactionResponse> {
+    try {
+      const ledgerSignerEthers = new LedgerSignerEthers(this, this.ledger, this.options.hdPaths[0], this.provider);
+      const response = await ledgerSignerEthers.sendTransaction(transactionRequest);
+      return response;
     } catch (e) {
       await this.transport.close();
       throw handleError(e);

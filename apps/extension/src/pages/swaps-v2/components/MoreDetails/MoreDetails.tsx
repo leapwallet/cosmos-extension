@@ -1,4 +1,5 @@
 import { useSkipSupportedChains } from '@leapwallet/elements-hooks'
+import { ArrowRight, CaretRight, Info } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -20,9 +21,7 @@ function OrderRoutingDisplay({
         <div key={`${chain.chainId}-${idx}`} className='flex items-center gap-[4px]'>
           <img src={chain.icon} alt={chain.chainId} className='w-5 h-5 rounded-full' />
           {self.length - 1 !== idx ? (
-            <span className='!text-md !leading-[16px] text-gray-600 dark:text-gray-400 material-icons-round'>
-              east
-            </span>
+            <ArrowRight size={16} className='text-gray-600 dark:text-gray-400' />
           ) : null}
         </div>
       ))}
@@ -112,9 +111,9 @@ export function MoreDetails({
             {showInfo && (
               <button
                 onClick={handlePriceImpactInfoClick}
-                className='!text-md !leading-[16px] text-gray-600 dark:text-gray-400 material-icons-round'
+                className='text-gray-600 dark:text-gray-400'
               >
-                info_outline
+                <Info size={16} className='!text-md !leading-[16px]' />
               </button>
             )}
           </div>
@@ -140,9 +139,9 @@ export function MoreDetails({
             {showInfo && (
               <button
                 onClick={handleSlippageInfoClick}
-                className='!text-md !leading-[16px] text-gray-600 dark:text-gray-400 material-icons-round'
+                className='text-gray-600 dark:text-gray-400'
               >
-                info_outline
+                <Info size={16} className='!text-md !leading-[16px]' />
               </button>
             )}
           </div>
@@ -157,21 +156,21 @@ export function MoreDetails({
           </span>
         </div>
 
-        <div className='flex w-full justify-between items-center'>
-          <div className='flex justify-start items-center gap-1'>
-            <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px]'>
+        <div className='flex w-full justify-between items-start p-[1.5px]'>
+          <div className='flex justify-start items-center gap-1 min-h-[19.2px] shrink-0'>
+            <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px] shrink-0'>
               Transaction fee
             </span>
             {showInfo && (
               <button
                 onClick={handleTransactionFeesClick}
-                className='!text-md !leading-[16px] text-gray-600 dark:text-gray-400 material-icons-round'
+                className='text-gray-600 dark:text-gray-400'
               >
-                arrow_forward_ios
+                <CaretRight size={16} className='!text-md !leading-[16px]' />
               </button>
             )}
           </div>
-          <span className='text-sm font-bold dark:text-white-100 !leading-[19.8px]'>
+          <span className='text-sm font-bold dark:text-white-100 !leading-[19.8px] text-right'>
             {displayFee?.fiatValue ? (
               <>
                 <span className='font-medium'>

@@ -1,5 +1,6 @@
 import { useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
+import { ArrowCounterClockwise } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
@@ -84,12 +85,7 @@ export default function FailedAirdropsDetails() {
         ) : (
           <div className='flex items-center gap-2'>
             Retry
-            <span
-              className='material-icons-round'
-              style={{ fontSize: 20, transform: 'rotateY(180deg)' }}
-            >
-              replay
-            </span>
+            <ArrowCounterClockwise size={20} style={{ transform: 'rotateY(180deg)' }} />
           </div>
         )}
       </Buttons.Generic>

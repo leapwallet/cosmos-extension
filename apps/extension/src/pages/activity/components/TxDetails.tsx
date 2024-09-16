@@ -6,6 +6,7 @@ import {
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, Buttons, Card, GenericCard } from '@leapwallet/leap-ui'
 import { parfait, ParsedMessageType, type ParsedTransaction } from '@leapwallet/parser-parfait'
+import { ArrowSquareOut } from '@phosphor-icons/react'
 import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
 import dayjs from 'dayjs'
@@ -331,8 +332,8 @@ export function TxDetails({ parsedTx, content, onBack, forceChain }: TxDetailsPr
             size='normal'
             onClick={() => window.open(txnUrl, '_blank')}
           >
-            <div className={'flex justify-center text-black-100  items-center'}>
-              <span className='mr-2 material-icons-round'>open_in_new</span>
+            <div className='flex justify-center items-center'>
+              <ArrowSquareOut size={20} className='mr-2' />
               <span>View on {chainInfos[activeChain].txExplorer?.[selectedNetwork]?.name}</span>
             </div>
           </Buttons.Generic>

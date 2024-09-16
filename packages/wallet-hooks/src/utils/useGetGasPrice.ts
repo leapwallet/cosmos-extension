@@ -2,6 +2,7 @@ import {
   axiosWrapper,
   ChainInfo,
   defaultGasPriceStep,
+  DenomsRecord,
   GasPrice,
   GasPriceStepsRecord,
   SupportedChain,
@@ -10,14 +11,9 @@ import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import {
-  useChainApis,
-  useChainsStore,
-  useCompassSeiEvmConfigStore,
-  useGasPriceSteps,
-  useSelectedNetwork,
-} from '../store';
+import { useChainApis, useChainsStore, useGasPriceSteps, useGetChains, useSelectedNetwork } from '../store';
 import { FeeModel } from '../types/fee-model';
+import { useGetEvmGasPrices } from '../utils-hooks';
 import { useLowGasPriceStep } from './useLowGasPriceStep';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
 
@@ -61,8 +57,8 @@ export async function getOsmosisGasPriceSteps(lcdUrl: string, gasPriceSteps: Gas
   const minGasPrice = await getOsmosisGasPrice(lcdUrl ?? '', gasPriceSteps);
 
   const low = Math.max(gasPriceSteps.osmosis?.low ?? 0, minGasPrice);
-  const medium = Math.max(gasPriceSteps.osmosis?.average ?? 0, minGasPrice * 1.1);
-  const high = Math.max(gasPriceSteps.osmosis?.high ?? 0, minGasPrice * 2);
+  const medium = Math.max(gasPriceSteps.osmosis?.average ?? 0, roundOf(minGasPrice * 1.1, 5));
+  const high = Math.max(gasPriceSteps.osmosis?.high ?? 0, roundOf(minGasPrice * 2, 5));
 
   return { low, medium, high };
 }
@@ -210,6 +206,7 @@ export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?:
 export type GasRate = Record<GasOptions, GasPrice>;
 
 export function useGasRateQuery(
+  denoms: DenomsRecord,
   chainKey: SupportedChain,
   activeNetwork?: 'mainnet' | 'testnet',
   isSeiEvmTransaction?: boolean,
@@ -221,16 +218,17 @@ export function useGasRateQuery(
   const _selectedNetwork = useSelectedNetwork();
   const selectedNetwork = activeNetwork ?? _selectedNetwork;
 
-  const nativeFeeDenom = useNativeFeeDenom(chainKey, selectedNetwork);
-  const { compassSeiEvmConfig } = useCompassSeiEvmConfigStore();
+  const nativeFeeDenom = useNativeFeeDenom(denoms, chainKey, selectedNetwork);
   const gasPriceStep = useGasPriceStepForChain(chainKey);
-  if (!gasPriceStep && !isSeiEvmTransaction) return undefined;
+  const { gasPrice: evmGasPrice } = useGetEvmGasPrices(chainKey, selectedNetwork);
+  const chains = useGetChains();
+  if (!gasPriceStep && !isSeiEvmTransaction && !chains[chainKey]?.evmOnlyChain) return undefined;
 
   return useMemo(() => {
-    if (isSeiEvmTransaction) {
-      const lowAmount = new BigNumber(compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS.low);
-      const mediumAmount = new BigNumber(compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS.medium);
-      const highAmount = new BigNumber(compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS.high);
+    if (isSeiEvmTransaction || chains[chainKey]?.evmOnlyChain) {
+      const lowAmount = new BigNumber(evmGasPrice.low);
+      const mediumAmount = new BigNumber(evmGasPrice.medium);
+      const highAmount = new BigNumber(evmGasPrice.high);
 
       return {
         [nativeFeeDenom.coinMinimalDenom]: {
@@ -252,6 +250,10 @@ export function useGasRateQuery(
     nativeFeeDenom?.coinMinimalDenom,
     gasPriceStep,
     isSeiEvmTransaction,
-    compassSeiEvmConfig.ARCTIC_EVM_GAS_PRICE_STEPS,
+    evmGasPrice.low,
+    evmGasPrice.medium,
+    evmGasPrice.high,
+    chainKey,
+    chains,
   ]);
 }

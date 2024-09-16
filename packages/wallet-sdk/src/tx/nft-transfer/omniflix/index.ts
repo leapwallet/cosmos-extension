@@ -8,7 +8,7 @@ export const createTransferOnftMessage = ({
   msgType?: 'TransferONFT';
   value: MsgTransferONFT; // valuse in camelCase
 }) => {
-  msgType = 'TransferONFT';
+  msgType = 'TransferONFT' as const;
   const type = customTypes[msgType].type;
   const typeUrl = customTypes[msgType].typeUrl;
   const msgValue = type.encode(type.fromPartial(value)).finish();

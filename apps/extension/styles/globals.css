@@ -244,6 +244,14 @@ input[type='number']::-webkit-outer-spin-button {
   font-feature-settings: 'liga';
 }
 
+.font-medium {
+  font-variation-settings: 'wght' 400;
+}
+
+.font-filled {
+  font-variation-settings: 'FILL' 1;
+}
+
 .lds-ring {
   display: inline-block;
   position: relative;
@@ -350,4 +358,33 @@ input[type='number']::-webkit-outer-spin-button {
   background-color: #696969;
   border-radius: 2px;
   /* border: 3px solid #212121; */
+}
+
+.panel-height {
+  height: 600px;
+}
+
+.side-panel .panel-height {
+  height: 100%;
+}
+
+.max-panel-height {
+  max-height: 600px;
+}
+
+.side-panel .max-panel-height {
+  max-height: 100%;
+}
+
+.panel-width {
+  width: 400px;
+}
+
+.side-panel .enclosing-panel,
+.side-panel .enclosing-panel * {
+  max-width: 100%;
+}
+
+.side-panel .panel-width {
+  max-width: 100%;
 }

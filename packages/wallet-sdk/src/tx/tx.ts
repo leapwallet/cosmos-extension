@@ -352,7 +352,7 @@ export class Tx {
     }
   }
 
-  async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = '') {
+  async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = ''): Promise<TxRaw> {
     let usedFee: StdFee;
     if (fee === 'auto' || typeof fee === 'number') {
       if (!this.options?.gasPrice) {
@@ -368,7 +368,11 @@ export class Tx {
       usedFee = fee;
     }
 
-    return await this.client?.sign(signerAddress, msgs, usedFee, memo);
+    if (!this.client) {
+      throw new Error('Client not initialized');
+    }
+
+    return await this.client.sign(signerAddress, msgs, usedFee, memo);
   }
 
   async claimAndStake(

@@ -1,9 +1,13 @@
 import {
+  SelectedNetwork,
   sliceWord,
   useActiveStakingDenom,
+  useSelectedNetwork,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
+import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
@@ -12,9 +16,12 @@ import ValidatorListSkeleton from 'components/Skeletons/ValidatorListSkeleton'
 import Text from 'components/text'
 import currency from 'currency.js'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
+import Sort from 'icons/sort'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
-import React, { useMemo, useState } from 'react'
+import { observer } from 'mobx-react-lite'
+import React, { useCallback, useMemo, useState } from 'react'
+import { Virtuoso } from 'react-virtuoso'
 import { imgOnError } from 'utils/imgOnError'
 
 import SelectSortBySheet from './SelectSortBySheet'
@@ -25,6 +32,9 @@ type SelectValidatorSheetProps = {
   onValidatorSelect: (validator: Validator) => void
   validators: Validator[]
   apy?: Record<string, number>
+  rootDenomsStore: RootDenomsStore
+  forceChain?: SupportedChain
+  forceNetwork?: SelectedNetwork
 }
 
 export type STAKE_SORT_BY = 'Amount staked' | 'APY' | 'Random'
@@ -32,61 +42,78 @@ export type STAKE_SORT_BY = 'Amount staked' | 'APY' | 'Random'
 type ValidatorCardProps = {
   validator: Validator
   onClick: () => void
+  rootDenomsStore: RootDenomsStore
+  activeChain?: SupportedChain
+  activeNetwork?: SelectedNetwork
 }
 
-export function ValidatorCard({ validator, onClick }: ValidatorCardProps) {
-  const [activeStakingDenom] = useActiveStakingDenom()
-  const { data: imageUrl } = useValidatorImage(validator)
+export const ValidatorCard = observer(
+  ({ validator, onClick, rootDenomsStore, activeChain, activeNetwork }: ValidatorCardProps) => {
+    const [activeStakingDenom] = useActiveStakingDenom(
+      rootDenomsStore.allDenoms,
+      activeChain,
+      activeNetwork,
+    )
+    const { data: imageUrl } = useValidatorImage(validator)
 
-  return (
-    <div
-      onClick={onClick}
-      className={`relative flex justify-between items-center p-4 ${
-        validator.custom_attributes?.priority ? 'bg-[#29A87426]' : 'bg-white-100 dark:bg-gray-950'
-      } cursor-pointer rounded-xl`}
-    >
-      {validator.custom_attributes?.priority !== undefined &&
-        validator.custom_attributes.priority >= 1 && (
-          <div className='text-white-100 dark:text-white-100 absolute top-0 right-4 px-1.5 py-0.5 bg-green-600 rounded-b-[4px] text-[10px] font-bold'>
-            Promoted
-          </div>
-        )}
-      <div className='flex items-center flex-grow'>
-        <img
-          src={imageUrl ?? validator?.image ?? Images.Misc.Validator}
-          onError={imgOnError(GenericLight)}
-          width={30}
-          height={30}
-          className='mr-3 border rounded-full dark:border-[#333333] border-[#cccccc]'
-        />
-        <div className='flex flex-col justify-center items-start w-full'>
-          <Text size='sm' color='text-black-100 dark:text-white-100' className='font-bold mb-0.5'>
-            {sliceWord(validator.moniker, 30, 0)}
-          </Text>
-          <div className='flex justify-between w-full'>
-            <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
-              {`${currency(
-                (validator.delegations?.total_tokens_display ?? validator.tokens) as string,
-                {
-                  symbol: '',
-                  precision: 0,
-                },
-              ).format()} ${activeStakingDenom.coinDenom}`}
+    return (
+      <div
+        onClick={onClick}
+        className={`relative flex justify-between items-center p-4 mb-4 ${
+          validator.custom_attributes?.priority ? 'bg-[#29A87426]' : 'bg-white-100 dark:bg-gray-950'
+        } cursor-pointer rounded-xl`}
+      >
+        {validator.custom_attributes?.priority !== undefined &&
+          validator.custom_attributes.priority >= 1 && (
+            <div className='text-white-100 dark:text-white-100 absolute top-0 right-4 px-1.5 py-0.5 bg-green-600 rounded-b-[4px] text-[10px] font-bold'>
+              Promoted
+            </div>
+          )}
+        <div className='flex items-center flex-grow'>
+          <img
+            src={imageUrl ?? validator?.image ?? Images.Misc.Validator}
+            onError={imgOnError(GenericLight)}
+            width={30}
+            height={30}
+            className='mr-3 border h-[30px] w-[30px] rounded-full dark:border-[#333333] border-[#cccccc]'
+          />
+          <div className='flex flex-col justify-center items-start w-full'>
+            <Text size='sm' color='text-black-100 dark:text-white-100' className='font-bold mb-0.5'>
+              {sliceWord(
+                validator.moniker,
+                26 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7),
+                0,
+              )}
             </Text>
-            <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
-              Commission:{' '}
-              {validator.commission?.commission_rates.rate
-                ? `${new BigNumber(validator.commission.commission_rates.rate)
-                    .multipliedBy(100)
-                    .toFixed(0)}%`
-                : 'N/A'}
-            </Text>
+            <div className='flex justify-between w-full'>
+              <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
+                {`${currency(
+                  (validator.delegations?.total_tokens_display ?? validator.tokens ?? '') as string,
+                  {
+                    symbol: '',
+                    precision: 0,
+                  },
+                ).format()} ${activeStakingDenom.coinDenom}`}
+              </Text>
+              <Text
+                size='xs'
+                color='dark:text-gray-400 text-gray-600 text-right'
+                className='font-medium'
+              >
+                Commission:{' '}
+                {validator.commission?.commission_rates.rate
+                  ? `${new BigNumber(validator.commission.commission_rates.rate)
+                      .multipliedBy(100)
+                      .toFixed(0)}%`
+                  : 'N/A'}
+              </Text>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  )
-}
+    )
+  },
+)
 
 export default function SelectValidatorSheet({
   isVisible,
@@ -94,11 +121,23 @@ export default function SelectValidatorSheet({
   onValidatorSelect,
   validators,
   apy,
+  rootDenomsStore,
+  forceChain,
+  forceNetwork,
 }: SelectValidatorSheetProps) {
   const [searchedTerm, setSearchedTerm] = useState('')
   const [showSortBy, setShowSortBy] = useState(false)
   const [sortBy, setSortBy] = useState<STAKE_SORT_BY>('Random')
-  const activeChain = useActiveChain()
+
+  const _activeChain = useActiveChain()
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
+
+  const _activeNetwork = useSelectedNetwork()
+  const activeNetwork = useMemo(
+    () => forceNetwork || _activeNetwork,
+    [_activeNetwork, forceNetwork],
+  )
+
   const [isLoading, setIsLoading] = useState(false)
   const [activeValidators, inactiveValidators] = useMemo(() => {
     setIsLoading(true)
@@ -114,7 +153,7 @@ export default function SelectValidatorSheet({
         case 'APY':
           return apy ? (apy[a.address] < apy[b.address] ? 1 : -1) : 0
         case 'Random':
-          return 0
+          return Math.random() - 0.5
       }
     })
     if (sortBy === 'Random') {
@@ -123,7 +162,10 @@ export default function SelectValidatorSheet({
         const priorityB = b.custom_attributes?.priority
 
         if (priorityA !== undefined && priorityB !== undefined) {
-          return priorityA - priorityB
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB
+          }
+          return Math.random() - 0.5
         } else if (priorityA !== undefined) {
           return -1
         } else if (priorityB !== undefined) {
@@ -139,6 +181,37 @@ export default function SelectValidatorSheet({
     return [_activeValidators, searchedTerm ? _inactiveValidators : []]
   }, [validators, searchedTerm, sortBy, apy])
 
+  const listItems = useMemo(() => {
+    const items: (Validator | { itemType: 'inactiveHeader' })[] = [...activeValidators]
+    if (inactiveValidators.length > 0) {
+      items.push({ itemType: 'inactiveHeader' })
+      items.push(...inactiveValidators)
+    }
+    return items
+  }, [activeValidators, inactiveValidators])
+
+  const renderItem = useCallback(
+    (_: number, item: Validator | { itemType: 'inactiveHeader' }) => {
+      if ('itemType' in item) {
+        return (
+          <Text size='xs' color='text-gray-700 dark:text-gray-400' className='mb-4'>
+            Inactive validator
+          </Text>
+        )
+      }
+      return (
+        <ValidatorCard
+          validator={item}
+          onClick={() => onValidatorSelect(item)}
+          rootDenomsStore={rootDenomsStore}
+          activeChain={activeChain}
+          activeNetwork={activeNetwork}
+        />
+      )
+    },
+    [rootDenomsStore, activeChain, activeNetwork, onValidatorSelect],
+  )
+
   return (
     <BottomModal
       isOpen={isVisible}
@@ -148,10 +221,11 @@ export default function SelectValidatorSheet({
       }}
       closeOnBackdropClick={true}
       title='Select Validator'
-      className='p-6'
+      containerClassName='h-[calc(100%-34px)]'
+      className='p-6 !overflow-hidden max-h-[calc(100%-69px)] h-full'
     >
-      <div className='flex flex-col gap-y-6'>
-        <div className='flex gap-x-4 justify-between items-center'>
+      <div className='flex flex-col gap-y-6 h-full'>
+        <div className='flex gap-x-2 justify-between items-center'>
           <SearchInput
             divClassName='flex w-full bg-white-100 dark:bg-gray-950 rounded-full py-2 pl-5 pr-[10px] focus-within:border-green-600'
             value={searchedTerm}
@@ -160,50 +234,35 @@ export default function SelectValidatorSheet({
             placeholder='Search validators'
             onClear={() => setSearchedTerm('')}
           />
-          <span
+          <button
             onClick={() => setShowSortBy(true)}
-            className='material-icons-round text-black-100 dark:text-white-100 rounded-3xl cursor-pointer dark:bg-gray-950 bg-white-100 p-2'
+            className='text-black-100 dark:text-white-100 h-[2.5rem] px-3 flex items-center justify-center flex-shrink-0 rounded-3xl cursor-pointer dark:bg-gray-950 bg-white-100'
           >
-            sort
-          </span>
+            <Sort size={20} />
+          </button>
         </div>
 
-        {isLoading && <ValidatorListSkeleton />}
-        {!isLoading && activeValidators?.length === 0 && inactiveValidators.length === 0 && (
-          <EmptyCard
-            isRounded
-            subHeading='Try a different search term'
-            src={Images.Misc.Explore}
-            heading={`No validators found for '${searchedTerm}'`}
-            data-testing-id='select-validator-empty-card'
-          />
-        )}
-        {!isLoading && activeValidators.length !== 0 && (
-          <div className='flex flex-col gap-y-4'>
-            {activeValidators.map((validator) => (
-              <ValidatorCard
-                key={validator.address}
-                validator={validator}
-                onClick={() => onValidatorSelect(validator)}
-              />
-            ))}
-          </div>
-        )}
-        {!isLoading && searchedTerm && inactiveValidators.length !== 0 && (
-          <div className='flex flex-col gap-y-4'>
-            <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-              Inactive validator
-            </Text>
-            {inactiveValidators.map((validator) => (
-              <ValidatorCard
-                key={validator.address}
-                validator={validator}
-                onClick={() => onValidatorSelect(validator)}
-              />
-            ))}
-          </div>
-        )}
+        <div className='w-full h-full' style={{ overflowY: 'scroll' }}>
+          {isLoading && <ValidatorListSkeleton />}
+          {!isLoading && listItems.length === 0 && (
+            <EmptyCard
+              isRounded
+              subHeading='Try a different search term'
+              src={Images.Misc.Explore}
+              heading={`No validators found for '${searchedTerm}'`}
+              data-testing-id='select-validator-empty-card'
+            />
+          )}
+          {!isLoading && listItems.length > 0 && (
+            <Virtuoso
+              data={listItems}
+              itemContent={renderItem}
+              style={{ flexGrow: '1', width: '100%' }}
+            />
+          )}
+        </div>
       </div>
+
       <SelectSortBySheet
         onClose={() => setShowSortBy(false)}
         isVisible={showSortBy}

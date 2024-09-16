@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect, useMemo } from 'react';
 
 import { useUserPreferredCurrency } from '../settings';
@@ -20,7 +20,11 @@ import {
 } from '../utils';
 import { useChainId, useIsFeatureExistForChain } from '../utils-hooks';
 
-export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+export function useFetchStakeDelegations(
+  denoms: DenomsRecord,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
+) {
   const {
     setStakeDelegationInfo,
     setStakeDelegationLoading,
@@ -43,9 +47,8 @@ export function useFetchStakeDelegations(forceChain?: SupportedChain, forceNetwo
   const address = useAddress(activeChain);
   const [preferredCurrency] = useUserPreferredCurrency();
 
-  const denoms = useDenoms();
   const chainInfos = useGetChains();
-  const [activeStakingDenom] = useActiveStakingDenom(activeChain, selectedNetwork);
+  const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, selectedNetwork);
   const activeChainInfo = chainInfos[activeChain];
   const chainId = useChainId(activeChain, selectedNetwork);
 

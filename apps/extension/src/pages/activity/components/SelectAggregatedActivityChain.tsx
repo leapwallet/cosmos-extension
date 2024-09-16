@@ -1,5 +1,7 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import BottomModal from 'components/bottom-modal'
+import { observer } from 'mobx-react-lite'
 import { ListChains } from 'pages/home/SelectChain'
 import React from 'react'
 
@@ -9,27 +11,32 @@ type SelectAggregatedActivityChainProps = {
   chainsToShow: string[]
   selectedChain: SupportedChain
   onChainSelect: (chainName: SupportedChain) => void
+  chainTagsStore: ChainTagsStore
 }
 
-export function SelectAggregatedActivityChain({
-  isVisible,
-  onClose,
-  chainsToShow,
-  selectedChain,
-  onChainSelect,
-}: SelectAggregatedActivityChainProps) {
-  return (
-    <BottomModal
-      isOpen={isVisible}
-      onClose={onClose}
-      closeOnBackdropClick={true}
-      title='Switch chain'
-    >
-      <ListChains
-        selectedChain={selectedChain}
-        onChainSelect={onChainSelect}
-        chainsToShow={chainsToShow}
-      />
-    </BottomModal>
-  )
-}
+export const SelectAggregatedActivityChain = observer(
+  ({
+    isVisible,
+    onClose,
+    chainsToShow,
+    selectedChain,
+    onChainSelect,
+    chainTagsStore,
+  }: SelectAggregatedActivityChainProps) => {
+    return (
+      <BottomModal
+        isOpen={isVisible}
+        onClose={onClose}
+        closeOnBackdropClick={true}
+        title='Switch chain'
+      >
+        <ListChains
+          selectedChain={selectedChain}
+          onChainSelect={onChainSelect}
+          chainsToShow={chainsToShow}
+          chainTagsStore={chainTagsStore}
+        />
+      </BottomModal>
+    )
+  },
+)

@@ -7,7 +7,7 @@ import {
 import { captureException } from '@sentry/react'
 import { showSideNavFromSearchModalState } from 'atoms/search-modal'
 import { ButtonName, ButtonType, EventName, PageName } from 'config/analytics'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { AGGREGATED_CHAIN_KEY, LEAPBOARD_URL } from 'config/constants'
 import { useAuth } from 'context/auth-context'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
@@ -17,6 +17,8 @@ import { useNavigate } from 'react-router'
 import { useSetRecoilState } from 'recoil'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
+import { closeSidePanel } from 'utils/closeSidePanel'
+import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
 export function useHardCodedActions() {
@@ -50,7 +52,7 @@ export function useHardCodedActions() {
 
   function handleNftsClick(_redirectUrl?: string) {
     if (featureFlags?.nfts?.extension === 'redirect') {
-      const redirectUrl = _redirectUrl ?? 'https://cosmos.leapwallet.io/portfolio/nfts'
+      const redirectUrl = _redirectUrl ?? `${LEAPBOARD_URL}/portfolio/nfts`
       window.open(redirectUrl, '_blank')
     } else {
       navigate('/nfts')
@@ -59,7 +61,7 @@ export function useHardCodedActions() {
 
   function handleVoteClick(_redirectUrl?: string) {
     if (featureFlags?.gov?.extension === 'redirect') {
-      const redirectUrl = _redirectUrl ?? 'https://cosmos.leapwallet.io/portfolio/gov'
+      const redirectUrl = _redirectUrl ?? `${LEAPBOARD_URL}/portfolio/gov`
       window.open(redirectUrl, '_blank')
     } else {
       navigate('/gov')
@@ -92,8 +94,7 @@ export function useHardCodedActions() {
   function onSendClick(_redirectUrl?: string) {
     if (featureFlags?.ibc?.extension === 'redirect') {
       const redirectUrl =
-        _redirectUrl ??
-        `https://cosmos.leapwallet.io/transact/send?sourceChainId=${activeChainInfo.chainId}`
+        _redirectUrl ?? `${LEAPBOARD_URL}/transact/send?sourceChainId=${activeChainInfo.chainId}`
       window.open(redirectUrl, '_blank')
     } else {
       navigate(`/send`)
@@ -102,10 +103,11 @@ export function useHardCodedActions() {
 
   function handleConnectLedgerClick() {
     const views = Browser.extension.getViews({ type: 'popup' })
-    if (views.length === 0) {
+    if (views.length === 0 && !isSidePanel()) {
       navigate('/onboardingImport?walletName=hardwarewallet')
     } else {
       window.open('index.html#/onboardingImport?walletName=hardwarewallet')
+      closeSidePanel()
     }
   }
 

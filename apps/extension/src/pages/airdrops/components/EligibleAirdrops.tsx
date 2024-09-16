@@ -1,8 +1,10 @@
 import { formatTokenAmount, useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
+import { CaretRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import React from 'react'
 import { useNavigate } from 'react-router'
+import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 
 import EmptyAirdrops from './EmptyAirdrops'
@@ -48,16 +50,25 @@ export default function EligibleAirdrops() {
           >
             <img src={d.airdropIcon} alt='airdrop-icon' className='w-8 h-8 rounded-full' />
             <Text size='sm' className='flex-1 font-medium'>
-              {trim(d.name, 17)}
+              {trim(
+                d.name,
+                isSidePanel()
+                  ? 10 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                  : 17,
+              )}
             </Text>
-            <Text size='sm' className='w-[100px] font-medium'>
+            <Text
+              size='sm'
+              className={classNames('font-medium', {
+                'w-[100px]': !isSidePanel(),
+                'text-right': isSidePanel(),
+              })}
+            >
               {d.totalAmount
                 ? formatTokenAmount(String(d.totalAmount), d.tokenInfo[0]?.denom, 2)
                 : d.tokenInfo[0]?.denom}
             </Text>
-            <div className='material-icons-round text-gray-600 dark:text-gray-400'>
-              chevron_right
-            </div>
+            <CaretRight size={16} className='text-gray-600 dark:text-gray-400' />
           </div>
         ))}
       </div>

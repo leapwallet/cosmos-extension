@@ -3,18 +3,19 @@ import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
 import {
   DefaultGasEstimates,
+  DenomsRecord,
   fromSmall,
   NativeDenom,
   NTRN_GOV_CONTRACT_ADDRESS,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/browser/tx/nft-transfer/contract';
-import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
 
 import { LeapWalletApi } from '../apis';
+import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { sendTokensReturnType } from '../send';
 import {
@@ -32,7 +33,7 @@ import { GasOptions, getMetaDataForGovVoteTx, useGasRateQuery, useNativeFeeDenom
 import { useChainId } from '../utils-hooks';
 import { getVoteNum } from './useGov';
 
-export function useNtrnGov(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
+export function useNtrnGov(denoms: DenomsRecord, forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const _activeChain = useActiveChain();
   const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain]);
   const _selectedNetwork = useSelectedNetwork();
@@ -40,7 +41,7 @@ export function useNtrnGov(forceChain?: SupportedChain, forceNetwork?: 'mainnet'
 
   const chainInfos = useGetChains();
   const defaultGasEstimates = useDefaultGasEstimates();
-  const nativeFeeDenom = useNativeFeeDenom(activeChain, selectedNetwork);
+  const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetwork);
   const address = useAddress(activeChain);
   const getCW20TxClient = useCW20TxHandler(activeChain, selectedNetwork);
   const { setPendingTx } = usePendingTxState();
@@ -60,7 +61,7 @@ export function useNtrnGov(forceChain?: SupportedChain, forceNetwork?: 'mainnet'
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
-  const gasPrices = useGasRateQuery(activeChain, selectedNetwork);
+  const gasPrices = useGasRateQuery(denoms, activeChain, selectedNetwork);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
   const activeChainId = useChainId(activeChain, selectedNetwork);
 

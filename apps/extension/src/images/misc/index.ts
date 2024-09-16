@@ -25,6 +25,7 @@ import CheckSecret from './check-secret.svg'
 import CMDShiftL from './cmd-shift-l.svg'
 import CompassCopied from './compass-copied.svg'
 import CompassNftVerifiedCollection from './compass-nft-verified-collection.svg'
+import CompassNoStake from './compass-no-stake.svg'
 import CompassPinExtension from './compass-pin-extension.png'
 import CompassReward from './compass-reward.svg'
 import ConnectLedgerSteps from './connect-ledger-steps.svg'
@@ -200,6 +201,7 @@ export {
   CMDShiftL,
   CompassCopied,
   CompassNftVerifiedCollection,
+  CompassNoStake,
   CompassPinExtension,
   CompassReward,
   ConnectedSitesIcon,

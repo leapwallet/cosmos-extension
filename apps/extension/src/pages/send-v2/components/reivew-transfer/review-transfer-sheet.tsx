@@ -1,18 +1,21 @@
 import {
+  formatTokenAmount,
   sliceAddress,
+  Token,
   useformatCurrency,
   useGetChains,
-  useIsERC20Token,
   useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
-  getSeiEvmAddressToShow,
   isEthAddress,
+  pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { RootERC20DenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { EthWallet } from '@leapwallet/leap-keychain'
 import { Avatar, Buttons } from '@leapwallet/leap-ui'
+import { ArrowRight } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
@@ -21,6 +24,7 @@ import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfir
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useMemo } from 'react'
 import { Colors } from 'theme/colors'
@@ -31,222 +35,239 @@ import { useExecuteSkipTx } from './executeSkipTx'
 type ReviewTransactionSheetProps = {
   isOpen: boolean
   onClose: () => void
+  rootERC20DenomsStore: RootERC20DenomsStore
 }
 
-export const ReviewTransferSheet: React.FC<ReviewTransactionSheetProps> = ({ isOpen, onClose }) => {
-  const [formatCurrency] = useformatCurrency()
-  const defaultTokenLogo = useDefaultTokenLogo()
-  const chains = useGetChains()
-  const getWallet = Wallet.useGetWallet()
-  const isERC20Token = useIsERC20Token()
-  const isSeiEvmChain = useIsSeiEvmChain()
+export const ReviewTransferSheet = observer(
+  ({ isOpen, onClose, rootERC20DenomsStore }: ReviewTransactionSheetProps) => {
+    const [formatCurrency] = useformatCurrency()
+    const defaultTokenLogo = useDefaultTokenLogo()
+    const chains = useGetChains()
+    const getWallet = Wallet.useGetWallet()
+    const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
 
-  const {
-    memo,
-    selectedToken,
-    selectedAddress,
-    fee,
-    showLedgerPopup,
-    inputAmount,
-    tokenFiatValue,
-    isSending,
-    txError,
-    isIBCTransfer,
-    sendDisabled,
-    confirmSend,
-    confirmSendEth,
-    clearTxError,
-    userPreferredGasPrice,
-    userPreferredGasLimit,
-    gasEstimate,
-    transferData,
-    isIbcUnwindingDisabled,
-    fetchAccountDetailsData,
-    associatedSeiAddress,
-    sendActiveChain,
-  } = useSendContext()
+    const isERC20Token = useCallback(
+      (token: Token) => {
+        if (!token) {
+          return false
+        }
+        return Object.keys(allERC20Denoms).includes(token.coinMinimalDenom)
+      },
+      [allERC20Denoms],
+    )
+    const isSeiEvmChain = useIsSeiEvmChain()
 
-  const { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError } =
-    useExecuteSkipTx()
-  const fiatValue = useMemo(
-    () => formatCurrency(new BigNumber(inputAmount).multipliedBy(tokenFiatValue ?? 0)),
-    [formatCurrency, inputAmount, tokenFiatValue],
-  )
+    const {
+      memo,
+      selectedToken,
+      selectedAddress,
+      fee,
+      showLedgerPopup,
+      inputAmount,
+      tokenFiatValue,
+      isSending,
+      txError,
+      isIBCTransfer,
+      sendDisabled,
+      confirmSend,
+      confirmSendEth,
+      clearTxError,
+      userPreferredGasPrice,
+      userPreferredGasLimit,
+      gasEstimate,
+      transferData,
+      isIbcUnwindingDisabled,
+      fetchAccountDetailsData,
+      associatedSeiAddress,
+      sendActiveChain,
+    } = useSendContext()
 
-  const handleClose = useCallback(() => {
-    setError('')
-    onClose()
+    const { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError } =
+      useExecuteSkipTx()
+    const fiatValue = useMemo(
+      () => formatCurrency(new BigNumber(inputAmount).multipliedBy(tokenFiatValue ?? 0)),
+      [formatCurrency, inputAmount, tokenFiatValue],
+    )
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    const handleClose = useCallback(() => {
+      setError('')
+      onClose()
 
-  const handleSend = useCallback(async () => {
-    clearTxError()
-    if (!fee || !selectedAddress?.address || !selectedToken) {
-      return
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    const handleSend = useCallback(async () => {
+      clearTxError()
+      if (!fee || !selectedAddress?.address || !selectedToken) {
+        return
+      }
+
+      try {
+        let toAddress = selectedAddress.address
+        const _isERC20Token = isERC20Token(selectedToken)
+
+        if (
+          (isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) &&
+          _isERC20Token &&
+          toAddress.toLowerCase().startsWith(chains[sendActiveChain].addressPrefix) &&
+          fetchAccountDetailsData?.pubKey.key
+        ) {
+          toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+        }
+
+        if (selectedAddress.address.toLowerCase().startsWith('0x') && associatedSeiAddress) {
+          toAddress = associatedSeiAddress
+        }
+
+        if ((isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) && isEthAddress(toAddress)) {
+          const wallet = await getWallet(sendActiveChain, true)
+          const nativeTokenKey = Object.keys(chains[sendActiveChain]?.nativeDenoms ?? {})?.[0]
+
+          await confirmSendEth(
+            toAddress,
+            inputAmount,
+            userPreferredGasLimit ?? gasEstimate,
+            wallet as unknown as EthWallet,
+            parseInt(userPreferredGasPrice?.amount?.toString() ?? ''),
+            {
+              isERC20Token: _isERC20Token,
+              contractAddress: selectedToken.coinMinimalDenom,
+              decimals: selectedToken.coinDecimals,
+              nativeTokenKey,
+            },
+          )
+        } else if (transferData?.isSkipTransfer && !isIbcUnwindingDisabled && isIBCTransfer) {
+          // If skiptranfer is supported and ibc unwinding in not disabled and it is ibc transfer
+          // we use Skip API for transfer or
+          // else we use default Cosmos API
+
+          confirmSkipTx()
+        } else {
+          await confirmSend({
+            selectedToken: selectedToken,
+            toAddress: associatedSeiAddress || selectedAddress?.address || '',
+            amount: new BigNumber(inputAmount),
+            memo: memo,
+            fees: fee,
+          })
+        }
+      } catch (err: unknown) {
+        captureException(err)
+      }
+    }, [
+      clearTxError,
+      fee,
+      selectedAddress?.address,
+      selectedToken,
+      isERC20Token,
+      isSeiEvmChain,
+      chains,
+      sendActiveChain,
+      associatedSeiAddress,
+      fetchAccountDetailsData?.pubKey.key,
+      transferData?.isSkipTransfer,
+      isIbcUnwindingDisabled,
+      isIBCTransfer,
+      getWallet,
+      confirmSendEth,
+      inputAmount,
+      userPreferredGasLimit,
+      gasEstimate,
+      userPreferredGasPrice?.amount,
+      confirmSkipTx,
+      confirmSend,
+      memo,
+    ])
+
+    useCaptureTxError(txError)
+    if ((showLedgerPopup || showLedgerPopupSkipTx) && !txError) {
+      return <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup || showLedgerPopupSkipTx} />
     }
 
-    try {
-      let toAddress = selectedAddress.address
-      const _isERC20Token = isERC20Token(selectedToken)
+    return (
+      <BottomModal
+        isOpen={isOpen}
+        closeOnBackdropClick={true}
+        onClose={handleClose}
+        title='Review Transaction'
+        contentClassName='!bg-white-100 dark:!bg-gray-950'
+        className='p-6'
+      >
+        <div className='flex flex-col items-center w-full gap-y-4'>
+          <div className='w-full flex items-center gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
+            <div className='flex flex-col flex-1 items-center'>
+              <Avatar
+                avatarImage={selectedToken?.img ?? defaultTokenLogo}
+                chainIcon={chains?.[sendActiveChain]?.chainSymbolImageUrl}
+                size='sm'
+                avatarOnError={imgOnError(defaultTokenLogo)}
+                className='mb-4 bg-gray-100 dark:bg-gray-850 rounded-full p-2 !h-11 !w-11'
+              />
 
-      if (
-        isSeiEvmChain &&
-        _isERC20Token &&
-        toAddress.toLowerCase().startsWith(chains[sendActiveChain].addressPrefix) &&
-        fetchAccountDetailsData?.pubKey.key
-      ) {
-        toAddress = getSeiEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
-      }
+              <p
+                className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
+                data-testing-id='send-review-sheet-inputAmount-ele'
+              >
+                {formatTokenAmount(inputAmount, selectedToken?.symbol ?? '')}
+              </p>
 
-      if (selectedAddress.address.toLowerCase().startsWith('0x') && associatedSeiAddress) {
-        toAddress = associatedSeiAddress
-      }
+              <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
+                {fiatValue} &middot; on {chains?.[sendActiveChain]?.chainName}
+              </p>
+            </div>
 
-      if (isSeiEvmChain && isEthAddress(toAddress)) {
-        const wallet = await getWallet(sendActiveChain, true)
-        await confirmSendEth(
-          toAddress,
-          inputAmount,
-          userPreferredGasLimit ?? gasEstimate,
-          wallet as unknown as EthWallet,
-          parseInt(String(Number(userPreferredGasPrice?.amount.toString()) * 10 ** 18)),
-          {
-            isERC20Token: _isERC20Token,
-            contractAddress: selectedToken.coinMinimalDenom,
-            decimals: selectedToken.coinDecimals,
-          },
-        )
-      } else if (transferData?.isSkipTransfer && !isIbcUnwindingDisabled && isIBCTransfer) {
-        // If skiptranfer is supported and ibc unwinding in not disabled and it is ibc transfer
-        // we use Skip API for transfer or
-        // else we use default Cosmos API
-
-        confirmSkipTx()
-      } else {
-        await confirmSend({
-          selectedToken: selectedToken,
-          toAddress: associatedSeiAddress || selectedAddress?.address || '',
-          amount: new BigNumber(inputAmount),
-          memo: memo,
-          fees: fee,
-        })
-      }
-    } catch (err: unknown) {
-      captureException(err)
-    }
-  }, [
-    clearTxError,
-    fee,
-    selectedAddress?.address,
-    selectedToken,
-    isERC20Token,
-    isSeiEvmChain,
-    chains,
-    sendActiveChain,
-    associatedSeiAddress,
-    fetchAccountDetailsData?.pubKey.key,
-    transferData?.isSkipTransfer,
-    isIbcUnwindingDisabled,
-    isIBCTransfer,
-    getWallet,
-    confirmSendEth,
-    inputAmount,
-    userPreferredGasLimit,
-    gasEstimate,
-    userPreferredGasPrice?.amount,
-    confirmSkipTx,
-    confirmSend,
-    memo,
-  ])
-
-  useCaptureTxError(txError)
-  if ((showLedgerPopup || showLedgerPopupSkipTx) && !txError) {
-    return <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup || showLedgerPopupSkipTx} />
-  }
-
-  return (
-    <BottomModal
-      isOpen={isOpen}
-      closeOnBackdropClick={true}
-      onClose={handleClose}
-      title='Review Transaction'
-      contentClassName='!bg-white-100 dark:!bg-gray-950'
-      className='p-6'
-    >
-      <div className='flex flex-col items-center w-full gap-y-4'>
-        <div className='w-full flex items-center gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
-          <div className='flex flex-col flex-1 items-center'>
-            <Avatar
-              avatarImage={selectedToken?.img ?? defaultTokenLogo}
-              chainIcon={chains?.[sendActiveChain]?.chainSymbolImageUrl}
-              size='sm'
-              avatarOnError={imgOnError(defaultTokenLogo)}
-              className='mb-4 bg-gray-100 dark:bg-gray-850 rounded-full p-2 !h-11 !w-11'
+            <ArrowRight
+              size={16}
+              className='text-black-100 dark:text-white-100 bg-gray-100 dark:bg-gray-850 rounded-full p-1.5'
             />
+            <div className='flex flex-col flex-1 items-center'>
+              <Avatar
+                avatarImage={selectedAddress?.avatarIcon}
+                emoji={selectedAddress?.emoji}
+                chainIcon={selectedAddress?.chainIcon}
+                size='sm'
+                avatarOnError={imgOnError(defaultTokenLogo)}
+                className='mb-4 bg-gray-100 dark:bg-gray-850 rounded-full p-2 !h-11 !w-11'
+              />
 
-            <p
-              className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
-              data-testing-id='send-review-sheet-inputAmount-ele'
-            >
-              {inputAmount} {selectedToken?.symbol ? ` ${selectedToken.symbol}` : ''}
-            </p>
+              <p
+                className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
+                data-testing-id='send-review-sheet-to-ele'
+              >
+                {selectedAddress?.ethAddress && selectedAddress?.chainName !== 'injective'
+                  ? sliceAddress(selectedAddress.ethAddress)
+                  : selectedAddress?.selectionType === 'currentWallet'
+                  ? selectedAddress?.name?.split('-')[0]
+                  : selectedAddress?.name}
+              </p>
 
-            <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
-              {fiatValue} &middot; on {chains?.[sendActiveChain]?.chainName}
-            </p>
+              <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
+                on {ChainInfos?.[selectedAddress?.chainName as SupportedChain]?.chainName} <br />
+              </p>
+            </div>
           </div>
 
-          <div className='material-icons-round !text-md text-black-100 dark:text-white-100 bg-gray-100 dark:bg-gray-850 rounded-full p-[6px]'>
-            arrow_forward
-          </div>
-          <div className='flex flex-col flex-1 items-center'>
-            <Avatar
-              avatarImage={selectedAddress?.avatarIcon}
-              emoji={selectedAddress?.emoji}
-              chainIcon={selectedAddress?.chainIcon}
-              size='sm'
-              avatarOnError={imgOnError(defaultTokenLogo)}
-              className='mb-4 bg-gray-100 dark:bg-gray-850 rounded-full p-2 !h-11 !w-11'
-            />
+          {memo ? (
+            <div className='w-full flex items-baseline gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
+              <p className='text-sm text-gray-800 dark:text-gray-200 font-bold'>Memo</p>
+              <p className='font-medium text-md text-black-100 dark:text-white-100'>{memo}</p>
+            </div>
+          ) : null}
 
-            <p
-              className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
-              data-testing-id='send-review-sheet-to-ele'
-            >
-              {selectedAddress?.ethAddress && selectedAddress?.chainName !== 'injective'
-                ? sliceAddress(selectedAddress.ethAddress)
-                : selectedAddress?.selectionType === 'currentWallet'
-                ? selectedAddress?.name?.split('-')[0]
-                : selectedAddress?.name}
-            </p>
-
-            <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
-              on {ChainInfos?.[selectedAddress?.chainName as SupportedChain]?.chainName} <br />
-            </p>
-          </div>
+          <Buttons.Generic
+            color={Colors.green600}
+            size='normal'
+            title='Send'
+            className='w-full mt-2'
+            onClick={handleSend}
+            disabled={showLedgerPopup || isSending || sendDisabled || txnProcessing}
+            data-testing-id='send-review-sheet-send-btn'
+          >
+            {isSending || txnProcessing ? 'Sending...' : 'Confirm Send'}
+          </Buttons.Generic>
+          {txError || error ? <ErrorCard text={txError || error} /> : null}
         </div>
-
-        {memo ? (
-          <div className='w-full flex items-baseline gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
-            <p className='text-sm text-gray-800 dark:text-gray-200 font-bold'>Memo</p>
-            <p className='font-medium text-md text-black-100 dark:text-white-100'>{memo}</p>
-          </div>
-        ) : null}
-
-        <Buttons.Generic
-          color={Colors.green600}
-          size='normal'
-          title='Send'
-          className='w-full mt-2'
-          onClick={handleSend}
-          disabled={showLedgerPopup || isSending || sendDisabled || txnProcessing}
-          data-testing-id='send-review-sheet-send-btn'
-        >
-          {isSending || txnProcessing ? 'Sending...' : 'Confirm Send'}
-        </Buttons.Generic>
-        {txError || error ? <ErrorCard text={txError || error} /> : null}
-      </div>
-    </BottomModal>
-  )
-}
+      </BottomModal>
+    )
+  },
+)

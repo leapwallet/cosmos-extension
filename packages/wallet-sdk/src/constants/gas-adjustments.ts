@@ -88,4 +88,8 @@ export const gasAdjustments: GasAdjustments = {
   saga: 1.5,
   initia: 1.5,
   humans: 1.5,
+  lava: 1.5,
+  mantra: 1.5,
+  ethereum: 1,
+  forma: 1,
 };

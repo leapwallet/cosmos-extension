@@ -1,3 +1,4 @@
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import React, { useState } from 'react'
 
@@ -57,18 +58,14 @@ export function NftCardCarousel({ images, ...nftCardProps }: NftCardCarouselProp
             className='rounded-full w-[25px] h-[25px] absolute top-1/2 -translate-y-1/2 left-2 bg-gray-200 dark:bg-gray-900 flex items-center justify-center'
             onClick={() => handleArrowClick('left')}
           >
-            <span className='material-icons-round dark:text-gray-300 text-gray-800'>
-              navigate_before
-            </span>
+            <CaretLeft size={16} className='dark:text-gray-300 text-gray-800' />
           </button>
 
           <button
             className='rounded-full w-[25px] h-[25px] absolute top-1/2 -translate-y-1/2 right-2 bg-gray-200 dark:bg-gray-900 flex items-center justify-center'
             onClick={() => handleArrowClick('right')}
           >
-            <span className='material-icons-round dark:text-gray-300 text-gray-800'>
-              navigate_next
-            </span>
+            <CaretRight size={16} className='dark:text-gray-300 text-gray-800' />
           </button>
         </>
       ) : null}

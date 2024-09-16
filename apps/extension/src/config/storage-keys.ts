@@ -38,3 +38,5 @@ export const NEW_CHAIN_TOOLTIP_STORAGE_KEY = 'leap-new-chain-tooltip-user-prefer
 
 export const SHOW_LINK_ADDRESS_NUDGE = 'show-link-address-nudge'
 export const ACTIVE_WALLET_ID = 'active-wallet-id'
+
+export const LAST_EVM_ACTIVE_CHAIN = 'last-evm-active-chain'

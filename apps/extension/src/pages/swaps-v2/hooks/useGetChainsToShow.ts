@@ -44,6 +44,10 @@ export function useGetChainsToShow() {
                 rpcUrl: skipChain.rpcUrl ?? chain.apis?.rpc ?? chain.apis?.rpcTest,
                 restUrl: skipChain.restUrl ?? chain.apis?.rest ?? chain.apis?.restTest,
                 txExplorer: skipChain.txExplorer ?? chain.txExplorer,
+                pfmEnabled: skipChain.pfmEnabled,
+                logoUri: skipChain.logoUri ?? chain.chainSymbolImageUrl,
+                bech32Prefix: skipChain.bech32Prefix ?? chain.addressPrefix,
+                isTestnet: false,
               })
             }
           }

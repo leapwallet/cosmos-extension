@@ -1,9 +1,10 @@
+import { Icon } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { Images } from 'images'
 import React from 'react'
 
 interface SuccessCardProps {
-  icons: Array<{ icon?: string; image?: string }>
+  icons: Array<{ icon: Icon } | { image: 'Appstore' | 'Playstore' | 'Dashboard' }>
   color: string
   title: string
   content: string
@@ -24,28 +25,17 @@ export default function SuccessCard({
     >
       <div className='flex'>
         {icons.map((d, i) =>
-          d?.icon ? (
-            <Text
-              key={i}
-              size='lg'
-              className='material-icons-round w-5 h-5'
-              style={{ color: color }}
-            >
-              {d?.icon}
-            </Text>
+          'icon' in d ? (
+            <d.icon key={i} size={24} style={{ color: color }} />
           ) : (
             <>
               {i > 0 && <div className='dark:border-gray-800 border-gray-200 border mx-3' />}
-              <img
-                key={i}
-                src={Images.Logos?.[d.image as 'Appstore' | 'Playstore' | 'Dashboard']}
-                className='w-5 h-5'
-              />
+              <img key={i} src={Images.Logos[d.image]} className='w-5 h-5' />
             </>
           ),
         )}
       </div>
-      <Text size='lg' style={{ color: color }} className='font-bold my-2'>
+      <Text size='lg' style={{ color }} className='font-bold my-2'>
         {title}
       </Text>
       <Text size='sm' className='dark:!text-gray-400 text-gray-600 font-medium'>

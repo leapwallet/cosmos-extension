@@ -42,11 +42,15 @@ export async function getValidatorsList(
   chainInfos?: Record<SupportedChain, ChainInfo>,
 ) {
   const baseURL = lcdUrl ?? getRestUrl(chainInfos ?? ChainInfos, chain, isTestnet);
-  let queryURL = `/cosmos/staking/v1beta1/validators?pagination.limit=500`;
+  const queryParams: Record<string, string | number> = {
+    'pagination.limit': chain === 'mantra' ? 1000 : 500,
+  };
 
   if (chain === 'nibiru') {
-    queryURL = `${queryURL}&status=BOND_STATUS_BONDED`;
+    queryParams['status'] = 'BOND_STATUS_BONDED';
   }
+
+  let queryURL = `/cosmos/staking/v1beta1/validators?${qs.stringify(queryParams)}`;
 
   if (chain === 'initia') {
     queryURL = `initia/mstaking/v1/validators`;

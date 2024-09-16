@@ -89,6 +89,10 @@ export const nativeFeeDenoms: FeeDenoms = {
     saga: 'usaga',
     initia: 'uinit',
     humans: 'aheart',
+    lava: 'ulava',
+    mantra: 'uom',
+    ethereum: 'wei',
+    forma: 'utia',
   },
   testnet: {
     akash: 'uakt',
@@ -173,5 +177,9 @@ export const nativeFeeDenoms: FeeDenoms = {
     saga: 'usaga',
     initia: 'uinit',
     humans: 'aheart',
+    lava: 'ulava',
+    mantra: 'uom',
+    ethereum: 'wei',
+    forma: 'utia',
   },
 };

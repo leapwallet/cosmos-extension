@@ -4,7 +4,7 @@ const defaultColors = require('tailwindcss/colors')
 
 module.exports = {
   mode: 'jit',
-  content: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html'],
+  content: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html', './public/sidepanel.html'],
   darkMode: 'class',
   theme: {
     fontFamily: {

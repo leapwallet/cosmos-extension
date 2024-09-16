@@ -1,5 +1,6 @@
 import { formatTokenAmount, sliceWord, Token, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -257,9 +258,7 @@ export function TokenInputCard({
                   </span>
                 ) : null}
               </p>
-              <p className='!text-lg material-icons-round dark:text-white-100 flex items-center'>
-                expand_more
-              </p>
+              <CaretDown size={14} className='dark:text-white-100' />
             </button>
           </>
         )}
@@ -289,9 +288,10 @@ export function TokenInputCard({
                 Switch to {isInputInUSDC ? 'Token' : 'USD'}
               </span>
             )}
-            <span className='text-black-100 dark:text-white-100 material-icons-round !text-xs !leading-[12px]'>
-              swap_vert
-            </span>
+            <ArrowsLeftRight
+              size={12}
+              className='text-black-100 dark:text-white-100 !leading-[12px] rotate-90'
+            />
           </button>
         </div>
 

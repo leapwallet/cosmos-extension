@@ -1,4 +1,5 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DisableObject } from '@leapwallet/cosmos-wallet-store';
 import { useEffect, useMemo } from 'react';
 import create from 'zustand';
 
@@ -6,7 +7,6 @@ import { useActiveChain } from './useActiveChain';
 import { useAddress } from './useAddress';
 import { useAutoFetchedCW20TokensStore } from './useAutoFetchedCW20Tokens';
 import { useDenomsStore } from './useDenoms';
-import { DisableObject } from './useDisabledCW20Tokens';
 
 type EnabledCW20Tokens = {
   enabledCW20Tokens: DisableObject | null;

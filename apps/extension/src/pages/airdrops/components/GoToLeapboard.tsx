@@ -1,7 +1,9 @@
+import { RocketLaunch } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import Text from 'components/text'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
+import { LEAPBOARD_URL } from 'config/constants'
 import mixpanel from 'mixpanel-browser'
 import React from 'react'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -9,7 +11,7 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 interface GoToLeapboardProps {
   className?: string
 }
-const redirectURL = `https://cosmos.leapwallet.io/airdrops`
+const redirectURL = `${LEAPBOARD_URL}/airdrops`
 
 export default function GoToLeapboard({ className = '' }: GoToLeapboardProps) {
   const trackCTAEvent = () => {
@@ -45,14 +47,9 @@ export default function GoToLeapboard({ className = '' }: GoToLeapboardProps) {
         height={16}
       />
       <Text size='xs' className='font-bold'>
-        Go to Leapboard
+        Go to Leap Dashboard
       </Text>
-      <div
-        className='material-icons-round text-black-100 dark:text-white-100'
-        style={{ fontSize: 16 }}
-      >
-        launch
-      </div>
+      <RocketLaunch size={16} className='text-black-100 dark:text-white-100' />
     </div>
   )
 }
