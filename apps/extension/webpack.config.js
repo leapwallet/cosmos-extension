@@ -334,21 +334,6 @@ module.exports = (env, argv) => {
             path: appEnvFilePath,
             defaults: defaultEnvFilePath,
           }),
-          //this is used to upload source maps to sentry
-          new SentryWebpackPlugin({
-            org: appEnvConfig.SENTRY_ORG,
-            project: appEnvConfig.SENTRY_PROJECT,
-            include: isCompassBuild
-              ? `./${buildType.outDirPath}/compass-build`
-              : `./${buildType.outDirPath}/cosmos-build`,
-            // Auth tokens can be obtained from https://sentry.io/settings/account/api/auth-tokens/
-            // and needs the `project:releases` and `org:read` scopes
-            token: envConfig.SENTRY_AUTH_TOKEN,
-            release: manifestObj.version,
-            deleteAfterCompile: true,
-            url: envConfig.SENTRY_HOST,
-          }),
-          new DeleteSourceMapsPlugin(),
         ],
         optimization: {
           usedExports: true,

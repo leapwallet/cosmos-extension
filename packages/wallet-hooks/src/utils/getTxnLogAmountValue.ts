@@ -1,5 +1,4 @@
-import { Currency } from '@leapwallet/leap-api-js';
-
+import { Currency } from '../connectors';
 import { LoggingDenom } from '../types';
 import { fetchCurrency } from './findUSDValue';
 

@@ -14,12 +14,12 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import { getDelegateMsg } from '@leapwallet/cosmos-wallet-sdk';
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking';
-import { CosmosTxType } from '@leapwallet/leap-api-js';
 import BigNumber from 'bignumber.js';
 import { MsgDelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
+import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { useformatCurrency } from '../settings';
 import {

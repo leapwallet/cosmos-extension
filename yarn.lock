@@ -2651,15 +2651,6 @@
     swr "2.1.5"
     tiny-invariant "1.3.3"
 
-"@leapwallet/leap-api-js@0.21.11":
-  version "0.21.11"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-api-js/0.21.11/c850fcbfdc08bfde5a821765246b9ba66965baa4#c850fcbfdc08bfde5a821765246b9ba66965baa4"
-  integrity sha512-phywg5tC0EEz/d15VREd65OZ8BA+wMZQ+FEiT0nu5Yukao8U1J5IRghisFVj8zgslLN0OlejxN1+3zOLGO2i8A==
-  dependencies:
-    cross-fetch "3.1.5"
-    crypto-js "4.1.1"
-    typedi "0.10.0"
-
 "@leapwallet/leap-keychain@0.2.4":
   version "0.2.4"
   resolved "https://npm.pkg.github.com/download/@leapwallet/leap-keychain/0.2.4/7b8dfd4a8b61617e7ff65a53fe9a879b482e3699#7b8dfd4a8b61617e7ff65a53fe9a879b482e3699"
