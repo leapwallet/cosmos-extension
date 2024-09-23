@@ -86,6 +86,7 @@ export type GetRewardsForChainParams = {
   chainKey: string;
   activeChain: SupportedChain;
   selectedNetwork: SelectedNetworkType;
+  forceRefetch?: boolean;
 };
 
 export type ChainClaimRewards = {

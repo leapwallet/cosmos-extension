@@ -1,4 +1,3 @@
-import { Buttons } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import { useSwapContext } from 'pages/swaps-v2/context'

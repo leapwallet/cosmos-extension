@@ -1,4 +1,3 @@
-import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import React from 'react'
 

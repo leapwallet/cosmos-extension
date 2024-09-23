@@ -17,6 +17,7 @@ import Text from 'components/text'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import AddIBCChannel from './AddIBCChannel'
 
@@ -279,7 +280,7 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
         </div>
 
         <Buttons.Generic
-          color={Colors.green600}
+          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
           size='normal'
           className='w-full'
           title='Proceed'

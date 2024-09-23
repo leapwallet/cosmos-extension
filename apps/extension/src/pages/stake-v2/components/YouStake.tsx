@@ -20,6 +20,7 @@ import { Colors } from 'theme/colors'
 import { Token } from 'types/bank'
 import { hex2rgba } from 'utils/hextorgba'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 interface YouStakeProps {
@@ -295,7 +296,12 @@ const YouStake = observer(
               <div
                 onClick={handleMaxClick}
                 className='hover:cursor-pointer rounded-2xl px-3 py-1'
-                style={{ backgroundColor: hex2rgba(Colors.green600, 0.2) }}
+                style={{
+                  backgroundColor: hex2rgba(
+                    isCompassWallet() ? Colors.compassPrimary : Colors.green600,
+                    0.2,
+                  ),
+                }}
               >
                 <Text size='xs' className='font-medium' style={{ color: Colors.green600 }}>
                   Max

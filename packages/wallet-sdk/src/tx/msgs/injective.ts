@@ -1,5 +1,6 @@
 import { AminoMsg } from '@cosmjs/amino';
 import { EncodeObject } from '@cosmjs/proto-signing';
+
 import {
   MsgBeginRedelegate,
   MsgDelegate,
@@ -12,7 +13,7 @@ import {
   MsgUndelegate,
   MsgVote,
   MsgWithdrawDelegatorReward,
-} from '@injectivelabs/sdk-ts';
+} from '../../proto/injective/core/modules';
 
 export enum MsgTypes {
   GRANT = '/cosmos.authz.v1beta1.MsgGrant',

@@ -1,5 +1,4 @@
 import { SelectedAddress } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import React, { useEffect, useState } from 'react'

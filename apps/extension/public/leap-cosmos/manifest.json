@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Leap Cosmos Wallet",
   "description": "A crypto wallet for Cosmos blockchains.",
-  "version": "0.14.7",
+  "version": "0.14.9",
   "options_page": "index.html#/home",
   "web_accessible_resources": [
     {

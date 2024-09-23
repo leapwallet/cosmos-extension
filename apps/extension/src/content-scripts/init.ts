@@ -68,10 +68,10 @@ function initEvm(leapEvm: Ethereum, isCompass: boolean) {
     }
   }
 
-  if (!window.ethereum) {
-    leapEvm.isMetaMask = true
-    window.ethereum = leapEvm
-  }
+  // if (!window.ethereum) {
+  //   leapEvm.isMetaMask = true
+  //   window.ethereum = leapEvm
+  // }
 
   function announceProvider() {
     window.dispatchEvent(

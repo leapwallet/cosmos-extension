@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { StdFee } from '@cosmjs/stargate'
-import { TxClient } from '@injectivelabs/sdk-ts'
 import { getClientState, InjectiveTx, LeapLedgerSignerEth } from '@leapwallet/cosmos-wallet-sdk'
+import { TxClient } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/injective/core/modules'
 import { MsgExecuteContract } from '@osmosis-labs/proto-codecs/build/codegen/cosmwasm/wasm/v1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import { SourceChain } from 'types/swap'

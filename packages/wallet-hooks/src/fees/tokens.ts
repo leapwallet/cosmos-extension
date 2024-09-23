@@ -148,7 +148,12 @@ export const getChainFeeTokens = async ({
     ibcDenom: nativeFeeTokenIbcDenom,
     gasPriceStep: baseGasPriceStep,
   };
+
   try {
+    const { data: fee_token_chains } = await axios.get(
+      `https://assets.leapwallet.io/cosmos-registry/v1/fee-tokens/fee-token-chains.json`,
+    );
+    if (!fee_token_chains?.chains.includes(chain)) return [nativeFeeToken];
     const { data } = await axios.get<RemoteFeeTokenData[]>(
       `https://assets.leapwallet.io/cosmos-registry/v1/fee-tokens/${chain}.json`,
     );

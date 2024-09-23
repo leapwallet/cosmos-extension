@@ -34,6 +34,16 @@ export async function getChainInfo(chain: string, testnet?: boolean): Promise<Ch
     };
   }
 
+  if (chain === 'seiDevnet') {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //@ts-ignore
+    return {
+      chain_name: 'Sei Devnet (Arctic-1)',
+      decimals: 6,
+      denom: 'usei',
+    };
+  }
+
   let chainRegistryPath = ChainInfos[chain as SupportedChain]?.chainRegistryPath;
   const testnetChainRegistryPath =
     ChainInfos[chain as SupportedChain]?.testnetChainRegistryPath ??

@@ -22,6 +22,7 @@ import { SourceChain, SourceToken } from 'types/swap'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { imgOnError } from 'utils/imgOnError'
+import { isSidePanel } from 'utils/isSidePanel'
 import { sliceWord } from 'utils/strings'
 
 export function TokenCard({
@@ -161,7 +162,14 @@ export function TokenCard({
                   className='h-5 w-5'
                 />
 
-                <div className='group-hover:!block hidden absolute bottom-0 right-0 translate-x-full bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-xs dark:text-white-100'>
+                <div
+                  className={classNames(
+                    'group-hover:!block hidden absolute bottom-0 right-0 translate-x-full bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-xs dark:text-white-100',
+                    {
+                      '!max-w-max': isSidePanel(),
+                    },
+                  )}
+                >
                   Whitelisted
                 </div>
               </div>

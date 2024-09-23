@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { BinaryReader, BinaryWriter } from '../binary';
 import { Coin, CoinAmino, CoinSDKType } from '../coin';
 import { isSet } from '../helpers';
+import { JsonSafe } from './json-safe';
 export interface MsgDelegate {
   creator: string;
   validator: string;
@@ -20,7 +22,7 @@ export interface MsgDelegateAmino {
   amount?: CoinAmino;
 }
 export interface MsgDelegateAminoMsg {
-  type: '/lavanet.lava.dualstaking.MsgDelegate';
+  type: 'dualstaking/Delegate';
   value: MsgDelegateAmino;
 }
 export interface MsgDelegateSDKType {
@@ -62,7 +64,7 @@ export interface MsgRedelegateAmino {
   amount?: CoinAmino;
 }
 export interface MsgRedelegateAminoMsg {
-  type: '/lavanet.lava.dualstaking.MsgRedelegate';
+  type: 'dualstaking/Redelegate';
   value: MsgRedelegateAmino;
 }
 export interface MsgRedelegateSDKType {
@@ -103,7 +105,7 @@ export interface MsgUnbondAmino {
   amount?: CoinAmino;
 }
 export interface MsgUnbondAminoMsg {
-  type: '/lavanet.lava.dualstaking.MsgUnbond';
+  type: 'dualstaking/Unbond';
   value: MsgUnbondAmino;
 }
 export interface MsgUnbondSDKType {
@@ -139,7 +141,7 @@ export interface MsgClaimRewardsAmino {
   provider?: string;
 }
 export interface MsgClaimRewardsAminoMsg {
-  type: '/lavanet.lava.dualstaking.MsgClaimRewards';
+  type: 'dualstaking/MsgClaimRewards';
   value: MsgClaimRewardsAmino;
 }
 export interface MsgClaimRewardsSDKType {
@@ -224,7 +226,7 @@ export const MsgDelegate = {
       amount: isSet(object.amount) ? Coin.fromJSON(object.amount) : Coin.fromJSON({ amount: 1, denom: '' }),
     };
   },
-  toJSON(message: MsgDelegate): unknown {
+  toJSON(message: MsgDelegate): JsonSafe<MsgDelegate> {
     const obj: any = {};
     message.creator !== undefined && (obj.creator = message.creator);
     message.validator !== undefined && (obj.validator = message.validator);
@@ -276,6 +278,12 @@ export const MsgDelegate = {
   fromAminoMsg(object: MsgDelegateAminoMsg): MsgDelegate {
     return MsgDelegate.fromAmino(object.value);
   },
+  toAminoMsg(message: MsgDelegate): MsgDelegateAminoMsg {
+    return {
+      type: 'dualstaking/Delegate',
+      value: MsgDelegate.toAmino(message),
+    };
+  },
   fromProtoMsg(message: MsgDelegateProtoMsg): MsgDelegate {
     return MsgDelegate.decode(message.value);
   },
@@ -314,7 +322,7 @@ export const MsgDelegateResponse = {
   fromJSON(_: any): MsgDelegateResponse {
     return {};
   },
-  toJSON(_: MsgDelegateResponse): unknown {
+  toJSON(_: MsgDelegateResponse): JsonSafe<MsgDelegateResponse> {
     const obj: any = {};
     return obj;
   },
@@ -421,7 +429,7 @@ export const MsgRedelegate = {
       amount: isSet(object.amount) ? Coin.fromJSON(object.amount) : Coin.fromJSON({ amount: 1, denom: '' }),
     };
   },
-  toJSON(message: MsgRedelegate): unknown {
+  toJSON(message: MsgRedelegate): JsonSafe<MsgRedelegate> {
     const obj: any = {};
     message.creator !== undefined && (obj.creator = message.creator);
     message.fromProvider !== undefined && (obj.fromProvider = message.fromProvider);
@@ -479,6 +487,12 @@ export const MsgRedelegate = {
   fromAminoMsg(object: MsgRedelegateAminoMsg): MsgRedelegate {
     return MsgRedelegate.fromAmino(object.value);
   },
+  toAminoMsg(message: MsgRedelegate): MsgRedelegateAminoMsg {
+    return {
+      type: 'dualstaking/Redelegate',
+      value: MsgRedelegate.toAmino(message),
+    };
+  },
   fromProtoMsg(message: MsgRedelegateProtoMsg): MsgRedelegate {
     return MsgRedelegate.decode(message.value);
   },
@@ -517,7 +531,7 @@ export const MsgRedelegateResponse = {
   fromJSON(_: any): MsgRedelegateResponse {
     return {};
   },
-  toJSON(_: MsgRedelegateResponse): unknown {
+  toJSON(_: MsgRedelegateResponse): JsonSafe<MsgRedelegateResponse> {
     const obj: any = {};
     return obj;
   },
@@ -616,7 +630,7 @@ export const MsgUnbond = {
       amount: isSet(object.amount) ? Coin.fromJSON(object.amount) : Coin.fromJSON({ amount: 1, denom: '' }),
     };
   },
-  toJSON(message: MsgUnbond): unknown {
+  toJSON(message: MsgUnbond): JsonSafe<MsgUnbond> {
     const obj: any = {};
     message.creator !== undefined && (obj.creator = message.creator);
     message.validator !== undefined && (obj.validator = message.validator);
@@ -668,6 +682,12 @@ export const MsgUnbond = {
   fromAminoMsg(object: MsgUnbondAminoMsg): MsgUnbond {
     return MsgUnbond.fromAmino(object.value);
   },
+  toAminoMsg(message: MsgUnbond): MsgUnbondAminoMsg {
+    return {
+      type: 'dualstaking/Unbond',
+      value: MsgUnbond.toAmino(message),
+    };
+  },
   fromProtoMsg(message: MsgUnbondProtoMsg): MsgUnbond {
     return MsgUnbond.decode(message.value);
   },
@@ -706,7 +726,7 @@ export const MsgUnbondResponse = {
   fromJSON(_: any): MsgUnbondResponse {
     return {};
   },
-  toJSON(_: MsgUnbondResponse): unknown {
+  toJSON(_: MsgUnbondResponse): JsonSafe<MsgUnbondResponse> {
     const obj: any = {};
     return obj;
   },
@@ -781,7 +801,7 @@ export const MsgClaimRewards = {
       provider: isSet(object.provider) ? String(object.provider) : '',
     };
   },
-  toJSON(message: MsgClaimRewards): unknown {
+  toJSON(message: MsgClaimRewards): JsonSafe<MsgClaimRewards> {
     const obj: any = {};
     message.creator !== undefined && (obj.creator = message.creator);
     message.provider !== undefined && (obj.provider = message.provider);
@@ -811,6 +831,12 @@ export const MsgClaimRewards = {
   },
   fromAminoMsg(object: MsgClaimRewardsAminoMsg): MsgClaimRewards {
     return MsgClaimRewards.fromAmino(object.value);
+  },
+  toAminoMsg(message: MsgClaimRewards): MsgClaimRewardsAminoMsg {
+    return {
+      type: 'dualstaking/MsgClaimRewards',
+      value: MsgClaimRewards.toAmino(message),
+    };
   },
   fromProtoMsg(message: MsgClaimRewardsProtoMsg): MsgClaimRewards {
     return MsgClaimRewards.decode(message.value);
@@ -850,7 +876,7 @@ export const MsgClaimRewardsResponse = {
   fromJSON(_: any): MsgClaimRewardsResponse {
     return {};
   },
-  toJSON(_: MsgClaimRewardsResponse): unknown {
+  toJSON(_: MsgClaimRewardsResponse): JsonSafe<MsgClaimRewardsResponse> {
     const obj: any = {};
     return obj;
   },

@@ -18,6 +18,7 @@ import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { betaCW20DenomsStore, enabledCW20DenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { getContractInfo } from 'utils/getContractInfo'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -196,6 +197,7 @@ const SuggestSecret = observer(({ handleRejectBtnClick }: ChildrenParams) => {
       const enabledCW20Tokens = enabledCW20DenomsStore.getEnabledCW20DenomsForChain(chain)
       const _enabledCW20Tokens = [...enabledCW20Tokens, payload.contractAddress]
       await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Tokens, chain)
+      rootBalanceStore.loadBalances()
     }
     window.removeEventListener('beforeunload', handleRejectBtnClick)
     await Browser.storage.local.set({

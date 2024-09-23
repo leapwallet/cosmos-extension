@@ -1,5 +1,5 @@
 import { axiosWrapper, CosmosSDK, getNeutronProposals, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { computed, makeObservable, observable, reaction, runInAction } from 'mobx';
+import { computed, makeAutoObservable, makeObservable, observable, reaction, runInAction } from 'mobx';
 import qs from 'qs';
 
 import {
@@ -309,6 +309,7 @@ export class GovStore {
                 this.chainWisePaginations[chainKey]?.node,
                 30,
                 chainCosmosSdk as CosmosSDK,
+                activeChainId,
               );
 
         runInAction(() => {
@@ -381,13 +382,15 @@ export class GovStore {
     paginationKey: string = '',
     paginationLimit: number = 30,
     activeChainCosmosSDK?: CosmosSDK,
+    activeChainId?: string,
   ) {
-    let url = `/cosmos/gov/v1beta1/proposals`;
+    const urlPrefix = activeChainId === 'govgen-1' ? '/govgen' : '/cosmos';
+    let url = `${urlPrefix}/gov/v1beta1/proposals`;
 
     switch (activeChainCosmosSDK) {
       case CosmosSDK.Version_Point_46:
       case CosmosSDK.Version_Point_47:
-        url = `/cosmos/gov/v1/proposals`;
+        url = `${urlPrefix}/gov/v1/proposals`;
         break;
     }
 

@@ -131,23 +131,6 @@ export type Page =
   | 'switch-ethereum-chain'
   | 'suggest-ethereum-chain'
 
-async function getPopup() {
-  if (popupIds.length === 0) {
-    return undefined
-  }
-  const window = await browser.windows.get(popupIds[0], { populate: true })
-  return [window]
-}
-
-function getPopupInWindows(windows: browser.Windows.Window[] | undefined) {
-  return windows
-    ? windows.find((window) => {
-        if (!window.id) return false
-        return window.type === 'popup' && Object.values(popupIds).includes(window.id)
-      })
-    : undefined
-}
-
 export async function openPopup(page: Page, queryString?: string) {
   let response
   try {

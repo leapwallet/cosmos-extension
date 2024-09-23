@@ -1,10 +1,8 @@
 import { DenomsRecord, isValidAddressWithPrefix, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
-import { ParsedTransaction } from '@leapwallet/parser-parfait';
 import { useQuery } from '@tanstack/react-query';
 import { differenceInDays } from 'date-fns';
 import { useMemo, useState } from 'react';
 
-import { useActivity } from '../activity';
 import { LeapWalletApi } from '../apis';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
@@ -38,8 +36,6 @@ export function useAssetDetails({ denoms, denom, tokenChain }: UseAssetDetailsPr
       ...autoFetchedCW20Tokens,
     };
   }, [denoms, autoFetchedCW20Tokens]);
-
-  const { txResponse } = useActivity(denoms, tokenChain ? tokenChain : undefined);
 
   const ChartDays: Record<string, number> = {
     '1D': 1,

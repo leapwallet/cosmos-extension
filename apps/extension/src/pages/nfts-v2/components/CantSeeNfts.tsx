@@ -35,7 +35,12 @@ export function CantSeeNfts({ openAddCollectionSheet, className }: CantSeeNftsPr
       account: `https://omniflix.market/account/${activeWallet?.addresses.omniflix}/nfts`,
     }
 
-    return [stargaze, omniflix]
+    const forma = {
+      title: 'Forma',
+      account: `https://modularium.art/my-collection`,
+    }
+
+    return [stargaze, omniflix, forma]
   }, [
     activeWallet?.addresses.omniflix,
     activeWallet?.addresses.seiTestnet2,

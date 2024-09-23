@@ -52,7 +52,19 @@ function CosmosDirectory(testnet: boolean) {
     denom?: NativeDenom,
     chainInfos?: Record<SupportedChain, ChainInfo>,
   ): Promise<Validator[]> {
+    let validators: Validator[] = [];
+    try {
+      // Using chain endpoints
+      validators = await getValidatorsList(chainName, testnet, lcdUrl, chainInfos);
+    } catch {
+      //
+    }
+
+    if (validators.length > 0) return validators;
+
     let res;
+
+    if (chainName === 'seiDevnet') return [];
 
     try {
       const chainRegistryPath = chainInfos?.[chainName].chainRegistryPath ?? chainName;
@@ -69,25 +81,6 @@ function CosmosDirectory(testnet: boolean) {
     result?.validators.forEach((r) => {
       r.tokens = fromSmall(r?.tokens ?? '0', denom?.coinDecimals ?? 6);
     });
-
-    // Filter on testnets or on no validator found
-    let validators: Validator[] = [];
-    if (testnet || !result?.validators || result?.validators?.length === 0) {
-      try {
-        // Using chain endpoints
-        validators = await getValidatorsList(chainName, testnet, lcdUrl, chainInfos);
-      } catch {
-        //
-      }
-
-      // Merge validator from directoryUrl and ChainUrl
-      validators = validators?.map((v) => {
-        const data = (result?.validators.find((r) => r?.address === v?.address) ?? {}) as Validator;
-        return { ...data, ...v };
-      });
-
-      if (validators.length > 0) return validators ?? [];
-    }
 
     return result.validators ?? [];
   }

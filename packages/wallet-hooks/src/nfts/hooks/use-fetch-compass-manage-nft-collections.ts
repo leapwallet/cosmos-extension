@@ -50,6 +50,8 @@ export function useFetchCompassManageNftCollections({ forceChain }: UseFetchComp
     async function fetchCompassManageNftCollections() {
       let allNftCollections: StoredBetaNftCollection[] = [];
 
+      if (activeChain === 'seiDevnet') return [];
+
       try {
         const url = `https://assets.leapwallet.io/cosmos-registry/v1/nft-contracts-compass/${activeNetwork}/all-${activeChain}.json`;
         allNftCollections = await getCompassManageNftCollections(url, chainId ?? '', storage);

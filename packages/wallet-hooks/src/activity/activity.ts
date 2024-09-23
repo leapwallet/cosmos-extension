@@ -1,18 +1,24 @@
-import { DenomsRecord, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, pubKeyToEvmAddressToShow, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
 import { axiosWrapper } from '@leapwallet/cosmos-wallet-sdk/dist/browser/healthy-nodes/axiosWrapper';
 import { fromSmall } from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/token-converter';
 import { ParsedMessageType, type ParsedTransaction, TransactionParser } from '@leapwallet/parser-parfait';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import qs from 'qs';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { useActiveChain, useAddress, useChainsStore, useDenoms } from '../store';
-import { useSelectedNetwork } from '../store';
-import { useChainApis } from '../store';
+import {
+  useActiveChain,
+  useActiveWallet,
+  useAddress,
+  useChainApis,
+  useChainsStore,
+  useSelectedNetwork,
+} from '../store';
 import { Activity, ActivityCardContent, getActivityContentProps, TxResponse } from '../types';
 import { denomFetcher, sliceAddress } from '../utils';
 import { convertVoteOptionToString } from './../utils/vote-option';
+import { parseFormaTx } from './parse-forma-tx';
 
 export type Validators = Record<string, string>;
 
@@ -33,6 +39,7 @@ async function getActivityCardContent({
   denoms,
   restUrl,
   chainId,
+  coinDecimals,
 }: getActivityContentProps): Promise<ActivityCardContent> {
   if (!parsedTx) {
     return {
@@ -53,15 +60,22 @@ async function getActivityCardContent({
   switch (msg.__type) {
     case ParsedMessageType.BankSend: {
       const sentTokenInfo = denoms[msg.tokens[0].denomination as SupportedDenoms];
-      const isReceive = msg.toAddress === address;
+      const isReceive = msg.toAddress.toUpperCase() === address?.toUpperCase();
       content.txType = isReceive ? 'receive' : 'send';
+
       content.title1 = isReceive
         ? `Received ${sentTokenInfo?.coinDenom ?? ''}`
         : `Sent ${sentTokenInfo?.coinDenom ?? ''}`;
+
       content.subtitle1 = isReceive
         ? `From ${sliceAddress(msg.fromAddress ?? '')}`
         : `To ${sliceAddress(msg.toAddress ?? '')}`;
-      content.sentAmount = fromSmall(msg.tokens[0].quantity.toString(), sentTokenInfo?.coinDecimals ?? 0);
+
+      content.sentAmount = fromSmall(
+        msg.tokens[0].quantity.toString(),
+        coinDecimals ?? sentTokenInfo?.coinDecimals ?? 0,
+      );
+
       content.sentTokenInfo = sentTokenInfo;
       break;
     }
@@ -193,13 +207,19 @@ export function useActivity(
   const userAddress = useAddress();
   const chain = useActiveChain();
   const network = useSelectedNetwork();
-  const address = forceAddress ?? userAddress;
   const activeChain = forceChain ?? chain;
   const selectedNetwork = forceNetwork ?? network;
+  const activeWallet = useActiveWallet();
 
   const { lcdUrl: restUrl = '' } = useChainApis(activeChain, selectedNetwork);
   const { chains } = useChainsStore();
-  /*   const denoms = useDenoms(); */
+  const address = useMemo(() => {
+    if (activeChain === 'forma') {
+      return pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain] ?? '');
+    }
+
+    return forceAddress ?? userAddress;
+  }, [forceAddress, userAddress, activeChain, activeWallet]);
 
   const [activity, setActivity] = useState<Activity[]>([]);
   const resetActivity = () => setActivity([]);
@@ -214,82 +234,99 @@ export function useActivity(
       if (address) {
         try {
           let parsedData: ParsedTransaction[] = [];
+          const coinDecimals = chains?.[activeChain]?.evmOnlyChain ? 18 : undefined;
 
-          try {
-            const chainId =
-              selectedNetwork === 'testnet' ? chains[activeChain].testnetChainId : chains[activeChain].chainId;
-            const { data } = chains[activeChain]?.evmOnlyChain
-              ? { data: [] }
-              : await LeapWalletApi.getActivity(address, 0, chainId ?? '');
-            parsedData = data;
-          } catch (_) {
-            let sendParsedData: ParsedTransaction[] = [];
+          if (activeChain === 'forma') {
             try {
-              const sendParams = {
-                'pagination.limit': 20,
-                'pagination.reverse': true,
-                events: `transfer.sender='${address}'`,
-              };
+              const url = `https://explorer.forma.art/api/v2/addresses/${address}/transactions?filter=to%20%7C%20from`;
+              const response = await fetch(url);
+              const data = await response.json();
 
-              const sendQuery = qs.stringify(sendParams);
-
-              const sendData = await axiosWrapper({
-                baseURL: restUrl,
-                method: 'get',
-                url: `/cosmos/tx/v1beta1/txs?${sendQuery}`,
-              });
-
-              sendParsedData = sendData.data?.tx_responses
-                ?.map((tx: any) => {
-                  try {
-                    const res = txnParser.parse(tx);
-                    if (res.success) {
-                      return res.data;
-                    }
-                    return null;
-                  } catch {
-                    return null;
-                  }
-                })
-                .filter(Boolean);
+              parsedData = data?.items?.map((tx: any) =>
+                parseFormaTx(tx, Object.keys(chains[activeChain].nativeDenoms)[0]),
+              );
             } catch (_) {
               //
             }
-
-            let receiveParsedData: ParsedTransaction[] = [];
+          } else {
             try {
-              const receiveParams = {
-                'pagination.limit': 20,
-                'pagination.reverse': true,
-                events: `transfer.recipient='${address}'`,
-              };
+              const chainId =
+                selectedNetwork === 'testnet' ? chains[activeChain].testnetChainId : chains[activeChain].chainId;
 
-              const receiveQuery = qs.stringify(receiveParams);
+              const { data } = chains[activeChain]?.evmOnlyChain
+                ? { data: [] }
+                : await LeapWalletApi.getActivity(address, 0, chainId ?? '');
 
-              const receiveData = await axiosWrapper({
-                baseURL: restUrl,
-                method: 'get',
-                url: `/cosmos/tx/v1beta1/txs?${receiveQuery}`,
-              });
-
-              receiveParsedData = receiveData.data?.tx_responses
-                ?.map((tx: any) => {
-                  try {
-                    const res = txnParser.parse(tx);
-                    if (res.success) {
-                      return res.data;
-                    }
-                    return null;
-                  } catch {
-                    return null;
-                  }
-                })
-                .filter(Boolean);
+              parsedData = data;
             } catch (_) {
-              //
-            }
+              let sendParsedData: ParsedTransaction[] = [];
+              try {
+                const sendParams = {
+                  'pagination.limit': 20,
+                  'pagination.reverse': true,
+                  events: `transfer.sender='${address}'`,
+                };
 
-            parsedData = unionOfTxs(sendParsedData, receiveParsedData);
+                const sendQuery = qs.stringify(sendParams);
+
+                const sendData = await axiosWrapper({
+                  baseURL: restUrl,
+                  method: 'get',
+                  url: `/cosmos/tx/v1beta1/txs?${sendQuery}`,
+                });
+
+                sendParsedData = sendData.data?.tx_responses
+                  ?.map((tx: any) => {
+                    try {
+                      const res = txnParser.parse(tx);
+                      if (res.success) {
+                        return res.data;
+                      }
+                      return null;
+                    } catch {
+                      return null;
+                    }
+                  })
+                  .filter(Boolean);
+              } catch (_) {
+                //
+              }
+
+              let receiveParsedData: ParsedTransaction[] = [];
+              try {
+                const receiveParams = {
+                  'pagination.limit': 20,
+                  'pagination.reverse': true,
+                  events: `transfer.recipient='${address}'`,
+                };
+
+                const receiveQuery = qs.stringify(receiveParams);
+
+                const receiveData = await axiosWrapper({
+                  baseURL: restUrl,
+                  method: 'get',
+                  url: `/cosmos/tx/v1beta1/txs?${receiveQuery}`,
+                });
+
+                receiveParsedData = receiveData.data?.tx_responses
+                  ?.map((tx: any) => {
+                    try {
+                      const res = txnParser.parse(tx);
+                      if (res.success) {
+                        return res.data;
+                      }
+                      return null;
+                    } catch {
+                      return null;
+                    }
+                  })
+                  .filter(Boolean);
+              } catch (_) {
+                //
+              }
+
+              parsedData = unionOfTxs(sendParsedData, receiveParsedData);
+            }
           }
 
           const activity = await Promise.all(
@@ -300,7 +337,9 @@ export function useActivity(
                 if (chains[activeChain].beta && chains[activeChain].nativeDenoms && !feeTokenInfo) {
                   feeTokenInfo = Object.values(chains[activeChain].nativeDenoms)[0];
                 }
-                const feeAmount = txnFee ? fromSmall(txnFee.amount.toString(), feeTokenInfo?.coinDecimals) : undefined;
+                const feeAmount = txnFee
+                  ? fromSmall(txnFee.amount.toString(), coinDecimals ?? feeTokenInfo?.coinDecimals)
+                  : undefined;
 
                 const content = await getActivityCardContent({
                   parsedTx,
@@ -308,8 +347,9 @@ export function useActivity(
                   denoms,
                   restUrl,
                   chainId: chains[activeChain].chainId,
+                  coinDecimals,
                 });
-                content.feeAmount = feeAmount && feeTokenInfo ? `${feeAmount}${feeTokenInfo?.coinDenom ?? ''}` : '';
+                content.feeAmount = feeAmount && feeTokenInfo ? `${feeAmount} ${feeTokenInfo?.coinDenom ?? ''}` : '';
 
                 return { parsedTx, content };
               } catch (_) {

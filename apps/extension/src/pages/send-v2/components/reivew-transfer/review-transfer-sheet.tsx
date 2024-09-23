@@ -29,6 +29,7 @@ import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useMemo } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useExecuteSkipTx } from './executeSkipTx'
 
@@ -255,7 +256,7 @@ export const ReviewTransferSheet = observer(
           ) : null}
 
           <Buttons.Generic
-            color={Colors.green600}
+            color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
             size='normal'
             title='Send'
             className='w-full mt-2'

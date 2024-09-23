@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  formatTokenAmount,
   SelectedNetwork,
   sliceWord,
   useActiveChain,
@@ -12,6 +13,7 @@ import { Delegation, SupportedChain, Validator } from '@leapwallet/cosmos-wallet
 import {
   ClaimRewardsStore,
   DelegationsStore,
+  RootBalanceStore,
   RootDenomsStore,
   UndelegationsStore,
   ValidatorsStore,
@@ -28,13 +30,16 @@ import { useHideAssets } from 'hooks/settings/useHideAssets'
 import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
+import { hex2rgba } from 'utils/hextorgba'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 import { StakeInputPageState } from '../StakeInputPage'
+import ReviewValidatorClaimTx from './ReviewValidatorClaimTx'
 
 interface StakedValidatorDetailsProps {
   isOpen: boolean
@@ -50,6 +55,7 @@ interface StakedValidatorDetailsProps {
   claimRewardsStore: ClaimRewardsStore
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
+  onValidatorClaim: () => void
 }
 
 const StakedValidatorDetails = observer(
@@ -67,6 +73,7 @@ const StakedValidatorDetails = observer(
     claimRewardsStore,
     forceChain,
     forceNetwork,
+    onValidatorClaim,
   }: StakedValidatorDetailsProps) => {
     const _activeChain = useActiveChain()
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
@@ -86,7 +93,7 @@ const StakedValidatorDetails = observer(
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const [formatCurrency] = useFormatCurrency()
-    const { network } = useStaking(
+    const { network, rewards } = useStaking(
       denoms,
       chainDelegations,
       chainValidators,
@@ -101,6 +108,32 @@ const StakedValidatorDetails = observer(
     const apys = network?.validatorApys
     const { data: imageUrl } = useValidatorImage(validator)
     const { theme } = useTheme()
+
+    const [validatorRewardCurrency, validatorRewardToken, validatorRewardTotal] = useMemo(() => {
+      const validatorRewards = chainClaimRewards.rewards.rewards[validator?.address ?? '']
+      const _validatorRewardCurrency = validatorRewards?.reward.reduce(
+        (acc, reward) => acc.plus(new BigNumber(reward.currencyAmount ?? '')),
+        new BigNumber(0),
+      )
+      const rewardCount = validatorRewards?.reward.length ?? 0
+      const nativeReward = validatorRewards?.reward.find(
+        (r) => r.denom === activeStakingDenom?.coinMinimalDenom,
+      )
+      const _validatorRewardToken =
+        formatTokenAmount(nativeReward?.amount ?? '', activeStakingDenom?.coinDenom) +
+        `${rewardCount > 1 ? ` +${rewardCount - 1} more` : ''}`
+
+      const _validatorRewardTotal = validatorRewards?.reward.reduce(
+        (acc, reward) => acc.plus(new BigNumber(reward.amount)),
+        new BigNumber(0),
+      )
+      return [_validatorRewardCurrency, _validatorRewardToken, _validatorRewardTotal]
+    }, [
+      activeStakingDenom?.coinDenom,
+      activeStakingDenom?.coinMinimalDenom,
+      chainClaimRewards.rewards.rewards,
+      validator?.address,
+    ])
 
     const amountTitleText = useMemo(() => {
       if (new BigNumber(delegation.balance.currencyAmount ?? '').gt(0)) {
@@ -218,7 +251,7 @@ const StakedValidatorDetails = observer(
                 onError={imgOnError(defaultTokenLogo)}
               />
 
-              <div>
+              <div className='flex flex-col justify-center'>
                 <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
                   {amountTitleText}
                 </Text>
@@ -228,6 +261,46 @@ const StakedValidatorDetails = observer(
                 </Text>
               </div>
             </div>
+          </div>
+
+          <div className='flex justify-between items-center w-full p-4 bg-white-100 dark:bg-gray-950 rounded-lg'>
+            <div className='flex flex-col gap-y-0.5'>
+              <Text size='sm' color='text-black-100 dark:text-white-100' className='font-bold'>
+                Your Rewards
+              </Text>
+
+              <div className='flex gap-x-2 justify-center'>
+                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
+                  {formatCurrency(validatorRewardCurrency ?? new BigNumber(''))}
+                </Text>
+                <div className='w-px h-4 bg-gray-400 dark:bg-gray-700' />
+                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
+                  {validatorRewardToken}
+                </Text>
+              </div>
+            </div>
+            <button
+              disabled={!validatorRewardTotal || validatorRewardTotal.lt(0.00001)}
+              onClick={onValidatorClaim}
+              className={`hover:cursor-pointer rounded-[14px] px-3 py-1 ${
+                (!validatorRewardTotal || validatorRewardTotal.lt(0.00001)) &&
+                'opacity-70 !cursor-not-allowed'
+              }`}
+              style={{
+                backgroundColor: hex2rgba(
+                  isCompassWallet() ? Colors.compassPrimary : Colors.green600,
+                  0.2,
+                ),
+              }}
+            >
+              <Text
+                size='xs'
+                className='font-bold'
+                style={{ color: isCompassWallet() ? Colors.compassPrimary : Colors.green500 }}
+              >
+                Claim
+              </Text>
+            </button>
           </div>
 
           <div className='flex gap-x-4 w-full'>
@@ -358,6 +431,7 @@ function ValidatorCard({ validator, delegation, onClick }: ValidatorCardProps) {
 
 type ValidatorListProps = {
   rootDenomsStore: RootDenomsStore
+  rootBalanceStore: RootBalanceStore
   delegationsStore: DelegationsStore
   validatorsStore: ValidatorsStore
   unDelegationsStore: UndelegationsStore
@@ -375,9 +449,11 @@ const ValidatorList = observer(
     claimRewardsStore,
     forceChain,
     forceNetwork,
+    rootBalanceStore,
   }: ValidatorListProps) => {
     const navigate = useNavigate()
     const [showStakedValidatorDetails, setShowStakedValidatorDetails] = useState(false)
+    const [showReviewValidatorClaimTx, setShowReviewValidatorClaimTx] = useState(false)
     const [selectedDelegation, setSelectedDelegation] = useState<Delegation | undefined>()
 
     const _activeChain = useActiveChain()
@@ -405,7 +481,14 @@ const ValidatorList = observer(
       activeNetwork,
     )
 
-    const validators = network?.getValidators({}) as Record<string, Validator>
+    const validators = useMemo(
+      () =>
+        validatorsStore.chainValidators.validatorData.validators?.reduce((acc, validator) => {
+          acc[validator.address] = validator
+          return acc
+        }, {} as Record<string, Validator>),
+      [validatorsStore.chainValidators.validatorData.validators],
+    )
     const isLoading = loadingNetwork || loadingDelegations
 
     const query = useQuery()
@@ -444,6 +527,11 @@ const ValidatorList = observer(
 
       return [_activeValidatorDelegations, _inactiveValidatorDelegations]
     }, [delegations, validators])
+
+    const onValidatorClaim = useCallback(() => {
+      setShowStakedValidatorDetails(false)
+      setShowReviewValidatorClaimTx(true)
+    }, [])
 
     return (
       <>
@@ -505,7 +593,7 @@ const ValidatorList = observer(
           )}
         </div>
 
-        {selectedDelegation && network && (
+        {showStakedValidatorDetails && selectedDelegation && (
           <StakedValidatorDetails
             isOpen={showStakedValidatorDetails}
             onClose={() => setShowStakedValidatorDetails(false)}
@@ -540,6 +628,23 @@ const ValidatorList = observer(
             validator={validators[selectedDelegation?.delegation?.validator_address]}
             delegation={selectedDelegation}
             rootDenomsStore={rootDenomsStore}
+            delegationsStore={delegationsStore}
+            validatorsStore={validatorsStore}
+            unDelegationsStore={unDelegationsStore}
+            claimRewardsStore={claimRewardsStore}
+            forceChain={activeChain}
+            forceNetwork={activeNetwork}
+            onValidatorClaim={onValidatorClaim}
+          />
+        )}
+        {showReviewValidatorClaimTx && selectedDelegation && (
+          <ReviewValidatorClaimTx
+            isOpen={showReviewValidatorClaimTx}
+            onClose={() => setShowReviewValidatorClaimTx(false)}
+            validator={validators[selectedDelegation.delegation.validator_address]}
+            selectedDelegation={selectedDelegation}
+            rootDenomsStore={rootDenomsStore}
+            rootBalanceStore={rootBalanceStore}
             delegationsStore={delegationsStore}
             validatorsStore={validatorsStore}
             unDelegationsStore={unDelegationsStore}

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
 import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useSwapContext } from '../context'
 import { MoreDetails } from './MoreDetails'
@@ -144,7 +145,11 @@ export function TxReviewSheet({
           </div>
         </div>
 
-        <Buttons.Generic color={Colors.green600} className='w-[344px]' onClick={onProceed}>
+        <Buttons.Generic
+          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+          className='w-[344px]'
+          onClick={onProceed}
+        >
           Confirm Swap
         </Buttons.Generic>
       </div>

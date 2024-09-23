@@ -1,5 +1,5 @@
 import classNames from 'classnames'
-import React, { CSSProperties, useCallback } from 'react'
+import React, { CSSProperties } from 'react'
 
 type RadioGroupProps = {
   options: { title: string; subTitle?: string; value: string }[]

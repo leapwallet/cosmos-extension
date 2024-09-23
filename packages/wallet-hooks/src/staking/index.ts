@@ -1,4 +1,5 @@
 export * from './useClaimAndStakeRewards';
+export * from './useConsensusValidators';
 export * from './useDualStaking';
 export * from './useFetchDualStakeDelegations';
 export * from './useFetchDualStakeProviderRewards';

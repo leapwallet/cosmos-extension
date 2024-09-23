@@ -9,7 +9,7 @@ export type ChainInfoFromS3 = {
 
 // --------------- chain-infos-config-store ------------------
 
-export type ChainInfosConfigPossibleFeatureType = 'stake' | 'governance' | 'activity';
+export type ChainInfosConfigPossibleFeatureType = 'stake' | 'governance' | 'activity' | 'cosmosConsensusUpdate';
 
 export type ChainInfosConfigPossibleFeatureValueType = {
   platforms: string[];

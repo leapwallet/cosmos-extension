@@ -1,7 +1,7 @@
+import { TransferState } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/skip-core'
 import { DenomData, TRANSFER_STATE } from '@leapwallet/elements-core'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
-import { TransferState } from '@skip-router/core'
 import classNames from 'classnames'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'

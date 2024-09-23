@@ -19,9 +19,6 @@ async function getTxnStatus(args: { tx_hash: string; chain_id: string }) {
     `https://api.skip.money/v1/tx/status?tx_hash=${args.tx_hash}&chain_id=${args.chain_id}`,
     {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
     },
   )
 

@@ -12,7 +12,6 @@ import {
   stakingTypes,
   vestingTypes,
 } from '@cosmjs/stargate/build/modules';
-import { createTxRawEIP712, createWeb3Extension, TxClient, TxRaw as InjTxRaw } from '@injectivelabs/sdk-ts';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
 import { PubKey } from 'cosmjs-types/cosmos/crypto/secp256k1/keys';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
@@ -21,6 +20,8 @@ import Long from 'long';
 
 import { ChainInfos, SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
+import { createTxRawEIP712, createWeb3Extension, TxClient } from '../proto/injective/core/modules';
+import { TxRaw as InjTxRaw } from '../proto/injective/types';
 import { sleep } from '../utils';
 
 export function getTxHashFromSignedTx({

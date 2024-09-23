@@ -44,7 +44,7 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { TransactionStatus } from 'types/utility'
@@ -214,6 +214,13 @@ export const SignTransaction = observer(
       return <Loading />
     }
 
+    const refetchData = useCallback(() => {
+      setTimeout(() => {
+        rootBalanceStore.refetchBalances(activeChain)
+        evmBalanceStore.loadEvmBalance(activeChain)
+      }, 3000)
+    }, [activeChain, evmBalanceStore, rootBalanceStore])
+
     const handleApproveClick = async () => {
       try {
         if (activeWallet.walletType === WALLETTYPE.LEDGER) {
@@ -276,6 +283,7 @@ export const SignTransaction = observer(
         }
 
         if (isSidePanel()) {
+          refetchData()
           navigate('/home')
         } else {
           window.close()

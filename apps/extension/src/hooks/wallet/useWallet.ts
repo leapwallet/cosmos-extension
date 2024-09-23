@@ -15,8 +15,7 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
-import { KeyChain } from '@leapwallet/leap-keychain'
-import { encrypt } from '@leapwallet/leap-keychain'
+import { encrypt, KeyChain } from '@leapwallet/leap-keychain'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import {
   ACTIVE_CHAIN,

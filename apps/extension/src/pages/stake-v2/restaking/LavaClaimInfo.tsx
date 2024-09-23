@@ -46,7 +46,6 @@ const LavaClaimInfo = observer(
     onClaimValidatorRewards,
     onClaimProviderRewards,
     rootDenomsStore,
-    rootBalanceStore,
     delegationsStore,
     validatorsStore,
     unDelegationsStore,

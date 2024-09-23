@@ -11,13 +11,12 @@ import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useAirdropsData } from 'hooks/useAirdropsData'
 import { AddEvmLedger, AddEvmTitle } from 'pages/onboarding/import/AddEvmLedger'
-import { lazy, Suspense, useEffect } from 'react'
-import React from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { denomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
-import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
+import { rootBalanceStore, rootStakeStore, rootStore } from 'stores/root-store'
 import {
   claimRewardsStore,
   delegationsStore,
@@ -311,6 +310,7 @@ export default function AppRoutes(): JSX.Element {
                     unDelegationsStore={unDelegationsStore}
                     claimRewardsStore={claimRewardsStore}
                     rootBalanceStore={rootBalanceStore}
+                    nmsStore={rootStore.nmsStore}
                   />
                 </RequireAuth>
               }

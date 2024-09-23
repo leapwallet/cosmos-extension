@@ -46,9 +46,9 @@ export function getSendTokensMsg(fromAddress: string, toAddress: string, amount:
   return sendMsg;
 }
 
-export function getVoteMsg(option: VoteOption, proposalId: string, fromAddress: string) {
+export function getVoteMsg(option: VoteOption, proposalId: string, fromAddress: string, typeUrl?: string) {
   const voteMsg = {
-    typeUrl: '/cosmos.gov.v1beta1.MsgVote',
+    typeUrl: typeUrl || '/cosmos.gov.v1beta1.MsgVote',
     value: {
       option: option,
       proposalId: Long.fromString(proposalId),

@@ -1,19 +1,20 @@
 import { Key, useChainInfo, useGetChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { CheckCircle } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { walletLabels } from 'config/constants'
-import { Wallet } from 'hooks/wallet/useWallet'
-import React, { useMemo } from 'react'
-import { formatWalletName } from 'utils/formatWalletName'
-
-import useWallets = Wallet.useWallets
-import { CheckCircle } from '@phosphor-icons/react'
 import { useChainPageInfo } from 'hooks'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
+import React, { useMemo } from 'react'
+import { formatWalletName } from 'utils/formatWalletName'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import { sliceAddress } from 'utils/strings'
+
+import useWallets = Wallet.useWallets
+import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 
 type SelectWalletSheetProps = {
   isOpen: boolean
@@ -77,7 +78,11 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
           const shortenedWalletName =
             walletNameLength > sliceLength ? walletName.slice(0, sliceLength) + '...' : walletName
 
-          let addressText = `${sliceAddress(wallet.addresses[activeChainInfo.key])}${walletLabel}`
+          let addressText = `${sliceAddress(
+            activeChainInfo?.evmOnlyChain
+              ? pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChainInfo?.key])
+              : wallet?.addresses?.[activeChainInfo?.key],
+          )}${walletLabel}`
 
           if (
             wallet.walletType === WALLETTYPE.LEDGER &&
@@ -116,7 +121,7 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
                   alt={`wallet icon`}
                   className='rounded-full border border-white-30 h-10 w-10'
                 />
-                <div className='flex-1'>
+                <div className='flex-1 flex flex-col items-start'>
                   <p className='flex text-left items-center gap-1 font-bold dark:text-white-100 text-gray-700 capitalize'>
                     {shortenedWalletName}
                     {wallet.walletType === WALLETTYPE.LEDGER && (

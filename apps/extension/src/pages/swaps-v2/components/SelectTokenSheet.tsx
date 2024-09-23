@@ -18,12 +18,14 @@ const TokenCardWrapper = observer(
     selectedToken,
     selectedChain,
     onTokenSelect,
+    verified,
     header,
   }: {
     index: number
     tokensLength: number
     selectedChain: SourceChain | undefined
     token: SourceToken
+    verified: boolean
     onTokenSelect: (token: SourceToken) => void
     selectedToken: SourceToken | null
     header: ReactNode
@@ -49,7 +51,7 @@ const TokenCardWrapper = observer(
           token={token}
           hideAmount={token.amount === '0'}
           isSelected={isSelected}
-          verified={true}
+          verified={verified}
           selectedChain={selectedChain}
           showRedirection={false}
         />
@@ -254,6 +256,7 @@ export function SelectTokenSheet({
                         key={`${item.coinMinimalDenom}`}
                         index={index}
                         token={item}
+                        verified={true}
                         selectedToken={selectedToken}
                         selectedChain={selectedChain}
                         onTokenSelect={onTokenSelect}
@@ -272,6 +275,7 @@ export function SelectTokenSheet({
                       index={effectiveIndex}
                       key={`${item?.coinMinimalDenom ?? effectiveIndex}`}
                       token={item}
+                      verified={false}
                       selectedToken={selectedToken}
                       selectedChain={selectedChain}
                       onTokenSelect={onTokenSelect}

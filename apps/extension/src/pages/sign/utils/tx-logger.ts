@@ -2,8 +2,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AminoSignResponse, encodeSecp256k1Pubkey, StdSignDoc } from '@cosmjs/amino'
 import { Secp256k1 } from '@cosmjs/crypto'
-import { fromBase64 } from '@cosmjs/encoding'
-import { toBase64 } from '@cosmjs/encoding'
+import { fromBase64, toBase64 } from '@cosmjs/encoding'
 import { Int53 } from '@cosmjs/math'
 import {
   DirectSignResponse,
@@ -12,11 +11,8 @@ import {
   Registry,
   TxBodyEncodeObject,
 } from '@cosmjs/proto-signing'
-import { AminoTypes } from '@cosmjs/stargate'
-import { AminoMsgTransfer } from '@cosmjs/stargate'
-import { createTransaction, SIGN_AMINO } from '@injectivelabs/sdk-ts'
-import { LeapWalletApi } from '@leapwallet/cosmos-wallet-hooks'
-import { CosmosTxType } from '@leapwallet/cosmos-wallet-hooks'
+import { AminoMsgTransfer, AminoTypes } from '@cosmjs/stargate'
+import { CosmosTxType, LeapWalletApi } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getEip712TxHash,
   getMsgFromAmino,
@@ -27,6 +23,10 @@ import {
   initiaAminoConverters,
   initiaProtoRegistry,
 } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/initia/client'
+import {
+  createTransaction,
+  SIGN_AMINO,
+} from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/injective/core/modules'
 import { strideAminoConverters } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/stride/client'
 import {
   cosmosAminoConverters,

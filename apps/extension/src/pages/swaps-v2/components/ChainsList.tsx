@@ -55,8 +55,6 @@ function PopularChains({
   )
 }
 
-const POPULAR_CHAINS: string[] = []
-
 export function ChainCard({
   itemsLength,
   chain,
@@ -139,26 +137,6 @@ export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListC
       return chainName.toLowerCase().includes(searchedChain.toLowerCase())
     })
   }, [chainInfos, chains, chainsToShow, searchedChain])
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-  const popularChains = useMemo(() => {
-    return POPULAR_CHAINS.filter(function (chain) {
-      if (isCompassWallet() && chainInfos[chain as SupportedChain]?.chainName === 'cosmos') {
-        return false
-      }
-
-      if (
-        chainsToShow &&
-        chainsToShow.length &&
-        !chainsToShow.includes(chainInfos[chain as SupportedChain]?.chainRegistryPath)
-      ) {
-        return false
-      }
-
-      const chainName = chainInfos[chain as SupportedChain]?.chainName
-      return chainName.toLowerCase().includes(searchedChain.toLowerCase())
-    })
-  }, [chainInfos, chainsToShow, searchedChain])
 
   return (
     <>

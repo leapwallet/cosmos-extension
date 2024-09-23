@@ -27,6 +27,7 @@ import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
+import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
@@ -45,6 +46,8 @@ import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
+
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
 
@@ -368,7 +371,7 @@ const ReviewClaimTx = observer(
               )}
 
               <Buttons.Generic
-                color={Colors.green600}
+                color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
                 size='normal'
                 disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
                 className='w-full'

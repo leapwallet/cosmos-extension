@@ -2,7 +2,6 @@ import { PerChainDelegations, sliceSearchWord, useGetChains } from '@leapwallet/
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   AggregateStakeStore,
-  BalanceStore,
   ChainTagsStore,
   ClaimRewardsStore,
   DelegationsStore,
@@ -132,8 +131,6 @@ export const AggregatedStake = observer(
           })
         }
       }
-
-      return formattedDelgations
     }, [perChainDelegations, searchedText, showAmountInDescending, showAprInDescending, sortBy])
 
     const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])

@@ -17,7 +17,8 @@ import Lottie from 'lottie-react'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { SourceChain, SourceToken, SwapTxAction } from 'types/swap'
+import { SourceChain, SourceToken, SwapFeeInfo, SwapTxAction } from 'types/swap'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import {
   addTxToCurrentTxList,
   addTxToPendingTxList,
@@ -66,6 +67,7 @@ export type TxPageProps = {
   isTrackingPage?: boolean
   rootDenomsStore: RootDenomsStore
   rootCW20DenomsStore: RootCW20DenomsStore
+  swapFeeInfo?: SwapFeeInfo
 }
 
 export const TxPage = observer(
@@ -92,6 +94,7 @@ export const TxPage = observer(
     isTrackingPage,
     rootDenomsStore,
     rootCW20DenomsStore,
+    swapFeeInfo,
   }: TxPageProps) => {
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
     const [_feeAmount, setFeeAmount] = useState('')
@@ -146,6 +149,7 @@ export const TxPage = observer(
       refetchSourceBalances,
       setTrackingInSync,
       cw20Denoms,
+      swapFeeInfo,
     })
 
     const isTrackingInProgress = useMemo(() => {
@@ -644,9 +648,14 @@ export const TxPage = observer(
               )}
             </button>
             <Buttons.Generic
-              className={classNames('!bg-green-600 dark:!bg-green-600 text-white-100 w-full', {
-                'cursor-no-drop': isLoading,
-              })}
+              className={classNames(
+                `${isCompassWallet() ? '!bg-compassChainTheme-400' : '!bg-green-600'} dark:${
+                  isCompassWallet() ? '!bg-compassChainTheme-400' : '!bg-green-600'
+                } text-white-100 w-full`,
+                {
+                  'cursor-no-drop': isLoading,
+                },
+              )}
               style={{ boxShadow: 'none' }}
               onClick={handleSwapAgainClick}
             >

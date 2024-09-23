@@ -6,7 +6,6 @@ import { EthWallet, Wallet } from '@leapwallet/leap-keychain';
 import * as bip39 from 'bip39';
 
 import getHDPath from '../utils/get-hdpath';
-import { DirectEthSecp256k1HdWallet } from './DirectEthSecp256k1HdWallet';
 
 export { DirectSecp256k1HdWallet, DirectSecp256k1Wallet };
 /**
@@ -93,7 +92,7 @@ export async function generateWalletFromPrivateKey(
   const privateKey = key.startsWith('0x') || key.startsWith('0X') ? key.slice(2) : key;
   if (coinType === '60') {
     // hd path is passed here for completeness but is not used
-    return new DirectEthSecp256k1HdWallet('', key, 'pvtKey', { hdPaths: [getHDPath('60', '1')], prefix });
+    return EthWallet.generateWalletFromPvtKey(key, { addressPrefix: prefix, paths: [getHDPath('60', '1')] });
   }
   if (!isAmino) {
     return DirectSecp256k1Wallet.fromKey(fromHex(privateKey), prefix);

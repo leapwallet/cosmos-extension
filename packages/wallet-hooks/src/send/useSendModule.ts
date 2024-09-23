@@ -20,8 +20,7 @@ import { EthWallet } from '@leapwallet/leap-keychain';
 import { FetchStatus, QueryStatus, useQuery } from '@tanstack/react-query';
 import { bech32 } from 'bech32';
 import { BigNumber } from 'bignumber.js';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ReactNode } from 'react';
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis/LeapWalletApi';
 import { useGasAdjustmentForChain } from '../fees';

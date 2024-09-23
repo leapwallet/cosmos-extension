@@ -22,6 +22,7 @@ import {
   UndelegationsStore,
   ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
+import { useSkipAssets } from '@leapwallet/elements-hooks'
 import { useAllSkipAssets } from '@leapwallet/elements-hooks'
 import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import {
@@ -68,7 +69,6 @@ import { imgOnError } from 'utils/imgOnError'
 import { capitalize } from 'utils/strings'
 
 import ChartSkeleton from '../chart-skeleton/ChartSkeleton'
-import DefiList from '../defi-list'
 import { TokensChart } from './token-chart'
 
 type TokenCTAsProps = {
@@ -521,7 +521,7 @@ const TokensDetails = observer(
                       setShowStakeSelectSheet(true)
                     }}
                     isStakeDisabled={
-                      activeStakingDenom.coinDenom !== denomInfo?.coinDenom ||
+                      activeStakingDenom?.coinDenom !== denomInfo?.coinDenom ||
                       !!chainInfos[activeChain].evmOnlyChain
                     }
                     onReceiveClick={() => {

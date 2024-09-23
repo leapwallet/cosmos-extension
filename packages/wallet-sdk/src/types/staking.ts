@@ -76,6 +76,10 @@ export type Provider = {
   spec: string;
   chain: string;
   image?: string;
+  stakestatus?: string;
+  delegateCommission?: string;
+  delegateLimit?: string;
+  delegateTotal?: string;
 };
 
 export type ProvidersResponse = {
@@ -88,6 +92,10 @@ export type ProvidersResponse = {
         spec: string;
         moniker: string;
         chain: string;
+        stakestatus?: string;
+        delegateCommission?: string;
+        delegateLimit?: string;
+        delegateTotal?: string;
       }[];
     }[];
   };

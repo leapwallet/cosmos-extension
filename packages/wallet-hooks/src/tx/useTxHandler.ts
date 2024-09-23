@@ -1,6 +1,6 @@
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { OfflineSigner } from '@cosmjs/proto-signing';
-import { InjectiveTx, LavaTx, StrideTx, SupportedChain, Tx } from '@leapwallet/cosmos-wallet-sdk';
+import { GovGenTx, InjectiveTx, LavaTx, StrideTx, SupportedChain, Tx } from '@leapwallet/cosmos-wallet-sdk';
 import { EthermintTxHandler } from '@leapwallet/cosmos-wallet-sdk';
 import { CWTx } from '@leapwallet/cosmos-wallet-sdk';
 import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/sscrt';
@@ -55,6 +55,12 @@ export function useTxHandler({
         await _tx.initClient();
         _tx.setLcdEndPoint(lcdUrl ?? '');
         _tx.addLavaRegistry();
+        return _tx;
+      } else if (chainInfo.chainId === 'govgen-1') {
+        const _tx = new GovGenTx(`${rpcUrl}/`, wallet);
+        await _tx.initClient();
+        _tx.setLcdEndPoint(lcdUrl ?? '');
+        _tx.addGovGenRegistry();
         return _tx;
       } else {
         const _tx = new Tx(`${rpcUrl}/`, wallet);

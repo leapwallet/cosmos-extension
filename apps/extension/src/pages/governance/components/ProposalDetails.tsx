@@ -99,11 +99,12 @@ export const ProposalDetails = observer(
             return data
           } catch (error: any) {
             try {
+              const prefix = activeChainInfo?.chainId === 'govgen-1' ? '/govgen' : '/cosmos'
               const data = await axiosWrapper(
                 {
                   baseURL: lcdUrl ?? '',
                   method: 'get',
-                  url: `/cosmos/gov/v1beta1/proposals/${selectedProp}/votes/${address}`,
+                  url: `${prefix}/gov/v1beta1/proposals/${selectedProp}/votes/${address}`,
                 },
                 1,
                 'proposals-votes',

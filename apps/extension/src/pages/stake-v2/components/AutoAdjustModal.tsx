@@ -5,6 +5,7 @@ import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import React, { useCallback, useMemo } from 'react'
 import { Colors } from 'theme/colors'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 type AutoAdjustSheetProps = {
   onCancel: () => void
@@ -83,7 +84,7 @@ export default function AutoAdjustAmountSheet({
           Cancel Transaction
         </Buttons.Generic>
         <Buttons.Generic
-          color={Colors.green600}
+          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
           size='normal'
           className='w-full'
           title='Auto-adjust'

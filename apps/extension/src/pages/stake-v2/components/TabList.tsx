@@ -1,12 +1,10 @@
 import {
   SelectedNetwork,
   useActiveChain,
-  useActiveWallet,
   useDualStaking,
   useFeatureFlags,
   useSelectedNetwork,
   useStaking,
-  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
@@ -19,7 +17,7 @@ import {
 } from '@leapwallet/cosmos-wallet-store'
 import Text from 'components/text'
 import { observer } from 'mobx-react-lite'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 
 import ProviderList from '../restaking/ProviderList'
 import PendingUnstakeList from './PendingUnstakeList'
@@ -83,7 +81,6 @@ const TabList = observer(
       activeNetwork,
     )
     const { delegations: providerDelegations } = useDualStaking()
-    const activeWallet = useActiveWallet()
 
     const [selectedTab, setSelectedTab] = useState<TabElements | undefined>()
     const isLoading = loadingDelegations || loadingUnboundingDelegations
@@ -97,7 +94,6 @@ const TabList = observer(
       }
       if (
         Object.values(providerDelegations ?? {}).length > 0 &&
-        activeWallet?.walletType !== WALLETTYPE.LEDGER &&
         featureFlags?.restaking?.extension === 'active' &&
         activeChain === 'lava'
       ) {
@@ -112,7 +108,6 @@ const TabList = observer(
       return _tabs
     }, [
       activeChain,
-      activeWallet?.walletType,
       delegations,
       featureFlags?.restaking?.extension,
       providerDelegations,
@@ -157,6 +152,7 @@ const TabList = observer(
         {selectedTab === TabElements.YOUR_VALIDATORS && (
           <ValidatorList
             rootDenomsStore={rootDenomsStore}
+            rootBalanceStore={rootBalanceStore}
             delegationsStore={delegationsStore}
             validatorsStore={validatorsStore}
             unDelegationsStore={unDelegationsStore}

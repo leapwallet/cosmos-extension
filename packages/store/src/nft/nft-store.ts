@@ -168,15 +168,17 @@ export class NftStore {
   }
 
   async loadNfts(forceNetwork?: SelectedNetworkType) {
-    runInAction(() => {
-      this.loading = true;
-      this.networkError = false;
-    });
-
     const nftChainsList = [...this.nftChainsStore.nftChains, ...this.betaNftChainsStore.betaNftChains];
     let batchChainsList: BatchRequestData[] = [];
     let batchedChains: [SupportedChain, string][] = [];
     const activeNetwork = forceNetwork || this.selectedNetworkStore.selectedNetwork;
+    const chainKey = this.getChainKey(activeNetwork);
+
+    runInAction(() => {
+      this.loading = true;
+      this.networkError = false;
+      delete this.nfts?.[chainKey];
+    });
 
     nftChainsList.forEach(async (nftChain) => {
       const network = nftChain.forceNetwork;
@@ -193,12 +195,16 @@ export class NftStore {
         const rpcUrl = hasEntryInNms ? this.nmsStore.rpcEndPoints[chainId][0].nodeUrl : chainInfo?.apis[nodeUrlKey];
         const collections = this.betaNftsCollectionsStore.getBetaNftsCollections(chain, network);
 
+        const address = this.addressStore.addresses?.[chain];
+        const pubKey = this.addressStore.pubKeys?.[chain];
+        const walletAddress = chainInfo?.evmOnlyChain ? pubKeyToEvmAddressToShow(pubKey) : address;
+
         batchedChains = [...batchedChains, [chain, chainId]];
         batchChainsList = [
           ...batchChainsList,
           {
             'chain-id': chainId,
-            'wallet-address': this.addressStore.addresses?.[chain],
+            'wallet-address': walletAddress,
             'is-testnet': String(isTestnet),
             'rpc-url': rpcUrl ?? '',
             collections,
@@ -282,6 +288,7 @@ export class NftStore {
         'pagination-limit': '50',
         'pagination-offset': '0',
         'is-compass-wallet': process.env.APP?.includes('compass') ? true : false,
+        'skip-cache': true,
         chains,
       },
       {

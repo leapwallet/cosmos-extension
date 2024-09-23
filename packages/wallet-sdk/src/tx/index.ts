@@ -1,5 +1,6 @@
 export * from './ethermint';
 export * from './fee';
+export * from './govgenTx';
 export * from './injectiveTx';
 export * from './lavaTx';
 export * from './mayaTx';

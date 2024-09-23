@@ -27,6 +27,7 @@ export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageP
     callbackPostTx,
     refetchSourceBalances,
     refetchDestinationBalances,
+    swapFeeInfo,
   } = useSwapContext()
 
   return (
@@ -51,6 +52,7 @@ export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageP
       refetchDestinationBalances={refetchDestinationBalances}
       rootDenomsStore={rootDenomsStore}
       rootCW20DenomsStore={rootCW20DenomsStore}
+      swapFeeInfo={swapFeeInfo}
     />
   )
 }

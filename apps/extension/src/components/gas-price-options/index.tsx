@@ -209,6 +209,7 @@ const GasPriceOptions = observer(
     const chainInfo = chains[activeChain as SupportedChain]
     const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain)
     let allTokens = rootBalanceStore.getSpendableBalancesForChain(activeChain)
+    const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain)
 
     allTokens = useMemo(() => {
       if (
@@ -226,6 +227,26 @@ const GasPriceOptions = observer(
       allTokens,
       chainInfo?.evmOnlyChain,
       evmBalance?.evmBalance,
+      isSeiEvmChain,
+      isSelectedTokenEvm,
+    ])
+
+    const allTokensStatus = useMemo(() => {
+      if (
+        (isSeiEvmChain && isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) ||
+        chainInfo?.evmOnlyChain
+      ) {
+        if (evmBalance?.status === 'loading' || allTokensLoading) {
+          return 'loading'
+        }
+        return 'success'
+      }
+      return allTokensLoading ? 'loading' : 'success'
+    }, [
+      addressLinkState,
+      allTokensLoading,
+      chainInfo?.evmOnlyChain,
+      evmBalance?.status,
       isSeiEvmChain,
       isSelectedTokenEvm,
     ])
@@ -394,7 +415,7 @@ const GasPriceOptions = observer(
     useEffect(() => {
       const gasPriceBN = new BigNumber(gasPriceOption.gasPrice.amount.toFloatApproximation())
       // if the dapp has specified a fee granter or has set disableFeeCheck on SignOptions, the fees is being paid by the dapp we ignore the fee asset balance checks
-      if (disableBalanceCheck || gasPriceBN.isZero()) {
+      if (disableBalanceCheck || gasPriceBN.isZero() || allTokensStatus === 'loading') {
         setError(null)
         return
       }
@@ -429,6 +450,7 @@ const GasPriceOptions = observer(
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
+      allTokensStatus,
       feeTokenAsset,
       feeTokenData,
       gasAdjustment,
@@ -568,7 +590,7 @@ const GasPriceOptions = observer(
             feeTokenAsset,
             allTokens,
             //TODO: remove this
-            allTokensStatus: 'success',
+            allTokensStatus,
             userHasSelectedToken,
             setUserHasSelectedToken,
             considerGasAdjustment: considerGasAdjustment,

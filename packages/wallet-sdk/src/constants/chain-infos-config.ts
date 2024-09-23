@@ -1,4 +1,4 @@
-export type ChainInfosConfigPossibleFeatureType = 'stake' | 'governance' | 'activity';
+export type ChainInfosConfigPossibleFeatureType = 'stake' | 'governance' | 'activity' | 'cosmosConsensusUpdate';
 export type ChainInfosConfigPossibleFeatureValueType = {
   platforms: string[];
   chains: { [key: string]: boolean };
@@ -30,6 +30,12 @@ export const CHAIN_INFOS_CONFIG: ChainInfosConfigType = {
       chains: {
         'nomic-stakenet-3': true,
         'nomic-testnet-4d': true,
+      },
+    },
+    cosmosConsensusUpdate: {
+      platforms: ['All', 'Extension'],
+      chains: {
+        'theta-testnet-001': true,
       },
     },
   },

@@ -53,6 +53,17 @@ export function ProviderCard({ provider, onClick }: ProviderCardProps) {
               0,
             )}
           </Text>
+          {provider.spec && (
+            <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
+              {sliceWord(
+                provider.spec.charAt(0).toUpperCase() + provider.spec.slice(1).toLowerCase(),
+                isSidePanel()
+                  ? 22 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                  : 30,
+                0,
+              )}
+            </Text>
+          )}
         </div>
       </div>
     </div>
@@ -64,14 +75,13 @@ export default function SelectProviderSheet({
   onClose,
   onProviderSelect,
   providers,
-  apy,
 }: SelectProviderSheetProps) {
   const [searchedTerm, setSearchedTerm] = useState('')
   const [showSortBy, setShowSortBy] = useState(false)
   const [sortBy, setSortBy] = useState<STAKE_SORT_BY>('Random')
   const activeChain = useActiveChain()
   const [isLoading, setIsLoading] = useState(false)
-  const filteredProviders = useMemo(() => {
+  const [activeProviders, inactiveProviders] = useMemo(() => {
     setIsLoading(true)
     const _filteredProviders = providers
       .filter(
@@ -79,7 +89,7 @@ export default function SelectProviderSheet({
           provider.moniker && provider.moniker.toLowerCase().includes(searchedTerm.toLowerCase()),
       )
       .slice(0, 100)
-    _filteredProviders.sort((a, b) => {
+    _filteredProviders.sort(() => {
       switch (sortBy) {
         case 'Amount staked':
           return 0
@@ -89,8 +99,14 @@ export default function SelectProviderSheet({
           return Math.random() - 0.5
       }
     })
+    const _activeProviders = _filteredProviders.filter(
+      (provider) => provider.stakestatus === 'Active',
+    )
+    const _inactiveProviders = _filteredProviders.filter(
+      (provider) => provider.stakestatus === 'Inactive',
+    )
     setIsLoading(false)
-    return _filteredProviders
+    return [_activeProviders, searchedTerm ? _inactiveProviders : []]
   }, [providers, searchedTerm, sortBy])
 
   return (
@@ -115,7 +131,7 @@ export default function SelectProviderSheet({
         />
 
         {isLoading && <ValidatorListSkeleton />}
-        {!isLoading && filteredProviders?.length === 0 && (
+        {!isLoading && activeProviders?.length === 0 && inactiveProviders?.length === 0 && (
           <EmptyCard
             isRounded
             subHeading='Try a different search term'
@@ -124,9 +140,23 @@ export default function SelectProviderSheet({
             data-testing-id='select-provider-empty-card'
           />
         )}
-        {!isLoading && filteredProviders.length !== 0 && (
+        {!isLoading && activeProviders.length !== 0 && (
           <div className='flex flex-col gap-y-4'>
-            {filteredProviders.map((provider) => (
+            {activeProviders.map((provider) => (
+              <ProviderCard
+                key={`${provider.address}+${provider.spec}`}
+                provider={provider}
+                onClick={() => onProviderSelect(provider)}
+              />
+            ))}
+          </div>
+        )}
+        {!isLoading && searchedTerm && inactiveProviders.length !== 0 && (
+          <div className='flex flex-col gap-y-4'>
+            <Text size='xs' color='text-gray-700 dark:text-gray-400'>
+              Inactive provider
+            </Text>
+            {inactiveProviders.map((provider) => (
               <ProviderCard
                 key={`${provider.address}+${provider.spec}`}
                 provider={provider}
