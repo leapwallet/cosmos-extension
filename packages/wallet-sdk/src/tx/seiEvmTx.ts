@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { BytesLike } from '@ethersproject/bytes';
+import { Contract } from '@ethersproject/contracts';
+import { JsonRpcProvider } from '@ethersproject/providers';
 import { parseEther, parseUnits } from '@ethersproject/units';
 import { EthWallet, pubkeyToAddress } from '@leapwallet/leap-keychain';
 import BigNumber from 'bignumber.js';
 import { hashPersonalMessage, intToHex } from 'ethereumjs-util';
-import { Contract, providers } from 'ethers';
 
 import {
   abiERC20,
@@ -28,7 +29,7 @@ export class SeiEvmTx {
   private constructor(private rpc: string, private wallet: EthWallet) {}
 
   public static GetSeiEvmClient(wallet: EthWallet, rpc: string, chainId: number) {
-    const provider = new providers.JsonRpcProvider(rpc, chainId);
+    const provider = new JsonRpcProvider(rpc, chainId);
     this.rpcUrl = rpc;
 
     wallet.setProvider(provider);
@@ -339,7 +340,7 @@ export class SeiEvmTx {
 
   public async pollLinkAddressWithoutFunds(ethAddress: string, chainId: string, retryCount = 40): Promise<any> {
     if (retryCount === 0) {
-      throw new Error('Failed to link address');
+      throw new Error('Failed to check if the addresses are linked. Please refresh and try again.');
     }
 
     const baseUrl = 'https://app-api.seinetwork.io/associate-message';
@@ -361,7 +362,7 @@ export class SeiEvmTx {
     const account = accounts[0];
     const message =
       'Please sign this message to link your EVM and Sei addresses on Compass. No SEI will be spent as a result of this signature.';
-    const signature = personalSign(message, account.address, this.wallet);
+    const signature = await personalSign(message, account.address, this.wallet);
 
     const url = 'https://app-api.seinetwork.io/associate';
     const body = {

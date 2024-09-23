@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { TxClient as InjectiveTxClient } from '@injectivelabs/sdk-ts'
 import {
   CosmosTxType,
   getChainId,
@@ -26,6 +25,7 @@ import {
   SupportedChain,
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { TxClient as InjectiveTxClient } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/injective/core/modules'
 import {
   Account,
   getMessageMetadataForSigning,

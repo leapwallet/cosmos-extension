@@ -17,6 +17,7 @@ import { observer } from 'mobx-react-lite'
 import { SelectedAddress } from 'pages/send-v2/types'
 import React, { createContext, useContext, useMemo, useState } from 'react'
 import { useEffect } from 'react'
+import { nftStore } from 'stores/nft-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { useTxCallBack } from 'utils/txCallback'
 
@@ -184,18 +185,7 @@ export const SendNftCard = observer(
         fees: fee,
       })
 
-      await queryClient.invalidateQueries([
-        'nft-records',
-        'nft-contracts-list',
-        'get-owned-collection',
-        'get-ten-owned-collection',
-      ])
-      await queryClient.resetQueries([
-        'nft-records',
-        'nft-contracts-list',
-        'get-owned-collection',
-        'get-ten-owned-collection',
-      ])
+      nftStore.loadNfts()
 
       if (res?.success) {
         txCallback(res.success ? 'success' : 'txDeclined')

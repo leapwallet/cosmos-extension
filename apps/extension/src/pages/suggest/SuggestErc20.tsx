@@ -6,6 +6,7 @@ import { observer } from 'mobx-react-lite'
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { betaERC20DenomsStore, enabledCW20DenomsStore } from 'stores/denoms-store-instance'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -62,6 +63,7 @@ const SuggestErc20 = observer(({ handleRejectBtnClick }: ChildrenParams) => {
     await betaERC20DenomsStore.setBetaERC20Denoms(contractInfo.address, erc20Token, activeChain)
     const _enabledCW20Tokens = [...enabledCW20Tokens, contractInfo.address]
     await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Tokens, activeChain)
+    rootBalanceStore.loadBalances()
 
     window.removeEventListener('beforeunload', handleRejectBtnClick)
     await Browser.storage.local.set({

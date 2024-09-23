@@ -4,6 +4,7 @@ import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useSwapContext } from '../context'
 import { getSlippageRemarks, SlippageRemarks } from '../utils/slippage'
@@ -172,7 +173,7 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
         </div>
 
         <Buttons.Generic
-          color={Colors.green600}
+          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
           disabled={proceedDisabled}
           onClick={handleOnProceedClick}
           className='w-full'

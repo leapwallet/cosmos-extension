@@ -15,8 +15,8 @@ import {
   SupportedChain,
   SupportedDenoms,
   toSmall,
+  transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { transactionDeclinedError } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import currency from 'currency.js';
@@ -36,16 +36,21 @@ import {
   useAddress,
   useChainApis,
   useDefaultGasEstimates,
-  useDenoms,
   useGetChains,
+  usePendingTxState,
   useSelectedNetwork,
   useTxMetadata,
 } from '../store';
-import { usePendingTxState } from '../store';
 import { useScrtTxHandler, useTxHandler } from '../tx';
 import { TxCallback, WALLETTYPE } from '../types';
-import { fetchCurrency, getMetaDataForIbcTx, getMetaDataForSendTx, useGetGasPrice, useNativeFeeDenom } from '../utils';
-import { sliceAddress } from '../utils';
+import {
+  fetchCurrency,
+  getMetaDataForIbcTx,
+  getMetaDataForSendTx,
+  sliceAddress,
+  useGetGasPrice,
+  useNativeFeeDenom,
+} from '../utils';
 import { useChainId, useChainInfo } from '../utils-hooks';
 
 export function useSend(denoms: DenomsRecord, toAddress: string) {

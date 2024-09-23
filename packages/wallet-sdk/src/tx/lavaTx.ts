@@ -20,6 +20,7 @@ import { MsgGrant, MsgRevoke } from 'cosmjs-types/cosmos/authz/v1beta1/tx.js';
 import { MsgCancelUnbondingDelegation } from 'cosmjs-types/cosmos/staking/v1beta1/tx.js';
 
 import { MsgClaimRewards, MsgDelegate, MsgRedelegate, MsgUnbond } from '../proto/lava/tx';
+import { AminoConverter } from '../proto/lava/tx.amino';
 import { registry } from '../proto/lava/tx.registry';
 import { simulateTx } from './simulate';
 import { Tx } from './tx';
@@ -34,7 +35,7 @@ function createDefaultAminoConverters(prefix: string): AminoConverters {
     ...createIbcAminoConverters(),
     ...createFeegrantAminoConverters(),
     ...createVestingAminoConverters(),
-    // ...AminoConverter,
+    ...AminoConverter,
   };
 }
 

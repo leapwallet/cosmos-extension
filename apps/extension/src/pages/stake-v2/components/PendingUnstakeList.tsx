@@ -12,6 +12,7 @@ import {
   SupportedChain,
   UnbondingDelegation,
   UnbondingDelegationEntry,
+  Validator,
 } from '@leapwallet/cosmos-wallet-sdk'
 import {
   ClaimRewardsStore,
@@ -81,7 +82,14 @@ const PendingUnstakeList = observer(
       activeChain,
       activeNetwork,
     )
-    const validators = useMemo(() => (network ? network.getValidators({}) : {}), [network])
+    const validators = useMemo(
+      () =>
+        validatorsStore.chainValidators.validatorData.validators?.reduce((acc, validator) => {
+          acc[validator.address] = validator
+          return acc
+        }, {} as Record<string, Validator>),
+      [validatorsStore.chainValidators.validatorData.validators],
+    )
     const memoisedUndelegation = useMemo(
       () => Object.values(unboundingDelegationsInfo ?? {})?.[0],
       [unboundingDelegationsInfo],

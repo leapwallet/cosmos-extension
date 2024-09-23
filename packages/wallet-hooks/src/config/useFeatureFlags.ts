@@ -23,6 +23,7 @@ export type FeatureFlags = {
   swaps: {
     mobile: FeatureFlagState;
     extension: FeatureFlagState;
+    fees: FeatureFlagState;
   };
   nfts: {
     mobile: FeatureFlagState;

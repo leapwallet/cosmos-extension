@@ -25,6 +25,7 @@ import {
 } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import { SourceChain, SourceToken } from 'types/swap'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabledChainId } from 'utils/isLedgerEnabled'
 
 import {
@@ -474,7 +475,9 @@ function SwapPage() {
             <>
               <Buttons.Generic
                 className={classNames('w-full', {
-                  '!bg-green-600 text-white-100': !(
+                  [`${
+                    isCompassWallet() ? '!bg-compassChainTheme-400' : '!bg-green-600'
+                  } text-white-100`]: !(
                     invalidAmount ||
                     amountExceedsBalance ||
                     isNoRoutesAvailableError(errorMsg)

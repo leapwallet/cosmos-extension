@@ -3,7 +3,7 @@ import { BigNumber } from 'bignumber.js';
 import { makeAutoObservable } from 'mobx';
 
 import { AggregatedChainsStore, ChainInfosConfigStore, ChainInfosStore } from '../assets';
-import { AggregatedSupportedChainType, ChainInfosConfigType } from '../types';
+import { ChainInfosConfigType } from '../types';
 import { isFeatureExistForChain } from '../utils';
 import { AddressStore, SelectedNetworkStore } from '../wallet';
 import { ActiveStakingDenomStore, ClaimRewardsStore, DelegationsStore, ValidatorsStore } from './index';

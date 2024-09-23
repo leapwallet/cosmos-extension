@@ -49,6 +49,11 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
 
     const activeChain = useActiveChain()
     const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain)
+    const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain)
+    const allTokensStatus = useMemo(() => {
+      return allTokensLoading ? 'loading' : 'success'
+    }, [allTokensLoading])
+
     const chainId = useChainId()
     const denoms = rootDenomsStore.allDenoms
     const [formatCurrency] = useFormatCurrency()
@@ -95,7 +100,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
 
     useEffect(() => {
       const amountString = feeValues?.amount?.toString()
-      if (!disableBalanceCheck && amountString) {
+      if (!disableBalanceCheck && amountString && allTokensStatus !== 'loading') {
         if (new BigNumber(amountString).isGreaterThan(feeToken?.amount ?? 0)) {
           setError(`You don't have enough ${feeToken?.denom?.coinDenom} to pay the gas fee`)
         } else {
@@ -104,7 +109,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
       }
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [feeToken, feeValues, disableBalanceCheck])
+    }, [feeToken, feeValues, allTokensStatus, disableBalanceCheck])
 
     // if (
     //   isFetching ||

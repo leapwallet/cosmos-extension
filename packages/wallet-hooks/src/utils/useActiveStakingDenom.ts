@@ -1,7 +1,7 @@
 import { DenomsRecord, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useMemo } from 'react';
 
-import { useActiveChain, useChainsStore, useDenoms, useSelectedNetwork, useStakingDenoms } from '../store';
+import { useActiveChain, useChainsStore, useSelectedNetwork, useStakingDenoms } from '../store';
 
 export function useActiveStakingDenom(
   denoms: DenomsRecord,

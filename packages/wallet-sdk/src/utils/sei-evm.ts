@@ -1,11 +1,12 @@
 import { Interface } from '@ethersproject/abi';
-import { arrayify } from '@ethersproject/bytes';
+import { arrayify, Signature } from '@ethersproject/bytes';
+import { Contract } from '@ethersproject/contracts';
 import { JsonRpcProvider } from '@ethersproject/providers';
 import { formatEther, parseEther } from '@ethersproject/units';
+import { formatUnits } from '@ethersproject/units';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
 import { hashPersonalMessage, isHexString, stripHexPrefix, toBuffer, toRpcSig } from 'ethereumjs-util';
-import { Contract, ethers } from 'ethers';
 
 import { abiERC20, abiERC721, abiERC1155 } from '../constants';
 import { LeapLedgerSignerEth } from '../ledger';
@@ -45,7 +46,7 @@ export function formatEtherValue(value: string) {
 }
 
 export function formatEtherUnits(value: string, decimals: number) {
-  return ethers.utils.formatUnits(value, decimals);
+  return formatUnits(value, decimals);
 }
 
 export function trimLeadingZeroes(value: string, isHex?: boolean) {
@@ -62,7 +63,7 @@ export function trimLeadingZeroes(value: string, isHex?: boolean) {
 }
 
 export async function getErc20TokenDetails(contractAddress: string, rpcUrl: string, chainId: number) {
-  const provider = new ethers.providers.JsonRpcProvider(rpcUrl, chainId);
+  const provider = new JsonRpcProvider(rpcUrl, chainId);
   const contract = new Contract(contractAddress, abiERC20, provider);
 
   const [name, symbol, decimals] = await Promise.all([contract.name(), contract.symbol(), contract.decimals()]);
@@ -80,10 +81,10 @@ export function encodedUtf8HexToText(hexValue: string) {
 }
 
 export async function personalSign(data: string, signerAddress: string, wallet: EthWallet | LeapLedgerSignerEth) {
-  let signature: ethers.Signature;
+  let signature: Signature;
 
   if (wallet instanceof LeapLedgerSignerEth) {
-    signature = (await wallet.signPersonalMessage(signerAddress, data)) as unknown as ethers.Signature;
+    signature = (await wallet.signPersonalMessage(signerAddress, data)) as unknown as Signature;
   } else {
     const message = isHexString(data) ? toBuffer(data) : Buffer.from(data);
     const msgHash = hashPersonalMessage(message);
@@ -100,10 +101,10 @@ export async function personalSign(data: string, signerAddress: string, wallet: 
 }
 
 export async function signTypedData(data: any, signerAddress: string, wallet: EthWallet | LeapLedgerSignerEth) {
-  let signature: ethers.Signature;
+  let signature: Signature;
 
   if (wallet instanceof LeapLedgerSignerEth) {
-    signature = (await wallet.signEip712(signerAddress, data)) as unknown as ethers.Signature;
+    signature = (await wallet.signEip712(signerAddress, data)) as unknown as Signature;
   } else {
     const messageHash = TypedDataUtils.eip712Hash(data, SignTypedDataVersion.V4);
     signature = wallet.sign(signerAddress, messageHash);

@@ -18,6 +18,7 @@ import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 
 import { fetchAccountDetails } from '../accounts';
 import { axiosWrapper } from '../healthy-nodes';
+import { MsgVote as MsgVoteGovGen } from '../proto/govgen/gov/v1beta1/tx';
 import {
   buildGrantMsg,
   getCancelUnDelegationMsg,
@@ -230,13 +231,13 @@ export async function simulateVote(
   proposalId: string,
   option: VoteOption,
   fee: Coin[],
+  chainId?: string,
 ) {
-  const msg = getVoteMsg(option, proposalId, fromAddress);
+  const nonStandardTypeUrl = chainId === 'govgen-1' ? '/govgen.gov.v1beta1.MsgVote' : undefined;
+  const msg = getVoteMsg(option, proposalId, fromAddress, nonStandardTypeUrl);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //@ts-ignore
-    value: MsgVote.encode(msg.value).finish(),
+    value: chainId === 'govgen-1' ? MsgVoteGovGen.encode(msg.value).finish() : MsgVote.encode(msg.value).finish(),
   };
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }

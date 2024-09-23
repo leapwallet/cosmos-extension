@@ -81,7 +81,8 @@
     "postinstall-postinstall": "2.1.0",
     "prettier": "2.7.1",
     "vitepress": "1.0.0-alpha.29",
-    "vue": "3.3.4"
+    "vue": "3.3.4",
+    "bech32": "2.0.0"
   },
   "dependencies": {
     "axios": "1.2.1",

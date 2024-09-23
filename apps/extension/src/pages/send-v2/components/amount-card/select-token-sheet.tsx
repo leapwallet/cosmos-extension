@@ -27,20 +27,10 @@ export const SelectTokenSheet = ({
   onTokenSelect,
   denoms,
 }: SelectTokenSheetProps) => {
-  //const denoms = useDenoms()
   const [searchQuery, setSearchQuery] = useState('')
-  //const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens()
-
   const { sendActiveChain } = useSendContext()
   const locationState = useLocation().state
   const activeChainInfo = useChainInfo(sendActiveChain)
-
-  // const combinedDenoms = useMemo(() => {
-  //   return {
-  //     ...denoms,
-  //     ...autoFetchedCW20Tokens,
-  //   }
-  // }, [])
 
   let assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
   assetCoinDenom = useMemo(() => {

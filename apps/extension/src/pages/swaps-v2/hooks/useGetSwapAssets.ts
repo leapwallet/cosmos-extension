@@ -24,6 +24,8 @@ import { getSortFnBasedOnWhiteListing } from '../utils'
 const useAllSkipAssetsParams = {
   includeCW20Assets: true,
   includeNoMetadataAssets: false,
+  includeEvmAssets: false,
+  includeSvmAssets: false,
 }
 
 export function useGetSwapAssets(
@@ -147,6 +149,7 @@ export function useGetSwapAssets(
                 usdPrice,
                 coinDecimals: denomInfo?.coinDecimals ?? 6,
                 coinGeckoId: denomInfo?.coinGeckoId ?? '',
+                chain: denomInfo?.chain,
               } as SourceToken
 
               if (skipAsset.denom.includes('ibc/')) {
@@ -185,6 +188,24 @@ export function useGetSwapAssets(
               }
 
               _swapAssets.push(asset as SourceToken)
+            } else {
+              const asset = {
+                skipAsset,
+                name: skipAsset.name,
+                amount: '0',
+                symbol: skipAsset.symbol,
+                coinMinimalDenom: skipAsset.originDenom,
+                img: skipAsset.logoUri,
+                usdValue: '',
+                usdPrice: '',
+                decimals: skipAsset.decimals,
+                coinGeckoId: skipAsset?.coingeckoId ?? '',
+                chain: Object.values(chainInfos).find(
+                  (chain) => chain.chainId === skipAsset.originChainId,
+                )?.key as SupportedChain,
+              } as SourceToken
+
+              _swapAssets.push(asset)
             }
           }
         }

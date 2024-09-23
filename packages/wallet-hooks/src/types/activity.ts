@@ -62,4 +62,5 @@ export type getActivityContentProps = {
   theme?: ThemeName;
   denoms: DenomsRecord;
   chainId?: string;
+  coinDecimals?: number;
 };

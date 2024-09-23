@@ -1,4 +1,3 @@
-import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainTagsStore,
   ClaimRewardsStore,
@@ -13,10 +12,7 @@ import { WalletButton } from 'components/button'
 import { EmptyCard } from 'components/empty-card'
 import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { walletLabels } from 'config/constants'
 import { useChainPageInfo, useWalletInfo } from 'hooks'
-import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { Images } from 'images'
@@ -24,10 +20,8 @@ import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SelectWallet from 'pages/home/SelectWallet'
 import SideNav from 'pages/home/side-nav'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
-import { formatWalletName } from 'utils/formatWalletName'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import ComingSoonCard from './ComingSoonCard'
 import NotSupportedCard from './NotSupportedCard'

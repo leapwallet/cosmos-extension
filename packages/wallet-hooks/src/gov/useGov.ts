@@ -54,15 +54,24 @@ export function useSimulateVote(forceChain?: SupportedChain, forceNetwork?: 'mai
   const { lcdUrl } = useChainApis(forceChain, forceNetwork);
   const address = useAddress(forceChain);
 
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain]);
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [_selectedNetwork, forceNetwork]);
+
+  const chainInfos = useGetChains();
+  const chainInfo = chainInfos[activeChain];
+  const chainId = selectedNetwork === 'mainnet' ? chainInfo.chainId : chainInfo.testnetChainId;
+
   return useCallback(
     ({ proposalId, voteOption, fee }: { proposalId: string; voteOption: VoteOptions; fee: Coin[] }) => {
       if (proposalId) {
-        return simulateVote(lcdUrl ?? '', address, proposalId, getVoteNum(voteOption), fee);
+        return simulateVote(lcdUrl ?? '', address, proposalId, getVoteNum(voteOption), fee, chainId);
       }
 
       return Promise.resolve(null);
     },
-    [lcdUrl, address],
+    [lcdUrl, address, chainId],
   );
 }
 
@@ -90,6 +99,8 @@ export function useGov({ proposalId, forceChain, forceNetwork, denoms }: UseGovP
   const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [_selectedNetwork, forceNetwork]);
 
   const chainInfos = useGetChains();
+  const chainInfo = chainInfos[activeChain];
+  const chainId = selectedNetwork === 'mainnet' ? chainInfo.chainId : chainInfo.testnetChainId;
   const { activeWallet } = useActiveWalletStore();
   const { allAssets } = useGetTokenBalances(activeChain, selectedNetwork);
   const getTxHandler = useTxHandler({
@@ -170,7 +181,7 @@ export function useGov({ proposalId, forceChain, forceNetwork, denoms }: UseGovP
 
             try {
               const fee = getSimulationFee(gasPrice.denom);
-              const { gasUsed } = await simulateVote(lcdUrl ?? '', address, proposalId, voteOption, fee);
+              const { gasUsed } = await simulateVote(lcdUrl ?? '', address, proposalId, voteOption, fee, chainId);
               gasEstimate = gasUsed;
             } catch (e) {
               //
@@ -290,6 +301,7 @@ export function useGov({ proposalId, forceChain, forceNetwork, denoms }: UseGovP
       getVoteNum,
       address,
       getTxHandler,
+      chainId,
       chainInfos,
       memo,
       proposalId,

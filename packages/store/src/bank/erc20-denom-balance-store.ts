@@ -191,7 +191,7 @@ export class ERC20DenomBalanceStore {
 
   private getBalanceKey(chain: AggregatedSupportedChainType): string {
     const chainKey = this.getChainKey(chain);
-    const address = this.addressStore.addresses[chainKey];
+    const address = this.addressStore.addresses[chain];
     return `${chainKey}-${address}`;
   }
 

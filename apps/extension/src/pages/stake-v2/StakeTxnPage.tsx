@@ -2,13 +2,14 @@ import { isDeliverTxSuccess } from '@cosmjs/stargate'
 import {
   SelectedNetwork,
   sliceAddress,
+  STAKE_MODE,
   useDualStaking,
   useFeatureFlags,
+  useGetExplorerTxnUrl,
   usePendingTxState,
   useSelectedNetwork,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { STAKE_MODE } from '@leapwallet/cosmos-wallet-hooks'
 import { sliceWord } from '@leapwallet/cosmos-wallet-hooks/dist/utils/strings'
 import { Provider, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
@@ -21,7 +22,6 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { PageName } from 'config/analytics'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
@@ -30,6 +30,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 export type StakeTxnPageState = {
@@ -78,7 +79,6 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
 
   const { pendingTx, setPendingTx } = usePendingTxState()
   const navigate = useNavigate()
-  const chainInfos = useChainInfos()
   const [txHash, setTxHash] = useState<string | undefined>('')
   const [amount, setAmount] = useState<string | number | undefined>('')
   const [copied, setCopied] = useState(false)
@@ -164,23 +164,31 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
     }
   }, [provider])
 
-  const txnUrl = useMemo(() => {
-    const txExplorer = chainInfos[activeChain].txExplorer
-
-    if (!txExplorer?.[selectedNetwork]?.txUrl || !txHash) {
-      return ''
-    }
-
-    return `${txExplorer?.[selectedNetwork]?.txUrl}/${txHash}`
-  }, [chainInfos, activeChain, selectedNetwork, txHash])
+  const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+    forceTxHash: txHash,
+  })
 
   useEffect(() => {
-    const _amount =
+    let _amount =
       mode === 'CLAIM_REWARDS' || mode === 'UNDELEGATE'
         ? pendingTx?.receivedUsdValue
         : pendingTx?.sentUsdValue
+    if (_amount === '-') {
+      _amount =
+        mode === 'CLAIM_REWARDS' || mode === 'UNDELEGATE'
+          ? pendingTx?.receivedAmount
+          : pendingTx?.sentAmount
+    }
     setAmount(_amount)
-  }, [mode, pendingTx?.receivedUsdValue, pendingTx?.sentUsdValue])
+  }, [
+    mode,
+    pendingTx?.receivedAmount,
+    pendingTx?.receivedUsdValue,
+    pendingTx?.sentAmount,
+    pendingTx?.sentUsdValue,
+  ])
 
   const handleCopyClick = () => {
     UserClipboard.copyText(txHash ?? '')
@@ -333,7 +341,9 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
             }}
             color={
               pendingTx?.txStatus === 'failed' || mode === 'DELEGATE'
-                ? Colors.green600
+                ? isCompassWallet()
+                  ? Colors.compassPrimary
+                  : Colors.green600
                 : theme === ThemeName.DARK
                 ? Colors.white100
                 : Colors.black100

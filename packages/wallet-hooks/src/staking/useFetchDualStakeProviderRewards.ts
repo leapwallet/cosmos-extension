@@ -3,8 +3,13 @@ import { BigNumber } from 'bignumber.js';
 import { useEffect, useMemo } from 'react';
 
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
-import { useDualStakeProviderRewardsStore } from '../store';
-import { useActiveChain, useAddress, useDenoms, useGetChains, useSelectedNetwork } from '../store';
+import {
+  useActiveChain,
+  useAddress,
+  useDualStakeProviderRewardsStore,
+  useGetChains,
+  useSelectedNetwork,
+} from '../store';
 import {
   fetchCurrency,
   formatTokenAmount,

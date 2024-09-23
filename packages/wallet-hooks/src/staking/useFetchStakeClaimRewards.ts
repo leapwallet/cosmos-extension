@@ -7,7 +7,6 @@ import {
   useActiveChain,
   useAddress,
   useChainApis,
-  useDenoms,
   useGetChains,
   useSelectedNetwork,
   useStakeClaimRewardsStore,

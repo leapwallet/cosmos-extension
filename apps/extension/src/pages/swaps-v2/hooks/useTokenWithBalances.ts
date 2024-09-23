@@ -17,6 +17,8 @@ import { SWAP_NETWORK } from './useSwapsTx'
 export function useTokenWithBalances(
   token: SourceToken | null,
   chain: SourceChain | undefined,
+  allAssets: SourceToken[] | undefined,
+  loadingAssets: boolean,
   autoFetchedCW20DenomsStore: AutoFetchedCW20DenomsStore,
   betaCW20DenomsStore: BetaCW20DenomsStore,
   cw20DenomsStore: CW20DenomsStore,
@@ -50,57 +52,82 @@ export function useTokenWithBalances(
     ].map((token) => token.coinMinimalDenom)
   }, [autoFetchedCW20Denoms, betaCw20Tokens, cw20Tokens])
 
+  const updatedToken = useMemo(() => {
+    if (!token || !allAssets) return token
+
+    const latestBalance = allAssets?.find(
+      (asset) =>
+        asset.coinMinimalDenom === token.coinMinimalDenom &&
+        asset.ibcDenom === token.ibcDenom &&
+        asset.skipAsset?.originDenom === token.skipAsset?.originDenom &&
+        asset.skipAsset?.denom === token.skipAsset?.denom,
+    )?.amount
+
+    return {
+      ...token,
+      amount: latestBalance ?? token.amount,
+    }
+  }, [allAssets, token])
+
   const { data, status } = useQuery(
     [
-      token?.coinMinimalDenom,
-      token?.skipAsset?.denom,
-      token?.skipAsset?.originDenom,
-      token?.amount,
+      updatedToken?.coinMinimalDenom,
+      updatedToken?.skipAsset?.denom,
+      updatedToken?.skipAsset?.originDenom,
+      updatedToken?.amount,
     ],
     async () => {
-      if (!token || !chain) return token
+      if (!updatedToken || !chain) {
+        return updatedToken
+      }
 
-      if (!managedTokens.includes(token.coinMinimalDenom)) return token
+      if (!managedTokens.includes(updatedToken.coinMinimalDenom)) return updatedToken
 
       if (
         !(
-          disabledCW20Tokens.includes(token.coinMinimalDenom) ||
-          (Object.keys(autoFetchedCW20Denoms).includes(token.coinMinimalDenom) &&
-            !enabledCW20Tokens?.includes(token.coinMinimalDenom))
+          disabledCW20Tokens.includes(updatedToken.coinMinimalDenom) ||
+          (Object.keys(autoFetchedCW20Denoms).includes(updatedToken.coinMinimalDenom) &&
+            !enabledCW20Tokens?.includes(updatedToken.coinMinimalDenom))
         )
       ) {
-        return token
+        return updatedToken
       }
 
       try {
         let balances: Token[]
-        if (token?.coinMinimalDenom) {
+        if (updatedToken?.coinMinimalDenom) {
           balances =
             (await cw20DenomBalanceStore.fetchCW20TokenBalances(
               chain.key,
               SWAP_NETWORK,
-              [token?.coinMinimalDenom ?? ''],
+              [updatedToken?.coinMinimalDenom ?? ''],
               true,
             )) ?? []
         } else {
           balances = []
         }
 
-        if (!balances?.length) return token
+        if (!balances?.length) return updatedToken
 
         const [tokenBalance] = balances
 
         return {
-          ...token,
+          ...updatedToken,
           amount: tokenBalance?.amount,
           usdPrice: tokenBalance?.usdPrice,
           usdValue: tokenBalance?.usdValue,
         }
       } catch (error) {
-        return token
+        return updatedToken
       }
+    },
+    {
+      enabled: !loadingAssets,
     },
   )
 
-  return { data: (status === 'success' ? data ?? null : token) as SourceToken | null, status }
+  return {
+    data: (status === 'success' ? data ?? null : updatedToken) as SourceToken | null,
+    status: loadingAssets ? 'loading' : status,
+  }
 }

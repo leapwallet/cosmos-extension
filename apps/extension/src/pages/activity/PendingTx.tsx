@@ -228,6 +228,7 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
   const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({
     forceTxHash: txHash,
     forceChain: activeChain,
+    forceNetwork: selectedNetwork,
   })
 
   const isSendTxn = txType

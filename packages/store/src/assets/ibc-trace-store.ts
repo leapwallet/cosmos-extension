@@ -1,5 +1,4 @@
-import { BaseQueryStore } from 'base/base-data-store';
-import { makeAutoObservable, runInAction } from 'mobx';
+import { makeAutoObservable } from 'mobx';
 
 import { getKeyToUseForDenoms } from '../utils/get-denom-key';
 import { RootDenomsStore } from './root-denom-store';

@@ -40,6 +40,7 @@ import { timeLeft } from 'utils/timeLeft'
 import useGetWallet = Wallet.useGetWallet
 
 import { Info } from '@phosphor-icons/react'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
 
@@ -322,7 +323,7 @@ const ReviewCancelUnstakeTx = observer(
 
               <Buttons.Generic
                 onClick={onSubmit}
-                color={Colors.green600}
+                color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
                 className='w-full'
                 size='normal'
                 disabled={isLoading || !!error || !!gasError || !!ledgerError}

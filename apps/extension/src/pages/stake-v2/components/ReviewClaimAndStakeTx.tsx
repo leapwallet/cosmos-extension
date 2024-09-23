@@ -47,6 +47,8 @@ import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
+import { isCompassWallet } from 'utils/isCompassWallet'
+
 import { StakeTxnPageState } from '../StakeTxnPage'
 
 interface ReviewClaimAndStakeTxProps {
@@ -292,7 +294,7 @@ const ReviewClaimAndStakeTx = observer(
                 className='bg-white-100 dark:bg-gray-950'
                 avatar={
                   <img
-                    src={activeStakingDenom.icon}
+                    src={activeStakingDenom?.icon}
                     onError={imgOnError(defaultTokenLogo)}
                     width={36}
                     height={36}
@@ -367,7 +369,7 @@ const ReviewClaimAndStakeTx = observer(
               {gasError && <p className='text-sm font-bold text-red-300 px-2'>{gasError}</p>}
 
               <Buttons.Generic
-                color={Colors.green600}
+                color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
                 size='normal'
                 disabled={loading || !!error || !!gasError || !!ledgerError || showLedgerPopup}
                 className='w-full'

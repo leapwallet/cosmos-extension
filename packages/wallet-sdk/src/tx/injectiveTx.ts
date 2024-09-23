@@ -13,15 +13,24 @@ import {
 } from '@cosmjs/stargate';
 import { longify } from '@cosmjs/stargate/build/queryclient';
 import { arrayify, concat, joinSignature, SignatureLike, splitSignature } from '@ethersproject/bytes';
+import { EthWallet } from '@leapwallet/leap-keychain';
+import BigNumber from 'bignumber.js';
+import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
+import { StakeAuthorization } from 'cosmjs-types/cosmos/staking/v1beta1/authz';
+import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
+import { keccak256 } from 'ethereumjs-util';
+
+import { fetchAccountDetails } from '../accounts';
+import { ChainInfos } from '../constants';
+import { axiosWrapper } from '../healthy-nodes';
+import { LeapLedgerSignerEth } from '../ledger';
+import { ChainRestAuthApi, ChainRestTendermintApi } from '../proto/injective/client/chain/rest';
 import {
-  ChainRestAuthApi,
-  ChainRestTendermintApi,
   createSignDocFromTransaction,
   createTransaction,
   createTxRawEIP712,
   createTxRawFromSigResponse,
   createWeb3Extension,
-  DEFAULT_STD_FEE,
   getEip712TypedData,
   MsgBeginRedelegate,
   MsgDelegate,
@@ -36,18 +45,8 @@ import {
   SIGN_AMINO,
   TxClient,
   TxRestClient,
-} from '@injectivelabs/sdk-ts';
-import { EthWallet } from '@leapwallet/leap-keychain';
-import BigNumber from 'bignumber.js';
-import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
-import { StakeAuthorization } from 'cosmjs-types/cosmos/staking/v1beta1/authz';
-import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
-import { keccak256 } from 'ethereumjs-util';
-
-import { fetchAccountDetails } from '../accounts';
-import { ChainInfos } from '../constants';
-import { axiosWrapper } from '../healthy-nodes';
-import { LeapLedgerSignerEth } from '../ledger';
+} from '../proto/injective/core/modules';
+import { DEFAULT_STD_FEE } from '../proto/injective/utils/constants';
 import { getClientState, getRestUrl, sleep } from '../utils';
 import { buildGrantMsg } from './msgs/cosmos';
 import { getInjAminoMessage, MsgTypes } from './msgs/injective';
@@ -609,7 +608,7 @@ export class InjectiveTx {
         const _signDoc = createSignDocFromTransaction({
           txRaw,
           chainId: signDoc.chainId,
-          accountNumber: parseInt(signDoc.accountNumber),
+          accountNumber: parseInt(signDoc.accountNumber.toString()),
         });
 
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment

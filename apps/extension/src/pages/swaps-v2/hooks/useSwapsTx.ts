@@ -3,6 +3,7 @@ import {
   fetchCurrency,
   GasOptions,
   useChainInfo,
+  useFeatureFlags,
   useformatCurrency,
   useGasAdjustmentForChain,
   useNativeFeeDenom,
@@ -27,8 +28,11 @@ import {
 } from '@leapwallet/cosmos-wallet-store'
 import {
   SwapVenue,
+  useAllSkipAssets,
   useDebouncedValue,
-  useMessages,
+  useFeeAddresses,
+  useFees,
+  useMessagesSWR,
   usePriceImpact,
   useRoute,
   useSkipGasFeeSWR,
@@ -41,7 +45,7 @@ import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SourceChain, SourceToken } from 'types/swap'
+import { SourceChain, SourceToken, SwapFeeInfo } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import {
@@ -52,6 +56,7 @@ import {
   useGetSwapAssets,
 } from './index'
 import { useEnableToken } from './useEnableToken'
+import { useFeeAffiliates } from './useFeeAffiliates'
 import { useTokenWithBalances } from './useTokenWithBalances'
 
 export type SwapsTxType = {
@@ -126,6 +131,9 @@ export type SwapsTxType = {
   refetchSourceBalances: (() => void) | undefined
   refetchDestinationBalances: (() => void) | undefined
   usdValueAvailableForPair: boolean | undefined
+  leapFeeBps: string
+  isSwapFeeEnabled: boolean
+  swapFeeInfo?: SwapFeeInfo
 }
 
 const SEI_ASTROPORT_SWAP_VENUE: SwapVenue = { chain_id: 'pacific-1', name: 'sei-astroport' }
@@ -163,7 +171,9 @@ export function useSwapsTx({
   const [preferredCurrency] = useUserPreferredCurrency()
   const [formatCurrency] = useformatCurrency()
   const isSwitchedRef = useRef(false)
-
+  const { data: feeValues } = useFees()
+  const { data: leapFeeAddresses } = useFeeAddresses()
+  const { data: featureFlags } = useFeatureFlags()
   /**
    * states for chain, token and amount
    */
@@ -282,6 +292,11 @@ export function useSwapsTx({
     if (!debouncedInAmount || Number(debouncedInAmount) <= 0) return false
     return true
   }, [debouncedInAmount, destinationChain, destinationToken, sourceChain, sourceToken])
+
+  const isSwapFeeEnabled = useMemo(() => {
+    if (!featureFlags || isCompassWallet()) return false
+    return featureFlags.swaps.fees === 'active'
+  }, [featureFlags])
 
   /**
    * Function to enable a disabled token
@@ -503,6 +518,8 @@ export function useSwapsTx({
     useTokenWithBalances(
       sourceToken,
       sourceChain,
+      sourceAssetsData?.assets,
+      loadingSourceAssets,
       autoFetchedCW20DenomsStore,
       betaCW20DenomsStore,
       cw20DenomsStore,
@@ -515,6 +532,8 @@ export function useSwapsTx({
     useTokenWithBalances(
       destinationToken,
       destinationChain,
+      destinationAssetsData?.assets,
+      loadingDestinationAssets,
       autoFetchedCW20DenomsStore,
       betaCW20DenomsStore,
       cw20DenomsStore,
@@ -523,15 +542,51 @@ export function useSwapsTx({
       cw20DenomBalanceStore,
     )
 
+  const leapFeeBps = useMemo(() => {
+    if (!feeValues) return '75'
+    const stableSwapPairs = feeValues.pairs as unknown as Record<string, number>
+    const sourceTokenDenom = sourceToken?.skipAsset?.originDenom
+    const destinationTokenDenom = destinationToken?.skipAsset?.originDenom
+    if (!sourceTokenDenom || !destinationTokenDenom) return String(feeValues.default)
+
+    const inOutKey = `${sourceTokenDenom}+${destinationTokenDenom}`
+    const reverseInOutKey = `${destinationTokenDenom}+${sourceTokenDenom}`
+    const feeBps = stableSwapPairs[inOutKey] ?? stableSwapPairs[reverseInOutKey]
+    if (!feeBps) return String(feeValues.default)
+    return String(feeBps)
+  }, [feeValues, sourceToken, destinationToken])
+
   /**
    * element hooks
    */
   const {
-    amountOut,
-    routeResponse,
-    routeError,
-    isLoadingRoute: loadingRoutes,
-    refresh,
+    amountOut: amountOutWithFees,
+    routeResponse: routeResponseWithFees,
+    routeError: routeErrorWithFees,
+    isLoadingRoute: loadingRoutesWithFees,
+    refresh: refreshRouteWithFees,
+  } = useRoute(
+    debouncedInAmount,
+    sourceToken?.skipAsset,
+    sourceChain,
+    destinationToken?.skipAsset,
+    destinationChain,
+    isRouteQueryEnabled && isSwapFeeEnabled,
+    undefined,
+    swapVenue,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    leapFeeBps,
+  )
+
+  const {
+    amountOut: amountOutWithoutFees,
+    routeResponse: routeResponseWithoutFees,
+    routeError: routeErrorWithoutFees,
+    isLoadingRoute: loadingRoutesWithoutFees,
+    refresh: refreshRouteWithoutFees,
   } = useRoute(
     debouncedInAmount,
     sourceToken?.skipAsset,
@@ -541,7 +596,53 @@ export function useSwapsTx({
     isRouteQueryEnabled,
     undefined,
     swapVenue,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
   )
+
+  const { amountOut, routeResponse, routeError, loadingRoutes, refresh, appliedLeapFeeBps } =
+    useMemo(() => {
+      let finalResponse: any = {
+        loadingRoutes: isSwapFeeEnabled
+          ? loadingRoutesWithoutFees && loadingRoutesWithFees
+          : loadingRoutesWithoutFees,
+        appliedLeapFeeBps: '0',
+        amountOut: amountOutWithoutFees,
+        routeResponse: routeResponseWithoutFees,
+        routeError: routeErrorWithoutFees,
+        refresh: refreshRouteWithoutFees,
+      }
+      if (routeResponseWithFees && routeResponseWithFees?.response?.does_swap) {
+        const swapChainId = routeResponseWithFees.response.swap_venue?.chain_id
+        if (leapFeeAddresses && leapFeeAddresses[swapChainId]) {
+          finalResponse = {
+            amountOut: amountOutWithFees,
+            routeResponse: routeResponseWithFees,
+            loadingRoutes: loadingRoutesWithFees,
+            routeError: routeErrorWithFees,
+            appliedLeapFeeBps: leapFeeBps,
+            refresh: refreshRouteWithFees,
+          }
+        }
+      }
+      return finalResponse
+    }, [
+      leapFeeAddresses,
+      loadingRoutesWithFees,
+      amountOutWithFees,
+      routeResponseWithFees,
+      routeErrorWithFees,
+      refreshRouteWithFees,
+      amountOutWithoutFees,
+      routeResponseWithoutFees,
+      routeErrorWithoutFees,
+      loadingRoutesWithoutFees,
+      refreshRouteWithoutFees,
+      leapFeeBps,
+      isSwapFeeEnabled,
+    ])
 
   const invalidAmount = useMemo(() => {
     return inAmount !== '' && (isNaN(Number(inAmount)) || Number(inAmount) < 0)
@@ -587,18 +688,95 @@ export function useSwapsTx({
     routeResponse?.response.chain_ids as string[],
   )
 
+  const { affiliates } = useFeeAffiliates(
+    routeResponse,
+    appliedLeapFeeBps,
+    undefined,
+    isSwapFeeEnabled && routeResponse?.response?.does_swap,
+  )
+  const { data: skipAssets } = useAllSkipAssets({
+    includeCW20Assets: true,
+    includeNoMetadataAssets: false,
+    nativeOnly: false,
+  })
+
   const options = useMemo(() => {
-    return {
+    const queryOptions: any = {
       slippageTolerancePercent: String(slippagePercent),
     }
-  }, [slippagePercent])
+    if (affiliates) {
+      queryOptions.chainIdsToAffiliates = affiliates
+    }
+    return queryOptions
+  }, [slippagePercent, affiliates])
 
-  const { messages } = useMessages(userAddresses, routeResponse?.response, options)
+  const { data: messages } = useMessagesSWR(userAddresses, routeResponse?.response, options, true)
   const { data: skipGasFee, isLoading: isSkipGasFeeLoading } = useSkipGasFeeSWR(
     messages,
     userAddresses,
     true,
   )
+
+  const swapFeeInfo = useMemo(() => {
+    if (
+      !isSwapFeeEnabled ||
+      !skipAssets ||
+      !messages ||
+      !routeResponse?.response ||
+      !routeResponse?.response?.does_swap
+    ) {
+      return undefined
+    }
+
+    const messageIndex = 0
+    const messageObj = messages[messageIndex]
+    let min_asset: any = null
+    let amount = 0
+    let denom = ''
+    let feeAmountValue = null
+    if ('multi_chain_msg' in messageObj) {
+      const message = messageObj.multi_chain_msg
+      const messageJson = JSON.parse(message.msg)
+      if (messageJson?.memo) {
+        const memo = JSON.parse(messageJson.memo)
+        min_asset = memo?.wasm?.msg?.swap_and_action?.min_asset
+      } else if (messageJson?.msg) {
+        min_asset = messageJson.msg?.swap_and_action?.min_asset
+      }
+
+      if (min_asset?.native) {
+        amount = min_asset.native.amount
+        denom = min_asset.native.denom
+      } else if (min_asset?.cw20) {
+        amount = min_asset.cw20.amount
+        denom = min_asset.cw20.address
+      }
+    }
+
+    const leapFeePercentage = (Number(appliedLeapFeeBps) * 0.01) / 100
+
+    const swapVenueChainId = routeResponse?.response?.swap_venue?.chain_id
+    const skipAsset = skipAssets[swapVenueChainId ?? ''].find(
+      (asset) => asset.denom.replace('cw20:', '') === denom,
+    )
+    if (skipAsset && amount > 0) {
+      const minAssetAmount = new BigNumber(amount).dividedBy(10 ** Number(skipAsset?.decimals ?? 0))
+      feeAmountValue = minAssetAmount.multipliedBy(leapFeePercentage)
+    }
+    return {
+      feeAmountValue: feeAmountValue ? feeAmountValue : null,
+      feeCharged: Number(appliedLeapFeeBps) * 0.01,
+      feeCollectionAddress: leapFeeAddresses && (leapFeeAddresses[swapVenueChainId] ?? ''),
+      swapFeeDenomInfo: skipAsset,
+    }
+  }, [
+    skipAssets,
+    messages,
+    routeResponse?.response,
+    isSwapFeeEnabled,
+    appliedLeapFeeBps,
+    leapFeeAddresses,
+  ])
 
   /**
    * set gas estimate
@@ -609,11 +787,13 @@ export function useSwapsTx({
         setGasEstimate(DefaultGasEstimates.DEFAULT_GAS_TRANSFER)
       } else {
         setGasEstimate(
-          Number(skipGasFee.gasFeesAmount?.[0]?.gas) ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
+          Number(skipGasFee.gasFeesAmount?.[0]?.gas)
+            ? Number(skipGasFee.gasFeesAmount[0].gas) / gasAdjustment
+            : DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
         )
       }
     }
-  }, [skipGasFee])
+  }, [gasAdjustment, skipGasFee])
 
   /**
    * set fee denom
@@ -863,6 +1043,9 @@ export function useSwapsTx({
       usdValueAvailableForPair,
       refetchSourceBalances,
       refetchDestinationBalances,
+      leapFeeBps: appliedLeapFeeBps,
+      isSwapFeeEnabled,
+      swapFeeInfo,
     }
   }, [
     amountExceedsBalance,
@@ -915,6 +1098,9 @@ export function useSwapsTx({
     usdValueAvailableForPair,
     userPreferredGasLimit,
     userPreferredGasPrice,
+    appliedLeapFeeBps,
+    isSwapFeeEnabled,
+    swapFeeInfo,
   ])
 
   return value

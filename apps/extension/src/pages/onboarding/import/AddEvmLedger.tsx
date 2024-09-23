@@ -6,6 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Keystore, WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Buttons } from '@leapwallet/leap-ui'
+import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
 import { KEYSTORE } from 'config/storage-keys'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'

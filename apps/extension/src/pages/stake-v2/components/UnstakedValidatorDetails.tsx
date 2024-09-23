@@ -72,6 +72,7 @@ const UnstakedValidatorDetails = observer(
     forceNetwork,
   }: UnstakedValidatorDetailsProps) => {
     const _activeChain = useActiveChain()
+    const { formatHideBalance } = useHideAssets()
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
 
     const _activeNetwork = useSelectedNetwork()
@@ -89,7 +90,6 @@ const UnstakedValidatorDetails = observer(
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const defaultTokenLogo = useDefaultTokenLogo()
     const [formatCurrency] = useFormatCurrency()
-    const { formatHideBalance } = useHideAssets()
     const { theme } = useTheme()
     const [showReviewCancelUnstakeTx, setShowReviewCancelUnstakeTx] = useState(false)
     const { network } = useStaking(
@@ -220,17 +220,17 @@ const UnstakedValidatorDetails = observer(
                 src={activeStakingDenom.icon}
                 onError={imgOnError(defaultTokenLogo)}
               />
-              <div>
+              <div className='flex flex-col justify-center'>
                 <Text
                   color='text-black-100 dark:text-white-100'
                   size='sm'
                   className='font-bold mt-0.5'
                 >
-                  {formatCurrency(new BigNumber(unbondingDelegationEntry?.currencyBalance ?? ''))}
+                  {amountTitleText}
                 </Text>
 
                 <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  {unbondingDelegationEntry?.formattedBalance}
+                  {amountSubtitleText}
                 </Text>
               </div>
 

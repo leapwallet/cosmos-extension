@@ -6,7 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import { useMemo } from 'react';
 
-import { useActiveChain, useChainsStore, useDenoms, useFeeDenoms, useSelectedNetwork } from '../store';
+import { useActiveChain, useChainsStore, useFeeDenoms, useSelectedNetwork } from '../store';
 
 export const useNativeFeeDenom = (
   denoms: DenomsRecord,

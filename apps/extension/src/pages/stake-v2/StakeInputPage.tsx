@@ -4,6 +4,7 @@ import {
   STAKE_MODE,
   useActiveChain,
   useActiveStakingDenom,
+  useConsensusValidators,
   useDualStaking,
   useDualStakingTx,
   useFeatureFlags,
@@ -13,15 +14,16 @@ import {
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Validator } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Delegation,
   Provider,
   ProviderDelegation,
 } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import {
   ClaimRewardsStore,
   DelegationsStore,
+  NmsStore,
   RootBalanceStore,
   RootDenomsStore,
   UndelegationsStore,
@@ -40,6 +42,7 @@ import { YouStakeSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { addSeconds } from 'date-fns'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
@@ -56,7 +59,6 @@ import SelectValidatorCard from './components/SelectValidatorCard'
 import SelectValidatorSheet from './components/SelectValidatorSheet'
 import YouStake from './components/YouStake'
 import useGetWallet = Wallet.useGetWallet
-import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import AutoAdjustAmountSheet from './components/AutoAdjustModal'
@@ -100,6 +102,7 @@ type StakeInputPageProps = {
   unDelegationsStore: UndelegationsStore
   claimRewardsStore: ClaimRewardsStore
   rootBalanceStore: RootBalanceStore
+  nmsStore: NmsStore
 }
 
 const StakeInputPage = observer(
@@ -110,6 +113,7 @@ const StakeInputPage = observer(
     unDelegationsStore,
     claimRewardsStore,
     rootBalanceStore,
+    nmsStore,
   }: StakeInputPageProps) => {
     const [selectedValidator, setSelectedValidator] = useState<Validator | undefined>()
     const [showSelectValidatorSheet, setShowSelectValidatorSheet] = useState(false)
@@ -161,7 +165,7 @@ const StakeInputPage = observer(
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
-    const { network, delegations } = useStaking(
+    const { network } = useStaking(
       denoms,
       chainDelegations,
       chainValidators,
@@ -183,7 +187,14 @@ const StakeInputPage = observer(
         ),
       [network],
     )
-    const validators = network?.getValidators({}) as Record<string, Validator>
+    const validators = useMemo(
+      () =>
+        validatorsStore.chainValidators.validatorData.validators?.reduce((acc, validator) => {
+          acc[validator.address] = validator
+          return acc
+        }, {} as Record<string, Validator>),
+      [validatorsStore.chainValidators.validatorData.validators],
+    )
     const apy = network?.validatorApys
     const { data: featureFlags } = useFeatureFlags()
     const {
@@ -247,12 +258,18 @@ const StakeInputPage = observer(
       )
     }, [activeStakingDenom?.coinDenom, rootBalanceStore.allSpendableTokens])
 
+    const consensusValidators = useConsensusValidators(
+      validators,
+      nmsStore,
+      activeChain,
+      activeNetwork,
+    )
     const activeValidators = useMemo(
       () =>
-        Object.values(validators ?? {})
+        consensusValidators
           .filter((v) => !v.jailed)
           .filter((v) => v.address !== fromValidator?.address),
-      [fromValidator?.address, validators],
+      [consensusValidators, fromValidator?.address],
     )
 
     const activeProviders = useMemo(() => {
@@ -264,6 +281,10 @@ const StakeInputPage = observer(
           address: 'empty_provider',
           chain: '',
           spec: '',
+          stakestatus: 'Active',
+          delegateCommission: '',
+          delegateLimit: '',
+          delegateTotal: '',
         })
       }
       return _providers.filter((p) => p.address !== fromProvider?.address)
@@ -460,7 +481,6 @@ const StakeInputPage = observer(
                 ))}
 
               {activeChain === 'lava' &&
-                activeWallet?.walletType !== WALLETTYPE.LEDGER &&
                 featureFlags?.restaking?.extension === 'active' &&
                 (mode === 'DELEGATE' ||
                   (mode === 'REDELEGATE' && fromProvider) ||

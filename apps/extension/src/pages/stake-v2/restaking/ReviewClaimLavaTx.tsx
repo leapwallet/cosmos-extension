@@ -35,6 +35,8 @@ import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
+import { isCompassWallet } from 'utils/isCompassWallet'
+
 import { StakeTxnPageState } from '../StakeTxnPage'
 
 interface ReviewClaimLavaTxProps {
@@ -246,7 +248,7 @@ export const ReviewClaimLavaTx = observer(
               )}
 
               <Buttons.Generic
-                color={Colors.green600}
+                color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
                 size='normal'
                 disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
                 className='w-full'

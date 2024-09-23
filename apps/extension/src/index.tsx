@@ -41,7 +41,7 @@ axios.defaults.headers.common['x-requested-with'] = 'leap-client'
 axios.defaults.timeout = 5000
 
 setLeapapiBaseUrl(process.env.LEAP_WALLET_BACKEND_API_URL as string)
-setBaseURL(process.env.LEAP_WALLET_BACKENT_API_URL as string)
+setBaseURL(process.env.LEAP_WALLET_BACKEND_API_URL as string)
 setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
 setIsCompass(isCompassWallet())
 setPlatformType(PLATFORM_TYPE.Extension)

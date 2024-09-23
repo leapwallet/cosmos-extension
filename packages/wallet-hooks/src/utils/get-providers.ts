@@ -1,4 +1,4 @@
-import { axiosWrapper, Provider, ProvidersResponse } from '@leapwallet/cosmos-wallet-sdk';
+import { Provider, ProvidersResponse } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
 
 import { SelectedNetwork } from './get-staking-selected-network';
@@ -27,6 +27,10 @@ export async function getProviders(selectedNetwork: SelectedNetwork): Promise<Ge
       spec: spec.spec,
       chain: spec.chain,
       image: undefined,
+      stakestatus: spec.stakestatus,
+      delegateCommission: spec.delegateCommission,
+      delegateLimit: spec.delegateLimit,
+      delegateTotal: spec.delegateTotal,
     })),
   );
 

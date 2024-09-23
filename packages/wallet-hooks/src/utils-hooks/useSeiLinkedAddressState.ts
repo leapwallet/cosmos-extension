@@ -182,6 +182,7 @@ export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams
         const _error = error as Error;
         const errorMessageToShow = getErrorMessageToShow(_error.message);
 
+        setShowLoadingMessage && setShowLoadingMessage('');
         setError && setError(errorMessageToShow);
         setAddressLinkState('error');
       }

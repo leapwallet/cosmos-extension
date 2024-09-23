@@ -8,6 +8,7 @@ import { useSwapContext } from 'pages/swaps-v2/context'
 import { getSlippageRemarks } from 'pages/swaps-v2/utils/slippage'
 import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
 
+import LeapFeesInfoSheet from './LeapFeesInfoSheet'
 import PriceImpactSheet from './PriceImpactSheet'
 
 function OrderRoutingDisplay({
@@ -40,14 +41,14 @@ export function MoreDetails({
   onSlippageInfoClick,
   setShowFeesSettingSheet,
 }: MoreDetailsProps) {
-  const { slippagePercent, displayFee, route } = useSwapContext()
+  const { slippagePercent, displayFee, route, leapFeeBps, isSwapFeeEnabled } = useSwapContext()
 
   const slippageRemarks = useMemo(() => {
     return getSlippageRemarks(String(slippagePercent))
   }, [slippagePercent])
 
   const [showPriceImpactInfo, setShowPriceImpactInfo] = useState(false)
-
+  const [showLeapFeesInfo, setShowLeapFeesInfo] = useState(false)
   const chains = useChainInfos()
   const skipChains = useSkipSupportedChains()
 
@@ -88,9 +89,17 @@ export function MoreDetails({
     })
   }, [chains, skipChains?.data, route?.response?.chain_ids])
 
+  const showLeapFees = useMemo(() => {
+    return Number(leapFeeBps) > 0 && isSwapFeeEnabled
+  }, [leapFeeBps, isSwapFeeEnabled])
+
   const handlePriceImpactInfoClick = useCallback(() => {
     setShowPriceImpactInfo(true)
   }, [setShowPriceImpactInfo])
+
+  const handleLeapFeesInfoClick = useCallback(() => {
+    setShowLeapFeesInfo(true)
+  }, [setShowLeapFeesInfo])
 
   const handleSlippageInfoClick = useCallback(() => {
     onSlippageInfoClick?.()
@@ -156,6 +165,33 @@ export function MoreDetails({
           </span>
         </div>
 
+        {showLeapFees && (
+          <div className='flex w-full justify-between items-center'>
+            <div className='flex justify-start items-center gap-1'>
+              <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px]'>
+                Leap fee
+              </span>
+              {showInfo && (
+                <button
+                  onClick={handleLeapFeesInfoClick}
+                  className='text-gray-600 dark:text-gray-400'
+                >
+                  <Info size={16} className='!text-md !leading-[16px]' />
+                </button>
+              )}
+            </div>
+            <span
+              className={classNames('text-sm font-bold !leading-[19.8px]', {
+                'text-black-100 dark:text-white-100': !slippageRemarks,
+                'text-orange-500 dark:text-orange-300': slippageRemarks?.color === 'orange',
+                'text-red-400 dark:text-red-300': slippageRemarks?.color === 'red',
+              })}
+            >
+              {parseFloat((Number(leapFeeBps) / 100).toFixed(2))}%
+            </span>
+          </div>
+        )}
+
         <div className='flex w-full justify-between items-start p-[1.5px]'>
           <div className='flex justify-start items-center gap-1 min-h-[19.2px] shrink-0'>
             <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px] shrink-0'>
@@ -203,6 +239,15 @@ export function MoreDetails({
           setShowPriceImpactInfo(false)
         }}
       />
+      {showLeapFees && (
+        <LeapFeesInfoSheet
+          isOpen={showLeapFeesInfo}
+          leapFeeBps={leapFeeBps}
+          onClose={() => {
+            setShowLeapFeesInfo(false)
+          }}
+        />
+      )}
     </>
   )
 }

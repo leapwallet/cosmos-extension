@@ -15,6 +15,7 @@ import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 type AutoAdjustAmountSheetProps = {
   onCancel: () => void
@@ -103,7 +104,7 @@ const OptionalAutoAdjustAmountSheet: React.FC<
         </Buttons.Generic>
 
         <Buttons.Generic
-          color={Colors.green600}
+          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
           size='normal'
           className='w-full'
           title='Proceed'
@@ -202,7 +203,7 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
         </Buttons.Generic>
 
         <Buttons.Generic
-          color={Colors.green600}
+          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
           size='normal'
           className='w-full'
           title='Proceed'

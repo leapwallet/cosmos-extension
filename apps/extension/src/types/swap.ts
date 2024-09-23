@@ -1,8 +1,10 @@
 import { Token } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import type { TransferInfoJSON } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/skip-core'
+import { Asset, ChainData } from '@leapwallet/elements-core'
 import { SkipSupportedAsset, TXN_STATUS } from '@leapwallet/elements-core'
 import { Action, SkipSupportedChainData } from '@leapwallet/elements-hooks'
-import type { TransferInfoJSON } from '@skip-router/core'
+import BigNumber from 'bignumber.js'
 
 export type SwapTxAction = Extract<Action, { type: 'SWAP' }>
 export type TransferTxAction = Extract<Action, { type: 'TRANSFER' }>
@@ -26,4 +28,11 @@ export type SwapTxnStatus = {
     denom: string
   }
   isComplete: boolean
+}
+
+export type SwapFeeInfo = {
+  feeCharged: number
+  feeAmountValue: BigNumber | null
+  feeCollectionAddress?: string
+  swapFeeDenomInfo?: SkipSupportedAsset
 }

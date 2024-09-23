@@ -13,7 +13,6 @@ import {
   Tag,
   Wallet,
 } from '@phosphor-icons/react'
-import { CurrencyCircleDollar } from '@phosphor-icons/react/dist/ssr'
 import classNames from 'classnames'
 import { LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'

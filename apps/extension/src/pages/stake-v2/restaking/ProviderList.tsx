@@ -209,19 +209,32 @@ function ProviderCard({ provider, delegation, onClick }: ProviderCardProps) {
           className='mr-4 rounded-full'
         />
         <div className='flex justify-between items-center w-full'>
-          <Text
-            size='sm'
-            color='text-black-100 dark:text-white-100'
-            className='font-bold  overflow-hidden'
-          >
-            {sliceWord(
-              provider?.moniker,
-              isSidePanel()
-                ? 5 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
-                : 10,
-              3,
+          <div className='flex flex-col justify-center items-start'>
+            <Text
+              size='sm'
+              color='text-black-100 dark:text-white-100'
+              className='font-bold  overflow-hidden'
+            >
+              {sliceWord(
+                provider?.moniker,
+                isSidePanel()
+                  ? 5 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                  : 10,
+                3,
+              )}
+            </Text>
+            {provider.spec && (
+              <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
+                {sliceWord(
+                  provider.spec.charAt(0).toUpperCase() + provider.spec.slice(1).toLowerCase(),
+                  isSidePanel()
+                    ? 22 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                    : 30,
+                  0,
+                )}
+              </Text>
             )}
-          </Text>
+          </div>
           <div className='flex flex-col items-end gap-y-0.5'>
             <Text size='sm' color='text-black-100 dark:text-white-100' className='font-bold'>
               {amountTitleText}
@@ -289,14 +302,16 @@ export default function ProviderList() {
                 />
               </>
             )}
-            <div className='flex justify-between'>
-              <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-                Provider
-              </Text>
-              <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-                Amount Staked
-              </Text>
-            </div>
+            {sortedDelegations.length > 1 && (
+              <div className='flex justify-between'>
+                <Text size='xs' color='text-gray-700 dark:text-gray-400'>
+                  Provider
+                </Text>
+                <Text size='xs' color='text-gray-700 dark:text-gray-400'>
+                  Amount Staked
+                </Text>
+              </div>
+            )}
             {sortedDelegations.map((d) => {
               const provider = providers?.find((el) => el.address === d.provider)
               return (

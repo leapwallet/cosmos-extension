@@ -220,17 +220,15 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       ) : null}
 
       {/* NFTs Button */}
-      {!chain?.evmOnlyChain ? (
-        <ClickableIcon
-          label='NFTs'
-          icon={
-            <div className='bg-white-100 h-5 w-5 rounded-full flex items-center justify-center'>
-              <Star size={12} weight='fill' className='text-black-100' />
-            </div>
-          }
-          onClick={() => handleNftsClick()}
-        />
-      ) : null}
+      <ClickableIcon
+        label='NFTs'
+        icon={
+          <div className='bg-white-100 h-5 w-5 rounded-full flex items-center justify-center'>
+            <Star size={12} weight='fill' className='text-black-100' />
+          </div>
+        }
+        onClick={() => handleNftsClick()}
+      />
     </div>
   )
 }

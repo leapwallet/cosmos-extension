@@ -20,6 +20,7 @@ import Lottie from 'lottie-react'
 import React, { useMemo } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 type ReviewStakeTxProps = {
@@ -219,7 +220,7 @@ export default function ReviewStakeTx({
               className='w-full'
               disabled={isLoading || !!error || !!gasError}
               size='normal'
-              color={Colors.green600}
+              color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
               onClick={onSubmit}
             >
               {isLoading ? (

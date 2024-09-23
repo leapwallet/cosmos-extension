@@ -3,31 +3,29 @@ import { Coin } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, coin, StdFee } from '@cosmjs/stargate';
 import {
+  DEFAULT_GAS_REDELEGATE,
   DefaultGasEstimates,
+  defaultGasPriceStep,
   Delegation,
   DenomsRecord,
   EthermintTxHandler,
   fromSmall,
+  GasPrice,
   getSimulationFee,
   InjectiveTx,
   LedgerError,
+  NativeDenom,
   RewardsResponse,
   simulateCancelUndelegation,
   simulateDelegate,
   simulateRedelegate,
   simulateUndelegate,
   simulateWithdrawRewards,
+  SupportedChain,
   toSmall,
   Tx,
   UnbondingDelegation,
   Validator,
-} from '@leapwallet/cosmos-wallet-sdk';
-import {
-  DEFAULT_GAS_REDELEGATE,
-  defaultGasPriceStep,
-  GasPrice,
-  NativeDenom,
-  SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { Network } from '@leapwallet/cosmos-wallet-sdk/dist/browser/stake/network';
 import {
@@ -58,8 +56,7 @@ import {
   useSelectedNetwork,
 } from '../store';
 import { useTxHandler } from '../tx';
-import { Token, TxCallback, WALLETTYPE } from '../types';
-import { STAKE_MODE } from '../types';
+import { STAKE_MODE, Token, TxCallback, WALLETTYPE } from '../types';
 import {
   GasOptions,
   getChainId,

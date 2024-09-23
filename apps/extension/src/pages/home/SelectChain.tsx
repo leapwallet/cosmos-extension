@@ -117,7 +117,8 @@ export const ListChains = observer(
         if (
           (isCompassWallet() && chain.chainName === 'cosmos') ||
           !chain.active ||
-          (onPage === 'AddCollection' && ['omniflix', 'stargaze'].includes(chain.chainName))
+          (onPage === 'AddCollection' &&
+            ['omniflix', 'stargaze', 'forma'].includes(chain.chainName))
         ) {
           return false
         }

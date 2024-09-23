@@ -115,7 +115,6 @@ const StakePage = observer(
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
     const {
-      network,
       rewards,
       delegations,
       loadingDelegations,
@@ -253,8 +252,15 @@ const StakePage = observer(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [paramChainId])
 
+    const validators = useMemo(
+      () =>
+        validatorsStore.chainValidators.validatorData.validators?.reduce((acc, validator) => {
+          acc[validator.address] = validator
+          return acc
+        }, {} as Record<string, Validator>),
+      [validatorsStore.chainValidators.validatorData.validators],
+    )
     const redirectToInputPage = useCallback(() => {
-      const validators = network?.getValidators() as Record<string, Validator>
       navigate('/stake/input', {
         state: {
           mode: 'DELEGATE',
@@ -262,7 +268,7 @@ const StakePage = observer(
         } as StakeInputPageState,
         replace: true,
       })
-    }, [navigate, network, paramValidatorAddress])
+    }, [navigate, paramValidatorAddress, validators])
 
     useEffect(() => {
       switch (paramAction) {
@@ -435,7 +441,7 @@ const StakePage = observer(
             <ReviewClaimTx
               isOpen={showReviewClaimTx}
               onClose={() => setShowReviewClaimTx(false)}
-              validators={network?.getValidators({}) as Record<string, Validator>}
+              validators={validators}
               rootDenomsStore={rootDenomsStore}
               rootBalanceStore={rootBalanceStore}
               delegationsStore={delegationsStore}
@@ -499,7 +505,7 @@ const StakePage = observer(
               <ReviewClaimAndStakeTx
                 isOpen={showReviewClaimAndStakeTx}
                 onClose={() => setShowReviewClaimAndStakeTx(false)}
-                validators={network?.getValidators({}) as Record<string, Validator>}
+                validators={validators}
                 chainRewards={chainRewards}
                 rootDenomsStore={rootDenomsStore}
                 delegationsStore={delegationsStore}

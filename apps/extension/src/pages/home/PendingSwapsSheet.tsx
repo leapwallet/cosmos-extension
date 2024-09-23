@@ -1,6 +1,5 @@
 import { ActivityCardContent, ActivityType } from '@leapwallet/cosmos-wallet-hooks'
 import { SKIP_TXN_STATUS } from '@leapwallet/elements-core'
-import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { ActivityCard } from 'pages/activity/components/ActivityCard'
 import React, { Dispatch, SetStateAction } from 'react'

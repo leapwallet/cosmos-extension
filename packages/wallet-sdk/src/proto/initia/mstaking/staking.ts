@@ -3,13 +3,13 @@
 import { Pubkey } from '@cosmjs/amino';
 import { Decimal } from '@cosmjs/math';
 import { decodePubkey, encodePubkey } from '@cosmjs/proto-signing';
+import { Any, AnyAmino, AnyProtoMsg, AnySDKType } from 'cosmjs-types/google/protobuf/any';
+import { Duration, DurationAmino, DurationSDKType } from 'cosmjs-types/google/protobuf/duration';
+import { Timestamp } from 'cosmjs-types/google/protobuf/timestamp';
 
 import { BinaryReader, BinaryWriter } from '../../binary';
 import { Coin, CoinAmino, CoinSDKType, DecCoin, DecCoinAmino, DecCoinSDKType } from '../../coin';
 import { fromTimestamp, toTimestamp } from '../../helpers';
-import { Any, AnyAmino, AnyProtoMsg, AnySDKType } from './any';
-import { Duration, DurationAmino, DurationSDKType } from './duration';
-import { Timestamp } from './timestamp';
 /** BondStatus is the status of a validator. */
 export enum BondStatus {
   /** BOND_STATUS_UNSPECIFIED - UNSPECIFIED defines an invalid validator status. */

@@ -1,4 +1,4 @@
-import { NftPage } from '@leapwallet/cosmos-wallet-hooks'
+import { NftPage, useAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
 import React, { useState } from 'react'
@@ -16,11 +16,12 @@ import {
 export default function NFTs() {
   usePageView(PageName.NFT)
 
+  const address = useAddress()
   const [activePage, setActivePage] = useState<NftPage>('ShowNfts')
   const value = { activePage, setActivePage }
 
   return (
-    <NftContextProvider value={value}>
+    <NftContextProvider value={value} key={address}>
       {activePage === 'ShowNfts' && (
         <ShowNfts nftStore={nftStore} chainTagsStore={chainTagsStore} />
       )}

@@ -72,6 +72,7 @@ export class Validator {
   profile?: Profile;
   delegations?: ValidatorDelegations;
   custom_attributes?: { priority?: number };
+  consensus_pubkey?: { '@type': string; key: string };
 
   constructor(validator: any) {
     this.moniker = '';
@@ -97,6 +98,7 @@ export class Validator {
       'uptime',
       'profile',
       'delegations',
+      'consensus_pubkey',
     ].forEach((prop) => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore

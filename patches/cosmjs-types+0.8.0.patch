@@ -83,6 +83,28 @@ index a94df9c..2e451b2 100644
                  : helpers_1.Long.UZERO;
          message.payer = object.payer ?? "";
          message.granter = object.granter ?? "";
+diff --git a/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js b/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js
+index c76b959..dc5c54f 100644
+--- a/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js
++++ b/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js
+@@ -62,7 +62,7 @@ exports.MsgTransfer = {
+         if (message.timeoutHeight !== undefined) {
+             client_1.Height.encode(message.timeoutHeight, writer.uint32(50).fork()).ldelim();
+         }
+-        if (!message.timeoutTimestamp.isZero()) {
++        if (typeof message.timeoutTimestamp === 'bigint' ? message.timeoutTimestamp !== BigInt(0) : !message.timeoutTimestamp.isZero()) {
+             writer.uint32(56).uint64(message.timeoutTimestamp);
+         }
+         if (message.memo !== "") {
+@@ -116,7 +116,7 @@ exports.MsgTransfer = {
+             sender: (0, helpers_1.isSet)(object.sender) ? String(object.sender) : "",
+             receiver: (0, helpers_1.isSet)(object.receiver) ? String(object.receiver) : "",
+             timeoutHeight: (0, helpers_1.isSet)(object.timeoutHeight) ? client_1.Height.fromJSON(object.timeoutHeight) : undefined,
+-            timeoutTimestamp: (0, helpers_1.isSet)(object.timeoutTimestamp) ? helpers_1.Long.fromValue(object.timeoutTimestamp) : helpers_1.Long.UZERO,
++            timeoutTimestamp: (0, helpers_1.isSet)(object.timeoutTimestamp) ? helpers_1.Long.fromValue(object.timeoutTimestamp?.toString()) : helpers_1.Long.UZERO,
+             memo: (0, helpers_1.isSet)(object.memo) ? String(object.memo) : "",
+         };
+     },
 diff --git a/node_modules/cosmjs-types/ibc/core/client/v1/client.js b/node_modules/cosmjs-types/ibc/core/client/v1/client.js
 index 5984754..79366ac 100644
 --- a/node_modules/cosmjs-types/ibc/core/client/v1/client.js

@@ -38,10 +38,12 @@ export function useGetProposal(
           break;
       }
 
-      const url = `/cosmos/gov/${version}/proposals/${id}/tally`;
-      const tallying = `/cosmos/gov/${version}/params/tallying`;
+      const prefix = chainInfo?.chainId === 'govgen-1' ? '/govgen' : '/cosmos';
+
+      const url = `${prefix}/gov/${version}/proposals/${id}/tally`;
+      const tallying = `${prefix}/gov/${version}/params/tallying`;
       let poolUrl = `/cosmos/staking/${version}/pool`;
-      const proposerUrl = `/cosmos/gov/${version}/proposals/${id}/deposits`;
+      const proposerUrl = `${prefix}/gov/${version}/proposals/${id}/deposits`;
 
       if (activeChain === 'initia') {
         poolUrl = `/initia/mstaking/v1/pool`;

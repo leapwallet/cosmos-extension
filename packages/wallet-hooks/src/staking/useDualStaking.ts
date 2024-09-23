@@ -3,29 +3,30 @@ import { Coin } from '@cosmjs/amino';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { calculateFee, coin, StdFee } from '@cosmjs/stargate';
 import {
-  DenomsRecord,
-  LavaTx,
-  Provider,
-  ProviderDelegation,
-  simulateClaimProviderRewards,
-  simulateDelegateLava,
-  simulateReDelegateLava,
-  simulateUnDelegateLava,
-} from '@leapwallet/cosmos-wallet-sdk';
-import {
+  DEFAULT_GAS_REDELEGATE,
   DefaultGasEstimates,
   Delegation,
+  DenomsRecord,
   fromSmall,
+  GasPrice,
   getSimulationFee,
+  LavaTx,
   LedgerError,
+  NativeDenom,
+  Provider,
+  ProviderDelegation,
   simulateCancelUndelegation,
+  simulateClaimProviderRewards,
   simulateDelegate,
+  simulateDelegateLava,
   simulateRedelegate,
+  simulateReDelegateLava,
   simulateUndelegate,
+  simulateUnDelegateLava,
+  SupportedChain,
   toSmall,
   Validator,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { DEFAULT_GAS_REDELEGATE, GasPrice, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -40,7 +41,6 @@ import {
   useAddress,
   useChainApis,
   useDefaultGasEstimates,
-  useDenoms,
   useDualStakeDelegationsStore,
   useDualStakeProviderRewardsStore,
   useDualStakeProvidersStore,
@@ -49,8 +49,7 @@ import {
   useSelectedNetwork,
 } from '../store';
 import { useTxHandler } from '../tx';
-import { TxCallback, WALLETTYPE } from '../types';
-import { STAKE_MODE } from '../types';
+import { STAKE_MODE, TxCallback, WALLETTYPE } from '../types';
 import {
   GasOptions,
   getChainId,

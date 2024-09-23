@@ -30,7 +30,12 @@ import {
   SupportedChain,
   transactionDeclinedError,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import {
+  EvmBalanceStore,
+  RootBalanceStore,
+  RootDenomsStore,
+  RootStakeStore,
+} from '@leapwallet/cosmos-wallet-store'
 import { EthWallet } from '@leapwallet/leap-keychain'
 import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
 import {
@@ -67,8 +72,9 @@ import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
-import { rootBalanceStore } from 'stores/root-store'
+import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
 import { formatWalletName } from 'utils/formatWalletName'
@@ -108,6 +114,8 @@ type SignTransactionProps = {
   chainId: string
   isSignArbitrary: boolean
   rootBalanceStore: RootBalanceStore
+  rootStakeStore: RootStakeStore
+  evmBalanceStore: EvmBalanceStore
   rootDenomsStore: RootDenomsStore
 }
 
@@ -117,7 +125,9 @@ const SignTransaction = observer(
     chainId,
     isSignArbitrary,
     rootBalanceStore,
+    rootStakeStore,
     rootDenomsStore,
+    evmBalanceStore,
   }: SignTransactionProps) => {
     const isDappTxnInitEventLogged = useRef(false)
     const isRejectedRef = useRef(false)
@@ -145,6 +155,7 @@ const SignTransaction = observer(
 
     const activeChain = useActiveChain()
     const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain)
+    const selectedNetwork = useSelectedNetwork()
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, { activeChain })
     const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
@@ -359,6 +370,14 @@ const SignTransaction = observer(
       return undefined
     }, [messages])
 
+    const refetchData = useCallback(() => {
+      setTimeout(() => {
+        rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
+        rootStakeStore.updateStake(activeChain, selectedNetwork, true)
+        evmBalanceStore.loadEvmBalance(activeChain)
+      }, 3000)
+    }, [activeChain, evmBalanceStore, rootBalanceStore, rootStakeStore, selectedNetwork])
+
     const handleCancel = useCallback(async () => {
       if (isRejectedRef.current || isApprovedRef.current) return
       isRejectedRef.current = true
@@ -540,6 +559,7 @@ const SignTransaction = observer(
             throw new Error('Could not send transaction to the dApp')
           }
           if (isSidePanel()) {
+            refetchData()
             navigate('/home')
           } else {
             setTimeout(async () => {
@@ -706,6 +726,7 @@ const SignTransaction = observer(
           }
 
           if (isSidePanel()) {
+            refetchData()
             navigate('/home')
           } else {
             setTimeout(async () => {
@@ -731,6 +752,7 @@ const SignTransaction = observer(
     }, [
       activeWallet.addresses,
       activeChain,
+      refetchData,
       signDoc,
       isAmino,
       getWallet,
@@ -1243,6 +1265,8 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
           isSignArbitrary={isSignArbitrary}
           rootDenomsStore={rootDenomsStore}
           rootBalanceStore={rootBalanceStore}
+          evmBalanceStore={evmBalanceStore}
+          rootStakeStore={rootStakeStore}
         />
       )
     }

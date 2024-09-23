@@ -11,6 +11,7 @@ export const useGetIBCSupport = (chain: SupportedChain) => {
   return useQuery<Record<string, boolean>>({
     queryKey: ['ibc-support-data', path],
     queryFn: async () => {
+      if (chain === 'seiDevnet') return {};
       const res = await fetch(`https://assets.leapwallet.io/ibc-support-db/chains/${path}.json`);
       const supportedChains: string[] = await res.json();
       return supportedChains.reduce((acc, curr) => {

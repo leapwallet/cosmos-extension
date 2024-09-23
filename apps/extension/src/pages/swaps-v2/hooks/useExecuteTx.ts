@@ -26,6 +26,7 @@ import {
   sleep,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { TransferEventJSON } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/skip-core/lifecycle'
 import {
   createSignDoc,
   fetchAccountDetails,
@@ -37,12 +38,12 @@ import {
   TxClient,
   TXN_STATUS,
 } from '@leapwallet/elements-core'
-import { TransferEventJSON } from '@skip-router/core'
+import { LEDGER_ENABLED_EVM_CHAIN_IDS } from 'config/config'
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SourceChain, SourceToken, SwapTxnStatus, TransferInfo } from 'types/swap'
+import { SourceChain, SourceToken, SwapFeeInfo, SwapTxnStatus, TransferInfo } from 'types/swap'
 import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
 
 import { TxPageProps } from '../components'
@@ -68,6 +69,7 @@ type ExecuteTxParams = Omit<TxPageProps, 'onClose' | 'rootDenomsStore' | 'rootCW
   setTrackingInSync: React.Dispatch<React.SetStateAction<boolean>>
   denoms: DenomsRecord
   cw20Denoms: DenomsRecord
+  swapFeeInfo?: SwapFeeInfo
 }
 
 export function useExecuteTx({
@@ -92,7 +94,7 @@ export function useExecuteTx({
   refetchSourceBalances,
   setTrackingInSync,
   denoms,
-  cw20Denoms,
+  swapFeeInfo,
 }: ExecuteTxParams) {
   const getWallet = Wallet.useGetWallet()
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
@@ -127,15 +129,6 @@ export function useExecuteTx({
   const gasPrices = useGasRateQuery(denoms, (sourceChain?.key ?? '') as SupportedChain)
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom]
 
-  const isCW20Token = useCallback(
-    (denom: SourceToken) => {
-      if (!denom) return false
-
-      return Object.keys(cw20Denoms).includes(denom?.coinMinimalDenom)
-    },
-    [cw20Denoms],
-  )
-
   const fee = useMemo(() => {
     if (feeAmount) {
       return
@@ -145,7 +138,7 @@ export function useExecuteTx({
     const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption]
     if (!_gasPrice) return
 
-    const gasAdjustmentValue = gasAdjustment * (sourceToken && isCW20Token(sourceToken) ? 2 : 1)
+    const gasAdjustmentValue = gasAdjustment
 
     // @ts-ignore
     return calculateFee(Math.ceil(_gasLimit * gasAdjustmentValue), _gasPrice)
@@ -180,6 +173,28 @@ export function useExecuteTx({
       return newTxStatus
     })
   }
+
+  const getSwapFeeInfo = useCallback(async () => {
+    if (!swapFeeInfo) return null
+    const { feeCharged, feeAmountValue, feeCollectionAddress, swapFeeDenomInfo } = swapFeeInfo
+
+    const amountValue = feeAmountValue
+      ? (await getTxnLogAmountValue(feeAmountValue.toString(), {
+          chainId: swapFeeDenomInfo?.originChainId,
+          chain: Object.values(chainInfos).find(
+            (chain) => chain.chainId === swapFeeDenomInfo?.originChainId,
+          )?.key as SupportedChain,
+          coinGeckoId: swapFeeDenomInfo?.coingeckoId ?? '',
+          coinMinimalDenom: swapFeeDenomInfo?.originDenom,
+        })) ?? null
+      : null
+
+    return {
+      feeCharged,
+      feeCollectionAddress,
+      feeAmount: amountValue,
+    }
+  }, [chainInfos, swapFeeInfo])
 
   const handleTxError = useCallback(
     (
@@ -244,7 +259,7 @@ export function useExecuteTx({
         ? CosmosTxType.IBCSwap
         : CosmosTxType.Swap
 
-      const metadata = isIBCSendTx
+      let metadata = isIBCSendTx
         ? await getMetaDataForIbcTx(
             route?.operations?.[0]?.transfer?.channel,
             activeWallet?.addresses?.[destinationChain?.key as SupportedChain] ?? '',
@@ -282,6 +297,18 @@ export function useExecuteTx({
               amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
             },
           )
+
+      try {
+        const swapFeeInfo = await getSwapFeeInfo()
+        if (swapFeeInfo) {
+          metadata = {
+            ...metadata,
+            ...swapFeeInfo,
+          }
+        }
+      } catch (_) {
+        //
+      }
 
       txPostToDB({
         txHash,
@@ -346,6 +373,7 @@ export function useExecuteTx({
       refetchSourceBalances,
       refetchDestinationBalances,
       callbackPostTx,
+      getSwapFeeInfo,
     ],
   )
 
@@ -380,7 +408,7 @@ export function useExecuteTx({
             const { state, error, transfer_sequence, transfer_asset_release } = txnStatus.response
             transferSequence =
               transfer_sequence?.map(
-                (transfer) =>
+                (transfer: any) =>
                   (transfer as Extract<TransferEventJSON, { ibc_transfer: unknown }>).ibc_transfer,
               ) ?? []
             transferAssetRelease = transfer_asset_release
@@ -429,7 +457,7 @@ export function useExecuteTx({
                 },
               ]
 
-              if (transferSequence.length === 0) {
+              if (transferSequence?.length === 0) {
                 updateTxStatus(messageIndex, {
                   status: TXN_STATUS.SUCCESS,
                   responses: defaultResponses,
@@ -442,7 +470,7 @@ export function useExecuteTx({
 
                 updateTxStatus(messageIndex, {
                   status: TXN_STATUS.SUCCESS,
-                  responses: responses,
+                  responses: responses as TransferInfo[],
                   transferAssetRelease,
                   isComplete: true,
                 })
@@ -458,7 +486,7 @@ export function useExecuteTx({
             if (error?.code) {
               // find error message from packet_txs in transfer_sequence array
               let errorMessage = error?.message
-              if (transferSequence?.length > 0) {
+              if ((transferSequence ?? []).length > 0) {
                 const errorResponse = transferSequence?.find(
                   (transfer) => transfer.state === TRANSFER_STATE.TRANSFER_FAILURE,
                 )

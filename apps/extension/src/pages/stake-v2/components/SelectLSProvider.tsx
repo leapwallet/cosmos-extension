@@ -70,7 +70,7 @@ export function ProviderCard({
         <Text
           size='sm'
           color='text-black-100 dark:text-white-100'
-          className='font-bold  overflow-hidden'
+          className='font-bold overflow-hidden'
         >
           {provider.name}
         </Text>

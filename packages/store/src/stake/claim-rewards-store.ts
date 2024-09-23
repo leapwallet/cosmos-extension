@@ -1,6 +1,6 @@
 import { axiosWrapper, fromSmall, RewardsResponse, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
-import { computed, makeObservable, observable, runInAction } from 'mobx';
+import { computed, makeAutoObservable, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 
 import { AggregatedChainsStore, ChainInfosConfigStore, ChainInfosStore, NmsStore } from '../assets';
@@ -131,7 +131,7 @@ export class ClaimRewardsStore {
 
         if (!this.chainWiseRewards[chainKey] || forceRefetch) {
           runInAction(() => (this.chainWiseLoading[chainKey] = 'loading'));
-          this.fetchChainRewards(chain as SupportedChain, network ?? 'mainnet');
+          this.fetchChainRewards(chain as SupportedChain, network ?? 'mainnet', forceRefetch);
         }
       });
     } else {
@@ -139,12 +139,12 @@ export class ClaimRewardsStore {
 
       if (!this.chainWiseRewards[chainKey] || forceRefetch) {
         this.chainWiseLoading[chainKey] = 'loading';
-        this.fetchChainRewards(chain, network);
+        this.fetchChainRewards(chain, network, forceRefetch);
       }
     }
   }
 
-  async fetchChainRewards(chain: SupportedChain, network: SelectedNetworkType) {
+  async fetchChainRewards(chain: SupportedChain, network: SelectedNetworkType, forceRefetch = false) {
     const isTestnet = network === 'testnet';
     const address = this.addressStore.addresses?.[chain];
 
@@ -207,6 +207,7 @@ export class ClaimRewardsStore {
         chainKey,
         activeChain: chain as SupportedChain,
         selectedNetwork: network,
+        forceRefetch,
       });
 
       if (response) {
@@ -292,11 +293,14 @@ export class ClaimRewardsStore {
     activeChain,
     chainKey,
     selectedNetwork,
+    forceRefetch = false,
   }: GetRewardsForChainParams) {
     if (!this.rewardsQueryStore[chainKey]) {
       this.rewardsQueryStore[chainKey] = new RewardsQuery(lcdUrl, address, activeChain);
     }
-    const res = await this.rewardsQueryStore[chainKey].getData();
+    const res = forceRefetch
+      ? await this.rewardsQueryStore[chainKey].fetchData()
+      : await this.rewardsQueryStore[chainKey].getData();
 
     const { total, rewards: _rewards } = res as RewardsResponse;
 
