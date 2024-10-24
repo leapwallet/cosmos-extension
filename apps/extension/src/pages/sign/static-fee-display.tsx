@@ -1,6 +1,7 @@
 import {
   currencyDetail,
   fetchCurrency,
+  SelectedNetworkType,
   useActiveChain,
   useChainId,
   useDefaultGasEstimates,
@@ -40,16 +41,26 @@ type StaticFeeDisplayProps = {
   disableBalanceCheck?: boolean
   rootDenomsStore: RootDenomsStore
   rootBalanceStore: RootBalanceStore
+  activeChain: SupportedChain
+  selectedNetwork: SelectedNetworkType
 }
 
 const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
-  ({ fee, error, setError, disableBalanceCheck, rootDenomsStore, rootBalanceStore }) => {
+  ({
+    fee,
+    error,
+    setError,
+    disableBalanceCheck,
+    rootDenomsStore,
+    rootBalanceStore,
+    activeChain,
+    selectedNetwork,
+  }) => {
     const defaultGasEstimates = useDefaultGasEstimates()
     const [preferredCurrency] = useUserPreferredCurrency()
 
-    const activeChain = useActiveChain()
-    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain)
-    const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain)
+    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
+    const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain, selectedNetwork)
     const allTokensStatus = useMemo(() => {
       return allTokensLoading ? 'loading' : 'success'
     }, [allTokensLoading])

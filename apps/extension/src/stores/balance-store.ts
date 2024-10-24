@@ -24,6 +24,7 @@ import {
   disabledCW20DenomsStore,
   enabledCW20DenomsStore,
   erc20DenomsStore,
+  erc404DenomsStore,
   rootDenomsStore,
 } from './denoms-store-instance'
 import { selectedNetworkStore } from './selected-network-store'
@@ -79,6 +80,8 @@ export const erc20TokenBalanceStore = new ERC20DenomBalanceStore(
   disabledCW20DenomsStore,
   enabledCW20DenomsStore,
   compassSeiEvmConfigStore,
+  aggregatedChainsStore,
+  erc404DenomsStore,
 )
 
 export const evmBalanceStore = new EvmBalanceStore(

@@ -62,7 +62,7 @@ export const ListTokens = observer(
       }
 
       if (isEvmOnlyChain) {
-        return [...(allTokens ?? []), ...(evmBalance?.evmBalance ?? [])]
+        return [...(evmBalance?.evmBalance ?? []), ...(allTokens ?? [])]
       }
 
       return allTokens

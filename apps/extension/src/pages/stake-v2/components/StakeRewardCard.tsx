@@ -7,6 +7,7 @@ import {
   useFeatureFlags,
   useSelectedNetwork,
   useStaking,
+  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
@@ -19,6 +20,7 @@ import {
 import { CaretDown } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import Text from 'components/text'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { observer } from 'mobx-react-lite'
@@ -59,13 +61,14 @@ const StakeRewardCard = observer(
     )
 
     const denoms = rootDenomsStore.allDenoms
-    const [activeStakingDenom] = useActiveStakingDenom(denoms)
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const chainDelegations = delegationsStore.delegationsForChain(activeChain)
     const chainValidators = validatorsStore.validatorsForChain(activeChain)
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
     const [formatCurrency] = useFormatCurrency()
+    const { activeWallet } = useActiveWallet()
     const { formatHideBalance } = useHideAssets()
     const { rewards: providerRewards } = useDualStaking()
     const { totalRewards, totalRewardsDollarAmt, loadingRewards, rewards } = useStaking(
@@ -77,10 +80,12 @@ const StakeRewardCard = observer(
       activeChain,
       activeNetwork,
     )
-    const isClaimDisabled = useMemo(
-      () => !totalRewards || new BigNumber(totalRewards).lt(0.00001),
-      [totalRewards],
-    )
+    const isClaimDisabled = useMemo(() => {
+      if (activeChain === 'evmos' && activeWallet?.walletType === WALLETTYPE.LEDGER) {
+        return true
+      }
+      return !totalRewards || new BigNumber(totalRewards).lt(0.00001)
+    }, [activeChain, activeWallet?.walletType, totalRewards])
     const nativeTokenReward = useMemo(() => {
       if (rewards) {
         return rewards.total?.find((token) => token.denom === activeStakingDenom?.coinMinimalDenom)

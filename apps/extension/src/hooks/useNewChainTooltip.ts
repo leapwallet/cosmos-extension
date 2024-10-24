@@ -4,11 +4,13 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useQuery } from '@tanstack/react-query'
 import { NEW_CHAIN_TOOLTIP_STORAGE_KEY } from 'config/storage-keys'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
 export type NewChainTooltipData = {
+  defaultFilter?: string
+  id?: string
   header: string
   description: string
   imgUrl?: string
@@ -46,6 +48,13 @@ export default function useNewChainTooltip() {
     },
   )
 
+  const toolTipId = useMemo(() => {
+    if (data?.[version]?.id) {
+      return `${version}-${data?.[version]?.id}`
+    }
+    return version
+  }, [data, version])
+
   useEffect(() => {
     async function loadUserPreferences() {
       try {
@@ -73,8 +82,8 @@ export default function useNewChainTooltip() {
     if (
       !isFeatureEnabled ||
       userPreferenceLoading ||
-      userPreference?.[version] === false ||
-      !data?.[version]
+      !data?.[version] ||
+      userPreference?.[toolTipId] === false
     ) {
       setShowToolTip(false)
       return
@@ -87,7 +96,7 @@ export default function useNewChainTooltip() {
 
     setShowToolTip(true)
     setToolTipData(data?.[version])
-  }, [data, userPreference, userPreferenceLoading, version])
+  }, [data, userPreference, userPreferenceLoading, toolTipId, version])
 
   const handleToolTipClose = useCallback(() => {
     setShowToolTip(false)
@@ -97,14 +106,14 @@ export default function useNewChainTooltip() {
         const _userPreference = JSON.parse(_userPreferenceJson)
         storage.set(
           NEW_CHAIN_TOOLTIP_STORAGE_KEY,
-          JSON.stringify({ ..._userPreference, [version]: false }),
+          JSON.stringify({ ..._userPreference, [toolTipId]: false }),
         )
       } catch (_) {
         //
       }
     }
     updateUserPreference()
-  }, [setShowToolTip, version, storage])
+  }, [setShowToolTip, toolTipId, storage])
 
   return { showToolTip, toolTipData, handleToolTipClose }
 }

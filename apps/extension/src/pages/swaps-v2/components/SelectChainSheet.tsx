@@ -6,6 +6,7 @@ import { SourceChain } from 'types/swap'
 import { ChainsList } from './ChainsList'
 
 type SelectChainSheetProps = {
+  title?: string
   isOpen: boolean
   onClose: () => void
   chainsToShow: SourceChain[]
@@ -15,6 +16,7 @@ type SelectChainSheetProps = {
 }
 
 export function SelectChainSheet({
+  title,
   isOpen,
   onClose,
   chainsToShow,
@@ -40,7 +42,7 @@ export function SelectChainSheet({
 
   return (
     <BottomModal
-      title='Select Chain'
+      title={title ?? `Select Chain`}
       onClose={onClose}
       isOpen={isOpen}
       closeOnBackdropClick={true}

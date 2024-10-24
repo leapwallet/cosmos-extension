@@ -131,7 +131,7 @@ export type Page =
   | 'switch-ethereum-chain'
   | 'suggest-ethereum-chain'
 
-export async function openPopup(page: Page, queryString?: string) {
+export async function openPopup(page: Page, queryString?: string, isEvm?: boolean) {
   let response
   try {
     response = (await chrome.runtime.sendMessage({ type: 'side-panel-status' })) as any
@@ -170,12 +170,51 @@ export async function openPopup(page: Page, queryString?: string) {
     if (queryString) {
       url = url + queryString
     }
+
+    let popupWidth = POPUP_WIDTH
+    if (
+      isEvm &&
+      ['suggest-ethereum-chain', 'switch-ethereum-chain', 'suggest-erc-20', 'signSeiEvm'].includes(
+        page,
+      )
+    ) {
+      popupWidth += 75
+    }
+
+    let popupHeight = POPUP_HEIGHT
+    if (
+      isEvm &&
+      ['suggest-ethereum-chain', 'switch-ethereum-chain', 'suggest-erc-20', 'signSeiEvm'].includes(
+        page,
+      )
+    ) {
+      popupHeight += 75
+    }
+
+    let left = 0
+    let top = 0
+
+    if (!isEvm) {
+      try {
+        const res = await browser.windows.getLastFocused()
+        if (res.width && res.left) {
+          left = Math.round(res.width - popupWidth + res.left)
+        }
+        if (res.height && res.top) {
+          top = res.top
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(`Error calculating popup positions: ${(e as Error)?.message ?? e}`)
+      }
+    }
+
     const popup = {
-      width: POPUP_WIDTH,
-      height: POPUP_HEIGHT,
+      width: popupWidth,
+      height: popupHeight,
       type: 'popup' as const,
-      left: 0,
-      top: 0,
+      left,
+      top,
       url,
     }
 
@@ -189,7 +228,11 @@ export async function openPopup(page: Page, queryString?: string) {
           }
         }
 
-        if (process.env.APP?.includes('compass') && popupId) {
+        if (isEvm && popupId) {
+          if (page === 'signSeiEvm') {
+            return
+          }
+
           throw new Error('Requests exceeded')
         }
 
@@ -212,6 +255,7 @@ export async function openPopup(page: Page, queryString?: string) {
         try {
           if (e.message.includes(`No tab with id`)) {
             const promise = browser.windows.create(popup)
+            chrome.action.openPopup()
             pendingPromises[url] = promise
 
             const window = await promise
@@ -449,10 +493,10 @@ export function requestSignTransaction(payload: any) {
   browser.runtime.onMessage.addListener(listener)
 }
 
-export async function awaitSigningResponse(messageType: string) {
+export async function awaitSigningResponse(messageType: string, payloadId?: number) {
   return new Promise((resolve, reject) => {
     const listener = (message: any) => {
-      if (message.type === messageType) {
+      if (message.type === messageType && message.payloadId === payloadId) {
         if (message.payload.status === 'success') {
           resolve(message.payload.data)
         } else {

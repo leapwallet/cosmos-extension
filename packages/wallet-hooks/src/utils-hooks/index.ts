@@ -12,6 +12,7 @@ export * from './use-get-explorer-txn-url';
 export * from './use-get-fee-market-gas-prices-steps';
 export * from './use-has-to-calculate-dynamic-fee';
 export * from './use-is-testnet-active-chain';
+export * from './use-wallet-identifications';
 export * from './useFetchAccountDetails';
 export * from './useIsCW20Token';
 export * from './useIsERC20Token';

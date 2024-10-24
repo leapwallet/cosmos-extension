@@ -71,7 +71,7 @@ async function getKeys(chainIds: string[]) {
         algo: 'secp256k1',
         bech32Address: activeWallet.addresses[chain],
         isNanoLedger: activeWallet.walletType === 3,
-        name: formatWalletName(activeWallet.name.replace),
+        name: formatWalletName(activeWallet.name),
         pubKey: toUint8Array(activeWallet.pubKeys?.[chain] ?? ''),
       }
     })
@@ -84,7 +84,7 @@ export async function handleGetKey({ message, passwordManager, sendResponse }: G
   requests.set(message.payload.id, false)
   const { payload, type } = message
   const msg = payload
-  const chainIds = msg.chainIds ?? Array.isArray(msg.chainId) ? msg.chainId : [msg.chainId]
+  const chainIds = msg.chainIds ?? (Array.isArray(msg.chainId) ? msg.chainId : [msg.chainId])
   const eventName = `on${type.toUpperCase()}`
 
   let queryString = `?origin=${msg?.origin}`

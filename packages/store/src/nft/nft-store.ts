@@ -16,6 +16,7 @@ import {
   NmsStore,
 } from '../assets';
 import {
+  AggregatedSupportedChainType,
   BatchRequestData,
   Collection,
   CollectionData,
@@ -43,6 +44,7 @@ export class NftStore {
   nfts: Record<string, CollectionData> = {};
   loading: boolean = false;
   networkError: boolean = false; // check if network error occured for any API call
+  compassSeiApiIsDown: boolean = false;
 
   constructor(
     chainInfosStore: ChainInfosStore,
@@ -73,6 +75,11 @@ export class NftStore {
     );
 
     reaction(
+      () => this.activeChainStore.activeChain,
+      () => this.loadNfts(undefined, this.activeChainStore.activeChain),
+    );
+
+    reaction(
       () => this.selectedNetworkStore.selectedNetwork,
       (selectedNetwork) => this.loadNfts(selectedNetwork),
     );
@@ -99,7 +106,7 @@ export class NftStore {
       const tempNfts = { ...collectionData.nfts };
 
       hiddenNfts.forEach((hiddenNft) => {
-        const [address, tokenId] = hiddenNft.split('-');
+        const [address, tokenId] = hiddenNft.split('-:-');
 
         const collection = collectionData.collections?.find((collection) => collection.address === address);
 
@@ -167,7 +174,7 @@ export class NftStore {
     this.loadNfts();
   }
 
-  async loadNfts(forceNetwork?: SelectedNetworkType) {
+  async loadNfts(forceNetwork?: SelectedNetworkType, forceChain?: AggregatedSupportedChainType) {
     const nftChainsList = [...this.nftChainsStore.nftChains, ...this.betaNftChainsStore.betaNftChains];
     let batchChainsList: BatchRequestData[] = [];
     let batchedChains: [SupportedChain, string][] = [];
@@ -183,6 +190,10 @@ export class NftStore {
     nftChainsList.forEach(async (nftChain) => {
       const network = nftChain.forceNetwork;
       const chain = nftChain.forceContractsListChain;
+      forceChain = process.env.APP?.includes('compass') ? forceChain || this.activeChainStore.activeChain : undefined;
+
+      if (forceChain && forceChain !== chain) return;
+      if (process.env.APP?.includes('compass') && !this.activeChainStore.isSeiEvm(chain)) return;
 
       const isTestnet = network === 'testnet';
       const chainInfo = this.chainInfosStore.chainInfos[chain];
@@ -199,12 +210,15 @@ export class NftStore {
         const pubKey = this.addressStore.pubKeys?.[chain];
         const walletAddress = chainInfo?.evmOnlyChain ? pubKeyToEvmAddressToShow(pubKey) : address;
 
+        const isSeiEvmChain = process.env.APP?.includes('compass') && this.activeChainStore.isSeiEvm(chain);
         batchedChains = [...batchedChains, [chain, chainId]];
+
         batchChainsList = [
           ...batchChainsList,
           {
             'chain-id': chainId,
             'wallet-address': walletAddress,
+            'evm-address': isSeiEvmChain ? pubKeyToEvmAddressToShow(pubKey) : '',
             'is-testnet': String(isTestnet),
             'rpc-url': rpcUrl ?? '',
             collections,
@@ -213,14 +227,39 @@ export class NftStore {
       }
     });
 
+    const promises = [];
+
+    if (batchChainsList.length > BATCH_SIZE) {
+      let startIndex = 0;
+      let endIndex = BATCH_SIZE;
+
+      while (startIndex < batchChainsList.length) {
+        promises.push(this.makeNftBatchCall(batchChainsList.slice(startIndex, endIndex), activeNetwork, batchedChains));
+
+        startIndex += BATCH_SIZE;
+        endIndex += BATCH_SIZE;
+      }
+    } else {
+      promises.push(this.makeNftBatchCall(batchChainsList, activeNetwork, batchedChains));
+    }
+
+    const response = await Promise.allSettled(promises);
+    response.forEach((res) => {
+      if (res.status === 'rejected' && this.checkNetworkError(res.reason.message)) {
+        runInAction(() => {
+          this.networkError = true;
+        });
+      }
+    });
+
     for (const [chain] of batchedChains) {
       const chainInfo = this.chainInfosStore.chainInfos[chain];
-      const isSeiEvmChain = this.activeChainStore.isSeiEvm(chain);
-
       const isEvmOnlyChain = chainInfo?.evmOnlyChain;
-      const isEvmChain = process.env.APP?.includes('compass') ? isSeiEvmChain : isEvmOnlyChain;
 
-      if (isEvmChain) {
+      const isSeiEvmChain =
+        process.env.APP?.includes('compass') && this.activeChainStore.isSeiEvm(chain) && this.compassSeiApiIsDown;
+
+      if (isEvmOnlyChain || isSeiEvmChain) {
         const collections = this.betaNftsCollectionsStore.getBetaNftsCollections(chain, activeNetwork);
 
         const evmJsonRpcUrl =
@@ -245,32 +284,6 @@ export class NftStore {
         }
       }
     }
-
-    const promises = [];
-
-    if (batchChainsList.length > BATCH_SIZE) {
-      let startIndex = 0;
-      let endIndex = BATCH_SIZE;
-
-      while (startIndex < batchChainsList.length) {
-        promises.push(this.makeNftBatchCall(batchChainsList.slice(startIndex, endIndex), activeNetwork, batchedChains));
-
-        startIndex += BATCH_SIZE;
-        endIndex += BATCH_SIZE;
-      }
-    } else {
-      promises.push(this.makeNftBatchCall(batchChainsList, activeNetwork, batchedChains));
-    }
-
-    const response = await Promise.allSettled(promises);
-
-    response.forEach((res) => {
-      if (res.status === 'rejected' && this.checkNetworkError(res.reason.message)) {
-        runInAction(() => {
-          this.networkError = true;
-        });
-      }
-    });
 
     runInAction(() => {
       this.loading = false;
@@ -302,6 +315,8 @@ export class NftStore {
 
     batchedChains.forEach(([chain, chainId]) => {
       const details = nftsResponse?.find((info) => info.chainId === chainId);
+      this.compassSeiApiIsDown = details?.seiApiIsDown || false;
+
       if (details && details.nftDetails?.length) {
         let _collections: Collection[] = [];
         let _nfts: NftInfo[] = [];
@@ -494,6 +509,10 @@ export class NftStore {
     const cosmosAddress = this.addressStore.addresses?.cosmos;
     network = network || this.selectedNetworkStore.selectedNetwork;
 
-    return `${cosmosAddress}-${network}`;
+    const chain = process.env.APP?.includes('compass') ? this.activeChainStore.activeChain : undefined;
+    const chainInfo = this.chainInfosStore.chainInfos[chain as SupportedChain];
+    const chainId = network === 'testnet' ? chainInfo?.testnetChainId : chainInfo?.chainId;
+
+    return `${cosmosAddress}-${chainId}-${network}`;
   }
 }

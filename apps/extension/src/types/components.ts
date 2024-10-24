@@ -16,6 +16,9 @@ export type PageHeaderProps = {
   title: ReactNode
   action?: HeaderAction
   imgSrc?: ReactNode
-  onImgClick?: () => void
+  onImgClick?: (
+    event?: React.MouseEvent<HTMLDivElement>,
+    props?: { defaultFilter?: string },
+  ) => void
   dontShowFilledArrowIcon?: boolean
 }

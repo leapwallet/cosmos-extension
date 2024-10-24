@@ -143,7 +143,8 @@ export const ProposalDetails = observer(
     const { yes, no, abstain, no_with_veto } = (proposal.tally ||
       _proposalVotes ||
       proposal.final_tally_result) as any
-    const totalVotes = [yes, no, abstain, no_with_veto].reduce((sum, val) => sum + Number(val), 0)
+    const totalVotes =
+      [yes, no, abstain, no_with_veto].reduce((sum, val) => sum + Number(val), 0) || 1
 
     const dataMock = useMemo(() => {
       return !totalVotes
@@ -177,19 +178,48 @@ export const ProposalDetails = observer(
     }, [abstain, no, no_with_veto, totalVotes, yes])
 
     const tallying = useMemo(() => {
+      let votingPower = (_proposalVotes as any)?.bonded_tokens
+      if (
+        activeChain === 'initia' &&
+        Array.isArray(votingPower) &&
+        Array.isArray((_proposalVotes as any)?.voting_power_weights)
+      ) {
+        const bondedTokens: { amount: string; denom: string }[] = (_proposalVotes as any)
+          ?.bonded_tokens
+        const votingPowerWeights = (_proposalVotes as any)?.voting_power_weights
+        votingPower = bondedTokens
+          .reduce((acc: bigint, val: { amount: string; denom: string }) => {
+            const individualVotingPowerWeight = votingPowerWeights?.find(
+              (votingPowerWeight: { amount: string; denom: string }) =>
+                votingPowerWeight.denom === val.denom,
+            )?.amount
+            if (!individualVotingPowerWeight) {
+              return acc
+            }
+            acc += BigInt(val.amount) * BigInt(individualVotingPowerWeight)
+            return acc
+          }, BigInt(0))
+          ?.toString()
+      }
+
       return [
         {
           label: 'Turnout',
-          value: !shouldUseFallback
-            ? proposal.turnout
-            : (totalVotes / (_proposalVotes as any)?.bonded_tokens) * 100,
+          value: !shouldUseFallback ? proposal.turnout : (totalVotes / votingPower) * 100,
         },
         {
           label: 'Quorum',
           value: !shouldUseFallback ? proposal.quorum : (_proposalVotes as any)?.quorum * 100,
         },
       ]
-    }, [_proposalVotes, proposal.quorum, proposal.turnout, shouldUseFallback, totalVotes])
+    }, [
+      _proposalVotes,
+      activeChain,
+      proposal.quorum,
+      proposal.turnout,
+      shouldUseFallback,
+      totalVotes,
+    ])
 
     const proposer = useMemo(() => {
       if (!shouldUseFallback) {

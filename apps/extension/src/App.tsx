@@ -26,7 +26,6 @@ import {
   useInitIteratedUriNftContracts,
   useInitKadoBuyChains,
   useInitNftChains,
-  useInitSelectedNetwork,
   useInitSpamProposals,
   useInitStakingDenoms,
   useInitTxLogCosmosBlockchainMap,
@@ -57,7 +56,6 @@ import Browser from 'webextension-polyfill'
 
 import { useInitSecretTokens } from './hooks/secret/useInitSecretTokens'
 import { useInitSecretViewingKeys } from './hooks/secret/useInitSecretViewingKeys'
-import { useInitActiveChain } from './hooks/settings/useActiveChain'
 import { useInitActiveWallet } from './hooks/settings/useActiveWallet'
 import { useManageChains } from './hooks/settings/useManageChains'
 import { useInitTheme, useThemeState } from './hooks/settings/useTheme'
@@ -78,9 +76,7 @@ export default function App() {
   useInitHideSmallBalances()
 
   useInitIsCompassWallet()
-  useInitActiveChain()
   useInitActiveWallet()
-  useInitSelectedNetwork()
   useInitIteratedUriNftContracts()
   useInitFractionalizedNftContracts()
 

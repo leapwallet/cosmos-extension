@@ -2,16 +2,19 @@ import { useChainsStore, useCustomChains } from '@leapwallet/cosmos-wallet-hooks
 import { ChainInfo, ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { chainInfosState } from 'atoms/chains'
 import { BETA_CHAINS, CUSTOM_ENDPOINTS } from 'config/storage-keys'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
+import { useInitActiveChain } from './settings/useActiveChain'
+
 export function useInitChainInfos() {
   const setChains = useChainsStore((store) => store.setChains)
   const setChainInfos = useSetRecoilState(chainInfosState)
   const customChains = useCustomChains()
+  const [isChainInfosInitialized, setIsChainInfosInitialized] = useState<boolean>(false)
 
   useEffect(() => {
     function getBetaChains(updateStore?: boolean) {
@@ -129,6 +132,7 @@ export function useInitChainInfos() {
         setChainInfos(_chains)
         setChains(_chains)
         chainInfoStore.setChainInfos(_chains)
+        setIsChainInfosInitialized(true)
       })
     }
 
@@ -148,6 +152,8 @@ export function useInitChainInfos() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customChains])
+
+  useInitActiveChain(isChainInfosInitialized)
 }
 
 export function useChainInfos() {

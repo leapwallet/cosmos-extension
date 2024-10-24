@@ -7,7 +7,5 @@ export const normalizeImageSrc = (src: string, collection?: string) => {
       : src
   }
 
-  return src?.startsWith('ipfs://')
-    ? src.replace('ipfs://', 'https://cloudflare-ipfs.com/ipfs/')
-    : src
+  return src?.startsWith('ipfs://') ? src.replace('ipfs://', 'https://ipfs.io/ipfs/') : src
 }

@@ -140,6 +140,7 @@ const StakePage = observer(
     const { theme } = useTheme()
 
     const [showChainSelector, setShowChainSelector] = useState(false)
+    const [defaultFilter, setDefaultFilter] = useState('All')
     const [showSelectWallet, setShowSelectWallet] = useState(false)
     const [showSideNav, setShowSideNav] = useState(false)
     const [showReviewClaimTx, setShowReviewClaimTx] = useState(false)
@@ -152,7 +153,22 @@ const StakePage = observer(
 
     const { isLoading: isLSProvidersLoading, data: lsProviders = {} } = useLiquidStakingProviders()
     const { data: featureFlags } = useFeatureFlags()
-    const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])
+
+    useEffect(() => {
+      if (!showChainSelector) {
+        setDefaultFilter('All')
+      }
+    }, [showChainSelector])
+
+    const onImgClick = useCallback(
+      (event?: React.MouseEvent<HTMLDivElement>, props?: { defaultFilter?: string }) => {
+        setShowChainSelector(true)
+        if (props?.defaultFilter) {
+          setDefaultFilter(props.defaultFilter)
+        }
+      },
+      [],
+    )
     const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
     const handleCopyClick = useCallback(() => {
       setIsWalletAddressCopied(true)
@@ -228,18 +244,6 @@ const StakePage = observer(
       }
     }, [activeStakingDenom, rewards])
 
-    if (!activeWallet) {
-      return (
-        <div className='relative w-full overflow-clip'>
-          <PopupLayout>
-            <div>
-              <EmptyCard src={Images.Logos.LeapCosmos} heading='No wallet found' />
-            </div>
-          </PopupLayout>
-        </div>
-      )
-    }
-
     useEffect(() => {
       async function updateChain() {
         if (paramChainId) {
@@ -254,11 +258,11 @@ const StakePage = observer(
 
     const validators = useMemo(
       () =>
-        validatorsStore.chainValidators.validatorData.validators?.reduce((acc, validator) => {
+        chainValidators.validatorData.validators?.reduce((acc, validator) => {
           acc[validator.address] = validator
           return acc
         }, {} as Record<string, Validator>),
-      [validatorsStore.chainValidators.validatorData.validators],
+      [chainValidators.validatorData.validators],
     )
     const redirectToInputPage = useCallback(() => {
       navigate('/stake/input', {
@@ -307,6 +311,7 @@ const StakePage = observer(
         </div>
       )
     }
+
     return (
       <div className='relative w-full overflow-clip panel-height'>
         <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
@@ -327,7 +332,7 @@ const StakePage = observer(
                     }
               }
               imgSrc={headerChainImgSrc}
-              onImgClick={dontShowSelectChain ? undefined : handleOpenSelectChainSheet}
+              onImgClick={dontShowSelectChain ? undefined : onImgClick}
               title={
                 <WalletButton
                   walletName={walletName}
@@ -429,6 +434,7 @@ const StakePage = observer(
           isVisible={showChainSelector}
           onClose={() => setShowChainSelector(false)}
           chainTagsStore={chainTagsStore}
+          defaultFilter={defaultFilter}
         />
         <SelectWallet
           isVisible={showSelectWallet}
@@ -458,6 +464,8 @@ const StakePage = observer(
                 onClose={() => setShowReviewClaimLavaTx(false)}
                 rootDenomsStore={rootDenomsStore}
                 rootBalanceStore={rootBalanceStore}
+                forceChain={activeChain}
+                forceNetwork={activeNetwork}
               />
             )}
 

@@ -32,6 +32,7 @@ export * from './getTxnLogAmountValue';
 export * from './global-vars';
 export * from './has-to-add-evm-details';
 export * from './initResourceFromS3';
+export * from './is-erc20-token';
 export * from './is-stakeinu-nft-collection';
 export * from './isTerraClassic';
 export * from './normalizeImageSrc';

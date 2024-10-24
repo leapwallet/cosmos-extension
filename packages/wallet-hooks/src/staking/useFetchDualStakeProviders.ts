@@ -10,7 +10,7 @@ export function useFetchDualStakeProviders(denoms: DenomsRecord) {
 
   const _activeChain = useActiveChain();
   const activeChain = useMemo(() => {
-    return getStakingActiveChain(_activeChain) as SupportedChain & 'aggregated';
+    return getStakingActiveChain(_activeChain, (_activeChain as string) === 'aggregated' ? 'lava' : undefined);
   }, [_activeChain]);
 
   const _selectedNetwork = useSelectedNetwork();
@@ -83,14 +83,5 @@ export function useFetchDualStakeProviders(denoms: DenomsRecord) {
     return () => {
       isCancelled = true;
     };
-  }, [
-    denoms,
-    activeChain,
-    selectedNetwork,
-    isTestnet,
-    activeChainInfo,
-    isStakeComingSoon,
-    isStakeNotSupported,
-    chainInfos,
-  ]);
+  }, [activeChain, selectedNetwork, isTestnet, activeChainInfo, isStakeComingSoon, isStakeNotSupported, chainInfos]);
 }

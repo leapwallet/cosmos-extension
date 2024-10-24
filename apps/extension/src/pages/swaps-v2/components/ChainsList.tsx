@@ -13,6 +13,7 @@ import React, { useMemo, useState } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 
 export type ListChainsProps = {
   onChainSelect: (chainName: SupportedChain) => void
@@ -152,7 +153,10 @@ export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListC
         />
       </div>
 
-      <div className='w-full' style={{ height: window.innerHeight - 200, overflowY: 'scroll' }}>
+      <div
+        className='w-full'
+        style={{ height: (isSidePanel() ? window.innerHeight : 600) - 200, overflowY: 'scroll' }}
+      >
         {filteredChains.length === 0 ? (
           <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4'>
             <Question size={40} className='dark:text-white-100' />

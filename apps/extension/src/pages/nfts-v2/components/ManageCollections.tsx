@@ -10,9 +10,9 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { NftStore } from '@leapwallet/cosmos-wallet-store'
-import { CardDivider } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
+import { CustomCardDivider } from 'components/custom-card-divider'
 import { EmptyCard } from 'components/empty-card'
 import { useChainPageInfo } from 'hooks'
 import { Images } from 'images'
@@ -37,12 +37,13 @@ export function ManageCollections({
   openAddCollectionSheet,
 }: ManageCollectionsProps) {
   const collectionData = nftStore.nftDetails.collectionData
+  const showAddCollectionSheet = nftStore.compassSeiApiIsDown
   const { topChainColor } = useChainPageInfo()
   const activeChain = useActiveChain()
   const { data } = useFetchCompassManageNftCollections({})
 
   const collections = useMemo(() => {
-    if (isCompassWallet()) {
+    if (isCompassWallet() && showAddCollectionSheet) {
       return (data ?? []).map((collection) => ({
         name: collection.name || 'Unknown',
         address: collection.address ?? '',
@@ -52,7 +53,7 @@ export function ManageCollections({
     }
 
     return collectionData?.collections ?? []
-  }, [activeChain, collectionData?.collections, data])
+  }, [activeChain, collectionData?.collections, data, showAddCollectionSheet])
 
   const [searchedText, setSearchedText] = useState('')
   const disabledNFTsCollections = useDisabledNFTsCollections()
@@ -146,7 +147,7 @@ export function ManageCollections({
     >
       <div className='w-full h-[calc(100%-180px)] flex flex-col sticky top-[72px] bg-gray-50 dark:bg-black-100'>
         <div className='flex items-center justify-between'>
-          <div className='w-[344px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] mb-4 py-2 pl-5 pr-[10px]'>
+          <div className='w-[344px] flex h-10 bg-white-100 dark:bg-gray-950 rounded-[30px] mb-4 py-2 pl-5 pr-[10px]'>
             <input
               placeholder='search collections'
               className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
@@ -155,9 +156,11 @@ export function ManageCollections({
             <img src={Images.Misc.Search} />
           </div>
 
-          <button className='mb-4 ml-2' onClick={openAddCollectionSheet}>
-            <img src={Images.Misc.PlusIcon} alt='add token' />
-          </button>
+          {isCompassWallet() && !showAddCollectionSheet ? null : (
+            <button className='mb-4 ml-2' onClick={openAddCollectionSheet}>
+              <img src={Images.Misc.PlusIcon} alt='add token' />
+            </button>
+          )}
         </div>
 
         <div className='overflow-y-auto'>
@@ -174,23 +177,25 @@ export function ManageCollections({
                 <NoCollectionCard
                   title='No collections detected'
                   subTitle={
-                    <p>
-                      You can manually add a new collection{' '}
-                      <button
-                        className='border-none bg-transparent hover:underline cursor-pointer font-bold text-sm'
-                        style={{ color: topChainColor }}
-                        onClick={openAddCollectionSheet}
-                      >
-                        here
-                      </button>
-                    </p>
+                    isCompassWallet() && !showAddCollectionSheet ? null : (
+                      <p>
+                        You can manually add a new collection{' '}
+                        <button
+                          className='border-none bg-transparent hover:underline cursor-pointer font-bold text-sm'
+                          style={{ color: topChainColor }}
+                          onClick={openAddCollectionSheet}
+                        >
+                          here
+                        </button>
+                      </p>
+                    )
                   }
                 />
               )}
             </>
           ) : null}
 
-          <div className='rounded-2xl flex flex-col items-center justify-center dark:bg-gray-900 bg-white-100 overflow-hidden'>
+          <div className='rounded-2xl flex flex-col items-center justify-center dark:bg-gray-950 bg-white-100 overflow-hidden'>
             {filteredCollections.map((filteredCollection, index, array) => {
               const isLast = index === array.length - 1
               const { name, address, image, chain } = filteredCollection
@@ -209,13 +214,14 @@ export function ManageCollections({
                     size='md'
                     avatar={<NftAvatar image={normalizeImageSrc(image ?? '', address)} />}
                     isEnabled={
-                      isCompassWallet()
+                      isCompassWallet() && showAddCollectionSheet
                         ? enabledNftsCollections?.[chain]?.includes(address) ?? false
                         : !disabledNFTsCollections.includes(address)
                     }
                     onClick={(isEnabled) => handleToggleClick(isEnabled, address, chain)}
                   />
-                  {!isLast ? <CardDivider /> : null}
+
+                  {!isLast ? <CustomCardDivider /> : null}
                 </React.Fragment>
               )
             })}

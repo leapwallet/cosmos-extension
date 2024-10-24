@@ -5,5 +5,5 @@ export const normalizeImageSrc = (src: string, collection?: string) => {
     return src?.startsWith('ipfs://') ? src.replace('ipfs://', 'https://sakeinu.mypinata.cloud/ipfs/') : src;
   }
 
-  return src?.startsWith('ipfs://') ? src.replace('ipfs://', 'https://cloudflare-ipfs.com/ipfs/') : src;
+  return src?.startsWith('ipfs://') ? src.replace('ipfs://', 'https://ipfs.io/ipfs/') : src;
 };

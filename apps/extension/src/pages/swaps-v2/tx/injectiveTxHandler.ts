@@ -2,7 +2,8 @@
 import { StdFee } from '@cosmjs/stargate'
 import { getClientState, InjectiveTx, LeapLedgerSignerEth } from '@leapwallet/cosmos-wallet-sdk'
 import { TxClient } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/injective/core/modules'
-import { MsgExecuteContract } from '@osmosis-labs/proto-codecs/build/codegen/cosmwasm/wasm/v1/tx'
+import { MsgExecuteContract } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/osmosis/cosmwasm/wasm/v1/tx'
+import BigNumber from 'bignumber.js'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import { SourceChain } from 'types/swap'
 
@@ -29,9 +30,10 @@ export async function handleInjectiveTx(
     const latest_height = channelIdData.data.identified_client_state.client_state.latest_height
 
     const height = {
-      revisionHeight: latest_height.revision_height + 150,
+      revisionHeight: new BigNumber(latest_height.revision_height).plus(150).toString(),
       revisionNumber: latest_height.revision_number,
     }
+
     const newEncodedMessage = {
       ...encodedMessage,
       value: {
@@ -39,7 +41,7 @@ export async function handleInjectiveTx(
         sender: encodedMessage.value.sender,
         receiver: encodedMessage.value.receiver,
         amount: encodedMessage.value.token,
-        height: height,
+        height,
         timeout: encodedMessage.value.timeoutTimestamp,
         port: encodedMessage.value.sourcePort,
         channelId: encodedMessage.value.sourceChannel,

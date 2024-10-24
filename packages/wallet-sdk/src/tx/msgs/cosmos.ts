@@ -58,9 +58,9 @@ export function getVoteMsg(option: VoteOption, proposalId: string, fromAddress: 
   return voteMsg;
 }
 
-export function getDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin, typeUrl?: string) {
+export function getDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin) {
   const delegateMsg = {
-    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgDelegate',
+    typeUrl: '/cosmos.staking.v1beta1.MsgDelegate',
     value: {
       delegatorAddress: delegatorAddress,
       validatorAddress: validatorAddress,
@@ -70,9 +70,9 @@ export function getDelegateMsg(delegatorAddress: string, validatorAddress: strin
   return delegateMsg;
 }
 
-export function getUnDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin, typeUrl?: string) {
+export function getUnDelegateMsg(delegatorAddress: string, validatorAddress: string, amount: Coin) {
   const undelegateMsg = {
-    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgUndelegate',
+    typeUrl: '/cosmos.staking.v1beta1.MsgUndelegate',
     value: {
       delegatorAddress: delegatorAddress,
       validatorAddress: validatorAddress,
@@ -87,10 +87,9 @@ export function getCancelUnDelegationMsg(
   validatorAddress: string,
   amount: Coin,
   creationHeight: string,
-  typeUrl?: string,
 ) {
   const cancelUndelegationMsg = {
-    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
+    typeUrl: '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
     value: {
       amount: amount,
       creationHeight: Long.fromString(creationHeight),
@@ -124,10 +123,9 @@ export function getRedelegateMsg(
   validatorDstAddress: string,
   validatorSrcAddress: string,
   amount: Coin,
-  typeUrl?: string,
 ) {
   const msg = {
-    typeUrl: typeUrl || '/cosmos.staking.v1beta1.MsgBeginRedelegate',
+    typeUrl: '/cosmos.staking.v1beta1.MsgBeginRedelegate',
     value: {
       delegatorAddress: delegatorAddress,
       validatorSrcAddress: validatorSrcAddress,

@@ -36,6 +36,7 @@ import {
   TxClient,
 } from '@leapwallet/elements-core'
 import { useChains } from '@leapwallet/elements-hooks'
+import BigNumber from 'bignumber.js'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import { useWalletClient } from 'hooks/useWalletClient'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -177,9 +178,10 @@ export const useExecuteSkipTx = () => {
               channelIdData.data.identified_client_state.client_state.latest_height
 
             const height = {
-              revisionHeight: latest_height.revision_height + 150,
+              revisionHeight: new BigNumber(latest_height.revision_height).plus(150),
               revisionNumber: latest_height.revision_number,
             }
+
             const newEncodedMessage = {
               ...encodedMessage,
               value: {
@@ -187,7 +189,7 @@ export const useExecuteSkipTx = () => {
                 receiver: encodedMessage.value.receiver,
                 sender: encodedMessage.value.sender,
                 amount: encodedMessage.value.token,
-                height: height,
+                height,
                 timeout: encodedMessage.value.timeoutTimestamp,
                 port: encodedMessage.value.sourcePort,
                 channelId: encodedMessage.value.sourceChannel,

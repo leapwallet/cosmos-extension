@@ -35,6 +35,7 @@ import {
   SELECTED_NETWORK,
   V118_KEYSTORE_MIGRATION_COMPLETE,
   V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE,
+  V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE,
   V80_KEYSTORE_MIGRATION_COMPLETE,
   VIEWING_KEYS,
 } from 'config/storage-keys'
@@ -120,9 +121,10 @@ const connectRemote = (remotePort: any) => {
     page: Page,
     queryString?: string,
     response?: [string, any, number],
+    isEvm?: boolean,
   ) => {
     try {
-      await openPopup(page, queryString)
+      await openPopup(page, queryString, isEvm)
     } catch (e: any) {
       if (response && e.message.includes('Requests exceeded')) {
         return sendResponse(...response)
@@ -375,7 +377,11 @@ const connectRemote = (remotePort: any) => {
                 sendResponse(`on${type.toUpperCase()}`, response, response.payloadId)
                 enableAccessRequests.delete(queryString)
               } catch (error: any) {
-                sendResponse(`on${type.toUpperCase()}`, { error: error.error }, payload.id)
+                sendResponse(
+                  `on${type.toUpperCase()}`,
+                  { error: error.error ?? 'Chain approval rejected' },
+                  payload.id,
+                )
                 enableAccessRequests.delete(queryString)
               }
             } else {
@@ -681,11 +687,16 @@ const connectRemote = (remotePort: any) => {
       (activeNetwork === 'testnet' ? chainInfo?.testnetChainId : chainInfo?.chainId) ?? ''
 
     async function evmCustomOpenPopup(page: Page, queryString?: string) {
-      return await customOpenPopup(page, queryString, [
-        sendResponseName,
-        { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, 'Requests exceeded') },
-        payloadId,
-      ])
+      return await customOpenPopup(
+        page,
+        queryString,
+        [
+          sendResponseName,
+          { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, 'Requests exceeded') },
+          payloadId,
+        ],
+        true,
+      )
     }
 
     async function getWalletAddress(payloadId: number) {
@@ -1045,12 +1056,16 @@ const connectRemote = (remotePort: any) => {
               origin: payload.origin,
               ecosystem: payload.ecosystem,
               signTxnData,
+              payloadId,
             })
 
-            await evmCustomOpenPopup('signSeiEvm')
+            await evmCustomOpenPopup('signSeiEvm', `?origin=${payload.origin}`)
 
             try {
-              const response = await awaitSigningResponse(MessageTypes.signSeiEvmResponse)
+              const response = await awaitSigningResponse(
+                MessageTypes.signSeiEvmResponse,
+                payloadId,
+              )
               sendResponse(sendResponseName, { success: response }, payloadId)
             } catch (e) {
               sendResponse(
@@ -1172,12 +1187,13 @@ const connectRemote = (remotePort: any) => {
             origin: payload.origin,
             ecosystem: payload.ecosystem,
             signTxnData,
+            payloadId,
           })
 
-          await evmCustomOpenPopup('signSeiEvm')
+          await evmCustomOpenPopup('signSeiEvm', `?origin=${payload.origin}`)
 
           try {
-            const response = await awaitSigningResponse(MessageTypes.signSeiEvmResponse)
+            const response = await awaitSigningResponse(MessageTypes.signSeiEvmResponse, payloadId)
             sendResponse(sendResponseName, { success: response }, payloadId)
           } catch (e) {
             sendResponse(
@@ -1522,6 +1538,7 @@ browser.runtime.onInstalled.addListener((details) => {
           [V80_KEYSTORE_MIGRATION_COMPLETE]: true,
           [V118_KEYSTORE_MIGRATION_COMPLETE]: true,
           [V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE]: true,
+          [V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE]: true,
         })
       } else if (details.reason === 'update' && (activeWallet || encryptedActiveWallet)) {
         //previous version as int (e.g. v 0.1.9 will return 19)

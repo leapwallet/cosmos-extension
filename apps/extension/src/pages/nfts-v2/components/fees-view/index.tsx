@@ -9,6 +9,9 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { observer } from 'mobx-react-lite'
 import { NftDetailsType } from 'pages/nfts-v2/context'
 import React, { useEffect, useMemo, useState } from 'react'
+import { isCompassWallet } from 'utils/isCompassWallet'
+
+import { useSendNftCardContext } from '../send-nft'
 
 interface FeesViewProps {
   nftDetails: NftDetailsType
@@ -23,14 +26,17 @@ export const FeesView: React.FC<FeesViewProps> = observer(
       return nftDetails?.collection.address ?? ''
     }, [nftDetails?.collection.address])
 
+    const { nftSendChain: activeChain, nftSendNetwork: activeNetwork } = useSendNftCardContext()
     const [showFeesSettingSheet] = useState(false)
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, {
-      isSeiEvmTransaction: collectionAddress.toLowerCase().startsWith('0x'),
+      activeChain,
+      selectedNetwork: activeNetwork,
+      isSeiEvmTransaction: isCompassWallet() && collectionAddress.toLowerCase().startsWith('0x'),
     })
 
     const chainInfos = useChainInfos()
-    const activeChainInfo = chainInfos[nftDetails?.chain ?? 'sei']
+    const activeChainInfo = chainInfos[activeChain]
 
     const gasOption = GasOptions.LOW
     const userPreferredGasPrice = GasPrice.fromUserInput(
@@ -71,6 +77,8 @@ export const FeesView: React.FC<FeesViewProps> = observer(
           isSeiEvmTransaction={collectionAddress.toLowerCase().startsWith('0x')}
           rootDenomsStore={rootDenomsStore}
           rootBalanceStore={rootBalanceStore}
+          chain={activeChain}
+          network={activeNetwork}
         >
           <DisplayFee />
           {gasError && !showFeesSettingSheet ? (

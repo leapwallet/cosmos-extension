@@ -36,7 +36,11 @@ const Heading = ({ name }: HeadingProps) => {
       <Text size='lg' className='font-bold mt-3 mx-2 justify-center align-middle truncate'>
         {name}
       </Text>
-      <Text size='md' className='justify-center align-middle mb-2' color='text-gray-200'>
+      <Text
+        size='md'
+        className='justify-center align-middle mb-2'
+        color='text-gray-800 dark:text-gray-200'
+      >
         wants to connect to your wallet
       </Text>
     </div>
@@ -293,7 +297,7 @@ const ApproveConnection = () => {
             <img src={Images.Misc.WalletIconTeal} className='h-[20px] w-[20px] mr-3' />
             <Text
               size='md'
-              className='text-white-100 font-bold'
+              className='text-black-100 dark:text-white-100 font-bold'
             >{`Connecting ${activeWallet?.name}`}</Text>
             {displayedRequestedChains?.length > 1 && readMoreEnabled ? (
               <CaretUp size={16} className='ml-auto text-gray-500' />

@@ -7,10 +7,12 @@ import { fromSmall, getRestUrl } from '../utils';
 import { getInjectiveValidatorLogo } from './injective/getInjectiveValidators';
 
 async function fetchAllValidators(baseURL: string, urlPath: string, chain: SupportedChain, paginationKey?: string) {
+  const timeout = 15000;
   if (chain !== 'initia') {
     return await axiosWrapper({
       baseURL,
       method: 'get',
+      timeout,
       url: urlPath,
     });
   }
@@ -18,12 +20,14 @@ async function fetchAllValidators(baseURL: string, urlPath: string, chain: Suppo
   const params = {
     'pagination.limit': 500,
     'pagination.key': paginationKey,
+    status: 'BOND_STATUS_BONDED',
   };
   const query = qs.stringify(params);
 
   const res = await axiosWrapper({
     baseURL,
     method: 'get',
+    timeout,
     url: `${urlPath}?${query}`,
   });
 

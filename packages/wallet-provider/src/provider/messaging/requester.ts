@@ -104,8 +104,15 @@ export class InExtensionMessageRequester implements MessageRequester {
   }
 
   request(type: any, data?: any): Promise<any> {
-    const id = this.send(type, { ...data, origin: this.origin });
+    const originalData = { ...data, origin: this.origin };
+    let modifiedData;
+    try {
+      modifiedData = JSON.parse(JSON.stringify(originalData)); // we are doing this to avoid proxy objects in Celenium request
+    } catch (e) {
+      //
+    }
 
+    const id = this.send(type, modifiedData || originalData);
     return new Promise((resolve) => {
       this.inpageStream.on('data', (result) => {
         if (result.id === id) {

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   Ethereum,
   ETHEREUM_METHOD_TYPE,
+  ETHEREUM_NO_POPUP_METHOD_TYPE,
   EthereumListenerType,
   EthereumRequestMessage,
   EthRequestAccountsResponse,
@@ -17,7 +18,7 @@ export class LeapEvm implements Ethereum {
   public isLeap: boolean = IDENTIFIER === 'leap';
   private inpageStream: WindowPostMessageStream;
   private origin: string;
-  private requestQueue: { [origin: string]: string[] };
+  private requestQueue: { [key: string]: (EthereumRequestMessage & { requestQueueId: string })[] };
 
   constructor() {
     this.inpageStream = new WindowPostMessageStream({
@@ -48,35 +49,38 @@ export class LeapEvm implements Ethereum {
   async request(message: EthereumRequestMessage) {
     const { method, ...restMessage } = message;
     const origin = this.origin;
-    const stringifyOrigin = JSON.stringify(origin);
 
-    if (this.requestQueue[stringifyOrigin]) {
-      const originRequestedMethods = this.requestQueue[stringifyOrigin];
+    const requestQueueKey = JSON.stringify(`${origin}====:====${method}`);
+    let requestQueueId = '';
 
-      if (!originRequestedMethods.includes(method)) {
+    if (!Object.values(ETHEREUM_NO_POPUP_METHOD_TYPE).includes(method)) {
+      const requestQueueKeyItems = this.requestQueue[requestQueueKey];
+      requestQueueId = `#00${requestQueueKeyItems?.length || 0}`;
+
+      if (requestQueueKeyItems?.length) {
         this.requestQueue = {
-          [stringifyOrigin]: [...originRequestedMethods, method],
+          [requestQueueKey]: [...requestQueueKeyItems, { ...message, requestQueueId }],
         };
       } else {
-        return Promise.resolve();
+        this.requestQueue = {
+          ...this.requestQueue,
+          [requestQueueKey]: [{ ...message, requestQueueId }],
+        };
       }
-    } else {
-      this.requestQueue = {
-        ...this.requestQueue,
-        [stringifyOrigin]: [method],
-      };
     }
 
     const removeMethodFromRequestQueue = () => {
-      const originRequestedMethods = this.requestQueue[stringifyOrigin];
-      const filteredMethods = originRequestedMethods.filter((_method) => _method !== method);
+      const requestQueueKeyItems = this.requestQueue[requestQueueKey];
+      const filteredQueueKeyItems = requestQueueKeyItems?.filter(
+        (message) => message.requestQueueId !== requestQueueId,
+      );
+
       this.requestQueue = {
         ...this.requestQueue,
-        [stringifyOrigin]: filteredMethods,
+        [requestQueueKey]: filteredQueueKeyItems,
       };
     };
 
-    setTimeout(removeMethodFromRequestQueue, 2000);
     return new Promise((res, rej) => {
       const id = this.send(method, {
         ...restMessage,
@@ -151,6 +155,14 @@ export class LeapEvm implements Ethereum {
         eventHandler(event.detail.data);
       });
     }
+  }
+
+  toJSON() {
+    return {
+      name: 'LeapEvm',
+      isLeap: this.isLeap,
+      isCompass: this.isCompass,
+    };
   }
 
   enable() {

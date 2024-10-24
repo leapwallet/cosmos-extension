@@ -24,6 +24,7 @@ export enum ButtonType {
   CHAIN_MANAGEMENT = 'chain management',
   AIRDROPS = 'airdrops',
   SIDE_PANEL = 'side panel',
+  ONRAMP = 'on-ramp',
 }
 
 export enum ButtonName {
@@ -47,6 +48,8 @@ export enum ButtonName {
   GO_TO_LEAPBOARD = 'go to leapboard',
   SIDE_PANEL_OPENED = 'side panel opened',
   SIDE_PANEL_CLOSED = 'side panel closed',
+  ONRAMP_TOKEN_SELECTION = 'on-ramp token selection',
+  ONRAMP_PROVIDER_REDIRECTION = 'on-ramp provider redirection',
 }
 
 export enum PageName {
@@ -68,4 +71,8 @@ export enum PageName {
   Buy = 'Buy',
   OnRampQuotePreview = 'On-ramp quote preview',
   AssetDetails = 'Asset Details',
+}
+
+export enum OnRampProvider {
+  KADO = 'Kado',
 }

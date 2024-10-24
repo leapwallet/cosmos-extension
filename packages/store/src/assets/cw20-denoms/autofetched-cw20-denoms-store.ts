@@ -1,39 +1,9 @@
 import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { computed, makeAutoObservable, makeObservable, observable, runInAction } from 'mobx';
+import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 
 import { ActiveChainStore } from '../../wallet';
 import { CW20DenomChainsStore } from './cw20-denom-chains-store';
-
-// async function getAutoFetchedCW20Chains() {
-//   const res = await fetch('https://assets.leapwallet.io/cosmos-registry/v1/denoms/cw20-chains.json')
-//   const data = await res.json()
-//   return data
-// }
-//
-// const autoFetchedCW20Denoms = {}
-//
-// export async function fetchAutoCW20Denoms() {
-//   const chains = await getAutoFetchedCW20Chains()
-//
-//   chains.forEach(async (chain: string) => {
-//     try {
-//       const url = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${chain}/cw20_all.json`;
-//       const response = await fetch(url);
-//       const resource = await response.json();
-//       Object.assign(autoFetchedCW20Denoms, {
-//         [chain]: resource,
-//       });
-//
-//     } catch (e) {
-//       console.error('error loading cw20 denoms', e);
-//     }
-//   });
-// }
-//
-// export function getAutoCW20Denoms() {
-//   return autoFetchedCW20Denoms
-// }
 
 export class AutoFetchedCW20DenomsStore {
   chainWiseDenoms: Record<string, DenomsRecord> = {};
@@ -63,34 +33,25 @@ export class AutoFetchedCW20DenomsStore {
   async loadAutoFetchedCW20Denoms() {
     const chains = this.cw20DenomChainsStore.cw20DenomChains;
     chains.forEach(async (chain) => {
+      if (process.env.APP?.includes('compass') && !this.activeChainStore.isSeiEvm(chain)) {
+        return null;
+      }
+
       try {
         const url = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${chain}/cw20_all.json`;
         const response = await fetch(url);
-        const resource = await response.json();
-
-        // const betaCW20DenomsJson = await this.storageAdapter.get(BETA_CW20_TOKENS);
-        //
-        // if (betaCW20DenomsJson) {
-        //   const betaCW20Denoms = JSON.parse(betaCW20DenomsJson);
-        //   let allBetaCW20Denoms = {};
-        //   for (const chain in betaCW20Denoms) {
-        //     for (const coinMinimalDenom in betaCW20Denoms[chain]) {
-        //       if (resource[coinMinimalDenom]) {
-        //         delete betaCW20Denoms[chain][coinMinimalDenom];
-        //       }
-        //     }
-        //     Object.assign(allBetaCW20Denoms, betaCW20Denoms[chain]);
-        //   }
-        //
-        //   await this.storageAdapter.set(BETA_CW20_TOKENS, betaCW20Denoms);
-        // }
-        runInAction(() => {
-          this.chainWiseDenoms = Object.assign(this.chainWiseDenoms, {
-            [chain]: resource,
+        if (response.ok) {
+          const resource = await response.json();
+          runInAction(() => {
+            this.chainWiseDenoms = Object.assign(this.chainWiseDenoms, {
+              [chain]: resource,
+            });
           });
-        });
+        } else {
+          console.warn('[AutoFetchedCW20DenomsStore]', `cw20_all.json not present for chain: ${chain}`);
+        }
       } catch (e) {
-        console.error('error loading cw20 denoms', e);
+        console.error('[AutoFetchedCW20DenomsStore]', `error loading cw20 denoms for ${chain}`, e);
       }
     });
   }
@@ -113,9 +74,6 @@ export class AutoFetchedCW20DenomsStore {
       Object.assign(_allAutoFetchedCW20Denoms, values[i]);
     }
 
-    // const _allAutoFetchedCW20Denoms = Object.values(autoFetchedCW20Denoms).reduce((acc, val) => {
-    //   return Object.assign(acc, val);
-    // }, {});
     return _allAutoFetchedCW20Denoms;
   }
 }

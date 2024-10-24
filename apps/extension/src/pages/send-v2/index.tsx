@@ -69,7 +69,7 @@ const Send = () => {
         header={
           <Header
             action={{
-              onClick: () => navigate(-1),
+              onClick: () => navigate('/home'),
               type: HeaderActionType.BACK,
             }}
             imgSrc={headerChainImgSrc}
@@ -107,7 +107,11 @@ const Send = () => {
               rootERC20DenomsStore={rootERC20DenomsStore}
               evmBalanceStore={evmBalanceStore}
             />
-            <RecipientCard themeColor={topChainColor} rootERC20DenomsStore={rootERC20DenomsStore} />
+            <RecipientCard
+              themeColor={topChainColor}
+              rootERC20DenomsStore={rootERC20DenomsStore}
+              chainTagsStore={chainTagsStore}
+            />
             <Memo />
             <ErrorWarning />
             <div className='h-[100px]' />

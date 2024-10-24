@@ -3,11 +3,12 @@ import BigNumber from 'bignumber.js'
 import GasPriceOptions from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
-import React, { Dispatch, SetStateAction, useCallback } from 'react'
+import React, { Dispatch, SetStateAction, useCallback, useEffect } from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 
 import { useSwapContext } from '../context'
+import { SWAP_NETWORK } from '../hooks'
 
 const FeesSheet = ({
   showFeesSettingSheet,
@@ -29,6 +30,11 @@ const FeesSheet = ({
     gasPriceOption,
     setGasPriceOption,
   } = useSwapContext()
+
+  useEffect(() => {
+    setGasError('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceChain])
 
   const handleGasPriceOptionChange = useCallback(
     (value: GasPriceOptionValue, feeTokenData: FeeTokenData) => {
@@ -56,6 +62,7 @@ const FeesSheet = ({
       chain={sourceChain?.key}
       rootDenomsStore={rootDenomsStore}
       rootBalanceStore={rootBalanceStore}
+      network={SWAP_NETWORK}
     >
       <FeesSettingsSheet
         showFeesSettingSheet={showFeesSettingSheet}

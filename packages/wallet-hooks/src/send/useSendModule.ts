@@ -38,7 +38,7 @@ import {
   usePendingTxState,
   useSelectedNetwork,
 } from '../store';
-import { Token, TxCallback } from '../types';
+import { Token, TxCallback, WALLETTYPE } from '../types';
 import {
   fetchCurrency,
   GasOptions,
@@ -46,6 +46,7 @@ import {
   getErrorMsg,
   getOsmosisGasPriceSteps,
   getTxnLogAmountValue,
+  isERC20Token,
   useGasRateQuery,
   useNativeFeeDenom,
 } from '../utils';
@@ -148,6 +149,8 @@ export type SendModuleType = Readonly<{
   isSeiEvmTransaction: boolean;
   associatedSeiAddress: string;
   setAssociatedSeiAddress: React.Dispatch<React.SetStateAction<string>>;
+  associated0xAddress: string;
+  setAssociated0xAddress: React.Dispatch<React.SetStateAction<string>>;
 }>;
 
 export function useSendModule({
@@ -170,24 +173,19 @@ export function useSendModule({
   const defaultGasEstimates = useDefaultGasEstimates();
   const [preferredCurrency] = useUserPreferredCurrency();
   const allChainsGasPriceSteps = useGasPriceSteps();
+
   const isCW20Token = useCallback(
     (token: Token) => {
       if (!token) {
         return false;
       }
-      return Object.keys(cw20Denoms).includes(token.coinMinimalDenom);
+      return Object.keys(cw20Denoms).some(
+        (cw20Denom) => cw20Denom.toLowerCase() === token.coinMinimalDenom.toLowerCase(),
+      );
     },
     [cw20Denoms],
   );
-  const isERC20Token = useCallback(
-    (token: Token) => {
-      if (!token) {
-        return false;
-      }
-      return Object.keys(erc20Denoms).includes(token.coinMinimalDenom);
-    },
-    [erc20Denoms],
-  );
+
   //const denoms = useDenoms();
 
   /**
@@ -247,6 +245,7 @@ export function useSendModule({
   const chains = useGetChains();
   const [customIbcChannelId, setCustomIbcChannelId] = useState<string | undefined>(undefined);
   const [associatedSeiAddress, setAssociatedSeiAddress] = useState<string>('');
+  const [associated0xAddress, setAssociated0xAddress] = useState<string>('');
 
   /**
    * Send Tx related hooks
@@ -271,15 +270,19 @@ export function useSendModule({
   const isSeiEvmTransaction = useMemo(() => {
     if (selectedAddress && selectedToken && !associatedSeiAddress) {
       let toAddress = selectedAddress.address ?? '';
-      const _isERC20Token = isERC20Token(selectedToken);
+      const _isERC20Token = isERC20Token(Object.keys(erc20Denoms), selectedToken?.coinMinimalDenom);
 
-      if (
-        isSeiEvmChain &&
-        _isERC20Token &&
-        toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
-        fetchAccountDetailsData?.pubKey.key
-      ) {
-        toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key);
+      if (isSeiEvmChain && (selectedToken.isEvm || _isERC20Token)) {
+        if (
+          toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
+          fetchAccountDetailsData?.pubKey.key
+        ) {
+          toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key);
+        }
+
+        if (associated0xAddress) {
+          toAddress = associated0xAddress;
+        }
       }
 
       if (isSeiEvmChain && isEthAddress(toAddress)) {
@@ -288,7 +291,14 @@ export function useSendModule({
     }
 
     return false;
-  }, [isSeiEvmChain, selectedAddress, selectedToken, fetchAccountDetailsData?.pubKey.key, associatedSeiAddress]);
+  }, [
+    isSeiEvmChain,
+    selectedAddress,
+    selectedToken,
+    fetchAccountDetailsData?.pubKey.key,
+    associatedSeiAddress,
+    erc20Denoms,
+  ]);
 
   const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork);
   const getFeeMarketGasPricesSteps = useGetFeeMarketGasPricesSteps(activeChain, selectedNetwork);
@@ -588,11 +598,11 @@ export function useSendModule({
 
       try {
         if (
-          isEthAddress(selectedAddress.address) &&
+          (isEthAddress(selectedAddress.address) || associated0xAddress || fetchAccountDetailsData?.pubKey.key) &&
           (isSeiEvmChain || chains[activeChain]?.evmOnlyChain) &&
           !associatedSeiAddress
         ) {
-          const erc20Token = isERC20Token(selectedToken);
+          const erc20Token = isERC20Token(Object.keys(erc20Denoms), selectedToken?.coinMinimalDenom);
           const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
 
           try {
@@ -619,7 +629,7 @@ export function useSendModule({
         const fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom);
         const toAddress = associatedSeiAddress || selectedAddress.address || '';
 
-        const { gasUsed } = isIBCTransfer
+        let { gasUsed } = isIBCTransfer
           ? await simulateIbcTransfer(
               lcdUrl ?? '',
               fromAddress,
@@ -633,6 +643,10 @@ export function useSendModule({
             )
           : await simulateSend(lcdUrl ?? '', fromAddress, toAddress, [amountOfCoins], fee);
 
+        // Fees is high for evmos non-ibc send txn using ledger
+        if (!isIBCTransfer && activeChain === 'evmos' && activeWallet?.walletType === WALLETTYPE.LEDGER) {
+          gasUsed = 2200000;
+        }
         setGasEstimate(gasUsed);
       } catch (err) {
         //
@@ -656,7 +670,9 @@ export function useSendModule({
     isSeiEvmChain,
     activeWallet?.pubKeys,
     associatedSeiAddress,
+    associated0xAddress,
     chains,
+    erc20Denoms,
   ]);
 
   return {
@@ -715,5 +731,7 @@ export function useSendModule({
     isSeiEvmTransaction,
     associatedSeiAddress,
     setAssociatedSeiAddress,
+    associated0xAddress,
+    setAssociated0xAddress,
   } as const;
 }

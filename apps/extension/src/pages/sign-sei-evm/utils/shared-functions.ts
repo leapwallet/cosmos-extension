@@ -3,15 +3,22 @@ import { NavigateFunction } from 'react-router'
 import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
-export function handleRejectClick(navigate: NavigateFunction) {
-  Browser.runtime.sendMessage({
+export async function handleRejectClick(
+  navigate: NavigateFunction,
+  payloadId?: number,
+  donotClose?: boolean,
+) {
+  await Browser.runtime.sendMessage({
     type: MessageTypes.signSeiEvmResponse,
+    payloadId,
     payload: { status: 'error', data: 'User rejected the transaction' },
   })
 
-  if (isSidePanel()) {
-    navigate('/home')
-  } else {
-    window.close()
+  if (!donotClose) {
+    if (isSidePanel()) {
+      navigate('/home')
+    } else {
+      window.close()
+    }
   }
 }

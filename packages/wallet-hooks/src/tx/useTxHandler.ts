@@ -1,8 +1,17 @@
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { OfflineSigner } from '@cosmjs/proto-signing';
-import { GovGenTx, InjectiveTx, LavaTx, StrideTx, SupportedChain, Tx } from '@leapwallet/cosmos-wallet-sdk';
-import { EthermintTxHandler } from '@leapwallet/cosmos-wallet-sdk';
-import { CWTx } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  CWTx,
+  EthermintTxHandler,
+  GovGenTx,
+  InitiaTx,
+  InjectiveTx,
+  LavaTx,
+  // SeiTxHandler,
+  StrideTx,
+  SupportedChain,
+  Tx,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/sscrt';
 import { useCallback, useMemo } from 'react';
 import { Wallet } from 'secretjs';
@@ -44,7 +53,23 @@ export function useTxHandler({
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         return new EthermintTxHandler(lcdUrl, wallet, chainId, evmChainId);
-      } else if (chain === 'stride') {
+      } else if (chain === 'initia') {
+        const _tx = new InitiaTx(`${rpcUrl}/`, wallet);
+        await _tx.initClient();
+        _tx.setLcdEndPoint(lcdUrl ?? '');
+        await _tx.addInitiaRegistry();
+        console.log(_tx.client?.registry);
+        return _tx;
+      }
+      // else if (
+      //   chainInfo.chainId.toLowerCase().includes('atlantic-2') ||
+      //   chainInfo.chainId.toLowerCase().includes('arctic-1')
+      // ) {
+      //   const _tx = new SeiTxHandler(lcdUrl, rpcUrl ?? '', wallet);
+      //   await _tx.initClient();
+      //   return _tx;
+      // }
+      else if (chain === 'stride') {
         const _tx = new StrideTx(`${rpcUrl}/`, wallet);
         await _tx.initClient();
         _tx.setLcdEndPoint(lcdUrl ?? '');

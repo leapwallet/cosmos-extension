@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { atom, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import Browser from 'webextension-polyfill'
 
-const hiddenNFTsStorage = atom<string[] | undefined>({
+export const hiddenNFTsStorage = atom<string[] | undefined>({
   key: HIDDEN_NFTS,
   default: [],
 })

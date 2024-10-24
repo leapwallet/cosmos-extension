@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 
+import { sleep } from '../utils';
 import { changeTopNode, getTopNode, NODE_URLS } from './index';
 
 const removeTrailingSlash = (url: string | undefined) => {
@@ -70,6 +71,7 @@ export async function axiosWrapper<T = any>(
       if (prevTopNodeChainId) {
         changeTopNode(isRestURL ? 'rest' : 'rpc', prevTopNodeChainId, _options.baseURL ?? '');
         const newTopNode = getTopNode(isRestURL ? 'rest' : 'rpc', prevTopNodeChainId);
+        await sleep(200 * (retryCount ?? 1));
         return axiosWrapper({ ..._options, baseURL: removeTrailingSlash(newTopNode?.nodeUrl) }, retryCount + 1);
       }
     }

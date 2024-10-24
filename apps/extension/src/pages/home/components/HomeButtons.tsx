@@ -43,7 +43,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
 
   if (activeChain === 'initia') {
     return (
-      <div className='flex flex-row justify-evenly mb-6 w-[244px]'>
+      <div className='flex flex-row justify-center mb-6 gap-6 w-full'>
         {/* Buy Button */}
         <ClickableIcon
           label='Receive'
@@ -211,7 +211,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       />
 
       {/* Vote Button */}
-      {!chain?.evmOnlyChain ? (
+      {!chain?.evmOnlyChain && chain?.key !== 'mantra' ? (
         <ClickableIcon
           label='Vote'
           icon={<Vote weight='fill' size={20} />}

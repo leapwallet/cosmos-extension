@@ -25,12 +25,22 @@ export function useConsensusValidators(
     const filterCosmosValidators = async () => {
       if (isConsensusUpdate) {
         try {
-          const restUrl =
+          const nodeUrl =
             activeNetwork === 'mainnet'
-              ? nmsStore.restEndpoints?.[activeChainId]?.[0]?.nodeUrl
-              : ChainInfos[activeChain].apis.restTest;
-          const res = await axios.get(`${restUrl}/cosmos/base/tendermint/v1beta1/validatorsets/latest`);
-          const validatorPubkeys = res.data.validators.map((v: any) => v.pub_key.key);
+              ? nmsStore.rpcEndPoints?.[activeChainId]?.[0]?.nodeUrl
+              : ChainInfos[activeChain].apis.rpcTest;
+          const url = `${nodeUrl}/validators`;
+          const consensusList = [];
+          let currentPage = 1;
+          let totalPages = 1;
+          while (currentPage <= totalPages) {
+            const res = await axios.get(`${url}?page=${currentPage}&per_page=100`);
+            consensusList.push(...res.data.result.validators);
+            totalPages = Math.ceil(parseInt(res.data.result.total) / 100);
+            currentPage++;
+          }
+
+          const validatorPubkeys = consensusList.map((v: any) => v.pub_key.value);
           filteredValidators = filteredValidators.map((v) => {
             return {
               ...v,
@@ -46,7 +56,7 @@ export function useConsensusValidators(
     };
 
     filterCosmosValidators();
-  }, [isConsensusUpdate, validators, nmsStore.restEndpoints, activeChainId, activeNetwork]);
+  }, [isConsensusUpdate, validators, nmsStore.rpcEndPoints, activeChainId, activeNetwork]);
 
   return activeValidators;
 }

@@ -1,4 +1,4 @@
-import { Token } from '@leapwallet/cosmos-wallet-hooks'
+import { getKeyToUseForDenoms, Token } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   AutoFetchedCW20DenomsStore,
@@ -7,6 +7,7 @@ import {
   CW20DenomsStore,
   DisabledCW20DenomsStore,
   EnabledCW20DenomsStore,
+  RootBalanceStore,
 } from '@leapwallet/cosmos-wallet-store'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -25,6 +26,7 @@ export function useTokenWithBalances(
   disabledCW20DenomsStore: DisabledCW20DenomsStore,
   enabledCW20DenomsStore: EnabledCW20DenomsStore,
   cw20DenomBalanceStore: CW20DenomBalanceStore,
+  rootBalanceStore: RootBalanceStore,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): { data: any; status: any } {
   const disabledCW20Tokens = disabledCW20DenomsStore.getDisabledCW20DenomsForChain(
@@ -59,8 +61,16 @@ export function useTokenWithBalances(
       (asset) =>
         asset.coinMinimalDenom === token.coinMinimalDenom &&
         asset.ibcDenom === token.ibcDenom &&
-        asset.skipAsset?.originDenom === token.skipAsset?.originDenom &&
-        asset.skipAsset?.denom === token.skipAsset?.denom,
+        getKeyToUseForDenoms(
+          asset.skipAsset?.originDenom ?? '',
+          asset.skipAsset?.originChainId ?? '',
+        ) ===
+          getKeyToUseForDenoms(
+            token.skipAsset?.originDenom ?? '',
+            token.skipAsset?.originChainId ?? '',
+          ) &&
+        getKeyToUseForDenoms(asset.skipAsset?.denom ?? '', asset.skipAsset?.originChainId ?? '') ===
+          getKeyToUseForDenoms(token.skipAsset?.denom ?? '', token.skipAsset?.originChainId ?? ''),
     )?.amount
 
     return {
@@ -81,7 +91,14 @@ export function useTokenWithBalances(
         return updatedToken
       }
 
-      if (!managedTokens.includes(updatedToken.coinMinimalDenom)) return updatedToken
+      if (!managedTokens.includes(updatedToken.coinMinimalDenom)) {
+        if (!!updatedToken && (!updatedToken?.amount || updatedToken?.amount === '0')) {
+          await rootBalanceStore.loadBalances(chain.key, SWAP_NETWORK)
+          // sleep for 5 secs
+          await new Promise((resolve) => setTimeout(resolve, 5000))
+        }
+        return updatedToken
+      }
 
       if (
         !(

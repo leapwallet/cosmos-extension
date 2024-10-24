@@ -1,7 +1,7 @@
 import { sliceSearchWord, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore, GovStore } from '@leapwallet/cosmos-wallet-store'
-import { Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Header, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { AggregatedSearchComponent } from 'components/aggregated'
 import { EmptyCard } from 'components/empty-card'
@@ -28,6 +28,7 @@ export type ProposalsProps = {
 export const AggregatedGovernance = observer(
   ({ governanceStore, chainTagsStore }: ProposalsProps) => {
     const navigate = useNavigate()
+    const { theme } = useTheme()
     const [showChainSelector, setShowChainSelector] = useState(false)
 
     const { votingProposals, nonVotingProposals, perChainShouldUseFallback } =
@@ -87,7 +88,11 @@ export const AggregatedGovernance = observer(
                     onClick: () => navigate(-1),
                     type: HeaderActionType.BACK,
                   }}
-                  imgSrc={Images.Misc.AggregatedViewSvg}
+                  imgSrc={
+                    theme === ThemeName.DARK
+                      ? Images.Misc.AggregatedViewDarkSvg
+                      : Images.Misc.AggregatedViewSvg
+                  }
                   onImgClick={() => setShowChainSelector(true)}
                   title='Governance'
                 />

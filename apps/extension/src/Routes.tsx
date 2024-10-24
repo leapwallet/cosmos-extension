@@ -4,11 +4,13 @@ import {
   useFetchDualStakeProviders,
   useInitCustomChains,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { useAllSkipAssets, useChains, useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { SidePanelNavigation } from 'components/side-panel-navigation'
 import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { useChainAbstractionView } from 'hooks/settings/useChainAbstractionView'
 import { useAirdropsData } from 'hooks/useAirdropsData'
 import { AddEvmLedger, AddEvmTitle } from 'pages/onboarding/import/AddEvmLedger'
 import React, { lazy, Suspense, useEffect } from 'react'
@@ -67,6 +69,14 @@ const SwitchEthereumChain = React.lazy(() => import('pages/switch-ethereum-chain
 const SuggestEthereumChain = React.lazy(() => import('pages/suggestChain/SuggestEthereumChain'))
 const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
+const useAllSkipAssetsParams = {
+  includeCW20Assets: true,
+  includeNoMetadataAssets: false,
+  includeEVMAssets: false,
+  includeSVMAssets: false,
+  nativeOnly: false,
+}
+
 export default function AppRoutes(): JSX.Element {
   const showLedgerPopup = useRecoilValue(ledgerPopupState)
   const { activeWallet } = useActiveWallet()
@@ -74,9 +84,14 @@ export default function AppRoutes(): JSX.Element {
 
   useInitAnalytics()
   useInitCustomChains()
+  useChainAbstractionView()
   useFetchDualStakeDelegations(rootDenomsStore.allDenoms)
   useFetchDualStakeProviders(rootDenomsStore.allDenoms)
   useFetchDualStakeProviderRewards(rootDenomsStore.allDenoms)
+
+  useChains()
+  useSkipSupportedChains()
+  useAllSkipAssets(useAllSkipAssetsParams)
 
   useEffect(() => {
     if (activeWallet) {

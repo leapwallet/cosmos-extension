@@ -38,6 +38,7 @@ export const useInitAnalytics = () => {
     try {
       mixpanel.register({
         productVersion: browser.runtime.getManifest().version,
+        packageName: chrome.runtime.id,
       })
     } catch (_) {
       //

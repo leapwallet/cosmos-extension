@@ -56,6 +56,10 @@ export function NftDetails() {
   const { addFavNFT, removeFavNFT } = useModifyFavNFTs()
   const { addHiddenNFT, removeHiddenNFT } = useModifyHiddenNFTs()
 
+  const giveSendOption = useMemo(() => {
+    return isCompassWallet() || nftDetails?.chain === 'mainCoreum'
+  }, [nftDetails?.chain])
+
   const isFractionalizedNft = useMemo(() => {
     return fractionalizedNftContracts.includes(nftDetails?.collection.address ?? '')
   }, [fractionalizedNftContracts, nftDetails?.collection.address])
@@ -74,7 +78,7 @@ export function NftDetails() {
   }, [isFractionalizedNft, nftDetails])
 
   const nftIndex = useMemo(() => {
-    return `${nftDetails?.collection.address ?? ''}-${
+    return `${nftDetails?.collection.address ?? ''}-:-${
       nftDetails?.tokenId ?? nftDetails?.domain ?? ''
     }`
   }, [nftDetails?.collection.address, nftDetails?.domain, nftDetails?.tokenId])
@@ -241,11 +245,12 @@ export function NftDetails() {
           </div>
 
           <CardDivider />
-          {!!showSendNFT && isCompassWallet() && nftDetails && (
+          {!!showSendNFT && giveSendOption && nftDetails && (
             <SendNftCard
               rootDenomsStore={rootDenomsStore}
               nftDetails={nftDetails}
               rootBalanceStore={rootBalanceStore}
+              forceNetwork={isCompassWallet() ? undefined : 'mainnet'}
             />
           )}
           {!showSendNFT && (
@@ -281,7 +286,7 @@ export function NftDetails() {
                 <span className='ml-1'>{isFractionalizedNft ? 'details' : 'on marketplace'}</span>
               </button>
 
-              {isCompassWallet() && (
+              {giveSendOption && (
                 <button
                   title='send'
                   className='w-[20px] h-[20px] dark:text-gray-100 mx-1 text-black-100'

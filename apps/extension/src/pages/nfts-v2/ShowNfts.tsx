@@ -138,6 +138,7 @@ export const ShowNfts = observer(({ nftStore, chainTagsStore }: ShowNftsProps) =
               <NoNft
                 openManageCollectionsSheet={() => setShowManageCollections(true)}
                 openAddCollectionSheet={() => setShowAddCollectionSheet(true)}
+                nftStore={nftStore}
               />
             ) : (
               <div className='px-6 pt-4 pb-8'>
@@ -186,6 +187,7 @@ export const ShowNfts = observer(({ nftStore, chainTagsStore }: ShowNftsProps) =
                       <CantSeeNfts
                         openAddCollectionSheet={() => setShowAddCollectionSheet(true)}
                         className='w-full'
+                        nftStore={nftStore}
                       />
                     ) : null}
                   </>

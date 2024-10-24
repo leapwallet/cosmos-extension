@@ -1,8 +1,8 @@
 import {
   INITIAL_ADDRESS_WARNING,
+  isERC20Token,
   SelectedAddress,
   sliceWord,
-  Token,
   useActiveWallet,
   useAddress,
   useAddressPrefixes,
@@ -21,7 +21,7 @@ import {
   SeiEvmTx,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { RootERC20DenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { ChainTagsStore, RootERC20DenomsStore } from '@leapwallet/cosmos-wallet-store'
 import {
   Asset,
   SkipDestinationChain,
@@ -42,6 +42,7 @@ import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { motion } from 'framer-motion'
 import { useManageChainData } from 'hooks/settings/useManageChains'
 import { useContactsSearch } from 'hooks/useContacts'
+import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -63,26 +64,17 @@ import { SelectedAddressPreview } from './selected-address-preview'
 type RecipientCardProps = {
   themeColor: string
   rootERC20DenomsStore: RootERC20DenomsStore
+  chainTagsStore: ChainTagsStore
 }
 
 const nameServiceMatcher = /^[a-zA-Z0-9_-]+\.[a-z]+$/
 
 export const RecipientCard = observer(
-  ({ themeColor, rootERC20DenomsStore }: RecipientCardProps) => {
+  ({ themeColor, rootERC20DenomsStore, chainTagsStore }: RecipientCardProps) => {
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
-
-    const isERC20Token = useCallback(
-      (token: Token) => {
-        if (!token) {
-          return false
-        }
-        return Object.keys(allERC20Denoms).includes(token.coinMinimalDenom)
-      },
-      [allERC20Denoms],
-    )
-
     const [isDestinationSheetVisible, setIsDestinationSheetVisible] =
       useState<DestinationType | null>(null)
+
     const [isAddContactSheetVisible, setIsAddContactSheetVisible] = useState<boolean>(false)
     const [recipientInputValue, setRecipientInputValue] = useState<string>('')
 
@@ -113,11 +105,13 @@ export const RecipientCard = observer(
       sendActiveChain,
       sendSelectedNetwork,
       associatedSeiAddress,
+      setAssociated0xAddress,
     } = useSendContext()
 
     const { chains } = useChainsStore()
     const [manageChains] = useManageChainData()
     const currentWalletAddress = useAddress()
+    const walletAddresses = useGetWalletAddresses()
     const addressPrefixes = useAddressPrefixes()
     const activeChainInfo = chains[sendActiveChain]
     const { data: elementsChains } = useSkipSupportedChains({ chainTypes: ['cosmos'] })
@@ -426,14 +420,19 @@ export const RecipientCard = observer(
             if (recipient0xAddress.toLowerCase().startsWith('0x')) {
               setAddressWarning({
                 type: 'erc20',
-                message: `Recipient will receive the ERC-20 token on associated EVM address: ${recipient0xAddress}`,
+                message: `Recipient will receive the token on associated EVM address: ${recipient0xAddress}`,
               })
             } else {
               setAddressWarning({
                 type: 'erc20',
-                message: 'You can only transfer ERC-20 tokens to an EVM address.',
+                message: 'You can only transfer EVM tokens to an EVM address.',
               })
             }
+          } else {
+            setAddressWarning({
+              type: 'erc20',
+              message: 'You can only transfer EVM tokens to an EVM address.',
+            })
           }
 
           break
@@ -442,7 +441,7 @@ export const RecipientCard = observer(
         case 'error': {
           setAddressWarning({
             type: 'erc20',
-            message: 'You can only transfer ERC-20 tokens to an EVM address.',
+            message: 'You can only transfer EVM tokens to an EVM address.',
           })
 
           break
@@ -459,8 +458,9 @@ export const RecipientCard = observer(
     useEffect(() => {
       ;(async function () {
         setAssociatedSeiAddress('')
+        setAssociated0xAddress('')
 
-        if (currentWalletAddress === recipientInputValue) {
+        if (!isSeiEvmChain && currentWalletAddress === recipientInputValue) {
           return
         } else if (chains[sendActiveChain]?.evmOnlyChain && recipientInputValue.length) {
           if (!recipientInputValue.toLowerCase().startsWith('0x')) {
@@ -492,13 +492,20 @@ export const RecipientCard = observer(
           }
 
           if (!recipientInputValue.toLowerCase().startsWith('0x')) {
-            if (selectedToken.isEvm) {
-              setAddressWarning({
-                type: 'link',
-                message:
-                  'To send Sei EVM tokens to Sei address, link your EVM and Sei addresses first.',
-              })
-            } else if (isERC20Token(selectedToken) && recipientInputValue.length >= 42) {
+            if (
+              (selectedToken.isEvm ||
+                isERC20Token(Object.keys(allERC20Denoms), selectedToken?.coinMinimalDenom)) &&
+              recipientInputValue.toLowerCase() === walletAddresses[1].toLowerCase()
+            ) {
+              setAssociated0xAddress(walletAddresses[0])
+              return
+            }
+
+            if (
+              (selectedToken.isEvm ||
+                isERC20Token(Object.keys(allERC20Denoms), selectedToken?.coinMinimalDenom)) &&
+              recipientInputValue.length >= 42
+            ) {
               await fetchAccountDetails(recipientInputValue)
             } else {
               setAddressWarning(INITIAL_ADDRESS_WARNING)
@@ -519,6 +526,10 @@ export const RecipientCard = observer(
               )
             } catch {
               associatedSeiAddress = ''
+            }
+
+            if (recipientInputValue.toLowerCase() === walletAddresses[0].toLowerCase()) {
+              associatedSeiAddress = walletAddresses[1]
             }
 
             if (
@@ -543,7 +554,7 @@ export const RecipientCard = observer(
                 })
               }
             } else if (
-              !isERC20Token(selectedToken) &&
+              !isERC20Token(Object.keys(allERC20Denoms), selectedToken?.coinMinimalDenom) &&
               selectedToken.coinMinimalDenom !== 'usei' &&
               associatedSeiAddress
             ) {
@@ -576,7 +587,6 @@ export const RecipientCard = observer(
       isSeiEvmChain,
       addressLinkState,
       currentWalletAddress,
-      isERC20Token,
       recipientInputValue,
       selectedToken,
       selectedToken?.coinMinimalDenom,
@@ -585,6 +595,7 @@ export const RecipientCard = observer(
       activeWallet?.walletType,
       sendActiveChain,
       sendSelectedNetwork,
+      allERC20Denoms,
     ])
 
     useEffect(() => {
@@ -627,7 +638,13 @@ export const RecipientCard = observer(
           return
         }
         const { prefix } = bech32.decode(cleanInputValue)
-        const _chain = addressPrefixes[prefix] as SupportedChain
+        let _chain = addressPrefixes[prefix] as SupportedChain
+        if (
+          prefix === 'init' &&
+          chainTagsStore.allChainTags[chains[sendActiveChain].chainId].includes('Initia')
+        ) {
+          _chain = sendActiveChain
+        }
         const img = chains[_chain]?.chainSymbolImageUrl ?? defaultTokenLogo
 
         setSelectedAddress({
@@ -669,6 +686,12 @@ export const RecipientCard = observer(
           existingContactMatch.blockchain !== selectedAddress?.chainName
 
         if (shouldUpdate) {
+          if (
+            existingContactMatch.blockchain === 'initia' &&
+            chainTagsStore.allChainTags[chains[sendActiveChain].chainId].includes('Initia')
+          ) {
+            existingContactMatch.blockchain = sendActiveChain
+          }
           const img =
             chains[existingContactMatch.blockchain]?.chainSymbolImageUrl ?? defaultTokenLogo
           setMemo(existingContactMatch.memo ?? '')

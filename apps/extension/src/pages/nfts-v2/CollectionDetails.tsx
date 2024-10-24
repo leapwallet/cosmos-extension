@@ -36,7 +36,7 @@ export const CollectionDetails = observer(({ nftStore }: CollectionDetailsProps)
     const nfts = collectionNfts.filter(
       (nft) =>
         !hiddenNfts.some((hiddenNft) => {
-          const [address, tokenId] = hiddenNft.split('-')
+          const [address, tokenId] = hiddenNft.split('-:-')
 
           return (
             [nft.collection.address ?? ''].includes(address) &&

@@ -483,11 +483,11 @@ const ValidatorList = observer(
 
     const validators = useMemo(
       () =>
-        validatorsStore.chainValidators.validatorData.validators?.reduce((acc, validator) => {
+        chainValidators.validatorData.validators?.reduce((acc, validator) => {
           acc[validator.address] = validator
           return acc
         }, {} as Record<string, Validator>),
-      [validatorsStore.chainValidators.validatorData.validators],
+      [chainValidators.validatorData.validators],
     )
     const isLoading = loadingNetwork || loadingDelegations
 

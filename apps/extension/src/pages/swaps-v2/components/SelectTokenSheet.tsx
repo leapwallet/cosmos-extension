@@ -1,14 +1,16 @@
+import { getKeyToUseForDenoms } from '@leapwallet/cosmos-wallet-hooks'
 import { RootDenomsStore, WhitelistedFactoryTokensStore } from '@leapwallet/cosmos-wallet-store'
-import { Question, SealCheck, WarningCircle } from '@phosphor-icons/react'
-import classNames from 'classnames'
+import { Question } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { SearchInput } from 'components/search-input'
+import Fuse from 'fuse.js'
 import { observer } from 'mobx-react-lite'
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { ReactNode, useEffect, useMemo, useState } from 'react'
 import { GroupedVirtuoso } from 'react-virtuoso'
 import { SourceChain, SourceToken } from 'types/swap'
+import { isSidePanel } from 'utils/isSidePanel'
 
-import { TokenCard } from './TokenCard'
+import { TokenCard, TokenCardSkeleton } from './TokenCard'
 
 const TokenCardWrapper = observer(
   ({
@@ -20,6 +22,7 @@ const TokenCardWrapper = observer(
     onTokenSelect,
     verified,
     header,
+    isChainAbstractionView,
   }: {
     index: number
     tokensLength: number
@@ -29,12 +32,18 @@ const TokenCardWrapper = observer(
     onTokenSelect: (token: SourceToken) => void
     selectedToken: SourceToken | null
     header: ReactNode
+    isChainAbstractionView?: boolean
   }) => {
     const isLast = index === tokensLength - 1
     const isFirst = index === 0
 
     const isSelected = useMemo(() => {
-      let _isSelected = token.coinMinimalDenom === selectedToken?.coinMinimalDenom
+      let _isSelected =
+        getKeyToUseForDenoms(token.skipAsset.denom, token.skipAsset.originChainId) ===
+        getKeyToUseForDenoms(
+          selectedToken?.skipAsset?.denom ?? '',
+          selectedToken?.skipAsset?.originChainId ?? '',
+        )
 
       if (token.ibcDenom !== undefined && selectedToken?.ibcDenom !== undefined) {
         _isSelected = _isSelected && token.ibcDenom === selectedToken.ibcDenom
@@ -54,6 +63,7 @@ const TokenCardWrapper = observer(
           verified={verified}
           selectedChain={selectedChain}
           showRedirection={false}
+          isChainAbstractionView={isChainAbstractionView}
         />
 
         {!isLast && <div className='border-b w-full border-gray-100 dark:border-gray-850' />}
@@ -75,6 +85,8 @@ type SelectTokenSheetProps = {
   onTokenSelect: (token: SourceToken) => void
   rootDenomsStore: RootDenomsStore
   whitelistedFactorTokenStore: WhitelistedFactoryTokensStore
+  isChainAbstractionView?: boolean
+  loadingTokens: boolean
 }
 
 export function SelectTokenSheet({
@@ -87,12 +99,10 @@ export function SelectTokenSheet({
   showFor,
   onTokenSelect,
   selectedChain,
-  rootDenomsStore,
-  whitelistedFactorTokenStore,
+  isChainAbstractionView,
+  loadingTokens,
 }: SelectTokenSheetProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const baseDenoms = rootDenomsStore.allDenoms
-  const whitelistedFactoryTokens = whitelistedFactorTokenStore.allWhitelistedFactoryTokens
 
   useEffect(() => {
     if (isOpen) {
@@ -126,84 +136,46 @@ export function SelectTokenSheet({
     }
   }, [showFor, sourceAssets, destinationAssets])
 
+  const fuse = useMemo(() => {
+    const keys = ['symbol', 'name', 'coinMinimalDenom', 'ibcDenom']
+    if (isChainAbstractionView) {
+      keys.push('tokenBalanceOnChain', 'chain')
+    }
+
+    const options = {
+      keys,
+      threshold: 0.3,
+      ignoreLocation: true,
+    }
+    return new Fuse(tokensToShow, options)
+  }, [tokensToShow, isChainAbstractionView])
+
   const filteredTokens = useMemo(() => {
     if (searchQuery.length === 0) {
       return tokensToShow
     }
 
-    return tokensToShow.filter((token) => {
-      return [
-        token.symbol.toLowerCase(),
-        (token.name ?? '').toLowerCase(),
-        token.coinMinimalDenom.toLowerCase(),
-        (token.ibcDenom ?? '').toLowerCase(),
-      ].some((str) => str.includes(searchQuery.trim().toLowerCase()))
-    })
-  }, [searchQuery, tokensToShow])
-
-  const baseTokensList = useMemo(
-    () => Object.values(baseDenoms)?.map((token) => token.coinMinimalDenom),
-    [baseDenoms],
-  )
-
-  const isWhiteListedToken = useCallback(
-    (token: SourceToken) => {
-      if (!baseTokensList?.includes(token.coinMinimalDenom)) {
-        return false
-      }
-      if (token.coinMinimalDenom.startsWith('factory/')) {
-        return whitelistedFactoryTokens?.[token.coinMinimalDenom]
-      }
-
-      return true
-    },
-    [whitelistedFactoryTokens, baseTokensList],
-  )
+    const searchResult = fuse.search(searchQuery)
+    return searchResult.map((result) => result.item)
+  }, [searchQuery, tokensToShow, fuse])
 
   const tokenGroups = useMemo(() => {
-    const _unverifiedTokens: SourceToken[] = []
-    const _whitelistedTokens: SourceToken[] = []
-
-    filteredTokens.forEach((token) => {
-      if (isWhiteListedToken(token)) {
-        _whitelistedTokens.push(token)
-      } else {
-        _unverifiedTokens.push(token)
-      }
-    })
-
     return [
       {
         type: 'whitelisted' as const,
-        items: _whitelistedTokens,
-        Component: TokenCardWrapper,
-        headerComponent: (
-          <div className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'>
-            <SealCheck size={16} weight='bold' className='!leading-[20px]' />
-            <span className='font-bold text-xs'>Whitelisted tokens</span>
-          </div>
-        ),
-      },
-      {
-        type: 'unverified' as const,
-        items: _unverifiedTokens,
+        items: filteredTokens,
         Component: TokenCardWrapper,
         headerComponent: (
           <div
-            className={classNames(
-              'mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400',
-              {
-                'mt-4': _whitelistedTokens.length > 0,
-              },
-            )}
+            key='all-tokens-heading'
+            className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'
           >
-            <WarningCircle size={16} className='!leading-[20px] !text-md' />
-            <span className='font-bold text-xs'>Unverified tokens</span>
+            <span className='font-bold text-xs'>All tokens</span>
           </div>
         ),
       },
     ]
-  }, [filteredTokens, isWhiteListedToken])
+  }, [filteredTokens])
 
   return (
     <BottomModal
@@ -220,15 +192,35 @@ export function SelectTokenSheet({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-testing-id='switch-token-input-search'
-            placeholder='Search Token'
+            placeholder={isChainAbstractionView ? 'Search Token or Chain' : 'Search Token'}
             onClear={() => setSearchQuery('')}
             divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
             inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
           />
         </div>
 
-        <div className='w-full' style={{ height: window.innerHeight - 200, overflowY: 'scroll' }}>
-          {filteredTokens.length === 0 ? (
+        <div
+          className='w-full'
+          style={{ height: (isSidePanel() ? window.innerHeight : 600) - 200, overflowY: 'scroll' }}
+        >
+          {loadingTokens ? (
+            <>
+              <div
+                key='all-tokens-heading'
+                className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'
+              >
+                <span className='font-bold text-xs'>All tokens</span>
+              </div>
+              {[...Array(5)].map((_, index) => (
+                <>
+                  <TokenCardSkeleton key={index} />
+                  {index !== 4 && (
+                    <div className='border-b w-full border-gray-100 dark:border-gray-850' />
+                  )}
+                </>
+              ))}
+            </>
+          ) : filteredTokens.length === 0 ? (
             <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4'>
               <Question size={40} className='!leading-[40px] dark:text-white-100' />
               <div className='flex flex-col justify-start items-center w-full gap-1'>
@@ -248,32 +240,12 @@ export function SelectTokenSheet({
                 groupCounts={tokenGroups.map((group) => group.items.length)}
                 itemContent={(index, groupIndex) => {
                   const group = tokenGroups[groupIndex]
-                  if (group.type === 'whitelisted') {
-                    const { Component } = group
-                    const item = group.items[index]
-                    return (
-                      <Component
-                        key={`${item.coinMinimalDenom}`}
-                        index={index}
-                        token={item}
-                        verified={true}
-                        selectedToken={selectedToken}
-                        selectedChain={selectedChain}
-                        onTokenSelect={onTokenSelect}
-                        tokensLength={group.items.length}
-                        header={group.headerComponent}
-                      />
-                    )
-                  }
-
                   const { Component } = group
-                  const effectiveIndex = index - tokenGroups[0].items.length
-                  const item = group.items[effectiveIndex]
-
+                  const item = group.items[index]
                   return (
                     <Component
-                      index={effectiveIndex}
-                      key={`${item?.coinMinimalDenom ?? effectiveIndex}`}
+                      key={`${item.coinMinimalDenom}`}
+                      index={index}
                       token={item}
                       verified={false}
                       selectedToken={selectedToken}
@@ -281,6 +253,7 @@ export function SelectTokenSheet({
                       onTokenSelect={onTokenSelect}
                       tokensLength={group.items.length}
                       header={group.headerComponent}
+                      isChainAbstractionView={isChainAbstractionView}
                     />
                   )
                 }}

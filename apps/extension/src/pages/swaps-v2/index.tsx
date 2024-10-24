@@ -1,12 +1,14 @@
 import { useActiveWallet, useGetChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
-import { ArrowSquareOut } from '@phosphor-icons/react'
+import { ArrowSquareOut, X } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import PopupLayout from 'components/layout/popup-layout'
+import Text from 'components/text'
 import { PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import qs from 'qs'
@@ -72,9 +74,21 @@ function SwapPage() {
   const [showSlippageInfo, setShowSlippageInfo] = useState(false)
   const [ledgerError, setLedgerError] = useState<string>()
   const [isInputInUSDC, setIsInputInUSDC] = useState<boolean>(false)
+  const [showMainnetAlert, setShowMainnetAlert] = useState<boolean>(false)
 
   const chains = useGetChains()
   const pageViewSource = useQuery().get('pageSource') ?? undefined
+  const selectedNetwork = useSelectedNetwork()
+
+  useEffect(() => {
+    if (selectedNetwork === 'testnet') {
+      setShowMainnetAlert(true)
+      const timeout = setTimeout(() => {
+        setShowMainnetAlert(false)
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [selectedNetwork])
 
   const {
     inAmount,
@@ -109,6 +123,7 @@ function SwapPage() {
     errorMsg,
     feeDenom,
     route,
+    isChainAbstractionView,
   } = useSwapContext()
 
   const checkNeeded = useMemo(() => {
@@ -189,6 +204,32 @@ function SwapPage() {
     return chainsToShow
   }, [activeWallet, chainsToShow, chains])
 
+  const { _destinationChainsToShow, _destinationAssets } = useMemo(() => {
+    const _destinationAssets = destinationAssets.filter((asset) => {
+      if (asset.skipAsset.originDenom === 'uusdc') {
+        return (
+          asset.skipAsset.originDenom === destinationToken?.skipAsset.originDenom &&
+          asset.skipAsset.originChainId === destinationToken?.skipAsset.originChainId
+        )
+      }
+      return asset.skipAsset.originDenom === destinationToken?.skipAsset.originDenom
+    })
+    const destinationChainIds = _destinationAssets.map((asset) => asset.skipAsset.chainId)
+
+    return {
+      _destinationAssets,
+      _destinationChainsToShow: _chainsToShow.filter((chain) =>
+        destinationChainIds.includes(chain.chainId),
+      ),
+    }
+  }, [_chainsToShow, destinationToken, destinationAssets])
+
+  const _destinationAssetsToShow = useMemo(() => {
+    return destinationAssets.filter((asset) => {
+      return isCompassWallet() ? true : !asset.skipAsset.denom.includes('ibc/')
+    })
+  }, [destinationAssets])
+
   const reviewBtnText = useMemo(() => {
     if (invalidAmount) {
       return 'Amount must be greater than 0'
@@ -199,12 +240,24 @@ function SwapPage() {
     if (isNoRoutesAvailableError(errorMsg)) {
       return 'No transaction routes available'
     }
+    if (
+      activeChainStore.activeChain === 'evmos' &&
+      activeWallet?.walletType === WALLETTYPE.LEDGER
+    ) {
+      return 'Not supported using Ledger wallet'
+    }
     return 'Review Swap'
-  }, [amountExceedsBalance, errorMsg, invalidAmount])
+  }, [activeWallet?.walletType, amountExceedsBalance, errorMsg, invalidAmount])
 
   const reviewDisabled = useMemo(() => {
+    if (
+      activeChainStore.activeChain === 'evmos' &&
+      activeWallet?.walletType === WALLETTYPE.LEDGER
+    ) {
+      return true
+    }
     return reviewBtnDisabled || isRefreshing || (checkNeeded && !isPriceImpactChecked)
-  }, [checkNeeded, isPriceImpactChecked, isRefreshing, reviewBtnDisabled])
+  }, [activeWallet?.walletType, checkNeeded, isPriceImpactChecked, isRefreshing, reviewBtnDisabled])
 
   const autoAdjustAmountFee = useMemo(() => {
     if (!displayFee || !feeDenom) return null
@@ -215,12 +268,29 @@ function SwapPage() {
     }
   }, [displayFee, feeDenom])
 
+  const sourceTokenLoading = useMemo(() => {
+    return (
+      loadingChains ||
+      loadingSourceAssets ||
+      (isChainAbstractionView && sourceToken?.amount === '0'
+        ? sourceTokenBalanceStatus === 'loading'
+        : false)
+    )
+  }, [
+    isChainAbstractionView,
+    loadingChains,
+    loadingSourceAssets,
+    sourceToken,
+    sourceTokenBalanceStatus,
+  ])
+
   const autoAdjustAmountToken = useMemo(() => {
     if (!sourceToken) return null
 
     return {
       amount: sourceToken.amount,
       coinMinimalDenom: sourceToken.coinMinimalDenom,
+      chain: sourceToken?.skipAsset?.originChainId,
     }
   }, [sourceToken])
 
@@ -304,6 +374,25 @@ function SwapPage() {
     ],
   )
 
+  const handleOnDestinationChainSelect = useCallback(
+    (chain: SourceChain) => {
+      setDestinationChain(chain)
+      const _destToken = _destinationAssets.find(
+        (asset) => asset.skipAsset.chainId === chain.chainId,
+      )
+      setDestinationToken(_destToken as SourceToken)
+      setShowChainSelectSheet(false)
+      setShowSelectSheetFor('')
+    },
+    [
+      _destinationAssets,
+      setDestinationChain,
+      setDestinationToken,
+      setShowChainSelectSheet,
+      setShowSelectSheetFor,
+    ],
+  )
+
   const handleOnTokenSelectSheetClose = useCallback(() => {
     setShowTokenSelectSheet(false)
     setShowSelectSheetFor('')
@@ -312,11 +401,18 @@ function SwapPage() {
   const handleOnTokenSelect = useCallback(
     (token: SourceToken) => {
       if (showSelectSheetFor === 'source') {
+        if (isChainAbstractionView) {
+          setSourceChain(_chainsToShow.find((chain) => chain.chainId === token.skipAsset.chainId))
+        }
         setSourceToken(token)
       } else if (showSelectSheetFor === 'destination') {
+        if (isChainAbstractionView) {
+          setDestinationChain(
+            _chainsToShow.find((chain) => chain.chainId === token.skipAsset.chainId),
+          )
+        }
         setDestinationToken(token)
       }
-
       setShowTokenSelectSheet(false)
       setShowSelectSheetFor('')
     },
@@ -326,6 +422,10 @@ function SwapPage() {
       setShowSelectSheetFor,
       setShowTokenSelectSheet,
       setSourceToken,
+      isChainAbstractionView,
+      _chainsToShow,
+      setSourceChain,
+      setDestinationChain,
     ],
   )
 
@@ -404,6 +504,13 @@ function SwapPage() {
         }
         className='flex flex-col'
       >
+        {!!showMainnetAlert && (
+          <div className='flex flex-col items-center justify-center px-4 py-2 bg-[#0D9488]'>
+            <Text size='xs' color='dark:text-white-100 text-white-100' className='font-bold'>
+              Switched to mainnet for swaps
+            </Text>
+          </div>
+        )}
         <div className='flex flex-1 flex-col justify-between p-4 w-full gap-3 relative'>
           <div className='flex flex-col w-full gap-2 relative'>
             <div className='w-full flex flex-col items-center'>
@@ -413,7 +520,7 @@ function SwapPage() {
                 setIsInputInUSDC={setIsInputInUSDC}
                 token={sourceToken}
                 balanceStatus={sourceTokenBalanceStatus}
-                loadingAssets={loadingChains || loadingSourceAssets}
+                loadingAssets={sourceTokenLoading}
                 loadingChains={loadingChains}
                 chainName={sourceChain?.chainName}
                 chainLogo={sourceChain?.icon ?? defaultTokenLogo}
@@ -424,6 +531,8 @@ function SwapPage() {
                 onChainSelectSheet={handleInputChainSelectSheetOpen}
                 amountError={amountExceedsBalance || invalidAmount}
                 showFor='source'
+                selectedChain={isChainAbstractionView ? sourceChain : undefined}
+                isChainAbstractionView={isChainAbstractionView}
               />
 
               <InterchangeButton
@@ -442,10 +551,12 @@ function SwapPage() {
                 loadingAssets={loadingChains || loadingDestinationAssets}
                 chainName={destinationChain?.chainName}
                 chainLogo={destinationChain?.icon ?? defaultTokenLogo}
-                selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}
+                selectTokenDisabled={_destinationAssetsToShow.length === 0 || !destinationChain}
                 selectChainDisabled={_chainsToShow.length === 0}
                 onTokenSelectSheet={handleOutputTokenSelectSheetOpen}
                 onChainSelectSheet={handleOutputChainSelectSheetOpen}
+                isChainAbstractionView={isChainAbstractionView}
+                showFor='destination'
               />
             </div>
 
@@ -499,7 +610,7 @@ function SwapPage() {
       <SelectTokenSheet
         isOpen={showTokenSelectSheet}
         sourceAssets={sourceAssets}
-        destinationAssets={destinationAssets}
+        destinationAssets={_destinationAssetsToShow}
         sourceToken={sourceToken}
         selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
         destinationToken={destinationToken}
@@ -508,15 +619,33 @@ function SwapPage() {
         onTokenSelect={handleOnTokenSelect}
         rootDenomsStore={rootDenomsStore}
         whitelistedFactorTokenStore={whitelistedFactoryTokensStore}
+        isChainAbstractionView={isChainAbstractionView}
+        loadingTokens={
+          showSelectSheetFor === 'source' ? loadingSourceAssets : loadingDestinationAssets
+        }
       />
 
-      <SelectChainSheet
-        isOpen={showChainSelectSheet}
-        chainsToShow={_chainsToShow}
-        onClose={handleOnChainSelectSheetClose}
-        selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
-        onChainSelect={handleOnChainSelect}
-      />
+      {isChainAbstractionView ? (
+        <SelectChainSheet
+          title='Select Destination Chain'
+          isOpen={showChainSelectSheet}
+          chainsToShow={_destinationChainsToShow}
+          onClose={() => {
+            setShowChainSelectSheet(false)
+            setShowSelectSheetFor('')
+          }}
+          selectedChain={destinationChain}
+          onChainSelect={handleOnDestinationChainSelect}
+        />
+      ) : (
+        <SelectChainSheet
+          isOpen={showChainSelectSheet}
+          chainsToShow={_chainsToShow}
+          onClose={handleOnChainSelectSheetClose}
+          selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
+          onChainSelect={handleOnChainSelect}
+        />
+      )}
 
       <MoreDetailsSheet
         isOpen={showMoreDetailsSheet}

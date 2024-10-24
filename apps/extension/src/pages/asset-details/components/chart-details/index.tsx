@@ -2,6 +2,7 @@ import {
   currencyDetail,
   formatPercentAmount,
   formatTokenAmount,
+  getKeyToUseForDenoms,
   LeapWalletApi,
   sliceWord,
   Token,
@@ -188,7 +189,7 @@ const TokensDetails = observer(
         skipAssets?.length > 0 &&
         !!skipAssets?.find((skipAsset) =>
           [assetsId, portfolio?.ibcDenom, portfolio?.coinMinimalDenom].includes(
-            skipAsset.denom.replace('cw20:', ''),
+            skipAsset.denom.replace(/(cw20:|erc20\/)/g, ''),
           ),
         )
       )
@@ -530,12 +531,16 @@ const TokensDetails = observer(
                     isSwapDisabled={
                       !skipSupportsToken || featureFlags?.all_chains?.swap === 'disabled'
                     }
-                    onSwapClick={() =>
+                    onSwapClick={() => {
+                      const denomKey = getKeyToUseForDenoms(
+                        denomInfo?.coinMinimalDenom ?? '',
+                        chainInfos[(denomInfo?.chain ?? '') as SupportedChain].chainId,
+                      )
                       handleSwapClick(
                         `https://swapfast.app/?sourceChainId=${chainInfos[activeChain].chainId}&sourceAsset=${denomInfo?.coinMinimalDenom}`,
-                        `/swap?sourceChainId=${chainInfos[activeChain].chainId}&sourceToken=${denomInfo?.coinMinimalDenom}&pageSource=assetDetails`,
+                        `/swap?sourceChainId=${chainInfos[activeChain].chainId}&sourceToken=${denomKey}&pageSource=assetDetails`,
                       )
-                    }
+                    }}
                   />
                 </div>
               </div>

@@ -1,17 +1,23 @@
 diff --git a/node_modules/cosmjs-types/cosmos/tx/v1beta1/tx.js b/node_modules/cosmjs-types/cosmos/tx/v1beta1/tx.js
-index a94df9c..2e451b2 100644
+index a94df9c..e0fc00e 100644
 --- a/node_modules/cosmjs-types/cosmos/tx/v1beta1/tx.js
 +++ b/node_modules/cosmjs-types/cosmos/tx/v1beta1/tx.js
-@@ -202,7 +202,7 @@ exports.SignDoc = {
+@@ -202,8 +202,12 @@ exports.SignDoc = {
          if (message.chainId !== "") {
              writer.uint32(26).string(message.chainId);
          }
 -        if (!message.accountNumber.isZero()) {
+-            writer.uint32(32).uint64(message.accountNumber);
 +        if (typeof message.accountNumber === 'bigint' ? message.accountNumber !== BigInt(0) : !message.accountNumber.isZero()) {
-             writer.uint32(32).uint64(message.accountNumber);
++            const accountNumber = 
++                typeof message.accountNumber === 'bigint' 
++                    ? helpers_1.Long.fromValue(message.accountNumber.toString())
++                    : message.accountNumber;
++            writer.uint32(32).uint64(accountNumber);
          }
          return writer;
-@@ -238,7 +238,7 @@ exports.SignDoc = {
+     },
+@@ -238,7 +242,7 @@ exports.SignDoc = {
              bodyBytes: (0, helpers_1.isSet)(object.bodyBytes) ? (0, helpers_1.bytesFromBase64)(object.bodyBytes) : new Uint8Array(),
              authInfoBytes: (0, helpers_1.isSet)(object.authInfoBytes) ? (0, helpers_1.bytesFromBase64)(object.authInfoBytes) : new Uint8Array(),
              chainId: (0, helpers_1.isSet)(object.chainId) ? String(object.chainId) : "",
@@ -20,7 +26,7 @@ index a94df9c..2e451b2 100644
          };
      },
      toJSON(message) {
-@@ -259,7 +259,7 @@ exports.SignDoc = {
+@@ -259,7 +263,7 @@ exports.SignDoc = {
          message.chainId = object.chainId ?? "";
          message.accountNumber =
              object.accountNumber !== undefined && object.accountNumber !== null
@@ -29,16 +35,22 @@ index a94df9c..2e451b2 100644
                  : helpers_1.Long.UZERO;
          return message;
      },
-@@ -567,7 +567,7 @@ exports.SignerInfo = {
+@@ -567,8 +571,12 @@ exports.SignerInfo = {
          if (message.modeInfo !== undefined) {
              exports.ModeInfo.encode(message.modeInfo, writer.uint32(18).fork()).ldelim();
          }
 -        if (!message.sequence.isZero()) {
+-            writer.uint32(24).uint64(message.sequence);
 +        if (typeof message.sequence === 'bigint' ? message.sequence !== BigInt(0) : !message.sequence.isZero()) {
-             writer.uint32(24).uint64(message.sequence);
++            const sequence = 
++                typeof message.sequence === 'bigint' 
++                    ? helpers_1.Long.fromValue(message.sequence.toString())
++                    : message.sequence;
++            writer.uint32(24).uint64(sequence);
          }
          return writer;
-@@ -599,7 +599,7 @@ exports.SignerInfo = {
+     },
+@@ -599,7 +607,7 @@ exports.SignerInfo = {
          return {
              publicKey: (0, helpers_1.isSet)(object.publicKey) ? any_1.Any.fromJSON(object.publicKey) : undefined,
              modeInfo: (0, helpers_1.isSet)(object.modeInfo) ? exports.ModeInfo.fromJSON(object.modeInfo) : undefined,
@@ -47,7 +59,7 @@ index a94df9c..2e451b2 100644
          };
      },
      toJSON(message) {
-@@ -623,7 +623,7 @@ exports.SignerInfo = {
+@@ -623,7 +631,7 @@ exports.SignerInfo = {
                  : undefined;
          message.sequence =
              object.sequence !== undefined && object.sequence !== null
@@ -56,16 +68,22 @@ index a94df9c..2e451b2 100644
                  : helpers_1.Long.UZERO;
          return message;
      },
-@@ -815,7 +815,7 @@ exports.Fee = {
+@@ -815,8 +823,12 @@ exports.Fee = {
          for (const v of message.amount) {
              coin_1.Coin.encode(v, writer.uint32(10).fork()).ldelim();
          }
 -        if (!message.gasLimit.isZero()) {
+-            writer.uint32(16).uint64(message.gasLimit);
 +        if (typeof message.gasLimit === 'bigint' ? message.gasLimit !== BigInt(0) : !message.gasLimit.isZero()) {
-             writer.uint32(16).uint64(message.gasLimit);
++            const gasLimit = 
++                typeof message.gasLimit === 'bigint' 
++                    ? helpers_1.Long.fromValue(message.gasLimit.toString())
++                    : message.gasLimit;
++            writer.uint32(16).uint64(gasLimit);
          }
          if (message.payer !== "") {
-@@ -855,7 +855,7 @@ exports.Fee = {
+             writer.uint32(26).string(message.payer);
+@@ -855,7 +867,7 @@ exports.Fee = {
      fromJSON(object) {
          return {
              amount: Array.isArray(object?.amount) ? object.amount.map((e) => coin_1.Coin.fromJSON(e)) : [],
@@ -74,7 +92,7 @@ index a94df9c..2e451b2 100644
              payer: (0, helpers_1.isSet)(object.payer) ? String(object.payer) : "",
              granter: (0, helpers_1.isSet)(object.granter) ? String(object.granter) : "",
          };
-@@ -878,7 +878,7 @@ exports.Fee = {
+@@ -878,7 +890,7 @@ exports.Fee = {
          message.amount = object.amount?.map((e) => coin_1.Coin.fromPartial(e)) || [];
          message.gasLimit =
              object.gasLimit !== undefined && object.gasLimit !== null
@@ -84,19 +102,25 @@ index a94df9c..2e451b2 100644
          message.payer = object.payer ?? "";
          message.granter = object.granter ?? "";
 diff --git a/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js b/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js
-index c76b959..dc5c54f 100644
+index c76b959..c894078 100644
 --- a/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js
 +++ b/node_modules/cosmjs-types/ibc/applications/transfer/v1/tx.js
-@@ -62,7 +62,7 @@ exports.MsgTransfer = {
+@@ -62,8 +62,12 @@ exports.MsgTransfer = {
          if (message.timeoutHeight !== undefined) {
              client_1.Height.encode(message.timeoutHeight, writer.uint32(50).fork()).ldelim();
          }
 -        if (!message.timeoutTimestamp.isZero()) {
+-            writer.uint32(56).uint64(message.timeoutTimestamp);
 +        if (typeof message.timeoutTimestamp === 'bigint' ? message.timeoutTimestamp !== BigInt(0) : !message.timeoutTimestamp.isZero()) {
-             writer.uint32(56).uint64(message.timeoutTimestamp);
++            const timeoutTimestamp = 
++                typeof message.timeoutTimestamp === 'bigint' 
++                    ? helpers_1.Long.fromValue(message.timeoutTimestamp.toString())
++                    : message.timeoutTimestamp;
++            writer.uint32(56).uint64(timeoutTimestamp);
          }
          if (message.memo !== "") {
-@@ -116,7 +116,7 @@ exports.MsgTransfer = {
+             writer.uint32(66).string(message.memo);
+@@ -116,7 +120,7 @@ exports.MsgTransfer = {
              sender: (0, helpers_1.isSet)(object.sender) ? String(object.sender) : "",
              receiver: (0, helpers_1.isSet)(object.receiver) ? String(object.receiver) : "",
              timeoutHeight: (0, helpers_1.isSet)(object.timeoutHeight) ? client_1.Height.fromJSON(object.timeoutHeight) : undefined,
@@ -106,23 +130,34 @@ index c76b959..dc5c54f 100644
          };
      },
 diff --git a/node_modules/cosmjs-types/ibc/core/client/v1/client.js b/node_modules/cosmjs-types/ibc/core/client/v1/client.js
-index 5984754..79366ac 100644
+index 5984754..3912d72 100644
 --- a/node_modules/cosmjs-types/ibc/core/client/v1/client.js
 +++ b/node_modules/cosmjs-types/ibc/core/client/v1/client.js
-@@ -379,10 +379,10 @@ function createBaseHeight() {
+@@ -379,11 +379,19 @@ function createBaseHeight() {
  }
  exports.Height = {
      encode(message, writer = _m0.Writer.create()) {
 -        if (!message.revisionNumber.isZero()) {
+-            writer.uint32(8).uint64(message.revisionNumber);
 +        if (typeof message.revisionNumber === 'bigint' ? message.revisionNumber !== BigInt(0) : !message.revisionNumber.isZero()) {
-             writer.uint32(8).uint64(message.revisionNumber);
++            const revisionNumber = 
++                typeof message.revisionNumber === 'bigint' 
++                    ? helpers_1.Long.fromValue(message.revisionNumber.toString())
++                    : message.revisionNumber;
++            writer.uint32(8).uint64(revisionNumber);
          }
 -        if (!message.revisionHeight.isZero()) {
+-            writer.uint32(16).uint64(message.revisionHeight);
 +        if (typeof message.revisionHeight === 'bigint' ? message.revisionHeight !== BigInt(0) : !message.revisionHeight.isZero()) {
-             writer.uint32(16).uint64(message.revisionHeight);
++            const revisionHeight = 
++                typeof message.revisionHeight === 'bigint' 
++                    ? helpers_1.Long.fromValue(message.revisionHeight.toString())
++                    : message.revisionHeight;
++            writer.uint32(16).uint64(revisionHeight);
          }
          return writer;
-@@ -409,8 +409,8 @@ exports.Height = {
+     },
+@@ -409,8 +417,8 @@ exports.Height = {
      },
      fromJSON(object) {
          return {
@@ -133,7 +168,7 @@ index 5984754..79366ac 100644
          };
      },
      toJSON(message) {
-@@ -425,11 +425,11 @@ exports.Height = {
+@@ -425,11 +433,11 @@ exports.Height = {
          const message = createBaseHeight();
          message.revisionNumber =
              object.revisionNumber !== undefined && object.revisionNumber !== null

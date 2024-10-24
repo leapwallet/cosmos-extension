@@ -23,7 +23,7 @@ const NewChainSupportTooltip = ({
         onClick={(e) => {
           e.stopPropagation()
         }}
-        className='cursor-default z-[2] p-3 rounded-xl absolute bg-white-100 w-[272px] border border-gray-200 dark:border-gray-850 dark:bg-gray-950 top-[56px] right-0 flex flex-col justify-start items-start gap-3'
+        className='cursor-default z-[2] p-3 rounded-xl absolute bg-white-100 !w-[272px] border border-gray-200 dark:border-gray-850 dark:bg-gray-950 top-[56px] right-0 flex flex-col justify-start items-start gap-3 !max-w-max'
       >
         <div className='absolute bottom-[100%] right-4'>
           <svg

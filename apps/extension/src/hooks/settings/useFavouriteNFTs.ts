@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { atom, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import Browser from 'webextension-polyfill'
 
-const favouriteNFTsStorage = atom<string[] | undefined>({
+export const favouriteNFTsStorage = atom<string[] | undefined>({
   key: FAVOURITE_NFTS,
   default: [],
 })

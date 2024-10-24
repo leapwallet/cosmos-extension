@@ -30,6 +30,11 @@ browser.runtime.onMessage.addListener((data, sender) => {
     const customEvent = new CustomEvent('accountsChanged', { detail: { data: data?.data } })
     window.dispatchEvent(customEvent)
   }
+
+  if (data?.event === 'disconnect') {
+    const customEvent = new CustomEvent('disconnect', { detail: { data: data?.data } })
+    window.dispatchEvent(customEvent)
+  }
 })
 
 function initKeepWorkerAlive() {

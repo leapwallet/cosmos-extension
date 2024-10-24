@@ -17,6 +17,7 @@ export class BetaCW20DenomsStore {
       denoms: observable,
       betaCW20Denoms: computed,
     });
+
     this.activeChainStore = activeChainStore;
     this.storageAdapter = storageAdapter;
     this.readyPromise = this.initialize();

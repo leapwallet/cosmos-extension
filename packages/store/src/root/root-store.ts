@@ -1,4 +1,4 @@
-import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { ChainInfo, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { BalanceStore, CW20DenomBalanceStore, ERC20DenomBalanceStore, EvmBalanceStore, PriceStore } from 'bank';
 import BigNumber from 'bignumber.js';
 import { computed, makeObservable } from 'mobx';
@@ -118,41 +118,87 @@ export class RootBalanceStore {
     );
   }
 
-  getSpendableBalancesForChain = computedFn((chain: SupportedChain) => {
-    const nativeDenoms = this.chainInfosStore?.chainInfos?.[chain]?.nativeDenoms ?? [];
-    const bankTokens = this.nativeBalanceStore.getSpendableBalancesForChain(chain);
-    const nativeTokens = bankTokens.filter(
-      (token) => Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
+  get allSpendableTokensAggregated() {
+    return sortTokenBalances(
+      this.nativeBalanceStore.aggregatedSpendableBalances.concat(
+        this.erc20BalanceStore.allERC20Tokens,
+        this.cw20BalanceStore.allCW20Tokens,
+      ),
     );
-    const nonNativeBankTokens = bankTokens.filter(
-      (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
-    );
-    const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain);
-    const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain);
+  }
 
-    return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens)));
-  });
-
-  getBalancesForChain = computedFn((chain: SupportedChain) => {
-    const nativeDenoms = this.chainInfosStore?.chainInfos?.[chain]?.nativeDenoms ?? [];
-    const bankTokens = this.nativeBalanceStore.getBalancesForChain(chain);
-    const nativeTokens = bankTokens.filter(
-      (token) => Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
-    );
-    const nonNativeBankTokens = bankTokens.filter(
-      (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
-    );
-    const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain);
-    const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain);
-
-    return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens)));
-  });
-
-  getLoadingStatusForChain = computedFn((chain: SupportedChain) => {
+  get allAggregatedTokensLoading() {
     return (
-      this.nativeBalanceStore.getLoadingStatusForChain(chain) ||
-      this.erc20BalanceStore.getLoadingStatusForChain(chain) ||
-      this.cw20BalanceStore.getLoadingStatusForChain(chain)
+      this.nativeBalanceStore.loading ||
+      this.erc20BalanceStore.aggregatedLoadingStatus ||
+      this.cw20BalanceStore.aggregatedLoadingStatus
+    );
+  }
+
+  getAggregatedBalancesForNetwork = computedFn(
+    (balanceType: 'balances' | 'spendableBalances', network: SelectedNetworkType) => {
+      const nativeDenoms = Object.values(this.chainInfosStore?.chainInfos ?? {}).reduce(
+        (acc: Record<string, NativeDenom>, chainInfo) => Object.assign(acc, chainInfo.nativeDenoms),
+        {},
+      );
+      const bankTokens =
+        balanceType === 'spendableBalances'
+          ? this.nativeBalanceStore.getAggregatedSpendableBalances(network)
+          : this.nativeBalanceStore.getAggregatedBalances(network);
+      const nativeTokens = bankTokens.filter(
+        (token) => Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
+      );
+      const nonNativeBankTokens = bankTokens.filter(
+        (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
+      );
+      const erc20Tokens = this.erc20BalanceStore.getAggregatedERC20Tokens(network);
+      const cw20Tokens = this.cw20BalanceStore.getAggregatedCW20Tokens(network);
+
+      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens)));
+    },
+  );
+
+  getTokensForChain = computedFn(
+    (chain: SupportedChain, balanceType: 'balances' | 'spendableBalances', network: SelectedNetworkType) => {
+      const nativeDenoms = this.chainInfosStore?.chainInfos?.[chain]?.nativeDenoms ?? [];
+      const bankTokens =
+        balanceType === 'spendableBalances'
+          ? this.nativeBalanceStore.getSpendableBalancesForChain(chain, network)
+          : this.nativeBalanceStore.getBalancesForChain(chain, network);
+      const nativeTokens = bankTokens.filter(
+        (token) => Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
+      );
+      const nonNativeBankTokens = bankTokens.filter(
+        (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
+      );
+      const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain, network);
+      const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain, network);
+
+      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens)));
+    },
+  );
+
+  getBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    return this.getTokensForChain(chain, 'balances', network);
+  });
+
+  getSpendableBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    return this.getTokensForChain(chain, 'spendableBalances', network);
+  });
+
+  getAggregatedBalances = computedFn((network: SelectedNetworkType) => {
+    return this.getAggregatedBalancesForNetwork('balances', network);
+  });
+
+  getAggregatedSpendableBalances = computedFn((network: SelectedNetworkType) => {
+    return this.getAggregatedBalancesForNetwork('spendableBalances', network);
+  });
+
+  getLoadingStatusForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    return (
+      this.nativeBalanceStore.getLoadingStatusForChain(chain, network) ||
+      this.erc20BalanceStore.getLoadingStatusForChain(chain, network) ||
+      this.cw20BalanceStore.getLoadingStatusForChain(chain, network)
     );
   });
 
@@ -185,16 +231,16 @@ export class RootBalanceStore {
   async loadBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType) {
     await Promise.all([
       this.nativeBalanceStore.loadBalances(chain, network),
-      this.erc20BalanceStore.fetchChainBalances(chain),
-      this.cw20BalanceStore.fetchChainBalances(chain),
+      this.erc20BalanceStore.fetchChainBalances(chain, network),
+      this.cw20BalanceStore.fetchChainBalances(chain, network),
     ]);
   }
 
   async refetchBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType) {
     await Promise.all([
       this.nativeBalanceStore.loadBalances(chain, network, true),
-      this.erc20BalanceStore.fetchChainBalances(chain),
-      this.cw20BalanceStore.fetchChainBalances(chain),
+      this.erc20BalanceStore.fetchChainBalances(chain, network),
+      this.cw20BalanceStore.fetchChainBalances(chain, network),
     ]);
   }
 }
@@ -210,6 +256,7 @@ export class RootStore {
   currencyStore: CurrencyStore;
   chainInfosStore: ChainInfosStore;
   evmBalanceStore: EvmBalanceStore;
+  initializing: 'pending' | 'inprogress' | 'done' = 'pending';
 
   constructor(
     nmsStore: NmsStore,
@@ -236,6 +283,8 @@ export class RootStore {
   }
 
   async initStores() {
+    if (this.initializing !== 'pending') return;
+    this.initializing = 'inprogress';
     await this.nmsStore.readyPromise;
     await this.addressStore.loadAddresses();
     await Promise.all([
@@ -243,13 +292,15 @@ export class RootStore {
       this.rootStakeStore.updateStake(),
       this.evmBalanceStore.loadEvmBalance(),
     ]);
+    this.initializing = 'done';
   }
 
-  async reloadAddresses() {
+  async reloadAddresses(chain?: AggregatedSupportedChainType) {
     await this.addressStore.loadAddresses();
+    if (this.initializing !== 'done') return;
     if (this.addressStore.addresses) {
       await Promise.all([
-        this.rootBalanceStore.loadBalances(),
+        this.rootBalanceStore.loadBalances(chain),
         this.rootStakeStore.updateStake(),
         this.evmBalanceStore.loadEvmBalance(),
       ]);
@@ -259,6 +310,7 @@ export class RootStore {
   async setActiveChain(chain: AggregatedSupportedChainType) {
     if (this.activeChainStore.activeChain === chain) return;
     this.activeChainStore.setActiveChain(chain);
+    if (this.initializing !== 'done') return;
     await Promise.all([
       this.rootBalanceStore.loadBalances(chain, this.selectedNetworkStore.selectedNetwork),
       this.rootStakeStore.updateStake(chain, this.selectedNetworkStore.selectedNetwork),
@@ -269,6 +321,7 @@ export class RootStore {
   async setSelectedNetwork(network: SelectedNetworkType) {
     if (this.selectedNetworkStore.selectedNetwork === network) return;
     this.selectedNetworkStore.setSelectedNetwork(network);
+    if (this.initializing !== 'done') return;
     await Promise.all([
       this.rootBalanceStore.loadBalances(this.activeChainStore.activeChain, this.selectedNetworkStore.selectedNetwork),
       this.rootStakeStore.updateStake(this.activeChainStore.activeChain, network),
@@ -278,6 +331,7 @@ export class RootStore {
 
   async setPreferredCurrency(currency: SupportedCurrencies) {
     this.currencyStore.updatePreferredCurrency(currency);
+    if (this.initializing !== 'done') return;
     await this.priceStore.getData();
     await Promise.all([
       this.rootBalanceStore.loadBalances(),
@@ -288,6 +342,7 @@ export class RootStore {
 
   async setChains(chainInfos: Record<SupportedChain, ChainInfo>) {
     this.chainInfosStore.setChainInfos(chainInfos);
+    if (this.initializing !== 'done') return;
     await Promise.all([
       this.rootBalanceStore.loadBalances(),
       this.rootStakeStore.updateStake(),

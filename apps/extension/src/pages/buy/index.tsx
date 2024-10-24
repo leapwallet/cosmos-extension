@@ -6,7 +6,7 @@ import { captureException } from '@sentry/react'
 import BigNumber from 'bignumber.js'
 import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
-import { EventName, PageName } from 'config/analytics'
+import { ButtonName, ButtonType, EventName, OnRampProvider, PageName } from 'config/analytics'
 import { motion } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { AssetProps } from 'hooks/kado/useGetSupportedAssets'
@@ -31,6 +31,8 @@ import { removeLeadingZeroes } from 'utils/strings'
 import SelectAssetSheet from './components/SelectAssetSheet'
 import { SelectAssetButton, SelectCurrencyButton } from './components/SelectButton'
 import SelectCurrencySheet from './components/SelectCurrencySheet'
+import useWallets = Wallet.useWallets
+import { Wallet } from 'hooks/wallet/useWallet'
 
 export enum ServiceProviderEnum {
   KADO = 'kado',
@@ -72,6 +74,20 @@ const Buy = () => {
   const [error, setError] = useState<string | null>(null)
   const inputAmountRef = useRef(null)
   const chains = useChainInfos()
+  const wallets = useWallets()
+
+  const selectedAddressIsSelf: boolean | null = useMemo(() => {
+    const walletAddresses = wallets
+      ? Object.values(wallets)
+          .map((wallet) => Object.values(wallet.addresses))
+          .flat()
+      : []
+    if (selectedAddress) {
+      return walletAddresses.includes(selectedAddress)
+    } else {
+      return null
+    }
+  }, [selectedAddress, wallets])
 
   useEffect(() => {
     async function getQuote() {
@@ -173,19 +189,26 @@ const Buy = () => {
     setLimitError()
   }, [fiatAmountInUsd, selectedCurrency])
 
-  const trackCTAEvent = useCallback((amount: string, asset: AssetProps, currency: string) => {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: 'onramp',
-      buttonName: 'Redirection',
-      provider: ServiceProviderEnum.KADO,
-      buyToken: asset?.symbol,
-      buyTokenNetwork: asset?.origin,
-      chainName: asset?.chainName,
-      chainId: asset?.chainId,
-      fiatCurrency: currency,
-      fiatAmount: new BigNumber(amount).toNumber(),
-    })
-  }, [])
+  const trackCTAEvent = useCallback(
+    (amount: string, asset: AssetProps, currency: string) => {
+      mixpanel.track(EventName.ButtonClick, {
+        buttonType: ButtonType.ONRAMP,
+        buttonName: ButtonName.ONRAMP_PROVIDER_REDIRECTION,
+        onRampProvider: OnRampProvider.KADO,
+        provider: ServiceProviderEnum.KADO,
+        buyToken: asset?.symbol,
+        buyTokenNetwork: asset?.origin,
+        chainName: asset?.chainName,
+        chainId: asset?.chainId,
+        fiatCurrency: currency,
+        fiatAmountInUSD: new BigNumber(amount).toNumber(),
+        fiatAmount: new BigNumber(debouncedPayAmount).toNumber(),
+        transferToSelf: selectedAddressIsSelf,
+        receiverAddress: selectedAddress,
+      })
+    },
+    [debouncedPayAmount, selectedAddress, selectedAddressIsSelf],
+  )
 
   const handleBuyClick = useCallback(() => {
     const params = {

@@ -1,5 +1,4 @@
 import { useActiveChain, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import {
   CardDivider,
   NavCard,

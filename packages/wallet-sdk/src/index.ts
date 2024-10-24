@@ -1,6 +1,7 @@
 export * from './accounts';
 export * from './chains';
 export * from './constants';
+export * from './coreum';
 export * from './gov';
 export * from './healthy-nodes';
 export * from './key';

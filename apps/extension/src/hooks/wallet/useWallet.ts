@@ -3,7 +3,6 @@ import {
   FEATURE_FLAG_STORAGE_KEY,
   Key,
   useChainsStore,
-  useFeatureFlags,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -30,6 +29,7 @@ import {
   SELECTED_NETWORK,
 } from 'config/storage-keys'
 import { useAuth } from 'context/auth-context'
+import { isAllChainsEnabled, useIsAllChainsEnabled } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { closeSidePanel } from 'utils/closeSidePanel'
@@ -56,10 +56,8 @@ export namespace Wallet {
     const newWalletEntries = Object.keys(newWallets)
     const lastEntry = newWalletEntries[0]
     const featureFlags = JSON.parse(data[FEATURE_FLAG_STORAGE_KEY] ?? '{}')
-    const leapFallbackChain =
-      featureFlags?.give_all_chains_option_in_wallet?.extension === 'active'
-        ? AGGREGATED_CHAIN_KEY
-        : ChainInfos.cosmos.key
+    const allChainsEnabled = isAllChainsEnabled(featureFlags?.data)
+    const leapFallbackChain = allChainsEnabled ? AGGREGATED_CHAIN_KEY : ChainInfos.cosmos.key
 
     return await browser.storage.local.set({
       [KEYSTORE]: newKeystore,
@@ -92,13 +90,10 @@ export namespace Wallet {
   export function useRemoveWallet() {
     const { activeWallet, setActiveWallet } = useActiveWallet()
     const auth = useAuth()
-    const { data: featureFlags } = useFeatureFlags()
+    const allChainsEnabled = useIsAllChainsEnabled()
 
     const removeAll = async (signout = true) => {
-      const leapFallbackChain =
-        featureFlags?.give_all_chains_option_in_wallet?.extension === 'active'
-          ? AGGREGATED_CHAIN_KEY
-          : ChainInfos.cosmos.key
+      const leapFallbackChain = allChainsEnabled ? AGGREGATED_CHAIN_KEY : ChainInfos.cosmos.key
 
       await browser.storage.local.set({
         [KEYSTORE]: null,

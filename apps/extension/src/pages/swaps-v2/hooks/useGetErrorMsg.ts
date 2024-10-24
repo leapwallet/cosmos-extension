@@ -3,7 +3,11 @@ import { SourceChain, SourceToken } from 'types/swap'
 
 const NO_TRANSACTION_ROUTES_ERROR = 'No transaction routes available'
 // Skip's API responses for which to show NO_TRANSACTION_ROUTES_ERROR
-const noTransactionRoutesErrors = ['no routes found', 'cannot swap on a chain']
+const noTransactionRoutesErrors = [
+  'no routes found',
+  'cannot swap on a chain',
+  'cannot transfer across',
+]
 
 export function isNoRoutesAvailableError(routeError: string | undefined) {
   return routeError?.toLowerCase().includes(NO_TRANSACTION_ROUTES_ERROR?.toLowerCase())

@@ -20,7 +20,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSidePanel } from 'utils/isSidePanel'
 
 const faucetsURL = `${process.env.LEAP_WALLET_BACKEND_API_URL}/faucets`
-const showFaucetsForChain = ['mantra-hongbai-1']
+const showFaucetsForChain: string[] = []
 
 type Faucet = {
   faucet_id: number

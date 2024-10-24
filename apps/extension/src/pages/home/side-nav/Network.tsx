@@ -8,7 +8,6 @@ import { useSelectedNetwork, useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router'
-import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { sendMessageToTab } from 'utils'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -25,9 +24,9 @@ export default function NetworkDropUp({
 }) {
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
+  const setNetwork = useSetNetwork()
 
   const navigate = useNavigate()
-  const adjustedSetCurrentChainName = useSetNetwork()
   const currentChainName = useSelectedNetwork()
   const mainnetEvmChainId = useChainId(activeChain, 'mainnet', true)
   const testnetEvmChainId = useChainId(activeChain, 'testnet', true)
@@ -41,8 +40,7 @@ export default function NetworkDropUp({
         enabled: !!chainInfos[activeChain]?.apis?.rpc,
         onClick: async () => {
           if (chainInfos[activeChain]?.apis?.rpc) {
-            adjustedSetCurrentChainName('mainnet')
-            rootStore.setSelectedNetwork('mainnet')
+            setNetwork('mainnet')
             navigate('/', { replace: true })
             try {
               await sendMessageToTab({ event: 'chainChanged', data: mainnetEvmChainId })
@@ -59,8 +57,7 @@ export default function NetworkDropUp({
         enabled: !!chainInfos[activeChain]?.apis?.rpcTest,
         onClick: async () => {
           if (chainInfos[activeChain]?.apis?.rpcTest) {
-            adjustedSetCurrentChainName('testnet')
-            rootStore.setSelectedNetwork('testnet')
+            setNetwork('testnet')
             navigate('/', { replace: true })
 
             try {

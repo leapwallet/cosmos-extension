@@ -175,7 +175,9 @@ const TabList = observer(
           />
         )}
 
-        {selectedTab === TabElements.YOUR_PROVIDERS && <ProviderList />}
+        {selectedTab === TabElements.YOUR_PROVIDERS && (
+          <ProviderList forceChain={activeChain} forceNetwork={activeNetwork} />
+        )}
       </div>
     )
   },

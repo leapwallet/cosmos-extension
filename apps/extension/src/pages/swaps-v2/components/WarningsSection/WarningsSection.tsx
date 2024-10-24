@@ -16,8 +16,18 @@ export function WarningsSection({
   setIsPriceImpactChecked,
   ledgerError,
 }: Props) {
-  const { route, isMoreThanOneStepTransaction, gasError, errorMsg, amountExceedsBalance } =
-    useSwapContext()
+  const {
+    route,
+    isMoreThanOneStepTransaction,
+    gasError,
+    errorMsg,
+    amountExceedsBalance,
+    isSanctionedAddressPresent,
+  } = useSwapContext()
+
+  if (isSanctionedAddressPresent) {
+    return <WarningBox message='Unable to process this transaction' type={'error'} />
+  }
 
   if (isNoRoutesAvailableError(errorMsg)) {
     return null

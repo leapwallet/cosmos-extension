@@ -377,7 +377,7 @@ export const useFeeTokens = (
     initialData: [
       {
         denom: baseDenom,
-        ibcDenom: baseDenom?.coinMinimalDenom,
+        ibcDenom: baseDenom?.coinMinimalDenom?.startsWith('ibc/') ? baseDenom.coinMinimalDenom : undefined,
         gasPriceStep,
       },
     ],

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
   hasToAddEvmDetails,
+  isERC20Token,
   Token,
   useGasAdjustmentForChain,
   useIsSeiEvmChain,
@@ -76,17 +77,8 @@ export const AmountCard = observer(
       [allCW20Denoms],
     )
 
-    const isERC20Token = useCallback(
-      (token: Token) => {
-        if (!token) {
-          return false
-        }
-        return Object.keys(allERC20Denoms).includes(token.coinMinimalDenom)
-      },
-      [allERC20Denoms],
-    )
-
     const assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
+    const chainId = useQuery().get('chainId') ?? undefined
 
     const {
       inputAmount,
@@ -268,8 +260,12 @@ export const AmountCard = observer(
           ) || null
 
         updateSelectedToken(tokenFromParams)
+      } else if (chainId) {
+        const tokenFromParams: Token | null =
+          assets.find((asset) => new BigNumber(asset.amount).gt(0)) || null
+        updateSelectedToken(tokenFromParams)
       }
-    }, [assetCoinDenom, activeChain, assets, updateSelectedToken])
+    }, [chainId, assetCoinDenom, activeChain, assets, updateSelectedToken])
 
     useEffect(() => {
       if (addressWarning.type === 'link') {
@@ -284,7 +280,7 @@ export const AmountCard = observer(
           isSeiEvmChain &&
           selectedToken &&
           selectedAddress?.address?.toLowerCase()?.startsWith('0x') &&
-          !isERC20Token(selectedToken) &&
+          !isERC20Token(Object.keys(allERC20Denoms), selectedToken?.coinMinimalDenom) &&
           selectedToken.coinMinimalDenom !== 'usei'
         ) {
           if (associatedSeiAddress) {
@@ -360,6 +356,7 @@ export const AmountCard = observer(
       isSeiEvmTransaction,
       sendActiveChain,
       chainInfos,
+      allERC20Denoms,
     ])
 
     return (

@@ -111,6 +111,7 @@ function tokenHasBalance(token: Token | undefined) {
 
 export type GasPriceOptionsProps = React.PropsWithChildren<{
   className?: string
+  hasUserTouchedFees?: boolean
   recommendedGasLimit?: BigNumber | string
   gasLimit: BigNumber | string
   setGasLimit: (gasLimit: number | string | BigNumber) => void
@@ -172,6 +173,7 @@ const GasPriceOptions = observer(
     notUpdateInitialGasPrice,
     rootDenomsStore,
     rootBalanceStore,
+    hasUserTouchedFees,
   }: GasPriceOptionsProps) => {
     const [viewAdditionalOptions, setViewAdditionalOptions] = useState(false)
     const _activeChain = useActiveChain()
@@ -208,8 +210,8 @@ const GasPriceOptions = observer(
     const { chains } = useChainsStore()
     const chainInfo = chains[activeChain as SupportedChain]
     const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain)
-    let allTokens = rootBalanceStore.getSpendableBalancesForChain(activeChain)
-    const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain)
+    let allTokens = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
+    const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain, selectedNetwork)
 
     allTokens = useMemo(() => {
       if (
@@ -276,8 +278,12 @@ const GasPriceOptions = observer(
     const prevFeeRef = useRef<string | null>(null)
 
     useEffect(() => {
-      if (JSON.stringify(fee) === prevFeeRef.current) return
-      prevFeeRef.current = JSON.stringify(fee)
+      const stringifiedFee = JSON.stringify(fee, (_, value) => {
+        return typeof value === 'bigint' ? value.toString() : value
+      })
+
+      if (stringifiedFee === prevFeeRef.current) return
+      prevFeeRef.current = stringifiedFee
       if (fee && validateFee) {
         feeValidation(
           {
@@ -435,9 +441,14 @@ const GasPriceOptions = observer(
         //@ts-ignore
         .dividedBy(10 ** (hasToChangeDecimals ? 18 : feeTokenData?.denom?.coinDecimals ?? 8))
 
+      const skipBalanceCheck =
+        !!notUpdateInitialGasPrice && hasUserTouchedFees !== true && !userHasSelectedToken
+
       if (
-        (isIbcDenom && feeTokenAsset?.ibcDenom === feeTokenData?.ibcDenom) ||
-        feeTokenAsset?.coinMinimalDenom === feeTokenData?.denom.coinMinimalDenom
+        !skipBalanceCheck &&
+        feeTokenData &&
+        ((isIbcDenom && feeTokenAsset?.ibcDenom === feeTokenData?.ibcDenom) ||
+          feeTokenAsset?.coinMinimalDenom === feeTokenData.denom?.coinMinimalDenom)
       ) {
         if (amount.isGreaterThan(feeTokenAsset?.amount ?? 0)) {
           setError(
@@ -460,6 +471,9 @@ const GasPriceOptions = observer(
       setError,
       disableBalanceCheck,
       considerGasAdjustment,
+      notUpdateInitialGasPrice,
+      hasUserTouchedFees,
+      userHasSelectedToken,
     ])
 
     // if recommended gas limit updates, set the gas limit to the recommended gas limit
@@ -886,7 +900,7 @@ GasPriceOptions.AdditionalSettings = observer(
     const defaultTokenLogo = useDefaultTokenLogo()
     const gasAdjustment = useGasAdjustmentForChain(activeChain)
     const denoms = rootDenomsStore.allDenoms
-    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain)
+    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
     const { data: feeTokensList, isLoading } = useFeeTokens(
       allAssets,
       denoms,

@@ -1,5 +1,11 @@
 // eslint-disable-next-line simple-import-sort/imports
-import { sliceWord, useActiveStakingDenom, useDualStaking } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  sliceWord,
+  useActiveChain,
+  useActiveStakingDenom,
+  useDualStaking,
+  useSelectedNetwork,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
@@ -14,7 +20,7 @@ import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
 import { StakeInputPageState } from '../StakeInputPage'
-import { ProviderDelegation, Provider } from '@leapwallet/cosmos-wallet-sdk'
+import { ProviderDelegation, Provider, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { observer } from 'mobx-react-lite'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
@@ -27,6 +33,8 @@ interface StakedProviderDetailsProps {
   provider?: Provider
   delegation: ProviderDelegation
   rootDenomsStore: RootDenomsStore
+  forceChain?: SupportedChain
+  forceNetwork?: 'mainnet' | 'testnet'
 }
 
 const StakedProviderDetails = observer(
@@ -37,9 +45,20 @@ const StakedProviderDetails = observer(
     provider,
     delegation,
     rootDenomsStore,
+    forceChain,
+    forceNetwork,
   }: StakedProviderDetailsProps) => {
     const denoms = rootDenomsStore.allDenoms
-    const [activeStakingDenom] = useActiveStakingDenom(denoms)
+    const _activeChain = useActiveChain()
+    const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
+
+    const _activeNetwork = useSelectedNetwork()
+    const activeNetwork = useMemo(
+      () => forceNetwork || _activeNetwork,
+      [_activeNetwork, forceNetwork],
+    )
+
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const [formatCurrency] = useFormatCurrency()
     const { theme } = useTheme()
     const { formatHideBalance } = useHideAssets()
@@ -249,7 +268,13 @@ function ProviderCard({ provider, delegation, onClick }: ProviderCardProps) {
   )
 }
 
-export default function ProviderList() {
+export default function ProviderList({
+  forceChain,
+  forceNetwork,
+}: {
+  forceChain?: SupportedChain
+  forceNetwork?: 'mainnet' | 'testnet'
+}) {
   const navigate = useNavigate()
   const [showStakedProviderDetails, setShowStakedProviderDetails] = useState(false)
   const [selectedDelegation, setSelectedDelegation] = useState<ProviderDelegation | undefined>()
@@ -354,6 +379,8 @@ export default function ProviderList() {
               } as StakeInputPageState,
             })
           }}
+          forceChain={forceChain}
+          forceNetwork={forceNetwork}
         />
       )}
     </>

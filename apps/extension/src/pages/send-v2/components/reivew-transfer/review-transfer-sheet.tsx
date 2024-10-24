@@ -1,7 +1,7 @@
 import {
   formatTokenAmount,
+  isERC20Token,
   sliceAddress,
-  Token,
   useformatCurrency,
   useGetChains,
   useIsSeiEvmChain,
@@ -9,6 +9,7 @@ import {
 import {
   ChainInfos,
   isEthAddress,
+  LeapLedgerSignerEth,
   pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -46,16 +47,6 @@ export const ReviewTransferSheet = observer(
     const chains = useGetChains()
     const getWallet = Wallet.useGetWallet()
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
-
-    const isERC20Token = useCallback(
-      (token: Token) => {
-        if (!token) {
-          return false
-        }
-        return Object.keys(allERC20Denoms).includes(token.coinMinimalDenom)
-      },
-      [allERC20Denoms],
-    )
     const isSeiEvmChain = useIsSeiEvmChain()
 
     const {
@@ -81,6 +72,7 @@ export const ReviewTransferSheet = observer(
       fetchAccountDetailsData,
       associatedSeiAddress,
       sendActiveChain,
+      associated0xAddress,
     } = useSendContext()
 
     const { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError } =
@@ -105,7 +97,10 @@ export const ReviewTransferSheet = observer(
 
       try {
         let toAddress = selectedAddress.address
-        const _isERC20Token = isERC20Token(selectedToken)
+        const _isERC20Token = isERC20Token(
+          Object.keys(allERC20Denoms),
+          selectedToken?.coinMinimalDenom,
+        )
 
         if (
           (isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) &&
@@ -118,6 +113,10 @@ export const ReviewTransferSheet = observer(
 
         if (selectedAddress.address.toLowerCase().startsWith('0x') && associatedSeiAddress) {
           toAddress = associatedSeiAddress
+        }
+
+        if (associated0xAddress) {
+          toAddress = associated0xAddress
         }
 
         if ((isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) && isEthAddress(toAddress)) {
@@ -142,7 +141,18 @@ export const ReviewTransferSheet = observer(
           // we use Skip API for transfer or
           // else we use default Cosmos API
 
-          confirmSkipTx()
+          const wallet = await getWallet(sendActiveChain, true)
+          if (sendActiveChain === 'evmos' && wallet instanceof LeapLedgerSignerEth) {
+            await confirmSend({
+              selectedToken: selectedToken,
+              toAddress: associatedSeiAddress || selectedAddress?.address || '',
+              amount: new BigNumber(inputAmount),
+              memo: memo,
+              fees: fee,
+            })
+          } else {
+            confirmSkipTx()
+          }
         } else {
           await confirmSend({
             selectedToken: selectedToken,
@@ -160,12 +170,13 @@ export const ReviewTransferSheet = observer(
       fee,
       selectedAddress?.address,
       selectedToken,
-      isERC20Token,
+      allERC20Denoms,
       isSeiEvmChain,
       chains,
       sendActiveChain,
-      associatedSeiAddress,
       fetchAccountDetailsData?.pubKey.key,
+      associatedSeiAddress,
+      associated0xAddress,
       transferData?.isSkipTransfer,
       isIbcUnwindingDisabled,
       isIBCTransfer,
@@ -175,9 +186,9 @@ export const ReviewTransferSheet = observer(
       userPreferredGasLimit,
       gasEstimate,
       userPreferredGasPrice?.amount,
-      confirmSkipTx,
       confirmSend,
       memo,
+      confirmSkipTx,
     ])
 
     useCaptureTxError(txError)

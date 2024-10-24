@@ -66,12 +66,7 @@ export class IbcTraceFetcher {
 
     const cacheMatch = ibcTraceData[baseDenom];
     if (cacheMatch) {
-      return denoms[cacheMatch.baseDenom];
-    }
-
-    if (ibcTraceData[baseDenom] !== undefined) {
-      const trace = ibcTraceData[baseDenom];
-      return getDenom(trace);
+      return getDenom(cacheMatch);
     }
 
     try {

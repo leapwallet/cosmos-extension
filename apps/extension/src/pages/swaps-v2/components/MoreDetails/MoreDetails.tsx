@@ -7,6 +7,7 @@ import { Images } from 'images'
 import { useSwapContext } from 'pages/swaps-v2/context'
 import { getSlippageRemarks } from 'pages/swaps-v2/utils/slippage'
 import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import LeapFeesInfoSheet from './LeapFeesInfoSheet'
 import PriceImpactSheet from './PriceImpactSheet'
@@ -169,7 +170,7 @@ export function MoreDetails({
           <div className='flex w-full justify-between items-center'>
             <div className='flex justify-start items-center gap-1'>
               <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px]'>
-                Leap fee
+                {isCompassWallet() ? 'Compass' : 'Leap'} fee
               </span>
               {showInfo && (
                 <button

@@ -83,6 +83,7 @@ export class CW20DenomBalanceStore {
       this.selectedNetworkStore.readyPromise,
       this.disabledCW20DenomsStore.readyPromise,
       this.priceStore.readyPromise,
+      this.aggregatedChainsStore.readyPromise,
     ]);
   }
 
@@ -131,7 +132,7 @@ export class CW20DenomBalanceStore {
     const rpcUrl = hasEntryInNms ? this.nmsStore.rpcEndPoints[chainId][0].nodeUrl : chainInfo.apis[nodeUrlKey];
     const address = this.addressStore.addresses[chainInfo.key];
 
-    const balanceKey = this.getBalanceKey(activeChain);
+    const balanceKey = this.getBalanceKey(activeChain, network);
     if (!rpcUrl || !address || !cw20DenomAddresses || cw20DenomAddresses.length === 0) {
       runInAction(() => {
         this.chainWiseLoadingStatus[balanceKey] = false;
@@ -194,17 +195,18 @@ export class CW20DenomBalanceStore {
     return formattedBalances;
   }
 
-  private getBalanceKey(chain: AggregatedSupportedChainType): string {
-    const chainKey = this.getChainKey(chain);
+  private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+    const chainKey = this.getChainKey(chain, forceNetwork);
     const address = this.addressStore.addresses[chain];
 
     return `${chainKey}-${address}`;
   }
 
-  private getChainKey(chain: AggregatedSupportedChainType): string {
-    if (chain === 'aggregated') return 'aggregated';
+  private getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    if (chain === 'aggregated') return `aggregated-${network}`;
     const chainId =
-      this.selectedNetworkStore.selectedNetwork === 'testnet'
+      network === 'testnet'
         ? this.chainInfosStore.chainInfos[chain].testnetChainId
         : this.chainInfosStore.chainInfos[chain].chainId;
     return `${chain}-${chainId}`;
@@ -228,8 +230,8 @@ export class CW20DenomBalanceStore {
   }
 
   get combinedDenoms() {
-    const denoms = this.denomsStore.denoms;
-    const allAutoFetchedCW20Denoms = this.autoFetchedCW20DenomsStore.allAutoFetchedCW20Denoms;
+    const denoms = this.denomsStore.denoms ?? {};
+    const allAutoFetchedCW20Denoms = this.autoFetchedCW20DenomsStore.allAutoFetchedCW20Denoms ?? {};
     return { ...denoms, ...allAutoFetchedCW20Denoms };
   }
 
@@ -242,15 +244,10 @@ export class CW20DenomBalanceStore {
     if (chain === 'noble' && _denom === 'uusdc') {
       _denom = 'usdc';
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore not sure why ts is complaining here
-    const denomInfo = this.combinedDenoms?.[_denom];
 
-    // if (!denom && chainInfo.beta) {
-    //   if (Object.values(chainInfo.nativeDenoms)[0].coinMinimalDenom === _denom) {
-    //     denom = Object.values(chainInfo.nativeDenoms)[0];
-    //   }
-    // }
+    const betaCW20Denoms = this.betaCW20DenomsStore.getBetaCW20DenomsForChain(chain) ?? {};
+    const allDenoms: Record<string, any> = { ...betaCW20Denoms, ...this.combinedDenoms };
+    const denomInfo = allDenoms[_denom];
 
     if (!denomInfo) {
       return null;
@@ -311,7 +308,7 @@ export class CW20DenomBalanceStore {
   get cw20Tokens() {
     const activeChain = this.activeChainStore.activeChain;
     if (activeChain === 'aggregated') {
-      return sortTokenBalances(this.allCW20Tokens);
+      return this.allCW20Tokens;
     }
 
     const balanceKey = this.getBalanceKey(activeChain);
@@ -321,6 +318,22 @@ export class CW20DenomBalanceStore {
     );
     return sortTokenBalances(cw20Tokens);
   }
+
+  getAggregatedCW20Tokens = computedFn((network: SelectedNetworkType) => {
+    let allTokens: Token[] = [];
+    const chains = Object.keys(this.chainInfosStore?.chainInfos);
+
+    chains.forEach((chain) => {
+      const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
+      const cw20Tokens = this.filterDisplayCW20Tokens(
+        Object.values(this.chainWiseBalances[balanceKey] ?? {}),
+        chain as SupportedChain,
+      );
+      allTokens = allTokens.concat(cw20Tokens);
+    });
+
+    return sortTokenBalances(allTokens);
+  });
 
   get allCW20Tokens() {
     let allTokens: Token[] = [];
@@ -338,14 +351,14 @@ export class CW20DenomBalanceStore {
     return sortTokenBalances(allTokens);
   }
 
-  getCW20TokensForChain = computedFn((chain: SupportedChain) => {
-    const balanceKey = this.getBalanceKey(chain);
+  getCW20TokensForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    const balanceKey = this.getBalanceKey(chain, network);
     const cw20Tokens = this.filterDisplayCW20Tokens(Object.values(this.chainWiseBalances[balanceKey] ?? {}), chain);
     return sortTokenBalances(cw20Tokens ?? []);
   });
 
-  getLoadingStatusForChain = computedFn((chain: SupportedChain) => {
-    const balanceKey = this.getBalanceKey(chain);
+  getLoadingStatusForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    const balanceKey = this.getBalanceKey(chain, network);
     return this.chainWiseLoadingStatus[balanceKey] ?? true;
   });
 

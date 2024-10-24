@@ -27,7 +27,6 @@ import {
   createTransaction,
   SIGN_AMINO,
 } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/injective/core/modules'
-import { strideAminoConverters } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/stride/client'
 import {
   cosmosAminoConverters,
   cosmosProtoRegistry,
@@ -37,7 +36,8 @@ import {
   ibcProtoRegistry,
   osmosisAminoConverters as originalOsmosisAminoConverters,
   osmosisProtoRegistry,
-} from '@osmosis-labs/proto-codecs'
+} from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/osmosis'
+import { strideAminoConverters } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/stride/client'
 import { LEAPBOARD_URL, LEAPBOARD_URL_OLD } from 'config/constants'
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'

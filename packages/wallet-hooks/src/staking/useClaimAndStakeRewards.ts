@@ -1,5 +1,5 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
-import { calculateFee, Coin, GasPrice, StdFee } from '@cosmjs/stargate';
+import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
 import {
   ChainInfo,
   DefaultGasEstimates,
@@ -9,17 +9,15 @@ import {
   getSimulationFee,
   LedgerError,
   NativeDenom,
-  simulateTx,
+  simulateClaimAndStake,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { getDelegateMsg } from '@leapwallet/cosmos-wallet-sdk';
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
 import BigNumber from 'bignumber.js';
-import { MsgDelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { useformatCurrency } from '../settings';
 import {
@@ -63,27 +61,6 @@ export function getNativeDenom(
 ) {
   const nativeDenoms = Object.values(chainInfos[activeChain].nativeDenoms);
   return selectedNetwork === 'testnet' && nativeDenoms.length > 1 ? nativeDenoms[1] : nativeDenoms[0];
-}
-
-export async function simulateClaimAndStake(
-  lcdEndpoint: string,
-  fromAddress: string,
-  validatorsWithRewards: { validator: string; amount: Coin }[],
-  fee: Coin[],
-) {
-  const encodedClaimAndStakeMsgs: {
-    typeUrl: string;
-    value: Uint8Array;
-  }[] = [];
-  validatorsWithRewards.map((validatorWithReward) => {
-    const msg = getDelegateMsg(fromAddress, validatorWithReward.validator, validatorWithReward.amount);
-    const delegateMsg = {
-      typeUrl: msg.typeUrl,
-      value: MsgDelegate.encode(msg.value).finish(),
-    };
-    encodedClaimAndStakeMsgs.push(delegateMsg);
-  });
-  return await simulateTx(lcdEndpoint, fromAddress, encodedClaimAndStakeMsgs, { amount: fee });
 }
 
 export function useClaimAndStakeRewards(
@@ -210,7 +187,13 @@ export function useClaimAndStakeRewards(
             const feeDenom = getNativeDenom(chainInfos, activeChain, selectedNetWork);
             const fee = getSimulationFee(feeDenom?.coinMinimalDenom);
             try {
-              const { gasUsed } = await simulateClaimAndStake(lcdUrl ?? '', userAddress, validatorsWithRewards, fee);
+              const { gasUsed } = await simulateClaimAndStake(
+                lcdUrl ?? '',
+                userAddress,
+                validatorsWithRewards,
+                fee,
+                activeChain,
+              );
               gasEstimate = gasUsed;
             } catch (e) {
               //
@@ -363,7 +346,13 @@ export function useClaimAndStakeRewards(
       let gasEstimate = defaultGasStake;
       const feeDenom = getNativeDenom(chainInfos, activeChain, selectedNetWork);
       const fee = getSimulationFee(feeDenom?.coinMinimalDenom);
-      const { gasUsed } = await simulateClaimAndStake(lcdUrl ?? '', userAddress, validatorsWithRewards, fee);
+      const { gasUsed } = await simulateClaimAndStake(
+        lcdUrl ?? '',
+        userAddress,
+        validatorsWithRewards,
+        fee,
+        activeChain,
+      );
       gasEstimate = gasUsed;
       setRecommendedGasLimit(gasEstimate.toString());
     })();

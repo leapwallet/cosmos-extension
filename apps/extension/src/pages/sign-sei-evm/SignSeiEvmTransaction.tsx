@@ -7,14 +7,7 @@ import {
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ETHEREUM_METHOD_TYPE } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
-import {
-  formatEtherUnits,
-  getErc20TokenDetails,
-  SupportedChain,
-} from '@leapwallet/cosmos-wallet-sdk'
-import { Header } from '@leapwallet/leap-ui'
-import PopupLayout from 'components/layout/popup-layout'
-import { LoaderAnimation } from 'components/loader/Loader'
+import { formatEtherUnits, getErc20TokenDetails } from '@leapwallet/cosmos-wallet-sdk'
 import { MessageTypes } from 'config/message-types'
 import { BG_RESPONSE } from 'config/storage-keys'
 import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
@@ -26,49 +19,81 @@ import { rootBalanceStore } from 'stores/root-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import Browser from 'webextension-polyfill'
 
-import { MessageSignature, SignTransaction, SignTransactionProps } from './components'
+import { ArrowHeader, Loading, MessageSignature, SignTransaction } from './components'
 import { handleRejectClick } from './utils'
 
-export function Loading() {
-  return (
-    <PopupLayout
-      className='self-center justify-self-center'
-      header={<Header title='Sign Transaction' />}
-    >
-      <div className='h-full w-full flex flex-col gap-4 items-center justify-center'>
-        <LoaderAnimation color='white' />
-      </div>
-    </PopupLayout>
-  )
+type SeiEvmTransactionProps = {
+  txnDataList: Record<string, any>[]
+  setTxnDataList: React.Dispatch<React.SetStateAction<Record<string, any>[] | null>>
 }
 
-function SeiEvmTransaction({ txnData }: SignTransactionProps) {
+function SeiEvmTransaction({ txnDataList, setTxnDataList }: SeiEvmTransactionProps) {
   const navigate = useNavigate()
+  const [activeTxn, setActiveTxn] = useState(0)
+
   useEffect(() => {
-    window.addEventListener('beforeunload', () => handleRejectClick(navigate))
+    window.addEventListener('beforeunload', () =>
+      handleRejectClick(navigate, txnDataList[0]?.payloadId),
+    )
     Browser.storage.local.remove(BG_RESPONSE)
 
     return () => {
-      window.removeEventListener('beforeunload', () => handleRejectClick(navigate))
+      window.removeEventListener('beforeunload', () =>
+        handleRejectClick(navigate, txnDataList[0]?.payloadId),
+      )
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  switch (txnData.signTxnData.methodType) {
-    case ETHEREUM_METHOD_TYPE.PERSONAL_SIGN:
-    case ETHEREUM_METHOD_TYPE.ETH__SIGN:
-    case ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4:
-      return <MessageSignature txnData={txnData} />
+  const handleTxnListUpdate = (customId: string) => {
+    const filteredTxnDataList = txnDataList.filter((_txnData) => _txnData.customId !== customId)
+    setTxnDataList(filteredTxnDataList)
+    setActiveTxn(0)
   }
 
   return (
-    <SignTransaction
-      txnData={txnData}
-      rootDenomsStore={rootDenomsStore}
-      rootBalanceStore={rootBalanceStore}
-      evmBalanceStore={evmBalanceStore}
-    />
+    <>
+      {txnDataList.length > 1 ? (
+        <ArrowHeader
+          activeIndex={activeTxn}
+          setActiveIndex={setActiveTxn}
+          limit={txnDataList.length}
+        />
+      ) : null}
+
+      {txnDataList.map((txnData, index) => {
+        if (index !== activeTxn) {
+          return null
+        }
+
+        switch (txnData.signTxnData.methodType) {
+          case ETHEREUM_METHOD_TYPE.PERSONAL_SIGN:
+          case ETHEREUM_METHOD_TYPE.ETH__SIGN:
+          case ETHEREUM_METHOD_TYPE.ETH__SIGN_TYPED_DATA_V4:
+            return (
+              <MessageSignature
+                key={txnData.customId}
+                txnData={txnData}
+                donotClose={txnDataList.length > 1}
+                handleTxnListUpdate={() => handleTxnListUpdate(txnData.customId)}
+              />
+            )
+        }
+
+        return (
+          <SignTransaction
+            key={txnData.customId}
+            txnData={txnData}
+            rootDenomsStore={rootDenomsStore}
+            rootBalanceStore={rootBalanceStore}
+            evmBalanceStore={evmBalanceStore}
+            donotClose={txnDataList.length > 1}
+            handleTxnListUpdate={() => handleTxnListUpdate(txnData.customId)}
+          />
+        )
+      })}
+    </>
   )
 }
 
@@ -84,7 +109,7 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
     const [hasCorrectChain, setHasCorrectChain] = useState(false)
 
     const activeNetwork = useSelectedNetwork()
-    const [txnData, setTxnData] = useState<Record<string, any> | null>(null)
+    const [txnDataList, setTxnDataList] = useState<Record<string, any>[] | null>(null)
     const { evmJsonRpc } = useChainApis(activeChain, activeNetwork)
     const evmChainId = useChainId(activeChain, activeNetwork, true)
     const { chains } = useChainsStore()
@@ -100,6 +125,8 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
         }
       }
       fn()
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const signSeiEvmTxEventHandler = useCallback(
@@ -125,7 +152,14 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
             }
           }
 
-          setTxnData(txnData)
+          setTxnDataList((prev) => {
+            prev = prev ?? []
+            if (prev.some((txn) => txn?.origin?.toLowerCase() !== txnData?.origin?.toLowerCase())) {
+              return prev
+            }
+
+            return [...prev, { ...txnData, customId: `${sender.id}-00${prev.length}` }]
+          })
         }
       },
       [evmChainId, evmJsonRpc],
@@ -142,8 +176,8 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
       }
     }, [signSeiEvmTxEventHandler, hasCorrectChain])
 
-    if (txnData) {
-      return <Component txnData={txnData} />
+    if (txnDataList?.length) {
+      return <Component txnDataList={txnDataList} setTxnDataList={setTxnDataList} />
     }
 
     return <Loading />
