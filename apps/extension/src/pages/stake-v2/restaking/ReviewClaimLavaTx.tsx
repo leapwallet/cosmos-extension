@@ -1,12 +1,15 @@
 import {
   FeeTokenData,
   formatTokenAmount,
+  SelectedNetwork,
   sliceWord,
+  useActiveChain,
   useActiveStakingDenom,
   useDualStaking,
   useDualStakingTx,
+  useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, Card } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
@@ -45,17 +48,39 @@ interface ReviewClaimLavaTxProps {
   validator?: Validator
   rootDenomsStore: RootDenomsStore
   rootBalanceStore: RootBalanceStore
+  forceChain?: SupportedChain
+  forceNetwork?: SelectedNetwork
 }
 export const ReviewClaimLavaTx = observer(
-  ({ isOpen, onClose, validator, rootDenomsStore, rootBalanceStore }: ReviewClaimLavaTxProps) => {
+  ({
+    isOpen,
+    onClose,
+    validator,
+    rootDenomsStore,
+    rootBalanceStore,
+    forceChain,
+    forceNetwork,
+  }: ReviewClaimLavaTxProps) => {
     const denoms = rootDenomsStore.allDenoms
+    const _activeChain = useActiveChain()
+    const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
+
+    const _activeNetwork = useSelectedNetwork()
+    const activeNetwork = useMemo(
+      () => forceNetwork || _activeNetwork,
+      [_activeNetwork, forceNetwork],
+    )
+
     const getWallet = useGetWallet()
-    const defaultGasPrice = useDefaultGasPrice(denoms)
+    const defaultGasPrice = useDefaultGasPrice(denoms, {
+      activeChain,
+      selectedNetwork: activeNetwork,
+    })
 
     const [formatCurrency] = useFormatCurrency()
     const { formatHideBalance } = useHideAssets()
     const defaultTokenLogo = useDefaultTokenLogo()
-    const [activeStakingDenom] = useActiveStakingDenom(denoms)
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
 
     const {
       showLedgerPopup,
@@ -74,7 +99,18 @@ export const ReviewClaimLavaTx = observer(
       feeDenom,
       ledgerError,
       setLedgerError,
-    } = useDualStakingTx(denoms, 'CLAIM_REWARDS', validator as Validator)
+    } = useDualStakingTx(
+      denoms,
+      'CLAIM_REWARDS',
+      validator as Validator,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      activeChain,
+      activeNetwork,
+    )
     const { rewards, providers } = useDualStaking()
     const [showFeesSettingSheet, setShowFeesSettingSheet] = useState<boolean>(false)
     const [gasError, setGasError] = useState<string | null>(null)
@@ -151,6 +187,8 @@ export const ReviewClaimLavaTx = observer(
         gasPriceOption={gasPriceOption}
         onGasPriceOptionChange={onGasPriceOptionChange}
         error={gasError}
+        chain={activeChain}
+        network={activeNetwork}
         setError={setGasError}
         rootDenomsStore={rootDenomsStore}
         rootBalanceStore={rootBalanceStore}

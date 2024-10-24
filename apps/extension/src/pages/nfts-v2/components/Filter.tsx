@@ -14,7 +14,7 @@ type FilterProps = {
 export function Filter({ searchedText, setSearchedText, onClickSortBy }: FilterProps) {
   return (
     <div className='flex justify-between items-center mb-4'>
-      <div className='flex-1 flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
+      <div className='flex-1 flex h-10 bg-white-100 dark:bg-gray-950 rounded-[30px] py-2 pl-5 pr-[10px]'>
         <input
           type='text'
           value={searchedText}
@@ -39,7 +39,7 @@ export function Filter({ searchedText, setSearchedText, onClickSortBy }: FilterP
 
       <button
         onClick={onClickSortBy}
-        className='rounded-3xl h-10 w-10 cursor-pointer ml-3 flex flex-shrink-0 justify-center items-center dark:bg-gray-900 bg-white-100'
+        className='rounded-3xl h-10 w-10 cursor-pointer ml-3 flex flex-shrink-0 justify-center items-center dark:bg-gray-950 bg-white-100'
       >
         <Sort size={24} className='text-center text-gray-400' />
       </button>

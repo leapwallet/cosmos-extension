@@ -71,6 +71,7 @@ function BannerAdCard({
   onClose,
   handleBtcBannerClick,
   handleAddChainClick,
+  handleSwitchChainClick,
 }: {
   bannerData: BannerADData
   chain: ChainInfo
@@ -81,6 +82,7 @@ function BannerAdCard({
   onClose: (bannerId: string, index: number) => void
   handleBtcBannerClick: () => void
   handleAddChainClick: (chain: string) => void
+  handleSwitchChainClick: (chain: string) => void
 }) {
   const navigate = useNavigate()
 
@@ -91,6 +93,8 @@ function BannerAdCard({
       navigate(bannerData.redirect_url)
     } else if (bannerData.banner_type === 'add-chain') {
       handleAddChainClick(bannerData.redirect_url)
+    } else if (bannerData.banner_type === 'switch-chain') {
+      handleSwitchChainClick(bannerData.redirect_url)
     } else {
       if (bannerData?.redirect_url && bannerData?.redirect_url !== '#') {
         window.open(bannerData.redirect_url)
@@ -502,6 +506,17 @@ const GlobalBannersAD = React.memo(
       [chainInfos, customChains, setActiveChain],
     )
 
+    const handleSwitchChainClick = useCallback(
+      (chainRegistryPath: string) => {
+        if (chainInfos[chainRegistryPath as SupportedChain]) {
+          setActiveChain(chainRegistryPath as AggregatedSupportedChain)
+        } else {
+          captureException(`${chainRegistryPath} chain not found when clicked on banners`)
+        }
+      },
+      [chainInfos, customChains, setActiveChain],
+    )
+
     if (!bannerAds || bannerAds.length === 0 || displayADs.length === 0) {
       if (!showBannersLoading) {
         return null
@@ -529,6 +544,7 @@ const GlobalBannersAD = React.memo(
                 onClose={handleBannerClose}
                 handleBtcBannerClick={handleBtcBannerClick}
                 handleAddChainClick={handleAddChainClick}
+                handleSwitchChainClick={handleSwitchChainClick}
               />
             )
           })}

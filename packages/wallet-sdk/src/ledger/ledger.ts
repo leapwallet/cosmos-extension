@@ -39,6 +39,7 @@ import {
   transactionDeclinedErrors,
   txDeclinedErrorUser,
 } from './ledger-errors';
+import { getSpeculosTransport, getUseSpeculosTransport } from './speculos-transport';
 import { isAppOpen, openApp } from './utils';
 
 class LedgerSignerEthers extends Signer {
@@ -107,11 +108,14 @@ const isWindows = () => navigator.platform.indexOf('Win') > -1;
 
 export async function getLedgerTransport(): Promise<Transport> {
   let transport;
+  if (getUseSpeculosTransport()) {
+    transport = await getSpeculosTransport();
+    return transport;
+  }
 
   if (isWindows()) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     //@ts-ignore
-
     if (!navigator.hid) {
       throw new LedgerError(
         `Your browser doesn't have HID enabled.\nPlease enable this feature by visiting:\nchrome://flags/#enable-experimental-web-platform-features`,

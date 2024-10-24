@@ -25,7 +25,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { HeaderActionType } from 'types/components'
 
 import StakePage from '../StakePage'
@@ -59,7 +59,7 @@ export const AggregatedStake = observer(
   }: AggregatedStakeProps) => {
     const [showSideNav, setShowSideNav] = useState(false)
     const [showChainSelector, setShowChainSelector] = useState(false)
-
+    const [defaultFilter, setDefaultFilter] = useState('All')
     const {
       perChainDelegations,
       totalCurrencyAmountDelegation,
@@ -79,6 +79,13 @@ export const AggregatedStake = observer(
 
     const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null)
     const { headerChainImgSrc } = useChainPageInfo()
+
+    useEffect(() => {
+      if (!showChainSelector) {
+        setDefaultFilter('All')
+      }
+    }, [showChainSelector])
+
     const averageAprValue = useMemo(() => {
       if (averageApr) {
         return `${currency((averageApr * 100).toString(), { precision: 2, symbol: '' }).format()} %`
@@ -133,7 +140,15 @@ export const AggregatedStake = observer(
       }
     }, [perChainDelegations, searchedText, showAmountInDescending, showAprInDescending, sortBy])
 
-    const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])
+    const onImgClick = useCallback(
+      (event?: React.MouseEvent<HTMLDivElement>, props?: { defaultFilter?: string }) => {
+        setShowChainSelector(true)
+        if (props?.defaultFilter) {
+          setDefaultFilter(props.defaultFilter)
+        }
+      },
+      [],
+    )
     const handleOpenSideNavSheet = useCallback(() => setShowSideNav(true), [])
     const handleTokenCardClick = useCallback((chain: SupportedChain) => setSelectedChain(chain), [])
     const handleBackClick = useCallback(() => setSelectedChain(null), [])
@@ -161,7 +176,7 @@ export const AggregatedStake = observer(
             <PageHeader
               title='Staking'
               imgSrc={headerChainImgSrc}
-              onImgClick={handleOpenSelectChainSheet}
+              onImgClick={onImgClick}
               action={{
                 onClick: handleOpenSideNavSheet,
                 type: HeaderActionType.NAVIGATION,
@@ -328,6 +343,7 @@ export const AggregatedStake = observer(
           chainTagsStore={chainTagsStore}
           isVisible={showChainSelector}
           onClose={() => setShowChainSelector(false)}
+          defaultFilter={defaultFilter}
         />
         <BottomNav label={BottomNavLabel.Stake} />
       </div>

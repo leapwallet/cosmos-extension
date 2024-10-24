@@ -1,4 +1,4 @@
-import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
+import { formatTokenAmount, sliceWord, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
@@ -7,6 +7,8 @@ import classNames from 'classnames'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { Images } from 'images'
+import { IconActionButton } from 'pages/home/components'
 import React, {
   Dispatch,
   SetStateAction,
@@ -18,7 +20,7 @@ import React, {
 } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { Colors } from 'theme/colors'
-import { SourceToken } from 'types/swap'
+import { SourceChain, SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -41,6 +43,8 @@ type TokenInputCardProps = {
   onChainSelectSheet?: () => void
   amountError?: boolean
   showFor?: 'source' | 'destination'
+  selectedChain?: SourceChain
+  isChainAbstractionView?: boolean
 }
 
 export function TokenInputCard({
@@ -61,10 +65,13 @@ export function TokenInputCard({
   onChainSelectSheet,
   amountError,
   showFor,
+  selectedChain,
+  isChainAbstractionView,
 }: TokenInputCardProps) {
   const [formatCurrency] = useFormatCurrency()
   const { formatHideBalance } = useHideAssets()
   const { theme } = useTheme()
+  const chains = useGetChains()
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [isFocused, setIsFocused] = useState(false)
@@ -83,7 +90,6 @@ export function TokenInputCard({
     if (showFor === 'source' && !selectedAssetUSDPrice && isInputInUSDC) {
       setIsInputInUSDC(false)
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAssetUSDPrice, isInputInUSDC])
 
@@ -202,7 +208,8 @@ export function TokenInputCard({
         <p className='dark:text-white-100 text-sm font-medium'>
           You {showFor === 'source' ? 'pay' : 'get'}
         </p>
-        {!isCompassWallet() &&
+        {!isChainAbstractionView &&
+          !isCompassWallet() &&
           (loadingChains ? (
             <Skeleton
               width={100}
@@ -277,17 +284,34 @@ export function TokenInputCard({
               })}
               onClick={onTokenSelectSheet}
             >
-              <img
-                src={token?.img ?? defaultTokenLogo}
-                className='w-[24px] h-[24px] rounded-full'
-                onError={imgOnError(defaultTokenLogo)}
-              />
+              <div className='relative'>
+                <img
+                  src={token?.img ?? defaultTokenLogo}
+                  className='w-[24px] h-[24px] rounded-full'
+                  onError={imgOnError(defaultTokenLogo)}
+                />
+                {selectedChain ? (
+                  <img
+                    src={chains[selectedChain.key]?.chainSymbolImageUrl ?? defaultTokenLogo}
+                    className='w-[14px] h-[14px] rounded-full absolute bottom-[-2px] right-[-2px]'
+                    onError={imgOnError(defaultTokenLogo)}
+                  />
+                ) : null}
+              </div>
+
               <p
                 className={classNames('dark:text-white-100 text-sm font-bold', {
                   // 'w-[105px]': !token?.symbol,
+                  'flex flex-col justify-between items-start text-xs border-r border-gray-800 pl-1 pr-2':
+                    !!selectedChain,
                 })}
               >
                 {token?.symbol ? sliceWord(token?.symbol ?? '', 4, 4) : 'Select Token'}
+                {selectedChain ? (
+                  <span className='text-gray-400 font-medium mt[-4px]'>
+                    {chains[selectedChain.key]?.chainName ?? 'Unknown'}
+                  </span>
+                ) : null}
               </p>
               <CaretDown size={14} className='dark:text-white-100' />
             </button>
@@ -328,20 +352,31 @@ export function TokenInputCard({
           )}
         </div>
 
-        <div className='flex justify-end items-center gap-2 max-[399px]:flex-col max-[399px]:justify-start max-[399px]:!items-end'>
-          <span
-            className={classNames('!leading-[24px]', {
-              'text-red-400 dark:text-red-300': amountError,
-              'text-gray-800 dark:text-gray-200': !amountError,
-            })}
-          >
-            Bal:{' '}
-            {!balanceStatus || balanceStatus === 'success' ? (
-              balanceAmount
-            ) : (
-              <Skeleton width={50} />
-            )}
-          </span>
+        <div className='flex justify-end items-center gap-1 max-[399px]:flex-col max-[399px]:justify-start max-[399px]:!items-end'>
+          {isChainAbstractionView && showFor === 'destination' && chainName && (
+            <button
+              onClick={onChainSelectSheet}
+              className='flex flex-row justify-start pr-[11px] gap-1 items-center text-gray-800 dark:text-gray-200'
+            >
+              <span>{`On ${chainName}`}</span>
+              <CaretDown size={14} className='cursor-pointer text-gray-800 dark:text-gray-200' />
+            </button>
+          )}
+          {isChainAbstractionView && showFor === 'destination' ? null : (
+            <span
+              className={classNames('!leading-[24px]', {
+                'text-red-400 dark:text-red-300': amountError,
+                'text-gray-800 dark:text-gray-200': !amountError,
+              })}
+            >
+              Bal:{' '}
+              {!balanceStatus || balanceStatus === 'success' ? (
+                balanceAmount
+              ) : (
+                <Skeleton width={50} />
+              )}
+            </span>
+          )}
           {showMaxButton && (
             <button
               onClick={onMaxBtnClick}

@@ -11,6 +11,7 @@ export * from './compass-sei-evm-config-store';
 export * from './cw20-denoms';
 export * from './denoms-store';
 export * from './erc20-denoms';
+export * from './erc404-denoms-store';
 export * from './ibc-trace-store';
 export * from './interacted-denoms-store';
 export * from './nft-chains-store';

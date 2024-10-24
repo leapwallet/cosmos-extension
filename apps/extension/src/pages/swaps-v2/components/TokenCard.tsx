@@ -18,12 +18,37 @@ import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useCallback, useMemo, useState } from 'react'
+import Skeleton from 'react-loading-skeleton'
 import { SourceChain, SourceToken } from 'types/swap'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import { sliceWord } from 'utils/strings'
+
+export const TokenCardSkeleton = () => {
+  return (
+    <div className='flex py-3 w-full z-0'>
+      <div className='w-10'>
+        <Skeleton
+          circle
+          className='w-10 h-10'
+          style={{
+            zIndex: 0,
+          }}
+        />
+      </div>
+      <div className='max-w-[80px] z-0 ml-2'>
+        <Skeleton width={80} className='z-0' />
+        <Skeleton width={60} className='z-0' />
+      </div>
+      <div className='max-w-[70px] ml-auto z-0 flex flex-col items-end'>
+        <Skeleton width={50} className='z-0' />
+        <Skeleton width={70} className='z-0' />
+      </div>
+    </div>
+  )
+}
 
 export function TokenCard({
   onTokenSelect,
@@ -33,6 +58,7 @@ export function TokenCard({
   hideAmount = false,
   showRedirection = false,
   selectedChain,
+  isChainAbstractionView,
 }: {
   onTokenSelect: (token: SourceToken) => void
   token: SourceToken
@@ -41,6 +67,7 @@ export function TokenCard({
   hideAmount?: boolean
   selectedChain: SourceChain | undefined
   showRedirection?: boolean
+  isChainAbstractionView?: boolean
 }) {
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const [formatCurrency] = useFormatCurrency()
@@ -182,13 +209,15 @@ export function TokenCard({
                 size='md'
                 className={classNames('font-bold', {
                   'items-center justify-center gap-1':
-                    activeChain === AGGREGATED_CHAIN_KEY && token?.ibcChainInfo,
+                    (activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
+                    token?.ibcChainInfo,
                 })}
                 data-testing-id={`switch-token-${tokenName.toLowerCase()}-ele`}
               >
                 {tokenName?.length > 20 ? sliceWord(tokenName, 6, 6) : tokenName}
 
-                {activeChain === AGGREGATED_CHAIN_KEY && token?.ibcChainInfo ? (
+                {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
+                token?.ibcChainInfo ? (
                   <span
                     className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] dark:text-white-100 text-black-100 bg-gray-50 dark:bg-gray-900'
                     title={ibcInfo}
@@ -217,7 +246,8 @@ export function TokenCard({
               ) : null}
             </div>
 
-            {activeChain === AGGREGATED_CHAIN_KEY && token?.tokenBalanceOnChain ? (
+            {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
+            token?.tokenBalanceOnChain ? (
               <p className='font-medium text-[10px] dark:text-white-100 text-black-100'>
                 {chains[token?.tokenBalanceOnChain]?.chainName ?? 'Unknown Chain'}
               </p>

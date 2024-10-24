@@ -5,8 +5,13 @@ import Add from './add.svg'
 import AddCircle from './add-circle.svg'
 import AddContact from './add-contact.svg'
 import AggregatedViewSvg from './aggregated-view.svg'
+import AggregatedViewDarkSvg from './aggregated-view-dark-mode.svg'
 import ArrowBack from './arrow-back.svg'
+import ArrowDoubleLeft from './arrow-double-left.svg'
+import ArrowDoubleRight from './arrow-double-right.svg'
 import ArrowDown from './arrow-down.svg'
+import ArrowSingleLeft from './arrow-single-left.svg'
+import ArrowSingleRight from './arrow-single-right.svg'
 import Blockchain from './blockchain.svg'
 import BridgeRoute from './bridge-route.svg'
 import CardDividerDarkMode from './card-divider-dark-mode.svg'
@@ -183,9 +188,14 @@ export {
   Add,
   AddCircle,
   AddContact,
+  AggregatedViewDarkSvg,
   AggregatedViewSvg,
   ArrowBack,
+  ArrowDoubleLeft,
+  ArrowDoubleRight,
   ArrowDown,
+  ArrowSingleLeft,
+  ArrowSingleRight,
   Blockchain,
   BridgeRoute,
   CardDividerDarkMode,

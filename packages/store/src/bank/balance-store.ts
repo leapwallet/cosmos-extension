@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
 import { computed, makeAutoObservable, makeObservable, reaction, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
@@ -31,7 +31,7 @@ export class PriceStore extends BaseQueryStore<Record<string, number>> {
     reaction(
       () => this.currencyStore.preferredCurrency,
       () => {
-        this.getData();
+        this.refetchData();
       },
     );
   }
@@ -71,9 +71,12 @@ export class RawBalanceStore extends BaseQueryStore<IRawBalanceResponse> {
   }
 
   async fetchData() {
-    const balanceUrl = `${this.restUrl}/cosmos/bank/v1beta1/${this.type}/${this.address}?pagination.limit=1000`;
-    const res = await fetch(balanceUrl);
-    const response = await res.json();
+    const res = await axiosWrapper({
+      baseURL: this.restUrl,
+      method: 'get',
+      url: `/cosmos/bank/v1beta1/${this.type}/${this.address}?pagination.limit=1000`,
+    });
+    const response = res.data;
     return response;
   }
 }
@@ -125,19 +128,19 @@ export class BalanceStore {
     this.selectedNetworkStore = selectedNetworkStore;
   }
 
-  getBalancesForChain = computedFn((chain: SupportedChain) => {
-    const balanceKey = this.getBalanceKey(chain);
+  getBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    const balanceKey = this.getBalanceKey(chain, network);
     return this.chainWiseBalances?.[balanceKey] ?? [];
   });
 
-  getSpendableBalancesForChain = computedFn((chain: SupportedChain) => {
-    const balanceKey = this.getBalanceKey(chain);
+  getSpendableBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    const balanceKey = this.getBalanceKey(chain, network);
     const balanceSource = this.getDefaultBalanceSource('chainWiseSpendableBalances', chain);
     return this[balanceSource]?.[balanceKey] ?? [];
   });
 
-  getLoadingStatusForChain = computedFn((chain: SupportedChain) => {
-    const balanceKey = this.getBalanceKey(chain);
+  getLoadingStatusForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    const balanceKey = this.getBalanceKey(chain, network);
     return this.chainWiseLoadingStates?.[balanceKey] ?? true;
   });
 
@@ -148,6 +151,18 @@ export class BalanceStore {
   get spendableBalances() {
     return this.getTokens('chainWiseSpendableBalances');
   }
+
+  get aggregatedSpendableBalances() {
+    return this.getTokens('chainWiseSpendableBalances', 'aggregated');
+  }
+
+  getAggregatedBalances = computedFn((network: SelectedNetworkType) => {
+    return this.getTokens('chainWiseBalances', 'aggregated', network);
+  });
+
+  getAggregatedSpendableBalances = computedFn((network: SelectedNetworkType) => {
+    return this.getTokens('chainWiseSpendableBalances', 'aggregated', network);
+  });
 
   get loadingStatus() {
     const chain = this.activeChainStore?.activeChain;
@@ -187,7 +202,7 @@ export class BalanceStore {
   }
 
   async refetchChainBalance(chain: SupportedChain, network?: SelectedNetworkType) {
-    const balanceKey = this.getBalanceKey(chain);
+    const balanceKey = this.getBalanceKey(chain, network);
     this.chainWiseLoadingStates[balanceKey] = true;
     await this.fetchChainBalance(chain, network, true);
   }
@@ -204,7 +219,7 @@ export class BalanceStore {
     const hasEntryInNms = this.nmsStore.restEndpoints[chainId] && this.nmsStore.restEndpoints[chainId].length > 0;
     const address = this.addressStore.addresses[chain];
 
-    const balanceKey = this.getBalanceKey(chain);
+    const balanceKey = this.getBalanceKey(chain, network);
     if (!address) {
       runInAction(() => {
         this.chainWiseLoadingStates[balanceKey] = false;
@@ -266,17 +281,18 @@ export class BalanceStore {
     }
   }
 
-  async loadBalances(_chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, forceRefetch = false) {
+  async loadBalances(_chain?: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType, forceRefetch = false) {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
     const chain = _chain || this.activeChainStore.activeChain;
     if (chain === 'aggregated') {
       this.aggregateBalanceVisible = false;
-      this.fetchAggregatedBalances(forceRefetch);
+      this.fetchAggregatedBalances(network, forceRefetch);
     } else {
       this.fetchChainBalance(chain as SupportedChain, network, forceRefetch);
     }
   }
 
-  async fetchAggregatedBalances(forceRefetch = false) {
+  async fetchAggregatedBalances(network: SelectedNetworkType, forceRefetch = false) {
     this.loading = true;
     const loadBalanceParams: Array<[string, string, SupportedChain]> = [];
 
@@ -299,12 +315,12 @@ export class BalanceStore {
     const totalRequests = loadBalanceParams.length;
 
     this.aggregatedChainsStore.aggregatedChainsData.forEach((chain) => {
-      const balanceKey = this.getBalanceKey(chain as SupportedChain);
+      const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
       runInAction(() => {
         this.chainWiseLoadingStates[balanceKey] = true;
       });
 
-      this.fetchChainBalance(chain as SupportedChain, this.selectedNetworkStore.selectedNetwork, forceRefetch)
+      this.fetchChainBalance(chain as SupportedChain, network, forceRefetch)
         .catch((e) => {
           completedRequests += 1;
         })
@@ -455,35 +471,45 @@ export class BalanceStore {
     }
   }
 
-  private getBalanceKey(chain: AggregatedSupportedChainType): string {
-    const chainKey = this.getChainKey(chain as SupportedChain);
+  private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+    const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
     const address = this.addressStore.addresses[chain as SupportedChain];
 
     return `${chainKey}-${address}`;
   }
 
-  private getChainKey(chain: AggregatedSupportedChainType): string {
-    if (chain === 'aggregated') return 'aggregated';
+  private getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    if (chain === 'aggregated') return `aggregated-${network}`;
     const chainId =
-      this.selectedNetworkStore.selectedNetwork === 'testnet'
+      network === 'testnet'
         ? this.chainInfosStore.chainInfos[chain].testnetChainId
         : this.chainInfosStore.chainInfos[chain].chainId;
     return `${chain}-${chainId}`;
   }
 
-  private getAggregatedTokens(_balanceSource: 'chainWiseBalances' | 'chainWiseSpendableBalances') {
+  private getAggregatedTokens(
+    _balanceSource: 'chainWiseBalances' | 'chainWiseSpendableBalances',
+    forceNetwork?: SelectedNetworkType,
+  ) {
     const tokens: Token[] = [];
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
     const aggregatedChains = this.aggregatedChainsStore.aggregatedChainsData;
-    for (const chain of aggregatedChains) {
+    const allChains = Object.keys(this.chainInfosStore.chainInfos);
+    for (const chain of allChains) {
       const balanceSource = this.getDefaultBalanceSource(_balanceSource, chain as SupportedChain);
-      const balanceKey = this.getBalanceKey(chain as SupportedChain);
+      const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
       this[balanceSource][balanceKey] && tokens.push(...this[balanceSource][balanceKey]);
     }
     return sortTokenBalances(tokens);
   }
 
-  private getChainTokens(chain: SupportedChain, _balanceSource: 'chainWiseBalances' | 'chainWiseSpendableBalances') {
-    const balanceKey = this.getBalanceKey(chain);
+  private getChainTokens(
+    chain: SupportedChain,
+    network: SelectedNetworkType,
+    _balanceSource: 'chainWiseBalances' | 'chainWiseSpendableBalances',
+  ) {
+    const balanceKey = this.getBalanceKey(chain, network);
     const balanceSource = this.getDefaultBalanceSource(_balanceSource, chain);
     return this[balanceSource][balanceKey] ? sortTokenBalances(this[balanceSource][balanceKey]) : [];
   }
@@ -501,12 +527,14 @@ export class BalanceStore {
   private getTokens(
     balanceSource: 'chainWiseBalances' | 'chainWiseSpendableBalances',
     forceChain?: AggregatedSupportedChainType,
+    forceNetwork?: SelectedNetworkType,
   ) {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
     const chain = forceChain ?? this.activeChainStore.activeChain;
     if (chain === 'aggregated') {
-      return this.getAggregatedTokens(balanceSource);
+      return this.getAggregatedTokens(balanceSource, network);
     } else {
-      return this.getChainTokens(chain as SupportedChain, balanceSource);
+      return this.getChainTokens(chain as SupportedChain, network, balanceSource);
     }
   }
 }

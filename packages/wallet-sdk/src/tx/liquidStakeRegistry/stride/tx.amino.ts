@@ -1,5 +1,5 @@
 import { AminoMsg } from '@cosmjs/amino';
-import { Long } from '@osmonauts/helpers';
+import Long from 'long';
 
 import { iCAAccountTypeFromJSON } from './ica_account';
 import {

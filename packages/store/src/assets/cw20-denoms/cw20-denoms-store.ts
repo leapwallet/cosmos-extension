@@ -29,15 +29,23 @@ export class CW20DenomsStore {
   async loadAllCW20Denoms() {
     const chains = this.cw20DenomChainsStore.cw20DenomChains;
     const fetchCW20DenomsPromises = chains.map(async (chain) => {
+      if (process.env.APP?.includes('compass') && !this.activeChainStore.isSeiEvm(chain)) {
+        return null;
+      }
+
       try {
         const url = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${chain}/cw20.json`;
         const response = await fetch(url);
-        const data = await response.json();
-        runInAction(() => {
-          this.denoms[chain] = data;
-        });
+        if (response.ok) {
+          const data = await response.json();
+          runInAction(() => {
+            this.denoms[chain] = data;
+          });
+        } else {
+          console.warn('[CW20DenomsStore]', `cw20.json not present for chain: ${chain}`);
+        }
       } catch (e) {
-        console.error('error loading cw20 denoms', e);
+        console.error('[CW20DenomsStore]', `error loading cw20 denoms for ${chain}`, e);
       }
     });
     await Promise.all(fetchCW20DenomsPromises);

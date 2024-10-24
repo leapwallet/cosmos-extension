@@ -1,15 +1,11 @@
-import {
-  useActiveWallet,
-  useChainInfo,
-  useGetChains,
-  useSetSelectedNetwork,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveWallet, useChainInfo, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { Buttons, Header } from '@leapwallet/leap-ui'
+import { Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ArrowRight } from '@phosphor-icons/react'
 import assert from 'assert'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import {
   ACTIVE_CHAIN,
   BG_RESPONSE,
@@ -18,7 +14,8 @@ import {
   SELECTED_NETWORK,
 } from 'config/storage-keys'
 import { useChainPageInfo } from 'hooks'
-import { useSetActiveChain } from 'hooks/settings/useActiveChain'
+import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
+import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import { addToConnections } from 'pages/ApproveConnection/utils'
@@ -26,6 +23,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
+import { AggregatedSupportedChain } from 'types/utility'
 import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -35,12 +33,35 @@ import Browser from 'webextension-polyfill'
 import { ChainDiv } from './components'
 
 export default function SwitchEthereumChain() {
-  const chainInfo = useChainInfo()
+  const { theme } = useTheme()
+  const activeChain = useActiveChain()
+  const _chainInfo = useChainInfo()
+  const chainInfo = useMemo(() => {
+    if (_chainInfo) {
+      return _chainInfo
+    }
+
+    if ((activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY) {
+      return {
+        chainName: 'All chains',
+        chainSymbolImageUrl:
+          theme === ThemeName.DARK
+            ? Images.Misc.AggregatedViewDarkSvg
+            : Images.Misc.AggregatedViewSvg,
+      }
+    }
+
+    return {
+      chainName: 'Unknown chain',
+      chainSymbolImageUrl: '',
+    }
+  }, [_chainInfo, activeChain, theme])
+
   const activeWallet = useActiveWallet()
   const { topChainColor } = useChainPageInfo()
 
   const setActiveChain = useSetActiveChain()
-  const setSelectedNetwork = useSetSelectedNetwork()
+  const setNetwork = useSetNetwork()
 
   assert(activeWallet !== null, 'activeWallet is null')
   const walletName = useMemo(() => {
@@ -98,8 +119,7 @@ export default function SwitchEthereumChain() {
     }
 
     if (setNetworkTo) {
-      setSelectedNetwork(setNetworkTo)
-      rootStore.setSelectedNetwork(setNetworkTo)
+      setNetwork(setNetworkTo)
       await Browser.storage.local.set({
         [SELECTED_NETWORK]: setNetworkTo,
       })
@@ -129,7 +149,7 @@ export default function SwitchEthereumChain() {
           header={
             <div className='w-[396px]'>
               <Header
-                imgSrc={chainInfo.chainSymbolImageUrl ?? GenericLight}
+                imgSrc={chainInfo?.chainSymbolImageUrl ?? GenericLight}
                 title={
                   <Buttons.Wallet
                     brandLogo={
@@ -157,9 +177,9 @@ export default function SwitchEthereumChain() {
 
             <div className='flex w-full p-8 items-center justify-between'>
               <ChainDiv
-                src={chainInfo.chainSymbolImageUrl ?? ''}
-                bodyText={chainInfo.chainName}
-                alt={chainInfo.chainName + ' logo'}
+                src={chainInfo?.chainSymbolImageUrl ?? ''}
+                bodyText={chainInfo?.chainName ?? ''}
+                alt={chainInfo?.chainName + ' logo'}
               />
 
               <div className='bg-gray-100 dark:bg-gray-850 shrink-0 flex justify-center items-center w-[36px] h-[36px] rounded-full'>

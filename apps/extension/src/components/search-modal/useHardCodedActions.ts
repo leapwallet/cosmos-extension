@@ -38,6 +38,14 @@ export function useHardCodedActions() {
 
   const handleBuyClick = () => {
     navigate(`/buy?pageSource=${PageName.Home}`)
+    try {
+      mixpanel.track(EventName.ButtonClick, {
+        buttonName: ButtonName.ONRAMP_TOKEN_SELECTION,
+        buttonType: ButtonType.ONRAMP,
+      })
+    } catch (error) {
+      captureException(error)
+    }
   }
 
   function handleSwapClick(_redirectUrl?: string, navigateUrl?: string) {
@@ -74,6 +82,8 @@ export function useHardCodedActions() {
 
     if (activeChainInfo?.key === 'mainCoreum') {
       redirectURL = 'https://sologenic.org/coreum-bridge'
+    } else if (activeChainInfo.key === 'mantra') {
+      redirectURL = 'https://mantra.swapfast.app'
     } else if (activeChain === AGGREGATED_CHAIN_KEY) {
       redirectURL = baseUrl
     }

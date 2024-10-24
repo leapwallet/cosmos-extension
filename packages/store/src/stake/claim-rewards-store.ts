@@ -217,34 +217,32 @@ export class ClaimRewardsStore {
         }, {});
 
         const totalRewards = await Promise.all(
-          _rewards.map(async (_reward) => {
-            const reward = await Promise.all(
-              _reward?.reward.map(async (claim) => {
-                const { amount: _amount, denom } = claim;
-                const denomInfo = claimTotal.find((token) => token.denom === denom);
-                const amount = fromSmall(_amount, denomInfo?.tokenInfo?.coinDecimals ?? 6);
+          _rewards.map((_reward) => {
+            const reward = _reward?.reward.map((claim) => {
+              const { amount: _amount, denom } = claim;
+              const denomInfo = claimTotal.find((token) => token.denom === denom);
+              const amount = fromSmall(_amount, denomInfo?.tokenInfo?.coinDecimals ?? 6);
 
-                const denomFiatValue = denomInfo?.denomFiatValue ?? '0';
-                const currencyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
+              const denomFiatValue = denomInfo?.denomFiatValue ?? '0';
+              const currencyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
 
-                let formatted_amount = '';
-                if (denomInfo && denomInfo.tokenInfo) {
-                  const tokenInfo = denomInfo.tokenInfo;
-                  formatted_amount = formatTokenAmount(amount, tokenInfo.coinDenom, tokenInfo.coinDecimals);
+              let formatted_amount = '';
+              if (denomInfo && denomInfo.tokenInfo) {
+                const tokenInfo = denomInfo.tokenInfo;
+                formatted_amount = formatTokenAmount(amount, tokenInfo.coinDenom, tokenInfo.coinDecimals);
 
-                  if (formatted_amount === 'NaN') {
-                    formatted_amount = '0 ' + tokenInfo.coinDenom;
-                  }
+                if (formatted_amount === 'NaN') {
+                  formatted_amount = '0 ' + tokenInfo.coinDenom;
                 }
+              }
 
-                return Object.assign(claim, {
-                  amount,
-                  currencyAmount,
-                  formatted_amount,
-                  tokenInfo: denomInfo?.tokenInfo,
-                });
-              }),
-            );
+              return Object.assign(claim, {
+                amount,
+                currencyAmount,
+                formatted_amount,
+                tokenInfo: denomInfo?.tokenInfo,
+              });
+            });
 
             return Object.assign(_reward, reward);
           }),

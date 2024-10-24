@@ -15,7 +15,6 @@ import {
   useDappDefaultFeeStore,
   useDefaultGasEstimates,
   useSelectedNetwork,
-  useSetSelectedNetwork,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -63,6 +62,7 @@ import { BG_RESPONSE } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
+import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -154,8 +154,8 @@ const SignTransaction = observer(
     const navigate = useNavigate()
 
     const activeChain = useActiveChain()
-    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain)
     const selectedNetwork = useSelectedNetwork()
+    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, { activeChain })
     const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
@@ -824,6 +824,10 @@ const SignTransaction = observer(
         : ''
     }, [isSignArbitrary, messages])
 
+    const disableBalanceCheck = useMemo(() => {
+      return !!fee?.granter || !!fee?.payer || !!signOptions?.disableBalanceCheck
+    }, [fee?.granter, fee?.payer, signOptions?.disableBalanceCheck])
+
     const isApproveBtnDisabled =
       !dappFeeDenom ||
       !!signingError ||
@@ -921,7 +925,7 @@ const SignTransaction = observer(
                   error={gasPriceError}
                   setError={setGasPriceError}
                   considerGasAdjustment={false}
-                  disableBalanceCheck={fee.granter || signOptions.disableBalanceCheck}
+                  disableBalanceCheck={disableBalanceCheck}
                   fee={fee}
                   chain={activeChain}
                   validateFee={true}
@@ -934,6 +938,7 @@ const SignTransaction = observer(
                       captureException(e)
                     }
                   }}
+                  hasUserTouchedFees={!!selectedGasOptionRef?.current}
                   notUpdateInitialGasPrice={!allowSetFee}
                   rootDenomsStore={rootDenomsStore}
                   rootBalanceStore={rootBalanceStore}
@@ -994,9 +999,11 @@ const SignTransaction = observer(
                               fee={fee}
                               error={gasPriceError}
                               setError={setGasPriceError}
-                              disableBalanceCheck={fee.granter || signOptions.disableBalanceCheck}
+                              disableBalanceCheck={disableBalanceCheck}
                               rootDenomsStore={rootDenomsStore}
                               rootBalanceStore={rootBalanceStore}
+                              activeChain={activeChain}
+                              selectedNetwork={selectedNetwork}
                             />
                             <div className='flex items-center justify-end'>
                               <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
@@ -1201,7 +1208,7 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
     const activeChain = useActiveChain()
     const setActiveChain = useSetActiveChain()
     const selectedNetwork = useSelectedNetwork()
-    const setSelectedNetwork = useSetSelectedNetwork()
+    const setNetwork = useSetNetwork()
 
     useEffect(() => {
       decodeChainIdToChain().then(setChainIdToChain).catch(captureException)
@@ -1239,9 +1246,9 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
         if (chain) {
           const isTestnet = ChainInfos[chain]?.testnetChainId === chainId
           if (!isTestnet && selectedNetwork === 'testnet') {
-            setSelectedNetwork('mainnet')
+            setNetwork('mainnet')
           } else if (isTestnet && selectedNetwork === 'mainnet') {
-            setSelectedNetwork('testnet')
+            setNetwork('testnet')
           }
         }
       }

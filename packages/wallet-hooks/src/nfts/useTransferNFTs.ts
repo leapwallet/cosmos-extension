@@ -1,8 +1,10 @@
-import { MsgExecuteContractEncodeObject, SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
-import { toUtf8 } from '@cosmjs/encoding';
-import { OfflineSigner } from '@cosmjs/proto-signing';
-import { calculateFee, GasPrice, StdFee } from '@cosmjs/stargate';
+import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
+import { toHex, toUtf8 } from '@cosmjs/encoding';
+import { GeneratedType, OfflineSigner, Registry } from '@cosmjs/proto-signing';
+import { calculateFee, defaultRegistryTypes, GasPrice, StdFee } from '@cosmjs/stargate';
+import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 import {
+  coreumRegistryTypes,
   DefaultGasEstimates,
   DenomsRecord,
   encodeErc72TransferData,
@@ -17,8 +19,9 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/browser/tx/nft-transfer/contract';
 import { EthWallet } from '@leapwallet/leap-keychain';
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
 import { CosmosTxType } from '../connectors';
@@ -35,7 +38,14 @@ import {
   useSelectedNetwork,
 } from '../store';
 import { WALLETTYPE } from '../types';
-import { GasOptions, getMetaDataForNFTSendTx, sliceAddress, useGasRateQuery, useNativeFeeDenom } from '../utils';
+import {
+  GasOptions,
+  getMetaDataForNFTSendTx,
+  SelectedNetworkType,
+  sliceAddress,
+  useGasRateQuery,
+  useNativeFeeDenom,
+} from '../utils';
 import { useChainId, useChainInfo, useFetchAccountDetails } from '../utils-hooks';
 import { ExecuteInstruction, UseSendNftReturnType } from './types';
 
@@ -43,14 +53,19 @@ export const useSendNft = (
   denoms: DenomsRecord,
   collectionId: string,
   forceChain?: SupportedChain,
+  forceNetwork?: SelectedNetworkType,
 ): UseSendNftReturnType => {
   const [showLedgerPopup, setShowLedgerPopup] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
   const chainInfo = useChainInfo();
   const { setPendingTx } = usePendingTxState();
-  const activeChain = useActiveChain();
-  const selectedNetwork = useSelectedNetwork();
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
+
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain]);
+
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [_selectedNetwork, forceNetwork]);
 
   const { activeWallet } = useActiveWalletStore();
   const activeChainId = useChainId(activeChain, selectedNetwork);
@@ -59,7 +74,7 @@ export const useSendNft = (
     status: fetchAccountDetailsStatus,
     data: fetchAccountDetailsData,
     fetchDetails: fetchAccountDetails,
-  } = useFetchAccountDetails();
+  } = useFetchAccountDetails(activeChain, selectedNetwork);
 
   const [gasOption] = useState<GasOptions>(GasOptions.LOW);
   const [gasEstimate, setGasEstimate] = useState<number>(
@@ -69,8 +84,7 @@ export const useSendNft = (
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
   const gasPrices = useGasRateQuery(denoms, activeChain, selectedNetwork, collectionId.toLowerCase().startsWith('0x'));
 
-  // Change when using forceChain
-  const nativeFeeDenom = useNativeFeeDenom(denoms, forceChain);
+  const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetwork);
   const [feeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom];
 
@@ -112,44 +126,12 @@ export const useSendNft = (
     // keep feeDenom in the dependency array to update the fee when the denom changes
   }, [gasPriceOptions, gasOption, gasEstimate, activeChain]);
 
-  const simulateTransferNFTContract = async ({
-    wallet,
-    fromAddress,
-    toAddress,
-    tokenId,
-    collectionId,
-    memo,
-  }: {
-    wallet: OfflineSigner;
-    fromAddress: string;
-    toAddress: string;
-    tokenId: string;
-    collectionId: string;
-    memo: string;
-  }) => {
-    if (!rpcUrl || !lcdUrl || !evmJsonRpc || !toAddress || !fromAddress) return;
-    const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
+  const registry = useMemo(() => {
+    const registryTypes: ReadonlyArray<[string, GeneratedType]> = [...defaultRegistryTypes, ...coreumRegistryTypes];
+    return new Registry(registryTypes);
+  }, []);
 
-    if (collectionId.toLowerCase().startsWith('0x')) {
-      try {
-        const data = encodeErc72TransferData([fromAddress, toAddress, tokenId]);
-        const gasUsed = await SeiEvmTx.SimulateTransaction(
-          collectionId ?? '',
-          '',
-          evmJsonRpc,
-          data,
-          undefined,
-          fromAddress,
-        );
-
-        setGasEstimate(gasUsed);
-        return gasUsed;
-      } catch (_) {
-        setGasEstimate(ARCTIC_EVM_GAS_LIMIT * 10);
-        return ARCTIC_EVM_GAS_LIMIT * 10;
-      }
-    }
-
+  const getMsgs = useCallback((toAddress: string, tokenId: string, memo: string, fromAddress: string) => {
     const tx = {
       msg: {
         transfer_nft: {
@@ -167,21 +149,91 @@ export const useSendNft = (
       funds: tx.funds,
     };
 
-    const msgs: MsgExecuteContractEncodeObject[] = [instruction].map((i) => ({
-      typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
-      value: MsgExecuteContract.fromPartial({
-        sender: fromAddress,
-        contract: i.contractAddress,
-        msg: toUtf8(JSON.stringify(i.msg)),
-        funds: [...(i.funds || [])],
-      }),
-    }));
+    return [instruction].map((i) => {
+      if (activeChain === 'mainCoreum') {
+        return {
+          typeUrl: '/coreum.nft.v1beta1.MsgSend',
+          value: {
+            sender: fromAddress,
+            receiver: toAddress,
+            id: tokenId,
+            classId: i.contractAddress,
+          },
+        };
+      }
 
-    const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet);
-    const gasUsed = await client.simulate(fromAddress, msgs, memo);
+      return {
+        typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
+        value: MsgExecuteContract.fromPartial({
+          sender: fromAddress,
+          contract: i.contractAddress,
+          msg: toUtf8(JSON.stringify(i.msg)),
+          funds: [...(i.funds || [])],
+        }),
+      };
+    });
+  }, []);
 
-    setGasEstimate(gasUsed);
-    return gasUsed;
+  const simulateTransferNFTContract = async ({
+    wallet,
+    fromAddress,
+    toAddress,
+    tokenId,
+    collectionId,
+    memo,
+  }: {
+    wallet: OfflineSigner;
+    fromAddress: string;
+    toAddress: string;
+    tokenId: string;
+    collectionId: string;
+    memo: string;
+  }) => {
+    try {
+      if (collectionId.toLowerCase().startsWith('0x') && !evmJsonRpc) {
+        return;
+      } else if (!rpcUrl || !toAddress || !fromAddress) {
+        return;
+      }
+
+      if (collectionId.toLowerCase().startsWith('0x')) {
+        const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
+
+        try {
+          const data = encodeErc72TransferData([fromAddress, toAddress, tokenId]);
+          const gasUsed = await SeiEvmTx.SimulateTransaction(
+            collectionId ?? '',
+            '',
+            evmJsonRpc,
+            data,
+            undefined,
+            fromAddress,
+          );
+
+          setGasEstimate(gasUsed);
+          return gasUsed;
+        } catch (_) {
+          setGasEstimate(ARCTIC_EVM_GAS_LIMIT * 10);
+          return ARCTIC_EVM_GAS_LIMIT * 10;
+        }
+      }
+
+      const msgs = getMsgs(toAddress, tokenId, memo, fromAddress);
+      let options = {};
+      if (activeChain === 'mainCoreum') {
+        options = {
+          registry,
+        };
+      }
+
+      const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet, options);
+      const gasUsed = await client.simulate(fromAddress, msgs, memo);
+
+      setGasEstimate(gasUsed);
+      return gasUsed;
+    } catch (error) {
+      console.log('simulateTransferNFTContract error', error);
+    }
   };
 
   const transferNFTContract = async ({
@@ -203,7 +255,11 @@ export const useSendNft = (
     txHandler?: InjectiveTx | EthermintTxHandler | Tx;
     ibcChannelId?: string;
   }) => {
-    if (!rpcUrl || !lcdUrl || !evmJsonRpc) return;
+    if (collectionId.toLowerCase().startsWith('0x') && !evmJsonRpc) {
+      return;
+    } else if (!rpcUrl || !lcdUrl) {
+      return;
+    }
 
     try {
       setIsSending(true);
@@ -221,6 +277,7 @@ export const useSendNft = (
           from: fromAddress,
           to: toAddress,
           gas: gasEstimate,
+          gasPrice: parseInt(gasPriceOptions?.[gasOption]?.amount?.toString() ?? ''),
         });
 
         txHash = result.hash;
@@ -231,32 +288,22 @@ export const useSendNft = (
         }
 
         const pollForTx = new PollForTx(lcdUrl);
-        const tx = {
-          msg: {
-            transfer_nft: {
-              recipient: toAddress,
-              token_id: tokenId,
-            },
-          },
-          fee: fees,
-          memo: memo,
-          funds: [],
-        };
-
-        const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet);
-        const result: any = await client.execute(fromAddress, collectionId, tx.msg, tx.fee, tx.memo, tx.funds);
-
-        if (result && result.code !== undefined && result.code !== 0) {
-          setShowLedgerPopup(false);
-          setIsSending(false);
-
-          return {
-            success: false,
-            errors: ['Transaction declined'],
+        const msgs = getMsgs(toAddress, tokenId, memo, fromAddress);
+        let options = {};
+        if (activeChain === 'mainCoreum') {
+          options = {
+            registry,
           };
         }
 
-        txHash = result.transactionHash;
+        const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet, options);
+        const txRaw = await client.sign(fromAddress, msgs, fees, memo);
+        const txBytes = TxRaw.encode(txRaw).finish();
+
+        const tendermintClient = await Tendermint34Client.connect(rpcUrl);
+        const broadcasted = await tendermintClient.broadcastTxSync({ tx: txBytes });
+
+        txHash = toHex(broadcasted.hash).toUpperCase();
         promise = pollForTx.pollForTx(txHash);
       }
 
@@ -348,5 +395,7 @@ export const useSendNft = (
     fetchAccountDetailsStatus,
     setAddressWarning,
     addressWarning,
+    nftSendChain: activeChain,
+    nftSendNetwork: selectedNetwork,
   };
 };

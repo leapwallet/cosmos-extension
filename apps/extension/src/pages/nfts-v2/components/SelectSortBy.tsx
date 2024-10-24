@@ -1,8 +1,9 @@
 import { useDisabledNFTsCollections } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { NftStore } from '@leapwallet/cosmos-wallet-store'
-import { Card, CardDivider } from '@leapwallet/leap-ui'
+import { Card } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
+import { CustomCardDivider } from 'components/custom-card-divider'
 import { useHiddenNFTs } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -40,17 +41,18 @@ export const SelectSortBy = observer(
         closeOnBackdropClick={true}
       >
         <div className='flex flex-col gap-y-1'>
-          <div className='dark:bg-gray-900 overflow-clip bg-white-100 rounded-2xl max-h-[300px] overflow-y-scroll'>
+          <div className='dark:bg-gray-950 overflow-clip bg-white-100 rounded-2xl max-h-[300px] overflow-y-scroll'>
             {sortedCollectionChains.map((chain, index) => {
               const chainInfo = chainInfos[chain as SupportedChain]
 
               return (
                 <React.Fragment key={`${chain}-${index}`}>
-                  {index !== 0 && <CardDivider />}
+                  {index !== 0 && <CustomCardDivider />}
                   <Card
                     iconSrc={selectedSortsBy.includes(chain) ? Images.Misc.CheckCosmos : undefined}
                     size='sm'
                     title={getChainName(chainInfo.chainName)}
+                    className='dark:bg-gray-950'
                     onClick={() =>
                       setSelectedSortsBy((prevValue) => [
                         ...(prevValue ?? []).filter((prevChain) => prevChain !== chain),

@@ -78,7 +78,9 @@ const PageHeader = React.memo(
                   <NewChainSupportTooltip
                     toolTipData={toolTipData}
                     handleCTAClick={() => {
-                      onImgClick()
+                      onImgClick(undefined, {
+                        defaultFilter: toolTipData.defaultFilter,
+                      })
                       handleToolTipClose()
                     }}
                     handleToolTipClose={handleToolTipClose}

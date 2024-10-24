@@ -22,4 +22,10 @@ export class DenomsStore {
       this.denoms = data;
     });
   }
+
+  setDenoms(denoms: DenomsRecord) {
+    runInAction(() => {
+      this.denoms = denoms;
+    });
+  }
 }

@@ -56,8 +56,8 @@ import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 import Browser from 'webextension-polyfill'
 
-import { Loading } from '../SignSeiEvmTransaction'
 import { handleRejectClick } from '../utils'
+import { Loading } from './index'
 
 const useGetWallet = Wallet.useGetWallet
 
@@ -66,10 +66,19 @@ export type SignTransactionProps = {
   rootDenomsStore: RootDenomsStore
   rootBalanceStore: RootBalanceStore
   evmBalanceStore: EvmBalanceStore
+  donotClose: boolean
+  handleTxnListUpdate: () => void
 }
 
 export const SignTransaction = observer(
-  ({ txnData, rootDenomsStore, rootBalanceStore, evmBalanceStore }: SignTransactionProps) => {
+  ({
+    txnData,
+    rootDenomsStore,
+    rootBalanceStore,
+    evmBalanceStore,
+    donotClose,
+    handleTxnListUpdate,
+  }: SignTransactionProps) => {
     const getWallet = useGetWallet()
     const lastEvmActiveChain = useLastEvmActiveChain()
     const _activeChain = useActiveChain()
@@ -80,7 +89,7 @@ export const SignTransaction = observer(
     const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
     const activeNetwork = useSelectedNetwork()
-    const allAssets = rootBalanceStore.getBalancesForChain(activeChain)
+    const allAssets = rootBalanceStore.getBalancesForChain(activeChain, activeNetwork)
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
 
     const assets = useMemo(() => {
@@ -206,14 +215,6 @@ export const SignTransaction = observer(
       txnData.signTxnData.value,
     ])
 
-    if (
-      ((isCompassWallet() && !['done', 'unknown'].includes(addressLinkState)) ||
-        chainInfo?.evmOnlyChain) &&
-      evmBalanceStore.evmBalance.status === 'loading'
-    ) {
-      return <Loading />
-    }
-
     const refetchData = useCallback(() => {
       setTimeout(() => {
         rootBalanceStore.refetchBalances(activeChain)
@@ -276,22 +277,35 @@ export const SignTransaction = observer(
         try {
           Browser.runtime.sendMessage({
             type: MessageTypes.signSeiEvmResponse,
+            payloadId: txnData?.payloadId,
             payload: { status: 'success', data: result.hash },
           })
         } catch {
           throw new Error('Could not send transaction to the dApp')
         }
 
-        if (isSidePanel()) {
-          refetchData()
-          navigate('/home')
+        if (!donotClose) {
+          if (isSidePanel()) {
+            refetchData()
+            navigate('/home')
+          } else {
+            window.close()
+          }
         } else {
-          window.close()
+          handleTxnListUpdate()
         }
       } catch (error) {
         setTxStatus('error')
         setSigningError((error as Error).message)
       }
+    }
+
+    if (
+      ((isCompassWallet() && !['done', 'unknown'].includes(addressLinkState)) ||
+        chainInfo?.evmOnlyChain) &&
+      evmBalanceStore.evmBalance.status === 'loading'
+    ) {
+      return <Loading />
     }
 
     const isApproveBtnDisabled =
@@ -449,7 +463,13 @@ export const SignTransaction = observer(
                 <Buttons.Generic
                   title='Reject Button'
                   color={Colors.gray900}
-                  onClick={() => handleRejectClick(navigate)}
+                  onClick={() => {
+                    handleRejectClick(navigate, txnData?.payloadId, donotClose)
+
+                    if (donotClose) {
+                      handleTxnListUpdate()
+                    }
+                  }}
                   disabled={txStatus === 'loading'}
                 >
                   Reject

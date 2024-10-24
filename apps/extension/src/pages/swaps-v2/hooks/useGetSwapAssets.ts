@@ -10,10 +10,10 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { AutoFetchedCW20DenomsStore } from '@leapwallet/cosmos-wallet-store'
-import { SkipSupportedAsset, useAllSkipAssets } from '@leapwallet/elements-hooks'
-import { captureException } from '@sentry/react'
+import { SkipSupportedAsset } from '@leapwallet/elements-hooks'
+// import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
+// import axios from 'axios'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useMemo } from 'react'
@@ -21,36 +21,52 @@ import { SourceChain, SourceToken } from 'types/swap'
 
 import { getSortFnBasedOnWhiteListing } from '../utils'
 
-const useAllSkipAssetsParams = {
-  includeCW20Assets: true,
-  includeNoMetadataAssets: false,
-  includeEvmAssets: false,
-  includeSvmAssets: false,
-}
-
 export function useGetSwapAssets(
   denoms: DenomsRecord,
   allAssets: Array<Token>,
   allAssetsLoading: boolean,
   swapChain: SourceChain | undefined,
   autoFetchedCW20DenomsStore: AutoFetchedCW20DenomsStore,
+  addSkipAssets?: { [key: string]: SkipSupportedAsset[] },
+  filterBalanceTokens = false,
+  isChainAbstractionView?: boolean,
+  chainsToShow?: SourceChain[],
 ) {
-  const { data: addSkipAssets } = useAllSkipAssets(useAllSkipAssetsParams)
+  const chainInfos = useChainInfos()
 
   const skipAssets = useMemo(() => {
+    if (isChainAbstractionView && addSkipAssets) {
+      if (chainsToShow && chainsToShow.length > 0) {
+        const chainIdsSupported = chainsToShow.map((chain) => chain.chainId)
+        return Object.keys(addSkipAssets)
+          .filter((chainId) => chainIdsSupported.includes(chainId))
+          .map((chainId) => addSkipAssets[chainId])
+          .flat()
+      }
+      return Object.values(addSkipAssets).flat()
+    }
     return addSkipAssets?.[swapChain?.chainId ?? '']
-  }, [addSkipAssets, swapChain])
+  }, [isChainAbstractionView, addSkipAssets, swapChain?.chainId, chainsToShow])
 
-  const autoFetchedCW20Tokens = autoFetchedCW20DenomsStore.getAutoFetchedCW20DenomsForChain(
-    (swapChain?.chainId ?? '') as SupportedChain,
-  )
+  const assetsMap = useMemo(() => {
+    if (!allAssetsLoading && allAssets && allAssets.length > 0) {
+      return allAssets.reduce((acc, asset) => {
+        if (!asset.tokenBalanceOnChain) return acc
+        const denom = asset.ibcDenom || asset.coinMinimalDenom
+        const chainId = chainInfos[asset.tokenBalanceOnChain].chainId
+        acc[`${denom}-${chainId}`] = asset
+        return acc
+      }, {} as { [key: string]: Token })
+    }
+    return {}
+  }, [allAssets, chainInfos, allAssetsLoading])
+
   const combinedDenoms = useMemo(() => {
-    return { ...denoms, ...autoFetchedCW20Tokens }
-  }, [denoms, autoFetchedCW20Tokens])
+    return denoms
+  }, [denoms])
 
   const [preferredCurrency] = useUserPreferredCurrency()
   const { ibcTraceData } = useIbcTraceStore()
-  const chainInfos = useChainInfos()
   const selectedNetwork = useSelectedNetwork()
 
   const isQueryEnabled = useMemo(() => {
@@ -59,26 +75,25 @@ export function useGetSwapAssets(
 
   return useQuery(
     [
-      `${swapChain?.key}-swap-assets`,
+      `swap-assets`,
       skipAssets,
       preferredCurrency,
-      allAssets,
+      assetsMap,
       combinedDenoms,
-      swapChain,
       ibcTraceData,
+      filterBalanceTokens,
     ],
     async function () {
-      if (swapChain && skipAssets && skipAssets.length > 0) {
+      if (skipAssets && skipAssets.length > 0) {
         const _swapAssets: SourceToken[] = []
         const preferredCurrencyPointer = currencyDetail[preferredCurrency].currencyPointer
         const coingeckoPrices = await getCoingeckoPricesStoreSnapshot()
         const needToFetchUsdPriceFor: { [key: string]: string[] } = {}
-        const needToFetchIbcSourceChainsFor: { denom: string; chain_id: string }[] = []
+        //const needToFetchIbcSourceChainsFor: { denom: string; chain_id: string }[] = []
 
         for (const skipAsset of skipAssets) {
-          const token = allAssets.find((asset) =>
-            [asset.ibcDenom, asset.coinMinimalDenom].includes(skipAsset.denom.replace('cw20:', '')),
-          )
+          const formattedSkipAssetDenom = skipAsset.denom.replace(/(cw20:|erc20\/)/g, '') as string
+          const token = assetsMap[`${formattedSkipAssetDenom}-${skipAsset.chainId}`]
 
           if (token) {
             const decimals = skipAsset.decimals || token.coinDecimals
@@ -97,7 +112,8 @@ export function useGetSwapAssets(
               ...token,
               skipAsset: updatedSkipAsset,
             })
-          } else {
+          }
+          if (!token && !filterBalanceTokens) {
             const _baseDenom = getKeyToUseForDenoms(skipAsset.originDenom, skipAsset.originChainId)
             const denomInfo = combinedDenoms[_baseDenom]
 
@@ -135,11 +151,11 @@ export function useGetSwapAssets(
                   }
                 }
               }
-
-              const decimals = skipAsset.decimals || denomInfo.coinDecimals
-              const updatedSkipAsset = decimals ? { ...skipAsset, decimals } : skipAsset
+              if (!skipAsset.decimals) {
+                skipAsset.decimals = denomInfo?.coinDecimals
+              }
               let asset = {
-                skipAsset: updatedSkipAsset,
+                skipAsset,
                 name: denomInfo?.name,
                 amount: '0',
                 symbol: denomInfo?.coinDenom ?? '',
@@ -169,11 +185,19 @@ export function useGetSwapAssets(
                     channelId: trace.channelId,
                   }
                 } else {
-                  needToFetchIbcSourceChainsFor.push({
-                    denom: skipAsset.denom,
-                    chain_id: String(swapChain?.chainId ?? ''),
-                  })
+                  ibcChainInfo = {
+                    pretty_name: skipAsset.originChainId,
+                    icon: '',
+                    name: skipAsset.originChainId,
+                    channelId: skipAsset?.denom?.split('/')[1] ?? '',
+                  }
                 }
+                // else {
+                //   needToFetchIbcSourceChainsFor.push({
+                //     denom: skipAsset.denom,
+                //     chain_id: String(swapChain?.chainId ?? ''),
+                //   })
+                // }
 
                 asset = {
                   ...asset,
@@ -217,48 +241,45 @@ export function useGetSwapAssets(
           }),
         )
 
-        const marketPrices = await LeapWalletApi.operateMarketPricesV2(
-          platformTokenAddresses,
-          preferredCurrencyPointer,
+        LeapWalletApi.operateMarketPricesV2(platformTokenAddresses, preferredCurrencyPointer).then(
+          (marketPrices) => {
+            _swapAssets.forEach((asset) => {
+              if (asset.coinGeckoId) {
+                for (const marketPrice of Object.values(marketPrices)) {
+                  if (marketPrice[asset.coinGeckoId]) {
+                    asset.usdPrice = String(marketPrice[asset.coinGeckoId])
+                    break
+                  }
+                }
+              }
+            })
+          },
         )
 
-        _swapAssets.forEach((asset) => {
-          if (asset.coinGeckoId) {
-            for (const marketPrice of Object.values(marketPrices)) {
-              if (marketPrice[asset.coinGeckoId]) {
-                asset.usdPrice = String(marketPrice[asset.coinGeckoId])
-                break
-              }
-            }
-          }
-        })
+        /* no need to explicitly fetch ibc source chain info, if trace is available it will be available in the asset list */
 
-        try {
-          const {
-            data: { origin_assets },
-          } = await axios.post('https://api.skip.money/v1/fungible/ibc_origin_assets', {
-            assets: needToFetchIbcSourceChainsFor,
-          })
+        // try {
+        //   const {
+        //     data: { origin_assets },
+        //   } = await axios.post('https://api.skip.money/v1/fungible/ibc_origin_assets', {
+        //     assets: needToFetchIbcSourceChainsFor,
+        //   })
 
-          needToFetchIbcSourceChainsFor.forEach((ibcAsset, index) => {
-            const destinationAsset = _swapAssets.find((asset) => asset.ibcDenom === ibcAsset.denom)
+        //   needToFetchIbcSourceChainsFor.forEach((ibcAsset, index) => {
+        //     const destinationAsset = _swapAssets.find((asset) => asset.ibcDenom === ibcAsset.denom)
 
-            if (destinationAsset?.ibcChainInfo) {
-              destinationAsset.ibcChainInfo.name = origin_assets[index].asset.origin_chain_id
-              destinationAsset.ibcChainInfo.pretty_name = origin_assets[index].asset.origin_chain_id
-            }
-          })
-        } catch (error) {
-          captureException(error)
-        }
-        const autoFetchedTokensList = Object.keys(autoFetchedCW20Tokens)
+        //     if (destinationAsset?.ibcChainInfo) {
+        //       destinationAsset.ibcChainInfo.name = origin_assets[index].asset.origin_chain_id
+        //       destinationAsset.ibcChainInfo.pretty_name = origin_assets[index].asset.origin_chain_id
+        //     }
+        //   })
+        // } catch (error) {
+        //   captureException(error)
+        // }
 
-        const nativeDenoms = Object.keys(chainInfos[swapChain.key]?.nativeDenoms ?? {})
-
+        const sortedTokens = sortTokenBalances(_swapAssets) as SourceToken[]
         return {
-          assets: sortTokenBalances(_swapAssets).sort(
-            getSortFnBasedOnWhiteListing(autoFetchedTokensList, nativeDenoms),
-          ) as SourceToken[],
+          assets: sortedTokens as SourceToken[],
         }
       }
 

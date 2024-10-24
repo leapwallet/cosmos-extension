@@ -20,7 +20,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { HeaderActionType } from 'types/components'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -84,6 +84,7 @@ const GeneralActivity = observer(
      */
     const [showSideNav, setShowSideNav] = useState(false)
     const [showChainSelector, setShowChainSelector] = useState(false)
+    const [defaultFilter, setDefaultFilter] = useState('All')
     const [selectedTx, setSelectedTx] = useState<SelectedTx | null>(null)
 
     /**
@@ -197,6 +198,12 @@ const GeneralActivity = observer(
       txResponse?.loading,
     ])
 
+    useEffect(() => {
+      if (!showChainSelector) {
+        setDefaultFilter('All')
+      }
+    }, [showChainSelector])
+
     /**
      * Memoized functions
      */
@@ -209,7 +216,16 @@ const GeneralActivity = observer(
       [setSelectedChain],
     )
 
-    const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])
+    const onImgClick = useCallback(
+      (event?: React.MouseEvent<HTMLDivElement>, props?: { defaultFilter?: string }) => {
+        setShowChainSelector(true)
+        if (props?.defaultFilter) {
+          setDefaultFilter(props.defaultFilter)
+        }
+      },
+      [],
+    )
+
     const handleOpenSideNavSheet = useCallback(() => setShowSideNav(true), [])
 
     /**
@@ -233,7 +249,7 @@ const GeneralActivity = observer(
                 <PageHeader
                   title='Activity'
                   imgSrc={headerChainImgSrc}
-                  onImgClick={handleOpenSelectChainSheet}
+                  onImgClick={onImgClick}
                   action={{
                     onClick: handleOpenSideNavSheet,
                     type: HeaderActionType.NAVIGATION,
@@ -283,6 +299,7 @@ const GeneralActivity = observer(
               isVisible={showChainSelector}
               onClose={() => setShowChainSelector(false)}
               chainTagsStore={chainTagsStore}
+              defaultFilter={defaultFilter}
             />
             <BottomNav label={BottomNavLabel.Activity} />
           </>

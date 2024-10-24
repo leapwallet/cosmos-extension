@@ -28,7 +28,7 @@ export function SelectedSortsByChips({
         return (
           <Chip
             key={chain}
-            className='bg-gray-100 dark:bg-gray-900 py-[8px] px-[14px] mr-3 min-w-[125px]'
+            className='bg-gray-100 dark:bg-gray-950 py-[8px] px-[14px] mr-3 min-w-[125px]'
           >
             <Chip.Image
               className='w-[15px] h-[15px] mr-2'

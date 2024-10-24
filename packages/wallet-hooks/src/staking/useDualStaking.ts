@@ -108,10 +108,14 @@ export function useDualStakingTx(
   providerDelegations?: ProviderDelegation[],
   toProvider?: Provider,
   fromProvider?: Provider,
+  forceChain?: SupportedChain,
+  forceNetwork?: 'mainnet' | 'testnet',
 ) {
   const chainInfos = useGetChains();
-  const activeChain = useActiveChain();
-  const selectedNetwork = useSelectedNetwork();
+  const _activeChain = useActiveChain();
+  const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain]);
+  const _selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [forceNetwork, _selectedNetwork]);
 
   const getTxHandler = useTxHandler({
     forceChain: activeChain,

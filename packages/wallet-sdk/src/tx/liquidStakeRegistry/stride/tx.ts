@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-empty-interface */
-import { DeepPartial, Long } from '@osmonauts/helpers';
+import Long from 'long';
 import * as _m0 from 'protobufjs/minimal';
 
+import { DeepPartial } from '../../../proto/helpers';
 import { ICAAccountType, ICAAccountTypeSDKType } from './ica_account';
 import { Validator, ValidatorSDKType } from './validator';
 export interface MsgLiquidStake {

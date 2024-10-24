@@ -15,6 +15,8 @@ export type FeatureFlags = {
   give_all_chains_option_in_wallet: {
     mobile: FeatureFlagState;
     extension: FeatureFlagState;
+    mobile_v2: string;
+    extension_v2: string;
   };
   gov: {
     mobile: FeatureFlagState;
@@ -24,6 +26,7 @@ export type FeatureFlags = {
     mobile: FeatureFlagState;
     extension: FeatureFlagState;
     fees: FeatureFlagState;
+    chain_abstraction: FeatureFlagState;
   };
   nfts: {
     mobile: FeatureFlagState;

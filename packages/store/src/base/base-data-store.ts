@@ -43,6 +43,24 @@ export abstract class BaseQueryStore<T> {
     if (!this.isDataStale() && this.data !== null) {
       return this.data;
     }
+    if (this.isLoading) {
+      return new Promise<T>((resolve, reject) => {
+        const checkDataReady = () => {
+          if (!this.isLoading) {
+            if (this.error) {
+              reject(this.error);
+            } else if (this.data !== null) {
+              resolve(this.data);
+            } else {
+              reject(new Error('Data not found'));
+            }
+          } else {
+            setTimeout(checkDataReady, 50);
+          }
+        };
+        checkDataReady();
+      });
+    }
     this.setLoading(true);
     this.setError(null);
 

@@ -26,7 +26,7 @@ export function useFetchDualStakeProviderRewards(denoms: DenomsRecord) {
   const { setClaimIsFetching, setClaimRefetch, setClaimRewards, setClaimStatus } = useDualStakeProviderRewardsStore();
   const _activeChain = useActiveChain();
   const activeChain = useMemo(() => {
-    return getStakingActiveChain(_activeChain) as SupportedChain & 'aggregated';
+    return getStakingActiveChain(_activeChain, (_activeChain as string) === 'aggregated' ? 'lava' : undefined);
   }, [_activeChain]);
 
   const _selectedNetwork = useSelectedNetwork();
@@ -176,7 +176,6 @@ export function useFetchDualStakeProviderRewards(denoms: DenomsRecord) {
     chainInfos,
     preferredCurrency,
     activeStakingDenom,
-    denoms,
     activeChain,
     selectedNetwork,
     isStakeComingSoon,

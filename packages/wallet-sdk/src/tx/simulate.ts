@@ -17,8 +17,15 @@ import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 
 import { fetchAccountDetails } from '../accounts';
+import { SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
 import { MsgVote as MsgVoteGovGen } from '../proto/govgen/gov/v1beta1/tx';
+import {
+  MsgBeginRedelegate as InitiaMsgBeginRedelegate,
+  MsgCancelUnbondingDelegation as InitiaMsgCancelUnbondingDelegation,
+  MsgDelegate as InitiaMsgDelegate,
+  MsgUndelegate as InitiaMsgUndelegate,
+} from '../proto/initia/mstaking/tx';
 import {
   buildGrantMsg,
   getCancelUnDelegationMsg,
@@ -30,6 +37,12 @@ import {
   getVoteMsg,
   getWithDrawRewardsMsg,
 } from './msgs/cosmos';
+import {
+  getInitiaCancelUnbondingDelegationMsg,
+  getInitiaDelegateMsg,
+  getInitiaRedelegateMsg,
+  getInitiaUndelegateMsg,
+} from './msgs/initia';
 
 export async function simulateSend(
   lcdEndpoint: string,
@@ -71,13 +84,22 @@ export async function simulateDelegate(
   validatorAddress: string,
   amount: Coin,
   fee: Coin[],
-  typeUrl?: string,
+  chain?: SupportedChain,
 ) {
-  const msg = getDelegateMsg(fromAddress, validatorAddress, amount, typeUrl);
-  const encodedMsg = {
-    typeUrl: msg.typeUrl,
-    value: MsgDelegate.encode(msg.value).finish(),
-  };
+  let msg, encodedMsg;
+  if (chain === 'initia') {
+    msg = getInitiaDelegateMsg(fromAddress, validatorAddress, amount);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: InitiaMsgDelegate.encode(msg.value).finish(),
+    };
+  } else {
+    msg = getDelegateMsg(fromAddress, validatorAddress, amount);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: MsgDelegate.encode(msg.value).finish(),
+    };
+  }
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
@@ -87,13 +109,22 @@ export async function simulateUndelegate(
   validatorAddress: string,
   amount: Coin,
   fee: Coin[],
-  typeUrl?: string,
+  chain?: SupportedChain,
 ) {
-  const msg = getUnDelegateMsg(fromAddress, validatorAddress, amount, typeUrl);
-  const encodedMsg = {
-    typeUrl: msg.typeUrl,
-    value: MsgUndelegate.encode(msg.value).finish(),
-  };
+  let msg, encodedMsg;
+  if (chain === 'initia') {
+    msg = getInitiaUndelegateMsg(fromAddress, validatorAddress, amount);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: InitiaMsgUndelegate.encode(msg.value).finish(),
+    };
+  } else {
+    msg = getUnDelegateMsg(fromAddress, validatorAddress, amount);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: MsgUndelegate.encode(msg.value).finish(),
+    };
+  }
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
@@ -104,13 +135,22 @@ export async function simulateCancelUndelegation(
   amount: Coin,
   creationHeight: string,
   fee: Coin[],
-  typeUrl?: string,
+  chain?: SupportedChain,
 ) {
-  const msg = getCancelUnDelegationMsg(fromAddress, validatorAddress, amount, creationHeight, typeUrl);
-  const encodedMsg = {
-    typeUrl: msg.typeUrl,
-    value: MsgCancelUnbondingDelegation.encode(msg.value).finish(),
-  };
+  let msg, encodedMsg;
+  if (chain === 'initia') {
+    msg = getInitiaCancelUnbondingDelegationMsg(fromAddress, validatorAddress, amount, creationHeight);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: InitiaMsgCancelUnbondingDelegation.encode(msg.value).finish(),
+    };
+  } else {
+    msg = getCancelUnDelegationMsg(fromAddress, validatorAddress, amount, creationHeight);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: MsgCancelUnbondingDelegation.encode(msg.value).finish(),
+    };
+  }
   // retryCount=5 to get error on first fail
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee }, '', 5, 'cancel-undelegation');
 }
@@ -122,13 +162,22 @@ export async function simulateRedelegate(
   validatorSrcAddress: string,
   amount: Coin,
   fee: Coin[],
-  typeUrl?: string,
+  chain?: SupportedChain,
 ) {
-  const msg = getRedelegateMsg(fromAddress, validatorDstAddress, validatorSrcAddress, amount, typeUrl);
-  const encodedMsg = {
-    typeUrl: msg.typeUrl,
-    value: MsgBeginRedelegate.encode(msg.value).finish(),
-  };
+  let msg, encodedMsg;
+  if (chain === 'initia') {
+    msg = getInitiaRedelegateMsg(fromAddress, validatorDstAddress, validatorSrcAddress, amount);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: InitiaMsgBeginRedelegate.encode(msg.value).finish(),
+    };
+  } else {
+    msg = getRedelegateMsg(fromAddress, validatorDstAddress, validatorSrcAddress, amount);
+    encodedMsg = {
+      typeUrl: msg.typeUrl,
+      value: MsgBeginRedelegate.encode(msg.value).finish(),
+    };
+  }
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }
 
@@ -240,6 +289,41 @@ export async function simulateVote(
     value: chainId === 'govgen-1' ? MsgVoteGovGen.encode(msg.value).finish() : MsgVote.encode(msg.value).finish(),
   };
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
+}
+
+export async function simulateClaimAndStake(
+  lcdEndpoint: string,
+  fromAddress: string,
+  validatorsWithRewards: { validator: string; amount: Coin }[],
+  fee: Coin[],
+  chain?: SupportedChain,
+) {
+  const encodedClaimAndStakeMsgs: {
+    typeUrl: string;
+    value: Uint8Array;
+  }[] = [];
+  validatorsWithRewards.map((validatorWithReward) => {
+    switch (chain) {
+      case 'initia': {
+        const msg = getInitiaDelegateMsg(fromAddress, validatorWithReward.validator, validatorWithReward.amount);
+        const delegateMsg = {
+          typeUrl: msg.typeUrl,
+          value: InitiaMsgDelegate.encode(msg.value).finish(),
+        };
+        encodedClaimAndStakeMsgs.push(delegateMsg);
+        break;
+      }
+      default: {
+        const msg = getDelegateMsg(fromAddress, validatorWithReward.validator, validatorWithReward.amount);
+        const delegateMsg = {
+          typeUrl: msg.typeUrl,
+          value: MsgDelegate.encode(msg.value).finish(),
+        };
+        encodedClaimAndStakeMsgs.push(delegateMsg);
+      }
+    }
+  });
+  return await simulateTx(lcdEndpoint, fromAddress, encodedClaimAndStakeMsgs, { amount: fee });
 }
 
 export async function simulateTx(

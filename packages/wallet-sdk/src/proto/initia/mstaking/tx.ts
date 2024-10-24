@@ -3,11 +3,12 @@
 import { Pubkey } from '@cosmjs/amino';
 import { Decimal } from '@cosmjs/math';
 import { decodePubkey, encodePubkey } from '@cosmjs/proto-signing';
+import { Timestamp } from 'cosmjs-types/google/protobuf/timestamp';
 
 import { BinaryReader, BinaryWriter } from '../../binary';
 import { Coin, CoinAmino, CoinSDKType } from '../../coin';
+import { Any, AnyAmino, AnyProtoMsg, AnySDKType } from '../../google/protobuf/any';
 import { fromTimestamp, toTimestamp } from '../../helpers';
-import { Any, AnyAmino, AnyProtoMsg, AnySDKType } from './any';
 import {
   CommissionRates,
   CommissionRatesAmino,
@@ -19,7 +20,7 @@ import {
   ParamsAmino,
   ParamsSDKType,
 } from './staking';
-import { Timestamp } from './timestamp';
+
 /** MsgCreateValidator defines a SDK message for creating a new validator. */
 export interface MsgCreateValidator {
   description: Description;

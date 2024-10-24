@@ -4,6 +4,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SELECTED_NETWORK } from 'config/storage-keys'
 import { useEffect } from 'react'
+import { rootStore } from 'stores/root-store'
 import browser from 'webextension-polyfill'
 
 import { isCompassWallet } from '../../utils/isCompassWallet'
@@ -18,6 +19,7 @@ export function useSetNetwork() {
   const setSelectedNetwork = useSetSelectedNetwork()
 
   return (chain: SelectedNetwork) => {
+    rootStore.setSelectedNetwork(chain)
     setSelectedNetwork(chain)
     browser.storage.local.set({ [SELECTED_NETWORK]: chain })
   }

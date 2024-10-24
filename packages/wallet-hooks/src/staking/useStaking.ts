@@ -78,23 +78,6 @@ import { useChainId, useGetFeeMarketGasPricesSteps, useHasToCalculateDynamicFee 
 
 type StakeTxHandler = Tx | InjectiveTx | EthermintTxHandler;
 
-function getTypeUrl(mode: STAKE_MODE, chain: SupportedChain) {
-  if (chain === 'initia') {
-    switch (mode) {
-      case 'DELEGATE':
-        return '/initia.mstaking.v1.MsgDelegate';
-      case 'UNDELEGATE':
-        return '/initia.mstaking.v1.MsgUndelegate';
-      case 'REDELEGATE':
-        return '/initia.mstaking.v1.MsgBeginRedelegate';
-      case 'CANCEL_UNDELEGATION':
-        return '/initia.mstaking.v1.MsgCancelUnbondingDelegation';
-    }
-  }
-
-  return;
-}
-
 function getStakeTxType(mode: STAKE_MODE): CosmosTxType {
   switch (mode) {
     case 'DELEGATE':
@@ -270,18 +253,11 @@ export function useSimulateStakeTx(
             fromValidator?.address ?? '',
             amount,
             fee,
-            getTypeUrl(mode, activeChain),
+            activeChain,
           );
 
         case 'DELEGATE':
-          return await simulateDelegate(
-            lcdUrl ?? '',
-            address,
-            toValidator?.address ?? '',
-            amount,
-            fee,
-            getTypeUrl(mode, activeChain),
-          );
+          return await simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee, activeChain);
 
         case 'CLAIM_REWARDS': {
           const validators =
@@ -298,22 +274,15 @@ export function useSimulateStakeTx(
             amount,
             creationHeight ?? '',
             fee,
-            getTypeUrl(mode, activeChain),
+            activeChain,
           );
         }
 
         case 'UNDELEGATE':
-          return await simulateUndelegate(
-            lcdUrl ?? '',
-            address,
-            toValidator?.address ?? '',
-            amount,
-            fee,
-            getTypeUrl(mode, activeChain),
-          );
+          return await simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee, activeChain);
       }
     },
-    [address, toValidator, fromValidator, mode, delegations],
+    [address, toValidator, fromValidator, mode, delegations, activeChain],
   );
 
   return simulateTx;
@@ -536,18 +505,11 @@ export function useStakeTx(
             fromValidator?.address ?? '',
             amount,
             fee,
-            getTypeUrl(mode, activeChain),
+            activeChain,
           );
 
         case 'DELEGATE':
-          return simulateDelegate(
-            lcdUrl ?? '',
-            address,
-            toValidator?.address ?? '',
-            amount,
-            fee,
-            getTypeUrl(mode, activeChain),
-          );
+          return simulateDelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee, activeChain);
 
         case 'CLAIM_REWARDS': {
           const validators =
@@ -564,21 +526,14 @@ export function useStakeTx(
             amount,
             creationHeight ?? '',
             fee,
-            getTypeUrl(mode, activeChain),
+            activeChain,
           );
 
         case 'UNDELEGATE':
-          return simulateUndelegate(
-            lcdUrl ?? '',
-            address,
-            toValidator?.address ?? '',
-            amount,
-            fee,
-            getTypeUrl(mode, activeChain),
-          );
+          return simulateUndelegate(lcdUrl ?? '', address, toValidator?.address ?? '', amount, fee, activeChain);
       }
     },
-    [address, toValidator, fromValidator, memo, mode, delegations],
+    [address, toValidator, fromValidator, memo, mode, delegations, activeChain],
   );
 
   const executeTx = useCallback(
@@ -920,7 +875,7 @@ export function useIsCancleUnstakeSupported(
         amount,
         unboundingDelegation?.entries?.[0]?.creation_height?.toString() ?? '',
         fee,
-        getTypeUrl('CANCEL_UNDELEGATION', activeChain),
+        activeChain,
       );
       return true;
     } catch (e: any) {

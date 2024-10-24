@@ -24,7 +24,7 @@ export function useGetIbcDenomInfo(forceChain?: SupportedChain) {
             if (trace) addIbcTraceData({ [_baseDenom]: trace });
           }
 
-          _baseDenom = trace.baseDenom.includes('cw20:') ? trace.baseDenom.replace('cw20:', '') : trace.baseDenom;
+          _baseDenom = trace.baseDenom.replace(/(cw20:|erc20\/)/g, '');
         }
 
         return { denomInfo: denoms[_baseDenom], trace };

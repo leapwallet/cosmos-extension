@@ -1,4 +1,9 @@
-import { useActiveChain, useAddress, useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useActiveChain,
+  useAddress,
+  useChainInfo,
+  WALLETTYPE,
+} from '@leapwallet/cosmos-wallet-hooks'
 import {
   getEthereumAddress,
   pubKeyToEvmAddressToShow,
@@ -30,6 +35,9 @@ export function useGetWalletAddresses(forceChain?: SupportedChain) {
 
         return [getEthereumAddress(address), address]
       } else if (isCompassWallet()) {
+        if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+          return [address]
+        }
         return [pubKeyToEvmAddressToShow(activeWallet.pubKeys?.[activeChain]), address]
       }
     }

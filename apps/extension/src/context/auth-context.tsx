@@ -16,14 +16,19 @@ import { QUICK_SEARCH_DISABLED_PAGES } from 'config/config'
 import {
   ACTIVE_CHAIN,
   ACTIVE_WALLET,
+  CONNECTIONS,
   ENCRYPTED_KEY_STORE,
+  FAVOURITE_NFTS,
+  HIDDEN_NFTS,
   KEYSTORE,
   V80_KEYSTORE_MIGRATION_COMPLETE,
   V118_KEYSTORE_MIGRATION_COMPLETE,
   V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE,
+  V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE,
 } from 'config/storage-keys'
 import { migrateEncryptedKeyStore, migrateKeyStore } from 'extension-scripts/migrations/v80'
 import { migratePicassoAddress } from 'extension-scripts/migrations/v118-migrate-picasso-address'
+import { favouriteNFTsStorage, hiddenNFTsStorage } from 'hooks/settings'
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
 import SideNav from 'pages/home/side-nav'
@@ -41,6 +46,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { rootStore } from 'stores/root-store'
 import { AggregatedSupportedChain } from 'types/utility'
+import { sendMessageToTab } from 'utils'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -72,6 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   const setPassword = useSetPassword()
   const testPassword = SeedPhrase.useTestPassword()
   const chains = useGetChains()
+
+  const setFavNFTs = useSetRecoilState(favouriteNFTsStorage)
+  const setHiddenNFTs = useSetRecoilState(hiddenNFTsStorage)
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
             V80_KEYSTORE_MIGRATION_COMPLETE,
             V118_KEYSTORE_MIGRATION_COMPLETE,
             V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE,
+            V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE,
             ENCRYPTED_KEY_STORE,
             ENCRYPTED_ACTIVE_WALLET,
           ])
@@ -204,6 +214,59 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
             }
           }
 
+          if (!storage[V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE]) {
+            const updateNftStruct = async (storageKey: string) => {
+              const storedNfts = await browser.storage.local.get([storageKey])
+              if (storedNfts[storageKey]) {
+                const nfts = JSON.parse(storedNfts[storageKey] ?? '{}')
+                const newNfts: Record<string, string[]> = {}
+
+                if (Object.keys(nfts).length > 0) {
+                  for (const walletId in nfts) {
+                    const _nfts = nfts[walletId]
+                    const _newNfts: string[] = []
+
+                    for (const nft of _nfts) {
+                      if (nft.includes('-:-')) {
+                        _newNfts.push(nft)
+                      } else {
+                        const separatorExist = nft.split('-').length === 2
+                        if (separatorExist) {
+                          const [address, tokenId] = nft.split('-')
+                          _newNfts.push(`${address}-:-${tokenId}`)
+                        }
+                      }
+                    }
+
+                    newNfts[walletId] = _newNfts
+                  }
+                }
+
+                const activeWallet = storage[ACTIVE_WALLET]
+                if (activeWallet?.id) {
+                  switch (storageKey) {
+                    case HIDDEN_NFTS:
+                      setHiddenNFTs(newNfts[activeWallet.id] ?? [])
+                      break
+                    case FAVOURITE_NFTS:
+                      setFavNFTs(newNfts[activeWallet.id] ?? [])
+                      break
+                  }
+                }
+
+                await browser.storage.local.set({
+                  [storageKey]: JSON.stringify(newNfts),
+                })
+              }
+            }
+
+            await updateNftStruct(HIDDEN_NFTS)
+            await updateNftStruct(FAVOURITE_NFTS)
+            await browser.storage.local.set({
+              [V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE]: true,
+            })
+          }
+
           setLocked(false)
           setNoAccount(false)
           setLoading(false)
@@ -216,6 +279,8 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
         }
       }
     },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [testPassword, setPassword, chains],
   )
 
@@ -225,6 +290,8 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       setPassword(null)
       browser.runtime.sendMessage({ type: 'lock' })
       const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
+      await browser.storage.local.set({ [CONNECTIONS]: {} })
+      await sendMessageToTab({ event: 'disconnect', data: null })
 
       if (!storage[ACTIVE_WALLET] && !storage[ENCRYPTED_ACTIVE_WALLET]) {
         setNoAccount(true)

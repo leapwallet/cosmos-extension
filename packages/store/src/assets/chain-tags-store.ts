@@ -1,3 +1,4 @@
+import { axiosWrapper } from '@leapwallet/cosmos-wallet-sdk';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { StorageAdapter } from 'types';
 
@@ -30,9 +31,7 @@ export class ChainTagsStore {
 
   async loadChainTagsFromS3() {
     try {
-      const response = await fetch(CHAIN_TAGS_S3_URL);
-      const data = await response.json();
-
+      const { data } = await axiosWrapper({ baseURL: CHAIN_TAGS_S3_URL, method: 'get' });
       runInAction(() => {
         this.chainTagsFromS3 = data.chainWiseMapping;
         this.uniqueTags = data.allTags;

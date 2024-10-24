@@ -20,7 +20,7 @@ import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SelectWallet from 'pages/home/SelectWallet'
 import SideNav from 'pages/home/side-nav'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
 
 import ComingSoonCard from './ComingSoonCard'
@@ -55,11 +55,26 @@ const StakingUnavailable = observer(
     const { walletAvatar, walletName, activeWallet } = useWalletInfo()
 
     const [showChainSelector, setShowChainSelector] = useState(false)
+    const [defaultFilter, setDefaultFilter] = useState('All')
     const [showSelectWallet, setShowSelectWallet] = useState(false)
     const [showSideNav, setShowSideNav] = useState(false)
     const [isWalletAddressCopied, setIsWalletAddressCopied] = useState(false)
 
-    const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])
+    useEffect(() => {
+      if (!showChainSelector) {
+        setDefaultFilter('All')
+      }
+    }, [showChainSelector])
+
+    const onImgClick = useCallback(
+      (event?: React.MouseEvent<HTMLDivElement>, props?: { defaultFilter?: string }) => {
+        setShowChainSelector(true)
+        if (props?.defaultFilter) {
+          setDefaultFilter(props.defaultFilter)
+        }
+      },
+      [],
+    )
     const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
     const handleCopyClick = useCallback(() => {
       setIsWalletAddressCopied(true)
@@ -101,7 +116,7 @@ const StakingUnavailable = observer(
                 className: 'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
               }}
               imgSrc={headerChainImgSrc}
-              onImgClick={dontShowSelectChain ? undefined : handleOpenSelectChainSheet}
+              onImgClick={dontShowSelectChain ? undefined : onImgClick}
               title={
                 <WalletButton
                   walletName={walletName}
@@ -132,6 +147,7 @@ const StakingUnavailable = observer(
           isVisible={showChainSelector}
           onClose={() => setShowChainSelector(false)}
           chainTagsStore={chainTagsStore}
+          defaultFilter={defaultFilter}
         />
         <SelectWallet
           isVisible={showSelectWallet}

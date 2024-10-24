@@ -103,7 +103,7 @@ export const ReviewTransfer = observer(
 
     const asset: SkipSupportedAsset = useMemo(() => {
       const skipAsset = skipAssets?.find((a) => {
-        const skipDenom = a.denom?.replace('cw20:', '')
+        const skipDenom = a.denom?.replace(/(cw20:|erc20\/)/g, '')
         if (selectedToken?.ibcDenom) {
           return skipDenom === selectedToken.ibcDenom
         }

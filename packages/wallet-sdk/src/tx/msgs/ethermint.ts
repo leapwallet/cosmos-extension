@@ -101,6 +101,8 @@ export const MSG_BEGIN_REDELEGATE_TYPES = {
   ],
 };
 
+export const MSG_DELEGATE = '/cosmos.staking.v1beta1.MsgDelegate';
+
 export enum RevokeMessages {
   REVOKE_MSG_DELEGATE = '/cosmos.staking.v1beta1.MsgDelegate',
   REVOKE_MSG_WITHDRAW_DELEGATOR_REWARDS = '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward',

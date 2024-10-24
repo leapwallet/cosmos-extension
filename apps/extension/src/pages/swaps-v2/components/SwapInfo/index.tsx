@@ -23,6 +23,8 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
     setUserPreferredGasPrice,
     setGasPriceOption,
     isSkipGasFeeLoading,
+    loadingRoutes,
+    loadingMessages,
   } = useSwapContext()
 
   const denoms = rootDenomsStore.allDenoms
@@ -53,7 +55,7 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
         {inAmount !== '' && (
           <button onClick={handleGasClick} className='flex items-center justify-end gap-1'>
             <GasPump size={16} className='dark:text-white-100' />
-            {isSkipGasFeeLoading ? (
+            {loadingRoutes || loadingMessages || isSkipGasFeeLoading ? (
               <Skeleton
                 containerClassName='block !leading-none rounded-xl'
                 width={35}

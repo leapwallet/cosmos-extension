@@ -1,12 +1,13 @@
 import { useCustomChains, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { MagnifyingGlass, Plus } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { AGGREGATED_CHAIN_KEY, PriorityChains } from 'config/constants'
-import { useStarredChains } from 'hooks/settings'
+import { useIsAllChainsEnabled, useStarredChains } from 'hooks/settings'
 import { ManageChainSettings, useManageChainData } from 'hooks/settings/useManageChains'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
@@ -32,6 +33,7 @@ export type ListChainsProps = {
   setSearchedChain?: (val: string) => void
   showAggregatedOption?: boolean
   handleAddNewChainClick?: VoidFunction | null
+  defaultFilter?: string
 }
 
 export const ListChains = observer(
@@ -45,15 +47,23 @@ export const ListChains = observer(
     showAggregatedOption = false,
     handleAddNewChainClick,
     chainTagsStore,
+    defaultFilter = 'All',
   }: ListChainsProps) => {
     const [newChain, setNewChain] = useState<string | null>(null)
     const [newSearchedChain, setNewSearchedChain] = useState('')
-    const [selectedFilter, setSelectedFilter] = useState('All')
+    const [selectedFilter, setSelectedFilter] = useState(defaultFilter)
+
+    const isAllChainsEnabled = useIsAllChainsEnabled()
+    const { theme } = useTheme()
 
     const uniqueTags = chainTagsStore.uniqueTags
     const allChainTags = chainTagsStore.allChainTags
 
     const filterOptions = useMemo(() => {
+      if (isCompassWallet()) {
+        return []
+      }
+
       return ['All', ...uniqueTags]
     }, [uniqueTags])
 
@@ -89,7 +99,13 @@ export const ListChains = observer(
     const chainInfos = useChainInfos()
     const allNativeChainID = Object.values(chainInfos)
       .filter((chain) => chain.enabled)
-      .map((chain) => chain.chainId)
+      .map((chain) => {
+        if (chain.testnetChainId && chain.chainId !== chain.testnetChainId) {
+          return [chain.chainId, chain.testnetChainId]
+        }
+        return [chain.chainId]
+      })
+      .flat()
 
     const _customChains: ManageChainSettings[] = customChains
       .filter((d) => !allNativeChainID.includes(d.chainId))
@@ -118,7 +134,9 @@ export const ListChains = observer(
           (isCompassWallet() && chain.chainName === 'cosmos') ||
           !chain.active ||
           (onPage === 'AddCollection' &&
-            ['omniflix', 'stargaze', 'forma'].includes(chain.chainName))
+            ['omniflix', 'stargaze', 'forma', 'manta', 'aura', 'mainCoreum', 'lightlink'].includes(
+              chain.chainName,
+            ))
         ) {
           return false
         }
@@ -202,35 +220,37 @@ export const ListChains = observer(
 
     return (
       <>
-        <div className='flex items-center gap-2 mb-6'>
-          <div
-            className={
-              'w-full flex gap-2 items-center h-11 bg-white-100 dark:bg-gray-950 rounded-[30px] py-2 px-4'
-            }
-          >
-            <MagnifyingGlass size={20} className='text-gray-600 dark:text-gray-400' />
-            <input
-              placeholder={'Search chains'}
-              className={
-                'flex flex-grow text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
-              }
-              value={searchedChain}
-              onChange={(e) => setSearchedChain(e.target.value)}
-              ref={inputRef}
-            />
-          </div>
-
-          {handleAddNewChainClick && (
+        {!isCompassWallet() ? (
+          <div className='flex items-center gap-2 mb-6'>
             <div
-              className='bg-white-100 dark:bg-gray-950 p-3 text-black-100 dark:text-white-100 rounded-[30px] cursor-pointer'
-              onClick={handleAddNewChainClick}
+              className={
+                'w-full flex gap-2 items-center h-11 bg-white-100 dark:bg-gray-950 rounded-[30px] py-2 px-4'
+              }
             >
-              <Plus size={20} className='text-black-100 dark:text-white-100' />
+              <MagnifyingGlass size={20} className='text-gray-600 dark:text-gray-400' />
+              <input
+                placeholder={'Search chains'}
+                className={
+                  'flex flex-grow text-base text-gray-600 dark:text-gray-400 outline-none bg-white-0'
+                }
+                value={searchedChain}
+                onChange={(e) => setSearchedChain(e.target.value)}
+                ref={inputRef}
+              />
             </div>
-          )}
-        </div>
 
-        {!searchedChain ? (
+            {handleAddNewChainClick && (
+              <div
+                className='bg-white-100 dark:bg-gray-950 p-3 text-black-100 dark:text-white-100 rounded-[30px] cursor-pointer'
+                onClick={handleAddNewChainClick}
+              >
+                <Plus size={20} className='text-black-100 dark:text-white-100' />
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {!searchedChain && !isCompassWallet() ? (
           <div className='mb-6 flex gap-2 justify-start items-center overflow-x-auto hide-scrollbar'>
             {filterOptions.map((filter) => (
               <button
@@ -256,7 +276,7 @@ export const ListChains = observer(
         !searchedChain &&
         !isCompassWallet() &&
         showAggregatedOption &&
-        featureFlags?.give_all_chains_option_in_wallet?.extension === 'active' ? (
+        isAllChainsEnabled ? (
           <div className='bg-white-100 dark:bg-gray-950 rounded-xl max-h-[100px] w-full mb-5'>
             <ChainCard
               beta={false}
@@ -264,7 +284,11 @@ export const ListChains = observer(
               formattedChainName='All chains'
               chainName={AGGREGATED_CHAIN_KEY}
               selectedChain={selectedChain}
-              img={Images.Misc.AggregatedViewSvg}
+              img={
+                theme === ThemeName.DARK
+                  ? Images.Misc.AggregatedViewDarkSvg
+                  : Images.Misc.AggregatedViewSvg
+              }
               showNewTag
             />
           </div>
@@ -332,49 +356,53 @@ type ChainSelectorProps = {
   readonly isVisible: boolean
   readonly onClose: VoidFunction
   readonly chainTagsStore: ChainTagsStore
+  readonly defaultFilter?: string
 }
 
-const SelectChain = observer(({ isVisible, onClose, chainTagsStore }: ChainSelectorProps) => {
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const selectedChain = useActiveChain()
-  const setActiveChain = useSetActiveChain()
-  const [searchedChain, setSearchedChain] = useState('')
+const SelectChain = observer(
+  ({ isVisible, onClose, chainTagsStore, defaultFilter }: ChainSelectorProps) => {
+    const navigate = useNavigate()
+    const { pathname } = useLocation()
+    const selectedChain = useActiveChain()
+    const setActiveChain = useSetActiveChain()
+    const [searchedChain, setSearchedChain] = useState('')
 
-  const onChainSelect = (chainName: AggregatedSupportedChain) => {
-    setActiveChain(chainName)
-    if (pathname !== '/home') {
-      navigate('/home')
+    const onChainSelect = (chainName: AggregatedSupportedChain) => {
+      setActiveChain(chainName)
+      if (pathname !== '/home') {
+        navigate('/home')
+      }
+      onClose()
     }
-    onClose()
-  }
 
-  const handleAddNewChainClick = useCallback(() => {
-    const views = extension.extension.getViews({ type: 'popup' })
-    if (views.length === 0) navigate('/add-chain', { replace: true })
-    else window.open(extension.runtime.getURL('index.html#/add-chain'))
-  }, [navigate])
+    const handleAddNewChainClick = useCallback(() => {
+      const views = extension.extension.getViews({ type: 'popup' })
+      if (views.length === 0) navigate('/add-chain', { replace: true })
+      else window.open(extension.runtime.getURL('index.html#/add-chain'))
+    }, [navigate])
 
-  return (
-    <BottomModal
-      isOpen={isVisible}
-      onClose={onClose}
-      closeOnBackdropClick={true}
-      title='Switch chain'
-      containerClassName='h-[calc(100%-34px)]'
-      className='max-h-[calc(100%-69px)]'
-    >
-      <ListChains
-        onChainSelect={onChainSelect}
-        selectedChain={selectedChain}
-        searchedChain={searchedChain}
-        setSearchedChain={(val) => setSearchedChain(val)}
-        showAggregatedOption={true}
-        handleAddNewChainClick={isCompassWallet() ? null : handleAddNewChainClick}
-        chainTagsStore={chainTagsStore}
-      />
-    </BottomModal>
-  )
-})
+    return (
+      <BottomModal
+        isOpen={isVisible}
+        onClose={onClose}
+        closeOnBackdropClick={true}
+        title='Switch chain'
+        containerClassName={`h-[calc(100%-${isCompassWallet() ? '102px' : '34px'})]`}
+        className='max-h-[calc(100%-69px)]'
+      >
+        <ListChains
+          onChainSelect={onChainSelect}
+          selectedChain={selectedChain}
+          searchedChain={searchedChain}
+          setSearchedChain={(val) => setSearchedChain(val)}
+          showAggregatedOption={true}
+          handleAddNewChainClick={isCompassWallet() ? null : handleAddNewChainClick}
+          chainTagsStore={chainTagsStore}
+          defaultFilter={defaultFilter}
+        />
+      </BottomModal>
+    )
+  },
+)
 
 export default SelectChain

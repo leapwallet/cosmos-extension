@@ -16,7 +16,7 @@ export function useHiddenNftsList({ collectionData, hiddenNfts }: useHiddenNftsL
     if (!collectionData) return [];
 
     const _hiddenNftsList: FavNftsList[] = hiddenNfts.reduce((nfts: FavNftsList[], hiddenNft) => {
-      const [address, tokenId] = hiddenNft.split('-');
+      const [address, tokenId] = hiddenNft.split('-:-');
 
       const collection = collectionData.collections?.find(
         (collection) => collection.address === address && !disabledNFTsCollections.includes(collection.address),

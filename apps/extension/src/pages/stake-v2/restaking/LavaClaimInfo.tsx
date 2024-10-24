@@ -56,7 +56,6 @@ const LavaClaimInfo = observer(
     const { formatHideBalance } = useHideAssets()
     const [formatCurrency] = useFormatCurrency()
     const denoms = rootDenomsStore.allDenoms
-    const [activeStakingDenom] = useActiveStakingDenom(denoms)
 
     const _activeChain = useActiveChain()
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
@@ -67,6 +66,7 @@ const LavaClaimInfo = observer(
       [_activeNetwork, forceNetwork],
     )
 
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const chainDelegations = delegationsStore.delegationsForChain(activeChain)
     const chainValidators = validatorsStore.validatorsForChain(activeChain)
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)

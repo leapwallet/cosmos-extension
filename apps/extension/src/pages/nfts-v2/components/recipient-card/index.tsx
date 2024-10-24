@@ -71,6 +71,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     fetchAccountDetailsStatus,
     setAddressWarning,
     addressWarning,
+    nftSendChain: activeChain,
+    nftSendNetwork: activeNetwork,
   } = useSendNftCardContext()
 
   const [isContactsSheetVisible, setIsContactsSheetVisible] = useState<boolean>(false)
@@ -87,10 +89,8 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   }
 
   const { chains } = useChainsStore()
-  const currentWalletAddress = useAddress()
+  const currentWalletAddress = useAddress(activeChain)
   const addressPrefixes = useAddressPrefixes()
-  const activeChain = useActiveChain()
-  const activeNetwork = useSelectedNetwork()
 
   const activeWallet = useActiveWallet()
   const activeChainInfo = chains[activeChain]

@@ -77,7 +77,6 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
         path: '/stake?pageSource=bottomNav',
         show: true,
         disabled: activeChainInfo?.disableStaking || activeChainInfo?.evmOnlyChain,
-        shouldRedirect: activeChain === 'initia',
         redirectHandler: stakeRedirectForInitiaHandler,
       },
       {

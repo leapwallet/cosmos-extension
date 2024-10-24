@@ -1,5 +1,6 @@
-import { DeepPartial } from '@osmonauts/helpers';
 import * as _m0 from 'protobufjs/minimal';
+
+import { DeepPartial } from '../../../proto/helpers';
 export enum ICAAccountType {
   DELEGATION = 0,
   FEE = 1,

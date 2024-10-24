@@ -113,9 +113,9 @@ export const ProposalList = observer(
             if (filter === 'all') {
               if (!propFilter) acc.push(cur)
               else if (
-                cur.content?.title.toLowerCase().includes(propFilter) ||
-                cur.title.toLowerCase().includes(propFilter) ||
-                cur.proposal_id.toLowerCase().includes(propFilter)
+                cur.content?.title?.toLowerCase().includes(propFilter) ||
+                cur.title?.toLowerCase().includes(propFilter) ||
+                cur.proposal_id?.toLowerCase().includes(propFilter)
               ) {
                 acc.push(cur)
               }
@@ -124,9 +124,9 @@ export const ProposalList = observer(
                 acc.push(cur)
               } else if (
                 cur.status === filter &&
-                (cur.content.title.toLowerCase().includes(propFilter) ||
-                  cur.title.toLowerCase().includes(propFilter) ||
-                  cur.proposal_id.toLowerCase().includes(propFilter))
+                (cur.content?.title?.toLowerCase().includes(propFilter) ||
+                  cur.title?.toLowerCase().includes(propFilter) ||
+                  cur.proposal_id?.toLowerCase().includes(propFilter))
               ) {
                 acc.push(cur)
               }

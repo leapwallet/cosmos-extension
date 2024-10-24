@@ -96,7 +96,7 @@ const SuggestEthereumChain = observer(
 
         await Browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(newBetaChains) })
         await addBetaChainTags()
-        await setActiveChain(chainKey as SupportedChain)
+        await setActiveChain(chainKey as SupportedChain, chainInfo)
 
         if (activeWallet) {
           await addToConnections([chainInfo?.evmChainId || ''], [activeWallet.id], origin ?? '')
@@ -111,17 +111,16 @@ const SuggestEthereumChain = observer(
         window.removeEventListener('beforeunload', handleRejectBtnClick)
         await Browser.storage.local.set({ [BG_RESPONSE]: { data: 'Approved' } })
 
-        setTimeout(async () => {
-          await Browser.storage.local.remove([NEW_CHAIN_REQUEST])
-          await Browser.storage.local.remove(BG_RESPONSE)
+        await Browser.storage.local.remove([NEW_CHAIN_REQUEST])
+        await Browser.storage.local.remove(BG_RESPONSE)
 
-          setIsLoading(false)
-          if (isSidePanel()) {
-            navigate('/home')
-          } else {
-            window.close()
-          }
-        }, 50)
+        if (isSidePanel()) {
+          navigate('/home')
+        } else {
+          window.close()
+        }
+
+        setIsLoading(false)
       } catch (_) {
         handleError('Failed to add network')
         setIsLoading(false)

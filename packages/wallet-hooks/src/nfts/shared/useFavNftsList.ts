@@ -16,7 +16,7 @@ export function useFavNftsList({ collectionData, favNfts }: useFavNftsListParams
     if (!collectionData) return [];
 
     const _favNftsList: FavNftsList[] = favNfts.reduce((nfts: FavNftsList[], favNft) => {
-      const [address, tokenId] = favNft.split('-');
+      const [address, tokenId] = favNft.split('-:-');
 
       const collection = collectionData.collections?.find(
         (collection) => collection.address === address && !disabledNFTsCollections.includes(collection.address),

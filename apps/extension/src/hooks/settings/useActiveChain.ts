@@ -2,12 +2,11 @@ import {
   Key,
   SelectedNetworkType,
   useActiveChain as useActiveChainWalletHooks,
-  useFeatureFlags,
   useGetChains,
+  useInitSelectedNetwork,
   usePendingTxState,
   useSetActiveChain as useSetActiveChainWalletHooks,
   useSetLastEvmActiveChain,
-  useSetSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQueryClient } from '@tanstack/react-query'
@@ -17,7 +16,7 @@ import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { ACTIVE_CHAIN, KEYSTORE, LAST_EVM_ACTIVE_CHAIN } from 'config/storage-keys'
 import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSetRecoilState } from 'recoil'
 import { rootStore } from 'stores/root-store'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -26,6 +25,7 @@ import browser from 'webextension-polyfill'
 
 import { isCompassWallet } from '../../utils/isCompassWallet'
 import useActiveWallet, { useUpdateKeyStore } from './useActiveWallet'
+import { useIsAllChainsEnabled } from './useIsAllChainsEnabled'
 
 export function useActiveChain(): SupportedChain {
   return useActiveChainWalletHooks()
@@ -36,7 +36,6 @@ export function useSetActiveChain() {
   const setSelectedChainAlert = useSetRecoilState(selectedChainAlertState)
   const { setPendingTx } = usePendingTxState()
   const setNetwork = useSetNetwork()
-  const setSelectedNetwork = useSetSelectedNetwork()
 
   const updateKeyStore = useUpdateKeyStore()
   const { activeWallet, setActiveWallet } = useActiveWallet()
@@ -73,7 +72,6 @@ export function useSetActiveChain() {
       let _network: SelectedNetworkType = 'mainnet'
 
       if (chain === 'seiDevnet') {
-        setSelectedNetwork('mainnet')
         setNetwork('mainnet')
       } else {
         if (_chainInfo?.evmOnlyChain) {
@@ -99,13 +97,10 @@ export function useSetActiveChain() {
           }
 
           setNetwork(network)
-          setSelectedNetwork(network)
         } else if (_chainInfo && _chainInfo?.apis?.rpc) {
           setNetwork('mainnet')
-          setSelectedNetwork('mainnet')
         } else if (_chainInfo && _chainInfo?.apis?.rpcTest) {
           setNetwork('testnet')
-          setSelectedNetwork('testnet')
           _network = 'testnet'
         }
       }
@@ -114,38 +109,41 @@ export function useSetActiveChain() {
         (_network === 'testnet' ? _chainInfo?.evmChainIdTestnet : _chainInfo?.evmChainId) ?? ''
       await sendMessageToTab({ event: 'chainChanged', data: chainId })
     } else {
-      setSelectedNetwork('mainnet')
       setNetwork('mainnet')
     }
   }
 }
 
-export function useInitActiveChain() {
+export function useInitActiveChain(enabled: boolean) {
   const chainInfos = useChainInfos()
   const chains = useGetChains()
   const setActiveChain = useSetActiveChainWalletHooks()
   const setLastEvmActiveChain = useSetLastEvmActiveChain()
-  const { data: featureFlags } = useFeatureFlags()
+  const isAllChainsEnabled = useIsAllChainsEnabled()
+  const [isActiveChainInitialized, setIsActiveChainInitialized] = useState<boolean>(false)
 
   useEffect(() => {
     browser.storage.local.get([ACTIVE_CHAIN, LAST_EVM_ACTIVE_CHAIN]).then((storage) => {
+      if (!enabled) {
+        return
+      }
+
       let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
-      const leapFallbackChain =
-        featureFlags?.give_all_chains_option_in_wallet?.extension === 'active'
-          ? (AGGREGATED_CHAIN_KEY as SupportedChain)
-          : chainInfos.cosmos.key
+      const leapFallbackChain = isAllChainsEnabled
+        ? (AGGREGATED_CHAIN_KEY as SupportedChain)
+        : chainInfos.cosmos.key
 
       const defaultActiveChain = isCompassWallet() ? chainInfos.seiTestnet2.key : leapFallbackChain
       setLastEvmActiveChain(storage[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum')
 
       if (
         (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY &&
-        featureFlags?.give_all_chains_option_in_wallet?.extension === 'active' &&
+        isAllChainsEnabled &&
         !isCompassWallet()
       ) {
         setActiveChain(activeChain)
         rootStore.setActiveChain(activeChain)
-
+        setIsActiveChainInitialized(true)
         return
       }
 
@@ -159,8 +157,11 @@ export function useInitActiveChain() {
 
       setActiveChain(activeChain)
       rootStore.setActiveChain(activeChain)
+      setIsActiveChainInitialized(true)
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chainInfos, chains, featureFlags])
+  }, [chainInfos, chains, isAllChainsEnabled, enabled])
+
+  useInitSelectedNetwork(isActiveChainInitialized)
 }

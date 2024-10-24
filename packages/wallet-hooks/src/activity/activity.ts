@@ -214,7 +214,7 @@ export function useActivity(
   const { lcdUrl: restUrl = '' } = useChainApis(activeChain, selectedNetwork);
   const { chains } = useChainsStore();
   const address = useMemo(() => {
-    if (activeChain === 'forma') {
+    if (activeChain === 'forma' || activeChain === 'manta' || activeChain === 'lightlink') {
       return pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain] ?? '');
     }
 
@@ -241,7 +241,34 @@ export function useActivity(
               const url = `https://explorer.forma.art/api/v2/addresses/${address}/transactions?filter=to%20%7C%20from`;
               const response = await fetch(url);
               const data = await response.json();
-
+              parsedData = data?.items?.map((tx: any) =>
+                parseFormaTx(tx, Object.keys(chains[activeChain].nativeDenoms)[0]),
+              );
+            } catch (_) {
+              //
+            }
+          } else if (activeChain === 'manta') {
+            try {
+              const explorer =
+                selectedNetwork === 'mainnet'
+                  ? 'https://pacific-explorer.manta.network'
+                  : 'https://pacific-explorer.sepolia-testnet.manta.network';
+              const url = `${explorer}/api/v2/addresses/${address}/transactions?filter=to%20%7C%20from`;
+              const response = await fetch(url);
+              const data = await response.json();
+              parsedData = data?.items?.map((tx: any) =>
+                parseFormaTx(tx, Object.keys(chains[activeChain].nativeDenoms)[0]),
+              );
+            } catch (_) {
+              //
+            }
+          } else if (activeChain === 'lightlink') {
+            try {
+              const explorer =
+                selectedNetwork === 'mainnet' ? 'https://phoenix.lightlink.io' : 'https://pegasus.lightlink.io';
+              const url = `${explorer}/api/v2/addresses/${address}/transactions?filter=to%20%7C%20from`;
+              const response = await fetch(url);
+              const data = await response.json();
               parsedData = data?.items?.map((tx: any) =>
                 parseFormaTx(tx, Object.keys(chains[activeChain].nativeDenoms)[0]),
               );

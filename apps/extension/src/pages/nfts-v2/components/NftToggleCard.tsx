@@ -24,7 +24,7 @@ export function NftToggleCard({
       size={size}
       icon={<Toggle checked={isEnabled} onChange={onClick} />}
       isRounded={isRounded}
-      className='[&_input]:shrink-0'
+      className='[&_input]:shrink-0 dark:bg-gray-950'
       {...rest}
     />
   )

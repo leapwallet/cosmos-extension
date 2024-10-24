@@ -166,4 +166,12 @@ export const chainIdToChainName: Record<string, string> = {
   'ssc-1': 'saga',
   'initiation-1': 'initia',
   'humans_1089-1': 'humans',
+  'tomcat-1': 'blackwing',
+  'landlord-1': 'civitia',
+  'init-ai-1': 'init_ai',
+  'glados-1': 'milkyway',
+  'minimove-1': 'minimove',
+  'miniwasm-1': 'miniwasm',
+  'burrito-1': 'noon',
+  'birdee-1': 'tucana',
 };

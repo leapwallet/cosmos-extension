@@ -44,7 +44,7 @@ export class IbcDenomInfoStore {
           trace = await getIbcDenomData(_baseDenom, lcdUrl ?? '', activeChainId);
         }
 
-        _baseDenom = trace.baseDenom.includes('cw20:') ? trace.baseDenom.replace('cw20:', '') : trace.baseDenom;
+        _baseDenom = trace.baseDenom?.replace(/(cw20:|erc20\/)/g, '');
       }
 
       return { denomInfo: this.denomStore.denoms[_baseDenom], trace };

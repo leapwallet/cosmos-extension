@@ -1,5 +1,7 @@
-import { DeepPartial, Long } from '@osmonauts/helpers';
+import Long from 'long';
 import * as _m0 from 'protobufjs/minimal';
+
+import { DeepPartial } from '../../../proto/helpers';
 
 export interface Validator {
   name: string;

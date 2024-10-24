@@ -189,11 +189,11 @@ const StakeInputPage = observer(
     )
     const validators = useMemo(
       () =>
-        validatorsStore.chainValidators.validatorData.validators?.reduce((acc, validator) => {
+        chainValidators.validatorData.validators?.reduce((acc, validator) => {
           acc[validator.address] = validator
           return acc
         }, {} as Record<string, Validator>),
-      [validatorsStore.chainValidators.validatorData.validators],
+      [chainValidators.validatorData.validators],
     )
     const apy = network?.validatorApys
     const { data: featureFlags } = useFeatureFlags()
@@ -228,6 +228,8 @@ const StakeInputPage = observer(
             [providerDelegation as ProviderDelegation],
             selectedProvider,
             fromProvider,
+            activeChain,
+            activeNetwork,
           )
         : useStakeTx(
             denoms,

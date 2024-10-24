@@ -1,7 +1,6 @@
 import {
   useActiveChain,
   useActiveWallet,
-  useChainInfo,
   useChainsStore,
   useLastEvmActiveChain,
   WALLETTYPE,
@@ -15,13 +14,12 @@ import { ErrorCard } from 'components/ErrorCard'
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { Tabs } from 'components/tabs'
 import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
+import { useDefaultTokenLogo } from 'hooks'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
-import { GenericLight } from 'images/logos'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
@@ -40,9 +38,15 @@ const useGetWallet = Wallet.useGetWallet
 
 export type MessageSignatureProps = {
   txnData: SignTransactionProps['txnData']
+  donotClose: SignTransactionProps['donotClose']
+  handleTxnListUpdate: SignTransactionProps['handleTxnListUpdate']
 }
 
-export function MessageSignature({ txnData }: MessageSignatureProps) {
+export function MessageSignature({
+  txnData,
+  donotClose,
+  handleTxnListUpdate,
+}: MessageSignatureProps) {
   const lastEvmActiveChain = useLastEvmActiveChain()
   const _activeChain = useActiveChain()
   const activeChain = isCompassWallet() ? _activeChain : lastEvmActiveChain
@@ -66,6 +70,7 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
 
   const { chains } = useChainsStore()
   const chainInfo = chains[activeChain]
+  const defaultImage = useDefaultTokenLogo()
 
   const handleSignClick = async () => {
     try {
@@ -102,16 +107,21 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
       try {
         Browser.runtime.sendMessage({
           type: MessageTypes.signSeiEvmResponse,
+          payloadId: txnData?.payloadId,
           payload: { status: 'success', data: signature },
         })
       } catch {
         throw new Error('Could not send transaction to the dApp')
       }
 
-      if (isSidePanel()) {
-        navigate('/home')
+      if (!donotClose) {
+        if (isSidePanel()) {
+          navigate('/home')
+        } else {
+          window.close()
+        }
       } else {
-        window.close()
+        handleTxnListUpdate()
       }
     } catch (error) {
       setTxStatus('error')
@@ -128,7 +138,7 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
           header={
             <div className='w-[396px]'>
               <Header
-                imgSrc={chainInfo.chainSymbolImageUrl ?? GenericLight}
+                imgSrc={chainInfo.chainSymbolImageUrl || defaultImage}
                 title={
                   <Buttons.Wallet
                     brandLogo={
@@ -171,21 +181,9 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
               </div>
             </div>
 
-            <Tabs
-              className='mt-3'
-              tabsList={[{ id: 'details', label: 'Details' }]}
-              tabsContent={{
-                details: (
-                  <pre className='text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl'>
-                    {JSON.stringify(
-                      txnData.signTxnData.details,
-                      (_, value) => (typeof value === 'bigint' ? value.toString() : value),
-                      2,
-                    )}
-                  </pre>
-                ),
-              }}
-            />
+            <p className='text-sm break-words text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl whitespace-break-spaces'>
+              {txnData.signTxnData.details.Message}
+            </p>
 
             {signingError && txStatus === 'error' ? (
               <ErrorCard text={signingError} className='mt-3' />
@@ -204,7 +202,13 @@ export function MessageSignature({ txnData }: MessageSignatureProps) {
               <Buttons.Generic
                 title='Reject Button'
                 color={Colors.gray900}
-                onClick={() => handleRejectClick(navigate)}
+                onClick={() => {
+                  handleRejectClick(navigate, txnData?.payloadId, donotClose)
+
+                  if (donotClose) {
+                    handleTxnListUpdate()
+                  }
+                }}
                 disabled={txStatus === 'loading'}
               >
                 Reject

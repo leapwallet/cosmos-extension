@@ -1,5 +1,6 @@
-import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
+import { NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
+import { computedFn } from 'mobx-utils';
 
 import { StorageAdapter } from '../../types';
 import { ActiveChainStore } from '../../wallet';
@@ -44,6 +45,10 @@ export class BetaERC20DenomsStore {
 
     return this.denoms?.[activeChain] ?? [];
   }
+
+  getBetaERC20DenomsForChain = computedFn((chain: SupportedChain) => {
+    return this.denoms?.[chain] ?? {};
+  });
 
   async setBetaERC20Denoms(coinMinimalDenom: string, value: NativeDenom, chain: string) {
     runInAction(() => {

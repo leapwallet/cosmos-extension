@@ -323,6 +323,20 @@ export namespace LeapWalletApi {
     return metadata;
   }
 
+  export async function getWalletIdentifications(address: string): Promise<{
+    identifications: {
+      category: string;
+      name: string | null;
+      description: string | null;
+      url: string | null;
+    }[];
+  }> {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const { data } = await axios.get(`${leapApiBaseUrl}/address-identity/${address}`);
+
+    return { identifications: data.identifications };
+  }
+
   export function useOperateCosmosTx(): OperateCosmosTx {
     const { chains } = useChainsStore();
     const isCompassWallet = getAppName() === APP_NAME.Compass;

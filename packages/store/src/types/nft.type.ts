@@ -45,6 +45,7 @@ export interface NftCollection {
 export interface BatchRequestData {
   'chain-id': string;
   'wallet-address': string;
+  'evm-address': string;
   'is-testnet': string;
   'rpc-url': string;
   collections: NftCollection[];
@@ -91,4 +92,5 @@ export interface LeapServerResponse {
   chainId: string;
   walletAddress: string;
   nftDetails: NftResponse[];
+  seiApiIsDown: boolean;
 }

@@ -3,7 +3,7 @@ import create from 'zustand';
 
 import { getStorageLayer } from '../utils';
 import { useIsTestnetActiveChain } from '../utils-hooks';
-import { useActiveChainStore } from './useActiveChain';
+import { useActiveChain, useActiveChainStore } from './useActiveChain';
 
 type SelectedNetworkState = {
   selectedNetwork: 'mainnet' | 'testnet';
@@ -33,8 +33,9 @@ useSelectedNetworkStore.subscribe(async ({ selectedNetwork }) => {
   storage.set('networkMap', JSON.stringify(currentMap));
 });
 
-export const useInitSelectedNetwork = () => {
+export const useInitSelectedNetwork = (enabled: boolean) => {
   const { isTestnet } = useIsTestnetActiveChain();
+  const activeChain = useActiveChain();
 
   useEffect(() => {
     const fn = async () => {
@@ -51,8 +52,11 @@ export const useInitSelectedNetwork = () => {
 
       selectedNetworkStore.setSelectedNetwork(selectedNetwork || defaultSelectedNetwork);
     };
-    fn();
-  }, [isTestnet]);
+
+    if (enabled) {
+      fn();
+    }
+  }, [isTestnet, enabled]);
 };
 
 export const useSelectedNetwork = () => useSelectedNetworkStore((state) => state.selectedNetwork);

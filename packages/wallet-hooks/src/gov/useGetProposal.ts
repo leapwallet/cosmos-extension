@@ -56,8 +56,17 @@ export function useGetProposal(
         axiosWrapper({ baseURL: lcdUrl, method: 'get', url: proposerUrl }),
       ]);
       const proposer = data4.data.deposits[data4.data.deposits.length - 1];
+      let formattedTally;
+      if (data1?.data?.tally) {
+        formattedTally = {
+          yes: data1.data.tally.yes_count ?? data1.data.tally.yes,
+          no: data1.data.tally.no_count ?? data1.data.tally.no,
+          abstain: data1.data.tally.abstain_count ?? data1.data.tally.abstain,
+          no_with_veto: data1.data.tally.no_with_veto_count ?? data1.data.tally.no_with_veto,
+        };
+      }
       return {
-        ...data1.data.tally,
+        ...(formattedTally ?? {}),
         ...data2.data.tally_params,
         ...data3.data.pool,
         proposer,

@@ -1,10 +1,17 @@
-import { Key, useActiveWalletStore, useIsCompassWallet } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  Key,
+  useActiveWalletStore,
+  useFeatureFlags,
+  useIsCompassWallet,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
 import { useCallback, useEffect } from 'react'
 import { rootStore } from 'stores/root-store'
+import { AggregatedSupportedChain } from 'types/utility'
 import { sendMessageToTab } from 'utils'
 import browser from 'webextension-polyfill'
 
@@ -99,6 +106,7 @@ export function useInitActiveWallet() {
 export default function useActiveWallet() {
   const { setActiveWallet: setState, activeWallet } = useActiveWalletStore()
   const isCompassWallet = useIsCompassWallet()
+  const { data: featureFlags } = useFeatureFlags()
 
   const setActiveWallet = useCallback(
     async (wallet: Key | null) => {
@@ -115,6 +123,13 @@ export default function useActiveWallet() {
 
       await sendMessageToTab({ event: 'leap_keystorechange' })
       await browser.storage.local.set({ [ACTIVE_WALLET]: wallet, [ACTIVE_WALLET_ID]: wallet.id })
+
+      if (
+        featureFlags?.swaps?.chain_abstraction === 'active' &&
+        (activeChain as AggregatedSupportedChain) !== AGGREGATED_CHAIN_KEY
+      ) {
+        rootStore.rootBalanceStore.loadBalances('aggregated')
+      }
       rootStore.reloadAddresses()
       try {
         setState(wallet)
@@ -124,7 +139,7 @@ export default function useActiveWallet() {
     },
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeWallet, setState],
+    [activeWallet, setState, featureFlags],
   )
 
   return { activeWallet, setActiveWallet }

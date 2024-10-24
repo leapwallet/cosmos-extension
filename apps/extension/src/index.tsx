@@ -9,6 +9,7 @@ import {
   setPlatformType,
   setStorageLayer,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { setSpeculosTransport, setUseSpeculosTransport } from '@leapwallet/cosmos-wallet-sdk'
 import { fetchIbcTraceData, setBaseURL, setIsCompass } from '@leapwallet/cosmos-wallet-store'
 import { initCachingLayer, setLeapIntegratorID } from '@leapwallet/elements-hooks'
 import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
@@ -45,7 +46,6 @@ setBaseURL(process.env.LEAP_WALLET_BACKEND_API_URL as string)
 setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
 setIsCompass(isCompassWallet())
 setPlatformType(PLATFORM_TYPE.Extension)
-
 initCachingLayer(AsyncIDBStorage)
 // setAppName is for tx logging
 setAppName(isCompassWallet() ? APP_NAME.Compass : APP_NAME.Cosmos)
@@ -57,6 +57,16 @@ initStorage(storageAdapter)
 initCrypto()
 
 fetchIbcTraceData()
+
+async function importSpeculosTransport() {
+  setUseSpeculosTransport(true)
+  const SpeculosHttpTransport = await import('@empiricalrun/hw-transport-speculos-http')
+  setSpeculosTransport(SpeculosHttpTransport.default)
+}
+
+if (process.env.buildType === 'staging') {
+  importSpeculosTransport()
+}
 
 //const persister = createAsyncStoragePersister({
 //  storage: {
@@ -90,6 +100,7 @@ if (process.env.SENTRY_DSN) {
         'AbortError: Aborted',
         'TypeError: Failed to fetch',
         'TypeError: NetworkError when attempting to fetch resource.',
+        'API Unavailable',
       ],
       release: `${browser.runtime.getManifest().version}`,
       integrations: [

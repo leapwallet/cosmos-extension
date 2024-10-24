@@ -80,6 +80,7 @@ export default function NetworkErrorInNft({
       <CantSeeNfts
         openAddCollectionSheet={() => setShowAddCollectionSheet(true)}
         className='mt-4 w-full'
+        nftStore={nftStore}
       />
     </div>
   )

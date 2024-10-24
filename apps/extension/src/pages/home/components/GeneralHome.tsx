@@ -136,8 +136,8 @@ const TotalBalance = observer(
           const timeoutId = setTimeout(() => {
             setTimedBalancesFiatValue(totalFiatValue)
             clearTimeout(timeoutId)
-          }, 2000 + countRef.current * 100)
-          countRef.current += 1
+          }, 1000 + countRef.current * 2000)
+          countRef.current = Math.min(countRef.current + 1, 2)
         }
       }
     }, [totalFiatValue, timedBalancesFiatValue])
@@ -176,7 +176,7 @@ export const GeneralHome = observer(
 
     const navigate = useNavigate()
     const activeChain = useActiveChain() as AggregatedSupportedChain
-    const { headerChainImgSrc, gradientChainColor } = useChainPageInfo()
+    const { headerChainImgSrc, gradientChainColor, topChainColor } = useChainPageInfo()
     const chains = useGetChains()
 
     const initialRef = useRef<Record<string, never | number>>(
@@ -229,6 +229,7 @@ export const GeneralHome = observer(
 
     const [showWalletAvatarMsg, setShowWalletAvatarMsg] = useState(!!walletAvatarChanged)
     const [showChainSelector, setShowChainSelector] = useState(false)
+    const [defaultFilter, setDefaultFilter] = useState('All')
     const [showSelectWallet, setShowSelectWallet] = useState(false)
     const [showSideNav, setShowSideNav] = useState(false)
     const [showReceiveSheet, setShowReceiveSheet] = useState(false)
@@ -260,6 +261,12 @@ export const GeneralHome = observer(
       refetchBalances && refetchBalances()
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+
+    useEffect(() => {
+      if (!showChainSelector) {
+        setDefaultFilter('All')
+      }
+    }, [showChainSelector])
 
     useEffect(() => {
       if (
@@ -492,7 +499,16 @@ export const GeneralHome = observer(
       UserClipboard.copyText(walletAddresses?.[0])
     }, [activeChain, walletAddresses])
 
-    const handleOpenSelectChainSheet = useCallback(() => setShowChainSelector(true), [])
+    const onImgClick = useCallback(
+      (event?: React.MouseEvent<HTMLDivElement>, props?: { defaultFilter?: string }) => {
+        setShowChainSelector(true)
+        if (props?.defaultFilter) {
+          setDefaultFilter(props.defaultFilter)
+        }
+      },
+      [],
+    )
+
     const handleOpenSideNavSheet = useCallback(() => setShowSideNav(true), [])
     const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
     const handleConnectEvmWalletClick = useCallback(() => {
@@ -547,11 +563,10 @@ export const GeneralHome = observer(
                   giveCopyOption={true}
                   handleCopyClick={handleCopyClick}
                   isAddressCopied={isWalletAddressCopied}
-                  isToAddLinkAddressNudgeText={isToAddLinkAddressNudgeText}
                 />
               }
               imgSrc={headerChainImgSrc}
-              onImgClick={dontShowSelectChain ? undefined : handleOpenSelectChainSheet}
+              onImgClick={dontShowSelectChain ? undefined : onImgClick}
               action={{
                 onClick: handleOpenSideNavSheet,
                 type: HeaderActionType.NAVIGATION,
@@ -566,7 +581,22 @@ export const GeneralHome = observer(
               hidden: connectEVMLedger,
             })}
           >
-            <TestnetAlertStrip />
+            {isToAddLinkAddressNudgeText ? (
+              <AlertStrip
+                message={
+                  <p>
+                    Recommended: To use SEI, first{' '}
+                    <span className='underline'>Link your address</span>
+                  </p>
+                }
+                bgColor={topChainColor}
+                alwaysShow={true}
+                onClick={() => setShowCopyAddressSheet(true)}
+              />
+            ) : (
+              <TestnetAlertStrip />
+            )}
+
             {showErrorMessage ? (
               <AlertStrip
                 message='Transaction declined'
@@ -631,15 +661,6 @@ export const GeneralHome = observer(
                     <AggregatedBalanceLoading />
                   ) : (
                     <TotalBalance balances={rootBalanceStore} evmBalances={evmBalanceStore} />
-                    //   <div className='flex items-center justify-center gap-2'>
-                    //   <span className='text-xxl text-gray-900 dark:text-white-100 font-black'>
-                    //     {totalCurrencyInPreferredFiatValue.toNumber() == 0 && assets.length > 0
-                    //       ? '-'
-                    //       : formatHideBalance(
-                    //         formatCurrency(totalCurrencyInPreferredFiatValue, true),
-                    //       )}
-                    //   </span>
-                    // </div>
                   )
                 ) : null}
 
@@ -695,7 +716,8 @@ export const GeneralHome = observer(
               <div className='px-7 w-full'>
                 <HomeButtons setShowReceiveSheet={() => setShowReceiveSheet(true)} />
               </div>
-              {activeChain === 'mantra' && (
+              {chainInfoStore.chainInfos[activeChain as SupportedChain]?.chainId ===
+                'mantra-hongbai-1' && (
                 <RewardStrip
                   activeChainStore={activeChainStore}
                   chainInfosStore={chainInfoStore}
@@ -824,6 +846,7 @@ export const GeneralHome = observer(
           isVisible={showChainSelector}
           onClose={() => setShowChainSelector(false)}
           chainTagsStore={chainTagsStore}
+          defaultFilter={defaultFilter}
         />
 
         <SelectWallet

@@ -302,6 +302,14 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'humans' },
   { enabled: true, name: 'lava' },
   { enabled: true, name: 'mantra' },
+  { enabled: true, name: 'blackwing' },
+  { enabled: true, name: 'civitia' },
+  { enabled: true, name: 'init_ai' },
+  { enabled: true, name: 'milkyway' },
+  { enabled: true, name: 'minimove' },
+  { enabled: true, name: 'miniwasm' },
+  { enabled: true, name: 'noon' },
+  { enabled: true, name: 'tucana' },
 ];
 
 export default networkData;

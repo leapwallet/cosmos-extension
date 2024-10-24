@@ -1,3 +1,4 @@
+import classNames from 'classnames'
 import React, { useEffect, useRef, useState } from 'react'
 
 import Text from '../text'
@@ -22,6 +23,7 @@ const AlertStrip = React.memo(
     alwaysShow = false,
     onHide,
     className,
+    onClick,
     timeOut = 8000,
     textClassName,
     ...rest
@@ -52,8 +54,11 @@ const AlertStrip = React.memo(
 
     return show ? (
       <div
-        className={`flex items-center w-full justify-center h-[36px]  ${className}`}
+        className={classNames('flex items-center w-full justify-center h-[36px]', className, {
+          'cursor-pointer': !!onClick,
+        })}
         style={{ backgroundColor: bgColor }}
+        onClick={onClick}
       >
         <Text
           size='sm'
