@@ -1,6 +1,6 @@
 import { toHex } from '@cosmjs/encoding';
 import { Uint64 } from '@cosmjs/math';
-import { decodePubkey, EncodeObject, OfflineSigner, Registry } from '@cosmjs/proto-signing';
+import { decodePubkey, EncodeObject, OfflineSigner, Registry, decodeOptionalPubkey } from '@cosmjs/proto-signing';
 import {
   Account,
   accountFromAny,
@@ -39,6 +39,7 @@ import {
   getWithDrawRewardsMsg,
 } from './msgs/cosmos';
 import { getTxData } from './utils';
+import { EthAccount } from './nibiru';
 
 function uint64FromProto(input: number | Long): Uint64 {
   return Uint64.fromString(input.toString());
@@ -54,6 +55,20 @@ function accountFromBaseAccount(input: BaseAccount): Account {
     sequence: uint64FromProto(sequence).toNumber(),
   };
 }
+
+function  accountFromEthAccount ({
+  address,
+  pubKey,
+  accountNumber,
+  sequence,
+}: BaseAccount): Account {
+  return {
+  address,
+  pubkey: decodeOptionalPubkey(pubKey),
+  accountNumber: accountNumber.toNumber(),
+  sequence: sequence.toNumber()}
+}
+
 
 export class Tx {
   client: SigningStargateClient | null;
@@ -91,6 +106,12 @@ export class Tx {
           if (account) {
             return accountFromAny(account);
           }
+        }
+
+        if (typeUrl === "/eth.types.v1.EthAccount") {
+          const baseAccount = EthAccount.decode(value).baseAccount
+          assert(baseAccount)
+          return accountFromEthAccount(baseAccount)
         }
 
         return accountFromAny(input);
