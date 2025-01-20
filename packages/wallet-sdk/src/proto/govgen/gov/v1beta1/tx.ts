@@ -1,11 +1,11 @@
-/* eslint-disable */
 import Long from 'long';
 
 import { BinaryReader, BinaryWriter } from '../../../binary';
+import { Coin } from '../../../coin';
 import { DeepPartial, Exact, isSet } from '../../../helpers';
-import { Coin } from './coin';
-import { VoteOption, WeightedVoteOption, voteOptionFromJSON, voteOptionToJSON } from './gov';
+import { VoteOption, voteOptionFromJSON, voteOptionToJSON, WeightedVoteOption } from './gov';
 import { TxRpc } from './types';
+
 export const protobufPackage = 'govgen.gov.v1beta1';
 
 /** MsgVote defines a message to cast a vote. */
@@ -64,7 +64,7 @@ export const MsgVote = {
   },
   decode(input: BinaryReader | Uint8Array, length?: number): MsgVote {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
+    const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseMsgVote();
     while (reader.pos < end) {
       const tag = reader.uint32();
@@ -119,7 +119,7 @@ export const MsgVoteResponse = {
   },
   decode(input: BinaryReader | Uint8Array, length?: number): MsgVoteResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
+    const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseMsgVoteResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
@@ -167,7 +167,7 @@ export const MsgVoteWeighted = {
   },
   decode(input: BinaryReader | Uint8Array, length?: number): MsgVoteWeighted {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
+    const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseMsgVoteWeighted();
     while (reader.pos < end) {
       const tag = reader.uint32();
@@ -226,7 +226,7 @@ export const MsgVoteWeightedResponse = {
   },
   decode(input: BinaryReader | Uint8Array, length?: number): MsgVoteWeightedResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
+    const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseMsgVoteWeightedResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
@@ -274,7 +274,7 @@ export const MsgDeposit = {
   },
   decode(input: BinaryReader | Uint8Array, length?: number): MsgDeposit {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
+    const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseMsgDeposit();
     while (reader.pos < end) {
       const tag = reader.uint32();
@@ -333,7 +333,7 @@ export const MsgDepositResponse = {
   },
   decode(input: BinaryReader | Uint8Array, length?: number): MsgDepositResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
+    const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseMsgDepositResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();

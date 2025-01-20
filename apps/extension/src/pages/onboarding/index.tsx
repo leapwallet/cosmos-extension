@@ -7,21 +7,21 @@ import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { AuthContextType, useAuth } from 'context/auth-context'
-import { usePassword } from 'hooks/settings/usePassword'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
+import { observer } from 'mobx-react-lite'
 import React, { useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { passwordStore } from 'stores/password-store'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import extension from 'webextension-polyfill'
 
 import { IMPORT_WALLET_DATA } from './constants'
 
-export default function Onboarding() {
+export default observer(function Onboarding() {
   const navigate = useNavigate()
   const { loading, noAccount } = useAuth() as AuthContextType
-  const password = usePassword()
 
   const trackCTAEvent = (methodChosen: string) => {
     if (!isCompassWallet()) {
@@ -86,12 +86,12 @@ export default function Onboarding() {
       const wallets = await KeyChain.getAllWallets()
 
       if (loading === false && hasMnemonicWallet(wallets)) {
-        if (!noAccount || password) {
+        if (!noAccount || passwordStore.password) {
           navigate('/onboardingSuccess')
         }
       }
     })()
-  }, [loading, navigate, noAccount, password])
+  }, [loading, navigate, noAccount, passwordStore.password])
 
   useEffect(() => {
     extension.extension.getViews({ type: 'popup' })
@@ -177,4 +177,4 @@ export default function Onboarding() {
       )}
     </ExtensionPage>
   )
-}
+})

@@ -2,7 +2,8 @@ import { StakingDenoms } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useStakingDenomsStore } from '../store';
-import { cachedRemoteDataWithLastModified, storage, useGetStorageLayer } from '../utils';
+import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
+import { storage, useGetStorageLayer } from '../utils/global-vars';
 
 export function getStakingDenoms(storage: storage): Promise<StakingDenoms> {
   return cachedRemoteDataWithLastModified({

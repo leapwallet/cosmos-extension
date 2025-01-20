@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import {
   useActiveChain,
+  useChainInfo,
   useSelectedNetwork,
   useSimulateVote,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -27,29 +28,6 @@ export enum VoteOptions {
   NO_WITH_VETO = 'No with Veto',
   ABSTAIN = 'Abstain',
 }
-
-const VoteOptionsList = [
-  {
-    label: VoteOptions.YES,
-    icon: <ThumbsUp size={20} />,
-    selectedCSS: 'text-white-100 bg-green-600',
-  },
-  {
-    label: VoteOptions.NO,
-    icon: <ThumbsDown size={20} />,
-    selectedCSS: 'text-white-100 bg-red-300',
-  },
-  {
-    label: VoteOptions.NO_WITH_VETO,
-    icon: <ThumbsDown size={20} />,
-    selectedCSS: 'text-white-100 bg-indigo-300',
-  },
-  {
-    label: VoteOptions.ABSTAIN,
-    icon: <Prohibit size={20} />,
-    selectedCSS: 'text-white-100 bg-yellow-600',
-  },
-]
 
 export type CastVoteSheetProps = {
   feeDenom: NativeDenom
@@ -78,6 +56,7 @@ export function CastVoteSheet({
 }: CastVoteSheetProps): React.ReactElement {
   const _activeChain = useActiveChain()
   const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
+  const activeChainInfo = useChainInfo(activeChain)
   const _selectedNetwork = useSelectedNetwork()
   const selectedNetwork = useMemo(
     () => forceNetwork || _selectedNetwork,
@@ -87,6 +66,34 @@ export function CastVoteSheet({
   const firstTime = useRef(true)
   const [simulating, setSimulating] = useState(true)
   const [selectedOption, setSelectedOption] = useState<VoteOptions | undefined>(undefined)
+
+  const VoteOptionsList = useMemo(() => {
+    const data = [
+      {
+        label: VoteOptions.YES,
+        icon: <ThumbsUp size={20} />,
+        selectedCSS: 'text-white-100 bg-green-600',
+      },
+      {
+        label: VoteOptions.NO,
+        icon: <ThumbsDown size={20} />,
+        selectedCSS: 'text-white-100 bg-red-300',
+      },
+    ]
+    if (activeChainInfo.chainId !== 'atomone-1') {
+      data.push({
+        label: VoteOptions.NO_WITH_VETO,
+        icon: <ThumbsDown size={20} />,
+        selectedCSS: 'text-white-100 bg-indigo-300',
+      })
+    }
+    data.push({
+      label: VoteOptions.ABSTAIN,
+      icon: <Prohibit size={20} />,
+      selectedCSS: 'text-white-100 bg-yellow-600',
+    })
+    return data
+  }, [activeChainInfo.chainId])
 
   useEffect(() => {
     let cancelled = false

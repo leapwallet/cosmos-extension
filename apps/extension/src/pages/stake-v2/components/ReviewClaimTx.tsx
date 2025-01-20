@@ -31,7 +31,6 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -47,6 +46,8 @@ import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
@@ -98,7 +99,6 @@ const ReviewClaimTx = observer(
     })
 
     const [formatCurrency] = useFormatCurrency()
-    const { formatHideBalance } = useHideAssets()
     const defaultTokenLogo = useDefaultTokenLogo()
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
 
@@ -195,25 +195,22 @@ const ReviewClaimTx = observer(
 
     const formattedTokenAmount = useMemo(() => {
       const rewardCount = rewards?.total?.length ?? 0
-      return formatHideBalance(
+      return hideAssetsStore.formatHideBalance(
         `${formatTokenAmount(nativeTokenReward?.amount ?? '', activeStakingDenom?.coinDenom)} ${
           rewardCount > 1 ? `+${rewardCount - 1} more` : ''
         }`,
       )
-    }, [
-      activeStakingDenom?.coinDenom,
-      formatHideBalance,
-      nativeTokenReward?.amount,
-      rewards?.total.length,
-    ])
+    }, [activeStakingDenom?.coinDenom, nativeTokenReward?.amount, rewards?.total.length])
 
     const titleText = useMemo(() => {
       if (totalRewardsDollarAmt && new BigNumber(totalRewardsDollarAmt).gt(0)) {
-        return formatHideBalance(formatCurrency(new BigNumber(totalRewardsDollarAmt)))
+        return hideAssetsStore.formatHideBalance(
+          formatCurrency(new BigNumber(totalRewardsDollarAmt)),
+        )
       } else {
         return formattedTokenAmount
       }
-    }, [formatCurrency, formatHideBalance, formattedTokenAmount, totalRewardsDollarAmt])
+    }, [formatCurrency, formattedTokenAmount, totalRewardsDollarAmt])
 
     const subTitleText = useMemo(() => {
       if (totalRewardsDollarAmt && new BigNumber(totalRewardsDollarAmt).gt(0)) {
@@ -264,6 +261,11 @@ const ReviewClaimTx = observer(
       setLedgerError,
       txCallback,
     ])
+
+    useCaptureUIException(ledgerError || error, {
+      activeChain,
+      activeNetwork,
+    })
 
     return (
       <GasPriceOptions

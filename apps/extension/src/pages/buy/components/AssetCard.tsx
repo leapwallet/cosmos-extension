@@ -2,6 +2,7 @@ import { sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import { GenericCard, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ImgNotAvailableDark, ImgNotAvailableLight } from 'images/logos'
 import React from 'react'
+import { imgOnError } from 'utils/imgOnError'
 
 export type AssetCardProps = {
   id?: string
@@ -39,6 +40,9 @@ export default function AssetCard({
             src={
               assetImg ?? (theme === ThemeName.DARK ? ImgNotAvailableDark : ImgNotAvailableLight)
             }
+            onError={imgOnError(
+              theme === ThemeName.DARK ? ImgNotAvailableDark : ImgNotAvailableLight,
+            )}
             className='w-[28px] h-[28px] mr-2 rounded-full bg-black-100 dark:bg-black-100'
           />
           <img

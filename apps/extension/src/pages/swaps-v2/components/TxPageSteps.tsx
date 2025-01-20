@@ -1,18 +1,18 @@
-import { Action, useTransactions } from '@leapwallet/elements-hooks'
+import { Action } from '@leapwallet/elements-hooks'
 import { motion } from 'framer-motion'
 import React from 'react'
 import { SwapTxnStatus } from 'types/swap'
 
+import { RoutingInfo, useTransactions } from '../hooks'
 import { TxPageStepsType } from './index'
 
 type TxPageStepsProps = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  route: any
+  routingInfo: RoutingInfo
   txStatus: SwapTxnStatus[]
 }
 
-export function TxPageSteps({ route, txStatus }: TxPageStepsProps) {
-  const { groupedTransactions } = useTransactions(route)
+export function TxPageSteps({ routingInfo, txStatus }: TxPageStepsProps) {
+  const { groupedTransactions } = useTransactions(routingInfo)
 
   if (Object.keys(groupedTransactions).length === 0) {
     return null

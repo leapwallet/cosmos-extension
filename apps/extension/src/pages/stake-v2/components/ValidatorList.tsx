@@ -26,12 +26,14 @@ import Text from 'components/text'
 import currency from 'currency.js'
 import { useDefaultTokenLogo } from 'hooks'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { epochIntervalStore } from 'stores/epoch-interval-store'
+import { stakeEpochStore } from 'stores/epoch-store'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { hex2rgba } from 'utils/hextorgba'
 import { imgOnError } from 'utils/imgOnError'
@@ -103,9 +105,7 @@ const StakedValidatorDetails = observer(
       activeNetwork,
     )
 
-    const { formatHideBalance } = useHideAssets()
-
-    const apys = network?.validatorApys
+    const aprs = network?.validatorAprs
     const { data: imageUrl } = useValidatorImage(validator)
     const { theme } = useTheme()
 
@@ -137,30 +137,32 @@ const StakedValidatorDetails = observer(
 
     const amountTitleText = useMemo(() => {
       if (new BigNumber(delegation.balance.currencyAmount ?? '').gt(0)) {
-        return formatHideBalance(
+        return hideAssetsStore.formatHideBalance(
           formatCurrency(new BigNumber(delegation.balance.currencyAmount ?? '')),
         )
       } else {
-        return formatHideBalance(delegation.balance.formatted_amount ?? delegation.balance.amount)
+        return hideAssetsStore.formatHideBalance(
+          delegation.balance.formatted_amount ?? delegation.balance.amount,
+        )
       }
     }, [
       delegation.balance.amount,
       delegation.balance.currencyAmount,
       delegation.balance.formatted_amount,
       formatCurrency,
-      formatHideBalance,
     ])
 
     const amountSubtitleText = useMemo(() => {
       if (new BigNumber(delegation.balance.currencyAmount ?? '').gt(0)) {
-        return formatHideBalance(delegation.balance.formatted_amount ?? delegation.balance.amount)
+        return hideAssetsStore.formatHideBalance(
+          delegation.balance.formatted_amount ?? delegation.balance.amount,
+        )
       }
       return ''
     }, [
       delegation.balance.amount,
       delegation.balance.currencyAmount,
       delegation.balance.formatted_amount,
-      formatHideBalance,
     ])
 
     return (
@@ -224,13 +226,13 @@ const StakedValidatorDetails = observer(
             <div className='w-px h-10 bg-gray-100 dark:bg-gray-850' />
             <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
               <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                APY
+                APR
               </Text>
 
               <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
-                {apys &&
-                  (apys[validator?.address]
-                    ? `${currency(apys[validator?.address] * 100, {
+                {aprs &&
+                  (aprs[validator?.address]
+                    ? `${currency(aprs[validator?.address] * 100, {
                         precision: 2,
                         symbol: '',
                       }).format()}%`
@@ -263,65 +265,82 @@ const StakedValidatorDetails = observer(
             </div>
           </div>
 
-          <div className='flex justify-between items-center w-full p-4 bg-white-100 dark:bg-gray-950 rounded-lg'>
-            <div className='flex flex-col gap-y-0.5'>
-              <Text size='sm' color='text-black-100 dark:text-white-100' className='font-bold'>
-                Your Rewards
-              </Text>
+          {delegation.status !== 'delegation_pending_epoch_cycle' &&
+            delegation.status !== 're_delegation_pending_epoch_cycle' && (
+              <>
+                <div className='flex justify-between items-center w-full p-4 bg-white-100 dark:bg-gray-950 rounded-lg'>
+                  <div className='flex flex-col gap-y-0.5'>
+                    <Text
+                      size='sm'
+                      color='text-black-100 dark:text-white-100'
+                      className='font-bold'
+                    >
+                      Your Rewards
+                    </Text>
 
-              <div className='flex gap-x-2 justify-center'>
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  {formatCurrency(validatorRewardCurrency ?? new BigNumber(''))}
-                </Text>
-                <div className='w-px h-4 bg-gray-400 dark:bg-gray-700' />
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  {validatorRewardToken}
-                </Text>
-              </div>
-            </div>
-            <button
-              disabled={!validatorRewardTotal || validatorRewardTotal.lt(0.00001)}
-              onClick={onValidatorClaim}
-              className={`hover:cursor-pointer rounded-[14px] px-3 py-1 ${
-                (!validatorRewardTotal || validatorRewardTotal.lt(0.00001)) &&
-                'opacity-70 !cursor-not-allowed'
-              }`}
-              style={{
-                backgroundColor: hex2rgba(
-                  isCompassWallet() ? Colors.compassPrimary : Colors.green600,
-                  0.2,
-                ),
-              }}
-            >
-              <Text
-                size='xs'
-                className='font-bold'
-                style={{ color: isCompassWallet() ? Colors.compassPrimary : Colors.green500 }}
-              >
-                Claim
-              </Text>
-            </button>
-          </div>
+                    <div className='flex gap-x-2 justify-center'>
+                      <Text
+                        color='text-gray-700 dark:text-gray-400'
+                        size='xs'
+                        className='font-medium'
+                      >
+                        {formatCurrency(validatorRewardCurrency ?? new BigNumber(''))}
+                      </Text>
+                      <div className='w-px h-4 bg-gray-400 dark:bg-gray-700' />
+                      <Text
+                        color='text-gray-700 dark:text-gray-400'
+                        size='xs'
+                        className='font-medium'
+                      >
+                        {validatorRewardToken}
+                      </Text>
+                    </div>
+                  </div>
+                  <button
+                    disabled={!validatorRewardTotal || validatorRewardTotal.lt(0.00001)}
+                    onClick={onValidatorClaim}
+                    className={`hover:cursor-pointer rounded-[14px] px-3 py-1 ${
+                      (!validatorRewardTotal || validatorRewardTotal.lt(0.00001)) &&
+                      'opacity-70 !cursor-not-allowed'
+                    }`}
+                    style={{
+                      backgroundColor: hex2rgba(
+                        isCompassWallet() ? Colors.compassPrimary : Colors.green600,
+                        0.2,
+                      ),
+                    }}
+                  >
+                    <Text
+                      size='xs'
+                      className='font-bold'
+                      style={{ color: isCompassWallet() ? Colors.compassPrimary : Colors.green500 }}
+                    >
+                      Claim
+                    </Text>
+                  </button>
+                </div>
 
-          <div className='flex gap-x-4 w-full'>
-            <Buttons.Generic
-              onClick={onSwitchValidator}
-              color={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray200}
-              className={'flex-1 px-2'}
-              size='normal'
-            >
-              <Text color='dark:text-white-100 text-black-100'>Switch validator</Text>
-            </Buttons.Generic>
+                <div className='flex gap-x-4 w-full'>
+                  <Buttons.Generic
+                    onClick={onSwitchValidator}
+                    color={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray200}
+                    className={'flex-1 px-2'}
+                    size='normal'
+                  >
+                    <Text color='dark:text-white-100 text-black-100'>Switch validator</Text>
+                  </Buttons.Generic>
 
-            <Buttons.Generic
-              onClick={onUnstake}
-              color={Colors.red300}
-              className={'flex-1'}
-              size='normal'
-            >
-              <Text color='dark:text-white-100 text-white-100'>Unstake</Text>
-            </Buttons.Generic>
-          </div>
+                  <Buttons.Generic
+                    onClick={onUnstake}
+                    color={Colors.red300}
+                    className={'flex-1'}
+                    size='normal'
+                  >
+                    <Text color='dark:text-white-100 text-white-100'>Unstake</Text>
+                  </Buttons.Generic>
+                </div>
+              </>
+            )}
         </div>
       </BottomModal>
     )
@@ -331,40 +350,42 @@ const StakedValidatorDetails = observer(
 interface ValidatorCardProps {
   validator: Validator
   delegation: Delegation
+  status?: Delegation['status']
   onClick: () => void
 }
 
-function ValidatorCard({ validator, delegation, onClick }: ValidatorCardProps) {
+const ValidatorCard = observer(({ validator, delegation, onClick, status }: ValidatorCardProps) => {
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
   const { data: imageUrl } = useValidatorImage(validator)
 
   const amountTitleText = useMemo(() => {
     if (new BigNumber(delegation.balance.currencyAmount ?? '').gt(0)) {
-      return formatHideBalance(
+      return hideAssetsStore.formatHideBalance(
         formatCurrency(new BigNumber(delegation.balance.currencyAmount ?? '')),
       )
     } else {
-      return formatHideBalance(delegation.balance.formatted_amount ?? delegation.balance.amount)
+      return hideAssetsStore.formatHideBalance(
+        delegation.balance.formatted_amount ?? delegation.balance.amount,
+      )
     }
   }, [
     delegation.balance.amount,
     delegation.balance.currencyAmount,
     delegation.balance.formatted_amount,
     formatCurrency,
-    formatHideBalance,
   ])
 
   const amountSubtitleText = useMemo(() => {
     if (new BigNumber(delegation.balance.currencyAmount ?? '').gt(0)) {
-      return formatHideBalance(delegation.balance.formatted_amount ?? delegation.balance.amount)
+      return hideAssetsStore.formatHideBalance(
+        delegation.balance.formatted_amount ?? delegation.balance.amount,
+      )
     }
     return ''
   }, [
     delegation.balance.amount,
     delegation.balance.currencyAmount,
     delegation.balance.formatted_amount,
-    formatHideBalance,
   ])
 
   return (
@@ -397,6 +418,16 @@ function ValidatorCard({ validator, delegation, onClick }: ValidatorCardProps) {
               )}
             </Text>
 
+            {status === 'delegation_pending_epoch_cycle' ? (
+              <Text size='xs' color='dark:text-yellow-500 text-yellow-600' className='font-medium'>
+                Queued for staking in {epochIntervalStore.timeLeft}
+              </Text>
+            ) : status === 're_delegation_pending_epoch_cycle' ? (
+              <Text size='xs' color='dark:text-yellow-500 text-yellow-600' className='font-medium'>
+                Queued for restaking in {epochIntervalStore.timeLeft}
+              </Text>
+            ) : null}
+
             {validator.jailed && (
               <Text
                 color='text-red-600 dark:text-red-300'
@@ -427,7 +458,7 @@ function ValidatorCard({ validator, delegation, onClick }: ValidatorCardProps) {
       </div>
     </div>
   )
-}
+})
 
 type ValidatorListProps = {
   rootDenomsStore: RootDenomsStore
@@ -471,7 +502,9 @@ const ValidatorList = observer(
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
-    const { delegations, network, loadingNetwork, loadingDelegations } = useStaking(
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
+
+    const { delegations, loadingNetwork, loadingDelegations } = useStaking(
       denoms,
       chainDelegations,
       chainValidators,
@@ -481,6 +514,9 @@ const ValidatorList = observer(
       activeNetwork,
     )
 
+    const pendingDelegations = stakeEpochStore.getDelegationEpochMessages(activeStakingDenom)
+    const pendingReDelegations = stakeEpochStore.getReDelegationEpochMessages(activeStakingDenom)
+
     const validators = useMemo(
       () =>
         chainValidators.validatorData.validators?.reduce((acc, validator) => {
@@ -489,6 +525,7 @@ const ValidatorList = observer(
         }, {} as Record<string, Validator>),
       [chainValidators.validatorData.validators],
     )
+
     const isLoading = loadingNetwork || loadingDelegations
 
     const query = useQuery()
@@ -510,23 +547,24 @@ const ValidatorList = observer(
 
     const [activeValidatorDelegations, inactiveValidatorDelegations] = useMemo(() => {
       const _sortedDelegations = Object.values(delegations ?? {}).sort(
-        (a: any, b: any) => parseFloat(b.balance.amount) - parseFloat(a.balance.amount),
+        (a, b) => parseFloat(b.balance.amount) - parseFloat(a.balance.amount),
       )
+      const allDelegations = [...pendingReDelegations, ...pendingDelegations, ..._sortedDelegations]
 
-      const _activeValidatorDelegations = _sortedDelegations.filter((d: any) => {
+      const _activeValidatorDelegations = allDelegations.filter((d: any) => {
         const validator = validators?.[d?.delegation?.validator_address]
         if (!validator || validator.active === false) return false
         return true
       })
 
-      const _inactiveValidatorDelegations = _sortedDelegations.filter((d: any) => {
+      const _inactiveValidatorDelegations = allDelegations.filter((d: any) => {
         const validator = validators?.[d?.delegation?.validator_address]
         if (!validator || validator.active !== false) return false
         return true
       })
 
       return [_activeValidatorDelegations, _inactiveValidatorDelegations]
-    }, [delegations, validators])
+    }, [delegations, pendingDelegations, pendingReDelegations, validators])
 
     const onValidatorClaim = useCallback(() => {
       setShowStakedValidatorDetails(false)
@@ -548,13 +586,14 @@ const ValidatorList = observer(
                 </Text>
               </div>
 
-              {activeValidatorDelegations.map((d: any) => {
+              {activeValidatorDelegations.map((d) => {
                 const validator = validators?.[d?.delegation?.validator_address]
                 return (
                   <ValidatorCard
                     key={validator.address}
                     delegation={d}
                     validator={validator}
+                    status={d.status}
                     onClick={() => {
                       setSelectedDelegation(d)
                       setShowStakedValidatorDetails(true)
@@ -575,7 +614,7 @@ const ValidatorList = observer(
                 </Text>
               </div>
 
-              {inactiveValidatorDelegations.map((d: any) => {
+              {inactiveValidatorDelegations.map((d) => {
                 const validator = validators[d?.delegation?.validator_address]
                 return (
                   <ValidatorCard

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { storage, useGetStorageLayer } from '../utils';
 import { cachedRemoteDataWithLastModified } from './cached-remote-data';
+import { storage, useGetStorageLayer } from './global-vars';
 
 export type TokenPriority = {
   [key: string]: {

@@ -1,12 +1,15 @@
 import { useGetExplorerTxnUrl } from '@leapwallet/cosmos-wallet-hooks'
 import { TransferState } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/skip-core'
 import { PacketContent, TRANSFER_STATE } from '@leapwallet/elements-core'
-import { Action, useChains, useDenomData } from '@leapwallet/elements-hooks'
+import { Action, useChains } from '@leapwallet/elements-hooks'
 import { ArrowSquareOut } from '@phosphor-icons/react'
 import React, { useCallback, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { TransferInfo } from 'types/swap'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
+import { useDenomData } from '../hooks'
+import { sanitizeChainIdForCompass } from '../utils'
 import { TxStepsStatusIcon } from './TxStepsStatusIcon'
 
 type TxPageStepsTypeProps = {
@@ -55,6 +58,11 @@ export function TxPageStepsType({
       }
     }
 
+    if (isCompassWallet()) {
+      srcChainId = sanitizeChainIdForCompass(srcChainId)
+      destChainId = sanitizeChainIdForCompass(destChainId)
+    }
+
     return {
       srcChainId,
       destChainId,
@@ -81,15 +89,31 @@ export function TxPageStepsType({
   )
 
   const { getExplorerTxnUrl } = useGetExplorerTxnUrl({})
+
   const handleViewInExplorer = useCallback(
     (chainId: string, txHash: string) => {
+      if (isCompassWallet()) {
+        const explorerLink =
+          response?.packet_txs?.send_tx?.explorer_link ??
+          response?.packet_txs?.receive_tx?.explorer_link
+        if (explorerLink) {
+          window.open(explorerLink, '_blank', 'noopener noreferrer')
+          return
+        }
+        chainId = sanitizeChainIdForCompass(chainId)
+      }
       const chain = chains?.find((chain) => chain.chainId === chainId)
       if (!chain) return
 
       const explorerTxnUrl = getExplorerTxnUrl(txHash, chain.txExplorer?.mainnet?.txUrl ?? '')
       window.open(explorerTxnUrl, '_blank', 'noopener noreferrer')
     },
-    [chains, getExplorerTxnUrl],
+    [
+      chains,
+      getExplorerTxnUrl,
+      response?.packet_txs?.receive_tx?.explorer_link,
+      response?.packet_txs?.send_tx?.explorer_link,
+    ],
   )
 
   const { status, txData } = useMemo(() => {
@@ -168,8 +192,8 @@ export function TxPageStepsType({
     if (!txData) return { txHash: undefined, chainId: undefined }
 
     return {
-      txHash: (txData as PacketContent)?.tx_hash,
-      chainId: (txData as PacketContent)?.chain_id,
+      txHash: txData?.tx_hash,
+      chainId: txData?.chain_id,
     }
   }, [txData])
 

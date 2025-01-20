@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Leap Cosmos Wallet",
   "description": "A crypto wallet for Cosmos blockchains.",
-  "version": "0.15.6",
+  "version": "0.17.0",
   "options_page": "index.html#/home",
   "web_accessible_resources": [
     {
@@ -40,9 +40,6 @@
     }
   },
   "permissions": ["storage", "sidePanel"],
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
   "content_security_policy": {
     "extension_pages": "object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; img-src * 'self' data: https:; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com  data: 'unsafe-inline'; connect-src * data: blob: filesystem:; media-src * data: blob: filesystem:; form-action 'self'; frame-ancestors 'none';frame-src https://newassets.hcaptcha.com https://www.google.com/; base-uri 'self'; default-src 'none'"
   }

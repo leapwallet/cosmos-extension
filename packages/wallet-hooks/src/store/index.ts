@@ -6,7 +6,6 @@ export * from './use-enabled-nfts-collections';
 export * from './useActiveChain';
 export * from './useActiveWallet';
 export * from './useAddress';
-export * from './useAggregatedActivity';
 export * from './useAggregatedGovernance';
 export * from './useAggregatedStake';
 export * from './useAggregatedTokens';

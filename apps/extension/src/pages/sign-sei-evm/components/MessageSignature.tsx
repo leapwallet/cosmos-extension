@@ -75,7 +75,7 @@ export function MessageSignature({
   const handleSignClick = async () => {
     try {
       if (activeWallet.walletType === WALLETTYPE.LEDGER) {
-        if (chainInfo.evmOnlyChain === true) {
+        if (chainInfo?.evmOnlyChain === true) {
           setShowLedgerPopup(true)
         } else {
           throw new Error(SEI_EVM_LEDGER_ERROR_MESSAGE)
@@ -181,9 +181,20 @@ export function MessageSignature({
               </div>
             </div>
 
-            <p className='text-sm break-words text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl whitespace-break-spaces'>
-              {txnData.signTxnData.details.Message}
-            </p>
+            {txnData.signTxnData.details.Message &&
+            typeof txnData.signTxnData.details.Message !== 'object' ? (
+              <p className='text-sm break-words text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl whitespace-break-spaces'>
+                {txnData.signTxnData.details.Message}
+              </p>
+            ) : (
+              <pre className='text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto mt-3 rounded-2xl'>
+                {JSON.stringify(
+                  txnData.signTxnData.details,
+                  (_, value) => (typeof value === 'bigint' ? value.toString() : value),
+                  2,
+                )}
+              </pre>
+            )}
 
             {signingError && txStatus === 'error' ? (
               <ErrorCard text={signingError} className='mt-3' />

@@ -13,12 +13,14 @@ import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Text from 'components/text'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { useNonNativeCustomChains } from 'hooks'
 import { useFormatCurrency, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { SourceChain, SourceToken } from 'types/swap'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
@@ -50,7 +52,7 @@ export const TokenCardSkeleton = () => {
   )
 }
 
-export function TokenCard({
+function TokenCardView({
   onTokenSelect,
   token,
   isSelected,
@@ -71,11 +73,10 @@ export function TokenCard({
 }) {
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
   const [preferredCurrency] = useUserPreferredCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
   const { theme } = useTheme()
-  const formattedTokenAmount = formatHideBalance(
+  const formattedTokenAmount = hideAssetsStore.formatHideBalance(
     formatTokenAmount(
       token?.amount,
       sliceWord(token?.symbol, 4, 4),
@@ -84,7 +85,9 @@ export function TokenCard({
     ),
   )
 
+  const nonNativeChains = useNonNativeCustomChains()
   const chains = useGetChains()
+
   const { data: skipChains } = useChains()
   const ibcChainInfo = useMemo(() => {
     if (!token.ibcChainInfo) return
@@ -94,11 +97,17 @@ export function TokenCard({
         (chain) =>
           chain.chainId === token.ibcChainInfo?.name ||
           chain.testnetChainId === token.ibcChainInfo?.name,
-      ) ?? skipChains?.find((chain) => chain.chainId === token.ibcChainInfo?.name)
+      ) ??
+      Object.values(nonNativeChains).find(
+        (chain) =>
+          chain.chainId === token.ibcChainInfo?.name ||
+          chain.testnetChainId === token.ibcChainInfo?.name,
+      ) ??
+      skipChains?.find((chain) => chain.chainId === token.ibcChainInfo?.name)
     )
-  }, [chains, skipChains, token.ibcChainInfo])
+  }, [chains, nonNativeChains, skipChains, token.ibcChainInfo])
 
-  const formattedFiatValue = formatHideBalance(
+  const formattedFiatValue = hideAssetsStore.formatHideBalance(
     token.usdValue ? formatCurrency(new BigNumber(token.usdValue)) : '-',
   )
 
@@ -159,7 +168,7 @@ export function TokenCard({
     [token.coinMinimalDenom],
   )
 
-  const tokenName = token?.name ?? token.symbol
+  const tokenName = token.symbol ?? token?.name
 
   return (
     <div
@@ -249,7 +258,9 @@ export function TokenCard({
             {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
             token?.tokenBalanceOnChain ? (
               <p className='font-medium text-[10px] dark:text-white-100 text-black-100'>
-                {chains[token?.tokenBalanceOnChain]?.chainName ?? 'Unknown Chain'}
+                {chains[token?.tokenBalanceOnChain]?.chainName ??
+                  nonNativeChains[token?.tokenBalanceOnChain]?.chainName ??
+                  'Unknown Chain'}
               </p>
             ) : (
               <>
@@ -279,3 +290,5 @@ export function TokenCard({
     </div>
   )
 }
+
+export const TokenCard = observer(TokenCardView)

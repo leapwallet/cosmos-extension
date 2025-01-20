@@ -46,6 +46,7 @@ import { isSidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
@@ -248,6 +249,11 @@ const ReviewValidatorClaimTx = observer(
       setLedgerError,
       txCallback,
     ])
+
+    useCaptureUIException(ledgerError || error, {
+      activeChain,
+      activeNetwork,
+    })
 
     return (
       <GasPriceOptions

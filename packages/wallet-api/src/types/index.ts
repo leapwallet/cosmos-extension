@@ -17,7 +17,6 @@ export function validateCgPlatform(platform: string): boolean {
   return [
     'CRONOS',
     'CARBON',
-    'CUDOS',
     'NEAR',
     'AURORA',
     'POLYGON',
@@ -122,7 +121,6 @@ export enum AssetPlatform {
   Axelar = 'axelar',
   Teritori = 'teritori',
   Carbon = 'carbon',
-  Cudos = 'cudos',
   Agoric = 'agoric',
   Regen = 'regen',
   MediBloc = 'medi-bloc',
@@ -187,8 +185,6 @@ export function parseAssetPlatform(platform: string): AssetPlatform | undefined 
   switch (platform) {
     case 'CARBON':
       return AssetPlatform.Carbon;
-    case 'CUDOS':
-      return AssetPlatform.Cudos;
     case 'TERITORI':
       return AssetPlatform.Teritori;
     case 'CANTO':
@@ -378,7 +374,6 @@ export type CgIdTokenIdMapping = Record<Id, TokenId>;
 export enum Platform {
   Teritori = 'TERITORI',
   Carbon = 'CARBON',
-  Cudos = 'CUDOS',
   Stride = 'STRIDE',
   C2X = 'C2X',
   Canto = 'CANTO',
@@ -458,7 +453,6 @@ export enum CosmosBlockchain {
   Jackal = 'JACKAL',
   Migaloo = 'MIGALOO',
   Carbon = 'CARBON',
-  Cudos = 'CUDOS',
   Passage = 'PASSAGE',
   DeFund = 'DEFUND',
   QuickSilver = 'QUICK_SILVER',
@@ -1116,7 +1110,6 @@ export enum Currency {
 export enum CosmosTxType {
   Send = 'SEND',
   IbcSend = 'IBC_SEND',
-  IBCSwap = 'IBC_SWAP',
   Swap = 'SWAP',
   GovVote = 'GOV_VOTE',
   StakeDelegate = 'STAKE_DELEGATE',
@@ -1124,7 +1117,6 @@ export enum CosmosTxType {
   StakeRedelgate = 'STAKE_REDELEGATE',
   StakeClaim = 'STAKE_CLAIM',
   StakeCancelUndelegate = 'STAKE_CANCEL_UNDELEGATE',
-  StakeClaimAndDelegate = 'STAKE_CLAIM_AND_DELEGATE',
   NFTSend = 'NFT_SEND',
   Dapp = 'DAPP',
   SecretTokenTransaction = 'SECRET_TOKEN_TRANSACTION',
@@ -1132,6 +1124,8 @@ export enum CosmosTxType {
   AuthZGrant = 'AUTHZ_GRANT',
   LSStake = 'LS_STAKE',
   LSUnstake = 'LS_UNSTAKE',
+  StakeClaimAndDelegate = 'STAKE_CLAIM_AND_DELEGATE',
+  IBCSwap = 'IBC_SWAP',
 }
 
 export enum App {
@@ -1284,11 +1278,20 @@ export type APIPercentageChanges = {
   [platform: string]: PercentageChanges;
 };
 
-export declare enum V2TxOperation {
+export enum V2TxOperation {
   Cosmos = 'cosmos.tx',
   Evm = 'evm.tx',
   Solana = 'svm.tx',
 }
+
+export type LightNodeStatsRequest = {
+  readonly userUUID: string;
+  readonly walletAddress: string;
+  readonly totalRunningTimeMilliseconds: number;
+  readonly lastStartedAt?: string;
+  readonly lastStoppedAt?: string;
+};
+
 export type V2TxRequest = Omit<CosmosTxRequest, 'blockchain' | 'type'> & {
   chainId: string;
   type: CosmosTxType;

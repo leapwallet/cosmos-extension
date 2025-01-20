@@ -155,6 +155,11 @@ export class SeiEvmTx {
     };
   }
 
+  public static async BlockBaseFee(rpc?: string) {
+    const block = await SeiEvmTx.GetBlockByNumber(['latest', true], rpc);
+    return parseInt(block?.baseFeePerGas ?? '0');
+  }
+
   public static async EthFeeHistory(
     blockCount: number,
     newestBlock: string,

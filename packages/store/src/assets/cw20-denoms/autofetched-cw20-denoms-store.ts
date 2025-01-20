@@ -33,10 +33,6 @@ export class AutoFetchedCW20DenomsStore {
   async loadAutoFetchedCW20Denoms() {
     const chains = this.cw20DenomChainsStore.cw20DenomChains;
     chains.forEach(async (chain) => {
-      if (process.env.APP?.includes('compass') && !this.activeChainStore.isSeiEvm(chain)) {
-        return null;
-      }
-
       try {
         const url = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${chain}/cw20_all.json`;
         const response = await fetch(url);

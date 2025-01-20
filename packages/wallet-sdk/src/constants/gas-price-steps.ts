@@ -99,11 +99,6 @@ export const GAS_PRICE_STEPS = {
     average: 0.03,
     high: 0.04,
   },
-  cudos: {
-    low: 5000000000000,
-    average: 10000000000000,
-    high: 20000000000000,
-  },
   decentr: {
     low: 0.025,
     average: 0.025,
@@ -430,12 +425,8 @@ export const GAS_PRICE_STEPS = {
   humans: { low: 80000000000, average: 100000000000, high: 160000000000 },
   lava: { low: 0.00002, average: 0.025, high: 0.05 },
   mantra: { low: 0.01, average: 0.02, high: 0.03 },
-  blackwing: { low: 0.15, average: 0.15, high: 0.4 },
   civitia: { low: 0.01, average: 0.025, high: 0.04 },
-  init_ai: { low: 0.01, average: 0.025, high: 0.04 },
   milkyway: { low: 0.01, average: 0.025, high: 0.04 },
   minimove: { low: 0.01, average: 0.025, high: 0.04 },
   miniwasm: { low: 0.01, average: 0.025, high: 0.04 },
-  noon: { low: 0.01, average: 0.025, high: 0.04 },
-  tucana: { low: 0.01, average: 0.025, high: 0.04 },
 };

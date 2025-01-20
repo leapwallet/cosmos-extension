@@ -10,12 +10,13 @@ import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
 import { chainTagsStore } from 'stores/chain-infos-store'
+import { manageChainsStore } from 'stores/manage-chains-store'
 
 export const NoStake = observer(() => {
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const { headerChainImgSrc } = useChainPageInfo()
-  const dontShowSelectChain = useDontShowSelectChain()
+  const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
 
   return (
     <div className='relative w-full overflow-clip panel-height'>

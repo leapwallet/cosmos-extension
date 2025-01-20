@@ -4,6 +4,7 @@ import { EthSignType } from '@leapwallet/cosmos-wallet-sdk';
 import deepmerge from 'deepmerge';
 import Long from 'long';
 
+import { LeapAptos } from './core-aptos';
 import { LeapEvm } from './core-evm';
 import { CosmJSOfflineSigner, CosmJSOfflineSignerOnlyAmino } from './cosmjs';
 import { LeapEnigmaUtils } from './enigma';
@@ -309,4 +310,5 @@ export class Leap implements ILeap {
   }
 
   public readonly ethereum = new LeapEvm();
+  public readonly aptos = new LeapAptos();
 }

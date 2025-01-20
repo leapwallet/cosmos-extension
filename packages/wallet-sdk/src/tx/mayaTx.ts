@@ -3,9 +3,8 @@ import { OfflineDirectSigner, OfflineSigner } from '@cosmjs/proto-signing';
 import { SignDoc, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import Long from 'long';
 
+import { getBaseURL } from '../globals';
 import { axiosWrapper } from '../healthy-nodes';
-
-const BASE_URL = `${process.env.LEAP_WALLET_BACKEND_API_URL}/adhoc/sdk/mayachain`;
 
 export class MayaTx {
   constructor(private wallet: OfflineSigner) {}
@@ -18,6 +17,8 @@ export class MayaTx {
     memo = 'Transfer on Maya via Leap',
   ) {
     try {
+      const BASE_URL = `${getBaseURL()}/adhoc/sdk/mayachain`;
+      const walletAccount = await this.wallet.getAccounts();
       const { data: signDoc } = await axiosWrapper({
         baseURL: BASE_URL,
         url: '/prepareTx',
@@ -27,6 +28,7 @@ export class MayaTx {
           amount,
           recipient: toAddress,
           memo,
+          pubKey: toBase64(walletAccount[0].pubkey),
         },
       });
 

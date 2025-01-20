@@ -1,9 +1,11 @@
-import { useChains, useDenomData } from '@leapwallet/elements-hooks'
+import { useChains } from '@leapwallet/elements-hooks'
 import { LightbulbFilament } from '@phosphor-icons/react'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { imgOnError } from 'utils/imgOnError'
+
+import { useDenomData } from '../hooks'
 
 type Props = { transferAssetRelease: { chainId: string; released?: boolean; denom: string } }
 

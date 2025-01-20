@@ -25,3 +25,5 @@ export type IbcChainInfo = {
   name: string;
   channelId: string;
 };
+
+export type BalanceLoadingStatus = 'loading' | 'error' | null;

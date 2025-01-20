@@ -1,42 +1,77 @@
-import { useAggregatedActivity, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
+import { useActiveWallet, useActivity, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  AggregatedChainsStore,
+  ChainTagsStore,
+  IbcTraceFetcher,
+} from '@leapwallet/cosmos-wallet-store'
+import { QueryStatus } from '@tanstack/react-query'
+import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
+import { useAggregatedChainsToFetch } from 'hooks/useAggregatedChainsToFetch'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
+import { ankrChainMapStore } from 'stores/balance-store'
+import { manageChainsStore } from 'stores/manage-chains-store'
 
-import { AggregatedActivityNullComponents, GeneralActivity } from './index'
+import { GeneralActivity } from './index'
 
-const AggregatedActivity = observer(({ chainTagsStore }: { chainTagsStore: ChainTagsStore }) => {
-  const { perChainActivity } = useAggregatedActivity()
-  const chains = useGetChains()
-  const [selectedChain, setSelectedChain] = useState(chains.cosmos.key)
+const defaultTxResponse = {
+  activity: [],
+  loading: true,
+  error: false,
+}
 
-  const { txResponse } = useMemo(
-    () => perChainActivity?.[selectedChain] ?? {},
-    [perChainActivity, selectedChain],
-  )
+const AggregatedActivity = observer(
+  ({
+    chainTagsStore,
+    aggregatedChainsStore,
+    ibcTraceFetcher,
+  }: {
+    chainTagsStore: ChainTagsStore
+    aggregatedChainsStore: AggregatedChainsStore
+    ibcTraceFetcher: IbcTraceFetcher
+  }) => {
+    const chains = useGetChains()
+    const activeWallet = useActiveWallet()
+    const chainsToFetch = useAggregatedChainsToFetch(aggregatedChainsStore, manageChainsStore)
+    const [selectedChain, setSelectedChain] = useState(chains.cosmos.key)
 
-  const filteredChains = useMemo(() => {
-    return ((Object.keys(perChainActivity ?? {}) ?? []) as SupportedChain[]).map(
-      (chainKey) => chains[chainKey].chainRegistryPath,
+    const txResponse = useActivity(
+      ankrChainMapStore.ankrChainMap,
+      ibcTraceFetcher,
+      selectedChain,
+      activeWallet?.addresses[selectedChain],
     )
-  }, [chains, perChainActivity])
 
-  return (
-    <>
-      <AggregatedActivityNullComponents />
+    const filteredChains = useMemo(() => {
+      return chainsToFetch.map((chain) => chains[chain.chainName].chainRegistryPath)
+    }, [chains, chainsToFetch])
 
+    const queryStatus = useMemo(() => {
+      let status: QueryStatus = txResponse.loading ? 'loading' : 'success'
+      status = txResponse.error ? 'error' : status
+
+      return status
+    }, [txResponse.error, txResponse.loading])
+
+    usePerformanceMonitor({
+      page: `activity-${selectedChain}`,
+      queryStatus,
+      op: 'activityPageLoad',
+      description: 'loading state on activity page',
+    })
+
+    return (
       <GeneralActivity
-        txResponse={txResponse}
+        txResponse={txResponse || defaultTxResponse}
         filteredChains={filteredChains}
         forceNetwork='mainnet'
         forceChain={selectedChain}
         setSelectedChain={setSelectedChain}
         chainTagsStore={chainTagsStore}
       />
-    </>
-  )
-})
+    )
+  },
+)
 
 AggregatedActivity.displayName = 'AggregatedActivity'
 export { AggregatedActivity }

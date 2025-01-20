@@ -21,12 +21,14 @@ import { QueryStatus } from '@tanstack/react-query'
 import classNames from 'classnames'
 import { AggregatedBalanceLoading, AggregatedLoading } from 'components/aggregated'
 import { AlertStrip, TestnetAlertStrip } from 'components/alert-strip'
+import { ApiStatusWarningStrip } from 'components/alert-strip/ApiStatusWarningStrip'
 import RewardStrip from 'components/alert-strip/RewardStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { WalletButton } from 'components/button'
 import { EmptyCard } from 'components/empty-card'
 import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
+import { LightNodeRunningIndicator } from 'components/light-node-running-indicator/LightNodeRunningIndicator'
 import ReceiveToken from 'components/Receive'
 import Text from 'components/text'
 import WarningCard from 'components/WarningCard'
@@ -38,12 +40,11 @@ import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonit
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
-import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import useQuery from 'hooks/useQuery'
+import usePrevious from 'hooks/utility/usePrevious'
 import { useAddress } from 'hooks/wallet/useAddress'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -53,8 +54,12 @@ import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { activeChainStore } from 'stores/active-chain-store'
-import { evmBalanceStore } from 'stores/balance-store'
+import { aggregatedChainsStore, evmBalanceStore } from 'stores/balance-store'
 import { chainInfoStore, chainTagsStore } from 'stores/chain-infos-store'
+import { hideAssetsStore } from 'stores/hide-assets-store'
+import { hideSmallBalancesStore } from 'stores/hide-small-balances-store'
+import { lightNodeStore } from 'stores/light-node-store'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { HeaderActionType } from 'types/components'
@@ -64,6 +69,7 @@ import { closeSidePanel } from 'utils/closeSidePanel'
 import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
+import { TxStoreObject } from 'utils/pendingSwapsTxsStore'
 import Browser from 'webextension-polyfill'
 
 import PendingSwapsAlertStrip from '../PendingSwapsAlertStrip'
@@ -86,10 +92,10 @@ import {
   ListTokens,
   WalletNotConnected,
 } from './index'
+import { NativeTokenPlaceholder } from './NativeTokenPlaceholder'
 
 const TotalBalance = observer(
   ({ balances, evmBalances }: { balances: RootBalanceStore; evmBalances: EvmBalanceStore }) => {
-    const { formatHideBalance } = useHideAssets()
     const [formatCurrency] = useFormatCurrency()
     const activeChain = useActiveChain() as AggregatedSupportedChain
     const getWallet = Wallet.useGetWallet()
@@ -145,7 +151,7 @@ const TotalBalance = observer(
     return (
       <div className='flex items-center justify-center gap-2'>
         <span className='text-xxl text-gray-900 dark:text-white-100 font-black'>
-          {formatHideBalance(formatCurrency(timedBalancesFiatValue, false))}
+          {hideAssetsStore.formatHideBalance(formatCurrency(totalFiatValue, false))}
         </span>
       </div>
     )
@@ -176,6 +182,8 @@ export const GeneralHome = observer(
 
     const navigate = useNavigate()
     const activeChain = useActiveChain() as AggregatedSupportedChain
+    const prevActiveChain = usePrevious(activeChain)
+
     const { headerChainImgSrc, gradientChainColor, topChainColor } = useChainPageInfo()
     const chains = useGetChains()
 
@@ -200,12 +208,12 @@ export const GeneralHome = observer(
     } = useSnipGetSnip20TokenBalances()
     const selectedNetwork = useSelectedNetwork()
     const { walletAvatar, walletName } = useWalletInfo()
-    const dontShowSelectChain = useDontShowSelectChain()
+    const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
 
     const address = useAddress()
     const isSeiEvmChain = useIsSeiEvmChain(activeChain as SupportedChain)
-    const [areSmallBalancesHidden] = useHideSmallBalances()
     const { activeWallet } = useActiveWallet()
+    const prevWallet = usePrevious(activeWallet)
 
     const chain: ChainInfoProp = useChainInfo()
     const walletAddresses = useGetWalletAddresses()
@@ -222,6 +230,9 @@ export const GeneralHome = observer(
 
     const evmStatus = evmBalanceStore.evmBalanceForChain(activeChain as SupportedChain)?.status
     const isWalletHasFunds = !!rootBalanceStore?.allTokens?.some((token) => tokenHasBalance(token))
+    const balanceError =
+      activeChain !== 'aggregated' &&
+      rootBalanceStore.getErrorStatusForChain(activeChain, selectedNetwork)
 
     /**
      * Local states
@@ -232,6 +243,9 @@ export const GeneralHome = observer(
     const [defaultFilter, setDefaultFilter] = useState('All')
     const [showSelectWallet, setShowSelectWallet] = useState(false)
     const [showSideNav, setShowSideNav] = useState(false)
+    const [sideNavDefaults, setSideNavDefaults] = useState({
+      openLightNodePage: false,
+    })
     const [showReceiveSheet, setShowReceiveSheet] = useState(false)
 
     const [showFaucetResp, setShowFaucetResp] = useState<InitialFaucetResp>(initialFaucetResp)
@@ -239,11 +253,9 @@ export const GeneralHome = observer(
     const [showErrorMessage, setShowErrorMessage] = useState<boolean>(!!txDeclined)
     const [scrtTokenContractAddress, setScrtTokenContractAddress] = useState<string>('')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [showSwapTxPageFor, setShowSwapTxPageFor] = useState<any>()
+    const [showSwapTxPageFor, setShowSwapTxPageFor] = useState<TxStoreObject>()
     const [showPendingSwapsSheet, setShowPendingSwapsSheet] = useState<boolean>(false)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [pendingSwapTxs, setPendingSwapTxs] = useState<any[]>([])
+    const [pendingSwapTxs, setPendingSwapTxs] = useState<TxStoreObject[]>([])
 
     const [isThisALinkEvmAddressNudge, setIsThisALinkEvmAddressNudge] = useState(false)
     const [showBitcoinDepositSheet, setShowBitcoinDepositSheet] = useState(false)
@@ -252,6 +264,7 @@ export const GeneralHome = observer(
     const [isToAddLinkAddressNudgeText, setIsToAddLinkAddressNudgeText] = useState(false)
     const [isWalletAddressCopied, setIsWalletAddressCopied] = useState(false)
     const isEvmOnlyChain = chains?.[activeChain as SupportedChain]?.evmOnlyChain
+    const query = useQuery()
 
     /**
      * Local effects
@@ -327,48 +340,6 @@ export const GeneralHome = observer(
       return allAssets
     }, [_allAssets, addressLinkState, evmBalance?.evmBalance, isSeiEvmChain, isEvmOnlyChain])
 
-    const queryStatus = useMemo(() => {
-      let status =
-        erc20TokensStatus !== 'success' &&
-        cw20TokensStatus !== 'success' &&
-        s3IbcTokensStatus !== 'success' &&
-        nonS3IbcTokensStatus !== 'success' &&
-        nativeTokensStatus !== 'success' &&
-        evmStatus !== 'success'
-          ? 'loading'
-          : ''
-
-      status =
-        erc20TokensStatus === 'success' &&
-        cw20TokensStatus == 'success' &&
-        s3IbcTokensStatus === 'success' &&
-        nonS3IbcTokensStatus === 'success' &&
-        nativeTokensStatus === 'success' &&
-        evmStatus === 'success'
-          ? 'success'
-          : status
-
-      status =
-        erc20TokensStatus === 'error' &&
-        cw20TokensStatus === 'error' &&
-        s3IbcTokensStatus === 'error' &&
-        nonS3IbcTokensStatus === 'error' &&
-        nativeTokensStatus === 'error' &&
-        // asteroidsTokensStatus === 'error' &&
-        evmStatus === 'error'
-          ? 'error'
-          : status
-
-      return status
-    }, [
-      cw20TokensStatus,
-      erc20TokensStatus,
-      nativeTokensStatus,
-      nonS3IbcTokensStatus,
-      s3IbcTokensStatus,
-      evmStatus,
-    ])
-
     const smallBalanceAssets = useMemo(() => {
       let assetsToShow = allAssets
 
@@ -380,12 +351,12 @@ export const GeneralHome = observer(
         )
       }
 
-      if (areSmallBalancesHidden) {
+      if (hideSmallBalancesStore.isHidden) {
         return assetsToShow.filter((asset) => Number(asset.usdValue) < 0.1)
       }
 
       return []
-    }, [allAssets, snip20Tokens, areSmallBalancesHidden])
+    }, [allAssets, snip20Tokens, hideSmallBalancesStore.isHidden])
 
     const invalidKeyTokens = useMemo(() => {
       if (snip20Tokens) {
@@ -453,14 +424,12 @@ export const GeneralHome = observer(
       [atLeastOneTokenIsLoading, isAggregateLoading],
     )
 
-    const showFundBanners = useMemo(() => {
-      return (
-        !isCompassWallet() &&
-        !chains?.[activeChain as SupportedChain]?.evmOnlyChain &&
-        !isWalletHasFunds &&
-        !isTokenLoading
-      )
-    }, [activeChain, chains, isTokenLoading, isWalletHasFunds])
+    const showFundBanners =
+      !isCompassWallet() &&
+      !chains?.[activeChain as SupportedChain]?.evmOnlyChain &&
+      !isWalletHasFunds &&
+      !isTokenLoading &&
+      !balanceError
 
     /**
      * Memoized functions
@@ -516,17 +485,68 @@ export const GeneralHome = observer(
       closeSidePanel()
     }, [])
 
-    /**
-     * Early returns
-     */
+    const handleLightNodeIndicatorClick = useCallback(() => {
+      setSideNavDefaults({
+        openLightNodePage: true,
+      })
+      handleOpenSideNavSheet()
+    }, [setSideNavDefaults, handleOpenSideNavSheet])
+
+    const sideNavToggler = () => {
+      setSideNavDefaults({
+        openLightNodePage: false,
+      })
+      setShowSideNav(!showSideNav)
+    }
+
+    useEffect(() => {
+      if (isCompassWallet() && query.get('openLinkAddress')) {
+        navigate('/home')
+        setShowCopyAddressSheet(true)
+      } else if (query.get('openChainSwitch')) {
+        const _defaultFilter = query.get('defaultFilter')
+        navigate('/home')
+        setShowChainSelector(true)
+        if (_defaultFilter) {
+          setDefaultFilter(_defaultFilter)
+        }
+      } else if (query.get('openLightNode')) {
+        navigate('/home')
+        handleLightNodeIndicatorClick()
+      } else if (query.get('openBitcoinDepositSheet')) {
+        setShowBitcoinDepositSheet(true)
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [navigate, query])
+
+    const queryStatus: QueryStatus = rootBalanceStore.loading ? 'loading' : 'success'
 
     usePerformanceMonitor({
       page: 'home',
-      queryStatus: queryStatus as QueryStatus,
       op: 'homePageLoad',
+      queryStatus,
       description: 'loading state on home page',
     })
 
+    usePerformanceMonitor({
+      page: 'wallet-switch',
+      op: 'walletSwitchLoadTime',
+      queryStatus,
+      description: 'loading state on wallet switch page',
+      enabled: !!prevWallet && prevWallet.id !== activeWallet?.id,
+    })
+
+    usePerformanceMonitor({
+      page: 'chain-switch',
+      op: 'chainSwitchLoadTime',
+      queryStatus,
+      description: 'loading state on chain switch page',
+      enabled: !!prevActiveChain && prevActiveChain !== activeChain,
+    })
+
+    /**
+     * Early returns
+     */
     if (!activeWallet) {
       return (
         <div className='relative w-full overflow-clip panel-height'>
@@ -549,7 +569,7 @@ export const GeneralHome = observer(
 
     return (
       <div className='relative w-full overflow-clip panel-height'>
-        <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
+        <SideNav isShown={showSideNav} toggler={sideNavToggler} defaults={sideNavDefaults} />
         <PopupLayout
           header={
             <PageHeader
@@ -576,10 +596,14 @@ export const GeneralHome = observer(
           }
         >
           <WalletNotConnected chain={chain} visible={connectEVMLedger} />
+
           <div
-            className={classNames('w-full flex flex-col justify-center items-center mb-20', {
-              hidden: connectEVMLedger,
-            })}
+            className={classNames(
+              'w-full flex flex-col justify-center items-center mb-20 relative',
+              {
+                hidden: connectEVMLedger,
+              },
+            )}
           >
             {isToAddLinkAddressNudgeText ? (
               <AlertStrip
@@ -596,6 +620,8 @@ export const GeneralHome = observer(
             ) : (
               <TestnetAlertStrip />
             )}
+
+            {balanceError && <ApiStatusWarningStrip />}
 
             {showErrorMessage ? (
               <AlertStrip
@@ -644,6 +670,12 @@ export const GeneralHome = observer(
                 className='absolute top-[80px] rounded-2xl w-80 h-auto p-2'
                 timeOut={1000}
               />
+            ) : null}
+
+            {lightNodeStore.isLightNodeRunning ? (
+              <div className='absolute top-12 right-0' onClick={handleLightNodeIndicatorClick}>
+                <LightNodeRunningIndicator />
+              </div>
             ) : null}
 
             <div
@@ -744,12 +776,14 @@ export const GeneralHome = observer(
               initial={initialRef.current}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1, duration: 0.5, ease: 'easeIn' }}
-              className='px-7'
+              className='px-6'
             >
               {noAddress || apiUnavailable ? (
                 <WarningCard text={disabledCardMessage} />
               ) : showFundBanners ? (
                 <FundBanners handleCopyClick={handleCopyClick} />
+              ) : balanceError ? (
+                <NativeTokenPlaceholder />
               ) : (
                 <div className='flex flex-col'>
                   <div className='flex items-center justify-between mb-[12px]'>
@@ -806,7 +840,7 @@ export const GeneralHome = observer(
                         <AggregatedLoading className='mb-[12px]' />
                       ) : null}
 
-                      {areSmallBalancesHidden && smallBalanceAssets?.length !== 0 ? (
+                      {hideSmallBalancesStore.isHidden && smallBalanceAssets?.length !== 0 ? (
                         <p className='text-xs px-4 text-gray-300 dark:text-gray-600 text-center w-[352px]'>
                           Tokens with small balances hidden (&lt;$0.1). Customize settings{' '}
                           <button className='inline underline' onClick={() => setShowSideNav(true)}>
@@ -916,6 +950,7 @@ export const GeneralHome = observer(
               <AggregatedCopyAddressSheet
                 isVisible={showCopyAddressSheet}
                 onClose={handleCopyAddressSheetClose}
+                aggregatedChainsStore={aggregatedChainsStore}
               />
             ) : (
               <CopyAddressSheet

@@ -1,5 +1,6 @@
 import {
   currencyDetail,
+  formatPercentAmount,
   formatTokenAmount,
   IbcChainInfo,
   sliceWord,
@@ -8,13 +9,16 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import BigNumber from 'bignumber.js'
+import classNames from 'classnames'
 import Badge from 'components/badge/Badge'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
+import { hidePercentChangeStore } from 'stores/hide-percent-change'
 import { AggregatedSupportedChain } from 'types/utility'
 import { imgOnError } from 'utils/imgOnError'
 
@@ -29,9 +33,11 @@ type AggregatedTokenCardProps = {
   readonly hasToShowEvmTag: boolean | undefined
   readonly isEvm: boolean | undefined
   readonly tokenBalanceOnChain: SupportedChain
+  readonly isPlaceholder?: boolean
+  percentChange24?: number
 }
 
-export function AggregatedTokenCard({
+const AggregatedTokenCardView = ({
   title,
   usdValue,
   amount,
@@ -42,10 +48,11 @@ export function AggregatedTokenCard({
   hasToShowEvmTag,
   isEvm,
   tokenBalanceOnChain,
-}: AggregatedTokenCardProps) {
+  isPlaceholder,
+  percentChange24,
+}: AggregatedTokenCardProps) => {
   const chains = useGetChains()
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
   const activeChain = useActiveChain() as AggregatedSupportedChain
 
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -63,17 +70,45 @@ export function AggregatedTokenCard({
     [chains, tokenBalanceOnChain],
   )
 
+  const percentChangeText = useMemo(() => {
+    if (percentChange24) {
+      if (percentChange24 >= 0) {
+        return `+${formatPercentAmount(percentChange24.toString(), 2)}%`
+      } else {
+        return percentChange24 >= -100
+          ? `${formatPercentAmount(percentChange24.toString(), 2)}%`
+          : '-99.99%'
+      }
+    }
+    return null
+  }, [percentChange24])
+
   const TokenName = useMemo(() => {
     return (
       <>
         <span className='text-ellipsis overflow-hidden whitespace-nowrap max-w-[132px]'>
           {sliceWord(title, 7, 4)}
         </span>
-        {ibcChainInfo ? <Badge text='IBC' title={ibcInfo} /> : null}
-        {isEvm && hasToShowEvmTag ? <Badge text='EVM' /> : null}
+        {!hidePercentChangeStore.isHidden && percentChange24 ? (
+          <div
+            className={classNames(
+              'flex items-center h-[18px] rounded-[4px] px-1 bg-opacity-10',
+              percentChange24 >= 0 ? 'bg-green-600' : 'bg-red-300',
+            )}
+          >
+            <div
+              className={classNames(
+                'text-xs font-medium',
+                percentChange24 >= 0 ? ' text-green-600' : 'text-red-600 dark:text-red-300',
+              )}
+            >
+              {percentChangeText}
+            </div>
+          </div>
+        ) : null}
       </>
     )
-  }, [hasToShowEvmTag, ibcChainInfo, ibcInfo, isEvm, title])
+  }, [title, hidePercentChangeStore.isHidden, percentChange24, percentChangeText])
 
   return (
     <div
@@ -88,33 +123,44 @@ export function AggregatedTokenCard({
           onError={imgOnError(defaultTokenLogo)}
         />
 
-        <div className='flex flex-col'>
+        <div className='flex flex-col gap-y-[1px]'>
           <div className='text-black-100 dark:text-white-100 font-[700] flex items-center justify-start gap-2'>
             {TokenName}
           </div>
-          {activeChain === AGGREGATED_CHAIN_KEY && (
-            <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500]'>{chainName}</p>
-          )}
+          <div className='flex gap-x-1 items-center'>
+            {activeChain === AGGREGATED_CHAIN_KEY && (
+              <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500]'>{chainName}</p>
+            )}
+            {ibcChainInfo ? <Badge text='IBC' title={ibcInfo} /> : null}
+            {isEvm && hasToShowEvmTag ? <Badge text='EVM' /> : null}
+          </div>
         </div>
       </div>
-
-      <div className='flex flex-col items-end'>
-        {formattedFiatValue !== '-' && (
-          <p className='text-black-100 dark:text-white-100 font-[700] text-[14px] text-right'>
-            {formatHideBalance(formattedFiatValue)}
-          </p>
+      <div className='flex flex-col items-end gap-y-0.5'>
+        {isPlaceholder ? (
+          <p className='text-black-100 dark:text-white-100 font-[700] text-[14px] text-right'>-</p>
+        ) : (
+          formattedFiatValue !== '-' && (
+            <p className='text-black-100 dark:text-white-100 font-[700] text-[14px] text-right'>
+              {hideAssetsStore.formatHideBalance(formattedFiatValue)}
+            </p>
+          )
         )}
         <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500] text-right'>
-          {formatHideBalance(
-            formatTokenAmount(
-              amount,
-              sliceWord(symbol, 4, 4),
-              3,
-              currencyDetail[preferredCurrency].locale,
-            ),
-          )}
+          {isPlaceholder
+            ? '-'
+            : hideAssetsStore.formatHideBalance(
+                formatTokenAmount(
+                  amount,
+                  sliceWord(symbol, 4, 4),
+                  3,
+                  currencyDetail[preferredCurrency].locale,
+                ),
+              )}
         </p>
       </div>
     </div>
   )
 }
+
+export const AggregatedTokenCard = observer(AggregatedTokenCardView)

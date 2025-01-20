@@ -1,3 +1,5 @@
+import { setBaseURL, setIsCompass } from '@leapwallet/cosmos-wallet-sdk';
+
 import { App } from '../connectors';
 export enum APP_NAME {
   Compass = 'COMPASS',
@@ -48,6 +50,7 @@ export const getLeapapiBaseUrl = () => {
 
 export const setLeapapiBaseUrl = (url: string) => {
   leapapiBaseUrl = url;
+  setBaseURL(url);
 };
 
 export const setPlatform = (app: App) => {
@@ -64,6 +67,7 @@ export const getAppName = () => {
 
 export const setAppName = (name: APP_NAME) => {
   appName = name;
+  setIsCompass(name === APP_NAME.Compass);
 };
 
 export const getPlatformType = () => {

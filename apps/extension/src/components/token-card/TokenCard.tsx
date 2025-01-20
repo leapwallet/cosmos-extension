@@ -14,9 +14,10 @@ import Badge from 'components/badge/Badge'
 import IBCTokenBadge from 'components/badge/IbcTokenBadge'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { imgOnError } from 'utils/imgOnError'
 
@@ -40,7 +41,7 @@ type TokenCardProps = {
   readonly tokenBalanceOnChain?: SupportedChain
 }
 
-export function TokenCard({
+function TokenCardView({
   title,
   ibcChainInfo,
   usdValue,
@@ -62,7 +63,6 @@ export function TokenCard({
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const chains = useGetChains()
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const [preferredCurrency] = useUserPreferredCurrency()
@@ -115,14 +115,14 @@ export function TokenCard({
         formattedFiatValue &&
         formattedFiatValue !== '-' && (
           <div className='text-md text-gray-600 dark:text-gray-200 font-medium'>
-            {formatHideBalance(formattedFiatValue)}
+            {hideAssetsStore.formatHideBalance(formattedFiatValue)}
           </div>
         )
       }
       subtitle2={
         hideAmount === false && (
           <p className='whitespace-nowrap text-gray-400 font-medium text-xs'>
-            {formatHideBalance(
+            {hideAssetsStore.formatHideBalance(
               formatTokenAmount(
                 amount,
                 sliceWord(symbol, 4, 4),
@@ -148,3 +148,5 @@ export function TokenCard({
     />
   )
 }
+
+export const TokenCard = observer(TokenCardView)

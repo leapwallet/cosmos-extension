@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+import { Account } from '@aptos-labs/ts-sdk'
 import {
   BETA_NFTS_COLLECTIONS,
   ENABLED_NFTS_COLLECTIONS,
@@ -6,11 +7,13 @@ import {
   useActiveChain,
   useGetChains,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ENCRYPTED_ACTIVE_WALLET, KeyChain } from '@leapwallet/leap-keychain'
+import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ENCRYPTED_ACTIVE_WALLET, Key, KeyChain } from '@leapwallet/leap-keychain'
 import * as Sentry from '@sentry/react'
 import classNames from 'classnames'
 import ExtensionPage from 'components/extension-page'
+import PopupLayout from 'components/layout/popup-layout'
+import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { SearchModal } from 'components/search-modal'
 import { QUICK_SEARCH_DISABLED_PAGES } from 'config/config'
 import {
@@ -28,9 +31,9 @@ import {
 } from 'config/storage-keys'
 import { migrateEncryptedKeyStore, migrateKeyStore } from 'extension-scripts/migrations/v80'
 import { migratePicassoAddress } from 'extension-scripts/migrations/v118-migrate-picasso-address'
-import { favouriteNFTsStorage, hiddenNFTsStorage } from 'hooks/settings'
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { observer } from 'mobx-react-lite'
 import SideNav from 'pages/home/side-nav'
 import React, {
   ReactElement,
@@ -43,8 +46,10 @@ import React, {
 } from 'react'
 import KeyboardEventHandler from 'react-keyboard-event-handler'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { favNftStore, hiddenNftStore } from 'stores/manage-nft-store'
+import { passwordStore } from 'stores/password-store'
 import { rootStore } from 'stores/root-store'
+import { searchModalStore } from 'stores/search-modal-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { sendMessageToTab } from 'utils'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
@@ -52,42 +57,33 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser, { extension } from 'webextension-polyfill'
 
-import {
-  searchModalActiveOptionState,
-  searchModalEnteredOptionState,
-  searchModalState,
-  showSideNavFromSearchModalState,
-} from '../atoms/search-modal'
-import { useSetPassword } from '../hooks/settings/usePassword'
 import { SeedPhrase } from '../hooks/wallet/seed-phrase/useSeedPhrase'
 
+export type LockedState = 'pending' | 'locked' | 'unlocked'
+
 export type AuthContextType = {
-  locked: boolean
+  locked: LockedState
   noAccount: boolean
-  signin: (password: string, callback?: VoidFunction) => Promise<void>
+  signin: (password: Uint8Array, callback?: VoidFunction) => Promise<void>
   signout: (callback?: VoidFunction) => void
   loading: boolean
 }
 
 const AuthContext = React.createContext<AuthContextType | null>(null)
 
-export function AuthProvider({ children }: { children: ReactNode }): ReactElement {
+export const AuthProvider = observer(({ children }: { children: ReactNode }): ReactElement => {
   const [loading, setLoading] = useState<boolean>(true)
-  const [locked, setLocked] = useState<boolean>(true)
+  const [locked, setLocked] = useState<LockedState>('pending')
   const [noAccount, setNoAccount] = useState<boolean | undefined>(false)
-  const setPassword = useSetPassword()
   const testPassword = SeedPhrase.useTestPassword()
   const chains = useGetChains()
-
-  const setFavNFTs = useSetRecoilState(favouriteNFTsStorage)
-  const setHiddenNFTs = useSetRecoilState(hiddenNFTsStorage)
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const listener = (message: any, sender: any) => {
       if (sender.id !== browser.runtime.id) return
       if (message.type === 'auto-lock') {
-        setLocked(true)
+        setLocked('locked')
       }
     }
     browser.runtime.onMessage.addListener(listener)
@@ -97,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   }, [])
 
   const signin = useCallback(
-    async (password: string, callback?: VoidFunction) => {
+    async (password: Uint8Array, callback?: VoidFunction) => {
       if (!password) {
         setNoAccount(true)
       } else {
@@ -112,7 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
            * for some reason the password authentication failed errors are not propagated to the calling function when using async await
            */
           try {
-            await browser.runtime.sendMessage({ type: 'unlock', data: { password } })
+            const passwordBase64 = Buffer.from(password).toString('base64')
+            await browser.runtime.sendMessage({
+              type: 'unlock',
+              data: { password: passwordBase64 },
+            })
           } catch (e) {
             Sentry.captureException(e)
           }
@@ -246,10 +246,10 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
                 if (activeWallet?.id) {
                   switch (storageKey) {
                     case HIDDEN_NFTS:
-                      setHiddenNFTs(newNfts[activeWallet.id] ?? [])
+                      hiddenNftStore.setHiddenNfts(newNfts[activeWallet.id] ?? [])
                       break
                     case FAVOURITE_NFTS:
-                      setFavNFTs(newNfts[activeWallet.id] ?? [])
+                      favNftStore.setFavNfts(newNfts[activeWallet.id] ?? [])
                       break
                   }
                 }
@@ -267,10 +267,10 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
             })
           }
 
-          setLocked(false)
+          setLocked('unlocked')
           setNoAccount(false)
           setLoading(false)
-          setPassword(password)
+          passwordStore.setPassword(password)
           rootStore.initStores()
           callback && callback()
         } catch (e) {
@@ -281,13 +281,13 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     },
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [testPassword, setPassword, chains],
+    [testPassword, chains],
   )
 
   const signout = useCallback(
     async (callback?: VoidFunction) => {
-      if (locked) return
-      setPassword(null)
+      if (locked === 'locked') return
+      passwordStore.setPassword(null)
       browser.runtime.sendMessage({ type: 'lock' })
       const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
       await browser.storage.local.set({ [CONNECTIONS]: {} })
@@ -296,12 +296,13 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       if (!storage[ACTIVE_WALLET] && !storage[ENCRYPTED_ACTIVE_WALLET]) {
         setNoAccount(true)
       }
-      setLocked(true)
+      //setting locked state to pending on new wallet to avoid password page flash
+      setLocked('pending')
       window.location.reload()
 
       if (callback) callback()
     },
-    [setPassword, locked],
+    [locked],
   )
 
   useEffect(() => {
@@ -311,11 +312,14 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       if (message.type === 'authentication') {
         if (message.data.status === 'success') {
           try {
-            await signin(message.data.password)
+            const passwordBase64 = message.data.password
+            const password = Buffer.from(passwordBase64, 'base64')
+            await signin(password)
           } catch (_) {
             setLoading(false)
           }
         } else {
+          setLocked('locked')
           setLoading(() => false)
         }
         browser.runtime.onMessage.removeListener(listener)
@@ -335,6 +339,11 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
           }
         }, 1000)
       } else {
+        await browser.storage.local.set({
+          [V80_KEYSTORE_MIGRATION_COMPLETE]: true,
+          [V118_KEYSTORE_MIGRATION_COMPLETE]: true,
+        })
+        setLocked('locked')
         setNoAccount(true)
         setLoading(false)
       }
@@ -357,13 +366,13 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
+})
 
 export function useAuth() {
   return useContext(AuthContext)
 }
 
-export function RequireAuth({
+const RequireAuthView = ({
   children,
   hideBorder,
   titleComponent,
@@ -371,22 +380,20 @@ export function RequireAuth({
   children: JSX.Element
   hideBorder?: boolean
   titleComponent?: ReactElement
-}) {
+}) => {
   const auth = useAuth()
   const location = useLocation()
-  const [showModal, setShowSearchModal] = useRecoilState(searchModalState)
-  const [searchModalActiveOption, setSearchModalActiveOption] = useRecoilState(
-    searchModalActiveOptionState,
-  )
-  const setSearchModalEnteredOption = useSetRecoilState(searchModalEnteredOptionState)
-  const [showSideNav, setShowSideNav] = useRecoilState(showSideNavFromSearchModalState)
   const activeChain = useActiveChain() as AggregatedSupportedChain
 
-  // if (!auth || auth?.loading === true) {
-  //   return <AppInitLoader />
-  // }
+  if (!auth || auth?.locked === 'pending') {
+    return (
+      <PopupLayout>
+        <div />
+      </PopupLayout>
+    )
+  }
 
-  if (auth?.locked) {
+  if (auth?.locked === 'locked') {
     return <Navigate to='/' state={{ from: location }} replace />
   }
 
@@ -407,20 +414,22 @@ export function RequireAuth({
               case 'down':
               case 'up':
                 {
-                  if (showModal) {
+                  if (searchModalStore.showModal) {
                     event.stopPropagation()
                     event.preventDefault()
 
                     const newActive =
                       key === 'down'
-                        ? searchModalActiveOption.active + 1
-                        : searchModalActiveOption.active - 1
+                        ? searchModalStore.activeOption.active + 1
+                        : searchModalStore.activeOption.active - 1
 
                     if (
-                      newActive >= searchModalActiveOption.lowLimit &&
-                      newActive < searchModalActiveOption.highLimit
+                      newActive >= searchModalStore.activeOption.lowLimit &&
+                      newActive < searchModalStore.activeOption.highLimit
                     ) {
-                      setSearchModalActiveOption({ ...searchModalActiveOption, active: newActive })
+                      searchModalStore.updateActiveOption({
+                        active: newActive,
+                      })
                       document
                         .querySelector(
                           `[data-search-active-option-id=search-active-option-id-${newActive}]`,
@@ -428,18 +437,18 @@ export function RequireAuth({
                         ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
                     }
 
-                    setSearchModalEnteredOption(null)
+                    searchModalStore.setEnteredOption(null)
                   }
                 }
                 break
 
               case 'enter':
                 {
-                  if (showModal) {
+                  if (searchModalStore.showModal) {
                     event.stopPropagation()
                     event.preventDefault()
 
-                    setSearchModalEnteredOption(searchModalActiveOption.active)
+                    searchModalStore.setEnteredOption(searchModalStore.activeOption.active)
                   }
                 }
                 break
@@ -449,8 +458,8 @@ export function RequireAuth({
                 {
                   event.stopPropagation()
                   event.preventDefault()
-                  setShowSearchModal(!showModal)
-                  setSearchModalEnteredOption(null)
+                  searchModalStore.setShowModal(!searchModalStore.showModal)
+                  searchModalStore.setEnteredOption(null)
                 }
                 break
             }
@@ -459,8 +468,11 @@ export function RequireAuth({
         />
         {children}
         <SearchModal />
-        {showSideNav ? (
-          <SideNav isShown={showSideNav} toggler={() => setShowSideNav(false)} />
+        {searchModalStore.showSideNavFromSearchModal ? (
+          <SideNav
+            isShown={searchModalStore.showSideNavFromSearchModal}
+            toggler={() => searchModalStore.setShowSideNavFromSearchModal(false)}
+          />
         ) : null}
       </>
     )
@@ -506,6 +518,8 @@ export function RequireAuth({
   )
 }
 
+export const RequireAuth = observer(RequireAuthView)
+
 export function RequireAuthOnboarding({ children }: { children: JSX.Element }) {
   const [redirectTo, setRedirectTo] = useState<'home' | 'onboarding' | undefined>()
   const auth = useAuth()
@@ -519,7 +533,7 @@ export function RequireAuthOnboarding({ children }: { children: JSX.Element }) {
       }
 
       const store = await browser.storage.local.get([ENCRYPTED_ACTIVE_WALLET])
-      if (!auth?.loading && auth?.locked && store[ENCRYPTED_ACTIVE_WALLET]) {
+      if (!auth?.loading && auth?.locked === 'locked' && store[ENCRYPTED_ACTIVE_WALLET]) {
         setRedirectTo('home')
         return
       }

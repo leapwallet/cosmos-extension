@@ -1,4 +1,4 @@
-import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect, useMemo } from 'react';
 
 import { useUserPreferredCurrency } from '../settings';

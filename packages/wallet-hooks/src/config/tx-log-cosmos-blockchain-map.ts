@@ -41,7 +41,6 @@ export const TX_LOG_COSMOS_BLOCKCHAIN_MAP = {
   canto: CosmosBlockchain.Canto,
   decentr: CosmosBlockchain.Decentr,
   carbon: CosmosBlockchain.Carbon,
-  cudos: CosmosBlockchain.Cudos,
   kava: CosmosBlockchain.Kava,
   omniflix: CosmosBlockchain.OmniFlix,
   passage: CosmosBlockchain.Passage,

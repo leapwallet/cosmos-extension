@@ -1,9 +1,9 @@
 import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ManageChainSettings } from 'hooks/settings/useManageChains'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { GenericLight } from 'images/logos'
 import React from 'react'
+import { ManageChainSettings } from 'stores/manage-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
 
 import { ChainCard } from './components'

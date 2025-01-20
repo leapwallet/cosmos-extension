@@ -198,6 +198,13 @@ export class LeapLedgerSigner {
       try {
         if (!isCosmosAppOpen) {
           const newTransport = await openApp(this.transport, 'Cosmos');
+          if (this.transport) {
+            await this.transport.close().catch(() => {});
+          }
+          const verifyAppOpen = await isAppOpen(newTransport, 'Cosmos');
+          if (!verifyAppOpen) {
+            throw new LedgerError('Unable to open Cosmos App. Please check if your Ledger is connected and try again.');
+          }
           this.transport = newTransport;
           this.ledger = new CosmosApp(newTransport);
         }
@@ -315,6 +322,16 @@ export class LeapLedgerSignerEth {
       try {
         if (!isEthAppOpen) {
           const newTransport = await openApp(this.transport, 'Ethereum');
+          if (this.transport) {
+            await this.transport.close().catch(() => {});
+          }
+          const verifyAppOpen = await isAppOpen(newTransport, 'Ethereum');
+          if (!verifyAppOpen) {
+            throw new LedgerError(
+              'Unable to open Ethereum App. Please check if your Ledger is connected and try again.',
+            );
+          }
+
           this.transport = newTransport;
           this.ledger = new EthereumApp(newTransport);
         }
@@ -339,11 +356,11 @@ export class LeapLedgerSignerEth {
         accounts.push(account);
       }
       if (closeTransport) {
-        await this.transport.close();
+        this.transport.close().catch(() => {});
       }
       return accounts;
     } catch (e) {
-      await this.transport.close();
+      this.transport.close().catch(() => {});
       throw handleError(e);
     }
   }
@@ -373,7 +390,7 @@ export class LeapLedgerSignerEth {
         signature: encodeSecp256k1Signature(account.pubkey, signature),
       };
     } catch (e) {
-      await this.transport.close();
+      this.transport.close().catch(() => {});
       throw handleError(e);
     }
   }
@@ -557,7 +574,13 @@ export async function importLedgerAccount(
       );
     } else {
       enabledChains = Object.entries(chainInfos).filter(
-        (chain) => chain[1].enabled && chain[1].bip44.coinType !== '60' && chain[1].bip44.coinType !== '931',
+        (chain) =>
+          chain[1].enabled &&
+          chain[1].bip44.coinType !== '60' &&
+          chain[1].bip44.coinType !== '931' &&
+          chain[1].bip44.coinType !== '0' &&
+          chain[1].bip44.coinType !== '1' &&
+          chain[1].bip44.coinType !== '637',
       );
     }
 

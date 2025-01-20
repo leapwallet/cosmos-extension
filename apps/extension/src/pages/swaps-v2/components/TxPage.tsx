@@ -1,8 +1,7 @@
-import { GasOptions } from '@leapwallet/cosmos-wallet-hooks'
-import { GasPrice, NativeDenom, sleep } from '@leapwallet/cosmos-wallet-sdk'
+import { GasOptions, getKeyToUseForDenoms } from '@leapwallet/cosmos-wallet-hooks'
+import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { RootCW20DenomsStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { TRANSFER_STATE, TXN_STATUS } from '@leapwallet/elements-core'
-import { useTransactions } from '@leapwallet/elements-hooks'
 import { Buttons, Header } from '@leapwallet/leap-ui'
 import { CaretDown, CaretUp, House, Receipt, Timer } from '@phosphor-icons/react'
 import classNames from 'classnames'
@@ -19,16 +18,15 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { SourceChain, SourceToken, SwapFeeInfo, SwapTxAction } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
-import {
-  addTxToCurrentTxList,
-  addTxToPendingTxList,
-  generateObjectKey,
-  removeCurrentSwapTxs,
-} from 'utils/pendingSwapsTxsStore'
-import Browser from 'webextension-polyfill'
 
-import { useExecuteTx } from '../hooks'
-import { useOnline } from '../hooks/useOnline'
+import {
+  RoutingInfo,
+  useExecuteTx,
+  useHandleTxProgressPageBlurEvent,
+  useOnline,
+  useTransactions,
+} from '../hooks'
+import { getNoOfStepsFromRoute } from '../utils'
 import { TxPageSteps } from './index'
 import SwapActionFailedSection from './SwapActionFailedSection'
 import { TxErrorSection } from './TxErrorSection'
@@ -50,8 +48,7 @@ export type TxPageProps = {
   destinationChain: SourceChain | undefined
   inAmount: string
   amountOut: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  route: any
+  routingInfo: RoutingInfo
   userPreferredGasLimit: number | undefined
   userPreferredGasPrice: GasPrice | undefined
   gasEstimate: number
@@ -80,7 +77,7 @@ export const TxPage = observer(
     destinationToken,
     inAmount,
     amountOut,
-    route,
+    routingInfo,
     userPreferredGasLimit,
     userPreferredGasPrice,
     gasEstimate,
@@ -97,60 +94,100 @@ export const TxPage = observer(
     swapFeeInfo,
   }: TxPageProps) => {
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
-    const [_feeAmount, setFeeAmount] = useState('')
+    const [isSigningComplete, setIsSigningComplete] = useState(false)
+    const [initialFeeAmount, setFeeAmount] = useState('')
 
     const isOnline = useOnline()
 
     const navigate = useNavigate()
 
-    const [_sourceToken] = useState(sourceToken)
-    const [_destinationToken] = useState(destinationToken)
-    const [_sourceChain] = useState(sourceChain)
-    const [_destinationChain] = useState(destinationChain)
-    const [_inAmount] = useState(inAmount)
-    const [_amountOut] = useState(amountOut)
-    const [_route] = useState(route)
+    const {
+      initialSourceToken,
+      initialDestinationToken,
+      initialSourceChain,
+      initialDestinationChain,
+      initialInAmount,
+      initialAmountOut,
+      initialRoutingInfo,
+      initialGasEstimate,
+      initialFeeDenom,
+      initialGasOption,
+      initialUserPreferredGasLimit,
+      initialUserPreferredGasPrice,
+      initialSwapFeeInfo,
+    } = useMemo(() => {
+      return {
+        initialSourceToken: sourceToken,
+        initialDestinationToken: destinationToken,
+        initialSourceChain: sourceChain,
+        initialDestinationChain: destinationChain,
+        initialInAmount: inAmount,
+        initialAmountOut: amountOut,
+        initialRoutingInfo: routingInfo,
+        initialGasEstimate: gasEstimate,
+        initialFeeDenom: feeDenom,
+        initialGasOption: gasOption,
+        initialUserPreferredGasLimit: userPreferredGasLimit,
+        initialUserPreferredGasPrice: userPreferredGasPrice,
+        initialSwapFeeInfo: swapFeeInfo,
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
     const [isTxStepsVisible, setIsTxStepsVisible] = useState(true)
     const [isSuccessFull, setIsSuccessFull] = useState(false)
     const [isTrackingInSync, setTrackingInSync] = useState(false)
 
-    const { groupedTransactions } = useTransactions(_route)
+    const { groupedTransactions } = useTransactions(initialRoutingInfo)
     const cw20Denoms = rootCW20DenomsStore.allCW20Denoms
     const denoms = rootDenomsStore.allDenoms
 
-    const {
-      callExecuteTx,
+    const { callExecuteTx, txStatus, firstTxnError, timeoutError, isLoading, unableToTrackError } =
+      useExecuteTx({
+        denoms,
+        setShowLedgerPopup,
+        setLedgerError,
+        routingInfo: initialRoutingInfo,
+        sourceChain: initialSourceChain,
+        sourceToken: initialSourceToken,
+        destinationChain: initialDestinationChain,
+        destinationToken: initialDestinationToken,
+        feeDenom: initialFeeDenom,
+        gasEstimate: initialGasEstimate,
+        gasOption: initialGasOption,
+        userPreferredGasLimit: initialUserPreferredGasLimit,
+        userPreferredGasPrice: initialUserPreferredGasPrice,
+        inAmount: initialInAmount,
+        amountOut: initialAmountOut,
+        setFeeAmount,
+        feeAmount,
+        callbackPostTx,
+        refetchDestinationBalances,
+        refetchSourceBalances,
+        setTrackingInSync,
+        cw20Denoms,
+        swapFeeInfo: initialSwapFeeInfo,
+        setIsSigningComplete,
+      })
 
-      txStatus,
-      firstTxnError,
-      timeoutError,
+    const { handleClose } = useHandleTxProgressPageBlurEvent(
       isLoading,
-      unableToTrackError,
-    } = useExecuteTx({
-      denoms,
-      setShowLedgerPopup,
-      setLedgerError,
-      route: _route,
-      sourceChain,
-      sourceToken,
-      destinationChain,
-      destinationToken,
-      feeDenom,
-      gasEstimate,
-      gasOption,
-      userPreferredGasLimit,
-      userPreferredGasPrice,
-      inAmount,
-      amountOut,
-      setFeeAmount,
+      isOnline,
+      initialRoutingInfo,
+      initialInAmount,
+      initialAmountOut,
+      initialFeeAmount,
+      initialSourceChain,
+      initialSourceToken,
+      initialDestinationChain,
+      initialDestinationToken,
+      initialFeeDenom,
+      initialGasEstimate,
+      initialGasOption,
+      initialUserPreferredGasLimit,
+      initialUserPreferredGasPrice,
       feeAmount,
-      callbackPostTx,
-      refetchDestinationBalances,
-      refetchSourceBalances,
-      setTrackingInSync,
-      cw20Denoms,
-      swapFeeInfo,
-    })
+    )
 
     const isTrackingInProgress = useMemo(() => {
       if (isLoading) {
@@ -165,11 +202,51 @@ export const TxPage = observer(
     }, [isLoading, txStatus])
 
     const pageViewEventAdditionalProperties = useMemo(() => {
-      if (!isTrackingInProgress) {
-        return isSuccessFull ? { transactionStatus: 'Success' } : { transactionStatus: 'Failure' }
+      let inAmountDollarValue, outAmountDollarValue
+      if (
+        sourceToken?.usdPrice &&
+        !isNaN(parseFloat(sourceToken?.usdPrice)) &&
+        inAmount &&
+        !isNaN(parseFloat(inAmount))
+      ) {
+        inAmountDollarValue = parseFloat(sourceToken?.usdPrice) * parseFloat(inAmount)
       }
-      return undefined
-    }, [isSuccessFull, isTrackingInProgress])
+      if (
+        destinationToken?.usdPrice &&
+        !isNaN(parseFloat(destinationToken?.usdPrice)) &&
+        amountOut &&
+        !isNaN(parseFloat(amountOut))
+      ) {
+        outAmountDollarValue = parseFloat(destinationToken.usdPrice) * parseFloat(amountOut)
+      }
+      const properties = {
+        fromToken: sourceToken?.symbol,
+        fromTokenAmount: inAmountDollarValue,
+        fromChain: sourceChain?.chainName ?? '',
+        toToken: destinationToken?.symbol,
+        toChain: destinationChain?.chainName,
+        toTokenAmount: outAmountDollarValue,
+        transactionCount: routingInfo?.route?.transactionCount,
+      }
+      if (isTrackingInProgress) {
+        return properties
+      }
+      return isSuccessFull
+        ? { transactionStatus: 'Success', ...properties }
+        : { transactionStatus: 'Failure', ...properties }
+    }, [
+      amountOut,
+      destinationChain?.chainName,
+      destinationToken?.symbol,
+      destinationToken?.usdPrice,
+      inAmount,
+      isSuccessFull,
+      isTrackingInProgress,
+      routingInfo?.route?.transactionCount,
+      sourceChain?.chainName,
+      sourceToken?.symbol,
+      sourceToken?.usdPrice,
+    ])
 
     usePageView(
       isTrackingInProgress ? PageName.SwapsTracking : PageName.SwapsCompletion,
@@ -223,7 +300,7 @@ export const TxPage = observer(
     }, [failedActionWasSwap, isLoading, isOnline, isSuccessFull, unableToTrackError])
 
     const timeApprox = useMemo(() => {
-      const noOfSteps = _route?.response?.operations?.length
+      const noOfSteps = getNoOfStepsFromRoute(initialRoutingInfo?.route)
 
       if (!noOfSteps) {
         return undefined
@@ -234,7 +311,11 @@ export const TxPage = observer(
       }
 
       return `${(noOfSteps / 4).toFixed(0)} mins`
-    }, [_route?.response?.operations?.length])
+    }, [initialRoutingInfo])
+
+    const isHomeButtonDisabled = useMemo(() => {
+      return isLoading && !isSigningComplete
+    }, [isLoading, isSigningComplete])
 
     useEffect(() => {
       setIsSuccessFull(false)
@@ -256,256 +337,34 @@ export const TxPage = observer(
       }
     }, [firstTxnError, ledgerError, isLoading, timeoutError, txStatus, unableToTrackError])
 
-    const handleClose = useCallback(async () => {
-      if (!isOnline) {
-        if (_route && _route.messages.every((msg: { customTxHash: string }) => msg.customTxHash)) {
-          await addTxToPendingTxList(
-            {
-              route: _route,
-              sourceChain: _sourceChain,
-              sourceToken: _sourceToken,
-              destinationChain: _destinationChain,
-              destinationToken: _destinationToken,
-              feeDenom,
-              gasEstimate,
-              gasOption,
-              userPreferredGasLimit,
-              userPreferredGasPrice,
-              inAmount: _inAmount,
-              amountOut: _amountOut,
-              feeAmount: feeAmount ?? _feeAmount,
-            },
-            false,
-          )
-        }
+    const handleHomeBtnClick = useCallback(() => {
+      if (isHomeButtonDisabled) {
         return
       }
-      if (
-        isLoading &&
-        route &&
-        route.messages.every((msg: { customTxHash: string }) => msg.customTxHash)
-      ) {
-        await addTxToPendingTxList({
-          route,
-          sourceChain,
-          sourceToken,
-          destinationChain,
-          destinationToken,
-          feeDenom,
-          gasEstimate,
-          gasOption,
-          userPreferredGasLimit,
-          userPreferredGasPrice,
-          inAmount,
-          amountOut,
-          feeAmount: feeAmount ?? _feeAmount,
-        })
-      }
-
-      setIsSuccessFull(false)
-    }, [
-      _amountOut,
-      _destinationChain,
-      _destinationToken,
-      _feeAmount,
-      _inAmount,
-      _route,
-      _sourceChain,
-      _sourceToken,
-      amountOut,
-      destinationChain,
-      destinationToken,
-      feeAmount,
-      feeDenom,
-      gasEstimate,
-      gasOption,
-      inAmount,
-      isLoading,
-      isOnline,
-      route,
-      sourceChain,
-      sourceToken,
-      userPreferredGasLimit,
-      userPreferredGasPrice,
-    ])
-
-    useEffect(() => {
-      async function fn() {
-        if (!isOnline) {
-          if (
-            _route &&
-            _route.messages.every((msg: { customTxHash: string }) => msg.customTxHash)
-          ) {
-            await addTxToCurrentTxList(
-              {
-                route: _route,
-                sourceChain: _sourceChain,
-                sourceToken: _sourceToken,
-                destinationChain: _destinationChain,
-                destinationToken: _destinationToken,
-                feeDenom,
-                gasEstimate,
-                gasOption,
-                userPreferredGasLimit,
-                userPreferredGasPrice,
-                inAmount: _inAmount,
-                amountOut: _amountOut,
-                feeAmount: feeAmount ?? _feeAmount,
-              },
-              false,
-            )
-          }
-          return
-        }
-        if (
-          isLoading &&
-          route &&
-          route.messages.every((msg: { customTxHash: string }) => msg.customTxHash)
-        ) {
-          await addTxToCurrentTxList({
-            route,
-            sourceChain,
-            sourceToken,
-            destinationChain,
-            destinationToken,
-            feeDenom,
-            gasEstimate,
-            gasOption,
-            userPreferredGasLimit,
-            userPreferredGasPrice,
-            inAmount,
-            amountOut,
-            feeAmount: feeAmount ?? _feeAmount,
-          })
-          return
-        }
-        if (route && route.messages.every((msg: { customTxHash: string }) => msg.customTxHash)) {
-          const messageKey = generateObjectKey(route)
-          if (messageKey) {
-            await removeCurrentSwapTxs(messageKey)
-          }
-        }
-      }
-      fn()
-    }, [
-      _amountOut,
-      _destinationChain,
-      _destinationToken,
-      _feeAmount,
-      _inAmount,
-      _route,
-      _sourceChain,
-      _sourceToken,
-      amountOut,
-      destinationChain,
-      destinationToken,
-      feeAmount,
-      feeDenom,
-      gasEstimate,
-      gasOption,
-      inAmount,
-      isLoading,
-      isOnline,
-      route,
-      sourceChain,
-      sourceToken,
-      userPreferredGasLimit,
-      userPreferredGasPrice,
-    ])
-
-    const handleExtensionClose = useCallback(async () => {
-      window.removeEventListener('beforeunload', handleExtensionClose)
-      if (!isOnline) {
-        if (_route && _route.messages.every((msg: { customTxHash: string }) => msg.customTxHash)) {
-          Browser.runtime.sendMessage({
-            type: 'pending-swaps',
-            payload: {
-              route: _route,
-              sourceChain: _sourceChain,
-              sourceToken: _sourceToken,
-              destinationChain: _destinationChain,
-              destinationToken: _destinationToken,
-              feeDenom,
-              gasEstimate,
-              gasOption,
-              userPreferredGasLimit,
-              userPreferredGasPrice,
-              inAmount: _inAmount,
-              amountOut: _amountOut,
-              feeAmount: feeAmount ?? _feeAmount,
-            },
-            override: false,
-          })
-          await sleep(100)
-        }
-        return
-      }
-      if (
-        isLoading &&
-        route &&
-        route.messages.every((msg: { customTxHash: string }) => msg.customTxHash)
-      ) {
-        Browser.runtime.sendMessage({
-          type: 'pending-swaps',
-          payload: {
-            route,
-            sourceChain,
-            sourceToken,
-            destinationChain,
-            destinationToken,
-            feeDenom,
-            gasEstimate,
-            gasOption,
-            userPreferredGasLimit,
-            userPreferredGasPrice,
-            inAmount,
-            amountOut,
-            feeAmount: feeAmount ?? _feeAmount,
-          },
-          override: true,
-        })
-        await sleep(100)
-      }
-    }, [
-      _amountOut,
-      _destinationChain,
-      _destinationToken,
-      _feeAmount,
-      _inAmount,
-      _route,
-      _sourceChain,
-      _sourceToken,
-      amountOut,
-      destinationChain,
-      destinationToken,
-      feeAmount,
-      feeDenom,
-      gasEstimate,
-      gasOption,
-      inAmount,
-      isLoading,
-      isOnline,
-      route,
-      sourceChain,
-      sourceToken,
-      userPreferredGasLimit,
-      userPreferredGasPrice,
-    ])
-
-    useEffect(() => {
-      window.addEventListener('beforeunload', handleExtensionClose)
-      return () => {
-        window.removeEventListener('beforeunload', handleExtensionClose)
-      }
-    }, [handleExtensionClose])
+      onClose()
+      handleClose()
+      navigate('/home')
+    }, [isHomeButtonDisabled, onClose, handleClose, navigate])
 
     const handleSwapAgainClick = useCallback(() => {
       if (isLoading) return
-      if (_sourceChain && _destinationChain && _sourceToken && _destinationToken) {
-        const srcChainId = String(_sourceChain.chainId)
-        const srcTokenId = String(_sourceToken.coinMinimalDenom)
-        const destChainId = String(_destinationChain.chainId)
-        const destTokenId = String(_destinationToken.coinMinimalDenom)
+
+      if (
+        initialSourceChain &&
+        initialDestinationChain &&
+        initialSourceToken &&
+        initialDestinationToken
+      ) {
+        const srcChainId = String(initialSourceChain.chainId)
+        const srcTokenId = getKeyToUseForDenoms(
+          String(initialSourceToken.coinMinimalDenom),
+          srcChainId,
+        )
+        const destChainId = String(initialDestinationChain.chainId)
+        const destTokenId = getKeyToUseForDenoms(
+          String(initialDestinationToken.coinMinimalDenom),
+          destChainId,
+        )
         onClose(srcChainId, srcTokenId, destChainId, destTokenId)
       } else {
         onClose()
@@ -513,10 +372,10 @@ export const TxPage = observer(
       handleClose()
     }, [
       isLoading,
-      _destinationChain,
-      _destinationToken,
-      _sourceChain,
-      _sourceToken,
+      initialDestinationChain,
+      initialDestinationToken,
+      initialSourceChain,
+      initialSourceToken,
       handleClose,
       onClose,
     ])
@@ -546,12 +405,12 @@ export const TxPage = observer(
             <div className='p-6 flex-col flex items-start justify-start gap-4 w-full !pb-24 max-[350px]:!px-4'>
               {isLoading ? (
                 <TxTokensSummary
-                  inAmount={_inAmount}
-                  amountOut={_amountOut}
-                  sourceChain={_sourceChain}
-                  sourceToken={_sourceToken}
-                  destinationChain={_destinationChain}
-                  destinationToken={_destinationToken}
+                  inAmount={initialInAmount}
+                  amountOut={initialAmountOut}
+                  sourceChain={initialSourceChain}
+                  sourceToken={initialSourceToken}
+                  destinationChain={initialDestinationChain}
+                  destinationToken={initialDestinationToken}
                   className='!bg-white-100 dark:!bg-gray-950'
                 />
               ) : (
@@ -559,9 +418,9 @@ export const TxPage = observer(
                   <TxStatusOverview
                     isSuccessFull={isSuccessFull}
                     failedActionWasSwap={failedActionWasSwap}
-                    amountOut={_amountOut}
-                    destinationChain={_destinationChain}
-                    destinationToken={_destinationToken}
+                    amountOut={initialAmountOut}
+                    destinationChain={initialDestinationChain}
+                    destinationToken={initialDestinationToken}
                     unableToTrackError={unableToTrackError}
                     timeoutError={timeoutError}
                   />
@@ -570,10 +429,10 @@ export const TxPage = observer(
                   )}
                   {isSuccessFull && (
                     <TxTokensSummaryMini
-                      inAmount={_inAmount}
-                      amountOut={_amountOut}
-                      sourceToken={_sourceToken}
-                      destinationToken={_destinationToken}
+                      inAmount={initialInAmount}
+                      amountOut={initialAmountOut}
+                      sourceToken={initialSourceToken}
+                      destinationToken={initialDestinationToken}
                     />
                   )}
                   {(!isOnline ||
@@ -586,7 +445,7 @@ export const TxPage = observer(
                       firstTxnError={firstTxnError}
                       unableToTrackError={unableToTrackError}
                       timeoutError={timeoutError}
-                      route={_route}
+                      routingInfo={initialRoutingInfo}
                     />
                   )}
                 </>
@@ -619,7 +478,9 @@ export const TxPage = observer(
                     </button>
                   </div>
                   <AnimatePresence initial={false}>
-                    {isTxStepsVisible && <TxPageSteps route={_route} txStatus={txStatus} />}
+                    {isTxStepsVisible && (
+                      <TxPageSteps routingInfo={initialRoutingInfo} txStatus={txStatus} />
+                    )}
                   </AnimatePresence>
                 </div>
               )}
@@ -633,16 +494,20 @@ export const TxPage = observer(
                 {
                   'w-[46px] shrink-0': isLoading,
                   'font-bold text-md !leading-[21.6px] w-full': !isLoading,
+                  'cursor-no-drop': isHomeButtonDisabled,
                 },
               )}
-              onClick={() => {
-                onClose()
-                handleClose()
-                navigate('/home')
-              }}
+              onClick={handleHomeBtnClick}
+              disabled={isHomeButtonDisabled}
             >
               {isLoading ? (
-                <House size={24} className='text-black-100 dark:text-white-100' />
+                <House
+                  size={24}
+                  className={classNames({
+                    'text-gray-800 dark:text-gray-200 opacity-50': isHomeButtonDisabled,
+                    'text-black-100 dark:text-white-100': !isHomeButtonDisabled,
+                  })}
+                />
               ) : (
                 'Home'
               )}

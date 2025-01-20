@@ -1,9 +1,7 @@
 import { Key } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { MinusCircle } from '@phosphor-icons/react'
-import { chainInfosState } from 'atoms/chains'
-import { deleteChain } from 'atoms/delete-chain'
 import BottomModal from 'components/bottom-modal'
 import DraggableContainer from 'components/draggable'
 import { ManageChainDraggables, ManageChainNonDraggables } from 'components/draggable/manage-chains'
@@ -13,17 +11,14 @@ import Text from 'components/text'
 import { BETA_CHAINS } from 'config/storage-keys'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
-import type { ManageChainSettings } from 'hooks/settings/useManageChains'
-import {
-  useManageChainData,
-  useToggleChainState,
-  useUpdatePreferenceOrder,
-} from 'hooks/settings/useManageChains'
+import { useChainInfos, useSetChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { ReactElement } from 'react'
 import { DropResult } from 'react-beautiful-dnd'
 import { useNavigate } from 'react-router'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { deleteChainStore } from 'stores/delete-chain-store'
+import { ManageChainSettings, manageChainsStore } from 'stores/manage-chains-store'
 import { Colors } from 'theme/colors'
 import browser from 'webextension-polyfill'
 
@@ -39,42 +34,47 @@ const reorder = (
   return result
 }
 
-const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
+const RemoveChain = observer(({ defaultChain }: { defaultChain: SupportedChain }) => {
   const setActiveChain = useSetActiveChain()
-  const setChainInfos = useSetRecoilState(chainInfosState)
+  const setChainInfos = useSetChainInfos()
+  const chainInfos = useChainInfos()
+
   const { activeWallet, setActiveWallet } = useActiveWallet()
-  const [chain, setDeleteChain] = useRecoilState<ChainInfo | null>(deleteChain)
 
   const updateKeyStore = useUpdateKeyStore()
   const handleRemove = async () => {
     await browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {
       const _betaChains = JSON.parse(resp['beta-chains'])
-      delete _betaChains[chain?.chainName as string]
+      delete _betaChains[deleteChainStore.chainInfo?.chainName as string]
       await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(_betaChains) })
-      setChainInfos((prevChains) => {
-        const _newChains = { ...prevChains }
-        delete _newChains[chain?.chainName as keyof typeof _newChains]
-        return _newChains
-      })
+
+      const _newChains = { ...chainInfos }
+      delete _newChains[deleteChainStore.chainInfo?.chainName as keyof typeof _newChains]
+      setChainInfos(_newChains)
+
       const updatedKeystore = await updateKeyStore(
         activeWallet as Key,
-        chain?.chainName as unknown as SupportedChain,
+        deleteChainStore.chainInfo?.chainName as unknown as SupportedChain,
         'DELETE',
       )
       await setActiveWallet(updatedKeystore[activeWallet?.id as string] as Key)
       setActiveChain(defaultChain)
-      setDeleteChain(null)
+      deleteChainStore.setChainInfo(null)
     })
   }
   return (
-    <BottomModal isOpen={!!chain} onClose={() => setDeleteChain(null)} title={'Remove Chain?'}>
+    <BottomModal
+      isOpen={!!deleteChainStore.chainInfo}
+      onClose={() => deleteChainStore.setChainInfo(null)}
+      title={'Remove Chain?'}
+    >
       <div className='flex flex-col gap-y-1'>
         <div className='text-center px-5'>
           <div className='rounded-2xl bg-white-100 dark:bg-gray-800 p-[12px] w-[48px] h-[48px] text-red-300 mb-4'>
             <MinusCircle size={24} className='text-red-300' />
           </div>
           <Text size='md' color='text-gray-800 dark:text-gray-200 font-medium'>
-            Are you sure you want to remove {chain?.chainName}?
+            Are you sure you want to remove {deleteChainStore.chainInfo?.chainName}?
           </Text>
         </div>
         <div className='flex flex-col justify-between w-full mt-7'>
@@ -92,7 +92,7 @@ const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
               color: Colors.white100,
             }}
             className='mt-3 bg-gray-800 w-full'
-            onClick={() => setDeleteChain(null)}
+            onClick={() => deleteChainStore.setChainInfo(null)}
           >
             Don’t Remove
           </Buttons.Generic>
@@ -100,16 +100,14 @@ const RemoveChain = ({ defaultChain }: { defaultChain: SupportedChain }) => {
       </div>
     </BottomModal>
   )
-}
+})
 
-export default function ManageChain(): ReactElement {
+export default observer(function ManageChain(): ReactElement {
   const [searchQuery, setSearchQuery] = React.useState('')
   const navigate = useNavigate()
-  const [chains] = useManageChainData()
-  const [updateChainData] = useToggleChainState()
-  const [updatePreferenceOrder] = useUpdatePreferenceOrder()
-  const _chains = chains.filter((chain) => !chain.beta)
-  const _betaChains = chains.filter((chain) => chain.beta)
+
+  const _chains = manageChainsStore.chains.filter((chain) => !chain.beta)
+  const _betaChains = manageChainsStore.chains.filter((chain) => chain.beta)
   const _filteredBetaChains = _betaChains.filter((chain) =>
     chain.chainName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
@@ -125,7 +123,8 @@ export default function ManageChain(): ReactElement {
       result.source.index,
       result.destination.index,
     )
-    updatePreferenceOrder(items)
+
+    manageChainsStore.updatePreferenceOrder(items)
   }
 
   return (
@@ -170,13 +169,13 @@ export default function ManageChain(): ReactElement {
                 <ManageChainDraggables
                   chains={_chains}
                   searchQuery={searchQuery}
-                  updateChainFunction={updateChainData}
+                  updateChainFunction={(chain) => manageChainsStore.toggleChain(chain)}
                 />
               ) : (
                 <ManageChainNonDraggables
                   chains={_chains}
                   searchQuery={searchQuery}
-                  updateChainFunction={updateChainData}
+                  updateChainFunction={(chain) => manageChainsStore.toggleChain(chain)}
                 />
               )}
             </DraggableContainer>
@@ -185,7 +184,7 @@ export default function ManageChain(): ReactElement {
                 <ManageChainNonDraggables
                   chains={_filteredBetaChains}
                   searchQuery={searchQuery}
-                  updateChainFunction={updateChainData}
+                  updateChainFunction={(chain) => manageChainsStore.toggleChain(chain)}
                   title='Recently added (Beta)'
                 />
               </div>
@@ -193,7 +192,7 @@ export default function ManageChain(): ReactElement {
           </div>
         </div>
       </PopupLayout>
-      <RemoveChain defaultChain={chains[0].chainName} />
+      <RemoveChain defaultChain={manageChainsStore.chains[0].chainName} />
     </div>
   )
-}
+})

@@ -1,15 +1,13 @@
-import { useManageChainData } from 'hooks/settings/useManageChains'
 import { useMemo } from 'react'
+import { ManageChainsStore } from 'stores/manage-chains-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
-export function useDontShowSelectChain() {
-  const [chains] = useManageChainData()
-
+export function useDontShowSelectChain(store: ManageChainsStore) {
   const chainsInSelectChain = useMemo(() => {
-    return chains.filter((chain) => {
+    return store.chains.filter((chain) => {
       return !(isCompassWallet() && chain.chainName === 'cosmos')
     })
-  }, [chains])
+  }, [store.chains])
 
   return isCompassWallet() && chainsInSelectChain.length === 1
 }

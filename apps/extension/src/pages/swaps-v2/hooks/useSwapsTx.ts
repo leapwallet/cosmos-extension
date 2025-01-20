@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
   currencyDetail,
   fetchCurrency,
@@ -22,28 +24,37 @@ import {
   ActiveChainStore,
   AutoFetchedCW20DenomsStore,
   BetaCW20DenomsStore,
+  BetaERC20DenomsStore,
+  CompassSeiTokensAssociationStore,
+  CompassTokenTagsStore,
   CW20DenomBalanceStore,
   CW20DenomsStore,
   DisabledCW20DenomsStore,
   EnabledCW20DenomsStore,
+  ERC20DenomsStore,
+  PriceStore,
   RootBalanceStore,
   RootDenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
 import {
-  useAllSkipAssets,
+  RouteAggregator,
+  RouteResponse,
+  SkipCosmosMsg,
+  SkipMsg,
+  SkipMsgV2,
+  TransactionRequestType,
+  useAggregatorMessagesSWR,
   useDebouncedValue,
   useFeeAddresses,
   useFees,
-  useMessagesSWR,
-  usePriceImpact,
-  useRoute,
-  useSkipGasFeeSWR,
+  UseRouteResponse,
 } from '@leapwallet/elements-hooks'
 import { QueryStatus, useQuery as reactUseQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import { calculateFeeAmount, useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { useNonNativeCustomChains } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -51,6 +62,7 @@ import { chainInfoStore } from 'stores/chain-infos-store'
 import { SourceChain, SourceToken, SwapFeeInfo } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
+import { findMinAsset } from '../utils'
 import {
   useAddresses,
   useGetChainsToShow,
@@ -58,21 +70,46 @@ import {
   useGetInfoMsg,
   useGetSwapAssets,
 } from './index'
+import { useAggregatorGasFeeSWR } from './useAggregatorGasFee'
+import useAssets from './useAssets'
 import { useEnableToken } from './useEnableToken'
 import { useFeeAffiliates } from './useFeeAffiliates'
+import { LifiRouteOverallResponse, SkipRouteResponse, useAggregatedRoute } from './useRoute'
 import { useSwapVenues } from './useSwapVenues'
 import { useTokenWithBalances } from './useTokenWithBalances'
 
-const useAllSkipAssetsParams = {
-  includeCW20Assets: true,
-  includeNoMetadataAssets: false,
-  includeEVMAssets: false,
-  includeSVMAssets: false,
-  nativeOnly: false,
+export type SkipCosmosMsgWithCustomTxHash = SkipCosmosMsg & {
+  customTxHash?: string
+  customMessageChainId?: string
 }
+
+export type SkipMsgWithCustomTxHash = (SkipMsgV2 | SkipMsg) & {
+  customTxHash?: string
+  customMessageChainId?: string
+}
+
+export type LifiMsgWithCustomTxHash = TransactionRequestType & {
+  customTxHash?: string
+  customMessageChainId?: string
+}
+
+export type RoutingInfo =
+  | {
+      aggregator: RouteAggregator.LIFI
+      route: LifiRouteOverallResponse | undefined
+      messages: LifiMsgWithCustomTxHash[] | undefined
+      userAddresses: string[] | null
+    }
+  | {
+      aggregator: RouteAggregator.SKIP
+      route: SkipRouteResponse | undefined
+      messages: SkipMsgWithCustomTxHash[] | undefined
+      userAddresses: string[] | null
+    }
 
 export type SwapsTxType = {
   inAmount: string
+  debouncedInAmount: string
   sourceToken: SourceToken | null
   sourceChain: SourceChain | undefined
   handleInAmountChange: (value: string) => void
@@ -128,19 +165,13 @@ export type SwapsTxType = {
     fiatValue: string
   }
   isSkipGasFeeLoading: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  route: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  refresh: () => Promise<any>
+  routingInfo: RoutingInfo
+  refresh: () => Promise<void>
   handleSwitchOrder: () => void
   isSwitchOrderPossible: boolean
   slippagePercent: number
   setSlippagePercent: React.Dispatch<React.SetStateAction<number>>
   setInAmount: React.Dispatch<React.SetStateAction<string>>
-  priceImpactWarning: string | undefined
-  priceImpactPercentage: BigNumber | undefined
-  priceImpactPercent: BigNumber
-  usdPriceImpactPercentage: BigNumber
   refetchSourceBalances: (() => void) | undefined
   refetchDestinationBalances: (() => void) | undefined
   usdValueAvailableForPair: boolean | undefined
@@ -152,8 +183,11 @@ export type SwapsTxType = {
 }
 
 export const SWAP_NETWORK = 'mainnet'
-const SEIYAN_TOKEN_DENOM = 'sei1hrndqntlvtmx2kepr0zsfgr7nzjptcc72cr4ppk4yav58vvy7v3s4er8ed'
-const SEI_TOKEN_DENOM = 'usei'
+const SEIYAN_TOKEN_DENOMS = [
+  'sei1hrndqntlvtmx2kepr0zsfgr7nzjptcc72cr4ppk4yav58vvy7v3s4er8ed',
+  '0x5f0E07dFeE5832Faa00c63F2D33A0D79150E8598',
+]
+const SEI_TOKEN_DENOMS = ['usei']
 
 export function useSwapsTx({
   rootDenomsStore,
@@ -165,6 +199,11 @@ export function useSwapsTx({
   disabledCW20DenomsStore,
   enabledCW20DenomsStore,
   cw20DenomBalanceStore,
+  erc20DenomsStore,
+  betaERC20DenomsStore,
+  compassTokenTagsStore,
+  compassTokensAssociationsStore,
+  priceStore,
 }: {
   rootDenomsStore: RootDenomsStore
   rootBalanceStore: RootBalanceStore
@@ -175,6 +214,11 @@ export function useSwapsTx({
   disabledCW20DenomsStore: DisabledCW20DenomsStore
   enabledCW20DenomsStore: EnabledCW20DenomsStore
   cw20DenomBalanceStore: CW20DenomBalanceStore
+  erc20DenomsStore: ERC20DenomsStore
+  betaERC20DenomsStore: BetaERC20DenomsStore
+  compassTokenTagsStore: CompassTokenTagsStore
+  compassTokensAssociationsStore: CompassSeiTokensAssociationStore
+  priceStore: PriceStore
 }): SwapsTxType {
   const denoms = rootDenomsStore.allDenoms
   const { data: featureFlags } = useFeatureFlags()
@@ -240,11 +284,13 @@ export function useSwapsTx({
   const debouncedInAmount = useDebouncedValue(inAmount, 500)
   const { chainsToShow, chainsToShowLoading } = useGetChainsToShow()
 
+  const customChains = useNonNativeCustomChains()
+
   const aggregatedSourceTokens = getAggregatedSpendableBalances(SWAP_NETWORK)
   const aggregatedSourceChainTokens = useMemo(() => {
     const chainToShowKeys = chainsToShow.map((chain) => chain.key)
-    const allChainsInfo = Object.values(chainInfoStore.chainInfos)?.filter((chainInfo) =>
-      chainToShowKeys.includes(chainInfo.key),
+    const allChainsInfo = Object.values({ ...customChains, ...chainInfoStore.chainInfos })?.filter(
+      (chainInfo) => chainToShowKeys.includes(chainInfo.key),
     )
     const nonIncludedChainsInfo = allChainsInfo
     const chainsWithBalances = new Set<SupportedChain>([])
@@ -269,7 +315,7 @@ export function useSwapsTx({
       })
     })
     return emptyNativeTokensToAppend.concat(aggregatedSourceTokens)
-  }, [aggregatedSourceTokens, chainsToShow])
+  }, [aggregatedSourceTokens, chainsToShow, customChains])
 
   const sourceChainTokens = isChainAbstractionView
     ? aggregatedSourceChainTokens
@@ -291,6 +337,10 @@ export function useSwapsTx({
     ? getLoadingStatusForChain(destinationChain?.key, SWAP_NETWORK)
     : false
 
+  const combinedDenoms = useMemo(() => {
+    return Object.assign({}, denoms, compassTokenTagsStore.compassTokenDenomInfo)
+  }, [compassTokenTagsStore?.compassTokenDenomInfo, denoms])
+
   useEffect(() => {
     if (sourceChain && sourceChainTokens?.length === 0) {
       rootBalanceStore.loadBalances(sourceChain.key, SWAP_NETWORK)
@@ -305,26 +355,26 @@ export function useSwapsTx({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destinationChain])
 
-  const { data: skipAssets } = useAllSkipAssets(useAllSkipAssetsParams)
+  const { data: mergedAssets } = useAssets()
   const { data: sourceAssetsData, isLoading: loadingSourceAssets } = useGetSwapAssets(
-    denoms,
+    combinedDenoms,
+    priceStore.data,
     sourceChainTokens,
     isChainAbstractionView ? rootBalanceStore.allAggregatedTokensLoading : sourceTokensLoading,
     sourceChain,
-    autoFetchedCW20DenomsStore,
-    skipAssets,
+    mergedAssets,
     true,
     isChainAbstractionView,
     chainsToShow,
   )
 
   const { data: destinationAssetsData, isLoading: loadingDestinationAssets } = useGetSwapAssets(
-    denoms,
+    combinedDenoms,
+    priceStore.data,
     destinationChainTokens,
     isChainAbstractionView ? rootBalanceStore.allAggregatedTokensLoading : destinationTokensLoading,
     destinationChain,
-    autoFetchedCW20DenomsStore,
-    skipAssets,
+    mergedAssets,
     false,
     isChainAbstractionView,
     chainsToShow,
@@ -387,6 +437,11 @@ export function useSwapsTx({
     return featureFlags.swaps.fees === 'active'
   }, [featureFlags])
 
+  const compassDefaultToken = useMemo(() => {
+    if (!featureFlags) return []
+    return featureFlags.swaps.default_token_denoms ?? SEIYAN_TOKEN_DENOMS
+  }, [featureFlags])
+
   /**
    * Function to enable a disabled token
    */
@@ -398,6 +453,11 @@ export function useSwapsTx({
     cw20DenomsStore,
     disabledCW20DenomsStore,
     enabledCW20DenomsStore,
+    erc20DenomsStore,
+    betaERC20DenomsStore,
+    rootBalanceStore,
+    compassTokensAssociationsStore,
+    rootDenomsStore,
   )
   const { enableToken: enableDestinationToken } = useEnableToken(
     destinationChain,
@@ -407,6 +467,11 @@ export function useSwapsTx({
     cw20DenomsStore,
     disabledCW20DenomsStore,
     enabledCW20DenomsStore,
+    erc20DenomsStore,
+    betaERC20DenomsStore,
+    rootBalanceStore,
+    compassTokensAssociationsStore,
+    rootDenomsStore,
   )
 
   const callbackPostTx = useCallback(() => {
@@ -419,14 +484,16 @@ export function useSwapsTx({
    */
   useEffect(() => {
     if (chainsToShow.length > 0 && (!sourceChain || !destinationChain)) {
-      const sourceChainParams = chainsToShow.find((chain) => chain.chainId === searchedSourceChain)
+      const sourceChainParams = chainsToShow.find(
+        (chain) => chain.chainId === searchedSourceChain && chain.enabled,
+      )
 
       const destinationChainParams = chainsToShow.find(
-        (chain) => chain.chainId === searchedDestinationChain,
+        (chain) => chain.chainId === searchedDestinationChain && chain.enabled,
       )
 
       const activeChainToShow = chainsToShow.find(
-        (chain) => chain.chainId === activeChainInfo.chainId,
+        (chain) => chain.chainId === activeChainInfo.chainId && chain.enabled,
       )
 
       const firstNotActiveChainToShow = chainsToShow.find((chain) => {
@@ -454,7 +521,10 @@ export function useSwapsTx({
       } else if (activeChainToShow) {
         setSourceChain(activeChainToShow)
       } else {
-        setSourceChain(chainsToShow[0])
+        const chainToSet = chainsToShow?.find((chain) => chain.enabled)
+        if (chainsToShow) {
+          setSourceChain(chainToSet)
+        }
       }
       sourceTokenNotYetSelectedRef.current = true
 
@@ -467,7 +537,10 @@ export function useSwapsTx({
         if (isCompassWallet()) {
           setDestinationChain(chainsToShow[0])
         } else {
-          setDestinationChain(chainsToShow[1])
+          const chainToSet = chainsToShow?.filter((chain) => chain.enabled)?.[1]
+          if (chainsToShow) {
+            setDestinationChain(chainToSet)
+          }
         }
       }
       destinationTokenNotYetSelectedRef.current = true
@@ -486,7 +559,10 @@ export function useSwapsTx({
    * set source token
    */
   useEffect(() => {
-    const sourceAssets = sourceAssetsData?.assets ?? []
+    const customChainKeys = new Set(Object.values(customChains).map((chain) => chain.key))
+    const sourceAssets = (sourceAssetsData?.assets ?? []).filter(
+      (chain) => chain.tokenBalanceOnChain && !customChainKeys.has(chain.tokenBalanceOnChain),
+    )
 
     if (sourceChain && sourceAssets && sourceAssets.length > 0 && !isSwitchedRef.current) {
       if (searchedSourceToken) {
@@ -495,6 +571,9 @@ export function useSwapsTx({
           const sourceToken = sourceAssets.find(
             (asset) =>
               asset.ibcDenom === searchedSourceToken ||
+              (asset.skipAsset.evmTokenContract &&
+                asset.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
+                  searchedSourceToken?.replace(/(cw20:|erc20\/)/g, '')) ||
               getKeyToUseForDenoms(asset.skipAsset.denom, asset.skipAsset.originChainId) ===
                 searchedSourceToken?.replace(/(cw20:|erc20\/)/g, '') ||
               (getKeyToUseForDenoms(asset.skipAsset.originDenom, asset.skipAsset.originChainId) ===
@@ -531,6 +610,44 @@ export function useSwapsTx({
                   token.skipAsset?.denom === tokenToPreselect.denom &&
                   token.skipAsset?.chainId === tokenToPreselect.chainId,
               ) ?? firstToken
+          }
+          if (searchedDestinationToken) {
+            const isSameTokenAsSearchedDestinationToken =
+              highestBalanceToken.ibcDenom === searchedDestinationToken ||
+              (highestBalanceToken.skipAsset.evmTokenContract &&
+                highestBalanceToken.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
+                  searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '')) ||
+              getKeyToUseForDenoms(
+                highestBalanceToken.skipAsset.denom,
+                highestBalanceToken.skipAsset.originChainId,
+              ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') ||
+              (getKeyToUseForDenoms(
+                highestBalanceToken.skipAsset.originDenom,
+                highestBalanceToken.skipAsset.originChainId,
+              ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') &&
+                !!searchedDestinationChain &&
+                highestBalanceToken.skipAsset.chainId === searchedDestinationChain)
+
+            if (isSameTokenAsSearchedDestinationToken) {
+              highestBalanceToken =
+                sourceAssets?.find(
+                  (asset) =>
+                    !(
+                      asset.ibcDenom === searchedDestinationToken ||
+                      (asset.skipAsset.evmTokenContract &&
+                        asset.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
+                          searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '')) ||
+                      getKeyToUseForDenoms(asset.skipAsset.denom, asset.skipAsset.originChainId) ===
+                        searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') ||
+                      (getKeyToUseForDenoms(
+                        asset.skipAsset.originDenom,
+                        asset.skipAsset.originChainId,
+                      ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') &&
+                        !!searchedDestinationChain &&
+                        asset.skipAsset.chainId === searchedDestinationChain)
+                    ),
+                ) ?? highestBalanceToken
+            }
           }
           const _highestBalanceTokenChain = chainsToShow?.find(
             (chain) => chain.chainId === highestBalanceToken?.skipAsset.chainId,
@@ -572,7 +689,10 @@ export function useSwapsTx({
    * set destination token
    */
   useEffect(() => {
-    const destinationAssets = destinationAssetsData?.assets ?? []
+    const customChainKeys = new Set(Object.values(customChains).map((chain) => chain.key))
+    const destinationAssets = (destinationAssetsData?.assets ?? []).filter(
+      (chain) => chain.tokenBalanceOnChain && !customChainKeys.has(chain.tokenBalanceOnChain),
+    )
 
     if (
       destinationChain &&
@@ -586,6 +706,9 @@ export function useSwapsTx({
           const destinationToken = destinationAssets.find(
             (asset) =>
               asset.ibcDenom === searchedDestinationToken ||
+              (asset.skipAsset.evmTokenContract &&
+                asset.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
+                  searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '')) ||
               getKeyToUseForDenoms(asset.skipAsset.denom, asset.skipAsset.originChainId) ===
                 searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') ||
               (getKeyToUseForDenoms(asset.skipAsset.originDenom, asset.skipAsset.originChainId) ===
@@ -604,14 +727,20 @@ export function useSwapsTx({
       if (destinationTokenNotYetSelectedRef.current) {
         destinationTokenNotYetSelectedRef.current = false
         if (isCompassWallet()) {
+          const defaultTokenDenoms = compassDefaultToken.some(
+            (defaultToken) => searchedSourceToken?.replace(/(cw20:|erc20\/)/g, '') === defaultToken,
+          )
+            ? SEI_TOKEN_DENOMS
+            : compassDefaultToken
           const destinationToken = destinationAssets.find(
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
-            (asset) =>
-              asset.coinMinimalDenom ===
-              (searchedSourceToken?.replace(/(cw20:|erc20\/)/g, '') !== SEIYAN_TOKEN_DENOM
-                ? SEIYAN_TOKEN_DENOM
-                : SEI_TOKEN_DENOM),
+            (asset) => {
+              return defaultTokenDenoms.some(
+                (defaultToken) =>
+                  asset.coinMinimalDenom.toLowerCase() === defaultToken.toLowerCase(),
+              )
+            },
           )
           if (destinationToken) {
             setDestinationToken(destinationToken)
@@ -621,21 +750,41 @@ export function useSwapsTx({
           return
         }
 
+        let highestBalanceToken: SourceToken | undefined
+        let highestBalanceTokenChain: SourceChain | undefined
+        if (isChainAbstractionView) {
+          const firstToken = destinationAssets?.[0]
+          highestBalanceToken = firstToken
+          highestBalanceTokenChain = chainsToShow?.find(
+            (chain) => chain.chainId === highestBalanceToken?.skipAsset.chainId,
+          )
+        }
+        let chainToSet: SourceChain | undefined
+        if (!!highestBalanceTokenChain && highestBalanceTokenChain.key === destinationChain.key) {
+          chainToSet = chainsToShow?.find(
+            (chain) => chain.key !== highestBalanceTokenChain?.key && chain.enabled,
+          )
+        }
+
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        const baseDenomToSet = destinationChain.baseDenom
+        const baseDenomToSet = chainToSet ? chainToSet.baseDenom : destinationChain.baseDenom
+        const _destinationChain = chainToSet ?? destinationChain
         const destinationToken = destinationAssets.find((asset) =>
           !sourceChain ||
-          sourceChain.chainId !== destinationChain.chainId ||
+          sourceChain.chainId !== _destinationChain.chainId ||
           !sourceToken ||
           sourceToken?.coinMinimalDenom !== baseDenomToSet
             ? getKeyToUseForDenoms(asset.skipAsset.denom, asset.skipAsset.originChainId) ===
-              getKeyToUseForDenoms(baseDenomToSet, destinationChain.chainId)
+              getKeyToUseForDenoms(baseDenomToSet, _destinationChain.chainId)
             : asset.coinMinimalDenom !== sourceToken.coinMinimalDenom,
         )
 
         if (destinationToken) {
           setDestinationToken(destinationToken)
+          if (chainToSet) {
+            setDestinationChain(chainToSet)
+          }
           return
         }
 
@@ -698,171 +847,65 @@ export function useSwapsTx({
    * element hooks
    */
   const {
-    amountOut: amountOutWithFees,
-    routeResponse: routeResponseWithFees,
-    routeError: routeErrorWithFees,
-    isLoadingRoute: loadingRoutesWithFees,
-    refresh: refreshRouteWithFees,
-  } = useRoute(
-    debouncedInAmount,
-    sourceToken?.skipAsset,
-    sourceChain,
-    destinationToken?.skipAsset,
-    destinationChain,
-    isRouteQueryEnabled && isSwapFeeEnabled,
-    undefined,
-    swapVenue,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    leapFeeBps,
-  )
-
-  const {
-    amountOut: amountOutWithoutFees,
-    routeResponse: routeResponseWithoutFees,
-    routeError: routeErrorWithoutFees,
-    isLoadingRoute: loadingRoutesWithoutFees,
-    refresh: refreshRouteWithoutFees,
-  } = useRoute(
-    debouncedInAmount,
-    sourceToken?.skipAsset,
-    sourceChain,
-    destinationToken?.skipAsset,
-    destinationChain,
-    isRouteQueryEnabled,
-    undefined,
-    swapVenue,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-  )
-
-  const { amountOut, routeResponse, routeError, loadingRoutes, refresh, appliedLeapFeeBps } =
-    useMemo(() => {
-      const finalResponse = {
-        loadingRoutes: isSwapFeeEnabled
-          ? loadingRoutesWithoutFees || loadingRoutesWithFees
-          : loadingRoutesWithoutFees,
-        appliedLeapFeeBps: '0',
-        amountOut: amountOutWithoutFees,
-        routeResponse: routeResponseWithoutFees,
-        routeError: routeErrorWithoutFees,
-        refresh: refreshRouteWithoutFees,
-      }
-      if (!isSwapFeeEnabled) {
-        return {
-          ...finalResponse,
-          loadingRoutes: loadingRoutesWithoutFees,
-          amountOut: amountOutWithoutFees,
-          routeResponse: routeResponseWithoutFees,
-          routeError: routeErrorWithoutFees,
-          refresh: refreshRouteWithoutFees,
-        }
-      }
-      if (routeResponseWithFees) {
-        if (routeResponseWithFees?.response?.does_swap) {
-          const swapChainId = routeResponseWithFees.response.swap_venue?.chain_id
-          if (leapFeeAddresses && leapFeeAddresses[swapChainId]) {
-            return {
-              ...finalResponse,
-              amountOut: amountOutWithFees,
-              routeResponse: routeResponseWithFees,
-              routeError: routeErrorWithFees,
-              appliedLeapFeeBps: leapFeeBps,
-              refresh: refreshRouteWithFees,
-            }
-          } else {
-            return finalResponse
-          }
-        } else {
-          return finalResponse
-        }
-      }
-      if (!!routeErrorWithFees || !!routeErrorWithoutFees) {
-        return {
-          ...finalResponse,
-          amountOut: '-',
-          routeResponse: undefined,
-          routeError: routeErrorWithFees || routeErrorWithoutFees,
-          refresh: () => {
-            return Promise.resolve()
-          },
-        }
-      }
-      return {
-        ...finalResponse,
-        amountOut: '-',
-        routeResponse: undefined,
-        routeError: undefined,
-        refresh: () => {
-          return Promise.resolve()
-        },
-      }
-    }, [
-      leapFeeAddresses,
-      loadingRoutesWithFees,
-      amountOutWithFees,
-      routeResponseWithFees,
-      routeErrorWithFees,
-      refreshRouteWithFees,
-      amountOutWithoutFees,
-      routeResponseWithoutFees,
-      routeErrorWithoutFees,
-      loadingRoutesWithoutFees,
-      refreshRouteWithoutFees,
-      leapFeeBps,
-      isSwapFeeEnabled,
-    ])
+    amountOut,
+    routeResponse,
+    routeError,
+    isLoadingRoute: loadingRoutes,
+    refresh,
+    appliedLeapFeeBps,
+  } = useAggregatedRoute({
+    amountIn: debouncedInAmount,
+    sourceAsset: sourceToken?.skipAsset,
+    sourceAssetChain: sourceChain,
+    destinationAsset: destinationToken?.skipAsset,
+    destinationAssetChain: destinationChain,
+    enabled: isRouteQueryEnabled,
+    swapVenues: swapVenue,
+    leapFeeBps: leapFeeBps,
+    smartRelay: false,
+    leapFeeAddresses,
+    isSwapFeeEnabled,
+    slippage: slippagePercent,
+    enableSmartSwap: true,
+  })
 
   const invalidAmount = useMemo(() => {
     return inAmount !== '' && (isNaN(Number(inAmount)) || Number(inAmount) < 0)
   }, [inAmount])
 
-  const { warning: priceImpactWarning, priceImpactPercentage } = usePriceImpact(routeResponse)
-
-  const priceImpactPercent = useMemo(
-    () =>
-      routeResponse?.response?.does_swap
-        ? new BigNumber(routeResponse?.response?.swap_price_impact_percent ?? NaN)
-        : new BigNumber(0),
-    [routeResponse?.response?.does_swap, routeResponse?.response?.swap_price_impact_percent],
-  )
-  const sourceAssetUSDPrice = useMemo(
-    () => new BigNumber(routeResponse?.response?.usd_amount_in ?? NaN),
-    [routeResponse?.response?.usd_amount_in],
-  )
-  const destinationAssetUSDPrice = useMemo(
-    () => new BigNumber(routeResponse?.response?.usd_amount_out ?? NaN),
-    [routeResponse?.response?.usd_amount_out],
-  )
-
-  const usdPriceImpactPercentage = useMemo(
-    () =>
-      new BigNumber(sourceAssetUSDPrice)
-        .minus(destinationAssetUSDPrice)
-        .dividedBy(sourceAssetUSDPrice)
-        .multipliedBy(100),
-    [destinationAssetUSDPrice, sourceAssetUSDPrice],
-  )
-
   const usdValueAvailableForPair = useMemo(() => {
     if (!routeResponse?.response) return undefined
 
+    if (routeResponse.aggregator === RouteAggregator.SKIP) {
+      return (
+        routeResponse.response?.usd_amount_in !== undefined &&
+        routeResponse.response?.usd_amount_out !== undefined
+      )
+    }
     return (
-      routeResponse?.response?.usd_amount_in !== undefined &&
-      routeResponse?.response?.usd_amount_out !== undefined
+      routeResponse.response?.fromAmountUSD !== undefined &&
+      routeResponse.response?.toAmountUSD !== undefined
     )
-  }, [routeResponse?.response])
+  }, [routeResponse?.aggregator, routeResponse?.response])
 
-  const { userAddresses, userAddressesError } = useAddresses(
-    routeResponse?.response.chain_ids as string[],
+  const { userAddresses, userAddressesError, setUserAddressesError } = useAddresses(
+    (routeResponse?.response as RouteResponse)?.chain_ids as string[],
   )
 
-  const { affiliates } = useFeeAffiliates(
+  useEffect(() => {
+    setUserAddressesError('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    debouncedInAmount,
+    sourceToken,
+    destinationToken,
+    sourceChain,
+    destinationChain,
     routeResponse,
+  ])
+
+  const { affiliates } = useFeeAffiliates(
+    routeResponse as UseRouteResponse | undefined,
     appliedLeapFeeBps,
     undefined,
     isSwapFeeEnabled && routeResponse?.response?.does_swap,
@@ -878,13 +921,14 @@ export function useSwapsTx({
     return queryOptions
   }, [slippagePercent, affiliates])
 
-  const { data: messages, isLoading: loadingMessages } = useMessagesSWR(
+  const { data: messages, isLoading: loadingMessages } = useAggregatorMessagesSWR(
     userAddresses,
-    routeResponse?.response,
+    routeResponse,
     options,
     !!routeResponse?.response,
   )
-  const { data: skipGasFee, isLoading: isSkipGasFeeLoading } = useSkipGasFeeSWR(
+  const { data: skipGasFee, isLoading: isSkipGasFeeLoading } = useAggregatorGasFeeSWR(
+    routeResponse,
     messages,
     userAddresses,
     true,
@@ -893,12 +937,37 @@ export function useSwapsTx({
   )
 
   const swapFeeInfo = useMemo(() => {
+    if (!isSwapFeeEnabled || !messages || !routeResponse?.response) {
+      return undefined
+    }
+
+    if (routeResponse.aggregator === RouteAggregator.LIFI) {
+      const amount = routeResponse.response.toAmountMin
+        ? Number(routeResponse.response.toAmountMin)
+        : 0
+      const lifiAsset = routeResponse.destinationAsset
+      let feeAmountValue = null
+      const feeCharged = Number(appliedLeapFeeBps) * 0.01
+      const feeCollectionAddress = '0xd541efc525e625f5dc6651fe03ed5a36d155cb38' // TODO: Change this to env variable
+      const leapFeePercentage = feeCharged / 100
+      if (lifiAsset && amount > 0) {
+        const minAssetAmount = new BigNumber(amount).dividedBy(
+          10 ** Number(lifiAsset?.evmDecimals ?? lifiAsset?.decimals ?? 0),
+        )
+        feeAmountValue = minAssetAmount.multipliedBy(leapFeePercentage)
+      }
+      return {
+        feeAmountValue,
+        feeCharged,
+        feeCollectionAddress,
+        swapFeeDenomInfo: lifiAsset,
+      }
+    }
+
     if (
-      !isSwapFeeEnabled ||
-      !skipAssets ||
-      !messages ||
-      !routeResponse?.response ||
-      !routeResponse?.response?.does_swap
+      !mergedAssets ||
+      !routeResponse?.response?.does_swap ||
+      !routeResponse?.response?.swap_venue?.chain_id
     ) {
       return undefined
     }
@@ -913,10 +982,13 @@ export function useSwapsTx({
       const message = messageObj.multi_chain_msg
       const messageJson = JSON.parse(message.msg)
       if (messageJson?.memo) {
-        const memo = JSON.parse(messageJson.memo)
-        min_asset = memo?.wasm?.msg?.swap_and_action?.min_asset
+        const memoJson =
+          typeof messageJson.memo === 'string' ? JSON.parse(messageJson.memo) : messageJson.memo
+        min_asset = findMinAsset(memoJson)
       } else if (messageJson?.msg) {
-        min_asset = messageJson.msg?.swap_and_action?.min_asset
+        const msgJson =
+          typeof messageJson.msg === 'string' ? JSON.parse(messageJson.msg) : messageJson.msg
+        min_asset = findMinAsset(msgJson)
       }
 
       if (min_asset?.native) {
@@ -930,8 +1002,8 @@ export function useSwapsTx({
 
     const leapFeePercentage = (Number(appliedLeapFeeBps) * 0.01) / 100
 
-    const swapVenueChainId = routeResponse?.response?.swap_venue?.chain_id
-    const skipAsset = skipAssets[swapVenueChainId ?? ''].find(
+    const swapVenueChainId = (routeResponse?.response as RouteResponse)?.swap_venue?.chain_id
+    const skipAsset = mergedAssets[swapVenueChainId ?? ''].find(
       (asset) => asset.denom.replace(/(cw20:|erc20\/)/g, '') === denom,
     )
     if (skipAsset && amount > 0) {
@@ -941,17 +1013,20 @@ export function useSwapsTx({
     return {
       feeAmountValue: feeAmountValue ? feeAmountValue : null,
       feeCharged: Number(appliedLeapFeeBps) * 0.01,
-      feeCollectionAddress: leapFeeAddresses && (leapFeeAddresses[swapVenueChainId] ?? ''),
+      feeCollectionAddress: leapFeeAddresses && (leapFeeAddresses[swapVenueChainId ?? ''] ?? ''),
       swapFeeDenomInfo: skipAsset,
     }
   }, [
-    skipAssets,
+    isSwapFeeEnabled,
     messages,
     routeResponse?.response,
-    isSwapFeeEnabled,
+    routeResponse?.aggregator,
+    routeResponse?.destinationAsset,
+    mergedAssets,
     appliedLeapFeeBps,
     leapFeeAddresses,
   ])
+
   const gasEstimate = useMemo(() => {
     if (skipGasFee && skipGasFee.gasFeesAmount) {
       if (isNaN(Number(skipGasFee.gasFeesAmount?.[0]?.gas))) {
@@ -1147,17 +1222,27 @@ export function useSwapsTx({
     [setInAmount],
   )
 
-  const route = useMemo(() => {
+  const routingInfo: RoutingInfo = useMemo(() => {
+    if (routeResponse?.aggregator === RouteAggregator.LIFI) {
+      return {
+        aggregator: RouteAggregator.LIFI,
+        route: routeResponse,
+        messages: messages as LifiMsgWithCustomTxHash[] | undefined,
+        userAddresses: userAddresses,
+      }
+    }
     return {
-      ...(routeResponse ?? {}),
-      messages: messages ?? [],
-      userAddresses: userAddresses ?? [],
+      aggregator: RouteAggregator.SKIP,
+      route: routeResponse,
+      messages: messages as SkipMsgWithCustomTxHash[] | undefined,
+      userAddresses: userAddresses,
     }
   }, [messages, routeResponse, userAddresses])
 
   const value = useMemo(() => {
     return {
       inAmount,
+      debouncedInAmount,
       sourceToken: sourceTokenWithBalance,
       sourceTokenBalanceStatus: sourceTokenWithBalanceStatus,
       sourceChain,
@@ -1208,17 +1293,13 @@ export function useSwapsTx({
       setGasOption,
       setFeeDenom,
       displayFee,
-      route,
+      routingInfo,
       refresh,
       handleSwitchOrder,
       isSwitchOrderPossible,
       slippagePercent,
       setSlippagePercent,
       setInAmount,
-      priceImpactWarning,
-      priceImpactPercentage: priceImpactPercentage as BigNumber | undefined,
-      priceImpactPercent,
-      usdPriceImpactPercentage,
       usdValueAvailableForPair,
       refetchSourceBalances,
       refetchDestinationBalances,
@@ -1248,6 +1329,7 @@ export function useSwapsTx({
     handleInAmountChange,
     handleSwitchOrder,
     inAmount,
+    debouncedInAmount,
     infoMsg,
     invalidAmount,
     isMoreThanOneStepTransaction,
@@ -1257,15 +1339,12 @@ export function useSwapsTx({
     loadingMsg,
     loadingRoutes,
     loadingSourceAssets,
-    priceImpactPercent,
-    priceImpactPercentage,
-    priceImpactWarning,
     redirectUrl,
     refetchDestinationBalances,
     refetchSourceBalances,
     refresh,
     reviewBtnDisabled,
-    route,
+    routingInfo,
     setDestinationChain,
     setDestinationToken,
     setSourceChain,
@@ -1275,7 +1354,6 @@ export function useSwapsTx({
     sourceChain,
     sourceTokenWithBalance,
     sourceTokenWithBalanceStatus,
-    usdPriceImpactPercentage,
     usdValueAvailableForPair,
     userPreferredGasLimit,
     userPreferredGasPrice,

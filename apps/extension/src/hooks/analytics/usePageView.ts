@@ -20,7 +20,21 @@ export const usePageView = (pageName: PageName, enable = true, additionalPropert
   const chainName = isAggregatedView ? 'All Chains' : chain?.chainName ?? ''
 
   useEffect(() => {
-    if (!enable || (isCompassWallet() && pageName !== PageName.Home)) return
+    if (
+      !enable ||
+      (isCompassWallet() &&
+        ![
+          PageName.Home,
+          PageName.Search,
+          PageName.SwapsStart,
+          PageName.SwapsReview,
+          PageName.SwapsTracking,
+          PageName.SwapsQuoteReady,
+          PageName.SwapsCompletion,
+        ].includes(pageName))
+    ) {
+      return
+    }
 
     const timeoutId = setTimeout(() => {
       try {

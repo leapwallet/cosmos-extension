@@ -1,4 +1,4 @@
-import { ChainInfo, DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { ChainInfo, DenomsRecord } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect, useMemo } from 'react';
 
 import { useActiveChain, useDualStakeProvidersStore, useGetChains, useSelectedNetwork } from '../store';

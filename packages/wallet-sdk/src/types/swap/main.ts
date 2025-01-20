@@ -1,6 +1,6 @@
 import { StdFee } from '@cosmjs/stargate';
 
-import { TokenInfo } from './';
+import { TokenInfo } from './conversion';
 
 // directTokenSwaps.ts
 export type DirectTokenSwapArgs = {

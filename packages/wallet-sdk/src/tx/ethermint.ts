@@ -15,6 +15,7 @@ import { ethers } from 'ethers';
 
 import { fetchAccountDetails } from '../accounts';
 import { axiosWrapper } from '../healthy-nodes';
+import { LeapKeystoneSignerEth } from '../keystone';
 import { LeapLedgerSignerEth } from '../ledger';
 import { ExtensionOptionsWeb3Tx } from '../proto/ethermint/web3';
 import { getClientState } from '../utils';
@@ -161,7 +162,7 @@ export class EthermintTxHandler {
 
   constructor(
     private restUrl: string,
-    protected wallet: EthWallet | LeapLedgerSignerEth,
+    protected wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth,
     chainId?: string,
     evmChainId?: string,
   ) {
@@ -182,6 +183,27 @@ export class EthermintTxHandler {
   async sign(signerAddress: string, accountNumber: number, tx: any) {
     if (this.wallet instanceof LeapLedgerSignerEth) {
       const signature = await (this.wallet as LeapLedgerSignerEth).signEip712(signerAddress, tx.eipToSign);
+
+      const extension = {
+        typeUrl: '/ethermint.types.v1.ExtensionOptionsWeb3Tx',
+        value: ExtensionOptionsWeb3Tx.encode(
+          ExtensionOptionsWeb3Tx.fromPartial({
+            typedDataChainId: BigInt(this.chain.chainId.toString()),
+            feePayer: signerAddress,
+            feePayerSig: fromEthSignature(signature),
+          }),
+        ).finish(),
+      };
+      tx.legacyAmino.body.extensionOptions = [extension];
+      const body = TxBody.fromPartial(tx.legacyAmino.body);
+      const txRaw = createTxRawEIP712(body, tx.legacyAmino.authInfo);
+
+      return Buffer.from(txRaw as Uint8Array).toString('base64');
+    }
+
+    if (this.wallet instanceof LeapKeystoneSignerEth || this.wallet.constructor.name === 'LeapKeystoneSignerEth') {
+      const _wallet = this.wallet as LeapKeystoneSignerEth;
+      const signature = await _wallet.signEip712(signerAddress, tx.eipToSign);
 
       const extension = {
         typeUrl: '/ethermint.types.v1.ExtensionOptionsWeb3Tx',
@@ -410,10 +432,15 @@ export class EthermintTxHandler {
     }
   }
 
-  async signSendTx({ fromAddress, toAddress, amount, fee, memo }: SignSendArgs) {
+  async getTargetAccount(fromAddress: string) {
     const walletAccount = await this.wallet.getAccounts();
+    return walletAccount.find((account) => account.address === fromAddress) || walletAccount[0];
+  }
 
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+  async signSendTx({ fromAddress, toAddress, amount, fee, memo }: SignSendArgs) {
+    const walletAccount = await this.getTargetAccount(fromAddress);
+
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount.pubkey).toString('base64'));
 
     const stdFee = Fee.fromPartial({
       amount: [
@@ -459,9 +486,9 @@ export class EthermintTxHandler {
   }
 
   async signVoteTx({ fromAddress, proposalId, option, fee, memo }: SignVoteArgs) {
-    const walletAccount = await this.wallet.getAccounts();
+    const walletAccount = await this.getTargetAccount(fromAddress);
 
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount.pubkey).toString('base64'));
     const stdFee = Fee.fromPartial({
       amount: [
         {
@@ -485,9 +512,9 @@ export class EthermintTxHandler {
   }
 
   async signDelegateTx({ delegatorAddress, validatorAddress, amount, fee, memo }: SignDelegateArgs) {
-    const walletAccount = await this.wallet.getAccounts();
+    const walletAccount = await this.getTargetAccount(delegatorAddress);
 
-    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount.pubkey).toString('base64'));
     const stdFee = Fee.fromPartial({
       amount: [
         {
@@ -527,9 +554,9 @@ export class EthermintTxHandler {
     memo,
     stakeAuthorization: { botAddress, validatorAddress, expiryDate, maxTokens },
   }: signGrantRestakeArgs) {
-    const walletAccount = await this.wallet.getAccounts();
+    const walletAccount = await this.getTargetAccount(fromAddress);
 
-    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const sender = await this.getSender(fromAddress, Buffer.from(walletAccount.pubkey).toString('base64'));
     const stdFee = Fee.fromPartial({
       amount: [
         {
@@ -829,7 +856,7 @@ export class EthermintTxHandler {
       tx.gasLimit = ethers.BigNumber.from(fee.gas);
       tx.gasPrice = ethers.BigNumber.from(parseInt(fee.amount[0].amount) / parseInt(fee.gas));
       const hash = keccak256(Buffer.from(serialize(tx).replace('0x', ''), 'hex'));
-      const signature = await this.wallet.sign(sender, hash);
+      const signature = await (this.wallet as LeapLedgerSignerEth).sign(sender, hash);
       const v = Number(signature.v) - 27;
 
       const formattedSignature = concat([

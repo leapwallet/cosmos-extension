@@ -9,6 +9,8 @@ import {
   fetchAccountDetails,
   LeapLedgerSigner,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { initiaAminoConverters } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/initia/client'
+import { MsgInitiateTokenDeposit } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/initia/opinit/ophost/tx'
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing'
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx'
@@ -32,6 +34,7 @@ export async function handleCosmosTx(
   const aminoTypes = new AminoTypes({
     ...createDefaultAminoConverters('cosmos'),
     ...createWasmAminoConverters(),
+    ...initiaAminoConverters,
   })
 
   const msgs = [aminoTypes.toAmino(encodedMessage)]
@@ -66,6 +69,7 @@ export async function handleCosmosTx(
     }
     const registry = new Registry(defaultRegistryTypes)
     registry.register('/cosmwasm.wasm.v1.MsgExecuteContract', MsgExecuteContract)
+    registry.register('/opinit.ophost.v1.MsgInitiateTokenDeposit', MsgInitiateTokenDeposit as any)
     const signedTxBodyBytes = registry.encode(signedTxBodyEncodeObject)
 
     const signedGasLimit = Int53.fromString(signedAminoDoc.signed.fee.gas).toNumber()

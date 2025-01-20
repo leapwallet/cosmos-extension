@@ -4,7 +4,7 @@ import { useChainPageInfo } from 'hooks'
 import React, { useMemo } from 'react'
 import { AggregatedSupportedChain } from 'types/utility'
 
-import { AlertStrip } from './index'
+import { AlertStrip } from './AlertStrip'
 
 const TestnetAlertStrip = React.memo(() => {
   const activeNetwork = useSelectedNetwork()
@@ -21,8 +21,12 @@ const TestnetAlertStrip = React.memo(() => {
       return activeChainInfo.chainName
     }
 
-    return activeChainInfo.chainName + ' Testnet'
-  }, [activeChainInfo])
+    return (
+      activeChainInfo.chainName +
+      `${activeChainInfo.key === 'movement' && activeNetwork === 'testnet' ? ' Porto' : ''}` +
+      ' Testnet'
+    )
+  }, [activeChainInfo, activeNetwork])
 
   if (activeNetwork !== 'testnet' || activeChain === AGGREGATED_CHAIN_KEY) {
     return null

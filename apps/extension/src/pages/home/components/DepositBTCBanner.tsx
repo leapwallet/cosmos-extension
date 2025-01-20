@@ -5,6 +5,7 @@ import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useGetBTCDepositInfo, useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
@@ -47,6 +48,10 @@ function NomicBTCDeposit({ selectedChain, handleChainBtnClick }: NomicBTCDeposit
   const chainInfos = useChainInfos()
   const defaultTokenLogo = useDefaultTokenLogo()
   const { data } = useNomicBTCDepositConstants()
+
+  useCaptureUIException(
+    btcDepositInfo?.code === 1 || btcDepositInfo?.code === 2 ? btcDepositInfo.reason : null,
+  )
 
   if (status === 'loading') {
     return (

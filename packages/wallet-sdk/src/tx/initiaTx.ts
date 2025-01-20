@@ -33,8 +33,8 @@ import { MsgCancelUnbondingDelegation } from 'cosmjs-types/cosmos/staking/v1beta
 //   Tx as InitiaJsTx,
 //   TxBody,
 // } from '@initia/initia.js';
-import { AminoConverter as InitiaAminoConverters } from '../proto/initia/mstaking/tx.amino';
-import { registry as InitiaStakingRegistry } from '../proto/initia/mstaking/tx.registry';
+import { initiaAminoConverters as InitiaAminoConverters } from '../proto/initia/client';
+import { initiaProtoRegistry as InitiaRegistry } from '../proto/initia/client';
 import {
   getInitiaCancelUnbondingDelegationMsg,
   getInitiaClaimAndStakeMsg,
@@ -63,7 +63,7 @@ export class InitiaTx extends Tx {
     super(rpcEndPoint, wallet, options);
     this.registry = new Registry([
       ...defaultRegistryTypes,
-      ...(InitiaStakingRegistry as ReadonlyArray<[string, GeneratedType]>),
+      ...(InitiaRegistry as ReadonlyArray<[string, GeneratedType]>),
     ]);
   }
 
@@ -78,7 +78,7 @@ export class InitiaTx extends Tx {
   }
 
   async addInitiaRegistry() {
-    (InitiaStakingRegistry as ReadonlyArray<[string, GeneratedType]>).forEach((registryEntry) =>
+    (InitiaRegistry as ReadonlyArray<[string, GeneratedType]>).forEach((registryEntry) =>
       this.client?.registry.register(registryEntry[0], registryEntry[1]),
     );
   }

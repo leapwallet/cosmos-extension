@@ -5,6 +5,8 @@ import { PageName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import React from 'react'
+import { aggregatedChainsStore, ibcTraceFetcher } from 'stores/balance-store'
+import { ankrChainMapStore } from 'stores/balance-store'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { denomsStore } from 'stores/denoms-store-instance'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -21,7 +23,13 @@ export default function Activity() {
   })
 
   if (activeChain === AGGREGATED_CHAIN_KEY) {
-    return <AggregatedActivity chainTagsStore={chainTagsStore} />
+    return (
+      <AggregatedActivity
+        chainTagsStore={chainTagsStore}
+        ibcTraceFetcher={ibcTraceFetcher}
+        aggregatedChainsStore={aggregatedChainsStore}
+      />
+    )
   }
 
   if (isActivityComingSoon) {
@@ -34,5 +42,11 @@ export default function Activity() {
     )
   }
 
-  return <ChainActivity denomStore={denomsStore} chainTagsStore={chainTagsStore} />
+  return (
+    <ChainActivity
+      chainTagsStore={chainTagsStore}
+      ankrChainMapStore={ankrChainMapStore}
+      ibcTraceFetcher={ibcTraceFetcher}
+    />
+  )
 }

@@ -1,63 +1,69 @@
 import {
+  CompassDenomInfoParams,
   currencyDetail,
   formatPercentAmount,
   formatTokenAmount,
   getKeyToUseForDenoms,
   LeapWalletApi,
-  sliceWord,
   Token,
   useActiveStakingDenom,
   useAssetDetails,
+  useAssetSocials,
+  useChainInfo,
   useFeatureFlags,
   useformatCurrency,
+  useIsFeatureExistForChain,
+  useLiquidStakingProviders,
   useSelectedNetwork,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { chainIdToChain, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk'
+import { NativeDenom, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk'
 import {
   ChainTagsStore,
-  ClaimRewardsStore,
-  DelegationsStore,
+  CompassSeiEvmConfigStore,
+  CompassSeiTokensAssociationStore,
+  CompassTokenTagsStore,
   DenomsStore,
+  MarketDataStore,
   RootDenomsStore,
-  UndelegationsStore,
-  ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { useSkipAssets } from '@leapwallet/elements-hooks'
-import { useAllSkipAssets } from '@leapwallet/elements-hooks'
-import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import {
+  ArrowDown,
   ArrowsLeftRight,
-  CurrencyDollar,
-  DownloadSimple,
-  Plus,
-  UploadSimple,
+  ArrowUp,
+  CurrencyCircleDollar,
+  Globe,
+  XLogo,
 } from '@phosphor-icons/react'
 import { useQuery as useReactQuery } from '@tanstack/react-query'
 import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
-import ClickableIcon from 'components/clickable-icons'
 import PopupLayout from 'components/layout/popup-layout'
 import ReadMoreText from 'components/read-more-text'
 import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
-import { PageName } from 'config/analytics'
+import { EventName, PageName } from 'config/analytics'
 import { differenceInDays } from 'date-fns'
 import { useChainPageInfo } from 'hooks'
+import { usePageView } from 'hooks/analytics/usePageView'
 import useGetTopCGTokens from 'hooks/explore/useGetTopCGTokens'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
-import { useKadoAssets } from 'hooks/useGetKadoDetails'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import StakeSelectSheet from 'pages/stake-v2/components/StakeSelectSheet'
-import React, { useEffect, useMemo, useState } from 'react'
+import { StakeInputPageState } from 'pages/stake-v2/StakeInputPage'
+import useAssets from 'pages/swaps-v2/hooks/useAssets'
+import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import {
   claimRewardsStore,
   delegationsStore,
@@ -67,94 +73,45 @@ import {
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 import { capitalize } from 'utils/strings'
 
 import ChartSkeleton from '../chart-skeleton/ChartSkeleton'
+import SendToStakeModal from './SendToStakeModal'
 import { TokensChart } from './token-chart'
-
-type TokenCTAsProps = {
-  isSwapDisabled: boolean
-  isStakeDisabled: boolean
-  onReceiveClick: () => void
-  onSendClick: () => void
-  onSwapClick: () => void
-  onBuyClick: () => void
-  onStakeClick: () => void
-  isBuyDisabled: boolean
-  isSendDisabled?: boolean
-}
-
-function TokenCTAs({
-  onReceiveClick,
-  onSendClick,
-  onSwapClick,
-  onStakeClick,
-  isSwapDisabled,
-  isBuyDisabled,
-  isSendDisabled,
-  isStakeDisabled,
-  onBuyClick,
-}: TokenCTAsProps) {
-  return (
-    <div className='flex w-full flex-row items-center justify-between px-[16px]'>
-      <ClickableIcon
-        label='Buy'
-        icon={<Plus size={20} />}
-        disabled={isBuyDisabled}
-        onClick={onBuyClick}
-      />
-
-      <ClickableIcon label='Deposit' icon={<DownloadSimple size={20} />} onClick={onReceiveClick} />
-
-      <ClickableIcon
-        label='Send'
-        icon={<UploadSimple size={20} />}
-        onClick={onSendClick}
-        disabled={isSendDisabled}
-      />
-
-      <ClickableIcon
-        label='Swap'
-        icon={<ArrowsLeftRight size={20} />}
-        disabled={isSwapDisabled}
-        onClick={onSwapClick}
-      />
-
-      {
-        <ClickableIcon
-          label='Stake'
-          icon={<CurrencyDollar size={20} />}
-          onClick={onStakeClick}
-          disabled={isStakeDisabled}
-        />
-      }
-    </div>
-  )
-}
 
 type TokenDetailsProps = {
   denomsStore: DenomsStore
   rootDenomsStore: RootDenomsStore
   chainTagsStore: ChainTagsStore
-}
-
-const useAllSkipAssetsParams = {
-  includeCW20Assets: true,
-  includeNoMetadataAssets: false,
+  compassTokensAssociationsStore: CompassSeiTokensAssociationStore
+  compassSeiEvmConfigStore: CompassSeiEvmConfigStore
+  marketDataStore: MarketDataStore
+  compassTokenTagsStore: CompassTokenTagsStore
 }
 
 const TokensDetails = observer(
-  ({ denomsStore, rootDenomsStore, chainTagsStore }: TokenDetailsProps) => {
+  ({
+    denomsStore,
+    rootDenomsStore,
+    chainTagsStore,
+    compassTokensAssociationsStore,
+    compassSeiEvmConfigStore,
+    marketDataStore,
+    compassTokenTagsStore,
+  }: TokenDetailsProps) => {
     const assetType = undefined
     const chainInfos = useChainInfos()
     const _activeChain = useActiveChain()
     const assetsId = useQuery().get('assetName') ?? undefined
     const tokenChain = useQuery().get('tokenChain') ?? undefined
-    const { data: kadoSupportedAssets = [] } = useKadoAssets()
-    const [isBuySupported, setIsBuySupported] = useState(false)
+    const pageSource = useQuery().get('pageSource') ?? undefined
     const navigate = useNavigate()
     const { data: cgTokens = [] } = useGetTopCGTokens()
     const { data: featureFlags } = useFeatureFlags()
+    const { data: socials } = useAssetSocials(tokenChain)
+    const marketData = marketDataStore.data
 
     const location = useLocation()
     const portfolio = useMemo(() => {
@@ -165,13 +122,19 @@ const TokensDetails = observer(
       return (location?.state ?? navigateAssetDetailsState) as Token
     }, [location?.state])
 
+    const [websiteUrl, twitterUrl] = useMemo(() => {
+      const website = socials?.find((item) => item.type === 'website')?.url
+      const twitter = socials?.find((item) => item.type === 'twitter')?.url
+      return [website, twitter]
+    }, [socials])
+
     const activeChain = useMemo(() => {
       return portfolio?.tokenBalanceOnChain ?? _activeChain
     }, [_activeChain, portfolio?.tokenBalanceOnChain])
 
     const { headerChainImgSrc } = useChainPageInfo()
 
-    const { data: addSkipAssets } = useAllSkipAssets(useAllSkipAssetsParams)
+    const { data: addSkipAssets } = useAssets()
 
     const skipAssets = useMemo(() => {
       return addSkipAssets?.[chainInfos?.[activeChain]?.chainId ?? '']
@@ -187,20 +150,65 @@ const TokensDetails = observer(
       return (
         skipAssets &&
         skipAssets?.length > 0 &&
-        !!skipAssets?.find((skipAsset) =>
-          [assetsId, portfolio?.ibcDenom, portfolio?.coinMinimalDenom].includes(
-            skipAsset.denom.replace(/(cw20:|erc20\/)/g, ''),
-          ),
-        )
+        !!skipAssets?.find((skipAsset) => {
+          const assetToFind = []
+          if (assetsId) {
+            assetToFind.push(assetsId)
+          }
+          if (portfolio?.coinMinimalDenom) {
+            assetToFind.push(portfolio?.coinMinimalDenom)
+          }
+          if (portfolio?.ibcDenom) {
+            assetToFind.push(portfolio?.ibcDenom)
+          }
+          return (
+            assetToFind.includes(skipAsset.denom.replace(/(cw20:|erc20\/)/g, '')) ||
+            (!!skipAsset.evmTokenContract &&
+              assetToFind.includes(skipAsset.evmTokenContract.replace(/(cw20:|erc20\/)/g, '')))
+          )
+        })
       )
     }, [assetsId, portfolio?.coinMinimalDenom, portfolio?.ibcDenom, skipAssets])
 
     const [showChainSelector, setShowChainSelector] = useState(false)
+    const [showSendToStakeModal, setShowSendToStakeModal] = useState(false)
     const [showReceiveSheet, setShowReceiveSheet] = useState(false)
     const [showStakeSelectSheet, setShowStakeSelectSheet] = useState(false)
-
     const [formatCurrency] = useformatCurrency()
     const { handleSwapClick } = useHardCodedActions()
+
+    const seiEvmRpcUrl = compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_EVM_RPC_URL
+    const seiEvmChainId = String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID)
+    const seiCosmosChainId = compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_COSMOS_CHAIN_ID
+    const compassEvmToSeiMapping = compassTokensAssociationsStore.compassEvmToSeiMapping
+    const compassSeiToEvmMapping = compassTokensAssociationsStore.compassSeiToEvmMapping
+
+    const isSwapDisabled = useMemo(() => {
+      return !skipSupportsToken || featureFlags?.all_chains?.swap === 'disabled'
+    }, [skipSupportsToken, featureFlags?.all_chains?.swap])
+
+    const compassParams: CompassDenomInfoParams = useMemo(() => {
+      if (!isCompassWallet()) {
+        return {
+          isCompassWallet: false,
+        }
+      }
+
+      return {
+        isCompassWallet: true,
+        compassEvmToSeiMapping,
+        compassSeiToEvmMapping,
+        seiEvmRpcUrl,
+        seiEvmChainId,
+        seiCosmosChainId,
+      }
+    }, [
+      compassEvmToSeiMapping,
+      compassSeiToEvmMapping,
+      seiCosmosChainId,
+      seiEvmChainId,
+      seiEvmRpcUrl,
+    ])
 
     const {
       info,
@@ -212,11 +220,26 @@ const TokensDetails = observer(
       errorInfo,
       setSelectedDays,
       selectedDays,
-      denomInfo,
+      denomInfo: _denomInfo,
     } = useAssetDetails({
-      denoms: denomsStore.denoms,
+      denoms: Object.assign({}, denomsStore.denoms, compassTokenTagsStore.compassTokenDenomInfo),
       denom: assetsId as unknown as SupportedDenoms,
       tokenChain: (tokenChain ?? 'cosmos') as unknown as SupportedChain,
+      compassParams,
+      marketData,
+    })
+
+    const denomInfo: NativeDenom = _denomInfo ?? {
+      chain: portfolio?.chain ?? '',
+      coinDenom: portfolio?.symbol ?? portfolio?.name ?? portfolio?.coinMinimalDenom ?? '',
+      coinMinimalDenom: portfolio?.coinMinimalDenom ?? '',
+      coinDecimals: portfolio?.coinDecimals ?? 6,
+      icon: portfolio?.img ?? '',
+      coinGeckoId: portfolio?.coinGeckoId ?? '',
+    }
+    usePageView(PageName.AssetDetails, true, {
+      pageViewSource: pageSource,
+      tokenName: denomInfo.coinDenom,
     })
 
     const [preferredCurrency] = useUserPreferredCurrency()
@@ -280,23 +303,17 @@ const TokensDetails = observer(
     ])
 
     const { price, details, priceChange } = {
-      price: info?.price,
+      price: info?.price ?? cgToken?.current_price ?? portfolio?.usdPrice,
       details: info?.details,
-      priceChange: info?.priceChange,
-    } ?? {
-      price: cgToken?.current_price ?? undefined,
-      details: undefined,
-      priceChange: cgToken?.price_change_percentage_24h ?? undefined,
-      marketCap: cgToken?.market_cap ?? undefined,
+      priceChange: info?.priceChange ?? cgToken?.price_change_percentage_24h,
     }
 
-    const portfolioPercentChange = portfolio?.percentChange ?? priceChange
     const { chartData, minMax } = chartsData ?? { chartData: undefined, minMax: undefined }
     const totalHoldingsInUsd = portfolio?.usdValue
     const filteredChartDays = ChartDays
     const displayChain = chainInfos[tokenChain as SupportedChain]?.chainName ?? tokenChain
 
-    const dontShowSelectChain = useDontShowSelectChain()
+    const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const defaultIconLogo = useDefaultTokenLogo()
 
     const _activeNetwork = useSelectedNetwork()
@@ -309,23 +326,80 @@ const TokensDetails = observer(
     }, [_activeNetwork, _activeChain])
     const [activeStakingDenom] = useActiveStakingDenom(
       rootDenomsStore.allDenoms,
-      activeChain,
+      denomInfo.chain as SupportedChain,
       activeNetwork,
     )
 
-    useEffect(() => {
-      if (kadoSupportedAssets.length > 0 && portfolio) {
-        const supportedAsset = kadoSupportedAssets.find(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (item: any) =>
-            item.symbol === portfolio.symbol &&
-            chainIdToChain[item.officialChainId] === portfolio.chain,
-        )
-        if (supportedAsset) {
-          setIsBuySupported(true)
-        }
+    const isStakeComingSoon = useIsFeatureExistForChain({
+      checkForExistenceType: 'comingSoon',
+      feature: 'stake',
+      platform: 'Extension',
+      forceChain: portfolio.ibcDenom ? (portfolio.chain as SupportedChain) : activeChain,
+      forceNetwork: activeNetwork,
+    })
+
+    const isStakeNotSupported = useIsFeatureExistForChain({
+      checkForExistenceType: 'notSupported',
+      feature: 'stake',
+      platform: 'Extension',
+      forceChain: portfolio.ibcDenom ? (portfolio.chain as SupportedChain) : activeChain,
+      forceNetwork: activeNetwork,
+    })
+    const isStakeDisabled = useMemo(() => {
+      return (
+        isStakeComingSoon ||
+        isStakeNotSupported ||
+        !!chainInfos[activeChain].evmOnlyChain ||
+        activeStakingDenom?.coinMinimalDenom !== portfolio?.coinMinimalDenom
+      )
+    }, [
+      activeChain,
+      activeStakingDenom?.coinMinimalDenom,
+      chainInfos,
+      isStakeComingSoon,
+      isStakeNotSupported,
+      portfolio?.coinMinimalDenom,
+    ])
+    const { data: lsProviders = {} } = useLiquidStakingProviders()
+    const tokenLSProviders = lsProviders[activeStakingDenom?.coinDenom]
+
+    const percentChange = useMemo(() => {
+      if (selectedDays === '1D' && !!priceChange) {
+        return Number(priceChange)
       }
-    }, [portfolio, kadoSupportedAssets])
+      if (chartData && chartData.length > 0) {
+        const firstPrice = chartData[0].smoothedPrice
+        const lastPrice = price
+        const percentChange = ((lastPrice - firstPrice) / firstPrice) * 100
+
+        return percentChange
+      }
+    }, [chartData, price, priceChange, selectedDays])
+
+    const changeInPrice = useMemo(() => {
+      const olderPrice = new BigNumber(price ?? 0).dividedBy(1 + (percentChange ?? 0) / 100)
+
+      return new BigNumber(price ?? 0).minus(olderPrice).toNumber()
+    }, [price, percentChange])
+
+    const chain = useChainInfo(activeChain)
+
+    const handleStakeClick = () => {
+      navigate('/stake/input', {
+        state: {
+          mode: 'DELEGATE',
+          forceChain: activeChain,
+          forceNetwork: activeNetwork,
+        } as StakeInputPageState,
+      })
+      mixpanel.track(EventName.PageView, {
+        pageName: PageName.Stake,
+        pageViewSource: PageName.AssetDetails,
+        chainName: chain.chainName,
+        chainId: chain.chainId,
+        time: Date.now() / 1000,
+      })
+    }
 
     return (
       <div className='relative w-full overflow-clip panel-height'>
@@ -340,236 +414,317 @@ const TokensDetails = observer(
               }}
               imgSrc={headerChainImgSrc}
               onImgClick={dontShowSelectChain ? undefined : () => setShowChainSelector(true)}
-              title={<Text size='lg'>Asset details</Text>}
+              title={
+                <Text size='lg'>
+                  {capitalize(
+                    portfolio?.symbol ?? denomInfo?.coinDenom ?? denomInfo?.name ?? cgToken?.symbol,
+                  )}
+                </Text>
+              }
             />
           }
           headerZIndex={showReceiveSheet ? 0 : 3}
         >
-          <div className='flex flex-col gap-y-[32px] pl-[24px] pr-[24px] pt-[12px] mb-[24px] justify-center'>
-            <div className='flex w-full flex-col items-start justify-start gap-[12px]  mb-5'>
-              <div className='flex w-full flex-col items-start gap-[24px] rounded-[24px] border border-gray-100 bg-gray-50 py-[10px] shadow-[0px_7px_24px_0px_rgba(0,0,0,0.25)] dark:border-gray-900 dark:bg-gray-950'>
-                <div className='flex w-full flex-row items-center justify-between px-[16px]'>
-                  <div className='flex flex-row items-center justify-start gap-[14px]'>
-                    {(assetType !== 'cg' && !denomInfo) || (assetType === 'cg' && !cgToken) ? (
-                      <Skeleton circle width={34} height={34} />
-                    ) : (
-                      <img
-                        className='h-[34px] w-[34px] rounded-full'
-                        src={denomInfo?.icon ?? cgToken?.image ?? defaultIconLogo}
-                        onError={imgOnError(defaultIconLogo)}
-                        alt={'token-info'}
-                      />
-                    )}
-                    <div className='flex flex-col items-start justify-center'>
-                      {(assetType !== 'cg' && !denomInfo) || (assetType === 'cg' && !cgToken) ? (
-                        <>
-                          <Skeleton width={70} />
-                          <Skeleton width={50} />
-                        </>
-                      ) : (
-                        <>
-                          <div className='text-lg font-bold !leading-[28px] text-black-100 dark:text-white-100'>
-                            {sliceWord(
-                              portfolio?.symbol ??
-                                denomInfo?.coinDenom ??
-                                denomInfo?.name ??
-                                cgToken?.symbol,
-                              5,
-                              4,
-                            )}
-                          </div>
-                          <div className='text-xs font-medium !leading-[18px] text-gray-600 dark:text-gray-400'>
-                            {displayChain ?? cgToken?.name}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className='flex flex-row items-center justify-end '>
-                    <div className='flex flex-col items-end justify-center'>
-                      {(assetType !== 'cg' && !loadingPrice) || (assetType === 'cg' && cgToken) ? (
-                        <>
-                          <div className='text-right text-lg font-bold !leading-[28px] text-black-100 dark:text-white-100'>
-                            {price ? formatCurrency(new BigNumber(price), 5) : '-'}
-                          </div>
-                          <div className='flex gap-x-[5px]'>
-                            {portfolioPercentChange && (
-                              <div
-                                className={classNames(
-                                  'text-right text-xs font-medium !leading-[18px]',
-                                  {
-                                    'text-green-500 dark:text-green-500':
-                                      !portfolioPercentChange || portfolioPercentChange >= 0,
-                                    'text-red-600 dark:text-red-400':
-                                      portfolioPercentChange && portfolioPercentChange < 0,
-                                  },
-                                )}
-                              >
-                                {formatPercentAmount(
-                                  new BigNumber(portfolioPercentChange).toString(),
-                                  2,
-                                )}
-                                %
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <Skeleton width={70} />
-                          <Skeleton width={50} />
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className='gap-2 flex flex-col justify-center items-center'>
-                  <div className='flex w-full flex-col items-center justify-start gap-[24px]'>
-                    {chartsLoading || !chartData || !price ? (
-                      <>{!chartsErrors && !errorInfo && <ChartSkeleton className='!mt-0 px-3' />}</>
-                    ) : (
-                      <>
-                        <div className='flex w-full max-w-full flex-col items-start justify-start gap-[24px] px-[16px]'>
-                          {
-                            <TokensChart
-                              chainColor={
-                                chainInfos[denomInfo?.chain as SupportedChain]?.theme
-                                  ?.primaryColor ?? '#70B7FF'
-                              }
-                              chartData={chartData}
-                              loadingCharts={chartsLoading}
-                              price={price}
-                              minMax={minMax}
-                              key={selectedDays}
-                            />
-                          }
-                          {price && (
-                            <div className='flex w-full max-w-full flex-row justify-around gap-[4px] rounded-full overflow-scroll hide-scrollbar border border-gray-100 dark:border-gray-900'>
-                              {Object.keys(filteredChartDays).map((val, index) => {
-                                return (
-                                  <div
-                                    key={index}
-                                    className={classNames(
-                                      'rounded-[24px] px-[12px] py-[8px] text-[10px] font-bold !leading-[17px] hover:cursor-pointer ',
-                                      {
-                                        'bg-gray-200 text-gray-950 dark:bg-gray-800 dark:text-gray-50':
-                                          val === selectedDays,
-                                        'text-gray-400 dark:text-gray-600': val !== selectedDays,
-                                      },
-                                    )}
-                                    onClick={() => {
-                                      setSelectedDays(val)
-                                    }}
-                                  >
-                                    <div
-                                      className={`text-xs font-bold md:!text-xs ${
-                                        val === selectedDays
-                                          ? 'text-black-100 dark:text-white-100'
-                                          : 'text-gray-400 dark:text-gray-600'
-                                      }`}
-                                    >
-                                      {val}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div
-                    className={classNames('flex w-full flex-row justify-between px-[16px]', {
-                      'items-start': totalHoldingsInUsd,
-                      'items-center': !totalHoldingsInUsd,
-                    })}
-                  >
-                    <div className='text-sm font-bold !leading-[24px] text-gray-500 dark:text-gray-500'>
-                      Token Balance
-                    </div>
-                    <div className='flex flex-row gap-1 items-center max-w-[200px] flex-wrap justify-end'>
-                      {totalHoldingsInUsd ? (
-                        <div className='text-md font-bold !leading-[24px] text-black-100 dark:text-white-100'>
-                          {formatCurrency(new BigNumber(totalHoldingsInUsd), 5)}
-                        </div>
-                      ) : null}
-
-                      <div className='text-sm font-medium !leading-[16px] text-gray-500 dark:text-gray-500'>
-                        {totalHoldingsInUsd ? `(` : ''}
-                        {formatTokenAmount(portfolio?.amount?.toString() ?? '', '', 5)}{' '}
-                        {sliceWord(denomInfo?.coinDenom ?? portfolio?.symbol, 5, 4)}
-                        {totalHoldingsInUsd ? `)` : ''}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className='opacity-0'>
-                    <CardDivider />
-                  </div>
-
-                  <TokenCTAs
-                    onBuyClick={() => {
-                      navigate(`/buy?pageSource=${PageName.AssetDetails}`, { state: portfolio })
-                    }}
-                    isBuyDisabled={!isBuySupported}
-                    onSendClick={() => {
-                      navigate('/send', { state: location.state })
-                    }}
-                    onStakeClick={() => {
-                      setShowStakeSelectSheet(true)
-                    }}
-                    isStakeDisabled={
-                      activeStakingDenom?.coinDenom !== denomInfo?.coinDenom ||
-                      !!chainInfos[activeChain].evmOnlyChain
-                    }
-                    onReceiveClick={() => {
-                      setShowReceiveSheet(true)
-                    }}
-                    isSwapDisabled={
-                      !skipSupportsToken || featureFlags?.all_chains?.swap === 'disabled'
-                    }
-                    onSwapClick={() => {
-                      const denomKey = getKeyToUseForDenoms(
-                        denomInfo?.coinMinimalDenom ?? '',
-                        chainInfos[(denomInfo?.chain ?? '') as SupportedChain].chainId,
-                      )
-                      handleSwapClick(
-                        `https://swapfast.app/?sourceChainId=${chainInfos[activeChain].chainId}&sourceAsset=${denomInfo?.coinMinimalDenom}`,
-                        `/swap?sourceChainId=${chainInfos[activeChain].chainId}&sourceToken=${denomKey}&pageSource=assetDetails`,
-                      )
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* <DefiList tokenName={denomInfo?.name ?? portfolio?.symbol} /> */}
-
-              {!loadingPrice && details && (
-                <div>
-                  <div className='rounded-[16px] py-[12px] mb-[16px] items-center'>
-                    <Text
-                      size='sm'
-                      className='py-[4px] font-bold '
-                      color='text-gray-600 dark:text-gray-200'
-                    >
-                      About {denomInfo?.name ?? capitalize(denomInfo?.chain)}
-                    </Text>
-                    <div className='flex flex-col pt-[4px]'>
-                      <ReadMoreText
-                        textProps={{ size: 'md', className: 'font-medium  flex flex-column' }}
-                        readMoreColor={Colors.getChainColor(denomInfo?.chain as SupportedChain)}
+          <div
+            className={classNames(' overflow-y-scroll', {
+              'h-[448px]': !isSwapDisabled,
+              'h-[499px]': isSidePanel() && !isSwapDisabled,
+            })}
+          >
+            {/* chart */}
+            <div className='flex flex-col items-center p-6'>
+              {(assetType !== 'cg' && !loadingPrice) || (assetType === 'cg' && cgToken) ? (
+                <>
+                  <Text size='xxl' color='text-black-100 dark:text-white-100' className='font-bold'>
+                    {price && new BigNumber(price).gt(0)
+                      ? formatCurrency(new BigNumber(price), 5)
+                      : '-'}
+                  </Text>
+                  {chartsLoading ? (
+                    <Skeleton width={80} containerClassName='h-4' />
+                  ) : (
+                    !!percentChange && (
+                      <div
+                        className={classNames('text-xs font-bold ', {
+                          'text-green-600 dark:text-green-600':
+                            !percentChange || percentChange >= 0,
+                          'text-red-600 dark:text-red-400': percentChange && percentChange < 0,
+                        })}
                       >
-                        {details}
-                      </ReadMoreText>
-                    </div>
-                  </div>
+                        {`${changeInPrice > 0 ? '+' : '-'}${formatCurrency(
+                          new BigNumber(changeInPrice).abs(),
+                          2,
+                        )} (${formatPercentAmount(new BigNumber(percentChange).toString(), 2)}%)`}
+                      </div>
+                    )
+                  )}
+                </>
+              ) : (
+                <>
+                  <Skeleton width={90} height={36} />
+                  <Skeleton width={80} />
+                </>
+              )}
+            </div>
+
+            <div className='flex flex-col gap-y-5 items-center'>
+              {!chartsErrors && !errorInfo && (
+                <>
+                  {chartsLoading ? (
+                    <ChartSkeleton />
+                  ) : chartData && chartData.length > 0 ? (
+                    <TokensChart
+                      chainColor={'#70B7FF'}
+                      chartData={chartData}
+                      loadingCharts={chartsLoading}
+                      price={price}
+                      minMax={minMax}
+                      key={selectedDays}
+                      selectedDays={selectedDays}
+                    />
+                  ) : null}
+                </>
+              )}
+
+              {!chartsLoading && chartData && chartData.length > 0 && price && (
+                <div className='flex justify-between gap-x-2 overflow-scroll hide-scrollbar'>
+                  {Object.keys(filteredChartDays).map((val, index) => {
+                    return (
+                      <div
+                        key={index}
+                        className={classNames(
+                          'rounded-2xl py-1.5 px-4 text-xs hover:cursor-pointer ',
+                          {
+                            'bg-gray-100 text-black-100 dark:bg-gray-900 dark:text-white-100 font-bold':
+                              val === selectedDays,
+                            'text-gray-700 dark:text-gray-400 font-medium': val !== selectedDays,
+                          },
+                        )}
+                        onClick={() => {
+                          setSelectedDays(val)
+                        }}
+                      >
+                        {val}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
+
+            <div className='flex flex-col gap-y-7 p-6'>
+              <div className='flex flex-col gap-y-3'>
+                <Text size='sm' color='text-gray-600 dark:text-gray-400' className='font-bold'>
+                  Your Balance
+                </Text>
+                <div className='flex flex-col dark:bg-gray-950 bg-gray-100 rounded-lg p-4 gap-y-4 border dark:border-gray-850 border-gray-100'>
+                  <div className='flex gap-x-2 items-center'>
+                    <div className='relative w-[50px] h-[40px] flex items-center justify-center'>
+                      <img
+                        src={denomInfo?.icon ?? cgToken?.image ?? defaultIconLogo}
+                        onError={imgOnError(defaultIconLogo)}
+                        className='w-[30px] h-[30px] rounded-full'
+                      />
+                      <img
+                        src={chainInfos[denomInfo?.chain as SupportedChain]?.chainSymbolImageUrl}
+                        className='w-[15px] h-[15px] absolute bottom-[3px] right-[3px] rounded-full bg-black-100 dark:bg-black-100'
+                      />
+                    </div>
+                    <div className='flex flex-row items-center justify-between w-full'>
+                      <div className='flex flex-col items-start'>
+                        <div className='flex items-center gap-x-1.5'>
+                          <Text
+                            size='md'
+                            color='text-black-100 dark:text-white-100'
+                            className='font-bold'
+                          >
+                            {denomInfo?.name}
+                          </Text>
+                          {portfolio?.ibcDenom ? (
+                            <Text
+                              size='xs'
+                              color='text-gray-800 dark:text-gray-200'
+                              className='font-medium p-1 rounded-[4px] dark:bg-gray-850 bg-gray-200 !leading-[10px]'
+                            >
+                              IBC
+                            </Text>
+                          ) : null}
+                        </div>
+                        <Text size='xs' color='text-gray-600 dark:text-gray-400'>
+                          {displayChain ?? cgToken?.name}
+                        </Text>
+                      </div>
+                      <div className='flex flex-col items-end gap-y-1'>
+                        <Text
+                          size='md'
+                          color='text-black-100 dark:text-white-100'
+                          className='font-bold'
+                        >
+                          {totalHoldingsInUsd
+                            ? formatCurrency(new BigNumber(totalHoldingsInUsd), 5)
+                            : '-'}
+                        </Text>
+                        <Text
+                          size='xs'
+                          color='text-gray-600 dark:text-gray-400'
+                          className='font-medium'
+                        >
+                          {formatTokenAmount(
+                            portfolio?.amount?.toString() ?? '',
+                            denomInfo?.coinDenom,
+                            5,
+                          )}
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
+                  <div className='h-[1px] w-full dark:bg-gray-850 bg-gray-200' />
+                  <div className='flex flex-row h-[56px] p-1 gap-x-2'>
+                    <button
+                      onClick={() => {
+                        navigate(
+                          `/send?assetCoinDenom=${
+                            portfolio?.ibcDenom || denomInfo?.coinMinimalDenom
+                          }`,
+                          {
+                            state: location.state,
+                          },
+                        )
+                      }}
+                      className='flex flex-row gap-x-2 items-center justify-center h-full w-full p-3 bg-gray-200 dark:bg-gray-800 rounded-full'
+                    >
+                      <ArrowUp size={20} className='text-black-100 dark:text-white-100' />
+                      <Text
+                        size='xs'
+                        color='text-black-100 dark:text-white-100'
+                        className='font-bold'
+                      >
+                        Send
+                      </Text>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowReceiveSheet(true)
+                      }}
+                      className='flex flex-row gap-x-2 items-center justify-center h-full w-full p-3 bg-gray-200 dark:bg-gray-800 rounded-full'
+                    >
+                      <ArrowDown size={20} className='text-black-100 dark:text-white-100' />
+                      <Text
+                        size='xs'
+                        color='text-black-100 dark:text-white-100'
+                        className='font-bold'
+                      >
+                        Receive
+                      </Text>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (portfolio.ibcDenom) {
+                          setShowSendToStakeModal(true)
+                        } else {
+                          if (tokenLSProviders?.length > 0) {
+                            setShowStakeSelectSheet(true)
+                          } else {
+                            handleStakeClick()
+                          }
+                        }
+                      }}
+                      disabled={isStakeDisabled}
+                      className={classNames(
+                        'flex flex-row gap-x-2 items-center justify-center h-full w-full p-3 bg-gray-200 dark:bg-gray-800 rounded-full',
+                        {
+                          'opacity-40 cursor-no-drop': isStakeDisabled,
+                        },
+                      )}
+                    >
+                      <CurrencyCircleDollar
+                        size={20}
+                        className='text-black-100 dark:text-white-100'
+                      />
+                      <Text
+                        size='xs'
+                        color='text-black-100 dark:text-white-100'
+                        className='font-bold'
+                      >
+                        Stake
+                      </Text>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* details */}
+              {!loadingPrice && details && (
+                <div className='flex flex-col gap-y-2'>
+                  <Text size='sm' color='text-gray-600 dark:text-gray-400'>
+                    About {denomInfo?.name ?? capitalize(denomInfo?.chain)}
+                  </Text>
+                  <ReadMoreText
+                    textProps={{ size: 'sm', className: 'font-medium  flex flex-column' }}
+                    readMoreColor={'#70B7FF'}
+                  >
+                    {details}
+                  </ReadMoreText>
+                </div>
+              )}
+
+              <div className='flex flex-row items-center gap-x-2'>
+                {websiteUrl && (
+                  <a
+                    href={websiteUrl}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='px-3 py-1.5 rounded-[28px] dark:bg-gray-950 bg-gray-100'
+                  >
+                    <div className='flex flex-row items-center gap-x-1'>
+                      <Globe size={20} className='text-black-100 dark:text-white-100' />
+                      <Text
+                        size='xs'
+                        color='text-black-100 dark:text-white-100'
+                        className='font-medium'
+                      >
+                        Website
+                      </Text>
+                    </div>
+                  </a>
+                )}
+                {twitterUrl && (
+                  <a
+                    href={twitterUrl}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='px-3 py-1.5 rounded-[28px] dark:bg-gray-950 bg-gray-100'
+                  >
+                    <XLogo size={20} className='text-black-100 dark:text-white-100' />
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
+          {!isSwapDisabled && (
+            <div className='flex w-full py-4 px-6'>
+              <Buttons.Generic
+                size='normal'
+                color={Colors.green600}
+                onClick={() => {
+                  const denomKey = getKeyToUseForDenoms(
+                    denomInfo?.coinMinimalDenom ?? '',
+                    chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId,
+                  )
+                  handleSwapClick(
+                    `https://swapfast.app/?destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
+                    `/swap?destinationChainId=${chainInfos[activeChain].chainId}&destinationToken=${denomKey}&pageSource=assetDetails`,
+                  )
+                }}
+                disabled={isSwapDisabled}
+              >
+                <div className='flex flex-row items-center gap-x-1'>
+                  <ArrowsLeftRight size={20} className='text-white-100' />
+                  <Text color='text-white-100'>Swap</Text>
+                </div>
+              </Buttons.Generic>
+            </div>
+          )}
         </PopupLayout>
         <ReceiveToken
           isVisible={showReceiveSheet}
@@ -583,6 +738,8 @@ const TokensDetails = observer(
           isVisible={showStakeSelectSheet}
           title='Stake'
           onClose={() => setShowStakeSelectSheet(false)}
+          tokenLSProviders={tokenLSProviders}
+          handleStakeClick={handleStakeClick}
           rootDenomsStore={rootDenomsStore}
           delegationsStore={delegationsStore}
           validatorsStore={validatorsStore}
@@ -595,6 +752,12 @@ const TokensDetails = observer(
           isVisible={showChainSelector}
           onClose={() => setShowChainSelector(false)}
           chainTagsStore={chainTagsStore}
+        />
+        <SendToStakeModal
+          isVisible={showSendToStakeModal}
+          ibcDenom={portfolio}
+          onClose={() => setShowSendToStakeModal(false)}
+          nativeDenom={activeStakingDenom}
         />
       </div>
     )

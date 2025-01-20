@@ -4,10 +4,11 @@ import { captureException } from '@sentry/react'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { useModifyStarredChains, useStarredChains } from 'hooks/settings'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import mixpanel from 'mixpanel-browser'
+import { observer } from 'mobx-react-lite'
 import React from 'react'
+import { starredChainsStore } from 'stores/starred-chains-store'
 import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
@@ -27,7 +28,7 @@ type ChainCardProps = {
   showStars?: boolean
 }
 
-export function ChainCard({
+const ChainCardView = ({
   img,
   handleClick,
   beta,
@@ -37,12 +38,9 @@ export function ChainCard({
   onPage,
   showNewTag,
   showStars,
-}: ChainCardProps) {
+}: ChainCardProps) => {
   const defaultTokenLogo = useDefaultTokenLogo()
-  const starredChains = useStarredChains()
-  const { addStarredChain, removeStarredChain } = useModifyStarredChains()
-
-  const isStarred = starredChains.includes(chainName)
+  const isStarred = starredChainsStore.chains.includes(chainName)
 
   const trackCTAEvent = (eventName: EventName) => {
     if (!isCompassWallet()) {
@@ -61,10 +59,10 @@ export function ChainCard({
   const onStarToggle = (e: any) => {
     e.stopPropagation()
     if (isStarred) {
-      removeStarredChain(chainName)
+      starredChainsStore.removeStarredChain(chainName)
       trackCTAEvent(EventName.ChainUnfavorited)
     } else {
-      addStarredChain(chainName)
+      starredChainsStore.addStarredChain(chainName)
       trackCTAEvent(EventName.ChainFavorited)
     }
   }
@@ -133,3 +131,5 @@ export function ChainCard({
     </div>
   )
 }
+
+export const ChainCard = observer(ChainCardView)

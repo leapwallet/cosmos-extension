@@ -8,6 +8,7 @@ import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import {
   ArrowsLeftRight,
   CurrencyDollar,
+  MagnifyingGlass,
   Parachute,
   Pulse,
   Tag,
@@ -30,6 +31,7 @@ export enum BottomNavLabel {
   Earn = 'Earn',
   Airdrops = 'Airdrops',
   Swap = 'Swap',
+  Search = 'Search',
 }
 
 type BottomNavProps = {
@@ -71,14 +73,21 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
         path: '/home',
         show: true,
       },
-      {
-        label: BottomNavLabel.Stake,
-        icon: <CurrencyDollar size={22} weight='fill' />,
-        path: '/stake?pageSource=bottomNav',
-        show: true,
-        disabled: activeChainInfo?.disableStaking || activeChainInfo?.evmOnlyChain,
-        redirectHandler: stakeRedirectForInitiaHandler,
-      },
+      isCompassWallet() && activeChain === 'seiTestnet2' && activeNetwork === 'mainnet'
+        ? {
+            label: BottomNavLabel.Search,
+            icon: <MagnifyingGlass size={22} />,
+            path: '/search?pageSource=bottomNav',
+            show: true,
+          }
+        : {
+            label: BottomNavLabel.Stake,
+            icon: <CurrencyDollar size={22} weight='fill' />,
+            path: '/stake?pageSource=bottomNav',
+            show: true,
+            disabled: activeChainInfo?.disableStaking || activeChainInfo?.evmOnlyChain,
+            redirectHandler: stakeRedirectForInitiaHandler,
+          },
       {
         label: BottomNavLabel.Swap,
         icon: <ArrowsLeftRight size={22} weight='bold' />,
@@ -99,7 +108,6 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
         show: !isCompassWallet() && featureFlags?.airdrops?.extension !== 'disabled',
         shouldRedirect: featureFlags?.airdrops?.extension === 'redirect',
         redirectHandler: airdropRedirectHandler,
-        disabled: activeChainInfo?.evmOnlyChain,
       },
       {
         label: BottomNavLabel.Activity,

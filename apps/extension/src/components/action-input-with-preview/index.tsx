@@ -6,7 +6,7 @@ import { hex2rgba } from 'utils/hextorgba'
 interface ActionInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   action: string
   buttonText: string
-  buttonTextColor: string
+  buttonTextColor?: string
   icon?: string
   value: string
   // eslint-disable-next-line no-unused-vars
@@ -96,12 +96,12 @@ export const ActionInputWithPreview = React.forwardRef(
               ref={ref}
               className={classNames(
                 className,
-                'border rounded-lg transition bg-white-30 dark:bg-black-50 outline-none text-gray-800 caret-gray-800 dark:text-white-100 dark:caret-white-100 disabled:cursor-not-allowed w-full pl-4 py-2',
+                'border rounded-lg transition bg-white-30 dark:bg-black-50 outline-none text-gray-800 caret-gray-800 dark:text-white-100 dark:caret-white-100 disabled:cursor-not-allowed w-full pl-4 py-2 placeholder-shown:font-normal',
                 `${!rightElement && disabled ? 'pr-4' : 'pr-12'}`,
                 {
                   'border-red-300 dark:border-red-300': invalid,
                   'border-yellow-600 dark:border-yellow-600': warning,
-                  'border-gray-300 dark:border-gray-800 focus:border-gray-400 dark:focus:border-gray-500':
+                  'focus-visible:border-gray-300 focus-visible:dark:border-gray-800':
                     !invalid && !warning,
                 },
               )}
@@ -135,10 +135,10 @@ export const ActionInputWithPreview = React.forwardRef(
               </button>
             ) : buttonText ? (
               <button
-                className='capitalize text-sm font-bold rounded-full px-3 py-1 outline-none'
+                className='capitalize text-xs font-medium dark:bg-gray-850 bg-gray-100 rounded-full dark:text-white-100 text-black-100 px-3 py-1 outline-none'
                 style={{
                   color: buttonTextColor,
-                  backgroundColor: hex2rgba(buttonTextColor, 0.1),
+                  backgroundColor: buttonTextColor ? hex2rgba(buttonTextColor, 0.1) : '',
                 }}
                 onClick={handleButtonClick}
               >

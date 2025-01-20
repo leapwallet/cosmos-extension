@@ -28,8 +28,6 @@ import {
   V2MarketPercentageChangesResponse,
   V2MarketPricesRequest,
   V2MarketPricesResponse,
-  V2TxOperation,
-  V2TxRequest,
   validateCgPlatform,
 } from '../types';
 
@@ -230,8 +228,13 @@ export class LeapApi {
     throw new NetworkError(new Error('Dummified response'));
   }
 
-  async operateV2Tx(logReq: V2TxRequest, operation: V2TxOperation): Promise<void> {
+  async operateV2Tx(logReq: any, operation: any): Promise<void> {
     console.log('Transaction Logging: ', logReq);
+    throw new NetworkError(new Error('Dummified response'));
+  }
+
+  async logLightNodeStats(logReq: any): Promise<void> {
+    console.log('Logging light node stat', logReq);
     throw new NetworkError(new Error('Dummified response'));
   }
 }

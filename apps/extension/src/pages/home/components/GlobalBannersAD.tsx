@@ -11,8 +11,8 @@ import {
   useGetBannerData,
   useGetNumiaBanner,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { X } from '@phosphor-icons/react'
+import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
+import { ArrowLeft, ArrowRight, X } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import { GlobalBannersLoading } from 'components/Skeletons'
@@ -20,14 +20,14 @@ import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { DISABLE_BANNER_ADS } from 'config/storage-keys'
-import { useSetActiveChain } from 'hooks/settings/useActiveChain'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
+import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { uiErrorTags } from 'utils/sentry'
 import Browser from 'webextension-polyfill'
 
 import AddFromChainStore from '../AddFromChainStore'
@@ -72,6 +72,7 @@ function BannerAdCard({
   handleBtcBannerClick,
   handleAddChainClick,
   handleSwitchChainClick,
+  isActive,
 }: {
   bannerData: BannerADData
   chain: ChainInfo
@@ -83,6 +84,7 @@ function BannerAdCard({
   handleBtcBannerClick: () => void
   handleAddChainClick: (chain: string) => void
   handleSwitchChainClick: (chain: string) => void
+  isActive: boolean
 }) {
   const navigate = useNavigate()
 
@@ -90,7 +92,8 @@ function BannerAdCard({
     if (bannerData.id.trim().toLowerCase().includes('nbtc-banner')) {
       handleBtcBannerClick()
     } else if (bannerData.banner_type === 'redirect-interanlly') {
-      navigate(bannerData.redirect_url)
+      const bannerId = getMixpanelBannerId(bannerData?.id, bannerData.attributes?.campaign_id)
+      navigate(`${bannerData.redirect_url}&bannerId=${bannerId}`)
     } else if (bannerData.banner_type === 'add-chain') {
       handleAddChainClick(bannerData.redirect_url)
     } else if (bannerData.banner_type === 'switch-chain') {
@@ -107,7 +110,11 @@ function BannerAdCard({
   }, [bannerData, index, onClick])
 
   return (
-    <div className='relative inline-block w-[22rem] overflow-hidden mr-4 snap-center'>
+    <div
+      className={`relative inline-block w-[22rem] overflow-hidden snap-center transform transition-transform ease-out duration-300 ${
+        isActive ? 'scale-100' : 'scale-x-[93%] scale-y-[88%]'
+      }`}
+    >
       <button
         className='overflow-hidden rounded-lg w-full items-center flex dark:bg-gray-900 bg-white-100 aspect-[11/2]'
         onClick={handleClick}
@@ -462,7 +469,7 @@ const GlobalBannersAD = React.memo(
         // for this we check the isTrusted property of the event
         if (e.isTrusted && !autoSwitchBanner) {
           const scrollLeft = e.currentTarget.scrollLeft
-          const bannerIndex = Math.floor(scrollLeft / AUTO_SWITCH_LEFT)
+          const bannerIndex = Math.round(scrollLeft / AUTO_SWITCH_LEFT)
           timerCountRef.current = bannerIndex
           setTimeCounter(bannerIndex)
         }
@@ -494,13 +501,24 @@ const GlobalBannersAD = React.memo(
     const handleAddChainClick = useCallback(
       (chain: string) => {
         const item = customChains.find((customChain) => customChain.chainRegistryPath === chain)
-
-        if (chainInfos[item?.chainRegistryPath as SupportedChain]) {
-          setActiveChain(item?.chainRegistryPath as AggregatedSupportedChain, item)
+        let chainKey
+        for (const [key, chainInfo] of Object.entries(chainInfos)) {
+          if (
+            chainInfo.chainRegistryPath === item?.chainRegistryPath ||
+            chainInfo.key === item?.chainRegistryPath
+          ) {
+            chainKey = key
+            break
+          }
+        }
+        if (chainKey) {
+          setActiveChain(chainKey as AggregatedSupportedChain, item)
         } else if (item) {
           setNewChain(item.chainName)
         } else {
-          captureException(`${chain} chain not found when clicked on banners`)
+          captureException(`${chain} chain not found when clicked on banners`, {
+            tags: uiErrorTags,
+          })
         }
       },
       [chainInfos, customChains, setActiveChain],
@@ -508,13 +526,25 @@ const GlobalBannersAD = React.memo(
 
     const handleSwitchChainClick = useCallback(
       (chainRegistryPath: string) => {
-        if (chainInfos[chainRegistryPath as SupportedChain]) {
-          setActiveChain(chainRegistryPath as AggregatedSupportedChain)
+        let chainKey
+        for (const [key, chainInfo] of Object.entries(chainInfos)) {
+          if (
+            chainInfo.chainRegistryPath === chainRegistryPath ||
+            chainInfo.key === chainRegistryPath
+          ) {
+            chainKey = key
+            break
+          }
+        }
+        if (chainKey) {
+          setActiveChain(chainKey as AggregatedSupportedChain)
         } else {
-          captureException(`${chainRegistryPath} chain not found when clicked on banners`)
+          captureException(`${chainRegistryPath} chain not found when clicked on banners`, {
+            tags: uiErrorTags,
+          })
         }
       },
-      [chainInfos, customChains, setActiveChain],
+      [chainInfos, setActiveChain],
     )
 
     if (!bannerAds || bannerAds.length === 0 || displayADs.length === 0) {
@@ -524,10 +554,10 @@ const GlobalBannersAD = React.memo(
     }
 
     return (
-      <div className='flex flex-col items-center justify-center gap-2 mb-4'>
+      <div className='flex flex-col items-center justify-center gap-1 mb-4'>
         <div
           ref={scrollableContainerRef}
-          className='w-[400px] whitespace-nowrap overflow-x-auto overflow-y-hidden text-center pl-7 h-16 hide-scrollbar snap-x snap-mandatory'
+          className='w-[400px] whitespace-nowrap overflow-x-auto overflow-y-hidden text-center px-7 h-16 hide-scrollbar snap-x snap-mandatory'
           onScroll={handleScroll}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -545,32 +575,50 @@ const GlobalBannersAD = React.memo(
                 handleBtcBannerClick={handleBtcBannerClick}
                 handleAddChainClick={handleAddChainClick}
                 handleSwitchChainClick={handleSwitchChainClick}
+                isActive={activeBannerIndex === index}
               />
             )
           })}
         </div>
 
         {displayADs.length > 1 ? (
-          <div
-            className='flex gap-1'
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            {displayADs.map((ad, i) => {
-              const isActive = activeBannerId === ad.id
+          <div className='flex w-[352px] items-center justify-between'>
+            <ArrowLeft
+              size={17}
+              onClick={() => handleContainerScroll(activeBannerIndex - 1)}
+              className={`text-gray-600 dark:text-gray-400 hover:text-black-100 hover:dark:text-white-100 cursor-pointer ${
+                activeBannerIndex === 0 ? 'invisible' : ''
+              }`}
+            />
 
-              return (
-                <span
-                  role='button'
-                  key={ad.id}
-                  className={classNames('h-[10px] rounded-full transition-all cursor-pointer', {
-                    'w-[20px] bg-gray-600 dark:bg-white-600': isActive,
-                    'w-[10px] bg-gray-300 dark:bg-gray-900': !isActive,
-                  })}
-                  onClick={() => handleContainerScroll(i)}
-                />
-              )
-            })}
+            <div
+              className='flex gap-1'
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              {displayADs.map((ad, i) => {
+                const isActive = activeBannerId === ad.id
+
+                return (
+                  <span
+                    role='button'
+                    key={ad.id}
+                    className={classNames('h-[5px] rounded-full transition-all cursor-pointer', {
+                      'w-[20px] bg-black-100 dark:bg-white-100': isActive,
+                      'w-[5px] bg-gray-500 dark:bg-gray-400': !isActive,
+                    })}
+                    onClick={() => handleContainerScroll(i)}
+                  />
+                )
+              })}
+            </div>
+            <ArrowRight
+              size={17}
+              onClick={() => handleContainerScroll(activeBannerIndex + 1)}
+              className={`text-gray-600 dark:text-gray-400 hover:text-black-100 hover:dark:text-white-100 cursor-pointer ${
+                activeBannerIndex === displayADs.length - 1 ? 'invisible' : ''
+              }`}
+            />
           </div>
         ) : null}
 

@@ -16,7 +16,7 @@ function SeedPhraseView({
   goBack,
   password,
 }: {
-  password: string
+  password: Uint8Array
   goBack: () => void
 }): ReactElement {
   const mnemonic = SeedPhrase.useMnemonic(password)
@@ -94,9 +94,9 @@ function SeedPhraseView({
 }
 
 export default function ExportSeedPhrase({ goBack }: { goBack: () => void }): ReactElement {
-  const [password, setPassword] = useState('')
+  const [password, setPassword] = useState<Uint8Array>()
   const [isRevealed, setRevealed] = useState(false)
-  return isRevealed && password != '' ? (
+  return isRevealed && !!password ? (
     <SeedPhraseView password={password} goBack={goBack} />
   ) : (
     <EnterPasswordView

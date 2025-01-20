@@ -13,11 +13,11 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking';
-import { CosmosTxType } from '@leapwallet/leap-api-js';
 import BigNumber from 'bignumber.js';
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
+import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { useformatCurrency } from '../settings';
 import {
@@ -74,7 +74,7 @@ export function useClaimAndStakeRewards(
   forceNetwork?: SelectedNetwork,
 ) {
   const txMetadata = useTxMetadata();
-  const _userAddress = useAddress();
+  const _userAddress = useAddress(forceChain);
   const userAddress = useMemo(() => forceAddress || _userAddress, [forceAddress, _userAddress]);
 
   const _activeChain = useActiveChain();

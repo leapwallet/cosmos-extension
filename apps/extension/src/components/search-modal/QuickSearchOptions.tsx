@@ -8,11 +8,10 @@ import { MagnifyingGlass } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useEffect } from 'react'
-import { useRecoilValue } from 'recoil'
+import { searchModalStore } from 'stores/search-modal-store'
 import { imgOnError } from 'utils/imgOnError'
-
-import { searchModalEnteredOptionState } from '../../atoms/search-modal'
 
 type QuickSearchOptionsProps = {
   suggestionsList: QuickSearchOption[]
@@ -21,30 +20,29 @@ type QuickSearchOptionsProps = {
   handleOptionClick: (config: OptionPlatformConfig, optionIndex: number, actionName: string) => void
 }
 
-export function QuickSearchOptions({
+const QuickSearchOptionsView = ({
   suggestionsList,
   activeSearchOption,
   handleOptionClick,
-}: QuickSearchOptionsProps) {
-  const searchModalEnteredOption = useRecoilValue(searchModalEnteredOptionState)
+}: QuickSearchOptionsProps) => {
   const defaultTokenLogo = useDefaultTokenLogo()
   const { data: featureFlags } = useFeatureFlags()
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
 
   useEffect(() => {
-    if (suggestionsList.length && searchModalEnteredOption !== null) {
-      const option = suggestionsList.filter((_, index) => index === searchModalEnteredOption)
+    if (suggestionsList.length && searchModalStore.enteredOption !== null) {
+      const option = suggestionsList.filter((_, index) => index === searchModalStore.enteredOption)
       if (option.length) {
         handleOptionClick(
           option[0].extension_config as OptionPlatformConfig,
-          searchModalEnteredOption,
+          searchModalStore.enteredOption,
           option[0].action_name,
         )
       }
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchModalEnteredOption, suggestionsList])
+  }, [searchModalStore.enteredOption, suggestionsList])
 
   return suggestionsList.length ? (
     <ul className='px-3 flex flex-col gap-2 overflow-y-auto h-[420px] outline-none' tabIndex={0}>
@@ -119,3 +117,5 @@ export function QuickSearchOptions({
     </div>
   )
 }
+
+export const QuickSearchOptions = observer(QuickSearchOptionsView)

@@ -19,8 +19,10 @@ import { EmptyCard } from 'components/empty-card'
 import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
 import currency from 'currency.js'
+import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useChainPageInfo } from 'hooks'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
+import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
@@ -80,6 +82,22 @@ export const AggregatedStake = observer(
     const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null)
     const { headerChainImgSrc } = useChainPageInfo()
 
+    const query = useQuery()
+    const paramChainId = query.get('chainId') ?? undefined
+
+    useEffect(() => {
+      async function updateChain() {
+        if (paramChainId) {
+          const chainIdToChain = await decodeChainIdToChain()
+          const chain = chainIdToChain[paramChainId] as SupportedChain
+          setSelectedChain(chain)
+          query.delete('chainId')
+        }
+      }
+      updateChain()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paramChainId])
+
     useEffect(() => {
       if (!showChainSelector) {
         setDefaultFilter('All')
@@ -97,7 +115,7 @@ export const AggregatedStake = observer(
     const delegationsToConsider = useMemo(() => {
       const formattedSearchText = searchedText.trim().toLowerCase()
 
-      const formattedDelgations = Object.keys(perChainDelegations).reduce(
+      const formattedDelegations = Object.keys(perChainDelegations).reduce(
         (acc: DelegationsToConsider[], chain) => {
           if (
             chain.toLowerCase().includes(formattedSearchText) ||
@@ -119,7 +137,7 @@ export const AggregatedStake = observer(
 
       switch (sortBy) {
         case 'apr': {
-          return formattedDelgations.sort((itemA, itemB) => {
+          return formattedDelegations.sort((itemA, itemB) => {
             if (showAprInDescending) {
               return itemB.apr - itemA.apr
             }
@@ -129,7 +147,43 @@ export const AggregatedStake = observer(
         }
 
         case 'amount': {
-          return formattedDelgations.sort((itemA, itemB) => {
+          return formattedDelegations.sort((itemA, itemB) => {
+            const isAValid =
+              itemA.currencyAmountDelegation && !isNaN(Number(itemA.currencyAmountDelegation))
+            const isBValid =
+              itemB.currencyAmountDelegation && !isNaN(Number(itemB.currencyAmountDelegation))
+
+            if (!isBValid) {
+              if (isAValid) {
+                return showAmountInDescending ? -1 : 1
+              }
+
+              const aDelegation: undefined | BigNumber = itemA.totalDelegation
+              const bDelegation: undefined | BigNumber = itemB.totalDelegation
+
+              if (!bDelegation || bDelegation.isNaN() || bDelegation.isZero()) {
+                if (!(!aDelegation || aDelegation.isNaN() || aDelegation.isZero())) {
+                  return showAmountInDescending ? -1 : 1
+                }
+
+                return showAmountInDescending ? 1 : -1
+              }
+
+              if (!aDelegation || aDelegation.isNaN() || aDelegation.isZero()) {
+                return showAmountInDescending ? 1 : -1
+              }
+
+              if (showAmountInDescending) {
+                return bDelegation.minus(aDelegation).toNumber()
+              }
+
+              return itemA.totalDelegation.minus(itemB.totalDelegation).toNumber()
+            }
+
+            if (!isAValid) {
+              return showAmountInDescending ? 1 : -1
+            }
+
             if (showAmountInDescending) {
               return Number(itemB.currencyAmountDelegation) - Number(itemA.currencyAmountDelegation)
             }

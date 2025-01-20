@@ -1,6 +1,7 @@
 import {
   SelectedNetwork,
   useActiveChain,
+  useActiveStakingDenom,
   useDualStaking,
   useFeatureFlags,
   useSelectedNetwork,
@@ -18,6 +19,7 @@ import {
 import Text from 'components/text'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
+import { stakeEpochStore } from 'stores/epoch-store'
 
 import ProviderList from '../restaking/ProviderList'
 import PendingUnstakeList from './PendingUnstakeList'
@@ -81,6 +83,7 @@ const TabList = observer(
       activeNetwork,
     )
     const { delegations: providerDelegations } = useDualStaking()
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
 
     const [selectedTab, setSelectedTab] = useState<TabElements | undefined>()
     const isLoading = loadingDelegations || loadingUnboundingDelegations
@@ -88,8 +91,11 @@ const TabList = observer(
     const { data: featureFlags } = useFeatureFlags()
 
     const tabs: TabElements[] = useMemo(() => {
+      const pendingDelegations = stakeEpochStore.getDelegationEpochMessages(activeStakingDenom)
+      const pendingUnDelegations = stakeEpochStore.getUnDelegationEpochMessages(activeStakingDenom)
+
       const _tabs = []
-      if (Object.values(delegations ?? {}).length > 0) {
+      if (Object.values(delegations ?? {}).length > 0 || pendingDelegations.length > 0) {
         _tabs.push(TabElements.YOUR_VALIDATORS)
       }
       if (
@@ -99,7 +105,10 @@ const TabList = observer(
       ) {
         _tabs.push(TabElements.YOUR_PROVIDERS)
       }
-      if (Object.values(unboundingDelegationsInfo ?? {}).length > 0) {
+      if (
+        Object.values(unboundingDelegationsInfo ?? {}).length > 0 ||
+        pendingUnDelegations.length > 0
+      ) {
         _tabs.push(TabElements.PENDING_UNSTAKE)
       }
       if (_tabs.length > 0) {
@@ -108,6 +117,7 @@ const TabList = observer(
       return _tabs
     }, [
       activeChain,
+      activeStakingDenom,
       delegations,
       featureFlags?.restaking?.extension,
       providerDelegations,

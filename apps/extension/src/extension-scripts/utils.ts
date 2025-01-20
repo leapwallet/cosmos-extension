@@ -8,11 +8,17 @@ import { initStorage } from '@leapwallet/leap-keychain'
 import { COMPASS_CHAINS } from 'config/config'
 import { LEAPBOARD_URL, LEAPBOARD_URL_OLD } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
-import { ACTIVE_WALLET_ID, BETA_CHAINS, BG_RESPONSE } from 'config/storage-keys'
+import {
+  ACTIVE_CHAIN,
+  ACTIVE_WALLET_ID,
+  BETA_CHAINS,
+  BG_RESPONSE,
+  SELECTED_NETWORK,
+} from 'config/storage-keys'
 import CryptoJs from 'crypto-js'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import { getStorageAdapter } from 'utils/storageAdapter'
-import browser, { Storage } from 'webextension-polyfill'
+import browser, { Storage, Windows } from 'webextension-polyfill'
 
 import { ACTIVE_WALLET, CONNECTIONS } from '../config/storage-keys'
 
@@ -39,6 +45,16 @@ export const decodeChainIdToChain = async (): Promise<Record<string, string>> =>
 
 export const validateChains = async (chainIds: Array<string>) => {
   const ChainInfos = await getChains()
+  const compassChainIds = (COMPASS_CHAINS as SupportedChain[])
+    .map((chain: SupportedChain) => {
+      if (ChainInfos[chain]) {
+        return [ChainInfos[chain].chainId, ChainInfos[chain].testnetChainId]
+      }
+      return []
+    })
+    .flat()
+    .filter(Boolean)
+
   const supportedChains = Object.values(ChainInfos)
     .filter((chain) => chain.enabled)
     .map((chain) => chain.chainId)
@@ -53,7 +69,18 @@ export const validateChains = async (chainIds: Array<string>) => {
     ...supportedChains,
     ...supportedTestnetChains,
     ...supportedExperimentalChains,
-  ]
+  ]?.filter((chainId) => {
+    if (!chainId) return false
+
+    if (process.env.APP?.includes('compass')) {
+      if (compassChainIds.includes(chainId)) {
+        return true
+      }
+      return false
+    }
+
+    return true
+  })
 
   return chainIds.reduce((result: Record<string, boolean>, chainId) => {
     result[chainId] = supportedChainsIds.indexOf(chainId) !== -1
@@ -72,19 +99,17 @@ export async function checkChainConnections(
 ) {
   const isLeapBoardOrigin = msg.origin === LEAPBOARD_URL || msg.origin === LEAPBOARD_URL_OLD
   let isNewChainPresent = !activeWalletId
+  const chainsIds = await validateChains(chainIds)
+  const validChainIds = Object.keys(chainsIds).filter((chainId) => !!chainsIds[chainId])
 
   if (activeWalletId) {
-    chainIds.forEach((chainId: string) => {
+    validChainIds.forEach((chainId: string) => {
       const sites: [string] = connections?.[activeWalletId]?.[chainId] || []
-
       if (!sites.includes(msg?.origin)) {
         isNewChainPresent = true
       }
     })
   }
-
-  const chainsIds = await validateChains(chainIds)
-  const validChainIds = Object.keys(chainsIds).filter((chainId) => !!chainsIds[chainId])
 
   if (validChainIds.length && isLeapBoardOrigin) {
     isNewChainPresent = false
@@ -120,15 +145,38 @@ export async function checkConnection(chainIds: string[], msg: any) {
 const popupIds: Record<string, number> = {}
 const pendingPromises: Record<string, Promise<browser.Windows.Window>> = {}
 
+async function createBrowserWindow(popupData: Windows.CreateCreateDataType, url: string) {
+  try {
+    const promise = browser.windows.create(popupData)
+    pendingPromises[url] = promise
+    const window = await promise
+    if (window.id) {
+      popupIds[url] = window.id
+    }
+    return window
+  } catch (e: any) {
+    if (e.message.includes('Invalid value for bounds.')) {
+      createBrowserWindow({ ...popupData, top: 0, left: 0 }, url)
+    } else {
+      throw e
+    }
+  } finally {
+    delete pendingPromises[url]
+  }
+}
+
 export type Page =
   | 'approveConnection'
   | 'suggestChain'
   | 'sign'
+  | 'signAptos'
+  | 'signBitcoin'
   | 'signSeiEvm'
   | 'add-secret-token'
   | 'login'
   | 'suggest-erc-20'
   | 'switch-ethereum-chain'
+  | 'switch-chain'
   | 'suggest-ethereum-chain'
 
 export async function openPopup(page: Page, queryString?: string, isEvm?: boolean) {
@@ -252,33 +300,10 @@ export async function openPopup(page: Page, queryString?: string, isEvm?: boolea
         if (e.message.includes('Requests exceeded')) {
           throw e
         }
-        try {
-          if (e.message.includes(`No tab with id`)) {
-            const promise = browser.windows.create(popup)
-            chrome.action.openPopup()
-            pendingPromises[url] = promise
-
-            const window = await promise
-            if (window.id) {
-              popupIds[url] = window.id
-            }
-          }
-        } finally {
-          delete pendingPromises[url]
-        }
+        createBrowserWindow(popup, url)
       }
     } else {
-      try {
-        const promise = browser.windows.create(popup)
-        pendingPromises[url] = promise
-        const window = await promise
-        if (window.id) {
-          popupIds[url] = window.id
-        }
-        return window
-      } finally {
-        delete pendingPromises[url]
-      }
+      createBrowserWindow(popup, url)
     }
   }
 }
@@ -300,15 +325,37 @@ export async function isConnected(msg: { chainId: string; origin: string }) {
   }
   return false
 }
-export async function disconnect(msg: { chainId: string; origin: string }) {
-  const [activeWallet, connections] = await Promise.all([getActiveWallet(), getConnections()])
-  let sites = connections[activeWallet.id]?.[msg?.chainId] || []
-  if (sites.includes(msg.origin)) {
-    sites = sites.filter((site: string) => site !== msg.origin)
-    connections[activeWallet.id][msg.chainId] = sites
+
+export const getChainOriginStorageKey = (origin: string) => `origin-active-key-${origin}`
+
+export async function disconnect(msg: { chainId: string | string[]; origin: string }) {
+  const [activeWallet, connections] = await Promise.all([
+    getActiveWallet(),
+    getConnections(),
+    browser.storage.local.remove(getChainOriginStorageKey(msg.origin)),
+  ])
+  if (Array.isArray(msg.chainId)) {
+    let foundOneChainIdWithOrigin = false
+    for (const chainId of msg.chainId) {
+      let sites = connections[activeWallet.id]?.[chainId] || []
+      if (sites.includes(msg.origin)) {
+        sites = sites.filter((site: string) => site !== msg.origin)
+        connections[activeWallet.id][chainId] = sites
+        foundOneChainIdWithOrigin = true
+      }
+    }
     await browser.storage.local.set({ [CONNECTIONS]: connections })
-    return true
+    return foundOneChainIdWithOrigin
+  } else {
+    let sites = connections[activeWallet.id]?.[msg?.chainId] || []
+    if (sites.includes(msg.origin)) {
+      sites = sites.filter((site: string) => site !== msg.origin)
+      connections[activeWallet.id][msg.chainId] = sites
+      await browser.storage.local.set({ [CONNECTIONS]: connections })
+      return true
+    }
   }
+
   return false
 }
 
@@ -342,6 +389,23 @@ export async function getSupportedChains(): Promise<Record<SupportedChain, Chain
   return supportedChains
 }
 
+export async function getActiveNetworkInfo() {
+  const store = await browser.storage.local.get([ACTIVE_CHAIN, SELECTED_NETWORK])
+  const activeChain: string = store[ACTIVE_CHAIN]
+  const selectedNetwork: string = store[SELECTED_NETWORK]
+  const allSupportedChains = await getSupportedChains()
+  const chainInfo = allSupportedChains?.[(activeChain ?? '') as SupportedChain]
+  const chainId = selectedNetwork === 'testnet' ? chainInfo?.testnetChainId : chainInfo?.chainId
+  const restUrl = selectedNetwork === 'testnet' ? chainInfo?.apis?.restTest : chainInfo?.apis?.rest
+  const rpcUrl = selectedNetwork === 'testnet' ? chainInfo?.apis?.rpcTest : chainInfo?.apis?.rpc
+  return {
+    chainId,
+    restUrl,
+    rpcUrl,
+    selectedNetwork,
+  }
+}
+
 export async function getWalletAddress(chainId: string) {
   const { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
@@ -350,7 +414,7 @@ export async function getWalletAddress(chainId: string) {
   return activeWallet.addresses[chain]
 }
 
-export async function getSeed(password: string) {
+export async function getSeed(password: Uint8Array) {
   const activeWallet = await getActiveWallet()
   const key = `seed-phrase/${activeWallet.id}`
   const storage = await chrome.storage.local.get([key])
@@ -527,4 +591,20 @@ export function awaitEnableChainResponse(): Promise<any> {
     }
     browser.storage.onChanged.addListener(enableChainListener)
   })
+}
+
+export const customOpenPopup = async (
+  page: Page,
+  sendResponse: (name: string, payload: any, id: number) => void,
+  queryString?: string,
+  response?: [string, any, number],
+  isEvm?: boolean,
+) => {
+  try {
+    await openPopup(page, queryString, isEvm)
+  } catch (e: any) {
+    if (response && e.message.includes('Requests exceeded')) {
+      return sendResponse(...response)
+    }
+  }
 }

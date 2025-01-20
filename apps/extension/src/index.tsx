@@ -13,6 +13,7 @@ import { setSpeculosTransport, setUseSpeculosTransport } from '@leapwallet/cosmo
 import { fetchIbcTraceData, setBaseURL, setIsCompass } from '@leapwallet/cosmos-wallet-store'
 import { initCachingLayer, setLeapIntegratorID } from '@leapwallet/elements-hooks'
 import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
+import { LeapUiTheme, ThemeName } from '@leapwallet/leap-ui'
 import { createSentryConfig } from '@leapwallet/sentry-config/dist/extension'
 import * as Sentry from '@sentry/react'
 import { BrowserTracing } from '@sentry/tracing'
@@ -28,7 +29,6 @@ import {
   useLocation,
   useNavigationType,
 } from 'react-router-dom'
-import { RecoilRoot } from 'recoil'
 import { AsyncIDBStorage } from 'utils/asyncIDBStorage'
 import { beforeCapture } from 'utils/sentry'
 import browser from 'webextension-polyfill'
@@ -129,17 +129,17 @@ mixpanel.init(process.env.MIXPANEL_TOKEN as string, {
   batch_flush_interval_ms: 1000 * 30,
 })
 
-if (process.env.NODE_ENV === 'development') {
-  import('./dev-watcher-client')
-    .then(({ DevWatcherClient }) => {
-      new DevWatcherClient()
-    })
-    .catch((e) => {
-      // eslint-disable-next-line no-console
-      console.warn('DevWatcher Connection Failed', e)
-    })
-}
-
+// if (process.env.NODE_ENV === 'development') {
+//   import('./dev-watcher-client')
+//     .then(({ DevWatcherClient }) => {
+//       new DevWatcherClient()
+//     })
+//     .catch((e) => {
+//       // eslint-disable-next-line no-console
+//       console.warn('DevWatcher Connection Failed', e)
+//     })
+// }
+//
 setInterval(() => {
   if (document.hasFocus()) {
     browser.runtime.sendMessage({ type: 'popup-ping', data: { timestamp: Date.now() } })
@@ -149,13 +149,13 @@ setInterval(() => {
 ReactDOM.render(
   <React.StrictMode>
     <Sentry.ErrorBoundary beforeCapture={beforeCapture} fallback={<ErrorBoundaryFallback />}>
-      <RecoilRoot>
+      <LeapUiTheme defaultTheme={ThemeName.SYSTEM}>
         {/* <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}> */}
         <QueryClientProvider client={queryClient}>
           <App />
         </QueryClientProvider>
         {/* </PersistQueryClientProvider> */}
-      </RecoilRoot>
+      </LeapUiTheme>
     </Sentry.ErrorBoundary>
   </React.StrictMode>,
   document.getElementById('root'),

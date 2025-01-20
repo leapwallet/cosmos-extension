@@ -2,10 +2,15 @@ import {
   ActiveChainStore,
   AutoFetchedCW20DenomsStore,
   BetaCW20DenomsStore,
+  BetaERC20DenomsStore,
+  CompassSeiTokensAssociationStore,
+  CompassTokenTagsStore,
   CW20DenomBalanceStore,
   CW20DenomsStore,
   DisabledCW20DenomsStore,
   EnabledCW20DenomsStore,
+  ERC20DenomsStore,
+  PriceStore,
   RootBalanceStore,
   RootDenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
@@ -29,6 +34,11 @@ export const SwapContextProvider = observer(
     disabledCW20DenomsStore,
     enabledCW20DenomsStore,
     cw20DenomBalanceStore,
+    betaERC20DenomsStore,
+    erc20DenomsStore,
+    compassTokenTagsStore,
+    compassTokensAssociationsStore,
+    priceStore,
   }: {
     children: React.ReactNode
     rootDenomsStore: RootDenomsStore
@@ -40,6 +50,11 @@ export const SwapContextProvider = observer(
     disabledCW20DenomsStore: DisabledCW20DenomsStore
     enabledCW20DenomsStore: EnabledCW20DenomsStore
     cw20DenomBalanceStore: CW20DenomBalanceStore
+    betaERC20DenomsStore: BetaERC20DenomsStore
+    erc20DenomsStore: ERC20DenomsStore
+    compassTokenTagsStore: CompassTokenTagsStore
+    compassTokensAssociationsStore: CompassSeiTokensAssociationStore
+    priceStore: PriceStore
   }) => {
     const value = useSwapsTx({
       rootDenomsStore,
@@ -51,6 +66,11 @@ export const SwapContextProvider = observer(
       disabledCW20DenomsStore,
       enabledCW20DenomsStore,
       cw20DenomBalanceStore,
+      betaERC20DenomsStore,
+      erc20DenomsStore,
+      compassTokenTagsStore,
+      compassTokensAssociationsStore,
+      priceStore,
     })
 
     return <SwapContext.Provider value={value}>{children}</SwapContext.Provider>

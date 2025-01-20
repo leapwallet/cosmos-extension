@@ -1,12 +1,20 @@
 import { ChainInfo, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { BalanceStore, CW20DenomBalanceStore, ERC20DenomBalanceStore, EvmBalanceStore, PriceStore } from 'bank';
+import { Token } from 'bank/balance-types';
 import BigNumber from 'bignumber.js';
 import { computed, makeObservable } from 'mobx';
 import { computedFn } from 'mobx-utils';
-import { ClaimRewardsStore, DelegationsStore, UndelegationsStore, ValidatorsStore } from 'stake';
 
-import { ChainInfosStore, NmsStore } from '../assets';
+import { ChainInfosStore, CompassSeiTokensAssociationStore, NmsStore } from '../assets';
+import {
+  BalanceStore,
+  CW20DenomBalanceStore,
+  ERC20DenomBalanceStore,
+  EvmBalanceStore,
+  MarketDataStore,
+  PriceStore,
+} from '../bank';
 import { sortTokenBalances } from '../bank/balance-calculator';
+import { ClaimRewardsStore, DelegationsStore, StakeEpochStore, UndelegationsStore, ValidatorsStore } from '../stake';
 import { AggregatedSupportedChainType, SelectedNetworkType, SupportedCurrencies } from '../types';
 import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
 
@@ -15,17 +23,20 @@ export class RootStakeStore {
   claimRewardsStore: ClaimRewardsStore;
   unDelegationsStore: UndelegationsStore;
   validatorsStore: ValidatorsStore;
+  stakeEpochStore: StakeEpochStore;
 
   constructor(
     delegationsStore: DelegationsStore,
     claimRewardsStore: ClaimRewardsStore,
     unDelegationsStore: UndelegationsStore,
     validatorsStore: ValidatorsStore,
+    stakeEpochStore: StakeEpochStore,
   ) {
     this.delegationStore = delegationsStore;
     this.claimRewardsStore = claimRewardsStore;
     this.unDelegationsStore = unDelegationsStore;
     this.validatorsStore = validatorsStore;
+    this.stakeEpochStore = stakeEpochStore;
   }
 
   async updateStake(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, forceRefetch = false) {
@@ -34,6 +45,7 @@ export class RootStakeStore {
       this.claimRewardsStore.loadClaimRewards(chain, network, forceRefetch),
       this.unDelegationsStore.loadUndelegations(chain, network, forceRefetch),
       this.validatorsStore.loadValidators(chain, network, forceRefetch),
+      this.stakeEpochStore.refetchData(),
     ]);
   }
 }
@@ -45,6 +57,7 @@ export class RootBalanceStore {
   activeChainStore: ActiveChainStore;
   chainInfosStore: ChainInfosStore;
   evmBalanceStore: EvmBalanceStore;
+  compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore;
 
   constructor(
     balanceStore: BalanceStore,
@@ -53,6 +66,7 @@ export class RootBalanceStore {
     activeChainStore: ActiveChainStore,
     chainInfosStore: ChainInfosStore,
     evmBalanceStore: EvmBalanceStore,
+    compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore,
   ) {
     this.nativeBalanceStore = balanceStore;
     this.erc20BalanceStore = erc20BalanceStore;
@@ -60,6 +74,7 @@ export class RootBalanceStore {
     this.activeChainStore = activeChainStore;
     this.chainInfosStore = chainInfosStore;
     this.evmBalanceStore = evmBalanceStore;
+    this.compassSeiTokensAssociationsStore = compassSeiTokensAssociationsStore;
 
     makeObservable(this, {
       allTokens: computed,
@@ -73,7 +88,13 @@ export class RootBalanceStore {
     const activeChain = this.activeChainStore?.activeChain;
     if (activeChain === 'aggregated') {
       return sortTokenBalances(
-        this.nativeBalanceStore.balances.concat(this.erc20BalanceStore.erc20Tokens, this.cw20BalanceStore.cw20Tokens),
+        this.nativeBalanceStore.balances.concat(
+          this.erc20BalanceStore.erc20Tokens,
+          this.cw20BalanceStore.cw20Tokens,
+          (this.evmBalanceStore.evmBalance?.evmBalance ?? [])?.filter(
+            (token) => !isNaN(Number(token.amount)) && new BigNumber(token.amount).gt(0),
+          ),
+        ),
       );
     }
 
@@ -84,6 +105,25 @@ export class RootBalanceStore {
     const nonNativeBankTokens = this.nativeBalanceStore.balances.filter(
       (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
     );
+
+    const isSeiEvm = this.activeChainStore.isSeiEvm(activeChain);
+    if (isSeiEvm && activeChain !== 'seiDevnet') {
+      const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
+      const filterDuplicateSeiToken = (token: Token) => {
+        const evmContract =
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
+        if (!evmContract) {
+          return true;
+        }
+        return !erc20Tokens.some(
+          (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
+        );
+      };
+      const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter(filterDuplicateSeiToken);
+      const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
+      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
+    }
 
     return nativeTokens.concat(
       sortTokenBalances(
@@ -99,6 +139,9 @@ export class RootBalanceStore {
         this.nativeBalanceStore.spendableBalances.concat(
           this.erc20BalanceStore.erc20Tokens,
           this.cw20BalanceStore.cw20Tokens,
+          (this.evmBalanceStore.evmBalance?.evmBalance ?? [])?.filter(
+            (token) => !isNaN(Number(token.amount)) && new BigNumber(token.amount).gt(0),
+          ),
         ),
       );
     }
@@ -110,6 +153,25 @@ export class RootBalanceStore {
     const nonNativeBankTokens = this.nativeBalanceStore.spendableBalances.filter(
       (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
     );
+
+    const isSeiEvm = this.activeChainStore.isSeiEvm(activeChain);
+    if (isSeiEvm && activeChain !== 'seiDevnet') {
+      const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
+      const filterDuplicateSeiToken = (token: Token) => {
+        const evmContract =
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
+        if (!evmContract) {
+          return true;
+        }
+        return !erc20Tokens.some(
+          (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
+        );
+      };
+      const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter(filterDuplicateSeiToken);
+      const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
+      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
+    }
 
     return nativeTokens.concat(
       sortTokenBalances(
@@ -174,6 +236,24 @@ export class RootBalanceStore {
       const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain, network);
       const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain, network);
 
+      const isSeiEvm = this.activeChainStore.isSeiEvm(chain);
+      if (isSeiEvm && chain !== 'seiDevnet') {
+        const filterDuplicateSeiToken = (token: Token) => {
+          const evmContract =
+            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
+            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
+          if (!evmContract) {
+            return true;
+          }
+          return !erc20Tokens.some(
+            (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
+          );
+        };
+        const seiCw20Tokens = cw20Tokens.filter(filterDuplicateSeiToken);
+        const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
+        return nativeTokens.concat(sortTokenBalances(seiCw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
+      }
+
       return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens)));
     },
   );
@@ -194,13 +274,21 @@ export class RootBalanceStore {
     return this.getAggregatedBalancesForNetwork('spendableBalances', network);
   });
 
-  getLoadingStatusForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+  getLoadingStatusForChain = (chain: SupportedChain, network: SelectedNetworkType) => {
     return (
       this.nativeBalanceStore.getLoadingStatusForChain(chain, network) ||
       this.erc20BalanceStore.getLoadingStatusForChain(chain, network) ||
       this.cw20BalanceStore.getLoadingStatusForChain(chain, network)
     );
-  });
+  };
+
+  getErrorStatusForChain = (chain: SupportedChain, network: SelectedNetworkType) => {
+    if (this.chainInfosStore.chainInfos[chain]?.evmOnlyChain) {
+      return this.evmBalanceStore.getErrorStatusForChain(chain, network);
+    }
+
+    return this.nativeBalanceStore.getErrorStatusForChain(chain, network);
+  };
 
   get loading() {
     const activeChain = this.activeChainStore?.activeChain;
@@ -231,16 +319,18 @@ export class RootBalanceStore {
   async loadBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType) {
     await Promise.all([
       this.nativeBalanceStore.loadBalances(chain, network),
-      this.erc20BalanceStore.fetchChainBalances(chain, network),
-      this.cw20BalanceStore.fetchChainBalances(chain, network),
+      this.erc20BalanceStore.loadBalances(chain, network),
+      this.cw20BalanceStore.loadBalances(chain, network),
+      this.evmBalanceStore.loadEvmBalance(chain, network),
     ]);
   }
 
-  async refetchBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType) {
+  async refetchBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, address?: string) {
     await Promise.all([
-      this.nativeBalanceStore.loadBalances(chain, network, true),
-      this.erc20BalanceStore.fetchChainBalances(chain, network),
-      this.cw20BalanceStore.fetchChainBalances(chain, network),
+      this.nativeBalanceStore.loadBalances(chain, network, address, true),
+      this.erc20BalanceStore.loadBalances(chain, network, true),
+      this.cw20BalanceStore.loadBalances(chain, network, true),
+      this.evmBalanceStore.loadEvmBalance(chain, network, true),
     ]);
   }
 }
@@ -253,10 +343,12 @@ export class RootStore {
   rootStakeStore: RootStakeStore;
   rootBalanceStore: RootBalanceStore;
   priceStore: PriceStore;
+  marketDataStore: MarketDataStore;
   currencyStore: CurrencyStore;
   chainInfosStore: ChainInfosStore;
   evmBalanceStore: EvmBalanceStore;
   initializing: 'pending' | 'inprogress' | 'done' = 'pending';
+  initPromise: Promise<[void, void]> | undefined = undefined;
 
   constructor(
     nmsStore: NmsStore,
@@ -266,6 +358,7 @@ export class RootStore {
     rootBalanceStore: RootBalanceStore,
     rootStakeStore: RootStakeStore,
     priceStore: PriceStore,
+    marketDataStore: MarketDataStore,
     currencyStore: CurrencyStore,
     chainInfosStore: ChainInfosStore,
     evmBalanceStore: EvmBalanceStore,
@@ -277,6 +370,7 @@ export class RootStore {
     this.rootStakeStore = rootStakeStore;
     this.rootBalanceStore = rootBalanceStore;
     this.priceStore = priceStore;
+    this.marketDataStore = marketDataStore;
     this.currencyStore = currencyStore;
     this.chainInfosStore = chainInfosStore;
     this.evmBalanceStore = evmBalanceStore;
@@ -287,23 +381,18 @@ export class RootStore {
     this.initializing = 'inprogress';
     await this.nmsStore.readyPromise;
     await this.addressStore.loadAddresses();
-    await Promise.all([
-      this.rootBalanceStore.loadBalances(),
-      this.rootStakeStore.updateStake(),
-      this.evmBalanceStore.loadEvmBalance(),
-    ]);
+    this.initPromise = Promise.all([this.rootBalanceStore.loadBalances(), this.rootStakeStore.updateStake()]);
+    await this.initPromise;
     this.initializing = 'done';
   }
 
   async reloadAddresses(chain?: AggregatedSupportedChainType) {
     await this.addressStore.loadAddresses();
-    if (this.initializing !== 'done') return;
+    if (this.initializing !== 'done') {
+      this.initPromise && (await this.initPromise);
+    }
     if (this.addressStore.addresses) {
-      await Promise.all([
-        this.rootBalanceStore.loadBalances(chain),
-        this.rootStakeStore.updateStake(),
-        this.evmBalanceStore.loadEvmBalance(),
-      ]);
+      await Promise.all([this.rootBalanceStore.loadBalances(chain), this.rootStakeStore.updateStake()]);
     }
   }
 
@@ -314,7 +403,6 @@ export class RootStore {
     await Promise.all([
       this.rootBalanceStore.loadBalances(chain, this.selectedNetworkStore.selectedNetwork),
       this.rootStakeStore.updateStake(chain, this.selectedNetworkStore.selectedNetwork),
-      this.evmBalanceStore.loadEvmBalance(chain as SupportedChain),
     ]);
   }
 
@@ -325,7 +413,6 @@ export class RootStore {
     await Promise.all([
       this.rootBalanceStore.loadBalances(this.activeChainStore.activeChain, this.selectedNetworkStore.selectedNetwork),
       this.rootStakeStore.updateStake(this.activeChainStore.activeChain, network),
-      this.evmBalanceStore.loadEvmBalance(undefined, network),
     ]);
   }
 
@@ -333,20 +420,16 @@ export class RootStore {
     this.currencyStore.updatePreferredCurrency(currency);
     if (this.initializing !== 'done') return;
     await this.priceStore.getData();
+    await this.marketDataStore.getData();
     await Promise.all([
-      this.rootBalanceStore.loadBalances(),
-      this.rootStakeStore.updateStake(),
-      this.evmBalanceStore.loadEvmBalance(),
+      this.rootBalanceStore.refetchBalances(),
+      this.rootStakeStore.updateStake(undefined, undefined, true),
     ]);
   }
 
   async setChains(chainInfos: Record<SupportedChain, ChainInfo>) {
     this.chainInfosStore.setChainInfos(chainInfos);
     if (this.initializing !== 'done') return;
-    await Promise.all([
-      this.rootBalanceStore.loadBalances(),
-      this.rootStakeStore.updateStake(),
-      this.evmBalanceStore.loadEvmBalance(),
-    ]);
+    await Promise.all([this.rootBalanceStore.loadBalances(), this.rootStakeStore.updateStake()]);
   }
 }

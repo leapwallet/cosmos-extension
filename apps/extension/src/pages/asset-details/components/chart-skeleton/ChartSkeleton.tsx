@@ -5,9 +5,9 @@ import Skeleton from 'react-loading-skeleton'
 export default function ChartSkeleton({ className }: { className?: string }) {
   return (
     <div className={classNames('w-full', className)}>
-      <div className='flex flex-col gap-y-[24px] overflow-clip rounded-2xl'>
-        <Skeleton count={1} height={248} containerClassName='!leading-none block' />
-        <Skeleton count={1} height={34} containerClassName='!leading-none block' />
+      <div className='flex flex-col gap-y-5 overflow-clip items-center'>
+        <Skeleton count={1} height={124} width={400} />
+        <Skeleton count={1} height={24} width={324} />
       </div>
     </div>
   )

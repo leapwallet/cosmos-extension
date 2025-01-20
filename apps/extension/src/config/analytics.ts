@@ -16,6 +16,8 @@ export enum EventName {
   TransactionSigned = 'Transaction Signed',
   ChainFavorited = 'Chain Favorited',
   ChainUnfavorited = 'Chain Unfavorited',
+  DropdownOpened = 'Dropdown Opened',
+  DropdownClosed = 'Dropdown Closed',
 }
 
 export enum ButtonType {
@@ -25,6 +27,7 @@ export enum ButtonType {
   AIRDROPS = 'airdrops',
   SIDE_PANEL = 'side panel',
   ONRAMP = 'on-ramp',
+  CELESTIA_LIGHT_NODE = 'celestia light node',
 }
 
 export enum ButtonName {
@@ -50,12 +53,16 @@ export enum ButtonName {
   SIDE_PANEL_CLOSED = 'side panel closed',
   ONRAMP_TOKEN_SELECTION = 'on-ramp token selection',
   ONRAMP_PROVIDER_REDIRECTION = 'on-ramp provider redirection',
+  SYNC_START = 'sync start',
+  SYNC_STOP = 'sync stop',
 }
 
 export enum PageName {
   Home = 'Home',
   Send = 'Send',
+  Search = 'Search',
   SwapsStart = 'Swaps - Start',
+  SwapsQuoteReady = 'Swaps - Quote Ready',
   SwapsReview = 'Swaps - Review',
   SwapsTracking = 'Swaps - Tracking',
   SwapsCompletion = 'Swaps - Completion',
@@ -71,6 +78,8 @@ export enum PageName {
   Buy = 'Buy',
   OnRampQuotePreview = 'On-ramp quote preview',
   AssetDetails = 'Asset Details',
+  CelestiaLightNode = 'Celestia Light Node',
+  ZeroState = 'Zero State',
 }
 
 export enum OnRampProvider {

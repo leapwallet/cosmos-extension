@@ -1,6 +1,7 @@
 import { useAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { sha256 } from '@noble/hashes/sha256'
 import { utils } from '@noble/secp256k1'
+import { setUser as setSentryUser } from '@sentry/react'
 import mixpanel from 'mixpanel-browser'
 import { useEffect } from 'react'
 import { getPrimaryWalletAddress } from 'utils/getPrimaryWalletAddress'
@@ -14,18 +15,25 @@ export const useInitAnalytics = () => {
       try {
         const primaryWalletAddress = await getPrimaryWalletAddress()
 
-        if (primaryWalletAddress) {
-          // create hash of address to anonymize
-          const hashedAddress = utils.bytesToHex(sha256(primaryWalletAddress))
-          const currentId = mixpanel.get_distinct_id()
-          const userName = mixpanel.get_property('$name')
-          if (currentId !== hashedAddress) {
-            mixpanel.identify(hashedAddress)
-          }
-          if (userName !== hashedAddress) {
-            mixpanel.people.set({ $name: hashedAddress })
-          }
+        if (!primaryWalletAddress) {
+          return
         }
+
+        // create hash of address to anonymize
+        const hashedAddress = utils.bytesToHex(sha256(primaryWalletAddress))
+
+        const currentId = mixpanel.get_distinct_id()
+        const userName = mixpanel.get_property('$name')
+        if (currentId !== hashedAddress) {
+          mixpanel.identify(hashedAddress)
+        }
+        if (userName !== hashedAddress) {
+          mixpanel.people.set({ $name: hashedAddress })
+        }
+
+        setSentryUser({
+          id: hashedAddress,
+        })
       } catch (_) {
         //
       }

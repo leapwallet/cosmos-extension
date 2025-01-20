@@ -10,6 +10,7 @@ import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { getUpdatedKeyStore } from 'hooks/wallet/getUpdatedKeyStore'
 import { useCallback, useEffect } from 'react'
+import { PasswordStore, passwordStore } from 'stores/password-store'
 import { rootStore } from 'stores/root-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { sendMessageToTab } from 'utils'
@@ -23,36 +24,68 @@ import {
   LAST_EVM_ACTIVE_CHAIN,
   MANAGE_CHAIN_SETTINGS,
 } from '../../config/storage-keys'
-import { usePassword } from './usePassword'
 
 type ActionType = 'UPDATE' | 'DELETE'
 
 function useHandleMissingAddressAndPubKeys() {
-  const password = usePassword()
   const chainInfos = useChainInfos()
 
   return useCallback(
     async (
-      chain: SupportedChain,
+      chains: SupportedChain | SupportedChain[],
       existingWallet: Key,
       actionType: ActionType,
       chainInfo?: ChainInfo,
+      _chainInfos?: Partial<Record<SupportedChain, ChainInfo>>,
     ): Promise<Key | undefined> => {
-      if (!password) return existingWallet
-      return getUpdatedKeyStore(chainInfos, password, chain, existingWallet, actionType, chainInfo)
+      if (!passwordStore.password) return existingWallet
+      if (Array.isArray(chains)) {
+        let keyStore = existingWallet
+        for await (const chain of chains) {
+          const chainInfo = _chainInfos?.[chain] ?? chainInfos?.[chain]
+          try {
+            const updatedKeyStore = await getUpdatedKeyStore(
+              chainInfos,
+              passwordStore.password,
+              chain,
+              keyStore,
+              actionType,
+              chainInfo,
+            )
+            if (updatedKeyStore) {
+              keyStore = updatedKeyStore
+            }
+          } catch (e) {
+            //
+          }
+        }
+        return keyStore
+      }
+
+      const chain = chains
+      return getUpdatedKeyStore(
+        chainInfos,
+        passwordStore.password,
+        chain,
+        existingWallet,
+        actionType,
+        chainInfo,
+      )
     },
-    [password, chainInfos],
+    [chainInfos],
   )
 }
 
 export function useUpdateKeyStore() {
   const handleMissingAddressAndPubKeys = useHandleMissingAddressAndPubKeys()
+
   return useCallback(
     async (
       wallet: Key,
-      activeChain: SupportedChain,
+      activeChain: SupportedChain | SupportedChain[],
       actionType: ActionType = 'UPDATE',
       chainInfo?: ChainInfo,
+      chainInfos?: Partial<Record<SupportedChain, ChainInfo>>,
     ) => {
       const keystore = await KeyChain.getAllWallets()
       const newKeystoreEntries: [string, Key | undefined][] = await Promise.all(
@@ -63,6 +96,7 @@ export function useUpdateKeyStore() {
             walletInfo,
             actionType,
             chainInfo,
+            chainInfos,
           )
           return [walletId, newWallet]
         }),
@@ -85,9 +119,9 @@ export function useUpdateKeyStore() {
   )
 }
 
-export function useInitActiveWallet() {
+export function useInitActiveWallet(passwordStore: PasswordStore) {
   const { setActiveWallet } = useActiveWalletStore()
-  const password = usePassword()
+
   useEffect(() => {
     browser.storage.local
       .get([ACTIVE_WALLET, MANAGE_CHAIN_SETTINGS, ACTIVE_WALLET_ID])
@@ -100,7 +134,7 @@ export function useInitActiveWallet() {
         }
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [password])
+  }, [passwordStore.password])
 }
 
 export default function useActiveWallet() {

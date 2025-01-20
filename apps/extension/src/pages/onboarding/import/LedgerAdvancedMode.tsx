@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Buttons, Input, ThemeName, Toggle, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import Text from 'components/text'
@@ -6,7 +7,7 @@ import { Colors } from 'theme/colors'
 
 interface LedgerAdvancedModeProps {
   isAdvanceModeEnabled: boolean
-  setIsAdvanceModeEnabled: (val: boolean) => void
+  setIsAdvanceModeEnabled: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 export default function LedgerAdvancedMode({
@@ -19,26 +20,41 @@ export default function LedgerAdvancedMode({
     index2: undefined,
     index3: undefined,
   })
+
   const [errors, setErrors] = useState<any>()
   const { theme } = useTheme()
+
+  const handleToggleChange = () => {
+    setIsAdvanceModeEnabled(!isAdvanceModeEnabled)
+
+    setErrors(undefined)
+    setWalletName('')
+    setDerivationInput({
+      index1: undefined,
+      index2: undefined,
+      index3: undefined,
+    })
+  }
 
   const handleDerivationInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (!Object.values(derivationInput).includes(undefined)) {
       setErrors((prevValue: any) => ({ ...prevValue, derivationInput: undefined }))
     }
+
     setDerivationInput({ ...derivationInput, [e.target.name]: e.target.value })
   }
 
   const onAdd = () => {
     if (!walletName) {
       setErrors((prevValue: any) => ({
-        ...prevValue,
+        ...(prevValue ?? {}),
         walletName: 'Kindly enter wallet name to continue',
       }))
     }
+
     if (Object.values(derivationInput).includes(undefined)) {
       setErrors((prevValue: any) => ({
-        ...prevValue,
+        ...(prevValue ?? {}),
         derivationInput: 'Wallet by this path already exists',
       }))
     }
@@ -53,7 +69,8 @@ export default function LedgerAdvancedMode({
         Yes, you can import using custom derivation path by going into the advanced mode below. Head
         over to our blog page to learn more.
       </Text>
-      <button className='bg-gray-800 rounded-3xl text-white-100 font-bold px-3 py-[6px] mb-6'>
+
+      <button className='font-base bg-gray-800 rounded-3xl text-white-100 font-medium px-3 py-[6px] mb-6'>
         Learn more
       </button>
 
@@ -61,10 +78,7 @@ export default function LedgerAdvancedMode({
         <Text size='lg' className='font-bold'>
           Advanced mode
         </Text>
-        <Toggle
-          checked={isAdvanceModeEnabled}
-          onChange={() => setIsAdvanceModeEnabled(!isAdvanceModeEnabled)}
-        />
+        <Toggle checked={isAdvanceModeEnabled} onChange={handleToggleChange} />
       </div>
 
       <div
@@ -83,9 +97,13 @@ export default function LedgerAdvancedMode({
               setErrors((prevValue: any) => ({ ...prevValue, walletName: undefined }))
               setWalletName(e.target.value)
             }}
-            className='w-full !border-gray-800'
             isErrorHighlighted={errors?.walletName}
+            className={classNames('w-full', {
+              '!border-gray-800': !errors?.walletName,
+              '!border-red-300': errors?.walletName,
+            })}
           />
+
           {!!errors?.walletName && (
             <Text size='sm' color='text-red-300' className='pt-2 font-medium'>
               {errors?.walletName}
@@ -93,6 +111,7 @@ export default function LedgerAdvancedMode({
           )}
 
           <Text className='font-bold mb-3 mt-8'>Custom derivation path</Text>
+
           <div className='flex items-center gap-2'>
             <Text className='font-medium'>m/44&apos;/...&apos;</Text>
             <Input
@@ -100,31 +119,43 @@ export default function LedgerAdvancedMode({
               value={derivationInput.index1}
               name='index1'
               onChange={handleDerivationInputChange}
-              className='w-14 !border-gray-800'
+              className={classNames('w-14', {
+                '!border-red-300': errors?.derivationInput,
+                '!border-gray-800': !errors?.derivationInput,
+              })}
               type='number'
               isErrorHighlighted={errors?.derivationInput}
             />
+
             <Text>&apos;/</Text>
             <Input
               placeholder='0'
               value={derivationInput.index2}
               name='index2'
               onChange={handleDerivationInputChange}
-              className='w-14 !border-gray-800'
+              className={classNames('w-14', {
+                '!border-red-300': errors?.derivationInput,
+                '!border-gray-800': !errors?.derivationInput,
+              })}
               type='number'
               isErrorHighlighted={errors?.derivationInput}
             />
+
             <Text>/</Text>
             <Input
               placeholder='0'
               value={derivationInput.index3}
               name='index3'
               onChange={handleDerivationInputChange}
-              className='w-14 !border-gray-800'
+              className={classNames('w-14', {
+                '!border-red-300': errors?.derivationInput,
+                '!border-gray-800': !errors?.derivationInput,
+              })}
               type='number'
               isErrorHighlighted={errors?.derivationInput}
             />
           </div>
+
           {!!errors?.derivationInput && (
             <Text size='sm' color='text-red-300' className='pt-2 font-medium'>
               {errors?.derivationInput}

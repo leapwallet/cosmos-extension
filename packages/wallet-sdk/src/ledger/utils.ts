@@ -122,37 +122,36 @@ export async function getAppInfo(transport: Transport) {
 
 export async function openApp(transport: Transport, name: string, retry = 30) {
   await transport.send(0xe0, 0xd8, 0x00, 0x00, Buffer.from(name, 'ascii'));
-  let newTransport = transport;
+
   let i = 0;
   while (i < retry) {
     if (transport instanceof TransportWebHID) {
-      newTransport = await TransportWebHID.create();
+      transport = await TransportWebHID.create();
     } else {
-      newTransport = await TransportWebUSB.create();
+      transport = await TransportWebUSB.create();
     }
 
-    const appInfo = await getAppInfo(newTransport);
+    const appInfo = await getAppInfo(transport);
 
     if (appInfo.error_message === 'No errors' && appInfo.appName === name) {
       break;
     }
-    await sleep(100);
+    await sleep(200);
     i++;
   }
-  return newTransport;
+  return transport;
 }
 
 export async function isAppOpen(transport: Transport, name: string) {
-  let isAppOpened = false;
   const appInfo = await getAppInfo(transport);
   if (appInfo.error_message === 'No errors' && appInfo.appName === name) {
-    isAppOpened = true;
+    return true;
   } else if (appInfo.appName && appInfo.appName !== name && appInfo.appName !== 'BOLOS') {
     throw new Error(`Incorrect app: Please close the ${appInfo.appName} app and open the ${name} app on your ledger`);
   } else if (appInfo.return_code === 21781) {
     throw new Error(ledgerLockedError);
   }
-  return isAppOpened;
+  return false;
 }
 
 export async function attemptAppOpen(transport: Transport, name: string, retry = 30) {

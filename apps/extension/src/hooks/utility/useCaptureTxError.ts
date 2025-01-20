@@ -1,6 +1,7 @@
 import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
 import { useEffect } from 'react'
+import { uiErrorTags } from 'utils/sentry'
 
 const TRANSACTION_ID_NOT_FOUND_ON_CHAIN_ERROR =
   'was submitted but was not yet found on the chain. You might want to check later. There was a wait of 60 seconds.'
@@ -16,7 +17,9 @@ export function useCaptureTxError(error: string | undefined) {
       if (error.includes(REWARD_IS_TOO_LOW)) return
       if (error.includes("You don't have enough")) return
 
-      Sentry.captureException(`${error} - node: ${rpcUrl}`)
+      Sentry.captureException(`${error} - node: ${rpcUrl}`, {
+        tags: uiErrorTags,
+      })
     }
   }, [error, rpcUrl])
 }

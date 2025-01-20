@@ -27,6 +27,7 @@ import { observer } from 'mobx-react-lite'
 import React, { createContext, ReactNode, useContext, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { assert } from 'utils/assert'
 import { formatAuthzDate } from 'utils/formatAuthzDate'
@@ -86,7 +87,7 @@ const _ManageAuthZ = observer(
       selectedChainHasMainnetOnly,
     } = useAuthZContext()
 
-    const dontShowSelectChain = useDontShowSelectChain()
+    const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const [showSelectChain, setShowSelectChain] = useState(false)
     const { data, isLoading } = useGetGivenAuthz(
       selectedChain,

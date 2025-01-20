@@ -254,7 +254,7 @@ export function useGetNativeTokensBalances(
 
       for (const { denom } of balances) {
         try {
-          if (activeChain === 'mainCoreum' && !denoms[denom]) {
+          if (['mainCoreum', 'coreum'].includes(activeChain) && !denoms[denom]) {
             const { symbol, precision } = await getCoreumHybridTokenInfo(lcdUrl ?? '', denom);
             _denoms[denom] = {
               coinDenom: symbol,

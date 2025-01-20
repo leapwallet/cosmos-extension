@@ -19,6 +19,8 @@ import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 import { fetchAccountDetails } from '../accounts';
 import { SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
+import { VoteOption as VoteOptionAtomOne } from '../proto/atomone/gov/v1/gov';
+import { MsgVote as MsgVoteAtomOne } from '../proto/atomone/gov/v1/tx';
 import { MsgVote as MsgVoteGovGen } from '../proto/govgen/gov/v1beta1/tx';
 import {
   MsgBeginRedelegate as InitiaMsgBeginRedelegate,
@@ -282,11 +284,26 @@ export async function simulateVote(
   fee: Coin[],
   chainId?: string,
 ) {
-  const nonStandardTypeUrl = chainId === 'govgen-1' ? '/govgen.gov.v1beta1.MsgVote' : undefined;
+  let nonStandardTypeUrl = undefined;
+  if (chainId === 'govgen-1') {
+    nonStandardTypeUrl = '/govgen.gov.v1beta1.MsgVote';
+  } else if (chainId === 'atomone-1') {
+    nonStandardTypeUrl = '/atomone.gov.v1.MsgVote';
+  }
   const msg = getVoteMsg(option, proposalId, fromAddress, nonStandardTypeUrl);
+  let value = MsgVote.encode(msg.value).finish();
+  if (chainId === 'govgen-1') {
+    value = MsgVoteGovGen.encode(msg.value).finish();
+  } else if (chainId === 'atomone-1') {
+    value = MsgVoteAtomOne.encode({
+      ...msg.value,
+      option: msg.value.option as VoteOptionAtomOne,
+      metadata: '',
+    }).finish();
+  }
   const encodedMsg = {
     typeUrl: msg.typeUrl,
-    value: chainId === 'govgen-1' ? MsgVoteGovGen.encode(msg.value).finish() : MsgVote.encode(msg.value).finish(),
+    value,
   };
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
 }

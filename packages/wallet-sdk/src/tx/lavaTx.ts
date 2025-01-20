@@ -68,7 +68,6 @@ export class LavaTx extends Tx {
     fromAddress: string,
     validatorAddress: string,
     providerAddress: string,
-    specID: string,
     amount: Coin,
     fee: number | StdFee | 'auto',
     memo = '',
@@ -79,7 +78,6 @@ export class LavaTx extends Tx {
         creator: fromAddress,
         validator: validatorAddress,
         provider: providerAddress,
-        chainID: specID,
         amount: amount,
       },
     };
@@ -103,7 +101,6 @@ export class LavaTx extends Tx {
     fromAddress: string,
     validatorAddress: string,
     providerAddress: string,
-    specID: string,
     amount: Coin,
     fee: number | StdFee | 'auto',
     memo = '',
@@ -114,7 +111,6 @@ export class LavaTx extends Tx {
         creator: fromAddress,
         validator: validatorAddress,
         provider: providerAddress,
-        chainID: specID,
         amount: amount,
       },
     };
@@ -126,8 +122,6 @@ export class LavaTx extends Tx {
     fromAddress: string,
     toProviderAddress: string,
     fromProviderAddress: string,
-    toSpecID: string,
-    fromSpecID: string,
     amount: Coin,
     fee: number | StdFee | 'auto',
     memo = '',
@@ -138,8 +132,6 @@ export class LavaTx extends Tx {
         creator: fromAddress,
         fromProvider: fromProviderAddress,
         toProvider: toProviderAddress,
-        fromChainID: fromSpecID,
-        toChainID: toSpecID,
         amount: amount,
       },
     };
@@ -153,7 +145,6 @@ export async function simulateDelegateLava(
   fromAddress: string,
   validatorAddress: string,
   providerAddress: string,
-  specID: string,
   amount: Coin,
 ) {
   const encodedMsg = {
@@ -162,8 +153,8 @@ export async function simulateDelegateLava(
       creator: fromAddress,
       validator: validatorAddress,
       provider: providerAddress,
+      chainID: '',
       amount: amount,
-      chainID: specID,
     }).finish(),
   };
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
@@ -174,7 +165,6 @@ export async function simulateUnDelegateLava(
   fromAddress: string,
   validatorAddress: string,
   providerAddress: string,
-  specID: string,
   amount: Coin,
 ) {
   const encodedMsg = {
@@ -183,8 +173,8 @@ export async function simulateUnDelegateLava(
       creator: fromAddress,
       validator: validatorAddress,
       provider: providerAddress,
+      chainID: '',
       amount: amount,
-      chainID: specID,
     }).finish(),
   };
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
@@ -195,8 +185,6 @@ export async function simulateReDelegateLava(
   fromAddress: string,
   toProviderAddress: string,
   fromProviderAddress: string,
-  toSpecID: string,
-  fromSpecID: string,
   amount: Coin,
 ) {
   const encodedMsg = {
@@ -205,9 +193,9 @@ export async function simulateReDelegateLava(
       creator: fromAddress,
       fromProvider: fromProviderAddress,
       toProvider: toProviderAddress,
-      fromChainID: fromSpecID,
-      toChainID: toSpecID,
       amount: amount,
+      fromChainID: '',
+      toChainID: '',
     }).finish(),
   };
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);

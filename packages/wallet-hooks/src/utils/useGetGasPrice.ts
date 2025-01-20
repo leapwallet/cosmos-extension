@@ -1,10 +1,12 @@
 import {
   axiosWrapper,
+  BtcTx,
   ChainInfo,
   defaultGasPriceStep,
   DenomsRecord,
   GasPrice,
   GasPriceStepsRecord,
+  isAptosChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
@@ -13,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChainApis, useChainsStore, useGasPriceSteps, useGetChains, useSelectedNetwork } from '../store';
 import { FeeModel } from '../types/fee-model';
-import { useGetEvmGasPrices } from '../utils-hooks';
+import { useGetAptosGasPrices, useGetEvmGasPrices } from '../utils-hooks';
 import { useLowGasPriceStep } from './useLowGasPriceStep';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
 
@@ -166,6 +168,10 @@ export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?:
         const minGasPrice = await getCoreumGasPrice(lcdUrl, allChainsGasPriceSteps);
         setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
       }
+      if (chainKey === 'bitcoin' || chainKey === 'bitcoinSignet') {
+        const gasPrices = await BtcTx.GetFeeRates(chainKey === 'bitcoin' ? 'mainnet' : 'testnet');
+        setGasPriceStep(gasPrices);
+      }
 
       if (chainKey === 'seiTestnet2') {
         const chainId =
@@ -221,10 +227,24 @@ export function useGasRateQuery(
   const nativeFeeDenom = useNativeFeeDenom(denoms, chainKey, selectedNetwork);
   const gasPriceStep = useGasPriceStepForChain(chainKey);
   const { gasPrice: evmGasPrice } = useGetEvmGasPrices(chainKey, selectedNetwork);
+  const { gasPrice: aptosGasPrice } = useGetAptosGasPrices(chainKey, selectedNetwork);
   const chains = useGetChains();
   if (!gasPriceStep && !isSeiEvmTransaction && !chains[chainKey]?.evmOnlyChain) return undefined;
-
   return useMemo(() => {
+    if (isAptosChain(chainKey)) {
+      const lowAmount = new BigNumber(aptosGasPrice.low);
+      const mediumAmount = new BigNumber(aptosGasPrice.medium);
+      const highAmount = new BigNumber(aptosGasPrice.high);
+
+      return {
+        [nativeFeeDenom.coinMinimalDenom]: {
+          low: GasPrice.fromUserInput(lowAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          medium: GasPrice.fromUserInput(mediumAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          high: GasPrice.fromUserInput(highAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+        },
+      } as const;
+    }
+
     if (isSeiEvmTransaction || chains[chainKey]?.evmOnlyChain) {
       const lowAmount = new BigNumber(evmGasPrice.low);
       const mediumAmount = new BigNumber(evmGasPrice.medium);
@@ -253,6 +273,9 @@ export function useGasRateQuery(
     evmGasPrice.low,
     evmGasPrice.medium,
     evmGasPrice.high,
+    aptosGasPrice.low,
+    aptosGasPrice.medium,
+    aptosGasPrice.high,
     chainKey,
     chains,
   ]);

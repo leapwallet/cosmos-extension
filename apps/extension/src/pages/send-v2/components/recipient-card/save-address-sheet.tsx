@@ -4,7 +4,7 @@ import {
   useGetChains,
   useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { getBlockChainFromAddress, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, Buttons, Input } from '@leapwallet/leap-ui'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { bech32 } from 'bech32'
@@ -28,6 +28,7 @@ type SaveAddressSheetProps = {
   isOpen: boolean
   address: string
   ethAddress?: string
+  sendActiveChain?: SupportedChain
   onClose: () => void
   // eslint-disable-next-line no-unused-vars
   onSave?: (s: SelectedAddress) => void
@@ -48,6 +49,7 @@ export default function SaveAddressSheet({
   address,
   ethAddress,
   onSave,
+  sendActiveChain,
 }: SaveAddressSheetProps) {
   const [memo, setMemo] = useState<string>('')
   const [name, setName] = useState<string>('')
@@ -65,8 +67,12 @@ export default function SaveAddressSheet({
   const enterNameRef = useRef<HTMLInputElement | null>(null)
 
   const chains = useGetChains()
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
   const isSeiEvmChain = useIsSeiEvmChain()
+
+  const activeChain = useMemo(() => {
+    return sendActiveChain ?? _activeChain
+  }, [sendActiveChain, _activeChain])
 
   const chain = useMemo(() => {
     try {
@@ -77,8 +83,8 @@ export default function SaveAddressSheet({
         return activeChain
       }
 
-      const { prefix } = bech32.decode(address)
-      const _chain = addressPrefixes[prefix]
+      const prefix = getBlockChainFromAddress(address)
+      const _chain = addressPrefixes[prefix ?? '']
       if (_chain === 'cosmoshub') {
         return 'cosmos'
       }

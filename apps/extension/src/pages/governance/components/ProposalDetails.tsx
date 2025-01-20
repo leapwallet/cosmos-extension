@@ -25,6 +25,7 @@ import Skeleton from 'react-loading-skeleton'
 import { PieChart } from 'react-minimal-pie-chart'
 import { delegationsStore } from 'stores/stake-store'
 import { imgOnError } from 'utils/imgOnError'
+import { uiErrorTags } from 'utils/sentry'
 
 import { getPercentage } from '../utils'
 import { CastVote, RequireMinStaking, ShowVotes, Turnout, VoteDetails } from './index'
@@ -63,12 +64,12 @@ export const ProposalDetails = observer(
 
     const { delegationInfo } = delegationsStore.delegationsForChain(activeChain)
     const hasMinAmountStaked = useMemo(() => {
-      if (activeChain === 'cosmos') {
+      if (activeChain === 'cosmos' || activeChainInfo.chainId === 'atomone-1') {
         return delegationInfo?.totalDelegation?.gte(1)
       }
 
       return true
-    }, [activeChain, delegationInfo?.totalDelegation])
+    }, [activeChain, delegationInfo?.totalDelegation, activeChainInfo.chainId])
 
     const { topChainColor } = useChainPageInfo()
     const proposal = useMemo(
@@ -99,7 +100,13 @@ export const ProposalDetails = observer(
             return data
           } catch (error: any) {
             try {
-              const prefix = activeChainInfo?.chainId === 'govgen-1' ? '/govgen' : '/cosmos'
+              let prefix = '/cosmos'
+              if (activeChainInfo?.chainId === 'govgen-1') {
+                prefix = '/govgen'
+              }
+              if (activeChainInfo?.chainId === 'atomone-1') {
+                prefix = '/atomone'
+              }
               const data = await axiosWrapper(
                 {
                   baseURL: lcdUrl ?? '',
@@ -116,7 +123,9 @@ export const ProposalDetails = observer(
               if (error.response.data.code === 3 || error.response.data.error?.code === -32700) {
                 return 'NO_VOTE'
               } else {
-                captureException(error)
+                captureException(error, {
+                  tags: uiErrorTags,
+                })
                 throw new Error(error)
               }
             }
@@ -144,38 +153,42 @@ export const ProposalDetails = observer(
       _proposalVotes ||
       proposal.final_tally_result) as any
     const totalVotes =
-      [yes, no, abstain, no_with_veto].reduce((sum, val) => sum + Number(val), 0) || 1
+      [yes, no, abstain, no_with_veto].reduce((sum, val) => sum + Number(val ?? 0), 0) || 1
 
     const dataMock = useMemo(() => {
-      return !totalVotes
-        ? [{ title: 'loading', value: 1, color: '#ccc', percent: '0%' }]
-        : [
-            {
-              title: 'YES',
-              value: +yes,
-              color: '#29A874',
-              percent: getPercentage(+yes, totalVotes),
-            },
-            {
-              title: 'NO',
-              value: +no,
-              color: '#FF707E',
-              percent: getPercentage(+no, totalVotes),
-            },
-            {
-              title: 'No with Veto',
-              value: +no_with_veto,
-              color: '#8583EC',
-              percent: getPercentage(+no_with_veto, totalVotes),
-            },
-            {
-              title: 'Abstain',
-              value: +abstain,
-              color: '#D1A700',
-              percent: getPercentage(+abstain, totalVotes),
-            },
-          ]
-    }, [abstain, no, no_with_veto, totalVotes, yes])
+      if (!totalVotes) {
+        return [{ title: 'loading', value: 1, color: '#ccc', percent: '0%' }]
+      }
+      const data = [
+        {
+          title: 'YES',
+          value: +yes,
+          color: '#29A874',
+          percent: getPercentage(+yes, totalVotes),
+        },
+        {
+          title: 'NO',
+          value: +no,
+          color: '#FF707E',
+          percent: getPercentage(+no, totalVotes),
+        },
+      ]
+      if (activeChainInfo.chainId !== 'atomone-1') {
+        data.push({
+          title: 'No with Veto',
+          value: +no_with_veto,
+          color: '#8583EC',
+          percent: getPercentage(+no_with_veto, totalVotes),
+        })
+      }
+      data.push({
+        title: 'Abstain',
+        value: +abstain,
+        color: '#D1A700',
+        percent: getPercentage(+abstain, totalVotes),
+      })
+      return data
+    }, [abstain, no, no_with_veto, totalVotes, yes, activeChainInfo.chainId])
 
     const tallying = useMemo(() => {
       let votingPower = (_proposalVotes as any)?.bonded_tokens

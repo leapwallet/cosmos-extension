@@ -8,8 +8,9 @@ import { CW20DenomsStore } from './cw20-denoms-store';
 function combineValues(values: Array<DenomsRecord>) {
   const combinedValues = {};
   for (const value of values) {
-    Object.assign(combinedValues, value);
+    Object.assign(combinedValues, toJS(value));
   }
+
   return combinedValues;
 }
 
@@ -26,6 +27,7 @@ export class RootCW20DenomsStore {
     this.cw20DenomsStore = cw20DenomsStore;
     this.betaCW20DenomsStore = betaCW20DenomsStore;
     this.autoFetchedCW20DenomsStore = autoFetchedCW20DenomsStore;
+
     makeObservable({
       allCW20Denoms: computed.struct,
       readyPromise: computed,
@@ -33,10 +35,12 @@ export class RootCW20DenomsStore {
   }
 
   get allCW20Denoms() {
-    const cw20DenomValues = combineValues(Object.values(toJS(this.cw20DenomsStore.denoms)));
-    const betaCW20DenomValues = combineValues(Object.values(toJS(this.betaCW20DenomsStore.denoms)));
-    const allAutoFetchedCW20Denoms = toJS(this.autoFetchedCW20DenomsStore.allAutoFetchedCW20Denoms);
+    const cw20DenomValues = combineValues(Object.values(this.cw20DenomsStore.denoms));
+    const betaCW20DenomValues = combineValues(Object.values(this.betaCW20DenomsStore.denoms));
+
+    const allAutoFetchedCW20Denoms = this.autoFetchedCW20DenomsStore.allAutoFetchedCW20Denoms;
     const retval = Object.assign(cw20DenomValues, betaCW20DenomValues, allAutoFetchedCW20Denoms);
+
     return retval;
   }
 

@@ -10,6 +10,7 @@ import {
   CosmosTxType,
   Currency,
   LeapApi,
+  LightNodeStatsRequest,
   MarketCapsResponse,
   MarketChartPrice,
   MarketPercentageChangesResponse,
@@ -32,6 +33,12 @@ import { APP_NAME, getAppName, getChainId, getLeapapiBaseUrl, getPlatform } from
 import { platforms, platformToChain } from './platforms-mapping';
 import { TransactionMetadata } from './types/txLoggingTypes';
 
+async function fetchEcosystemPrices(leapApiBaseUrl: string, currency: string, ecosystem: string) {
+  const priceUrl = `${leapApiBaseUrl}/market/prices/ecosystem?currency=${currency}&ecosystem=${ecosystem}`;
+  const response = await fetch(priceUrl);
+  return response.json();
+}
+
 export namespace LeapWalletApi {
   export type LogInfo = {
     readonly txHash: string;
@@ -48,9 +55,21 @@ export namespace LeapWalletApi {
     readonly isEvmOnly?: boolean;
   };
 
-  export type OperateCosmosTx = (info: LogInfo) => Promise<void>;
+  export type LightNodeStatsInfo = {
+    readonly userUUID: string;
+    readonly totalRunningTimeInMilliSeconds: number;
+    readonly lastStartedAt?: string;
+    readonly lastStoppedAt?: string;
+    readonly walletAddress?: string;
+  };
 
-  export type LogCosmosDappTx = (info: LogInfo & { address: string; chain: SupportedChain }) => Promise<void>;
+  export type LogLightNodeStats = (info: LightNodeStatsInfo) => Promise<void>;
+
+  export type OperateCosmosTx = (info: LogInfo & { isAptos?: boolean }) => Promise<void>;
+
+  export type LogCosmosDappTx = (
+    info: LogInfo & { address: string; chain: SupportedChain; network?: 'mainnet' | 'testnet' },
+  ) => Promise<void>;
 
   export async function getAssetDetails(
     token: string,
@@ -98,6 +117,12 @@ export namespace LeapWalletApi {
       priceChange,
       marketCap,
     };
+  }
+
+  export async function getAssetDescription(token: string, chain: SupportedChain) {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const leapApi = new LeapApi(leapApiBaseUrl);
+    return await leapApi.getMarketDescription({ platform: platforms[chain], token });
   }
 
   export async function getIbcDenomData(ibcDenom: string, lcdUrl: string, chainId: string) {
@@ -187,17 +212,16 @@ export namespace LeapWalletApi {
     }
   }
 
-  export async function getEcosystemMarketPrices(
-    currency = 'USD',
-    ecosystem = 'cosmos-ecosystem',
-  ): Promise<{ data: { [key: string]: number } }> {
+  export async function getEcosystemMarketPrices(currency = 'USD'): Promise<{ data: { [key: string]: number } }> {
     try {
       const leapApiBaseUrl = getLeapapiBaseUrl();
-      const response = await fetch(
-        `${leapApiBaseUrl}/market/prices/ecosystem?currency=${currency}&ecosystem=${ecosystem}`,
-      );
-      const data = await response.json();
 
+      const [cosmosPrices, ethereumPrices, avalanchePrices] = await Promise.all([
+        fetchEcosystemPrices(leapApiBaseUrl, currency, 'cosmos-ecosystem'),
+        fetchEcosystemPrices(leapApiBaseUrl, currency, 'ethereum-ecosystem'),
+        fetchEcosystemPrices(leapApiBaseUrl, currency, 'avalanche-ecosystem'),
+      ]);
+      const data = Object.assign({}, avalanchePrices, ethereumPrices, cosmosPrices);
       return { data };
     } catch (_) {
       return { data: {} };
@@ -364,6 +388,7 @@ export namespace LeapWalletApi {
         forceChain,
         forceNetwork,
         amount,
+        isAptos,
         isEvmOnly,
       }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
@@ -373,8 +398,9 @@ export namespace LeapWalletApi {
         const activeChain = (forceChain || _activeChain) as SupportedChain;
         const selectedNetwork = forceNetwork || _selectedNetwork;
 
-        const _chainId = chainId || getChainId(chains[activeChain], selectedNetwork);
+        let _chainId = chainId || getChainId(chains[activeChain], selectedNetwork);
         const isMainnet = _chainId ? !testnetChainIds.includes(_chainId) : selectedNetwork === 'mainnet';
+        _chainId = _chainId?.replace('aptos-', '');
 
         const txLogMap = await getTxLogCosmosBlockchainMapStoreSnapshot();
         const blockchain = getCosmosNetwork(activeChain, txLogMap);
@@ -405,7 +431,11 @@ export namespace LeapWalletApi {
         }
 
         try {
-          if (isEvmOnly) {
+          if (isAptos) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            // TODO: replace this with leap-api-js update
+            await txnLeapApi.operateV2Tx(logReq, 'move.tx' as V2TxOperation);
+          } else if (isEvmOnly) {
             const txnLeapApi = new LeapApi(leapApiBaseUrl);
             await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
           } else if (isCompassWallet) {
@@ -421,7 +451,14 @@ export namespace LeapWalletApi {
     );
   }
 
-  export function useLogCosmosDappTx(): LogCosmosDappTx {
+  export function useLogCosmosDappTx(): (
+    info: LogInfo & {
+      address: string;
+      chain: SupportedChain;
+      network?: 'mainnet' | 'testnet';
+      isAptos?: boolean;
+    },
+  ) => Promise<void> {
     const { chains } = useChainsStore();
     const { primaryAddress } = useAddressStore();
     const isCompassWallet = getAppName() === APP_NAME.Compass;
@@ -443,11 +480,15 @@ export namespace LeapWalletApi {
         feeQuantity,
         txType,
         isEvmOnly,
-      }: LogInfo & { chain: SupportedChain; address: string }) => {
+        isAptos,
+        network,
+      }: LogInfo & { chain: SupportedChain; address: string; network?: 'mainnet' | 'testnet'; isAptos?: boolean }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
         const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`);
-        const _chainId = chainId || getChainId(chains[chain], selectedNetwork);
-        const isMainnet = _chainId ? !testnetChainIds.includes(_chainId) : selectedNetwork === 'mainnet';
+        const _network = network || selectedNetwork;
+        let _chainId = chainId || getChainId(chains[chain], _network);
+        const isMainnet = _chainId ? !testnetChainIds.includes(_chainId) : _network === 'mainnet';
+        _chainId = _chainId?.replace('aptos-', '');
 
         const txLogMap = await getTxLogCosmosBlockchainMapStoreSnapshot();
         const blockchain = getCosmosNetwork(chain, txLogMap);
@@ -472,7 +513,11 @@ export namespace LeapWalletApi {
             logReq.blockchain = blockchain;
           }
 
-          if (isEvmOnly) {
+          if (isAptos) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            // TODO: replace this with leap-api-js update
+            await txnLeapApi.operateV2Tx(logReq, 'move.tx' as V2TxOperation);
+          } else if (isEvmOnly) {
             const txnLeapApi = new LeapApi(leapApiBaseUrl);
             await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
           } else if (isCompassWallet) {
@@ -485,6 +530,39 @@ export namespace LeapWalletApi {
         }
       },
       [primaryAddress, chains, selectedNetwork, testnetChainIds, isCompassWallet],
+    );
+  }
+
+  export async function logLightNodeStats({
+    userUUID,
+    totalRunningTimeInMilliSeconds,
+    lastStartedAt,
+    lastStoppedAt,
+    walletAddress,
+  }: LightNodeStatsInfo): Promise<void> {
+    const leapApiBaseUrl = getLeapapiBaseUrl();
+    const txnLeapApi = new LeapApi(leapApiBaseUrl);
+    const logReq = {
+      userUUID,
+      walletAddress,
+      totalRunningTimeMilliseconds: totalRunningTimeInMilliSeconds,
+      lastStartedAt,
+      lastStoppedAt,
+    } as LightNodeStatsRequest;
+
+    try {
+      await txnLeapApi.logLightNodeStats(logReq);
+    } catch (err) {
+      console.error(err);
+      throw new Error('Failed to log light node stats');
+    }
+  }
+
+  export function useLogLightNodeStats(): LogLightNodeStats {
+    const { primaryAddress } = useAddressStore();
+    return useCallback(
+      async (params) => logLightNodeStats({ ...params, walletAddress: primaryAddress }),
+      [primaryAddress],
     );
   }
 }

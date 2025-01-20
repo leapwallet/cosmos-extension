@@ -9,6 +9,9 @@ export type ChainInfosConfigType = {
   not_supported_features: Record<'stake' | 'governance', ChainInfosConfigPossibleFeatureValueType>;
 };
 
+export const BTC_CHAINS = ['bitcoin', 'bitcoinSignet'];
+export const APTOS_CHAINS = ['movement', 'aptos', 'movementBardock'];
+
 export const CHAIN_INFOS_CONFIG: ChainInfosConfigType = {
   coming_soon_features: {
     stake: {

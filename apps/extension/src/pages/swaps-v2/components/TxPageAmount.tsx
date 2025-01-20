@@ -1,20 +1,20 @@
 import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { imgOnError } from 'utils/imgOnError'
 
 import { TxReviewTokenInfoProps } from './index'
 
 type TxPageAmountProps = TxReviewTokenInfoProps & { isFirst?: boolean }
 
-export function TxPageAmount({ amount, token, chain, isFirst }: TxPageAmountProps) {
-  const { formatHideBalance } = useHideAssets()
+function TxPageAmountView({ amount, token, chain, isFirst }: TxPageAmountProps) {
   const defaultTokenLogo = useDefaultTokenLogo()
 
   const balanceAmount = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(amount ?? '0', sliceWord(token?.symbol ?? '', 4, 4), 3),
     )
 
@@ -44,3 +44,5 @@ export function TxPageAmount({ amount, token, chain, isFirst }: TxPageAmountProp
     </div>
   )
 }
+
+export const TxPageAmount = observer(TxPageAmountView)

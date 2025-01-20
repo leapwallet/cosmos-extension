@@ -1,8 +1,8 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { SelectedNetworkType } from '@leapwallet/cosmos-wallet-store';
 import { useMemo } from 'react';
 
 import { useActiveChain, useChainCosmosSDKStore, useSelectedNetwork } from '../store';
-import { SelectedNetworkType } from '../utils';
 import { useChainId } from './use-chain-id';
 
 export function useHasToCalculateDynamicFee(forceChain?: SupportedChain, forceNetwork?: SelectedNetworkType) {

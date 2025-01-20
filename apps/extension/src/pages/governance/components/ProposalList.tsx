@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Proposal, useStaking } from '@leapwallet/cosmos-wallet-hooks'
+import { Proposal, useChainInfo, useStaking } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainTagsStore,
   ClaimRewardsStore,
@@ -80,6 +80,7 @@ export const ProposalList = observer(
     const [filter, setFilter] = useState('all')
     const [showChainSelector, setShowChainSelector] = useState(false)
     const activeChain = useActiveChain()
+    const activeChainInfo = chainInfos[activeChain]
     const loading = proposalListStatus === 'loading'
     const denoms = rootDenomsStore.allDenoms
 
@@ -98,12 +99,12 @@ export const ProposalList = observer(
     )
 
     const hasMinAmountStaked = useMemo(() => {
-      if (activeChain === 'cosmos') {
+      if (activeChain === 'cosmos' || activeChainInfo.chainId === 'atomone-1') {
         return totalDelegation?.gte(1)
       }
 
       return true
-    }, [activeChain, totalDelegation])
+    }, [activeChain, activeChainInfo.chainId, totalDelegation])
 
     const filteredProposalList: Proposal[] = useMemo(
       () =>
@@ -160,7 +161,6 @@ export const ProposalList = observer(
       }
     }, [fetchMore, filteredProposalList?.length, proposalListStatus])
 
-    const activeChainInfo = chainInfos[activeChain]
     const { headerChainImgSrc } = useChainPageInfo()
 
     return (

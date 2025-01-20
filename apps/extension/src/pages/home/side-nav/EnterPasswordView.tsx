@@ -9,13 +9,13 @@ import React, { Dispatch, ReactElement, SetStateAction } from 'react'
 import { useForm } from 'react-hook-form'
 
 type FormData = {
-  readonly password: string
+  readonly rawPassword: string
 }
 
 type EnterPasswordViewProps = {
   readonly passwordTo: string
   readonly setRevealed: Dispatch<SetStateAction<boolean>>
-  readonly setPassword: Dispatch<SetStateAction<string>>
+  readonly setPassword: Dispatch<SetStateAction<Uint8Array | undefined>>
   readonly goBack: () => void
 }
 
@@ -34,22 +34,28 @@ export function EnterPasswordView({
     handleSubmit,
     setError,
     formState: { errors },
+    setValue,
   } = useForm<FormData>({ mode: 'onChange' })
 
   const onSubmit = (e?: React.BaseSyntheticEvent) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handleSubmit(async (values: any) => {
+    handleSubmit(async (values: FormData) => {
       try {
         const cipher = activeWallet?.cipher
         if (!cipher) throw new Error('No cipher')
-        await testPassword(values.password, cipher)
-        setPassword(values.password)
+        const password = new TextEncoder().encode(values.rawPassword)
+        await testPassword(password, cipher)
+        setPassword(password)
         setRevealed(true)
       } catch (err) {
-        setError('password', {
+        setError('rawPassword', {
           type: 'validate',
           message: 'Incorrect Password',
         })
+      } finally {
+        // to clear password from heap
+        setValue('rawPassword', '__')
+        setValue('rawPassword', '')
       }
     })(e)
   }
@@ -80,8 +86,8 @@ export function EnterPasswordView({
               type='password'
               data-testing-id='password'
               placeholder='Enter password'
-              {...register('password')}
-              isErrorHighlighted={!!errors.password}
+              {...register('rawPassword')}
+              isErrorHighlighted={!!errors.rawPassword}
             />
           </Resize>
           <Text
@@ -90,7 +96,7 @@ export function EnterPasswordView({
             color='text-red-300'
             className='justify-center text-center pt-2'
           >
-            {!!errors.password && errors.password.message}
+            {!!errors.rawPassword && errors?.rawPassword?.message}
           </Text>
           <Resize className='mt-auto mb-7'>
             <Buttons.Generic type='submit' color={topChainColor} data-testing-id='submit'>

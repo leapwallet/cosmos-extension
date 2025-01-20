@@ -4,7 +4,7 @@ import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr'
 import { captureException } from '@sentry/react'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
-import { ButtonName, ButtonType, EventName } from 'config/analytics'
+import { ButtonName, ButtonType, EventName, PageName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY, LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useAddress } from 'hooks/wallet/useAddress'
@@ -44,7 +44,7 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
   const isAggregatedView = useMemo(() => activeChain === AGGREGATED_CHAIN_KEY, [activeChain])
   const swapPath = `/swap?sourceChainId=${
     chain?.chainId === 'cosmoshub-4' ? 'osmosis-1' : 'cosmoshub-4'
-  }&destinationChainId=${chain?.chainId}`
+  }&destinationChainId=${chain?.chainId}&pageSource=${PageName.ZeroState}`
   const chainId = isAggregatedView ? 'all' : chain?.chainId ?? ''
   const chainName = isAggregatedView ? 'All Chains' : chain?.chainName ?? ''
 

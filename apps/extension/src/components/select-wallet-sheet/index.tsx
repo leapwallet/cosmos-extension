@@ -1,21 +1,21 @@
 import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { Avatar, Card, CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { walletLabels } from 'config/constants'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import React, { useMemo } from 'react'
+import { formatWalletName } from 'utils/formatWalletName'
+import { imgOnError } from 'utils/imgOnError'
 import { sliceAddress } from 'utils/strings'
 
 import useWallets = Wallet.useWallets
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { useSiteLogo } from 'hooks/utility/useSiteLogo'
-import { formatWalletName } from 'utils/formatWalletName'
-import { imgOnError } from 'utils/imgOnError'
 
 type SelectWalletProps = {
   readonly title: string
@@ -26,6 +26,7 @@ type SelectWalletProps = {
     chainIds: [string]
     origin: string
   } | null
+  readonly activeChain: SupportedChain
 }
 
 export default function SelectWalletSheet({
@@ -33,9 +34,9 @@ export default function SelectWalletSheet({
   onClose,
   title,
   currentWalletInfo,
+  activeChain,
 }: SelectWalletProps) {
   const wallets = useWallets()
-  const activeChain = useActiveChain()
   const { activeWallet, setActiveWallet } = useActiveWallet()
 
   const walletsList = useMemo(() => {

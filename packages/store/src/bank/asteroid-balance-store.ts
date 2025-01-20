@@ -1,14 +1,14 @@
 import { fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
-import { makeAutoObservable, onBecomeObserved, reaction, runInAction } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import { AggregatedSupportedChainType } from 'types';
 
 import { ChainInfosStore, DenomsStore, NmsStore } from '../assets';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
 import { sortTokenBalances } from './balance-calculator';
-import { PriceStore } from './balance-store';
 import { Token } from './balance-types';
+import { PriceStore } from './price-store';
 
 const LIMIT = 50;
 
@@ -42,43 +42,6 @@ export class AsteroidDenomBalanceStore {
     this.denomsStore = denomsStore;
     this.selectedNetworkStore = selectedNetworkStore;
     this.priceStore = priceStore;
-
-    // onBecomeObserved(this, 'chainWiseBalances', () => {
-    //   this.initialize();
-    // });
-
-    // reaction(
-    //   () => this.addressStore.addresses,
-    //   async () => {
-    //     await this.initialize();
-    //     if (this.addressStore.addresses) {
-    //       this.fetchChainBalances();
-    //     }
-    //   },
-    // );
-    //
-    // reaction(
-    //   () => this.activeChainStore.activeChain,
-    //   async (chain) => {
-    //     await this.initialize();
-    //     const chainKey = this.getChainKey(chain);
-    //     if (!this.chainWiseBalances[chainKey] && chain !== 'aggregated') {
-    //       this.fetchChainBalances(chain as SupportedChain);
-    //     }
-    //   },
-    // );
-    //
-    // reaction(
-    //   () => this.selectedNetworkStore.selectedNetwork,
-    //   async () => {
-    //     await this.initialize();
-    //     const activeChain = this.activeChainStore.activeChain;
-    //     const chainKey = this.getChainKey(activeChain);
-    //     if (!this.chainWiseBalances[chainKey] && activeChain !== 'aggregated') {
-    //       this.fetchChainBalances(activeChain);
-    //     }
-    //   },
-    // );
   }
 
   async fetchChainBalances(forceChain?: SupportedChain) {

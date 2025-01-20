@@ -23,6 +23,7 @@ import { Colors } from 'theme/colors'
 import { getContractInfo } from 'utils/getContractInfo'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
+import { uiErrorTags } from 'utils/sentry'
 import Browser from 'webextension-polyfill'
 
 import {
@@ -118,7 +119,9 @@ const SuggestSecret = observer(({ handleRejectBtnClick }: ChildrenParams) => {
             setError((e as Error).message)
           }
 
-          captureException(e)
+          captureException(e, {
+            tags: uiErrorTags,
+          })
         } finally {
           setIsFetching(false)
         }

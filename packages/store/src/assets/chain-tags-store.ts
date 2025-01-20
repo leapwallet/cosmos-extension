@@ -33,7 +33,14 @@ export class ChainTagsStore {
     try {
       const { data } = await axiosWrapper({ baseURL: CHAIN_TAGS_S3_URL, method: 'get' });
       runInAction(() => {
-        this.chainTagsFromS3 = data.chainWiseMapping;
+        this.chainTagsFromS3 = {
+          'initiation-2': ['Initia'],
+          'landlord-2': ['Initia'],
+          'glados-2.1': ['Initia'],
+          'minimove-2': ['Initia'],
+          'miniwasm-2': ['Initia'],
+          ...data.chainWiseMapping,
+        };
         this.uniqueTags = data.allTags;
       });
     } catch (error) {

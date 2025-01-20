@@ -1,59 +1,23 @@
-import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { Question } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
-import { ManageChainSettings, useManageChainData } from 'hooks/settings/useManageChains'
-import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { Images } from 'images'
 import { GenericLight } from 'images/logos'
-import React, { useMemo, useState } from 'react'
+import { observer } from 'mobx-react-lite'
+import React, { useMemo } from 'react'
 import { Virtuoso } from 'react-virtuoso'
+import { SourceChain } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 export type ListChainsProps = {
   onChainSelect: (chainName: SupportedChain) => void
   selectedChain: SupportedChain
-  chainsToShow?: string[]
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-function PopularChains({
-  popularChains,
-  onClickHandler,
-}: {
-  popularChains: SupportedChain[]
-  onClickHandler: (chain: SupportedChain) => void
-}) {
-  const chainInfos = useChainInfos()
-
-  return (
-    <div className='flex flex-col justify-start w-full items-start gap-[12px] mb-6'>
-      <div className='font-bold dark:text-white-100 text-sm !leading-[19px]'>Popular chains</div>
-      <div className='flex w-full flex-wrap gap-3'>
-        {popularChains.map((chain) => (
-          <button
-            key={chain}
-            className='flex gap-1 shrink-0 bg-gray-50 dark:bg-gray-900 rounded-full py-2 pl-2 pr-3 justify-center items-center'
-            onClick={() => onClickHandler(chain)}
-          >
-            <img
-              src={Images.Logos.getChainImage(chain)}
-              alt={chain}
-              className='w-6 h-6 rounded-full'
-            />
-            <span className='font-bold dark:text-white-100 text-sm !leading-[19px]'>
-              {chainInfos[chain as SupportedChain].chainName}
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
+  chainsToShow?: SourceChain[]
+  setSearchedChain: (chain: string) => void
+  searchedChain: string
 }
 
 export function ChainCard({
@@ -64,22 +28,15 @@ export function ChainCard({
   onChainSelect,
   selectedChain,
 }: {
-  chain: ManageChainSettings
+  chain: SourceChain
   index: number
   itemsLength: number
   setSearchedChain: (chain: string) => void
   onChainSelect: (chainName: SupportedChain) => void
   selectedChain: SupportedChain
 }) {
-  const customChains = isCompassWallet() ? [] : useCustomChains()
-  const chainInfos = useChainInfos()
-
-  const img =
-    chainInfos[chain.chainName as SupportedChain]?.chainSymbolImageUrl ??
-    customChains.find((d) => d.chainName === chain.chainName)?.chainSymbolImageUrl ??
-    GenericLight
-  const chainName =
-    chainInfos[chain.chainName as unknown as SupportedChain]?.chainName ?? chain.chainName
+  const img = chain.icon ?? GenericLight
+  const chainName = chain.chainName
   const isLast = index === itemsLength - 1
   const defaultTokenLogo = useDefaultTokenLogo()
 
@@ -88,10 +45,10 @@ export function ChainCard({
       <div
         onClick={() => {
           setSearchedChain('')
-          onChainSelect(chain.chainName)
+          onChainSelect(chain.key)
         }}
         className={classNames('flex flex-1 items-center py-3 cursor-pointer', {
-          'opacity-20': selectedChain === chain.chainName,
+          'opacity-20': selectedChain === chain.key,
         })}
       >
         <div className='flex items-center flex-1'>
@@ -114,30 +71,20 @@ export function ChainCard({
   )
 }
 
-export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListChainsProps) {
-  const [searchedChain, setSearchedChain] = useState('')
-
-  const [chains] = useManageChainData()
-  const chainInfos = useChainInfos()
-
+const ChainsListView = ({
+  onChainSelect,
+  selectedChain,
+  chainsToShow,
+  searchedChain,
+  setSearchedChain,
+}: ListChainsProps) => {
   const filteredChains = useMemo(() => {
-    return chains.filter(function (chain) {
-      if (!chain || !chain.active || (isCompassWallet() && chain.chainName === 'cosmos')) {
-        return false
-      }
-
-      if (
-        chainsToShow &&
-        chainsToShow.length &&
-        !chainsToShow.includes(chainInfos[chain.chainName]?.chainRegistryPath)
-      ) {
-        return false
-      }
-
-      const chainName = chainInfos[chain.chainName]?.chainName ?? chain.chainName
-      return chainName.toLowerCase().includes(searchedChain.toLowerCase())
-    })
-  }, [chainInfos, chains, chainsToShow, searchedChain])
+    return (
+      chainsToShow?.filter((chain) =>
+        chain.chainName.toLowerCase().includes(searchedChain.toLowerCase()),
+      ) ?? []
+    )
+  }, [chainsToShow, searchedChain])
 
   return (
     <>
@@ -175,7 +122,7 @@ export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListC
             style={{ flexGrow: '1', width: '100%' }}
             itemContent={(index, chain) => (
               <ChainCard
-                key={chain?.id}
+                key={chain?.chainName}
                 chain={chain}
                 index={index}
                 itemsLength={filteredChains.length}
@@ -190,3 +137,5 @@ export function ChainsList({ onChainSelect, selectedChain, chainsToShow }: ListC
     </>
   )
 }
+
+export const ChainsList = observer(ChainsListView)

@@ -5,6 +5,7 @@ import { AuthInfo, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import Long from 'long'
 
 import { getFee } from './get-fee'
+import { getMilkywayMemo } from './get-milkyway-memo'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getProtoSignDocDecoder(signRequestData: Record<string, any>) {
@@ -65,7 +66,11 @@ export function getDirectSignDoc({
     }
   }
 
-  const defaultMemo = protoSignDocDecoder.txBody.memo
+  const defaultMemo = getMilkywayMemo(
+    signRequestData['sign-request'],
+    protoSignDocDecoder.toJSON(),
+    protoSignDocDecoder.txBody.memo,
+  )
 
   const signDoc = {
     ...protoSignDocDecoder.signDoc,

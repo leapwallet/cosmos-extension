@@ -37,12 +37,14 @@ export function StakeTokenCard({
 
       <div className='flex flex-col items-end w-[90px]'>
         {dollarAmount !== '-' ? (
-          <p className='text-black-100 dark:text-white-100 font-[700] text-[14px]'>
+          <p className='text-black-100 dark:text-white-100 font-[700] text-[14px] text-right'>
             {dollarAmount}
           </p>
         ) : null}
 
-        <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500]'>{amount}</p>
+        <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500] text-right'>
+          {amount}
+        </p>
       </div>
     </div>
   )

@@ -1,10 +1,12 @@
+import { formatPercentAmount } from '@leapwallet/cosmos-wallet-hooks'
 import { useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import { ArrowRight, CaretRight, Info } from '@phosphor-icons/react'
-import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { useSwapContext } from 'pages/swaps-v2/context'
+import { getPriceImpactPercent } from 'pages/swaps-v2/utils/priceImpact'
+import { getChainIdsFromRoute } from 'pages/swaps-v2/utils/route'
 import { getSlippageRemarks } from 'pages/swaps-v2/utils/slippage'
 import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -15,13 +17,13 @@ import PriceImpactSheet from './PriceImpactSheet'
 function OrderRoutingDisplay({
   orderRouting,
 }: {
-  orderRouting: { chainId: string; chainName: string; icon: string }[]
+  orderRouting: { chainId: string; chainName: string; icon: string | undefined }[]
 }) {
   return (
     <div className='flex items-center gap-[4px]'>
       {orderRouting.map((chain, idx, self) => (
         <div key={`${chain.chainId}-${idx}`} className='flex items-center gap-[4px]'>
-          <img src={chain.icon} alt={chain.chainId} className='w-5 h-5 rounded-full' />
+          <img src={chain?.icon} alt={chain.chainId} className='w-5 h-5 rounded-full' />
           {self.length - 1 !== idx ? (
             <ArrowRight size={16} className='text-gray-600 dark:text-gray-400' />
           ) : null}
@@ -42,7 +44,8 @@ export function MoreDetails({
   onSlippageInfoClick,
   setShowFeesSettingSheet,
 }: MoreDetailsProps) {
-  const { slippagePercent, displayFee, route, leapFeeBps, isSwapFeeEnabled } = useSwapContext()
+  const { slippagePercent, displayFee, routingInfo, leapFeeBps, isSwapFeeEnabled } =
+    useSwapContext()
 
   const slippageRemarks = useMemo(() => {
     return getSlippageRemarks(String(slippagePercent))
@@ -54,20 +57,19 @@ export function MoreDetails({
   const skipChains = useSkipSupportedChains()
 
   const priceImpactPercentage = useMemo(() => {
-    if (
-      route?.response?.swap_price_impact_percent &&
-      !isNaN(parseFloat(route.response.swap_price_impact_percent))
-    ) {
-      return new BigNumber(route.response.swap_price_impact_percent)
-    }
-    return null
-  }, [route?.response?.swap_price_impact_percent])
-
-  const orderRouting = useMemo(() => {
-    if (!chains || !route?.response?.chain_ids) {
+    const priceImpactPercent = getPriceImpactPercent(routingInfo.route)
+    if (priceImpactPercent.isNaN()) {
       return null
     }
-    return route.response.chain_ids.map((chainId: string) => {
+    return priceImpactPercent
+  }, [routingInfo.route])
+
+  const orderRouting = useMemo(() => {
+    const chainIds = getChainIdsFromRoute(routingInfo.route)
+    if (!chains || !chainIds) {
+      return null
+    }
+    return chainIds.map((chainId: string) => {
       const nativeChainsEntry = Object.values(chains).find(
         (chain) => chain.chainId === chainId || chain.testnetChainId === chainId,
       )
@@ -88,7 +90,7 @@ export function MoreDetails({
 
       return { chainId, chainName: skipChainEntry.chainName, icon: skipChainEntry.icon }
     })
-  }, [chains, skipChains?.data, route?.response?.chain_ids])
+  }, [routingInfo.route, chains, skipChains?.data])
 
   const showLeapFees = useMemo(() => {
     return Number(leapFeeBps) > 0 && isSwapFeeEnabled
@@ -137,7 +139,9 @@ export function MoreDetails({
               'text-red-400 dark:text-red-300': priceImpactPercentage?.isGreaterThanOrEqualTo(5),
             })}
           >
-            {priceImpactPercentage ? `${priceImpactPercentage?.toString()}%` : '-'}
+            {priceImpactPercentage
+              ? `${formatPercentAmount(priceImpactPercentage.toString(), 2)}%`
+              : '-'}
           </span>
         </div>
 
@@ -194,17 +198,18 @@ export function MoreDetails({
         )}
 
         <div className='flex w-full justify-between items-start p-[1.5px]'>
-          <div className='flex justify-start items-center gap-1 min-h-[19.2px] shrink-0'>
+          <div
+            onClick={handleTransactionFeesClick}
+            className='flex justify-start items-center gap-1 min-h-[19.2px] shrink-0 cursor-pointer'
+          >
             <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px] shrink-0'>
               Transaction fee
             </span>
             {showInfo && (
-              <button
-                onClick={handleTransactionFeesClick}
-                className='text-gray-600 dark:text-gray-400'
-              >
-                <CaretRight size={16} className='!text-md !leading-[16px]' />
-              </button>
+              <CaretRight
+                size={16}
+                className='!text-md !leading-[16px] text-gray-600 dark:text-gray-400'
+              />
             )}
           </div>
           <span className='text-sm font-bold dark:text-white-100 !leading-[19.8px] text-right'>

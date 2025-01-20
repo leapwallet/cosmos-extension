@@ -1,18 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  useActiveWallet,
-  useAggregatedChainsList,
-  useGetChains,
-  WALLETTYPE,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveWallet, useGetChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ManageChainSettings, useManageChainData } from 'hooks/settings/useManageChains'
+import { AggregatedChainsStore } from '@leapwallet/cosmos-wallet-store'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { ManageChainSettings } from 'stores/manage-chains-store'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 type AggregatedNullComponentsProps = {
   setAggregatedStore: any
+  aggregatedChainsStore: AggregatedChainsStore
   render: ({
     key,
     chain,
@@ -24,13 +23,13 @@ type AggregatedNullComponentsProps = {
   }) => JSX.Element
 }
 
-export const AggregatedNullComponents = React.memo(function ({
+export const AggregatedNullComponents = observer(function ({
   setAggregatedStore,
+  aggregatedChainsStore,
   render,
 }: AggregatedNullComponentsProps) {
-  const [managedChains] = useManageChainData()
   const chains = useGetChains()
-  const aggregatedChains = useAggregatedChainsList()
+  const aggregatedChains = aggregatedChainsStore.aggregatedChainsData as SupportedChain[]
   const activeWallet = useActiveWallet()
 
   const ledgerEnabledEvmChainsIds = useMemo(() => {
@@ -78,7 +77,9 @@ export const AggregatedNullComponents = React.memo(function ({
       }
 
       // If managed chain is not active, skip fetching the chain
-      const managedChain = managedChains.find((managedChain) => managedChain.chainName === chain)
+      const managedChain = manageChainsStore.chains.find(
+        (managedChain) => managedChain.chainName === chain,
+      )
       if (managedChain && managedChain.active) {
         return [...acc, managedChain]
       }
@@ -91,7 +92,7 @@ export const AggregatedNullComponents = React.memo(function ({
     aggregatedChains,
     chains,
     ledgerEnabledEvmChainsIds,
-    managedChains,
+    manageChainsStore.chains,
   ])
 
   return (

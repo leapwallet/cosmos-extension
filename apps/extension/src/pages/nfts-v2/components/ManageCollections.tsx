@@ -204,11 +204,7 @@ export function ManageCollections({
                 <React.Fragment key={`${address}-${index}`}>
                   <NftToggleCard
                     title={
-                      <Text
-                        className={classNames('capitalize', { '!max-w-[95px]': isSidePanel() })}
-                      >
-                        {name.toLowerCase()}
-                      </Text>
+                      <Text className={classNames({ '!max-w-[95px]': isSidePanel() })}>{name}</Text>
                     }
                     isRounded={isLast}
                     size='md'

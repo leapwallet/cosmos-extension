@@ -162,9 +162,6 @@ export const getIds = async (
       case AssetPlatform.Teritori:
         if (token === 'tori') nativeIdTokenMapping.teritori = token;
         break;
-      case AssetPlatform.Cudos:
-        if (token === 'cudos') nativeIdTokenMapping.cudos = token;
-        break;
       case AssetPlatform.Carbon:
         if (token === 'swth') nativeIdTokenMapping.switcheo = token;
         break;

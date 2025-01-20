@@ -173,7 +173,7 @@ export class InExtensionMessageRequester implements MessageRequester {
     if (!key) {
       return this.getKey(message);
     }
-    key.pubKey = new Uint8Array(Object.values(key?.pubKey));
+    key.pubKey = new Uint8Array(Object.values(key?.pubKey ?? key?.publicKey));
     key.address = new Uint8Array(Object.values(key?.address));
     return key;
   }
@@ -195,6 +195,12 @@ export class InExtensionMessageRequester implements MessageRequester {
 
   async suggestCW20Token(chainId: string, contractAddress: string): Promise<void> {
     const data = await this.requestWrapper(SUPPORTED_METHODS.SUGGEST_CW20_TOKEN, { chainId, contractAddress });
+
+    if (data.payload) return data.payload;
+  }
+
+  async switchChain(chainId: string, existingChainId: string): Promise<void> {
+    const data = await this.requestWrapper(SUPPORTED_METHODS.REQUEST_SWITCH_CHAIN, { chainId, existingChainId });
 
     if (data.payload) return data.payload;
   }
@@ -222,7 +228,7 @@ export class InExtensionMessageRequester implements MessageRequester {
     return (await this.requestWrapper(SUPPORTED_METHODS.GET_CONNECTION_STATUS, { chainId })).payload;
   }
 
-  async disconnect(chainId: string) {
+  async disconnect(chainId: string | string[]) {
     return (await this.requestWrapper(SUPPORTED_METHODS.DISCONNECT, { chainId })).payload;
   }
 

@@ -19,9 +19,9 @@ import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 
 interface ClaimInfoProps {
   isOpen: boolean
@@ -60,7 +60,6 @@ const ClaimInfo = observer(
       [forceNetwork, _activeNetwork],
     )
 
-    const { formatHideBalance } = useHideAssets()
     const [formatCurrency] = useFormatCurrency()
 
     const denoms = rootDenomsStore.allDenoms
@@ -92,25 +91,20 @@ const ClaimInfo = observer(
     )
 
     const formattedNativeTokenReward = useMemo(() => {
-      return formatHideBalance(
+      return hideAssetsStore.formatHideBalance(
         formatTokenAmount(nativeTokenReward?.amount ?? '', activeStakingDenom?.coinDenom),
       )
-    }, [activeStakingDenom?.coinDenom, formatHideBalance, nativeTokenReward?.amount])
+    }, [activeStakingDenom?.coinDenom, nativeTokenReward?.amount])
 
     const nativeRewardTitle = useMemo(() => {
       if (new BigNumber(nativeTokenReward?.currencyAmount ?? '').gt(0)) {
-        return formatHideBalance(
+        return hideAssetsStore.formatHideBalance(
           formatCurrency(new BigNumber(nativeTokenReward?.currencyAmount ?? '')),
         )
       } else {
         return formattedNativeTokenReward
       }
-    }, [
-      formatCurrency,
-      formatHideBalance,
-      formattedNativeTokenReward,
-      nativeTokenReward?.currencyAmount,
-    ])
+    }, [formatCurrency, formattedNativeTokenReward, nativeTokenReward?.currencyAmount])
 
     const nativeRewardSubtitle = useMemo(() => {
       if (new BigNumber(nativeTokenReward?.currencyAmount ?? '').gt(0)) {
@@ -121,25 +115,22 @@ const ClaimInfo = observer(
 
     const formattedTokenReward = useMemo(() => {
       const rewardCount = rewards?.total?.length ?? 0
-      return formatHideBalance(
+      return hideAssetsStore.formatHideBalance(
         `${formatTokenAmount(nativeTokenReward?.amount ?? '', activeStakingDenom?.coinDenom)} ${
           rewardCount > 1 ? `+${rewardCount - 1} more` : ''
         }`,
       )
-    }, [
-      activeStakingDenom?.coinDenom,
-      formatHideBalance,
-      nativeTokenReward?.amount,
-      rewards?.total.length,
-    ])
+    }, [activeStakingDenom?.coinDenom, nativeTokenReward?.amount, rewards?.total.length])
 
     const totalRewardTitle = useMemo(() => {
       if (totalRewardsDollarAmt && new BigNumber(totalRewardsDollarAmt).gt(0)) {
-        return formatHideBalance(formatCurrency(new BigNumber(totalRewardsDollarAmt)))
+        return hideAssetsStore.formatHideBalance(
+          formatCurrency(new BigNumber(totalRewardsDollarAmt)),
+        )
       } else {
         return formattedTokenReward
       }
-    }, [formatCurrency, formatHideBalance, formattedTokenReward, totalRewardsDollarAmt])
+    }, [formatCurrency, formattedTokenReward, totalRewardsDollarAmt])
 
     const totalRewardSubtitle = useMemo(() => {
       if (totalRewardsDollarAmt && new BigNumber(totalRewardsDollarAmt).gt(0)) {

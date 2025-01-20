@@ -35,6 +35,13 @@ browser.runtime.onMessage.addListener((data, sender) => {
     const customEvent = new CustomEvent('disconnect', { detail: { data: data?.data } })
     window.dispatchEvent(customEvent)
   }
+
+  if (data?.event === 'leap_activeChainInfoChanged') {
+    const customEvent = new CustomEvent('leap_activeChainInfoChanged', {
+      detail: { data: data?.data },
+    })
+    window.dispatchEvent(customEvent)
+  }
 })
 
 function initKeepWorkerAlive() {

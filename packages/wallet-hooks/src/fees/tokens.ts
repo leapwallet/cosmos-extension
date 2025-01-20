@@ -2,6 +2,7 @@ import {
   axiosWrapper,
   DenomsRecord,
   DenomWithGasPriceStep,
+  isAptosChain,
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
@@ -26,7 +27,7 @@ import {
   useGasPriceStepForChain,
   useNativeFeeDenom,
 } from '../utils';
-import { useGetEvmGasPrices } from '../utils-hooks';
+import { useGetAptosGasPrices, useGetEvmGasPrices } from '../utils-hooks';
 
 export type FeeTokenData = {
   denom: NativeDenom;
@@ -342,14 +343,19 @@ export const useFeeTokens = (
   const baseDenom = useNativeFeeDenom(denoms, chain, forceNetwork);
   const additionalFeeDenoms = useAdditionalFeeDenoms(chain);
   const { gasPrice: evmGasPrice } = useGetEvmGasPrices(chain, forceNetwork);
+  const { gasPrice: aptosGasPrice } = useGetAptosGasPrices(chain, forceNetwork);
   const _gasPriceStep = useGasPriceStepForChain(chain, forceNetwork);
   const gasPriceStep = useMemo(() => {
     if (isSeiEvmTransaction || chains[chain]?.evmOnlyChain) {
       return evmGasPrice;
     }
 
+    if (isAptosChain(chain)) {
+      return aptosGasPrice;
+    }
+
     return _gasPriceStep;
-  }, [isSeiEvmTransaction, _gasPriceStep, evmGasPrice, chains, chain]);
+  }, [isSeiEvmTransaction, _gasPriceStep, evmGasPrice, aptosGasPrice, chains, chain]);
 
   return useQuery<FeeTokenData[]>({
     queryKey: [

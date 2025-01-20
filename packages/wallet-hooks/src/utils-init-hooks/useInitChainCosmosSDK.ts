@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 import { useChainCosmosSDKStore } from '../store';
-import { cachedRemoteDataWithLastModified, storage, useGetStorageLayer } from '../utils';
+import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
+import { storage, useGetStorageLayer } from '../utils/global-vars';
 
 export type ChainCosmosSDK = {
   [chainId: string]: {

@@ -1,12 +1,9 @@
 import { ChainInfo, SupportedChain } from '../constants';
 
-export function getEvmChainIdMap(chains: Record<SupportedChain, ChainInfo>) {
+export function getEvmChainIdMap(chains: Record<SupportedChain, ChainInfo>, isCompass: boolean) {
   const chainIdsMap: Record<string, { key: string; isTestnet: boolean }> = {};
   Object.values(chains).forEach((chain) => {
-    if (
-      chain.evmOnlyChain ||
-      (process.env.APP?.includes('compass') && ['seiDevnet', 'seiTestnet2'].includes(chain.key))
-    ) {
+    if (chain.evmOnlyChain || (isCompass && ['seiDevnet', 'seiTestnet2'].includes(chain.key))) {
       if (chain.evmChainId) {
         chainIdsMap[chain.evmChainId] = { key: chain.key, isTestnet: false };
       }

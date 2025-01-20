@@ -5,6 +5,7 @@ export const walletLabels: Record<WALLETTYPE, string> = {
   [WALLETTYPE.SEED_PHRASE_IMPORTED]: 'Imported',
   [WALLETTYPE.LEDGER]: 'Ledger',
   [WALLETTYPE.PRIVATE_KEY]: 'Imported',
+  [WALLETTYPE.KEYSTONE]: 'Keystone',
   [WALLETTYPE.SEED_PHRASE]: '',
 }
 
@@ -41,3 +42,6 @@ export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'seiDevnet', 'seiTestnet2',
 export const AGGREGATED_CHAIN_KEY = 'aggregated'
 export const SEI_EVM_LEDGER_ERROR_MESSAGE =
   'Transactions for EVM addresses are not supported on Ledger yet'
+
+export const LIGHT_NODE_SYNC_WINDOW_SECS = 60 * 60 * 24 * 2 // 2 days
+export const LIGHT_NODE_TIME_CAPTURE_INTERVAL = 60_000 * 2 // 2 minute

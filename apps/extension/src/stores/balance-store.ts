@@ -1,5 +1,6 @@
 import {
   AggregatedChainsStore,
+  AnkrChainMapStore,
   BalanceStore,
   CompassSeiEvmConfigStore,
   CurrencyStore,
@@ -7,9 +8,11 @@ import {
   ERC20DenomBalanceStore,
   EvmBalanceStore,
   IbcTraceFetcher,
+  MarketDataStore,
   NmsStore,
   PriceStore,
 } from '@leapwallet/cosmos-wallet-store'
+import browser from 'webextension-polyfill'
 
 import { getStorageAdapter } from '../utils/storageAdapter'
 import { activeChainStore } from './active-chain-store'
@@ -19,6 +22,7 @@ import {
   autoFetchedCW20DenomsStore,
   betaCW20DenomsStore,
   betaERC20DenomsStore,
+  compassTokenTagsStore,
   cw20DenomsStore,
   denomsStore,
   disabledCW20DenomsStore,
@@ -27,16 +31,20 @@ import {
   erc404DenomsStore,
   rootDenomsStore,
 } from './denoms-store-instance'
+import { stakeEpochStore } from './epoch-store'
 import { selectedNetworkStore } from './selected-network-store'
 
+const app = 'extension'
+const version = browser.runtime.getManifest().version
 const storageAdapter = getStorageAdapter()
 
 export const currencyStore = new CurrencyStore(storageAdapter)
 export const priceStore = new PriceStore(currencyStore)
+export const marketDataStore = new MarketDataStore(currencyStore)
 export const nmsStore = new NmsStore()
 
 export const ibcTraceFetcher = new IbcTraceFetcher(rootDenomsStore)
-export const aggregatedChainsStore = new AggregatedChainsStore()
+export const aggregatedChainsStore = new AggregatedChainsStore(app, version, storageAdapter)
 
 export const balanceStore = new BalanceStore(
   addressStore,
@@ -47,6 +55,7 @@ export const balanceStore = new BalanceStore(
   aggregatedChainsStore,
   activeChainStore,
   selectedNetworkStore,
+  stakeEpochStore,
 )
 
 export const cw20TokenBalanceStore = new CW20DenomBalanceStore(
@@ -63,9 +72,23 @@ export const cw20TokenBalanceStore = new CW20DenomBalanceStore(
   disabledCW20DenomsStore,
   priceStore,
   aggregatedChainsStore,
+  compassTokenTagsStore,
 )
 
 export const compassSeiEvmConfigStore = new CompassSeiEvmConfigStore()
+export const ankrChainMapStore = new AnkrChainMapStore()
+
+export const evmBalanceStore = new EvmBalanceStore(
+  activeChainStore,
+  selectedNetworkStore,
+  addressStore,
+  chainInfoStore,
+  compassSeiEvmConfigStore,
+  rootDenomsStore,
+  storageAdapter,
+  priceStore,
+  aggregatedChainsStore,
+)
 
 export const erc20TokenBalanceStore = new ERC20DenomBalanceStore(
   chainInfoStore,
@@ -82,15 +105,8 @@ export const erc20TokenBalanceStore = new ERC20DenomBalanceStore(
   compassSeiEvmConfigStore,
   aggregatedChainsStore,
   erc404DenomsStore,
-)
-
-export const evmBalanceStore = new EvmBalanceStore(
-  activeChainStore,
-  selectedNetworkStore,
-  addressStore,
-  chainInfoStore,
-  compassSeiEvmConfigStore,
-  rootDenomsStore,
-  storageAdapter,
-  priceStore,
+  ankrChainMapStore,
+  evmBalanceStore,
+  currencyStore,
+  compassTokenTagsStore,
 )

@@ -1,33 +1,23 @@
-import { ThemeName } from '@leapwallet/leap-ui'
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { useEffect } from 'react'
-import { atom, useRecoilState } from 'recoil'
 import browser from 'webextension-polyfill'
 
-const storageKey = 'theme'
-
-const themeState = atom<ThemeName | undefined>({
-  key: 'theme',
-  default: undefined,
-})
+const themeStorageKey = 'theme'
 
 export function useInitTheme() {
-  const [, setState] = useRecoilState(themeState)
+  const { theme, setTheme } = useTheme()
 
   useEffect(() => {
-    browser.storage.local.get(storageKey).then((storage) => {
-      setState(storage[storageKey] ?? ThemeName.DARK)
+    browser.storage.local.get(themeStorageKey).then((storage) => {
+      setTheme(storage[themeStorageKey] ?? ThemeName.DARK)
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-}
 
-export function useThemeState() {
-  const [theme, setTheme] = useRecoilState(themeState)
   useEffect(() => {
     if (theme) {
-      browser.storage.local.set({ [storageKey]: theme })
+      browser.storage.local.set({ [themeStorageKey]: theme })
     }
   }, [theme])
-  return { theme, setTheme }
 }

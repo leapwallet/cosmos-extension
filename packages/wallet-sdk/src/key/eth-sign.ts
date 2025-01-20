@@ -5,6 +5,7 @@ import { serialize } from '@ethersproject/transactions';
 import { encodeSecp256k1Pubkey, EthWallet } from '@leapwallet/leap-keychain';
 import { keccak256 } from 'ethereumjs-util';
 
+import { LeapKeystoneSignerEth } from '../keystone';
 import { LeapLedgerSignerEth } from '../ledger';
 import { EIP712MessageValidator } from '../utils/eip-712-validator';
 
@@ -70,7 +71,7 @@ export async function ethSignEip712(
 
 export async function ethSign(
   signerAddress: string,
-  wallet: EthWallet | LeapLedgerSignerEth,
+  wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth,
   signDoc: StdSignDoc,
   type: EthSignType,
 ): Promise<AminoSignResponse> {
@@ -78,8 +79,24 @@ export async function ethSign(
   const pubKey = accounts[0].pubkey;
 
   const signBytes = Buffer.from(signDoc.msgs[0].value.data, 'base64');
-
   if (type === 'message') {
+    if (wallet instanceof LeapKeystoneSignerEth || wallet.constructor.name === 'LeapKeystoneSignerEth') {
+      const _wallet = wallet as LeapKeystoneSignerEth;
+      const signature = await _wallet.signPersonalMessage(signerAddress, Buffer.from(signBytes).toString('hex'));
+      const formattedSignature = concat([
+        signature.r,
+        signature.s,
+        signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+      ]);
+      return {
+        signed: signDoc,
+        signature: {
+          pub_key: encodeSecp256k1Pubkey(pubKey),
+          signature: Buffer.from(formattedSignature).toString('base64'),
+        },
+      };
+    }
+
     const tx = concat([
       Buffer.from('\x19Ethereum Signed Message:\n'),
       Buffer.from(signBytes.length.toString()),
@@ -135,6 +152,23 @@ export async function ethSign(
         },
       };
     }
+    if (wallet instanceof LeapKeystoneSignerEth || wallet.constructor.name === 'LeapKeystoneSignerEth') {
+      const _wallet = wallet as LeapKeystoneSignerEth;
+      const signature = await _wallet.signTransaction(signerAddress, serialize(tx).replace('0x', ''));
+      const formattedSignature = concat([
+        signature.r,
+        signature.s,
+        signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+      ]);
+      return {
+        signed: signDoc,
+        signature: {
+          pub_key: encodeSecp256k1Pubkey(pubKey),
+          signature: Buffer.from(formattedSignature).toString('base64'),
+        },
+      };
+    }
+
     const hash = keccak256(Buffer.from(serialize(tx).replace('0x', ''), 'hex'));
     const signature = await wallet.sign(signerAddress, hash);
     const v = Number(signature.v) - 27;
@@ -162,12 +196,30 @@ export async function ethSign(
 async function signEip712Tx(
   signerAddress: string,
   pubKey: Uint8Array,
-  wallet: EthWallet | LeapLedgerSignerEth,
+  wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth,
   signBytes: Buffer,
   signDoc: StdSignDoc,
 ): Promise<AminoSignResponse> {
   const messageBuffer = Buffer.from(signBytes).toString();
   const data = await EIP712MessageValidator.validateAsync(JSON.parse(messageBuffer));
+
+  if (wallet instanceof LeapKeystoneSignerEth || wallet.constructor.name === 'LeapKeystoneSignerEth') {
+    const _wallet = wallet as LeapKeystoneSignerEth;
+    const signature = await _wallet.signEip712(signerAddress, data);
+    const formattedSignature = concat([
+      signature.r,
+      signature.s,
+      signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
+    ]);
+    return {
+      signed: signDoc,
+      signature: {
+        pub_key: encodeSecp256k1Pubkey(pubKey),
+        signature: Buffer.from(formattedSignature).toString('base64'),
+      },
+    };
+  }
+
   if (wallet instanceof LeapLedgerSignerEth) {
     const signature = await wallet.signEip712(signerAddress, data);
     const formattedSignature = concat([

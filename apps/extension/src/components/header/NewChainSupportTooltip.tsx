@@ -1,21 +1,114 @@
+import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { useTheme } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
+import { useSetActiveChain } from 'hooks/settings/useActiveChain'
+import { useChainInfos } from 'hooks/useChainInfos'
 import { NewChainTooltipData } from 'hooks/useNewChainTooltip'
-import React from 'react'
+import React, { useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { AggregatedSupportedChain } from 'types/utility'
+import { uiErrorTags } from 'utils/sentry'
 
 type NewChainSupportTooltipProps = {
-  handleToolTipClose: () => void
-  handleCTAClick: () => void
   toolTipData: NewChainTooltipData
+  handleToolTipClose: () => void
+  setNewChain: (chain: string) => void
 }
 
 const NewChainSupportTooltip = ({
   toolTipData,
-  handleCTAClick,
   handleToolTipClose,
+  setNewChain,
 }: NewChainSupportTooltipProps) => {
   const { header, description, imgUrl, ctaText } = toolTipData
 
   const { theme } = useTheme()
+  const navigate = useNavigate()
+  const customChains = useCustomChains()
+  const chainInfos = useChainInfos()
+  const setActiveChain = useSetActiveChain()
+
+  const handleAddChainClick = useCallback(
+    (chain: string) => {
+      const item = customChains.find((customChain) => customChain.chainRegistryPath === chain)
+      let chainKey
+      for (const [key, chainInfo] of Object.entries(chainInfos)) {
+        if (
+          chainInfo.chainRegistryPath === item?.chainRegistryPath ||
+          chainInfo.key === item?.chainRegistryPath
+        ) {
+          chainKey = key
+          break
+        }
+      }
+      if (chainKey) {
+        setActiveChain(chainKey as AggregatedSupportedChain, item)
+      } else if (item) {
+        setNewChain(item.chainName)
+      } else {
+        captureException(`${chain} chain not found when clicked on tooltip`, {
+          tags: uiErrorTags,
+        })
+      }
+    },
+    [chainInfos, customChains, setActiveChain, setNewChain],
+  )
+
+  const handleSwitchChainClick = useCallback(
+    (chainRegistryPath: string) => {
+      let chainKey
+      for (const [key, chainInfo] of Object.entries(chainInfos)) {
+        if (
+          chainInfo.chainRegistryPath === chainRegistryPath ||
+          chainInfo.key === chainRegistryPath
+        ) {
+          chainKey = key
+          break
+        }
+      }
+      if (chainKey) {
+        setActiveChain(chainKey as AggregatedSupportedChain)
+      } else {
+        captureException(`${chainRegistryPath} chain not found when clicked on banners`, {
+          tags: uiErrorTags,
+        })
+      }
+    },
+    [chainInfos, setActiveChain],
+  )
+
+  const handleCTAClick = useCallback(() => {
+    handleToolTipClose()
+    switch (toolTipData.ctaAction?.type) {
+      case 'redirect-internally': {
+        navigate(`${toolTipData.ctaAction.redirectUrl}&toolTipId=${toolTipData.id}`)
+        break
+      }
+      case 'redirect-externally': {
+        window.open(toolTipData.ctaAction.redirectUrl, '_blank')
+        break
+      }
+      case 'add-chain': {
+        handleAddChainClick(toolTipData.ctaAction.chainRegistryPath)
+        break
+      }
+      case 'switch-chain': {
+        handleSwitchChainClick(toolTipData.ctaAction.chainRegistryPath)
+        break
+      }
+      default: {
+        navigate(`/home?openChainSwitch=true`)
+        break
+      }
+    }
+  }, [
+    toolTipData.ctaAction,
+    toolTipData.id,
+    handleToolTipClose,
+    navigate,
+    handleAddChainClick,
+    handleSwitchChainClick,
+  ])
 
   return (
     <>

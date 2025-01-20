@@ -1,6 +1,16 @@
-import { useAssetDetails, useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  CompassDenomInfoParams,
+  useAssetDetails,
+  useformatCurrency,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk'
-import { ChainTagsStore, DenomsStore } from '@leapwallet/cosmos-wallet-store'
+import {
+  ChainTagsStore,
+  CompassSeiEvmConfigStore,
+  CompassSeiTokensAssociationStore,
+  DenomsStore,
+  MarketDataStore,
+} from '@leapwallet/cosmos-wallet-store'
 import {
   Buttons,
   Header,
@@ -19,13 +29,12 @@ import ReceiveToken from 'components/Receive'
 import ChartSkeleton from 'components/Skeletons/ChartSkeleton'
 import Text from 'components/text'
 import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import {
   ChartTooltip,
@@ -41,18 +50,26 @@ import {
   MarkLine,
   TooltipArea,
 } from 'reaviz'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { Token } from 'types/bank'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize, formatTokenAmount, trim } from 'utils/strings'
 
 const AssetDetails = observer(
   ({
     denomsStore,
     chainTagsStore,
+    compassSeiEvmConfigStore,
+    compassTokensAssociationsStore,
+    marketDataStore,
   }: {
     denomsStore: DenomsStore
     chainTagsStore: ChainTagsStore
+    compassSeiEvmConfigStore: CompassSeiEvmConfigStore
+    compassTokensAssociationsStore: CompassSeiTokensAssociationStore
+    marketDataStore: MarketDataStore
   }) => {
     const chainInfos = useChainInfos()
     const [formatCurrency] = useformatCurrency()
@@ -73,8 +90,6 @@ const AssetDetails = observer(
     const state = useLocation().state
 
     const defaultTokenLogo = useDefaultTokenLogo()
-    const { hideBalances: balancesHidden, formatHideBalance } = useHideAssets()
-    const setBalancesVisibility = useSetHideAssets()
 
     const [showChainSelector, setShowChainSelector] = useState(false)
     const [showReceiveSheet, setShowReceiveSheet] = useState(false)
@@ -82,6 +97,36 @@ const AssetDetails = observer(
     const isDark = useTheme().theme === ThemeName.DARK
     const portfolio: Token = state as Token
     const formatter = Intl.NumberFormat('en', { notation: 'compact' })
+    const marketData = marketDataStore.data
+
+    const seiEvmRpcUrl = compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_EVM_RPC_URL
+    const seiEvmChainId = String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID)
+    const seiCosmosChainId = compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_COSMOS_CHAIN_ID
+    const compassEvmToSeiMapping = compassTokensAssociationsStore.compassEvmToSeiMapping
+    const compassSeiToEvmMapping = compassTokensAssociationsStore.compassSeiToEvmMapping
+
+    const compassParams: CompassDenomInfoParams = useMemo(() => {
+      if (!isCompassWallet()) {
+        return {
+          isCompassWallet: false,
+        }
+      }
+
+      return {
+        isCompassWallet: true,
+        compassEvmToSeiMapping,
+        compassSeiToEvmMapping,
+        seiEvmRpcUrl,
+        seiEvmChainId,
+        seiCosmosChainId,
+      }
+    }, [
+      compassEvmToSeiMapping,
+      compassSeiToEvmMapping,
+      seiCosmosChainId,
+      seiEvmChainId,
+      seiEvmRpcUrl,
+    ])
 
     const {
       activeChain,
@@ -99,6 +144,8 @@ const AssetDetails = observer(
       denoms: denomsStore.denoms,
       denom: assetName as unknown as SupportedDenoms,
       tokenChain: tokenChain as unknown as SupportedChain,
+      compassParams,
+      marketData: marketData,
     })
 
     const activeChainInfo = chainInfos[activeChain]
@@ -351,9 +398,9 @@ const AssetDetails = observer(
                     className={
                       'flex justify-center text-lg text-gray-600 dark:text-gray-200 items-center cursor-pointer'
                     }
-                    onClick={() => setBalancesVisibility(!balancesHidden)}
+                    onClick={() => hideAssetsStore.setHidden(!hideAssetsStore.isHidden)}
                   >
-                    {balancesHidden ? (
+                    {hideAssetsStore.isHidden ? (
                       <Eye size={20} className='mr-2' />
                     ) : (
                       <EyeSlash size={20} className='mr-2' />
@@ -365,8 +412,10 @@ const AssetDetails = observer(
               <div className='flex flex-col p-[4px]'>
                 <Text size='xxl' className='font-black'>
                   {portfolio.usdValue === ''
-                    ? formatHideBalance(formatTokenAmount(portfolio.amount, portfolio.symbol))
-                    : formatHideBalance(
+                    ? hideAssetsStore.formatHideBalance(
+                        formatTokenAmount(portfolio.amount, portfolio.symbol),
+                      )
+                    : hideAssetsStore.formatHideBalance(
                         formatCurrency(new BigNumber(portfolio.usdValue as string)),
                       )}
                 </Text>
@@ -374,7 +423,9 @@ const AssetDetails = observer(
                 {portfolio.usdValue !== '' && (
                   <div className='flex gap-x-[5px]'>
                     <Text size='sm' color='text-gray-400 font-bold'>
-                      {formatHideBalance(formatTokenAmount(portfolio.amount, portfolio.symbol))}
+                      {hideAssetsStore.formatHideBalance(
+                        formatTokenAmount(portfolio.amount, portfolio.symbol),
+                      )}
                     </Text>
                   </div>
                 )}

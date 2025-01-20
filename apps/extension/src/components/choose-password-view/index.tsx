@@ -2,7 +2,6 @@ import { Buttons, Input } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import CssLoader from 'components/css-loader/CssLoader'
 import Text from 'components/text'
-import { useSetPassword } from 'hooks/settings/usePassword'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -11,14 +10,13 @@ import { getPassScore } from 'utils/passChecker'
 
 type ViewProps = {
   // eslint-disable-next-line no-unused-vars
-  readonly onProceed: (password: string) => void
+  readonly onProceed: (password: Uint8Array) => void
 }
 
 export default function ChoosePasswordView({ onProceed }: ViewProps) {
   const [isLoading, setLoading] = useState(false)
   const [passScore, setPassScore] = useState<number | null>(null)
   const [termsOfUseAgreedCheck, setTermsOfUseAgreedCheck] = useState(true)
-  const setPassword = useSetPassword()
   const [error, setError] = useState('')
 
   const [passwords, setPasswords] = useState({
@@ -73,8 +71,9 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
   const handleSubmit = async () => {
     try {
       setLoading(true)
-      await setPassword(passwords.pass1)
-      await onProceed(passwords.pass1)
+      const textEncoder = new TextEncoder()
+      const password = textEncoder.encode(passwords.pass1)
+      onProceed(password)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       setError(error.message)

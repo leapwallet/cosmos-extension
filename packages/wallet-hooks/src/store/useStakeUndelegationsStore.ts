@@ -1,7 +1,7 @@
 import { SupportedChain, UnbondingDelegation } from '@leapwallet/cosmos-wallet-sdk';
 import create from 'zustand';
 
-import { SelectedNetwork } from '../utils';
+import { SelectedNetwork } from '../utils/get-staking-selected-network';
 
 type Undelegations = Record<string, UnbondingDelegation>;
 type Status = 'loading' | 'success' | 'error';

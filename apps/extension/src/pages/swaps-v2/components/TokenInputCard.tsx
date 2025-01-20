@@ -5,9 +5,9 @@ import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import { IconActionButton } from 'pages/home/components'
 import React, {
   Dispatch,
@@ -19,6 +19,7 @@ import React, {
   useState,
 } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { SourceChain, SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
@@ -47,7 +48,7 @@ type TokenInputCardProps = {
   isChainAbstractionView?: boolean
 }
 
-export function TokenInputCard({
+function TokenInputCardView({
   isInputInUSDC,
   setIsInputInUSDC,
   readOnly,
@@ -69,7 +70,6 @@ export function TokenInputCard({
   isChainAbstractionView,
 }: TokenInputCardProps) {
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
   const { theme } = useTheme()
   const chains = useGetChains()
 
@@ -106,20 +106,22 @@ export function TokenInputCard({
 
     return {
       dollarAmount: _dollarAmount,
-      formattedDollarAmount: formatHideBalance(formatCurrency(new BigNumber(_dollarAmount))),
+      formattedDollarAmount: hideAssetsStore.formatHideBalance(
+        formatCurrency(new BigNumber(_dollarAmount)),
+      ),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formatCurrency, token, value])
 
   const formattedInputValue = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(value ?? '0', sliceWord(token?.symbol ?? '', 4, 4), 3),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, token?.symbol])
 
   const balanceAmount = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(token?.amount ?? '0', sliceWord(token?.symbol ?? '', 4, 4), 3),
     )
 
@@ -390,3 +392,5 @@ export function TokenInputCard({
     </div>
   )
 }
+
+export const TokenInputCard = observer(TokenInputCardView)

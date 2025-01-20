@@ -8,11 +8,13 @@ import ExtensionPage from 'components/extension-page'
 import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
 import { AuthContextType, useAuth } from 'context/auth-context'
+import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { useSetLastActiveTime } from 'hooks/settings/usePassword'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { autoLockTimeStore } from 'stores/password-store'
 import { Colors } from 'theme/colors'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -40,9 +42,7 @@ function LoginView(props: {
   if (props.loading) {
     return (
       <PopupLayout>
-        <div className='flex flex-col items-center justify-center h-full'>
-          <Loader />
-        </div>
+        <div className='flex flex-col items-center justify-center h-full'>{/*<Loader />*/}</div>
       </PopupLayout>
     )
   }
@@ -130,13 +130,12 @@ function LoginView(props: {
   )
 }
 
-export default function Login() {
+function Login() {
   const activeChain = useActiveChain()
   const location = useLocation()
   const [passwordInput, setPasswordInput] = useState('')
   const navigate = useNavigate()
   const auth = useAuth()
-  const setLastActiveTime = useSetLastActiveTime()
   const [isPopup, setIsPopup] = useState(false)
 
   const [isError, setError] = useState<boolean>(false)
@@ -149,17 +148,19 @@ export default function Login() {
     const sendKey = `${activeChain}-send-address`
 
     browser.storage.local.get([sendKey]).then((res) => {
-      if (!auth.locked) {
-        const _pathname = res[sendKey]
-          ? '/send'
-          : (location.state as { from: { pathname: string } })?.from?.pathname ?? '/home'
+      if (auth.locked === 'unlocked') {
+        const from = (location.state as { from: { pathname: string; search?: string } })?.from
+        const pathname = from?.pathname
+          ? `${from?.pathname}${from?.search ? `${from?.search}` : ''}`
+          : undefined
+        const _pathname = res[sendKey] ? '/send' : pathname ?? '/home'
         navigate(_pathname, { state: { from: 'login' }, replace: true })
       }
     })
   }, [activeChain, auth, location.state, navigate])
 
   useEffect(() => {
-    // We handle the no account case in a seperate useEffect hook to prevent multiple tabs from opening. This hook will only run once.
+    // We handle the no account case in a separate useEffect hook to prevent multiple tabs from opening. This hook will only run once.
     browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET]).then((storage) => {
       if (!storage[ACTIVE_WALLET] && !storage[ENCRYPTED_ACTIVE_WALLET]) {
         const tabs = browser.extension.getViews({ type: 'tab' })
@@ -217,8 +218,10 @@ export default function Login() {
     if (passwordInput) {
       setShowUnlockLoader(true)
       try {
-        await (auth as AuthContextType).signin(passwordInput, () => {
-          setLastActiveTime()
+        const textEncoder = new TextEncoder()
+        await (auth as AuthContextType).signin(textEncoder.encode(passwordInput), () => {
+          setPasswordInput('')
+          autoLockTimeStore.setLastActiveTime()
           const searchParams = new URLSearchParams(location.search)
           if (searchParams.has('close-on-login')) {
             browser.runtime.sendMessage({ type: 'user-logged-in', payload: { status: 'success' } })
@@ -230,7 +233,10 @@ export default function Login() {
             return
           }
 
-          const pathname = (location.state as { from: { pathname: string } })?.from?.pathname
+          const from = (location.state as { from: { pathname: string; search?: string } })?.from
+          const pathname = from?.pathname
+            ? `${from?.pathname}${from?.search ? `${from?.search}` : ''}`
+            : undefined
 
           if (pathname && pathname.includes('onboarding') && auth && !auth.noAccount) {
             navigate('/home', { state: { from: 'login' }, replace: true })
@@ -247,7 +253,7 @@ export default function Login() {
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth, location.state, navigate, passwordInput, setLastActiveTime])
+  }, [auth, location.state, navigate, passwordInput])
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -268,6 +274,13 @@ export default function Login() {
     }
   }, [navigate, views.length])
 
+  usePerformanceMonitor({
+    page: 'login',
+    queryStatus: auth?.loading ? 'loading' : 'success',
+    op: 'loginPageLoad',
+    description: 'loading state on login page',
+  })
+
   return (views.length === 0 && !isPopup) || isSidePanel() ? (
     <ExtensionPage>
       <div
@@ -278,7 +291,7 @@ export default function Login() {
         <div className='dark:shadow-sm shadow-xl dark:shadow-gray-700 enclosing-panel panel-height'>
           <LoginView
             unlockLoader={showUnlockLoader}
-            loading={(auth as AuthContextType).loading}
+            loading={(auth as AuthContextType).loading || Boolean(auth?.noAccount)}
             onSubmit={handleSubmit}
             errorHighlighted={isError}
             onChange={(event) => {
@@ -294,7 +307,7 @@ export default function Login() {
   ) : (
     <LoginView
       unlockLoader={showUnlockLoader}
-      loading={(auth as AuthContextType).loading}
+      loading={(auth as AuthContextType).loading || Boolean(auth?.noAccount)}
       onSubmit={handleSubmit}
       errorHighlighted={isError}
       fullHeight={true}
@@ -307,3 +320,5 @@ export default function Login() {
     />
   )
 }
+
+export default observer(Login)

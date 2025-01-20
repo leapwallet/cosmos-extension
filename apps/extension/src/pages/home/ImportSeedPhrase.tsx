@@ -1,17 +1,20 @@
 import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import Text from 'components/text'
-import { usePassword } from 'hooks/settings/usePassword'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useState } from 'react'
 import { Colors } from 'theme/colors'
 import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 
 import useImportWallet = Wallet.useImportWallet
+import { captureException } from '@sentry/react'
 import InfoSheet from 'components/Infosheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { SeedPhraseInput } from 'components/seed-phrase-input'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
+import { passwordStore } from 'stores/password-store'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 type ImportSeedPhraseProps = {
   isVisible: boolean
@@ -19,8 +22,7 @@ type ImportSeedPhraseProps = {
   onClose: (closeParent: boolean) => void
 }
 
-export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) {
-  const password = usePassword()
+export const ImportSeedPhrase = observer(({ isVisible, onClose }: ImportSeedPhraseProps) => {
   const activeChain = useActiveChain()
   const [secret, setSecret] = useState('')
   const [error, setError] = useState('')
@@ -40,16 +42,22 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
 
     if (
       secret &&
-      password &&
+      passwordStore.password &&
       validateSeedPhrase({ phrase: secret, isPrivateKey: false, setError, setSecret })
     ) {
       try {
-        await importWallet({ privateKey: secret, type: 'import', addressIndex: '0', password })
+        await importWallet({
+          privateKey: secret,
+          type: 'import',
+          addressIndex: '0',
+          password: passwordStore.password,
+        })
         setSecret('')
         onClose(true)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        setError(error.message)
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Something went wrong'
+        captureException(errorMessage)
+        setError(errorMessage)
       }
     }
 
@@ -82,7 +90,11 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
         <SeedPhraseInput
           onChangeHandler={onChangeHandler}
           isError={!!error}
-          heading='Importing a recovery phrase from MetaMask might give a different address, use private key instead.'
+          heading={
+            isCompassWallet()
+              ? 'Importing a recovery phrase from MetaMask might give a different address, use private key instead.'
+              : 'To import an existing wallet, please enter the recovery phrase here'
+          }
           onPage='SelectWallet'
         />
         {error && (
@@ -128,4 +140,4 @@ export function ImportSeedPhrase({ isVisible, onClose }: ImportSeedPhraseProps) 
       ) : null}
     </div>
   )
-}
+})

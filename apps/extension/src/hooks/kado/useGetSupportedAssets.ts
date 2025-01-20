@@ -1,4 +1,4 @@
-import { useDenoms, useTokenPriorityKado } from '@leapwallet/cosmos-wallet-hooks'
+import { useTokenPriorityKado } from '@leapwallet/cosmos-wallet-hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useKadoAssets } from 'hooks/useGetKadoDetails'
@@ -33,7 +33,7 @@ export function useGetSupportedAssets() {
           return false
         }
 
-        return chain.chainId === asset.officialChainId
+        return chain.chainId === asset.officialChainId || chain.chainRegistryPath === asset.origin
       })
 
       const denomData = denomsArray.find(

@@ -1,5 +1,6 @@
 // denom store for all tokens data
 
+import { denoms as ConstantDenoms } from '@leapwallet/cosmos-wallet-sdk';
 import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk';
 import { computed, makeObservable } from 'mobx';
 
@@ -43,6 +44,7 @@ export class RootDenomsStore {
   get allDenoms(): DenomsRecord {
     return Object.assign(
       {},
+      ConstantDenoms,
       this.nativeSuggestedDenoms,
       this.baseDenomsStore.denoms,
       this.rootCW20DenomStore.allCW20Denoms,

@@ -1,5 +1,6 @@
 import {
   cachedRemoteDataWithLastModified,
+  useChainInfo,
   useGetStorageLayer,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useQuery } from '@tanstack/react-query'
@@ -8,6 +9,23 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
+import { useActiveChain } from './settings/useActiveChain'
+
+export type TooltipVisibility = {
+  visibleOn?: string[]
+  hiddenOn?: string[]
+}
+
+export type CTAAction =
+  | {
+      type: 'redirect-internally' | 'redirect-externally'
+      redirectUrl: string
+    }
+  | {
+      type: 'add-chain' | 'switch-chain'
+      chainRegistryPath: string
+    }
+
 export type NewChainTooltipData = {
   defaultFilter?: string
   id?: string
@@ -15,6 +33,8 @@ export type NewChainTooltipData = {
   description: string
   imgUrl?: string
   ctaText: string
+  ctaAction?: CTAAction
+  visibility?: TooltipVisibility
 }
 
 export default function useNewChainTooltip() {
@@ -23,7 +43,8 @@ export default function useNewChainTooltip() {
   const [userPreference, setUserPreference] = useState()
   const [userPreferenceLoading, setUserPreferenceLoading] = useState<boolean>(true)
   const [toolTipData, setToolTipData] = useState<NewChainTooltipData>()
-
+  const activeChain = useActiveChain()
+  const chainInfo = useChainInfo(activeChain)
   const version = browser.runtime.getManifest().version
 
   const { data } = useQuery(
@@ -94,9 +115,46 @@ export default function useNewChainTooltip() {
       return
     }
 
+    if (
+      data?.[version]?.visibility?.hiddenOn &&
+      (data?.[version]?.visibility?.hiddenOn?.includes(activeChain) ||
+        data?.[version]?.visibility?.hiddenOn?.includes(chainInfo?.chainId ?? '') ||
+        data?.[version]?.visibility?.hiddenOn?.includes(chainInfo?.testnetChainId ?? '') ||
+        data?.[version]?.visibility?.hiddenOn?.includes(chainInfo?.evmChainId ?? '') ||
+        data?.[version]?.visibility?.hiddenOn?.includes(chainInfo?.evmChainIdTestnet ?? ''))
+    ) {
+      setShowToolTip(false)
+      return
+    }
+
+    if (
+      data?.[version]?.visibility?.visibleOn &&
+      !(
+        data?.[version]?.visibility?.visibleOn?.includes(activeChain) ||
+        data?.[version]?.visibility?.visibleOn?.includes(chainInfo?.chainId ?? '') ||
+        data?.[version]?.visibility?.visibleOn?.includes(chainInfo?.testnetChainId ?? '') ||
+        data?.[version]?.visibility?.visibleOn?.includes(chainInfo?.evmChainId ?? '') ||
+        data?.[version]?.visibility?.visibleOn?.includes(chainInfo?.evmChainIdTestnet ?? '')
+      )
+    ) {
+      setShowToolTip(false)
+      return
+    }
+
     setShowToolTip(true)
     setToolTipData(data?.[version])
-  }, [data, userPreference, userPreferenceLoading, toolTipId, version])
+  }, [
+    data,
+    userPreference,
+    userPreferenceLoading,
+    toolTipId,
+    version,
+    activeChain,
+    chainInfo?.chainId,
+    chainInfo?.testnetChainId,
+    chainInfo?.evmChainId,
+    chainInfo?.evmChainIdTestnet,
+  ])
 
   const handleToolTipClose = useCallback(() => {
     setShowToolTip(false)

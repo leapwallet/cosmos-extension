@@ -1,6 +1,7 @@
 import { useSwapContext } from 'pages/swaps-v2/context'
 import { isNoRoutesAvailableError } from 'pages/swaps-v2/hooks'
 import React, { Dispatch, SetStateAction } from 'react'
+import { compassTokenTagsStore, rootDenomsStore } from 'stores/denoms-store-instance'
 
 import PriceImpactWarnings from './PriceImpactWarnings'
 import { WarningBox } from './WarningBox'
@@ -17,7 +18,7 @@ export function WarningsSection({
   ledgerError,
 }: Props) {
   const {
-    route,
+    routingInfo,
     isMoreThanOneStepTransaction,
     gasError,
     errorMsg,
@@ -53,7 +54,7 @@ export function WarningsSection({
     return <WarningBox message={ledgerError} type={'warning'} />
   }
 
-  if (!route?.response) {
+  if (!routingInfo.route?.response) {
     return null
   }
 
@@ -61,6 +62,8 @@ export function WarningsSection({
     <PriceImpactWarnings
       isPriceImpactChecked={isPriceImpactChecked}
       setIsPriceImpactChecked={setIsPriceImpactChecked}
+      rootDenomsStore={rootDenomsStore}
+      compassTokenTagsStore={compassTokenTagsStore}
     />
   )
 }

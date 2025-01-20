@@ -1,6 +1,5 @@
-import { Buttons, LineDivider, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { X } from '@phosphor-icons/react'
-import { Divider } from 'components/dapp'
 import Text from 'components/text'
 import { LedgerEvmChains } from 'images/logos'
 import { CheckGreenNew } from 'images/misc'
@@ -21,22 +20,29 @@ export default function ImportEvmModal({ onYes, onNo, onClose }: ImportEvmModalP
       <div className='w-[540px] bg-gray-950 rounded-3xl'>
         <div className='flex justify-between py-6 px-6 border-b border-gray-900'>
           <Text className='font-[700] text-[18px]'>Cosmos import successful</Text>
+
           <X size={24} className='text-gray-500 cursor-pointer' onClick={onClose} />
         </div>
+
         <div className='flex flex-col items-center justify-center gap-4 mb-8 mt-11'>
           <img src={CheckGreenNew} className='height-[72px] width-[72px]' />
+
           <Text size='lg' className='font-bold text-center'>
             Your Cosmos wallets can <br /> now be used with Leap!
           </Text>
         </div>
+
         <div className='h-[1px] bg-gray-900 w-full' />
+
         <div className='flex flex-col items-center justify-center gap-3 mt-11 mb-7'>
           <img src={LedgerEvmChains} className='height-[32px] width-[88px]' />
+
           <Text size='md' className='text-center'>
             You can now import your EVM based wallets to use <br /> chains like Dymension, Evmos &
             Injective.
           </Text>
         </div>
+
         <div className='flex gap-4 px-6 mb-6'>
           <Buttons.Generic
             color={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray100}
@@ -46,6 +52,7 @@ export default function ImportEvmModal({ onYes, onNo, onClose }: ImportEvmModalP
           >
             <Text color='text-green-600'>Skip</Text>
           </Buttons.Generic>
+
           <Buttons.Generic
             color={Colors.green600}
             size='normal'
@@ -55,6 +62,7 @@ export default function ImportEvmModal({ onYes, onNo, onClose }: ImportEvmModalP
             Import
           </Buttons.Generic>
         </div>
+
         <div className='flex items-center justify-center text-center mb-8'>
           <Text color='text-gray-400 dark:text-gray-600 ' className='font-medium'>
             You can also import EVM wallets later.

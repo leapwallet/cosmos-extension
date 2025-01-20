@@ -1,23 +1,29 @@
 import {
+  useActiveChain,
   useFetchDualStakeDelegations,
   useFetchDualStakeProviderRewards,
   useFetchDualStakeProviders,
   useInitCustomChains,
+  useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { useAllSkipAssets, useChains, useSkipSupportedChains } from '@leapwallet/elements-hooks'
+import { useChains, useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { SidePanelNavigation } from 'components/side-panel-navigation'
-import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
+import { useActiveInfoEventDispatcher } from 'hooks/settings/useActiveInfoEventDispatcher'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainAbstractionView } from 'hooks/settings/useChainAbstractionView'
 import { useAirdropsData } from 'hooks/useAirdropsData'
+import { InitHooks } from 'init-hooks'
+import Home from 'pages/home/Home'
 import { AddEvmLedger, AddEvmTitle } from 'pages/onboarding/import/AddEvmLedger'
+import useAssets from 'pages/swaps-v2/hooks/useAssets'
 import React, { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
-import { useRecoilValue } from 'recoil'
-import { chainTagsStore } from 'stores/chain-infos-store'
-import { denomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
+import { compassSeiEvmConfigStore, marketDataStore } from 'stores/balance-store'
+import { chainTagsStore, compassTokensAssociationsStore } from 'stores/chain-infos-store'
+import { compassTokenTagsStore, denomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
+import { nftStore } from 'stores/nft-store'
 import { rootBalanceStore, rootStakeStore, rootStore } from 'stores/root-store'
 import {
   claimRewardsStore,
@@ -25,19 +31,19 @@ import {
   unDelegationsStore,
   validatorsStore,
 } from 'stores/stake-store'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
-import { ledgerPopupState } from './atoms/ledger-popup'
-import LedgerConfirmationPopup from './components/ledger-confirmation/LedgerConfirmationPopup'
 import { AuthProvider, RequireAuth, RequireAuthOnboarding } from './context/auth-context'
 
 const Activity = lazy(() => import('pages/activity/Activity'))
 const Swap = lazy(() => import('pages/swaps-v2'))
+const Search = lazy(() => import('pages/search'))
 const ApproveConnection = React.lazy(() => import('pages/ApproveConnection/ApproveConnection'))
 const TokensDetails = React.lazy(() => import('pages/asset-details/components/chart-details'))
 const Login = React.lazy(() => import('pages/auth/login'))
 const Earn = React.lazy(() => import('pages/earn'))
 const ForgotPassword = React.lazy(() => import('pages/forgot-password'))
-const Home = React.lazy(() => import('pages/home/Home'))
+
 const ManageChain = React.lazy(() => import('pages/manageChain'))
 const Onboarding = React.lazy(() => import('pages/onboarding'))
 
@@ -48,6 +54,8 @@ const AddSecretToken = React.lazy(() => import('pages/suggest/SuggestSecret'))
 const Send = React.lazy(() => import('pages/send-v2'))
 const Buy = React.lazy(() => import('pages/buy'))
 const Sign = React.lazy(() => import('pages/sign/sign-transaction'))
+const SignAptos = React.lazy(() => import('pages/sign-aptos/sign-transaction'))
+const SignBitcoin = React.lazy(() => import('pages/sign-bitcoin/SignBitcoinTransaction'))
 const SignSeiEvm = React.lazy(() => import('pages/sign-sei-evm/SignSeiEvmTransaction'))
 const Stake = React.lazy(() => import('pages/stake-v2'))
 const StakeInputPage = React.lazy(() => import('pages/stake-v2/StakeInputPage'))
@@ -67,31 +75,24 @@ const Proposals = React.lazy(() => import('pages/governance/Proposals'))
 
 const SwitchEthereumChain = React.lazy(() => import('pages/switch-ethereum-chain'))
 const SuggestEthereumChain = React.lazy(() => import('pages/suggestChain/SuggestEthereumChain'))
+const SwitchChain = React.lazy(() => import('pages/switch-chain'))
 const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
-const useAllSkipAssetsParams = {
-  includeCW20Assets: true,
-  includeNoMetadataAssets: false,
-  includeEVMAssets: false,
-  includeSVMAssets: false,
-  nativeOnly: false,
-}
-
 export default function AppRoutes(): JSX.Element {
-  const showLedgerPopup = useRecoilValue(ledgerPopupState)
   const { activeWallet } = useActiveWallet()
   const fetchAirdropsData = useAirdropsData()
 
-  useInitAnalytics()
   useInitCustomChains()
   useChainAbstractionView()
   useFetchDualStakeDelegations(rootDenomsStore.allDenoms)
   useFetchDualStakeProviders(rootDenomsStore.allDenoms)
   useFetchDualStakeProviderRewards(rootDenomsStore.allDenoms)
 
+  useActiveInfoEventDispatcher()
+
   useChains()
   useSkipSupportedChains()
-  useAllSkipAssets(useAllSkipAssetsParams)
+  useAssets()
 
   useEffect(() => {
     if (activeWallet) {
@@ -99,10 +100,30 @@ export default function AppRoutes(): JSX.Element {
     }
   }, [activeWallet, activeWallet?.id, fetchAirdropsData])
 
+  const activeChain = useActiveChain()
+  const activeNetwork = useSelectedNetwork()
+
+  useEffect(() => {
+    ;(function () {
+      if (nftStore.haveToFetchNfts === false) {
+        nftStore.haveToFetchNfts = true
+      }
+    })()
+  }, [activeWallet?.addresses])
+
+  useEffect(() => {
+    ;(function () {
+      if (isCompassWallet() && nftStore.haveToFetchNfts === false) {
+        nftStore.haveToFetchNfts = true
+      }
+    })()
+  }, [activeChain, activeNetwork])
+
   return (
     <Suspense fallback={<AppInitLoader />}>
       <AuthProvider>
         <HashRouter>
+          <InitHooks />
           <SidePanelNavigation />
           <RoutesMatch>
             <Route path='/' element={<Login />} />
@@ -158,6 +179,10 @@ export default function AppRoutes(): JSX.Element {
                     denomsStore={denomsStore}
                     chainTagsStore={chainTagsStore}
                     rootDenomsStore={rootDenomsStore}
+                    compassTokensAssociationsStore={compassTokensAssociationsStore}
+                    compassSeiEvmConfigStore={compassSeiEvmConfigStore}
+                    marketDataStore={marketDataStore}
+                    compassTokenTagsStore={compassTokenTagsStore}
                   />
                 </RequireAuth>
               }
@@ -175,6 +200,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <Send />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='search'
+              element={
+                <RequireAuth>
+                  <Search />
                 </RequireAuth>
               }
             />
@@ -230,7 +263,7 @@ export default function AppRoutes(): JSX.Element {
               path='swap'
               element={
                 <RequireAuth>
-                  <Swap />
+                  <Swap rootBalanceStore={rootBalanceStore} />
                 </RequireAuth>
               }
             />
@@ -255,6 +288,22 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth hideBorder={true}>
                   <Sign />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='signAptos'
+              element={
+                <RequireAuth hideBorder={true}>
+                  <SignAptos />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='signBitcoin'
+              element={
+                <RequireAuth hideBorder={true}>
+                  <SignBitcoin />
                 </RequireAuth>
               }
             />
@@ -311,6 +360,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <PendingTx rootBalanceStore={rootBalanceStore} rootStakeStore={rootStakeStore} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='switch-chain'
+              element={
+                <RequireAuth>
+                  <SwitchChain />
                 </RequireAuth>
               }
             />
@@ -391,8 +448,6 @@ export default function AppRoutes(): JSX.Element {
             />
           </RoutesMatch>
         </HashRouter>
-
-        <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />
       </AuthProvider>
     </Suspense>
   )

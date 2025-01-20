@@ -2,7 +2,7 @@ import { Delegation, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 import create from 'zustand';
 
-import { SelectedNetwork } from '../utils';
+import { SelectedNetwork } from '../utils/get-staking-selected-network';
 
 export type DelegationInfo = {
   totalDelegationAmount: string;

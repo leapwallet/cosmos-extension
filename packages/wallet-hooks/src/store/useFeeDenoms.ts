@@ -10,7 +10,21 @@ export const useFeeDenomsStore = create<FeeDenomsState>((set) => ({
   feeDenoms: null,
   setFeeDenoms: (feeDenoms) =>
     set(() => {
-      return { feeDenoms };
+      if (!feeDenoms) return { feeDenoms: feeDenoms };
+      return {
+        feeDenoms: {
+          mainnet: {
+            ...feeDenoms.mainnet,
+            forma: 'forma-native',
+            flame: 'flame-native',
+          },
+          testnet: {
+            ...feeDenoms.testnet,
+            forma: 'forma-native',
+            flame: 'flame-native',
+          },
+        },
+      };
     }),
 }));
 

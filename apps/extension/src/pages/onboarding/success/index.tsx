@@ -298,7 +298,7 @@ export default function OnboardingSuccess() {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             onClick={() => {
-              window.open('https://twitter.com/leap_cosmos')
+              window.open('https://twitter.com/leap_wallet')
               trackCTAEvent(ButtonName.FOLLOW_LEAP)
             }}
           >

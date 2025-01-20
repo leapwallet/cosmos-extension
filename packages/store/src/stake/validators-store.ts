@@ -1,4 +1,4 @@
-import { getChainInfo, getUnbondingTime, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk';
+import { getChainInfo, getUnbondingTime, isAptosChain, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk';
 import CosmosDirectory from '@leapwallet/cosmos-wallet-sdk/dist/browser/chains/cosmosDirectory';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
@@ -133,7 +133,7 @@ export class ValidatorsStore {
     const activeChainInfo = this.chainInfosStore.chainInfos[chain];
     const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
 
-    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain) return;
+    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
     const chainKey = this.getChainKey(chain);
 
     const isFeatureComingSoon = isFeatureExistForChain(

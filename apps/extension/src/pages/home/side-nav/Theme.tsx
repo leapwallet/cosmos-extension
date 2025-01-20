@@ -4,8 +4,6 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import React from 'react'
 
-import { useThemeState } from '../../../hooks/settings/useTheme'
-
 export default function ThemeDropUp({
   isVisible,
   onCloseHandler,
@@ -15,7 +13,6 @@ export default function ThemeDropUp({
 }) {
   const activeChain = useActiveChain()
   const { theme, setTheme } = useTheme()
-  const { setTheme: setThemeState } = useThemeState()
   const themes = [
     {
       title: 'Light',
@@ -23,7 +20,6 @@ export default function ThemeDropUp({
       icon: Images.Nav.LightIcon,
       onClick: () => {
         setTheme(ThemeName.LIGHT)
-        setThemeState(ThemeName.LIGHT)
         onCloseHandler()
       },
     },
@@ -33,7 +29,6 @@ export default function ThemeDropUp({
       icon: Images.Nav.DarkIcon,
       onClick: () => {
         setTheme(ThemeName.DARK)
-        setThemeState(ThemeName.DARK)
         onCloseHandler()
       },
     },

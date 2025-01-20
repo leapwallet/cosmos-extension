@@ -25,6 +25,9 @@ export const AGGREGATED_CHAINS: SupportedChain[] = [
   'composable',
   'dymension',
   'saga',
+  'omniflix',
+  'cheqd',
+  'bitcoin',
 ];
 
 type AggregatedChainsListState = {
@@ -34,7 +37,7 @@ type AggregatedChainsListState = {
 
 export const useAggregatedChainsListStore = create<AggregatedChainsListState>((set) => ({
   aggregatedChains: AGGREGATED_CHAINS,
-  setAggregatedChains: (aggregatedChains) => set({ aggregatedChains }),
+  setAggregatedChains: (aggregatedChains) => set({ aggregatedChains: [...aggregatedChains, 'bitcoin'] }),
 }));
 
 export const useAggregatedChainsList = (): SupportedChain[] => {

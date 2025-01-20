@@ -40,6 +40,7 @@ import { timeLeft } from 'utils/timeLeft'
 import useGetWallet = Wallet.useGetWallet
 
 import { Info } from '@phosphor-icons/react'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
@@ -198,6 +199,11 @@ const ReviewCancelUnstakeTx = observer(
       txCallback,
       activeChain,
     ])
+
+    useCaptureUIException(ledgerError || error, {
+      activeChain,
+      activeNetwork,
+    })
 
     return (
       <GasPriceOptions

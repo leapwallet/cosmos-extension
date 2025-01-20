@@ -112,6 +112,9 @@ export const FeesView = observer(
             showFeesSettingSheet={showFeesSettingSheet}
             onClose={onClose}
             gasError={gasError}
+            hideAdditionalSettings={
+              sendActiveChain === 'bitcoin' || sendActiveChain === 'bitcoinSignet'
+            }
           />
         </GasPriceOptions>
       </div>

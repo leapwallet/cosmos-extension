@@ -1,3 +1,4 @@
+import { AccountAuthenticator, Serializer, SimpleTransaction } from '@aptos-labs/ts-sdk';
 import { AminoSignResponse, StdSignature, StdSignDoc } from '@cosmjs/amino';
 import { EthSignType } from '@leapwallet/cosmos-wallet-sdk';
 import { BroadcastMode } from 'cosmjs-types/cosmos/tx/v1beta1/service';
@@ -181,6 +182,44 @@ export class SendTxMsg extends Message<Uint8Array> {
     return SendTxMsg.type();
   }
 }
+
+export class RequestSignAptosMsg extends Message<AccountAuthenticator> {
+  constructor(
+    public readonly chainId: string,
+    public readonly signer: string,
+    public readonly signDoc: string,
+    public readonly submit: boolean,
+    public readonly signMessage: boolean,
+    public readonly signOptions: LeapSignOptions & {
+      asFeePayer?: boolean;
+    } = {},
+  ) {
+    super();
+  }
+
+  public static type() {
+    return 'request-sign-aptos';
+  }
+
+  validateBasic(): void {
+    if (!this.chainId) {
+      throw new Error('chain id not set');
+    }
+
+    if (!this.signer) {
+      throw new Error('signer not set');
+    }
+
+    if (!this.signOptions) {
+      throw new Error('Sign options are null');
+    }
+  }
+
+  type(): string {
+    return RequestSignAptosMsg.type();
+  }
+}
+
 export class RequestSignAminoMsg extends Message<AminoSignResponse> {
   constructor(
     public readonly chainId: string,

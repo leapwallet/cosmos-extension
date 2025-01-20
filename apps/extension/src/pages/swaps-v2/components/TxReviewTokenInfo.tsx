@@ -2,9 +2,10 @@ import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { SourceChain, SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
 
@@ -16,7 +17,7 @@ export type TxReviewTokenInfoProps = {
   chainImgClassName?: string
 }
 
-export function TxReviewTokenInfo({
+function TxReviewTokenInfoView({
   amount,
   token,
   chain,
@@ -24,7 +25,6 @@ export function TxReviewTokenInfo({
   chainImgClassName,
 }: TxReviewTokenInfoProps) {
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
   const defaultTokenLogo = useDefaultTokenLogo()
 
   const dollarAmount = useMemo(() => {
@@ -34,13 +34,13 @@ export function TxReviewTokenInfo({
       _dollarAmount = String(parseFloat(token.usdPrice) * parseFloat(amount))
     }
 
-    return formatHideBalance(formatCurrency(new BigNumber(_dollarAmount)))
+    return hideAssetsStore.formatHideBalance(formatCurrency(new BigNumber(_dollarAmount)))
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formatCurrency, token, amount])
 
   const balanceAmount = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(amount ?? '0', sliceWord(token?.symbol ?? '', 4, 4), 3),
     )
 
@@ -86,3 +86,5 @@ export function TxReviewTokenInfo({
     </div>
   )
 }
+
+export const TxReviewTokenInfo = observer(TxReviewTokenInfoView)

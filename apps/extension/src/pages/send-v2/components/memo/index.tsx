@@ -1,4 +1,5 @@
 import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { BTC_CHAINS, isAptosChain } from '@leapwallet/cosmos-wallet-sdk'
 import classNames from 'classnames'
 import { useSendContext } from 'pages/send-v2/context'
 import React from 'react'
@@ -7,7 +8,11 @@ export const Memo: React.FC = () => {
   const { memo, setMemo, addressWarning, sendActiveChain } = useSendContext()
   const chains = useGetChains()
 
-  if (chains?.[sendActiveChain]?.evmOnlyChain) {
+  if (
+    isAptosChain(sendActiveChain) ||
+    chains?.[sendActiveChain]?.evmOnlyChain ||
+    BTC_CHAINS.includes(sendActiveChain)
+  ) {
     return null
   }
 

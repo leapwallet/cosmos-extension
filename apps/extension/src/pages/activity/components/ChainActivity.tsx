@@ -1,5 +1,5 @@
 import { ActivityCardContent, useActivity } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainTagsStore, DenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { AnkrChainMapStore, ChainTagsStore, IbcTraceFetcher } from '@leapwallet/cosmos-wallet-store'
 import type { ParsedTransaction } from '@leapwallet/parser-parfait'
 import { QueryStatus } from '@tanstack/react-query'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
@@ -13,10 +13,15 @@ export type SelectedTx = {
   content: ActivityCardContent
 }
 
+type ChainActivityProps = {
+  chainTagsStore: ChainTagsStore
+  ankrChainMapStore: AnkrChainMapStore
+  ibcTraceFetcher: IbcTraceFetcher
+}
+
 const ChainActivity = observer(
-  ({ denomStore, chainTagsStore }: { denomStore: DenomsStore; chainTagsStore: ChainTagsStore }) => {
-    const denoms = denomStore.denoms
-    const { txResponse } = useActivity(denoms)
+  ({ chainTagsStore, ankrChainMapStore, ibcTraceFetcher }: ChainActivityProps) => {
+    const txResponse = useActivity(ankrChainMapStore.ankrChainMap, ibcTraceFetcher)
 
     const queryStatus = useMemo(() => {
       let status = txResponse.loading ? 'loading' : 'success'

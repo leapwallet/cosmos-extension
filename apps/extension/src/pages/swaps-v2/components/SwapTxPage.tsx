@@ -12,7 +12,7 @@ type SwapTxPageProps = {
 
 export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageProps) {
   const {
-    route,
+    routingInfo,
     sourceToken,
     sourceChain,
     inAmount,
@@ -30,7 +30,7 @@ export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageP
     swapFeeInfo,
   } = useSwapContext()
 
-  return (
+  return routingInfo?.route ? (
     <TxPage
       onClose={onClose}
       sourceToken={sourceToken}
@@ -39,7 +39,7 @@ export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageP
       destinationChain={destinationChain}
       inAmount={inAmount}
       amountOut={amountOut}
-      route={route}
+      routingInfo={routingInfo}
       userPreferredGasLimit={userPreferredGasLimit}
       userPreferredGasPrice={userPreferredGasPrice}
       gasEstimate={gasEstimate}
@@ -54,5 +54,5 @@ export function SwapTxPage({ onClose, setLedgerError, ledgerError }: SwapTxPageP
       rootCW20DenomsStore={rootCW20DenomsStore}
       swapFeeInfo={swapFeeInfo}
     />
-  )
+  ) : null
 }

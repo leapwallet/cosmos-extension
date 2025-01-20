@@ -11,14 +11,15 @@ import classNames from 'classnames'
 import { AlertStrip } from 'components/alert-strip'
 import PopupLayout from 'components/layout/popup-layout'
 import { useChainPageInfo } from 'hooks'
-import { useFavNFTs, useHiddenNFTs, useModifyFavNFTs, useModifyHiddenNFTs } from 'hooks/settings'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { favNftStore, hiddenNftStore } from 'stores/manage-nft-store'
 import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
@@ -37,7 +38,7 @@ import {
 import { SendNftCard } from './components/send-nft'
 import { useNftContext } from './context'
 
-export function NftDetails() {
+export const NftDetails = observer(() => {
   const chainInfos = useChainInfos()
   const fractionalizedNftContracts = useFractionalizedNftContracts()
 
@@ -50,14 +51,10 @@ export function NftDetails() {
   const [coverImage, setCoverImage] = useState(true)
   const { setActivePage, nftDetails, setNftDetails } = useNftContext()
 
-  const favNfts = useFavNFTs()
   const [showSendNFT, setShowSendNFT] = useState(false)
-  const hiddenNfts = useHiddenNFTs()
-  const { addFavNFT, removeFavNFT } = useModifyFavNFTs()
-  const { addHiddenNFT, removeHiddenNFT } = useModifyHiddenNFTs()
 
   const giveSendOption = useMemo(() => {
-    return isCompassWallet() || nftDetails?.chain === 'mainCoreum'
+    return isCompassWallet() || ['mainCoreum', 'coreum'].includes(nftDetails?.chain ?? '')
   }, [nftDetails?.chain])
 
   const isFractionalizedNft = useMemo(() => {
@@ -83,17 +80,13 @@ export function NftDetails() {
     }`
   }, [nftDetails?.collection.address, nftDetails?.domain, nftDetails?.tokenId])
 
-  const isInFavNfts = useMemo(() => {
-    return favNfts.includes(nftIndex)
-  }, [favNfts, nftIndex])
+  const isInFavNfts = favNftStore.favNfts.includes(nftIndex)
 
   const isInProfile = useMemo(() => {
     return activeWallet?.avatarIndex === nftIndex
   }, [activeWallet?.avatarIndex, nftIndex])
 
-  const isInHiddenNfts = useMemo(() => {
-    return hiddenNfts.includes(nftIndex)
-  }, [hiddenNfts, nftIndex])
+  const isInHiddenNfts = hiddenNftStore.hiddenNfts.includes(nftIndex)
 
   const showProfileOption = useMemo(() => {
     return (
@@ -104,11 +97,15 @@ export function NftDetails() {
   }, [nftDetails?.image, nftDetails?.media_type])
 
   const handleFavNftClick = async () => {
+    if (!activeWallet) {
+      return
+    }
+
     if (isInFavNfts) {
-      await removeFavNFT(nftIndex)
+      await favNftStore.removeFavNFT(nftIndex, activeWallet.id)
       setAlertMsg({ status: 'remove', body: 'Removed from favourites' })
     } else {
-      await addFavNFT(nftIndex)
+      await favNftStore.addFavNFT(nftIndex, activeWallet.id)
       setAlertMsg({ status: 'add', body: 'Added to favourites' })
     }
   }
@@ -135,11 +132,13 @@ export function NftDetails() {
   }
 
   const handleHideNftClick = async () => {
+    if (!activeWallet) return
+
     if (isInHiddenNfts) {
-      await removeHiddenNFT(nftIndex)
+      await hiddenNftStore.removeHiddenNFT(nftIndex, activeWallet.id)
       setAlertMsg({ status: 'remove', body: 'Removed from hidden' })
     } else {
-      await addHiddenNFT(nftIndex)
+      await hiddenNftStore.addHiddenNFT(nftIndex, activeWallet.id)
       setAlertMsg({ status: 'add', body: 'Added to hidden' })
     }
   }
@@ -350,4 +349,4 @@ export function NftDetails() {
       </PopupLayout>
     </div>
   )
-}
+})

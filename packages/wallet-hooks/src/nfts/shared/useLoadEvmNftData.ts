@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 import { useActiveChain, useBetaEvmNftTokenIds, useChainApis, useSelectedNetwork } from '../../store';
 import { normalizeImageSrc } from '../../utils';
 import { useLoadNftContractsList } from '../utils';
-import { NftContextType, useLoadNftDataParams } from './index';
+import { NftContextType } from './types';
+import { useLoadNftDataParams } from './useLoadNftData';
 
 export type useLoadEvmNftDataParams = useLoadNftDataParams & {
   setCollectionData: NftContextType['setCollectionData'];

@@ -1,13 +1,13 @@
 import { GasOptions } from '@leapwallet/cosmos-wallet-hooks'
 import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
+import { TXN_STATUS } from '@leapwallet/elements-core'
 import { CURRENT_SWAP_TXS, PENDING_SWAP_TXS } from 'config/storage-keys'
+import { RoutingInfo } from 'pages/swaps-v2/hooks'
 import { SourceChain, SourceToken } from 'types/swap'
 import Browser from 'webextension-polyfill'
 
-export function generateObjectKey(route: {
-  messages: { customTxHash: string; customMessageChainId: string }[]
-}) {
-  const message = route?.messages?.[0]
+export function generateObjectKey(routingInfo: RoutingInfo) {
+  const message = routingInfo?.messages?.[0]
   if (!message) {
     return undefined
   }
@@ -17,8 +17,8 @@ export function generateObjectKey(route: {
 }
 
 export type TxStoreObject = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  route: any
+  routingInfo: RoutingInfo
+  state?: TXN_STATUS
   sourceChain: SourceChain | undefined
   sourceToken: SourceToken | null
   destinationChain: SourceChain | undefined
@@ -35,13 +35,15 @@ export type TxStoreObject = {
   feeAmount: string
 }
 
+export type TxStoreRecord = Record<string, TxStoreObject>
+
 // Ideally should never be more than one tx
 export async function addTxToCurrentTxList(tx: TxStoreObject, override: boolean = true) {
   const storage = await Browser.storage.local.get([CURRENT_SWAP_TXS])
   const previousCurrentTxs = JSON.parse(storage[CURRENT_SWAP_TXS] ?? '{}')
-  const { route } = tx
+  const { routingInfo } = tx
 
-  const key = generateObjectKey(route)
+  const key = generateObjectKey(routingInfo)
 
   if (!key) {
     return
@@ -65,8 +67,8 @@ export async function addTxToCurrentTxList(tx: TxStoreObject, override: boolean 
 
 export async function moveTxsFromCurrentToPending() {
   const storage = await Browser.storage.local.get([CURRENT_SWAP_TXS, PENDING_SWAP_TXS])
-  const currentTxs = JSON.parse(storage[CURRENT_SWAP_TXS] ?? '{}')
-  const pendingTxs = JSON.parse(storage[PENDING_SWAP_TXS] ?? '{}')
+  const currentTxs = JSON.parse(storage[CURRENT_SWAP_TXS] ?? '{}') as TxStoreRecord
+  const pendingTxs = JSON.parse(storage[PENDING_SWAP_TXS] ?? '{}') as TxStoreRecord
 
   const currentTxsKeys = Object.keys(currentTxs ?? {})
 
@@ -102,7 +104,7 @@ export async function moveTxsFromCurrentToPending() {
 
 export async function removeCurrentSwapTxs(txKey: string) {
   const storage = await Browser.storage.local.get([CURRENT_SWAP_TXS])
-  const previousCurrentTxs = JSON.parse(storage[CURRENT_SWAP_TXS] ?? '{}')
+  const previousCurrentTxs = JSON.parse(storage[CURRENT_SWAP_TXS] ?? '{}') as TxStoreRecord
 
   if (previousCurrentTxs?.[txKey]) {
     delete previousCurrentTxs[txKey]
@@ -112,10 +114,10 @@ export async function removeCurrentSwapTxs(txKey: string) {
 
 export async function addTxToPendingTxList(tx: TxStoreObject, override: boolean = true) {
   const storage = await Browser.storage.local.get([PENDING_SWAP_TXS])
-  const previousPendingTxs = JSON.parse(storage[PENDING_SWAP_TXS] ?? '{}')
-  const { route } = tx
+  const previousPendingTxs = JSON.parse(storage[PENDING_SWAP_TXS] ?? '{}') as TxStoreRecord
+  const { routingInfo } = tx
 
-  const key = generateObjectKey(route)
+  const key = generateObjectKey(routingInfo)
 
   if (!key) {
     return
@@ -139,7 +141,7 @@ export async function addTxToPendingTxList(tx: TxStoreObject, override: boolean 
 
 export async function removePendingSwapTxs(txKey: string) {
   const storage = await Browser.storage.local.get([PENDING_SWAP_TXS])
-  const previousPendingTxs = JSON.parse(storage[PENDING_SWAP_TXS] ?? '{}')
+  const previousPendingTxs = JSON.parse(storage[PENDING_SWAP_TXS] ?? '{}') as TxStoreRecord
 
   if (previousPendingTxs?.[txKey]) {
     delete previousPendingTxs[txKey]

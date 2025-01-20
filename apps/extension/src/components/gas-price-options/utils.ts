@@ -6,7 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { defaultGasPriceStep, GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { captureException } from '@sentry/react'
-import React from 'react'
+import { uiErrorTags } from 'utils/sentry'
 
 import { GasPriceOptionValue } from './context'
 
@@ -75,7 +75,9 @@ export async function updateFeeTokenData({
             high: defaultGasPriceStep.high,
           },
         }
-        captureException(error)
+        captureException(error, {
+          tags: uiErrorTags,
+        })
       }
     } else if (hasToCalculateDynamicFee && foundFeeTokenData) {
       let feeDenom = foundFeeTokenData.denom?.coinMinimalDenom ?? ''

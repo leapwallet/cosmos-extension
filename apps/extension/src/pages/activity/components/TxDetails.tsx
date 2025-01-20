@@ -96,7 +96,7 @@ export function TxDetails({ parsedTx, content, onBack, forceChain }: TxDetailsPr
   } = content
 
   const address = useAddress(activeChain)
-  const defaultImg = useActivityImage(txType)
+  const defaultImg = useActivityImage(txType, activeChain)
   const txnMessage = parsedTx.messages[0]
   const img = customImage || defaultImg
   const iconAndTitle = getActivityIconAndTitle(activeChain)
@@ -131,7 +131,11 @@ export function TxDetails({ parsedTx, content, onBack, forceChain }: TxDetailsPr
     }
   }, [parsedTx, content, setContact, txnMessage, address])
 
-  const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({ forceTxHash: parsedTx.txHash })
+  const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({
+    forceTxHash: parsedTx.txHash,
+    forceChain: activeChain,
+    forceNetwork: selectedNetwork,
+  })
   const isSimpleTokenTransfer =
     content.txType === 'send' || content.txType === 'receive' || content.txType === 'ibc/transfer'
 
@@ -147,7 +151,7 @@ export function TxDetails({ parsedTx, content, onBack, forceChain }: TxDetailsPr
         title='Transaction Details'
       />
 
-      <div className='flex flex-col justify-center items-center p-7'>
+      <div className='flex flex-col justify-center items-center p-7 gap-4'>
         <div className='bg-white-100 dark:bg-gray-950 rounded-2xl w-full flex flex-col items-center p-7'>
           {content.txType === 'vote' || content.txType === 'swap' ? (
             <ActivityIcon
@@ -216,7 +220,7 @@ export function TxDetails({ parsedTx, content, onBack, forceChain }: TxDetailsPr
 
         {/** Send, Receive and IBC */}
         {isSimpleTokenTransfer && (
-          <div className='rounded-2xl overflow-hidden w-full m-4'>
+          <div className='rounded-2xl overflow-hidden w-full mx-4'>
             {content.txType === 'send' ? (
               <GenericCard
                 title={'Sent to ' + contact.name}
@@ -294,7 +298,7 @@ export function TxDetails({ parsedTx, content, onBack, forceChain }: TxDetailsPr
           </div>
         )}
 
-        <div className='rounded-2xl overflow-hidden w-full m-4'>
+        <div className='rounded-2xl overflow-hidden w-full mx-4'>
           <GenericCard
             title='Transaction ID'
             img={<img className='mr-3' src={Images.Activity.TxHash} />}

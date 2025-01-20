@@ -26,6 +26,7 @@ import {
 } from 'stores/denoms-store-instance'
 import { selectedNetworkStore } from 'stores/selected-network-store'
 import { getContractInfo } from 'utils/getContractInfo'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import extension from 'webextension-polyfill'
 
 import { DeleteTokenSheet, ManageTokensEmptyCard, SupportedToken } from './components'
@@ -44,7 +45,11 @@ const ManageTokens = observer(() => {
   const betaNativeDenoms = betaNativeDenomsStore.betaNativeDenoms
   const betaERC20Denoms = betaERC20DenomsStore.betaERC20Denoms
   const { erc20Denoms } = erc20DenomsStore
-  const { autoFetchedCW20Denoms } = autoFetchedCW20DenomsStore
+  const { autoFetchedCW20Denoms: _autoFetchedCW20Denoms } = autoFetchedCW20DenomsStore
+  const autoFetchedCW20Denoms = useMemo(
+    () => (isCompassWallet() ? [] : _autoFetchedCW20Denoms),
+    [_autoFetchedCW20Denoms],
+  )
 
   const { cw20Tokens: cw20TokensBalances } = cw20TokenBalanceStore
   const { erc20Tokens: erc20TokensBalances } = erc20TokenBalanceStore

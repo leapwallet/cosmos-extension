@@ -1,33 +1,37 @@
 import { rawSecp256k1PubkeyToRawAddress } from '@cosmjs/amino'
 import { fromBase64, fromHex, toBech32 } from '@cosmjs/encoding'
 import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { decrypt } from '@leapwallet/leap-keychain'
 import {
-  ChainInfo,
   generateWalletFromMnemonic,
   generateWalletFromPrivateKey,
-  SupportedChain,
-} from '@leapwallet/cosmos-wallet-sdk'
-import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
-import { decrypt } from '@leapwallet/leap-keychain'
-import { Secp256k1 } from '@leapwallet/leap-keychain'
+  getFullHDPath,
+  Secp256k1,
+} from '@leapwallet/leap-keychain'
+import { customKeygenfnMove } from 'utils/getChainInfosList'
 
 type ActionType = 'UPDATE' | 'DELETE'
 
 export const getUpdatedKeyStore = async (
   chainInfos: Record<SupportedChain, ChainInfo>,
-  password: string,
+  password: Uint8Array,
   chain: SupportedChain,
   existingWallet: Key,
   actionType: ActionType,
-  chainInfo?: ChainInfo,
+  _chainInfo?: ChainInfo,
 ): Promise<Key | undefined> => {
-  const addressPrefix = (chainInfos[chain] || chainInfo)?.addressPrefix
-  const coinType = (chainInfos[chain] || chainInfo)?.bip44.coinType
-  const hdPath = getHDPath(
+  const chainInfo = _chainInfo ?? chainInfos[chain]
+  const addressPrefix = chainInfo?.addressPrefix
+  const coinType = chainInfo?.bip44.coinType
+  const purpose = chainInfo?.useBip84 ? '84' : '44'
+  const hdPath = getFullHDPath(
+    purpose,
     (chainInfos[chain] || chainInfo)?.bip44.coinType,
     existingWallet.addressIndex.toString(),
   )
-  const secret = decrypt(existingWallet.cipher, password as string)
+  const btcNetwork = (chainInfos[chain] || chainInfo)?.btcNetwork
+  const secret = decrypt(existingWallet.cipher, password)
 
   if (!addressPrefix) return existingWallet
   if (actionType === 'DELETE') {
@@ -38,43 +42,87 @@ export const getUpdatedKeyStore = async (
     existingWallet.walletType === WALLETTYPE.SEED_PHRASE ||
     existingWallet.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
   ) {
-    const wallet = await generateWalletFromMnemonic(secret, hdPath, addressPrefix)
-    const accounts = await wallet.getAccounts()
-    const cryptoPubKey = Secp256k1.publicKeyConvert(accounts[0].pubkey, true)
-    const pubKeys = existingWallet.pubKeys
-      ? { ...existingWallet.pubKeys, [chain]: Buffer.from(cryptoPubKey).toString('base64') }
-      : ({ [chain]: Buffer.from(cryptoPubKey).toString('base64') } as unknown as Record<
-          SupportedChain,
-          string
-        >)
-    return {
-      ...existingWallet,
-      addresses: {
-        ...existingWallet.addresses,
-        [chain]: accounts[0].address,
-      },
-      pubKeys,
+    if (coinType === '637') {
+      const account = await customKeygenfnMove(secret, hdPath, 'seedPhrase')
+      const pubKeys = existingWallet.pubKeys
+        ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
+        : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
+      return {
+        ...existingWallet,
+        addresses: {
+          ...existingWallet.addresses,
+          [chain]: account.address,
+        },
+        pubKeys,
+      }
+    } else {
+      const wallet = generateWalletFromMnemonic(secret, {
+        hdPath,
+        addressPrefix,
+        ethWallet: false,
+        btcNetwork,
+      })
+      const accounts = wallet.getAccounts()
+      if (!accounts[0].pubkey) return existingWallet
+      const cryptoPubKey = Secp256k1.publicKeyConvert(accounts[0].pubkey, true)
+      const pubKeys = existingWallet.pubKeys
+        ? { ...existingWallet.pubKeys, [chain]: Buffer.from(cryptoPubKey).toString('base64') }
+        : ({ [chain]: Buffer.from(cryptoPubKey).toString('base64') } as unknown as Record<
+            SupportedChain,
+            string
+          >)
+      return {
+        ...existingWallet,
+        addresses: {
+          ...existingWallet.addresses,
+          [chain]: accounts[0].address,
+        },
+        pubKeys,
+      }
     }
   } else if (existingWallet.walletType === WALLETTYPE.PRIVATE_KEY) {
-    const wallet = await generateWalletFromPrivateKey(secret, addressPrefix, coinType)
-    const accounts = await wallet.getAccounts()
-    const cryptoPubKey = Secp256k1.publicKeyConvert(accounts[0].pubkey, true)
-    const pubKeys = existingWallet.pubKeys
-      ? { ...existingWallet.pubKeys, [chain]: Buffer.from(cryptoPubKey).toString('base64') }
-      : ({ [chain]: Buffer.from(cryptoPubKey).toString('base64') } as unknown as Record<
-          SupportedChain,
-          string
-        >)
-    return {
-      ...existingWallet,
-      addresses: {
-        ...existingWallet.addresses,
-        [chain]: accounts[0].address,
-      },
-      pubKeys,
+    if (coinType === '637') {
+      const account = await customKeygenfnMove(secret, hdPath, 'privateKey')
+      const pubKeys = existingWallet.pubKeys
+        ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
+        : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
+      return {
+        ...existingWallet,
+        addresses: {
+          ...existingWallet.addresses,
+          [chain]: account.address,
+        },
+        pubKeys,
+      }
+    } else {
+      const wallet = generateWalletFromPrivateKey(secret, hdPath, addressPrefix, btcNetwork)
+      const accounts = wallet.getAccounts()
+      const cryptoPubKey = Secp256k1.publicKeyConvert(accounts[0].pubkey, true)
+      const pubKeys = existingWallet.pubKeys
+        ? { ...existingWallet.pubKeys, [chain]: Buffer.from(cryptoPubKey).toString('base64') }
+        : ({ [chain]: Buffer.from(cryptoPubKey).toString('base64') } as unknown as Record<
+            SupportedChain,
+            string
+          >)
+      return {
+        ...existingWallet,
+        addresses: {
+          ...existingWallet.addresses,
+          [chain]: accounts[0].address,
+        },
+        pubKeys,
+      }
     }
   } else if (existingWallet.walletType === WALLETTYPE.LEDGER) {
-    if (coinType === '60' || coinType === '931') return existingWallet
+    if (
+      coinType === '60' ||
+      coinType === '931' ||
+      coinType === '0' ||
+      coinType === '1' ||
+      coinType === '637'
+    ) {
+      return existingWallet
+    }
     const pubKeyVal = existingWallet.pubKeys
       ? fromBase64(Object.values(existingWallet.pubKeys)[0])
       : fromHex(secret)

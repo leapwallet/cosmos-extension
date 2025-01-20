@@ -1,7 +1,9 @@
+import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
 import { makeAutoObservable } from 'mobx';
 
 import { getKeyToUseForDenoms } from '../utils/get-denom-key';
 import { RootDenomsStore } from './root-denom-store';
+
 const ibcTraceUrl = 'https://assets.leapwallet.io/cosmos-registry/v1/denom-trace/base.json';
 
 type IbcTraceData = Record<
@@ -21,29 +23,7 @@ export function getIbcTraceData() {
   return ibcTraceData;
 }
 
-// export class IbcTraceStore {
-//   ibcTraceData: Record<
-//     string,
-//     { path: string; baseDenom: string; originChainId: string; channelId: string; sourceChainId: string }
-//   > = {};
-//   readyPromise: Promise<void>;
-//
-//   constructor() {
-//     makeAutoObservable(this);
-//     this.readyPromise = this.loadIbcTraceData();
-//   }
-//
-//   async loadIbcTraceData() {
-//     const response = await fetch(ibcTraceUrl);
-//     const data = await response.json();
-//     runInAction(() => {
-//       this.ibcTraceData = data;
-//     });
-//   }
-// }
-
 export class IbcTraceFetcher {
-  /*   ibcTraceStore: IbcTraceStore; */
   rootDenomsStore: RootDenomsStore;
 
   constructor(rootDenomsStore: RootDenomsStore) {
@@ -51,7 +31,7 @@ export class IbcTraceFetcher {
     this.rootDenomsStore = rootDenomsStore;
   }
 
-  async fetchIbcTrace(denom: string, restUrl: string, chainId: string): Promise<any> {
+  async fetchIbcTrace(denom: string, restUrl: string, chainId: string): Promise<NativeDenom | undefined> {
     await this.rootDenomsStore.readyPromise;
 
     const denoms = this.rootDenomsStore.allDenoms;
@@ -97,6 +77,7 @@ async function getIbcTrace(ibcDenom: string, lcdUrl: string, chainId: string) {
       chainId: chainId,
     }),
   });
+
   const data = await res.json();
   return data.ibcDenomData;
 }

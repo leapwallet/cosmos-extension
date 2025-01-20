@@ -1,6 +1,6 @@
 import { Key, sliceAddress, useActiveWallet, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
-import { pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import { CaretUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
@@ -10,10 +10,12 @@ import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import { ACTIVE_WALLET, BG_RESPONSE, CONNECTIONS } from 'config/storage-keys'
 import { checkChainConnections, decodeChainIdToChain } from 'extension-scripts/utils'
+import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
+import { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useWindowSize } from 'hooks/utility/useWindowSize'
 import { Images } from 'images'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -77,6 +79,18 @@ async function sendMessage(message: { type: string; payload: any; status: 'succe
   }
 }
 
+type DisplayRequestChains =
+  | {
+      type: 'address'
+      address: string
+      chains: { chain: SupportedChain; payloadId: string }[]
+    }
+  | {
+      type: 'chains'
+      address: undefined
+      chains: { chain: SupportedChain; payloadId: string }[]
+    }
+
 const ApproveConnection = () => {
   const [selectedWallets, setSelectedWallets] = useState<[Key] | [] | Key[]>([])
   const navigate = useNavigate()
@@ -94,25 +108,104 @@ const ApproveConnection = () => {
   const activeWallet = useActiveWallet()
   const { chains } = useChainsStore()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const updateKeyStore = useUpdateKeyStore()
+  const addressGenerationDone = useRef<boolean>(false)
 
-  const displayedRequestedChains = useMemo(() => {
+  const displayedRequestedChains: DisplayRequestChains = useMemo(() => {
     if (isCompassWallet()) {
-      return [{ chain: 'seiTestnet2' as SupportedChain, payloadId: '123' }]
-    } else {
-      const uniqueChainRequests = requestedChains.reduce(
-        (acc: Array<{ chain: SupportedChain; payloadId: string }>, element) => {
-          const existingRequest = acc.find((request) => request.chain === element.chain)
-          if (!existingRequest) {
-            acc.push(element)
-            return acc
-          }
-          return acc
-        },
-        [],
-      )
-      return uniqueChainRequests
+      return {
+        type: 'chains',
+        chains: [{ chain: 'seiTestnet2' as SupportedChain, payloadId: '123' }],
+      }
     }
-  }, [requestedChains])
+
+    const isMoveConnection = requestedChains.every((chain) =>
+      ['movement', 'movementBardock', 'aptos'].includes(chain.chain),
+    )
+    if (isMoveConnection) {
+      return {
+        type: 'address',
+        chains: requestedChains,
+        address: selectedWallets?.[0]?.addresses?.[requestedChains[0]?.chain] || '',
+      }
+    }
+
+    const isEvmConnection = requestedChains.every((chain) => chains[chain.chain]?.evmOnlyChain)
+    if (isEvmConnection && selectedWallets?.[0]?.pubKeys) {
+      const address = pubKeyToEvmAddressToShow(
+        selectedWallets[0].pubKeys[requestedChains[0]?.chain] || selectedWallets[0].pubKeys.evmos,
+      )
+
+      return {
+        type: 'address',
+        chains: requestedChains,
+        address,
+      }
+    }
+
+    const uniqueChainRequests = requestedChains.reduce(
+      (acc: Array<{ chain: SupportedChain; payloadId: string }>, element) => {
+        const existingRequest = acc.find((request) => request.chain === element.chain)
+        if (!existingRequest) {
+          acc.push(element)
+          return acc
+        }
+        return acc
+      },
+      [],
+    )
+    return {
+      type: 'chains',
+      chains: uniqueChainRequests,
+    }
+  }, [chains, requestedChains, selectedWallets])
+
+  useEffect(() => {
+    async function generateAddresses() {
+      const wallet = selectedWallets[0]
+      if (!wallet || !displayedRequestedChains?.chains || addressGenerationDone.current) return
+
+      const chainsToGenerateAddresses =
+        displayedRequestedChains.chains
+          .filter((chain) => {
+            const hasAddress = selectedWallets?.[0]?.addresses?.[chain.chain]
+            const hasPubKey = selectedWallets?.[0]?.pubKeys?.[chain.chain]
+            return (chains[chain.chain] && !hasAddress) || !hasPubKey
+          })
+          ?.map((chain) => chain.chain) ?? []
+
+      if (!chainsToGenerateAddresses?.length) {
+        return
+      }
+
+      const _chainInfos: Partial<Record<SupportedChain, ChainInfo>> = {}
+
+      for await (const chain of chainsToGenerateAddresses) {
+        _chainInfos[chain] = chains[chain]
+      }
+      const keyStore = await updateKeyStore(
+        wallet,
+        chainsToGenerateAddresses,
+        'UPDATE',
+        undefined,
+        _chainInfos,
+      )
+      addressGenerationDone.current = true
+      const newSelectedWallets = selectedWallets.map((wallet) => {
+        if (!keyStore) return wallet
+        const newWallet = keyStore[wallet.id]
+        if (!newWallet) {
+          return wallet
+        }
+        return newWallet
+      })
+      setSelectedWallets(newSelectedWallets)
+    }
+
+    generateAddresses()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayedRequestedChains, selectedWallets])
 
   const handleCancel = useCallback(async () => {
     if (!approvalRequests[0]) {
@@ -194,10 +287,15 @@ const ApproveConnection = () => {
       if (isNewChainPresent) {
         setApprovalRequests((prev) => [...prev, message.payload])
         const _chainIdToChain = await decodeChainIdToChain()
-        const chain = _chainIdToChain[chainIds[0]]
         setRequestedChains((prev) => [
           ...prev,
-          { chain: chain as unknown as SupportedChain, payloadId: message.payload.payloadId },
+          ...chainIds.map((chainId) => {
+            const chain = _chainIdToChain[chainId]
+            return {
+              chain: chain as unknown as SupportedChain,
+              payloadId: message.payload.payloadId,
+            }
+          }),
         ])
         setShowApprovalUi(true)
       } else {
@@ -260,6 +358,13 @@ const ApproveConnection = () => {
     }
   }
 
+  usePerformanceMonitor({
+    page: 'approve-connection',
+    queryStatus: showApprovalUi ? 'success' : 'loading',
+    op: 'approveConnectionPageLoad',
+    description: 'Load time for approve connection page',
+  })
+
   const isFullScreen = width && width > 800
 
   if (!showApprovalUi) {
@@ -284,88 +389,122 @@ const ApproveConnection = () => {
         <div
           className={classNames('bg-white-100 dark:bg-gray-900 rounded-2xl py-4', {
             'h-[405px]': readMoreEnabled,
-            'h-[230px]': !readMoreEnabled && displayedRequestedChains.length > 1,
-            'h-[100px]': displayedRequestedChains.length <= 1,
+            'h-[230px]':
+              !readMoreEnabled &&
+              displayedRequestedChains.type === 'chains' &&
+              displayedRequestedChains.chains &&
+              displayedRequestedChains.chains.length > 1,
+            'h-[100px]':
+              displayedRequestedChains.type === 'chains' &&
+              displayedRequestedChains.chains &&
+              displayedRequestedChains.chains.length <= 1,
           })}
         >
           <div
-            className={classNames('flex items-center px-5 mb-4', {
-              'cursor-pointer': readMoreEnabled,
-            })}
+            className={classNames(
+              'flex items-center px-5',
+              displayedRequestedChains.type == 'chains' ? 'mb-4' : 'mb-0',
+              { 'cursor-pointer': readMoreEnabled },
+            )}
             onClick={() => setReadMoreEnabled(false)}
           >
-            <img src={Images.Misc.WalletIconTeal} className='h-[20px] w-[20px] mr-3' />
-            <Text
-              size='md'
-              className='text-black-100 dark:text-white-100 font-bold'
-            >{`Connecting ${activeWallet?.name}`}</Text>
-            {displayedRequestedChains?.length > 1 && readMoreEnabled ? (
-              <CaretUp size={16} className='ml-auto text-gray-500' />
+            <div className='flex items-center'>
+              <img src={Images.Misc.WalletIconTeal} className='h-[20px] w-[20px] mr-3' />
+              <Text size='md' className='text-black-100 dark:text-white-100 font-bold'>
+                {`${displayedRequestedChains.type === 'chains' ? 'Connecting' : ''}${
+                  activeWallet?.name
+                }`}
+              </Text>
+              {displayedRequestedChains.type === 'chains' &&
+                displayedRequestedChains.chains &&
+                displayedRequestedChains.chains.length > 1 &&
+                readMoreEnabled && <CaretUp size={16} className='ml-auto text-gray-500' />}
+            </div>
+
+            {displayedRequestedChains.type === 'address' ? (
+              <Text
+                className='ml-auto font-bold'
+                size='sm'
+                color='text-black-100 dark:text-white-100'
+              >
+                {sliceAddress(displayedRequestedChains.address)}
+              </Text>
             ) : null}
           </div>
-          <div
-            className={classNames('flex flex-col overflow-auto', {
-              'h-[340px] mb-2': readMoreEnabled,
-              'h-[120px] mb-2': !readMoreEnabled && requestedChains.length > 1,
-              'h-[16px] mb-4': requestedChains.length <= 1,
-            })}
-          >
-            {displayedRequestedChains.map((requestedChain, index: number) => {
-              const isLast = index === displayedRequestedChains.length - 1
-              const hasAddress = selectedWallets?.[0]?.addresses?.[requestedChain.chain]
-              let address
-              if (hasAddress) {
-                address = chains[requestedChain.chain]?.evmOnlyChain
-                  ? pubKeyToEvmAddressToShow(selectedWallets?.[0]?.pubKeys?.[requestedChain.chain])
-                  : selectedWallets?.[0]?.addresses?.[requestedChain.chain]
-              } else {
-                // If the address does not exist in keystore we generate addresses for cointype 60. For other chains it would be an empty string
-                const evmosPubkey = selectedWallets?.[0]?.pubKeys?.['evmos']
-                const canGenerateEvmAddress =
-                  chains[requestedChain.chain]?.evmOnlyChain && evmosPubkey
-                address = canGenerateEvmAddress ? pubKeyToEvmAddressToShow(evmosPubkey) : ''
-              }
 
-              return (
-                <React.Fragment key={requestedChain.payloadId}>
-                  <div
-                    className={classNames('flex items-center px-5', {
-                      'py-2.5': displayedRequestedChains.length > 1,
-                    })}
-                    style={{
-                      display: index <= 2 || readMoreEnabled ? 'flex' : 'none',
-                    }}
-                  >
-                    <img
-                      src={chains[requestedChain.chain]?.chainSymbolImageUrl ?? defaultTokenLogo}
-                      className='h-[16px] w-[16px] mr-2'
-                    />
-                    <Text size='xs' color='text-gray-400'>
-                      {chains[requestedChain.chain]?.chainName ?? ''}
-                    </Text>
-                    <Text className='ml-auto' size='xs' color='text-gray-400'>
-                      {sliceAddress(address)}
-                    </Text>
-                  </div>
-                  <div
-                    className='px-5'
-                    style={{
-                      display: index <= 1 || readMoreEnabled ? 'block' : 'none',
-                    }}
-                  >
-                    {!isLast ? Divider : null}
-                  </div>
-                </React.Fragment>
-              )
-            })}
-          </div>
-          {!readMoreEnabled && displayedRequestedChains.length > 3 ? (
-            <button onClick={() => setReadMoreEnabled(true)} className='flex w-full px-5'>
-              <Text size='xs' color='text-osmosisPrimary' className='ml-auto'>{`view more (${
-                displayedRequestedChains.length - 3
-              })`}</Text>
-            </button>
-          ) : null}
+          {displayedRequestedChains.type === 'chains' && (
+            <>
+              <div
+                className={classNames('flex flex-col overflow-auto', {
+                  'h-[340px] mb-2': readMoreEnabled,
+                  'h-[120px] mb-2': !readMoreEnabled && requestedChains.length > 2,
+                  'h-[70px] mb-2': !readMoreEnabled && requestedChains.length === 2,
+                  'h-[16px] mb-4': requestedChains.length <= 1,
+                })}
+              >
+                {displayedRequestedChains.chains.map((requestedChain, index: number) => {
+                  const isLast = index === displayedRequestedChains.chains.length - 1
+                  const hasAddress = selectedWallets?.[0]?.addresses?.[requestedChain.chain]
+                  let address
+                  if (hasAddress) {
+                    address = chains[requestedChain.chain]?.evmOnlyChain
+                      ? pubKeyToEvmAddressToShow(
+                          selectedWallets?.[0]?.pubKeys?.[requestedChain.chain],
+                        )
+                      : selectedWallets?.[0]?.addresses?.[requestedChain.chain]
+                  } else {
+                    // If the address does not exist in keystore we generate addresses for cointype 60. For other chains it would be an empty string
+                    const evmosPubkey = selectedWallets?.[0]?.pubKeys?.['evmos']
+                    const canGenerateEvmAddress =
+                      chains[requestedChain.chain]?.evmOnlyChain && evmosPubkey
+                    address = canGenerateEvmAddress ? pubKeyToEvmAddressToShow(evmosPubkey) : ''
+                  }
+
+                  return (
+                    <React.Fragment key={requestedChain.payloadId}>
+                      <div
+                        className={classNames('flex items-center px-5', {
+                          'py-2.5': displayedRequestedChains.chains.length > 1,
+                        })}
+                        style={{
+                          display: index <= 2 || readMoreEnabled ? 'flex' : 'none',
+                        }}
+                      >
+                        <img
+                          src={
+                            chains[requestedChain.chain]?.chainSymbolImageUrl ?? defaultTokenLogo
+                          }
+                          className='h-[16px] w-[16px] mr-2'
+                        />
+                        <Text size='xs' color='text-gray-400'>
+                          {chains[requestedChain.chain]?.chainName ?? ''}
+                        </Text>
+                        <Text className='ml-auto' size='xs' color='text-gray-400'>
+                          {sliceAddress(address)}
+                        </Text>
+                      </div>
+                      <div
+                        className='px-5'
+                        style={{
+                          display: index <= 1 || readMoreEnabled ? 'block' : 'none',
+                        }}
+                      >
+                        {!isLast ? Divider : null}
+                      </div>
+                    </React.Fragment>
+                  )
+                })}
+              </div>
+
+              {!readMoreEnabled && displayedRequestedChains.chains.length > 3 && (
+                <button onClick={() => setReadMoreEnabled(true)} className='flex w-full px-5'>
+                  <Text size='xs' color='text-osmosisPrimary' className='ml-auto'>{`view more (${
+                    displayedRequestedChains.chains.length - 3
+                  })`}</Text>
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         {!readMoreEnabled ? (

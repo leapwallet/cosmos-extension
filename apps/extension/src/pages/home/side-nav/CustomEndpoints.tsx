@@ -2,6 +2,7 @@ import { removeTrailingSlash, useChainApis } from '@leapwallet/cosmos-wallet-hoo
 import { initiateNodeUrls, NODE_URLS, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import axios from 'axios'
 import classNames from 'classnames'
 import { AlertStrip } from 'components/alert-strip'
@@ -11,6 +12,7 @@ import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { CUSTOM_ENDPOINTS } from 'config/storage-keys'
 import { useChainPageInfo } from 'hooks'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDebounceCallback } from 'hooks/useDebounceCallback'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
@@ -18,10 +20,12 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useMemo, useState } from 'react'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
+import { uiErrorTags } from 'utils/sentry'
 import Browser from 'webextension-polyfill'
 
 import { ListChains, ListChainsProps } from '../SelectChain'
@@ -134,15 +138,11 @@ export const CustomEndpoints = observer(
     const [selectedChain, setSelectedChain] = useState(activeChain)
     const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
-    const isChainHaveTestnetOnly =
-      chainInfos[selectedChain].chainId === chainInfos[selectedChain].testnetChainId
-    const { rpcUrl, lcdUrl } = useChainApis(
-      selectedChain,
-      isChainHaveTestnetOnly ? 'testnet' : 'mainnet',
-    )
+    const selectedNetwork = useSelectedNetwork()
+    const { rpcUrl, lcdUrl } = useChainApis(selectedChain, selectedNetwork)
 
     const { debounce } = useDebounceCallback()
-    const dontShowSelectChain = useDontShowSelectChain()
+    const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const [validating, setValidating] = useState(false)
     const [showAlertMsg, setShowAlertMsg] = useState(false)
     const [customEndpoints, setCustomEndpoints] = useState({
@@ -166,8 +166,17 @@ export const CustomEndpoints = observer(
           const { data } = await axios.get(`${value}/status`)
           const { node_info: nodeInfo } = data.result ?? data
 
-          if (nodeInfo.network.trim() !== selectedChainInfo.chainId) {
-            error = `RPC endpoint has different chain id (expected: ${selectedChainInfo.chainId}, actual: ${nodeInfo.network})`
+          if (
+            nodeInfo.network.trim() !==
+            (selectedNetwork === 'mainnet'
+              ? selectedChainInfo.chainId
+              : selectedChainInfo.testnetChainId)
+          ) {
+            error = `RPC endpoint has different chain id (expected: ${
+              selectedNetwork === 'mainnet'
+                ? selectedChainInfo.chainId
+                : selectedChainInfo.testnetChainId
+            }, actual: ${nodeInfo.network})`
           }
         } catch (_) {
           error = 'Invalid RPC url. Failed to get /status response.'
@@ -181,8 +190,17 @@ export const CustomEndpoints = observer(
           const { data } = await axios.get(`${value}/cosmos/base/tendermint/v1beta1/node_info`)
           const { default_node_info: nodeInfo } = data
 
-          if (nodeInfo.network.trim() !== selectedChainInfo.chainId) {
-            error = `LCD endpoint has different chain id (expected: ${selectedChainInfo.chainId}, actual: ${nodeInfo.network})`
+          if (
+            nodeInfo.network.trim() !==
+            (selectedNetwork === 'mainnet'
+              ? selectedChainInfo.chainId
+              : selectedChainInfo.testnetChainId)
+          ) {
+            error = `LCD endpoint has different chain id (expected: ${
+              selectedNetwork === 'mainnet'
+                ? selectedChainInfo.chainId
+                : selectedChainInfo.testnetChainId
+            }, actual: ${nodeInfo.network})`
           }
         } catch (_) {
           error =
@@ -194,6 +212,9 @@ export const CustomEndpoints = observer(
 
       if (error) {
         setErrors((prevValue) => ({ ...prevValue, [name]: error }))
+        captureException(error, {
+          tags: uiErrorTags,
+        })
       } else {
         delete errors[name]
         setErrors(errors)
@@ -252,13 +273,20 @@ export const CustomEndpoints = observer(
         await Browser.storage.local.set({
           [CUSTOM_ENDPOINTS]: JSON.stringify({
             ...JSON.parse(storage[CUSTOM_ENDPOINTS]),
-            [selectedChain]: { rpc: newRpcURL, lcd: newLcdURL },
+            [selectedChain]: {
+              ...JSON.parse(storage[CUSTOM_ENDPOINTS])[selectedChain],
+              [selectedNetwork === 'mainnet' ? 'rpc' : 'rpcTest']: newRpcURL,
+              [selectedNetwork === 'mainnet' ? 'lcd' : 'lcdTest']: newLcdURL,
+            },
           }),
         })
       } else {
         await Browser.storage.local.set({
           [CUSTOM_ENDPOINTS]: JSON.stringify({
-            [selectedChain]: { rpc: newRpcURL, lcd: newLcdURL },
+            [selectedChain]: {
+              [selectedNetwork === 'mainnet' ? 'rpc' : 'rpcTest']: newRpcURL,
+              [selectedNetwork === 'mainnet' ? 'lcd' : 'lcdTest']: newLcdURL,
+            },
           }),
         })
       }

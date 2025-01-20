@@ -7,13 +7,15 @@ import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { AGGREGATED_CHAIN_KEY, PriorityChains } from 'config/constants'
-import { useIsAllChainsEnabled, useStarredChains } from 'hooks/settings'
-import { ManageChainSettings, useManageChainData } from 'hooks/settings/useManageChains'
+import { useIsAllChainsEnabled } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { ManageChainSettings } from 'stores/manage-chains-store'
+import { manageChainsStore } from 'stores/manage-chains-store'
+import { starredChainsStore } from 'stores/starred-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import extension from 'webextension-polyfill'
@@ -93,9 +95,7 @@ export const ListChains = observer(
 
     const searchedChain = paramsSearchedChain ?? newSearchedChain
     const setSearchedChain = paramsSetSearchedChain ?? setNewSearchedChain
-    const starredChains = useStarredChains()
 
-    const [chains] = useManageChainData()
     const chainInfos = useChainInfos()
     const allNativeChainID = Object.values(chainInfos)
       .filter((chain) => chain.enabled)
@@ -121,7 +121,10 @@ export const ListChains = observer(
         testnetChainId: d.testnetChainId,
       }))
 
-    const showChains = useMemo(() => [...chains, ..._customChains], [_customChains, chains])
+    const showChains = useMemo(
+      () => [...manageChainsStore.chains, ..._customChains],
+      [_customChains, manageChainsStore.chains],
+    )
 
     const newChainToAdd = useMemo(
       () => customChains.find((d) => d.key === newChain),
@@ -134,9 +137,16 @@ export const ListChains = observer(
           (isCompassWallet() && chain.chainName === 'cosmos') ||
           !chain.active ||
           (onPage === 'AddCollection' &&
-            ['omniflix', 'stargaze', 'forma', 'manta', 'aura', 'mainCoreum', 'lightlink'].includes(
-              chain.chainName,
-            ))
+            [
+              'omniflix',
+              'stargaze',
+              'forma',
+              'manta',
+              'aura',
+              'mainCoreum',
+              'coreum',
+              'lightlink',
+            ].includes(chain.chainName))
         ) {
           return false
         }
@@ -165,13 +175,14 @@ export const ListChains = observer(
       }
 
       const favouriteChains = chains
-        .filter((chain) => starredChains.includes(chain.chainName))
+        .filter((chain) => starredChainsStore.chains.includes(chain.chainName))
         .sort((chainA, chainB) => chainA.chainName.localeCompare(chainB.chainName))
 
       const priorityChains = chains
         .filter(
           (chain) =>
-            PriorityChains.includes(chain.chainName) && !starredChains.includes(chain.chainName),
+            PriorityChains.includes(chain.chainName) &&
+            !starredChainsStore.chains.includes(chain.chainName),
         )
         .sort(
           (chainA, chainB) =>
@@ -181,12 +192,13 @@ export const ListChains = observer(
       const otherChains = chains
         .filter(
           (chain) =>
-            !starredChains.includes(chain.chainName) && !PriorityChains.includes(chain.chainName),
+            !starredChainsStore.chains.includes(chain.chainName) &&
+            !PriorityChains.includes(chain.chainName),
         )
         .sort((chainA, chainB) => chainA.chainName.localeCompare(chainB.chainName))
 
       return [...favouriteChains, ...priorityChains, ...otherChains]
-    }, [_filteredChains, getChainTags, searchedChain, selectedFilter, starredChains])
+    }, [_filteredChains, getChainTags, searchedChain, selectedFilter, starredChainsStore.chains])
 
     const tagWiseChains = useMemo(() => {
       return _filteredChains.reduce((acc, chain) => {

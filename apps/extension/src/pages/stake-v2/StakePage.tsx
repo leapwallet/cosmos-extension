@@ -11,6 +11,7 @@ import {
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import {
+  AggregatedSupportedChainType,
   ChainTagsStore,
   ClaimRewardsStore,
   DelegationsStore,
@@ -28,8 +29,10 @@ import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
 import { AmountCardSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useChainPageInfo, useWalletInfo } from 'hooks'
+import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
@@ -42,6 +45,8 @@ import SideNav from 'pages/home/side-nav'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
+import { stakeEpochStore } from 'stores/epoch-store'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -98,7 +103,7 @@ const StakePage = observer(
 
     const { walletAvatar, walletName, activeWallet } = useWalletInfo()
     const { headerChainImgSrc } = useChainPageInfo()
-    const dontShowSelectChain = useDontShowSelectChain()
+    const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const walletAddresses = useGetWalletAddresses(activeChain)
 
     const query = useQuery()
@@ -246,7 +251,10 @@ const StakePage = observer(
 
     useEffect(() => {
       async function updateChain() {
-        if (paramChainId) {
+        if (
+          paramChainId &&
+          (_activeChain as AggregatedSupportedChainType) !== AGGREGATED_CHAIN_KEY
+        ) {
           const chainIdToChain = await decodeChainIdToChain()
           const chain = chainIdToChain[paramChainId] as SupportedChain
           setActiveChain(chain)
@@ -264,15 +272,30 @@ const StakePage = observer(
         }, {} as Record<string, Validator>),
       [chainValidators.validatorData.validators],
     )
-    const redirectToInputPage = useCallback(() => {
+    const redirectToInputPage = useCallback(async () => {
+      let chain = activeChain
+      if (paramChainId && (_activeChain as AggregatedSupportedChainType) !== AGGREGATED_CHAIN_KEY) {
+        const chainIdToChain = await decodeChainIdToChain()
+        chain = chainIdToChain[paramChainId] as SupportedChain
+      }
       navigate('/stake/input', {
         state: {
           mode: 'DELEGATE',
           toValidator: paramValidatorAddress ? validators[paramValidatorAddress] : undefined,
+          forceChain: chain,
+          forceNetwork: activeNetwork,
         } as StakeInputPageState,
         replace: true,
       })
-    }, [navigate, paramValidatorAddress, validators])
+    }, [
+      _activeChain,
+      activeChain,
+      activeNetwork,
+      navigate,
+      paramChainId,
+      paramValidatorAddress,
+      validators,
+    ])
 
     useEffect(() => {
       switch (paramAction) {
@@ -299,6 +322,14 @@ const StakePage = observer(
     }, [activeChain, featureFlags?.restaking?.extension])
 
     const onClaimAndStake = useCallback(() => setShowClaimInfo(true), [])
+
+    usePerformanceMonitor({
+      enabled: !!activeWallet,
+      page: 'stake',
+      op: 'stakePageLoad',
+      description: 'loading state on stake page',
+      queryStatus: isLoadingAll ? 'loading' : 'success',
+    })
 
     if (!activeWallet) {
       return (
@@ -361,7 +392,8 @@ const StakePage = observer(
 
             {isLoadingAll && <AmountCardSkeleton />}
             {!isLoadingAll &&
-              (Object.values(delegations ?? {}).length > 0 ? (
+              (Object.values(delegations ?? {}).length > 0 ||
+              stakeEpochStore.getDelegationEpochMessages(activeStakingDenom).length > 0 ? (
                 <StakeAmountCard
                   onClaim={onClaim}
                   onClaimAndStake={onClaimAndStake}

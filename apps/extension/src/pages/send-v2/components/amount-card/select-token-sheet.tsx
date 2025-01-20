@@ -32,6 +32,7 @@ export const SelectTokenSheet = ({
   const locationState = useLocation().state
   const activeChainInfo = useChainInfo(sendActiveChain)
 
+  // TODO: remove this if unused please?
   let assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
   assetCoinDenom = useMemo(() => {
     if (locationState && (locationState as Token).coinMinimalDenom) {

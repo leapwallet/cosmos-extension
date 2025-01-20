@@ -185,6 +185,7 @@ export async function logDirectTx(
   address: string,
   txPostToDb: LogCosmosDappTx,
   chainId: string,
+  selectedNetwork: 'mainnet' | 'testnet',
 ) {
   if (shouldSkipTxnLogging(origin)) {
     return
@@ -206,6 +207,7 @@ export async function logDirectTx(
     chain,
     chainId,
     address,
+    network: selectedNetwork,
   })
 }
 
@@ -259,6 +261,7 @@ export async function logSignAmino(
   chain: SupportedChain,
   address: string,
   origin: string,
+  selectedNetwork: 'mainnet' | 'testnet',
 ) {
   if (shouldSkipTxnLogging(origin)) {
     return
@@ -279,6 +282,7 @@ export async function logSignAmino(
     chain,
     chainId: data.signed.chain_id,
     address,
+    network: selectedNetwork,
   })
 }
 
@@ -290,6 +294,7 @@ export async function logSignAminoInj(
   chain: SupportedChain,
   address: string,
   origin: string,
+  selectedNetwork: 'mainnet' | 'testnet',
 ) {
   if (shouldSkipTxnLogging(origin)) {
     return
@@ -326,5 +331,6 @@ export async function logSignAminoInj(
     chain,
     chainId: data.signed.chain_id,
     address,
+    network: selectedNetwork,
   })
 }

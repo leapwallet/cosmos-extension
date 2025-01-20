@@ -3,8 +3,8 @@ import { useCallback } from 'react';
 
 import { useAddress, useAddressPrefixes, useChainsStore } from '../store';
 
-export function useGetIbcChannelId() {
-  const fromAddress = useAddress();
+export function useGetIbcChannelId(forceChain?: SupportedChain) {
+  const fromAddress = useAddress(forceChain);
   const { chains } = useChainsStore();
   const addressPrefixes = useAddressPrefixes();
 

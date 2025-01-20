@@ -2,6 +2,7 @@ import { CoinType } from '@leapwallet/cosmos-wallet-sdk'
 
 export const chainDecimals: Record<CoinType, number> = {
   '60': 18,
+  '637': 8,
   '118': 6,
   '529': 6,
   '750': 6,
@@ -17,4 +18,6 @@ export const chainDecimals: Record<CoinType, number> = {
   '4444': 6,
   '505': 9,
   '494': 6,
+  '0': 8,
+  '1': 8,
 }

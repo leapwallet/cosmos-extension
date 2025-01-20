@@ -2,14 +2,29 @@ import {
   denoms as DefaultDenoms,
   DenomsRecord,
   getChainInfo,
+  getErc20TokenDetails,
   NativeDenom,
   SupportedDenoms,
 } from '@leapwallet/cosmos-wallet-sdk';
+
+export type CompassDenomInfoParams =
+  | {
+      isCompassWallet: true;
+      compassEvmToSeiMapping: Record<string, string>;
+      compassSeiToEvmMapping: Record<string, string>;
+      seiEvmRpcUrl: string;
+      seiEvmChainId: string;
+      seiCosmosChainId: string;
+    }
+  | {
+      isCompassWallet: false;
+    };
 
 export async function getDenomInfo(
   denom: string,
   chain: string,
   denoms: DenomsRecord,
+  compassParams: CompassDenomInfoParams,
   testnet?: boolean,
 ): Promise<NativeDenom | undefined> {
   if (chain === 'noble' && denom === 'uusdc') {
@@ -27,6 +42,50 @@ export async function getDenomInfo(
   }
 
   let denomInfo = denoms[denom];
+
+  if (!denomInfo && compassParams.isCompassWallet) {
+    // Compass wallet
+    let seiAddress;
+    let evmAddress;
+    if (denom.startsWith('0x')) {
+      evmAddress = denom;
+      seiAddress = compassParams?.compassEvmToSeiMapping?.[denom];
+    } else {
+      seiAddress = denom;
+      evmAddress = compassParams?.compassSeiToEvmMapping?.[denom];
+    }
+
+    if (seiAddress) {
+      denomInfo = denoms[seiAddress];
+    }
+    if (!denomInfo && evmAddress) {
+      denomInfo = denoms[evmAddress];
+      if (!denomInfo) {
+        let details;
+        try {
+          details = await getErc20TokenDetails(
+            evmAddress,
+            compassParams.seiEvmRpcUrl,
+            Number(compassParams.seiEvmChainId),
+          );
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Error getting ERC20 token details', e);
+        }
+        if (details) {
+          denomInfo = {
+            name: details.name,
+            coinDenom: details.symbol,
+            coinDecimals: details.decimals,
+            coinMinimalDenom: evmAddress,
+            icon: '',
+            chain: compassParams.seiCosmosChainId,
+            coinGeckoId: '',
+          };
+        }
+      }
+    }
+  }
 
   if (!denomInfo) {
     const chainInfo = await getChainInfo(chain, testnet);

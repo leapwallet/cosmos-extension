@@ -4,12 +4,12 @@ import { NftStore } from '@leapwallet/cosmos-wallet-store'
 import { Card } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { CustomCardDivider } from 'components/custom-card-divider'
-import { useHiddenNFTs } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
+import { hiddenNftStore } from 'stores/manage-nft-store'
 import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
 
@@ -23,11 +23,10 @@ type SelectSortByProps = {
 
 export const SelectSortBy = observer(
   ({ isVisible, onClose, selectedSortsBy, setSelectedSortsBy, nftStore }: SelectSortByProps) => {
-    const hiddenNfts = useHiddenNFTs()
     const disabledNFTsCollections = useDisabledNFTsCollections()
     const sortedCollectionChains = nftStore.getSortedCollectionChains(
       disabledNFTsCollections,
-      hiddenNfts,
+      hiddenNftStore.hiddenNfts,
     )
 
     const defaultTokenLogo = useDefaultTokenLogo()

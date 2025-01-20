@@ -34,11 +34,11 @@ export function TxReviewSheet({
     destinationToken,
     sourceChain,
     destinationChain,
-    route,
+    routingInfo,
   } = useSwapContext()
 
   const reviewPageProperties = useMemo(() => {
-    let inAmountDollarValue
+    let inAmountDollarValue, outAmountDollarValue
     if (
       sourceToken?.usdPrice &&
       !isNaN(parseFloat(sourceToken?.usdPrice)) &&
@@ -47,22 +47,33 @@ export function TxReviewSheet({
     ) {
       inAmountDollarValue = parseFloat(sourceToken?.usdPrice) * parseFloat(inAmount)
     }
+    if (
+      destinationToken?.usdPrice &&
+      !isNaN(parseFloat(destinationToken?.usdPrice)) &&
+      amountOut &&
+      !isNaN(parseFloat(amountOut))
+    ) {
+      outAmountDollarValue = parseFloat(destinationToken.usdPrice) * parseFloat(amountOut)
+    }
     return {
       fromToken: sourceToken?.symbol,
       fromTokenAmount: inAmountDollarValue,
       fromChain: sourceChain?.chainName ?? '',
       toToken: destinationToken?.symbol,
       toChain: destinationChain?.chainName,
-      hops: (route?.response?.operations?.length ?? 0) - 1,
+      toTokenAmount: outAmountDollarValue,
+      transactionCount: routingInfo?.route?.transactionCount,
     }
   }, [
     sourceToken?.usdPrice,
     sourceToken?.symbol,
     inAmount,
-    sourceChain?.chainName,
+    destinationToken?.usdPrice,
     destinationToken?.symbol,
+    amountOut,
+    sourceChain?.chainName,
     destinationChain?.chainName,
-    route?.response?.operations?.length,
+    routingInfo?.route?.transactionCount,
   ])
 
   usePageView(PageName.SwapsReview, isOpen, reviewPageProperties)

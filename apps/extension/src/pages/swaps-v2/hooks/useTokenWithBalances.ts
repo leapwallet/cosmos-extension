@@ -1,5 +1,5 @@
 import { getKeyToUseForDenoms, Token } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   AutoFetchedCW20DenomsStore,
   BetaCW20DenomsStore,
@@ -12,6 +12,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { SWAP_NETWORK } from './useSwapsTx'
 
@@ -91,13 +92,66 @@ export function useTokenWithBalances(
         return updatedToken
       }
 
-      if (!managedTokens.includes(updatedToken.coinMinimalDenom)) {
-        if (!!updatedToken && (!updatedToken?.amount || updatedToken?.amount === '0')) {
-          await rootBalanceStore.loadBalances(chain.key, SWAP_NETWORK)
-          // sleep for 5 secs
-          await new Promise((resolve) => setTimeout(resolve, 5000))
+      if (
+        !managedTokens.includes(updatedToken.coinMinimalDenom) ||
+        updatedToken?.skipAsset?.evmTokenContract
+      ) {
+        if (!updatedToken?.amount || updatedToken?.amount === '0') {
+          if (
+            updatedToken?.coinMinimalDenom?.startsWith('0x') ||
+            updatedToken?.skipAsset?.evmTokenContract
+          ) {
+            try {
+              const denomInfo: DenomsRecord = {
+                [updatedToken?.skipAsset?.evmTokenContract ?? updatedToken.coinMinimalDenom]: {
+                  name: updatedToken.name ?? updatedToken.skipAsset?.name ?? '',
+                  coinDenom: updatedToken.symbol ?? updatedToken.skipAsset?.symbol,
+                  coinMinimalDenom:
+                    updatedToken?.skipAsset?.evmTokenContract ?? updatedToken.coinMinimalDenom,
+                  coinDecimals:
+                    updatedToken?.skipAsset?.evmDecimals ??
+                    updatedToken.coinDecimals ??
+                    updatedToken.skipAsset?.decimals,
+                  icon: updatedToken.img ?? updatedToken.skipAsset?.logoUri ?? '',
+                  chain: chain.key,
+                  coinGeckoId:
+                    updatedToken.coinGeckoId ?? updatedToken.skipAsset?.coingeckoId ?? '',
+                },
+              }
+              const balances: Token[] =
+                (await rootBalanceStore.erc20BalanceStore.fetchERC20TokenBalances(
+                  chain.key,
+                  SWAP_NETWORK,
+                  [updatedToken?.skipAsset?.evmTokenContract ?? updatedToken.coinMinimalDenom],
+                  true,
+                  denomInfo,
+                )) ?? []
+
+              if (!balances?.length) return updatedToken
+
+              const [tokenBalance] = balances
+
+              return {
+                ...updatedToken,
+                amount: tokenBalance?.amount,
+                usdPrice: tokenBalance?.usdPrice,
+                usdValue: tokenBalance?.usdValue,
+              }
+            } catch (error) {
+              if (!updatedToken?.skipAsset?.isCw20) {
+                return updatedToken
+              }
+            }
+          }
+          if (!isCompassWallet()) {
+            await rootBalanceStore.loadBalances(chain.key, SWAP_NETWORK)
+            // sleep for 5 secs
+            await new Promise((resolve) => setTimeout(resolve, 5000))
+          }
         }
-        return updatedToken
+        if (!updatedToken?.skipAsset?.isCw20) {
+          return updatedToken
+        }
       }
 
       if (

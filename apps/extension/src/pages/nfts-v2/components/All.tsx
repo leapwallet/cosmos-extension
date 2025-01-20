@@ -6,10 +6,10 @@ import {
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { NftInfo, NftStore } from '@leapwallet/cosmos-wallet-store'
 import { EmptyCard } from 'components/empty-card'
-import { useHiddenNFTs } from 'hooks/settings'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hiddenNftStore } from 'stores/manage-nft-store'
 
 import { AllNftsHidden, ChainHeaderCollectionCard, Favourites } from './index'
 
@@ -21,14 +21,13 @@ type AllProps = {
 
 export const All = observer(({ searchedText, selectedSortsBy, nftStore }: AllProps) => {
   const disabledNFTsCollections = useDisabledNFTsCollections()
-  const hiddenNfts = useHiddenNFTs()
 
   const sortedCollectionChains = nftStore.getSortedCollectionChains(
     disabledNFTsCollections,
-    hiddenNfts,
+    hiddenNftStore.hiddenNfts,
   )
-  const _collectionData = nftStore.getVisibleCollectionData(hiddenNfts)
-  const areAllNftsHidden = nftStore.getAreAllNftsHidden(hiddenNfts)
+  const _collectionData = nftStore.getVisibleCollectionData(hiddenNftStore.hiddenNfts)
+  const areAllNftsHidden = nftStore.getAreAllNftsHidden(hiddenNftStore.hiddenNfts)
 
   const _nfts: { [key: string]: NftInfo[] } = useMemo(() => {
     return Object.keys(_collectionData?.nfts ?? {}).reduce((tempNfts, chain) => {

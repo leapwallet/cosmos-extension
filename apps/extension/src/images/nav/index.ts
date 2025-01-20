@@ -4,6 +4,7 @@ import ChildFriendly from './child-friendly.svg'
 import CurrencyIcon from './currency.svg'
 import CustomEndpoints from './custom-endpoints.svg'
 import DarkIcon from './dark.svg'
+import DollarCard from './dollar-card.svg'
 import ExportIcon from './export-icon.svg'
 import FinderIcon from './finder.svg'
 import GppGood from './gpp-good.svg'
@@ -32,6 +33,7 @@ export {
   CurrencyIcon,
   CustomEndpoints,
   DarkIcon,
+  DollarCard,
   ExportIcon,
   FinderIcon,
   GppGood,

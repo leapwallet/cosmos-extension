@@ -5,16 +5,13 @@ import {
   useFeatureFlags,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { captureException } from '@sentry/react'
-import { showSideNavFromSearchModalState } from 'atoms/search-modal'
 import { ButtonName, ButtonType, EventName, PageName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY, LEAPBOARD_URL } from 'config/constants'
 import { useAuth } from 'context/auth-context'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
 import mixpanel from 'mixpanel-browser'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useSetRecoilState } from 'recoil'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { closeSidePanel } from 'utils/closeSidePanel'
@@ -29,12 +26,9 @@ export function useHardCodedActions() {
   const address = useAddress()
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const activeChainInfo = useChainInfo()
-  const { hideBalances: balancesHidden } = useHideAssets()
-  const setBalancesVisibility = useSetHideAssets()
 
   const [showAlert, setShowAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
-  const setShowSideNav = useSetRecoilState(showSideNavFromSearchModalState)
 
   const handleBuyClick = () => {
     navigate(`/buy?pageSource=${PageName.Home}`)
@@ -50,8 +44,10 @@ export function useHardCodedActions() {
 
   function handleSwapClick(_redirectUrl?: string, navigateUrl?: string) {
     if (featureFlags?.all_chains?.swap === 'redirect') {
-      const redirectUrl =
-        _redirectUrl ?? `https://swapfast.app/?sourceChainId=${activeChainInfo.chainId}`
+      const fallbackUrl = activeChainInfo?.chainId
+        ? `https://swapfast.app/?sourceChainId=${activeChainInfo.chainId}`
+        : 'https://swapfast.app'
+      const redirectUrl = _redirectUrl ?? fallbackUrl
       window.open(redirectUrl, '_blank')
     } else {
       navigate(navigateUrl ?? '/swap')
@@ -80,9 +76,9 @@ export function useHardCodedActions() {
     const baseUrl = 'https://swapfast.app/bridge'
     let redirectURL = `${baseUrl}?destinationChainId=${activeChainInfo?.chainId}`
 
-    if (activeChainInfo?.key === 'mainCoreum') {
-      redirectURL = 'https://sologenic.org/coreum-bridge'
-    } else if (activeChainInfo.key === 'mantra') {
+    if (['mainCoreum', 'coreum'].includes(activeChainInfo?.key)) {
+      redirectURL = 'https://sologenic.org/bridge/coreum-bridge'
+    } else if (activeChainInfo?.key === 'mantra') {
       redirectURL = 'https://mantra.swapfast.app'
     } else if (activeChain === AGGREGATED_CHAIN_KEY) {
       redirectURL = baseUrl
@@ -103,8 +99,10 @@ export function useHardCodedActions() {
 
   function onSendClick(_redirectUrl?: string) {
     if (featureFlags?.ibc?.extension === 'redirect') {
-      const redirectUrl =
-        _redirectUrl ?? `${LEAPBOARD_URL}/transact/send?sourceChainId=${activeChainInfo.chainId}`
+      const fallbackUrl = activeChainInfo?.chainId
+        ? `${LEAPBOARD_URL}/transact/send?sourceChainId=${activeChainInfo.chainId}`
+        : `${LEAPBOARD_URL}/transact/send`
+      const redirectUrl = _redirectUrl ?? fallbackUrl
       window.open(redirectUrl, '_blank')
     } else {
       navigate(`/send`)
@@ -127,18 +125,8 @@ export function useHardCodedActions() {
     setShowAlert(true)
   }
 
-  function handleHideBalancesClick() {
-    setBalancesVisibility(!balancesHidden)
-    setAlertMessage(`Balances ${!balancesHidden ? 'Hidden' : 'Visible'}`)
-    setShowAlert(true)
-  }
-
   function handleLockWalletClick() {
     auth?.signout()
-  }
-
-  function handleSettingsClick() {
-    setShowSideNav(true)
   }
 
   return {
@@ -150,9 +138,7 @@ export function useHardCodedActions() {
     handleCopyAddressClick,
     alertMessage,
     setAlertMessage,
-    handleHideBalancesClick,
     handleLockWalletClick,
-    handleSettingsClick,
     handleNftsClick,
     handleVoteClick,
     onSendClick,

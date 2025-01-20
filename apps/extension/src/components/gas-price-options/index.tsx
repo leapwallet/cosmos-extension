@@ -18,6 +18,7 @@ import {
   useFeeTokens,
   useGasAdjustmentForChain,
   useGasPriceStepForChain,
+  useGetAptosGasPrices,
   useGetChains,
   useGetEvmGasPrices,
   useGetFeeMarketGasPricesSteps,
@@ -32,6 +33,7 @@ import {
   DefaultGasEstimates,
   DenomsRecord,
   GasPrice,
+  isAptosChain,
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -79,6 +81,7 @@ export const useDefaultGasPrice = (
 
   const _lowGasPriceStep = useLowGasPriceStep(activeChain)
   const { gasPrice: evmGasPrice } = useGetEvmGasPrices()
+  const { gasPrice: aptosGasPrice } = useGetAptosGasPrices()
   const chains = useGetChains()
 
   const lowGasPriceStep = useMemo(() => {
@@ -86,8 +89,19 @@ export const useDefaultGasPrice = (
       return evmGasPrice.low
     }
 
+    if (isAptosChain(activeChain)) {
+      return aptosGasPrice.low
+    }
+
     return _lowGasPriceStep
-  }, [_lowGasPriceStep, activeChain, chains, evmGasPrice.low, options?.isSeiEvmTransaction])
+  }, [
+    _lowGasPriceStep,
+    activeChain,
+    aptosGasPrice.low,
+    chains,
+    evmGasPrice.low,
+    options?.isSeiEvmTransaction,
+  ])
 
   const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, options?.selectedNetwork)
   const defaultPrice = useMemo(() => {
@@ -209,7 +223,7 @@ const GasPriceOptions = observer(
     const isSeiEvmChain = useIsSeiEvmChain(activeChain)
     const { chains } = useChainsStore()
     const chainInfo = chains[activeChain as SupportedChain]
-    const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain)
+    const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork)
     let allTokens = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
     const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain, selectedNetwork)
 
@@ -432,7 +446,7 @@ const GasPriceOptions = observer(
       const isIbcDenom = !!feeTokenAsset?.ibcDenom
       const hasToChangeDecimals =
         (isSeiEvmTransaction && feeTokenData?.denom?.coinMinimalDenom === 'usei') ||
-        chainInfo.evmOnlyChain
+        chainInfo?.evmOnlyChain
 
       const amount = gasPriceBN
         .multipliedBy(gasLimit)
@@ -754,6 +768,17 @@ GasPriceOptions.Selector = function Selector({
               feeTokenData,
             )
           }
+          const levelText = (level: GasOptions) => {
+            if (activeChain === 'bitcoin' || activeChain === 'bitcoinSignet') {
+              const levelMap = {
+                high: 'fast',
+                medium: 'average',
+                low: 'slow',
+              }
+              return levelMap[level]
+            }
+            return level
+          }
 
           return (
             <label
@@ -782,7 +807,7 @@ GasPriceOptions.Selector = function Selector({
                   isSelected ? 'dark:brightness-200 brightness-50' : ''
                 }`}
               >
-                {level}
+                {levelText(level as GasOptions)}
               </span>
               <span
                 className={`text-gray-700 transition-all text-center mt-[2px] ${

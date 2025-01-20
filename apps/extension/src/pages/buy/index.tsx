@@ -33,6 +33,7 @@ import { SelectAssetButton, SelectCurrencyButton } from './components/SelectButt
 import SelectCurrencySheet from './components/SelectCurrencySheet'
 import useWallets = Wallet.useWallets
 import { Wallet } from 'hooks/wallet/useWallet'
+import { uiErrorTags } from 'utils/sentry'
 
 export enum ServiceProviderEnum {
   KADO = 'kado',
@@ -108,7 +109,9 @@ const Buy = () => {
           setGetAssetAmount('0')
         }
       } catch (error) {
-        captureException(error)
+        captureException(error, {
+          tags: uiErrorTags,
+        })
 
         const message = error instanceof Error ? error.message : 'An error occurred'
         if (message.toLowerCase().includes('timeout')) {

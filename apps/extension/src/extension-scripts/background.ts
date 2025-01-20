@@ -12,14 +12,15 @@ import { SUPPORTED_METHODS } from '@leapwallet/cosmos-wallet-provider/dist/provi
 import {
   ChainInfo,
   encodedUtf8HexToText,
-  formatEtherValue,
-  getRestUrl,
-  pubKeyToEvmAddressToShow,
-  parseStandardTokenTransactionData,
   fetchERC20Balances,
+  formatEtherValue,
+  getEvmChainIdMap,
+  getRestUrl,
+  NetworkType,
+  parseStandardTokenTransactionData,
+  pubKeyToEvmAddressToShow,
   SeiEvmTx,
   SupportedChain,
-  getEvmChainIdMap,
 } from '@leapwallet/cosmos-wallet-sdk'
 
 import { decrypt, initCrypto, initStorage } from '@leapwallet/leap-keychain'
@@ -28,11 +29,13 @@ import {
   ACTIVE_WALLET,
   AUTO_LOCK_TIME,
   BETA_CHAINS,
+  BG_RESPONSE,
   ENCRYPTED_ACTIVE_WALLET,
+  IS_LIGHT_NODE_RUNNING,
   KEYSTORE,
   LAST_EVM_ACTIVE_CHAIN,
+  LIGHT_NODE_RUNNING_STATS,
   REDIRECT_REQUEST,
-  SELECTED_NETWORK,
   V118_KEYSTORE_MIGRATION_COMPLETE,
   V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE,
   V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE,
@@ -46,14 +49,15 @@ import { getStorageAdapter } from '../utils/storageAdapter'
 import { NEW_CHAIN_REQUEST, SUGGEST_TOKEN } from './../config/storage-keys'
 
 import { formatNewChainInfo, getChains } from '@leapwallet/cosmos-wallet-hooks'
-import { getEvmError } from '@leapwallet/cosmos-wallet-provider/dist/utils/get-evm-error'
 import {
+  APTOS_METHOD_TYPE,
   ETHEREUM_METHOD_TYPE,
   ETHEREUM_RPC_ERROR,
   EthereumRequestMessage,
   LINE_TYPE,
   LineType,
 } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
+import { getEvmError } from '@leapwallet/cosmos-wallet-provider/dist/utils/get-evm-error'
 import { EncryptionUtilsImpl } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/encryptionutil'
 import { MessageTypes } from 'config/message-types'
 import { handleSendTx } from './handle-sendtx'
@@ -66,6 +70,11 @@ import { storageMigrationV9 } from './migrations/v9'
 import { PasswordManager } from './password-manager'
 import { initiatePendingSwapTxTracking, listenPendingSwapTx } from './pending-swap-tx'
 
+import { addToConnections } from 'pages/ApproveConnection/utils'
+import { addTxToPendingTxList } from 'utils/pendingSwapsTxsStore'
+import { LightNode } from './lightnode'
+import { bitcoinRequestHandler } from './request-handlers/bitcoin-request.handler'
+import { getKey, handleGetKey } from './request-handlers/getKey.handler'
 import {
   awaitApproveChainResponse,
   awaitEnableChainResponse,
@@ -73,6 +82,8 @@ import {
   awaitUIResponse,
   checkConnection,
   disconnect,
+  getActiveNetworkInfo,
+  getChainOriginStorageKey,
   getSeed,
   getSupportedChains,
   getWalletAddress,
@@ -83,9 +94,11 @@ import {
   requestSignTransaction,
   validateNewChainInfo,
 } from './utils'
-import { addTxToPendingTxList } from 'utils/pendingSwapsTxsStore'
-import { getKey, handleGetKey } from './request-handlers/getKey.handler'
 import { addLeapEthereumChain } from './utils-provider-method-functions'
+import { isCompassWallet } from 'utils/isCompassWallet'
+
+const lightNode = new LightNode()
+lightNode.attachListener()
 
 global.window = self
 
@@ -97,8 +110,6 @@ type Data = EthereumRequestMessage & {
   origin: string
   ecosystem: LineType
 }
-
-const windowIdForPayloadId: { [x: number | string]: { type: string; payloadId: number } } = {}
 
 const enableAccessRequests: Map<string, number> = new Map()
 
@@ -117,6 +128,7 @@ const connectRemote = (remotePort: any) => {
     portStream.write({ name, payload, id })
   }
 
+  //TODO: remove this after aptos merge
   const customOpenPopup = async (
     page: Page,
     queryString?: string,
@@ -211,7 +223,7 @@ const connectRemote = (remotePort: any) => {
       ])
     }
 
-    let popupWindowId = 0
+    const popupWindowId = 0
     // let hasUnApprovedTx = false
     // this condition exists to prevent infinite extension popups
 
@@ -280,13 +292,7 @@ const connectRemote = (remotePort: any) => {
                   })
                   .then(() =>
                     openPopup('suggestChain')
-                      .then(async (window) => {
-                        popupWindowId = window?.id ?? 0
-                        windowIdForPayloadId[popupWindowId] = {
-                          type: type.toUpperCase(),
-                          payloadId: payload.id,
-                        }
-
+                      .then(async () => {
                         return awaitEnableChainResponse()
                           .then(async () =>
                             browser.storage.local.get([BETA_CHAINS]).then(async () => {
@@ -368,10 +374,6 @@ const connectRemote = (remotePort: any) => {
               enableAccessRequests.set(queryString, popupWindowId)
               await cosmosCustomOpenPopup('approveConnection', '?unlock-to-approve')
               requestEnableAccess({ origin: msg.origin, validChainIds, payloadId: payload.id })
-              windowIdForPayloadId[popupWindowId] = {
-                type: type.toUpperCase(),
-                payloadId: payload.id,
-              }
               try {
                 const response: any = await awaitApproveChainResponse(payload.id)
                 sendResponse(`on${type.toUpperCase()}`, response, response.payloadId)
@@ -543,13 +545,7 @@ const connectRemote = (remotePort: any) => {
               })
               .then(async () =>
                 openPopup('add-secret-token')
-                  .then((window) => {
-                    popupWindowId = window?.id ?? 0
-                    windowIdForPayloadId[popupWindowId] = {
-                      type: eventName,
-                      payloadId: payload.id,
-                    }
-
+                  .then(() => {
                     return awaitEnableChainResponse()
                       .then(() => sendResponse(eventName, { payload: '' }, payload.id))
                       .catch(() =>
@@ -610,46 +606,150 @@ const connectRemote = (remotePort: any) => {
             }
           }
         }
-        getSeed(passwordManager.getPassword() ?? '').then(async (seed) => {
-          const ChainInfos = await getChains()
-          const secretLcdUrl = getRestUrl(ChainInfos, 'secret', false)
-          const result = new EncryptionUtilsImpl(secretLcdUrl, payload.chainId, seed)
+        getSeed(passwordManager.getPassword() ?? new TextEncoder().encode('')).then(
+          async (seed) => {
+            const ChainInfos = await getChains()
+            const secretLcdUrl = getRestUrl(ChainInfos, 'secret', false)
+            const result = new EncryptionUtilsImpl(secretLcdUrl, payload.chainId, seed)
 
-          if (type === SUPPORTED_METHODS.GET_PUBKEY_MSG) {
-            result
-              .getPubkey()
-              .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
-              .catch((error) =>
-                sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-              )
-          } else if (type === SUPPORTED_METHODS.GET_TX_ENCRYPTION_KEY_MSG) {
-            result
-              .getTxEncryptionKey(payload.nonce)
-              .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
-              .catch((error) =>
-                sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-              )
-          } else if (type === SUPPORTED_METHODS.REQUEST_ENCRYPT_MSG) {
-            result
-              .encrypt(payload.contractCodeHash, payload.msg)
-              .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
-              .catch((error) =>
-                sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-              )
-          } else if (type === SUPPORTED_METHODS.REQUEST_DECRYPT_MSG) {
-            result
-              .decrypt(
-                new Uint8Array(Object.values(payload.ciphertext)),
-                new Uint8Array(Object.values(payload.nonce)),
-              )
-              .then((res) => {
-                sendResponse(`on${type.toUpperCase()}`, res, payload.id)
-              })
-              .catch((error) =>
-                sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-              )
-          }
+            if (type === SUPPORTED_METHODS.GET_PUBKEY_MSG) {
+              result
+                .getPubkey()
+                .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
+                .catch((error) =>
+                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
+                )
+            } else if (type === SUPPORTED_METHODS.GET_TX_ENCRYPTION_KEY_MSG) {
+              result
+                .getTxEncryptionKey(payload.nonce)
+                .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
+                .catch((error) =>
+                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
+                )
+            } else if (type === SUPPORTED_METHODS.REQUEST_ENCRYPT_MSG) {
+              result
+                .encrypt(payload.contractCodeHash, payload.msg)
+                .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
+                .catch((error) =>
+                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
+                )
+            } else if (type === SUPPORTED_METHODS.REQUEST_DECRYPT_MSG) {
+              result
+                .decrypt(
+                  new Uint8Array(Object.values(payload.ciphertext)),
+                  new Uint8Array(Object.values(payload.nonce)),
+                )
+                .then((res) => {
+                  sendResponse(`on${type.toUpperCase()}`, res, payload.id)
+                })
+                .catch((error) =>
+                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
+                )
+            }
+          },
+        )
+      }
+    }
+  }
+
+  const aptosRequestHandler = async (data: any) => {
+    const { method, ...payload } = data
+
+    const cosmosCustomOpenPopup = async (page: Page, queryString?: string) => {
+      return await customOpenPopup(page, queryString, [
+        `on${method.toUpperCase()}`,
+        { error: 'Requests exceeded' },
+        payload.id,
+      ])
+    }
+
+    // const popupWindowId = 0
+    // let hasUnApprovedTx = false
+    // this condition exists to prevent infinite extension popups
+
+    //check if account exists
+    const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
+
+    if (!storage[ACTIVE_WALLET] && !storage[ENCRYPTED_ACTIVE_WALLET]) {
+      browser.storage.local.set({ [REDIRECT_REQUEST]: null })
+
+      return sendResponse(
+        `on${method?.toUpperCase() ?? ''}`,
+        { error: 'No wallet exists' },
+        payload.id,
+      )
+    }
+
+    switch (method) {
+      case APTOS_METHOD_TYPE.GET_NETWORK: {
+        return getActiveNetworkInfo().then((data) =>
+          sendResponse(`on${method.toUpperCase()}`, data, payload.id),
+        )
+      }
+
+      case APTOS_METHOD_TYPE.DISCONNECT: {
+        return disconnect(payload).then((data) =>
+          sendResponse(`on${method.toUpperCase()}`, data, payload.id),
+        )
+      }
+
+      case SUPPORTED_METHODS.GET_KEYS:
+        {
+          await handleGetKey({
+            message: { type: SUPPORTED_METHODS.GET_KEYS, payload },
+            passwordManager,
+            sendResponse,
+          })
+        }
+        break
+
+      case APTOS_METHOD_TYPE.SWITCH_NETWORK: {
+        try {
+          await browser.storage.local.set({
+            [REDIRECT_REQUEST]: { method, payload },
+          })
+
+          await openPopup('switch-chain')
+          await awaitEnableChainResponse()
+          sendResponse(
+            `on${method.toUpperCase()}`,
+            { success: { chainId: payload.chainId } },
+            payload.id,
+          )
+        } catch (error: any) {
+          sendResponse(
+            `on${method.toUpperCase()}`,
+            {
+              error: error,
+            },
+            payload.id,
+          )
+        }
+        break
+      }
+
+      case APTOS_METHOD_TYPE.SIGN_TRANSACTION:
+      case APTOS_METHOD_TYPE.SIGN_MESSAGE: {
+        const { signDoc, signer, chainId, origin, signOptions, submit, signMessage } = payload
+
+        requestSignTransaction({
+          signDoc,
+          signer,
+          chainId,
+          origin,
+          signOptions,
+          submit,
+          isSignMessage: signMessage,
         })
+
+        await cosmosCustomOpenPopup('signAptos')
+        try {
+          const response = await awaitSigningResponse(MessageTypes.signResponse)
+          sendResponse(`on${method.toUpperCase()}`, response, payload.id)
+        } catch (e) {
+          sendResponse(`on${method.toUpperCase()}`, { error: 'Transaction declined' }, payload.id)
+        }
+        break
       }
     }
   }
@@ -660,18 +760,18 @@ const connectRemote = (remotePort: any) => {
     const popupWindowId = 0
     const sendResponseName = `on${method.toUpperCase()}`
     const payloadId = payload.id as unknown as number
-    const store = await browser.storage.local.get([
-      ACTIVE_CHAIN,
-      SELECTED_NETWORK,
-      LAST_EVM_ACTIVE_CHAIN,
-    ])
-    const lastEvmActiveChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum'
-    const activeChain: SupportedChain = payload.isLeap
-      ? lastEvmActiveChain
-      : store[ACTIVE_CHAIN] ?? 'seiTestnet2'
-    const activeNetwork: 'mainnet' | 'testnet' = store[SELECTED_NETWORK] ?? 'mainnet'
+
+    const activeChainIdStorageKey = getChainOriginStorageKey(payload.origin)
+    const storage = await browser.storage.local.get(activeChainIdStorageKey)
+
+    const activeChain =
+      (storage[activeChainIdStorageKey]?.chainKey as SupportedChain) ||
+      (payload?.isCompass ? 'seiTestnet2' : 'ethereum')
+
+    const activeNetwork = (storage[activeChainIdStorageKey]?.network as NetworkType) || 'mainnet'
     const supportedChains = await getSupportedChains()
-    const evmChainIdMap = getEvmChainIdMap(supportedChains)
+
+    const evmChainIdMap = getEvmChainIdMap(supportedChains, isCompassWallet())
     const chainInfo = supportedChains[activeChain]
 
     const evmRpcUrl =
@@ -1279,11 +1379,6 @@ const connectRemote = (remotePort: any) => {
                       ethMethod: method,
                       isLeap: payload.isLeap,
                     })
-
-                    windowIdForPayloadId[popupWindowId] = {
-                      type: method.toUpperCase(),
-                      payloadId: payloadId,
-                    }
                   } else {
                     if (!enableAccessRequests.has(queryString)) {
                       requestEnableAccess({
@@ -1379,76 +1474,7 @@ const connectRemote = (remotePort: any) => {
       }
 
       case ETHEREUM_METHOD_TYPE.WALLET__SWITCH_ETHEREUM_CHAIN: {
-        if (payload.params) {
-          const { chainId } = payload.params[0]
-          if (chainId) {
-            const requestedActiveChain = evmChainIdMap[Number(chainId).toString()]
-
-            if (requestedActiveChain) {
-              const seiEvmAddress = await getWalletAddress(payloadId)
-              if (seiEvmAddress === 'error') {
-                break
-              }
-
-              if (activeChain) {
-                const setNetworkTo = requestedActiveChain.isTestnet ? 'testnet' : 'mainnet'
-
-                if (evmChainId !== Number(chainId)) {
-                  await browser.storage.local.set({
-                    [REDIRECT_REQUEST]: {
-                      type: method,
-                      msg: {
-                        requestedActiveChain: requestedActiveChain.key,
-                        setNetworkTo,
-                        origin: payload.origin,
-                      },
-                    },
-                  })
-
-                  await evmCustomOpenPopup('switch-ethereum-chain')
-
-                  try {
-                    await awaitEnableChainResponse()
-                    sendResponse(sendResponseName, { success: { chainId } }, payloadId)
-                  } catch (e) {
-                    sendResponse(
-                      sendResponseName,
-                      { error: getEvmError(ETHEREUM_RPC_ERROR.USER_REJECTED_REQUEST) },
-                      payloadId,
-                    )
-                  }
-                } else {
-                  sendResponse(sendResponseName, { success: { chainId } }, payloadId)
-                }
-              } else {
-                await browser.storage.local.set({ [ACTIVE_CHAIN]: requestedActiveChain.key })
-                sendResponse(sendResponseName, { success: { chainId } }, payloadId)
-              }
-            } else {
-              sendResponse(
-                sendResponseName,
-                {
-                  error: getEvmError(
-                    ETHEREUM_RPC_ERROR.UNRECOGNIZED_CHAIN_ID,
-                    `Unrecognized chain id: ${Number(chainId)}`,
-                  ),
-                },
-                payloadId,
-              )
-            }
-          } else {
-            sendResponse(
-              sendResponseName,
-              {
-                error: getEvmError(
-                  ETHEREUM_RPC_ERROR.INVALID_PARAMS,
-                  `Chain id is missing in params.`,
-                ),
-              },
-              payloadId,
-            )
-          }
-        } else {
+        if (!payload.params) {
           sendResponse(
             sendResponseName,
             {
@@ -1459,7 +1485,93 @@ const connectRemote = (remotePort: any) => {
             },
             payloadId,
           )
+
+          break
         }
+
+        const { chainId } = payload.params[0]
+        if (!chainId) {
+          sendResponse(
+            sendResponseName,
+            {
+              error: getEvmError(
+                ETHEREUM_RPC_ERROR.INVALID_PARAMS,
+                `Chain id is missing in params.`,
+              ),
+            },
+            payloadId,
+          )
+
+          break
+        }
+
+        const requestedActiveChain = evmChainIdMap[Number(chainId).toString()]
+        if (!requestedActiveChain) {
+          sendResponse(
+            sendResponseName,
+            {
+              error: getEvmError(
+                ETHEREUM_RPC_ERROR.UNRECOGNIZED_CHAIN_ID,
+                `Unrecognized chain id: ${Number(chainId)}`,
+              ),
+            },
+            payloadId,
+          )
+
+          break
+        }
+
+        const seiEvmAddress = await getWalletAddress(payloadId)
+        if (seiEvmAddress === 'error') {
+          sendResponse(
+            sendResponseName,
+            {
+              error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, 'Unable to get wallet address'),
+            },
+            payloadId,
+          )
+
+          break
+        }
+
+        const chain = supportedChains[requestedActiveChain.key as SupportedChain]
+        if (!chain) {
+          sendResponse(
+            sendResponseName,
+            {
+              error: getEvmError(
+                ETHEREUM_RPC_ERROR.UNRECOGNIZED_CHAIN_ID,
+                `Unrecognized chain id: ${Number(chainId)}`,
+              ),
+            },
+            payloadId,
+          )
+
+          break
+        }
+
+        const setNetworkTo = requestedActiveChain.isTestnet ? 'testnet' : 'mainnet'
+
+        await browser.storage.local.set({
+          [activeChainIdStorageKey]: {
+            chainKey: requestedActiveChain.key,
+            network: setNetworkTo,
+          },
+        })
+
+        const requestedChainId =
+          (setNetworkTo === 'testnet' ? chain?.testnetChainId : chain?.chainId) ?? ''
+
+        const storage = await browser.storage.local.get(ACTIVE_WALLET)
+        const activeWallet = storage[ACTIVE_WALLET]
+
+        await addToConnections([requestedChainId], [activeWallet.id], payload.origin)
+        await browser.storage.local.set({
+          [BG_RESPONSE]: { data: 'Approved' },
+        })
+
+        setTimeout(() => browser.storage.local.remove(BG_RESPONSE), 50)
+        sendResponse(sendResponseName, { success: { chainId } }, payloadId)
 
         break
       }
@@ -1505,13 +1617,31 @@ const connectRemote = (remotePort: any) => {
   }
 
   portStream.on('data', async (data: any) => {
-    if (data?.ecosystem === LINE_TYPE.ETHEREUM) {
-      await evmRequestHandler(data)
-    } else {
-      await requestHandler(data)
+    switch (data?.ecosystem) {
+      case LINE_TYPE.ETHEREUM: {
+        await evmRequestHandler(data)
+        break
+      }
+      case LINE_TYPE.APTOS: {
+        await aptosRequestHandler(data)
+        break
+      }
+      case LINE_TYPE.BITCOIN: {
+        await bitcoinRequestHandler(passwordManager, sendResponse, enableAccessRequests, data)
+        break
+      }
+      default: {
+        await requestHandler(data)
+      }
     }
   })
 }
+
+browser.runtime.onMessage.addListener((message) => {
+  if (message.type === 'capture-light-node-stats') {
+    lightNode.updateRunningTimeForLightNode()
+  }
+})
 
 browser.runtime.onConnect.addListener(connectRemote)
 
@@ -1522,12 +1652,14 @@ browser.runtime.onInstalled.addListener((details) => {
       ACTIVE_WALLET,
       ENCRYPTED_ACTIVE_WALLET,
       AUTO_LOCK_TIME,
+      IS_LIGHT_NODE_RUNNING,
       'encrypted',
       'timestamp',
     ])
     .then(async (storage) => {
       const activeWallet = storage[ACTIVE_WALLET]
       const encryptedActiveWallet = storage[ENCRYPTED_ACTIVE_WALLET]
+      const isLightNodeRunning = storage[IS_LIGHT_NODE_RUNNING]
 
       if (!activeWallet && !encryptedActiveWallet) {
         browser.tabs.create({
@@ -1569,6 +1701,25 @@ browser.runtime.onInstalled.addListener((details) => {
         if (execV80Migration) {
           storageMigrationV80(passwordManager)
         }
+        if (prevVersionInt < 161) {
+          // reset light running stats for all users on update
+          browser.storage.local.get([LIGHT_NODE_RUNNING_STATS]).then((storage) => {
+            const lightNodeRunningStats = storage[LIGHT_NODE_RUNNING_STATS]
+            if (lightNodeRunningStats) {
+              const { startTimestamp: lastStartedAt } = JSON.parse(lightNodeRunningStats)
+              browser.storage.local.set({
+                [LIGHT_NODE_RUNNING_STATS]: JSON.stringify({
+                  startTimestamp: lastStartedAt,
+                  totalRunningTimeInMilliSeconds: 0,
+                }),
+              })
+            }
+          })
+        }
+      }
+      if (isLightNodeRunning) {
+        lightNode.startLightNodeBackground()
+        lightNode.updateRunningTimeForLightNode()
       }
     })
 })

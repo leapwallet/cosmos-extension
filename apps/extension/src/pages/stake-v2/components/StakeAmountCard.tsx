@@ -15,10 +15,10 @@ import {
 import BigNumber from 'bignumber.js'
 import Text from 'components/text'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 
 import StakeRewardCard from './StakeRewardCard'
 
@@ -61,7 +61,6 @@ const StakeAmountCard = observer(
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
-    const { formatHideBalance } = useHideAssets()
     const { loadingDelegations, currencyAmountDelegation, totalDelegationAmount } = useStaking(
       denoms,
       chainDelegations,
@@ -89,10 +88,10 @@ const StakeAmountCard = observer(
           <div>
             <Text size='lg' className='font-black'>
               {formattedCurrencyAmountDelegation &&
-                formatHideBalance(formattedCurrencyAmountDelegation)}
+                hideAssetsStore.formatHideBalance(formattedCurrencyAmountDelegation)}
             </Text>
             <Text size='sm' className='font-medium' color='text-gray-800 dark:text-gray-200'>
-              {formatHideBalance(totalDelegationAmount ?? '-')}
+              {hideAssetsStore.formatHideBalance(totalDelegationAmount ?? '-')}
             </Text>
           </div>
         )}

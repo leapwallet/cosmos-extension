@@ -1,20 +1,15 @@
 import { isLedgerUnlocked } from '@leapwallet/cosmos-wallet-sdk'
-import { KeyChain } from '@leapwallet/leap-keychain'
 import { Buttons, ProgressBar } from '@leapwallet/leap-ui'
-import { CaretDown, CaretUp } from '@phosphor-icons/react'
-import classNames from 'classnames'
 import ChoosePasswordView from 'components/choose-password-view'
 import CssLoader from 'components/css-loader/CssLoader'
 import ExtensionPage from 'components/extension-page'
-import Text from 'components/text'
-import WalletInfoCard from 'components/wallet-info-card'
 import { AuthContextType, useAuth } from 'context/auth-context'
 import { useOnboarding } from 'hooks/onboarding/useOnboarding'
-import { usePassword } from 'hooks/settings/usePassword'
 import useQuery from 'hooks/useQuery'
-import { Images } from 'images'
-import React, { useEffect, useMemo, useState } from 'react'
+import { observer } from 'mobx-react-lite'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { passwordStore } from 'stores/password-store'
 import { Colors } from 'theme/colors'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -23,184 +18,10 @@ import browser from 'webextension-polyfill'
 import { SeedPhraseView } from '../components'
 import ImportLedgerView from './ImportLedgerView'
 import SelectLedgerWalletView from './SelectLedgerWalletView'
+import { SelectWalletView } from './SelectWalletView'
 import { LEDGER_CONNECTION_STEP } from './types'
 
-type SelectWalletViewProps = {
-  readonly onProceed: () => void
-  readonly accountsData: readonly { address: string; index: number }[]
-  // eslint-disable-next-line no-unused-vars
-  readonly setSelectedIds: (val: { [id: number]: boolean }) => void
-  readonly selectedIds: { [id: string]: boolean }
-}
-
-function SelectWalletView({
-  onProceed,
-  accountsData,
-  selectedIds,
-  setSelectedIds,
-}: SelectWalletViewProps) {
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [existingAddresses, setExistingAddresses] = useState<string[]>([])
-  const [viewMore, setViewMore] = useState(false)
-
-  const toggleViewMore = () => setViewMore((v) => !v)
-
-  useEffect(() => {
-    const fn = async () => {
-      const allWallets = await KeyChain.getAllWallets()
-      const addresses = []
-
-      for (const wallet of Object.values(allWallets ?? {})) {
-        const address = isCompassWallet() ? wallet.addresses.seiTestnet2 : wallet.addresses.cosmos
-        addresses.push(address)
-      }
-      setExistingAddresses(addresses)
-    }
-    fn()
-  }, [])
-
-  const validate = () => {
-    setError('')
-    if (!Object.values(selectedIds).some((val) => val)) {
-      setError('Please select at least one wallet')
-      return false
-    }
-    return true
-  }
-
-  const handleProceedClick = () => {
-    setIsLoading(true)
-    if (validate()) onProceed()
-  }
-
-  const walletCards = useMemo(() => {
-    return accountsData.map(({ address, index: id }) => {
-      const isExistingAddress = existingAddresses.indexOf(address) > -1
-      const isChosen = selectedIds[id]
-
-      return (
-        <WalletInfoCard
-          data-testing-id={id === 0 ? 'wallet-1' : ''}
-          key={id}
-          id={id}
-          hidden={viewMore ? false : id >= 2}
-          cosmosAddress={address}
-          isChosen={isChosen}
-          isExistingAddress={isExistingAddress}
-          onClick={() => {
-            if (!isExistingAddress) {
-              const copy = selectedIds
-              if (!isChosen) {
-                setSelectedIds({ ...copy, [id]: true })
-              } else {
-                setSelectedIds({ ...copy, [id]: false })
-              }
-            }
-          }}
-        />
-      )
-    })
-  }, [accountsData, existingAddresses, selectedIds, setSelectedIds, viewMore])
-
-  return (
-    <div className='flex flex-row gap-x-[20px]'>
-      <div className='flex flex-col w-[408px]'>
-        <div className='flex flex-row gap-x-[12px]'>
-          <img src={Images.Misc.WalletIconWhite} />
-          <Text size='xxl' className='font-medium'>
-            Select wallets
-          </Text>
-        </div>
-        <Text size='lg' color='text-gray-600 dark:text-gray-400' className='font-light mb-[32px]'>
-          If you have used multiple accounts in your wallet, you can choose to import them here.
-        </Text>
-        <div className='flex flex-col space-y-4'>{walletCards}</div>
-        <div className='mt-4'>
-          {viewMore ? (
-            <button
-              title='Show Less'
-              className={classNames(
-                'outline-none pr-2 rounded font-bold focus:ring-1 flex items-center justify-around space-x-2',
-                {
-                  'focus:ring-mainChainTheme-400': !isCompassWallet(),
-                  'text-mainChainTheme-400': !isCompassWallet(),
-                  'focus:ring-compassChainTheme-400': isCompassWallet(),
-                  'text-compassChainTheme-400': isCompassWallet(),
-                },
-              )}
-              onClick={toggleViewMore}
-            >
-              <CaretUp size={16} />
-              <span>Show Less Wallets</span>
-            </button>
-          ) : (
-            <button
-              title='Show More'
-              className={classNames(
-                'outline-none pr-2 rounded font-bold focus:ring-1 flex items-center justify-around space-x-2',
-                {
-                  'focus:ring-mainChainTheme-400': !isCompassWallet(),
-                  'text-mainChainTheme-400': !isCompassWallet(),
-                  'focus:ring-compassChainTheme-400': isCompassWallet(),
-                  'text-compassChainTheme-400': isCompassWallet(),
-                },
-              )}
-              onClick={toggleViewMore}
-            >
-              <CaretDown size={16} />
-              <span>Show More Wallets</span>
-            </button>
-          )}
-        </div>
-        {error && (
-          <Text size='sm' color='text-red-300 mt-[16px]'>
-            {' '}
-            {error}
-          </Text>
-        )}
-        <div className='pt-[32px]'></div>
-
-        {isLoading ? (
-          <Buttons.Generic color={Colors.cosmosPrimary} type='button' className='flex items-center'>
-            <CssLoader />
-          </Buttons.Generic>
-        ) : (
-          <Buttons.Generic
-            disabled={isLoading || Object.values(selectedIds).filter((val) => val).length === 0}
-            color={Colors.cosmosPrimary}
-            onClick={handleProceedClick}
-            data-testing-id='btn-select-wallet-proceed'
-          >
-            Proceed
-          </Buttons.Generic>
-        )}
-      </div>
-      <div>
-        <div className='shrink flex-col gap-y-[4px] w-[408px] p-[32px] rounded-lg border-[1px] dark:border-gray-800 border-gray-200'>
-          <Text size='lg' className='font-medium text-gray-600 dark:text-gray-200'>
-            {' '}
-            Which wallets are displayed here?
-          </Text>
-          <Text size='md' color='text-gray-600 dark:text-gray-400 mb-[32px]'>
-            {' '}
-            Only wallets with transactions are imported.
-          </Text>
-
-          <Text size='lg' className='font-medium text-gray-600 dark:text-gray-200'>
-            {' '}
-            Can I edit wallet details?
-          </Text>
-          <Text size='md' color='text-gray-600 dark:text-gray-400'>
-            You can rename, add or remove wallets at any time.
-          </Text>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function OnboardingImportWallet() {
+export default observer(function OnboardingImportWallet() {
   const walletName = useQuery().get('walletName') ?? undefined
   const isLedger = ['hardwarewallet', 'evmhardwarewallet'].includes(walletName || '')
   const isMetamask = walletName?.toLowerCase().includes('metamask')
@@ -212,7 +33,6 @@ export default function OnboardingImportWallet() {
   const [secret, setSecret] = useState('')
   const [selectedIds, setSelectedIds] = useState<{ [id: number]: boolean }>({})
   const [error, setError] = useState('')
-  const savedPassword = usePassword()
   const [loading, setLoading] = useState(false)
   const [importEvmLedgerStep, setImportEvmLedgerStep] = useState(false)
 
@@ -229,9 +49,10 @@ export default function OnboardingImportWallet() {
     onOnboardingComplete,
     onBoardingCompleteLedger,
     getEvmLedgerAccountDetails,
+    getLedgerAccountDetailsForIdxs,
   } = useOnboarding()
 
-  const onOnboardingCompleted = async (password: string) => {
+  const onOnboardingCompleted = async (password: Uint8Array) => {
     try {
       setLoading(true)
       if (isLedger) {
@@ -248,13 +69,15 @@ export default function OnboardingImportWallet() {
         await onOnboardingComplete(secret, password, onBoardingSelectedIds, 'import')
       }
 
-      // eslint-disable-next-line no-use-before-define
-      if (!savedPassword) {
-        // eslint-disable-next-line no-use-before-define
+      if (!passwordStore.password) {
         await moveToNextStep()
       }
+
       if (password) {
-        browser.runtime.sendMessage({ type: 'unlock', data: { password } })
+        const passwordBase64 = Buffer.from(password).toString('base64')
+        browser.runtime.sendMessage({ type: 'unlock', data: { password: passwordBase64 } })
+        passwordStore.setPassword(password)
+        navigate('/onboardingSuccess')
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -269,16 +92,18 @@ export default function OnboardingImportWallet() {
 
   const moveToNextStep = async () => {
     if (currentStep + 1 === totalSteps) navigate('/onboardingSuccess')
-    if (currentStep === 1 && isPrivateKey && savedPassword) {
-      await onOnboardingCompleted(savedPassword as string)
+    if (currentStep === 1 && isPrivateKey && passwordStore.password) {
+      await onOnboardingCompleted(passwordStore.password)
       navigate('/onboardingSuccess')
       return
     }
-    if (currentStep + 1 === 2 && isPrivateKey && !savedPassword) {
+    if (currentStep + 1 === 2 && isPrivateKey && !passwordStore.password) {
       setCurrentStep(currentStep + 2)
     } else if (currentStep === 2 && !noAccount) {
       try {
-        await onOnboardingCompleted(savedPassword as string)
+        if (passwordStore.password) {
+          await onOnboardingCompleted(passwordStore.password)
+        }
       } catch (_) {
         //
       }
@@ -431,6 +256,7 @@ export default function OnboardingImportWallet() {
           setSelectedIds={setSelectedIds}
           accountsData={walletAccounts as { address: string; index: number }[]}
           onProceed={moveToNextStep}
+          getLedgerAccountDetailsForIdxs={getLedgerAccountDetailsForIdxs}
           onEVMConnect={() => {
             setError('')
             setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step1)
@@ -439,9 +265,9 @@ export default function OnboardingImportWallet() {
         />
       )}
 
-      {currentStep === 3 && !savedPassword && (
+      {currentStep === 3 && !passwordStore.password && (
         <ChoosePasswordView onProceed={onOnboardingCompleted} />
       )}
     </ExtensionPage>
   )
-}
+})

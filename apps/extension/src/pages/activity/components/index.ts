@@ -1,7 +1,6 @@
 export * from './ActivityCard'
 export * from './ActivityIcon'
 export * from './AggregatedActivity'
-export * from './AggregatedActivityNullComponents'
 export * from './ChainActivity'
 export * from './ErrorActivityView'
 export * from './GeneralActivity'

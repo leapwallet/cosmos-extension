@@ -7,8 +7,6 @@ import {
   useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
-  ChainInfos,
-  isEthAddress,
   LeapLedgerSignerEth,
   pubKeyToEvmAddressToShow,
   SupportedChain,
@@ -73,6 +71,9 @@ export const ReviewTransferSheet = observer(
       associatedSeiAddress,
       sendActiveChain,
       associated0xAddress,
+      isSeiEvmTransaction,
+      hasToUsePointerLogic,
+      pointerAddress,
     } = useSendContext()
 
     const { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError } =
@@ -119,7 +120,7 @@ export const ReviewTransferSheet = observer(
           toAddress = associated0xAddress
         }
 
-        if ((isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) && isEthAddress(toAddress)) {
+        if (isSeiEvmTransaction || chains[sendActiveChain]?.evmOnlyChain) {
           const wallet = await getWallet(sendActiveChain, true)
           const nativeTokenKey = Object.keys(chains[sendActiveChain]?.nativeDenoms ?? {})?.[0]
 
@@ -130,13 +131,19 @@ export const ReviewTransferSheet = observer(
             wallet as unknown as EthWallet,
             parseInt(userPreferredGasPrice?.amount?.toString() ?? ''),
             {
-              isERC20Token: _isERC20Token,
-              contractAddress: selectedToken.coinMinimalDenom,
+              isERC20Token: _isERC20Token || hasToUsePointerLogic,
+              contractAddress: hasToUsePointerLogic
+                ? pointerAddress
+                : selectedToken.coinMinimalDenom,
               decimals: selectedToken.coinDecimals,
               nativeTokenKey,
             },
           )
-        } else if (transferData?.isSkipTransfer && !isIbcUnwindingDisabled && isIBCTransfer) {
+        } else if (
+          transferData?.isSkipTransfer &&
+          !isIbcUnwindingDisabled &&
+          (isIBCTransfer || selectedAddress?.address?.startsWith('init'))
+        ) {
           // If skiptranfer is supported and ibc unwinding in not disabled and it is ibc transfer
           // we use Skip API for transfer or
           // else we use default Cosmos API
@@ -174,9 +181,10 @@ export const ReviewTransferSheet = observer(
       isSeiEvmChain,
       chains,
       sendActiveChain,
-      fetchAccountDetailsData?.pubKey.key,
+      fetchAccountDetailsData?.pubKey?.key,
       associatedSeiAddress,
       associated0xAddress,
+      isSeiEvmTransaction,
       transferData?.isSkipTransfer,
       isIbcUnwindingDisabled,
       isIBCTransfer,
@@ -186,6 +194,8 @@ export const ReviewTransferSheet = observer(
       userPreferredGasLimit,
       gasEstimate,
       userPreferredGasPrice?.amount,
+      hasToUsePointerLogic,
+      pointerAddress,
       confirmSend,
       memo,
       confirmSkipTx,
@@ -229,8 +239,8 @@ export const ReviewTransferSheet = observer(
             </div>
 
             <ArrowRight
-              size={16}
-              className='text-black-100 dark:text-white-100 bg-gray-100 dark:bg-gray-850 rounded-full p-1.5'
+              size={24}
+              className='text-black-100 shrink-0 dark:text-white-100 bg-gray-100 dark:bg-gray-850 rounded-full p-1.5'
             />
             <div className='flex flex-col flex-1 items-center'>
               <Avatar
@@ -254,7 +264,7 @@ export const ReviewTransferSheet = observer(
               </p>
 
               <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
-                on {ChainInfos?.[selectedAddress?.chainName as SupportedChain]?.chainName} <br />
+                on {chains?.[selectedAddress?.chainName as SupportedChain]?.chainName} <br />
               </p>
             </div>
           </div>

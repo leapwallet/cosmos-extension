@@ -1,5 +1,6 @@
 import {
   AdjustmentType,
+  formatTokenAmount,
   getAutoAdjustAmount,
   getKeyToUseForDenoms,
   Token,
@@ -23,24 +24,35 @@ type AutoAdjustAmountSheetProps = {
   isOpen: boolean
   tokenAmount: string
   feeAmount: string
-  // eslint-disable-next-line no-unused-vars
   setAmount: (amount: string) => void
   nativeDenom: NativeDenom
+  decimalsToUse?: number
 }
 
 const OptionalAutoAdjustAmountSheet: React.FC<
   AutoAdjustAmountSheetProps & {
     onBack: () => void
   }
-> = ({ isOpen, tokenAmount, feeAmount, setAmount, nativeDenom, onAdjust, onCancel, onBack }) => {
+> = ({
+  isOpen,
+  tokenAmount,
+  feeAmount,
+  setAmount,
+  nativeDenom,
+  onAdjust,
+  onCancel,
+  onBack,
+  decimalsToUse,
+}) => {
   const { theme } = useTheme()
   const updatedAmount = useMemo(() => {
     return getAutoAdjustAmount({
       tokenAmount,
       feeAmount,
       nativeDenom,
+      decimalsToUse,
     })
-  }, [feeAmount, nativeDenom, tokenAmount])
+  }, [feeAmount, nativeDenom, decimalsToUse, tokenAmount])
 
   const handleAdjust = useCallback(() => {
     if (updatedAmount) {
@@ -52,16 +64,26 @@ const OptionalAutoAdjustAmountSheet: React.FC<
   }, [onAdjust, onCancel, setAmount, updatedAmount])
 
   const displayTokenAmount = useMemo(() => {
-    const displayString = fromSmall(tokenAmount, nativeDenom?.coinDecimals ?? 6)
-    return `${displayString} ${nativeDenom?.coinDenom ?? ''}`
-  }, [nativeDenom?.coinDecimals, nativeDenom?.coinDenom, tokenAmount])
+    const displayString = fromSmall(tokenAmount, decimalsToUse ?? 6)
+
+    return formatTokenAmount(
+      displayString,
+      nativeDenom?.coinDenom ?? '',
+      Math.min(decimalsToUse ?? 6, 6),
+    )
+  }, [decimalsToUse, nativeDenom?.coinDenom, tokenAmount])
 
   const displayUpdatedAmount = useMemo(() => {
     if (updatedAmount) {
-      return `${updatedAmount} ${nativeDenom?.coinDenom ?? ''}`
+      return formatTokenAmount(
+        updatedAmount,
+        nativeDenom?.coinDenom ?? '',
+        Math.min(decimalsToUse ?? 6, 6),
+      )
     }
+
     return null
-  }, [nativeDenom?.coinDenom, updatedAmount])
+  }, [decimalsToUse, nativeDenom?.coinDenom, updatedAmount])
 
   return (
     <BottomModal
@@ -130,6 +152,7 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
   nativeDenom,
   onAdjust,
   onCancel,
+  decimalsToUse,
 }) => {
   const { theme } = useTheme()
   const updatedAmount = useMemo(() => {
@@ -137,10 +160,9 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
       tokenAmount: tokenBalance,
       feeAmount,
       nativeDenom,
+      decimalsToUse,
     })
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feeAmount, nativeDenom, tokenAmount])
+  }, [tokenBalance, feeAmount, nativeDenom, decimalsToUse])
 
   const handleAdjust = useCallback(() => {
     if (updatedAmount) {
@@ -152,16 +174,26 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
   }, [onAdjust, onCancel, setAmount, updatedAmount])
 
   const displayTokenAmount = useMemo(() => {
-    const displayString = fromSmall(tokenAmount, nativeDenom?.coinDecimals ?? 6)
-    return `${displayString} ${nativeDenom?.coinDenom ?? ''}`
-  }, [nativeDenom?.coinDecimals, nativeDenom?.coinDenom, tokenAmount])
+    const displayString = fromSmall(tokenAmount, decimalsToUse ?? 6)
+
+    return formatTokenAmount(
+      displayString,
+      nativeDenom?.coinDenom ?? '',
+      Math.min(decimalsToUse ?? 6, 6),
+    )
+  }, [decimalsToUse, nativeDenom?.coinDenom, tokenAmount])
 
   const displayUpdatedAmount = useMemo(() => {
     if (updatedAmount) {
-      return `${updatedAmount} ${nativeDenom?.coinDenom ?? ''}`
+      return formatTokenAmount(
+        updatedAmount,
+        nativeDenom?.coinDenom ?? '',
+        Math.min(decimalsToUse ?? 6, 6),
+      )
     }
+
     return null
-  }, [nativeDenom?.coinDenom, updatedAmount])
+  }, [decimalsToUse, nativeDenom?.coinDenom, updatedAmount])
 
   return (
     <BottomModal
@@ -216,6 +248,23 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
   )
 }
 
+type ObserverAutoAdjustAmountSheetProps = {
+  amount: string
+  setAmount: (amount: string) => void
+  selectedToken: {
+    amount: Token['amount']
+    coinMinimalDenom: Token['coinMinimalDenom']
+    chain?: Token['chain']
+  }
+  fee: { amount: string; denom: string }
+  setShowReviewSheet: (show: boolean) => void
+  closeAdjustmentSheet: () => void
+  rootDenomsStore: RootDenomsStore
+  forceChain?: SupportedChain
+  forceNetwork?: 'mainnet' | 'testnet'
+  isSeiEvmTransaction?: boolean
+}
+
 export const AutoAdjustAmountSheet = observer(
   ({
     amount,
@@ -224,26 +273,11 @@ export const AutoAdjustAmountSheet = observer(
     fee,
     setShowReviewSheet,
     closeAdjustmentSheet,
+    rootDenomsStore,
     forceChain,
     forceNetwork,
-    rootDenomsStore,
-  }: {
-    amount: string
-    // eslint-disable-next-line no-unused-vars
-    setAmount: (amount: string) => void
-    selectedToken: {
-      amount: Token['amount']
-      coinMinimalDenom: Token['coinMinimalDenom']
-      chain?: Token['chain']
-    }
-    fee: { amount: string; denom: string }
-    // eslint-disable-next-line no-unused-vars
-    setShowReviewSheet: (show: boolean) => void
-    closeAdjustmentSheet: () => void
-    forceChain?: SupportedChain
-    forceNetwork?: 'mainnet' | 'testnet'
-    rootDenomsStore: RootDenomsStore
-  }) => {
+    isSeiEvmTransaction,
+  }: ObserverAutoAdjustAmountSheetProps) => {
     const chainInfo = useChainInfo(forceChain)
     const denoms = rootDenomsStore.allDenoms
     const shouldShowAutoAdjustSheet = useShouldShowAutoAdjustSheet(denoms, forceChain, forceNetwork)
@@ -274,15 +308,20 @@ export const AutoAdjustAmountSheet = observer(
       navigate('/home')
     }, [closeAdjustmentSheet, navigate])
 
+    const decimalsToUse = useMemo(() => {
+      if (isSeiEvmTransaction) {
+        return 18
+      }
+
+      return nativeDenom?.coinDecimals ?? 6
+    }, [isSeiEvmTransaction, nativeDenom?.coinDecimals])
+
     const tokenBalance = useMemo(
-      () => toSmall(selectedToken?.amount ?? '0', nativeDenom?.coinDecimals ?? 6),
-      [nativeDenom?.coinDecimals, selectedToken?.amount],
+      () => toSmall(selectedToken?.amount ?? '0', decimalsToUse),
+      [decimalsToUse, selectedToken?.amount],
     )
 
-    const tokenAmount = useMemo(
-      () => toSmall(amount, nativeDenom?.coinDecimals ?? 6),
-      [amount, nativeDenom?.coinDecimals],
-    )
+    const tokenAmount = useMemo(() => toSmall(amount, decimalsToUse), [amount, decimalsToUse])
 
     const adjustmentType = useMemo(() => {
       return shouldShowAutoAdjustSheet({
@@ -318,6 +357,7 @@ export const AutoAdjustAmountSheet = observer(
           onBack={closeAdjustmentSheet}
           onAdjust={allowReview}
           onCancel={allowReview}
+          decimalsToUse={decimalsToUse}
         />
 
         <CompulsoryAutoAdjustAmountSheet
@@ -329,6 +369,7 @@ export const AutoAdjustAmountSheet = observer(
           setAmount={setAmount}
           onAdjust={allowReview}
           onCancel={handleCompulsoryCancel}
+          decimalsToUse={decimalsToUse}
         />
       </>
     )

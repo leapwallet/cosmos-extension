@@ -1,7 +1,7 @@
 import { Reward, RewardsResponse, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import create from 'zustand';
 
-import { SelectedNetwork } from '../utils';
+import { SelectedNetwork } from '../utils/get-staking-selected-network';
 
 type ClaimRewards = {
   rewards: Record<string, Reward>;
