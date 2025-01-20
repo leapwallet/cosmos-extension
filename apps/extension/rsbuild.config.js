@@ -1,7 +1,6 @@
 const { defineConfig } = require('@rsbuild/core');
 const { pluginReact } = require('@rsbuild/plugin-react');
 const rspack = require('@rspack/core');
-const { sentryWebpackPlugin } = require('@sentry/webpack-plugin');
 const path = require('path');
 const fs = require('fs');
 
@@ -259,26 +258,6 @@ module.exports = defineConfig({
           Buffer: ['buffer', 'Buffer'],
           process: 'process/browser',
         }),
-        ...(isProdBuild
-          ? [
-            sentryWebpackPlugin({
-              org: appEnvConfig.SENTRY_ORG,
-              project: appEnvConfig.SENTRY_PROJECT,
-              sourcemaps: {
-                assets: isCompassBuild
-                  ? path.resolve(__dirname, `./${buildDir}/**`)
-                  : path.resolve(__dirname, `./${buildDir}/**`),
-                filesToDeleteAfterUpload: ['**/*.map'],
-              },
-              authToken: envConfig.SENTRY_AUTH_TOKEN,
-              release: {
-                name: manifestObj.version,
-              },
-              deleteAfterCompile: true,
-              url: envConfig.SENTRY_HOST,
-            }),
-          ]
-          : []),
       ],
     },
   },

@@ -2699,15 +2699,6 @@
     swr "2.1.5"
     tiny-invariant "1.3.3"
 
-"@leapwallet/leap-api-js@0.21.12":
-  version "0.21.12"
-  resolved "https://npm.pkg.github.com/download/@leapwallet/leap-api-js/0.21.12/3800f56827f1ed7694c89798cc702156e8ce4aca#3800f56827f1ed7694c89798cc702156e8ce4aca"
-  integrity sha512-DDaV3kIvi3NpoJw5/adRf1/X9cmf364UCyVDjEXWZaC6X4u5q8d1mhf3ujY3fEoKTD4pqA2YMGgOatzNv4r53w==
-  dependencies:
-    cross-fetch "3.1.5"
-    crypto-js "4.1.1"
-    typedi "0.10.0"
-
 "@leapwallet/leap-keychain@0.3.4":
   version "0.3.4"
   resolved "https://npm.pkg.github.com/download/@leapwallet/leap-keychain/0.3.4/e335219e25dada1e1b48f705956f38cbf90647e7#e335219e25dada1e1b48f705956f38cbf90647e7"
@@ -7920,11 +7911,6 @@ crypto-browserify@^3.12.0:
     public-encrypt "^4.0.3"
     randombytes "^2.1.0"
     randomfill "^1.0.4"
-
-crypto-js@4.1.1:
-  version "4.1.1"
-  resolved "https://registry.yarnpkg.com/crypto-js/-/crypto-js-4.1.1.tgz#9e485bcf03521041bd85844786b83fb7619736cf"
-  integrity sha512-o2JlM7ydqd3Qk9CA0L4NL6mTzU2sdx96a+oOfPu8Mkl/PK51vSyoi8/rQ8NknZtk44vq15lmhAj9CIAGwgeWKw==
 
 crypto-js@4.2.0:
   version "4.2.0"

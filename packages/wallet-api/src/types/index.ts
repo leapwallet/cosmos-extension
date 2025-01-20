@@ -1124,6 +1124,8 @@ export enum CosmosTxType {
   AuthZGrant = 'AUTHZ_GRANT',
   LSStake = 'LS_STAKE',
   LSUnstake = 'LS_UNSTAKE',
+  StakeClaimAndDelegate = 'STAKE_CLAIM_AND_DELEGATE',
+  IBCSwap = 'IBC_SWAP',
 }
 
 export enum App {
@@ -1274,4 +1276,23 @@ export type PercentageChangesApiResponse = {
 
 export type APIPercentageChanges = {
   [platform: string]: PercentageChanges;
+};
+
+export enum V2TxOperation {
+  Cosmos = 'cosmos.tx',
+  Evm = 'evm.tx',
+  Solana = 'svm.tx',
+}
+
+export type LightNodeStatsRequest = {
+  readonly userUUID: string;
+  readonly walletAddress: string;
+  readonly totalRunningTimeMilliseconds: number;
+  readonly lastStartedAt?: string;
+  readonly lastStoppedAt?: string;
+};
+
+export type V2TxRequest = Omit<CosmosTxRequest, 'blockchain' | 'type'> & {
+  chainId: string;
+  type: CosmosTxType;
 };
