@@ -18,13 +18,13 @@ export const QUICK_SEARCH_DISABLED_PAGES = [
 ]
 
 export const RECAPTCHA_CHAINS = ['pryzmtestnet']
-export const LEDGER_DISABLED_COINTYPES = ['60', '931']
+export const LEDGER_DISABLED_COINTYPES = ['60', '931', '0', '1', '637']
 export const LEDGER_ENABLED_EVM_CHAINS = [
   ChainInfos.injective.key,
   ChainInfos.evmos.key,
   ChainInfos.dymension.key,
   ChainInfos.humans.key,
-  'Nim' as SupportedChain,
+  'nim' as SupportedChain,
 ]
 
 export const LEDGER_ENABLED_EVM_CHAIN_IDS = [

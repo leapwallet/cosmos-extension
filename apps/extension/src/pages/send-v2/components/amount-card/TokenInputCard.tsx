@@ -5,8 +5,8 @@ import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send-v2/context'
 import React, {
   Dispatch,
@@ -18,6 +18,7 @@ import React, {
   useState,
 } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
@@ -35,7 +36,7 @@ type TokenInputCardProps = {
   selectedChain: SupportedChain | null
 }
 
-export function TokenInputCard({
+function TokenInputCardView({
   isInputInUSDC,
   setIsInputInUSDC,
   value,
@@ -49,11 +50,8 @@ export function TokenInputCard({
   selectedChain,
 }: TokenInputCardProps) {
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
   const chains = useGetChains()
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [isFocused, setIsFocused] = useState(false)
   const defaultTokenLogo = useDefaultTokenLogo()
   const [textInputValue, setTextInputValue] = useState<string>(value?.toString())
 
@@ -85,19 +83,21 @@ export function TokenInputCard({
     }
 
     return {
-      formattedDollarAmount: formatHideBalance(formatCurrency(new BigNumber(_dollarAmount))),
+      formattedDollarAmount: hideAssetsStore.formatHideBalance(
+        formatCurrency(new BigNumber(_dollarAmount)),
+      ),
     }
   }, [formatCurrency, token, value])
 
   const formattedInputValue = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(value ?? '0', sliceWord(token?.symbol ?? '', 4, 4), 3, 'en-US'),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, token?.symbol])
 
   const balanceAmount = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(token?.amount ?? '0', sliceWord(token?.symbol ?? '', 4, 4), 3, 'en-US'),
     )
 
@@ -115,12 +115,6 @@ export function TokenInputCard({
   const switchToUSDDisabled = useMemo(() => {
     return !selectedAssetUSDPrice || new BigNumber(selectedAssetUSDPrice ?? 0).isLessThan(10 ** -6)
   }, [selectedAssetUSDPrice])
-
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus()
-    }
-  }, [])
 
   useEffect(() => {
     if (!onChange) return
@@ -194,16 +188,14 @@ export function TokenInputCard({
       key={balanceAmount}
     >
       <div
-        className='flex rounded-2xl justify-between w-full items-center bg-gray-50 dark:bg-gray-900 gap-2 pl-4 h-[48px] p-[2px] border'
-        style={
+        className={classNames(
+          'flex rounded-2xl justify-between w-full items-center bg-gray-50 dark:bg-gray-900 gap-2 pl-4 h-[48px] p-[2px] border border-transparent transition-colors',
           amountError
-            ? { borderColor: Colors.red300 }
+            ? 'border-red-300'
             : !pfmEnabled && !isIbcUnwindingDisabled
-            ? { borderColor: '#FFC770' }
-            : isFocused
-            ? { borderColor: Colors.green600 }
-            : { borderColor: 'transparent' }
-        }
+            ? 'border-[#FFC770]'
+            : 'focus-within:border-green-600',
+        )}
       >
         {loadingAssets ? (
           <Skeleton
@@ -220,9 +212,6 @@ export function TokenInputCard({
                 className='bg-transparent outline-none w-full text-left dark:text-white-100 placeholder:font-bold placeholder:text-md placeholder:text-gray-600 dark:placeholder:text-gray-400 font-bold text-md'
                 placeholder={'0'}
                 value={isInputInUSDC ? textInputValue : value}
-                ref={inputRef}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
                 onChange={(e) => setTextInputValue(e.target.value)}
               />
             </div>
@@ -324,3 +313,5 @@ export function TokenInputCard({
     </div>
   )
 }
+
+export const TokenInputCard = observer(TokenInputCardView)

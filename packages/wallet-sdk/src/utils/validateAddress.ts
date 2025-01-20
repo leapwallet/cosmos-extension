@@ -1,6 +1,14 @@
+import { BtcAddress, NETWORK, TEST_NETWORK } from '@leapwallet/leap-keychain';
 import { bech32 } from 'bech32';
 import { isValidAddress as isValidEthAddress } from 'ethereumjs-util';
+import { NetworkType } from 'tx';
 export function getBlockChainFromAddress(address: string): string | undefined {
+  if (address.startsWith('tb1q')) {
+    return 'tb1q';
+  }
+  if (address.startsWith('bc1q')) {
+    return 'bc1q';
+  }
   try {
     const words = bech32.decode(address);
     return words.prefix as string;
@@ -30,7 +38,24 @@ export function isValidAddressWithPrefix(address: string, blockchainPrefix: stri
   return validAddressLength && address.startsWith(blockchainPrefix) && isBech32(address, blockchainPrefix);
 }
 
+export function isValidBtcAddress(address: string, network: NetworkType) {
+  try {
+    BtcAddress(network === 'mainnet' ? NETWORK : TEST_NETWORK).decode(address);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function isValidAddress(address: string): boolean {
+  if (address.startsWith('tb1q')) {
+    // TODO: Add support for validating bitcoin testnet addresses
+    return true;
+  }
+  if (address.startsWith('bc1q')) {
+    // TODO: Add support for validating bitcoin mainnet addresses
+    return true;
+  }
   const chainPrefix = getBlockChainFromAddress(address);
   return !!chainPrefix && isValidAddressWithPrefix(address, chainPrefix);
 }

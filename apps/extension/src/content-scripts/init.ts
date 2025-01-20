@@ -1,5 +1,8 @@
 import { Leap } from '@leapwallet/cosmos-wallet-provider/dist/provider/core'
+import { LeapAptos } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-aptos'
+import { LeapBitcoin } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-bitcoin'
 import { Ethereum } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
+import { registerWallet } from '@wallet-standard/core'
 import { v4 as uuidv4 } from 'uuid'
 
 import { isCompassWallet } from '../utils/isCompassWallet'
@@ -33,7 +36,12 @@ function setUnwritableProperty<T, U>(object: T, property: string, value: U) {
   return true
 }
 
-export function init(leap: Leap, leapEvm?: Ethereum) {
+export function init(
+  leap: Leap,
+  leapEvm?: Ethereum,
+  leapAptos?: LeapAptos,
+  leapBitcoin?: LeapBitcoin,
+) {
   if (leapEvm) {
     // eslint-disable-next-line no-use-before-define
     initEvm(leapEvm, isCompassWallet())
@@ -45,6 +53,15 @@ export function init(leap: Leap, leapEvm?: Ethereum) {
     setUnwritableProperty<Window, Leap>(window, 'leap', leap)
     if (!window.keplr) {
       window.keplr = window.leap
+    }
+
+    if (leapAptos) {
+      // eslint-disable-next-line no-use-before-define
+      initAptos(leapAptos)
+    }
+
+    if (leapBitcoin) {
+      setUnwritableProperty<Window, LeapBitcoin>(window, 'leapBitcoin', leapBitcoin)
     }
   }
 }
@@ -68,11 +85,6 @@ function initEvm(leapEvm: Ethereum, isCompass: boolean) {
     }
   }
 
-  // if (!window.ethereum) {
-  //   leapEvm.isMetaMask = true
-  //   window.ethereum = leapEvm
-  // }
-
   function announceProvider() {
     window.dispatchEvent(
       new CustomEvent('eip6963:announceProvider', {
@@ -86,4 +98,8 @@ function initEvm(leapEvm: Ethereum, isCompass: boolean) {
   })
 
   announceProvider()
+}
+
+function initAptos(leapAptos: LeapAptos) {
+  registerWallet(leapAptos)
 }

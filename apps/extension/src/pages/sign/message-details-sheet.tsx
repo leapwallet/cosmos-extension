@@ -1,4 +1,5 @@
 import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { ParsedMessage, ParsedMessageType } from '@leapwallet/parser-parfait'
 import BottomModal from 'components/bottom-modal'
 import DisclosureContainer from 'components/disclosure-container'
@@ -18,9 +19,11 @@ const MessageDetailsSheet: React.FC<{
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     raw: any
   } | null
-}> = ({ isOpen, setIsOpen, message, onClose }) => {
-  const { lcdUrl } = useChainApis()
-  const { isLoading, data } = useMessageDetails(message?.parsed, lcdUrl ?? '')
+  activeChain: SupportedChain
+  selectedNetwork: 'mainnet' | 'testnet'
+}> = ({ isOpen, setIsOpen, message, onClose, activeChain, selectedNetwork }) => {
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork)
+  const { isLoading, data } = useMessageDetails(message?.parsed, lcdUrl ?? '', activeChain)
 
   if (!message) return null
 
@@ -65,7 +68,16 @@ const MessageDetailsSheet: React.FC<{
             initialOpen={true}
           >
             <pre className='text-xs text-gray-900 dark:text-white-100 w-full overflow-x-auto'>
-              {JSON.stringify(message.raw, null, 2)}
+              {JSON.stringify(
+                message.raw,
+                (key, value) => {
+                  if (typeof value === 'bigint') {
+                    return value.toString()
+                  }
+                  return value
+                },
+                2,
+              )}
             </pre>
           </DisclosureContainer>
         </>

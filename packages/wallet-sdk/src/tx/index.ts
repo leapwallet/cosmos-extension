@@ -1,3 +1,7 @@
+export * from './aptosTx';
+export * from './atomoneTx';
+export * from './babylonTx';
+export * from './btcTx';
 export * from './ethermint';
 export * from './fee';
 export * from './govgenTx';

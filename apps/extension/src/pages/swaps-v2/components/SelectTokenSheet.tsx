@@ -1,15 +1,22 @@
-import { getKeyToUseForDenoms } from '@leapwallet/cosmos-wallet-hooks'
+import { getKeyToUseForDenoms, useSelectedNetwork } from '@leapwallet/cosmos-wallet-hooks'
 import { RootDenomsStore, WhitelistedFactoryTokensStore } from '@leapwallet/cosmos-wallet-store'
 import { Question } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { SearchInput } from 'components/search-input'
+import { EventName } from 'config/analytics'
 import Fuse from 'fuse.js'
+import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
-import React, { ReactNode, useEffect, useMemo, useState } from 'react'
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { GroupedVirtuoso } from 'react-virtuoso'
+import { marketDataStore } from 'stores/balance-store'
+import { compassTokenTagsStore } from 'stores/denoms-store-instance'
 import { SourceChain, SourceToken } from 'types/swap'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
+import { useSwapContext } from '../context'
+import { SelectDestinationSheet } from './SelectDestinationSheet'
 import { TokenCard, TokenCardSkeleton } from './TokenCard'
 
 const TokenCardWrapper = observer(
@@ -103,6 +110,8 @@ export function SelectTokenSheet({
   loadingTokens,
 }: SelectTokenSheetProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const activeNetwork = useSelectedNetwork()
+  const { chainsToShow } = useSwapContext()
 
   useEffect(() => {
     if (isOpen) {
@@ -136,28 +145,43 @@ export function SelectTokenSheet({
     }
   }, [showFor, sourceAssets, destinationAssets])
 
-  const fuse = useMemo(() => {
-    const keys = ['symbol', 'name', 'coinMinimalDenom', 'ibcDenom']
+  const simpleFuse = useMemo(() => {
+    const keys = ['symbol', 'name']
     if (isChainAbstractionView) {
       keys.push('tokenBalanceOnChain', 'chain')
     }
-
-    const options = {
+    const fuseOptions = {
       keys,
       threshold: 0.3,
       ignoreLocation: true,
     }
-    return new Fuse(tokensToShow, options)
+    return new Fuse(tokensToShow, fuseOptions)
+  }, [tokensToShow, isChainAbstractionView])
+
+  const extendedFuse = useMemo(() => {
+    const keys = ['symbol', 'name', 'coinMinimalDenom', 'ibcDenom', 'skipAsset.evmTokenContract']
+    if (isChainAbstractionView) {
+      keys.push('tokenBalanceOnChain', 'chain')
+    }
+    const fuseOptions = {
+      keys,
+      threshold: 0.3,
+      ignoreLocation: true,
+    }
+    return new Fuse(tokensToShow, fuseOptions)
   }, [tokensToShow, isChainAbstractionView])
 
   const filteredTokens = useMemo(() => {
     if (searchQuery.length === 0) {
       return tokensToShow
     }
-
+    let fuse = simpleFuse
+    if (searchQuery.length >= 8) {
+      fuse = extendedFuse
+    }
     const searchResult = fuse.search(searchQuery)
     return searchResult.map((result) => result.item)
-  }, [searchQuery, tokensToShow, fuse])
+  }, [searchQuery, tokensToShow, simpleFuse, extendedFuse])
 
   const tokenGroups = useMemo(() => {
     return [
@@ -177,10 +201,55 @@ export function SelectTokenSheet({
     ]
   }, [filteredTokens])
 
+  const emitMixpanelDropdownCloseEvent = useCallback(
+    (tokenSelected?: string) => {
+      try {
+        mixpanel.track(EventName.DropdownClosed, {
+          dropdownType: showFor === 'source' ? 'Source Token' : 'Destination Token',
+          tokenSelected,
+          searchField: searchQuery,
+        })
+      } catch (error) {
+        // ignore
+      }
+    },
+    [searchQuery, showFor],
+  )
+
+  const handleOnTokenSelect = useCallback(
+    (token: SourceToken) => {
+      onTokenSelect(token)
+      const chain = chainsToShow.find((chain) => chain.chainId === token.skipAsset.chainId)
+      emitMixpanelDropdownCloseEvent(`${token.symbol} (${chain?.chainName})`)
+    },
+    [chainsToShow, emitMixpanelDropdownCloseEvent, onTokenSelect],
+  )
+
+  if (isCompassWallet() && activeNetwork !== 'testnet' && showFor === 'destination') {
+    return (
+      <SelectDestinationSheet
+        isOpen={isOpen}
+        destinationAssets={destinationAssets}
+        destinationToken={destinationToken}
+        onClose={() => {
+          emitMixpanelDropdownCloseEvent()
+          onClose()
+        }}
+        onTokenSelect={handleOnTokenSelect}
+        loadingTokens={loadingTokens}
+        compassTokenTagsStore={compassTokenTagsStore}
+        marketDataStore={marketDataStore}
+      />
+    )
+  }
+
   return (
     <BottomModal
       title='Select Token'
-      onClose={onClose}
+      onClose={() => {
+        emitMixpanelDropdownCloseEvent()
+        onClose()
+      }}
       isOpen={isOpen}
       closeOnBackdropClick={true}
       contentClassName='!bg-white-100 dark:!bg-gray-950 !overflow-hidden'
@@ -212,12 +281,12 @@ export function SelectTokenSheet({
                 <span className='font-bold text-xs'>All tokens</span>
               </div>
               {[...Array(5)].map((_, index) => (
-                <>
-                  <TokenCardSkeleton key={index} />
+                <React.Fragment key={index}>
+                  <TokenCardSkeleton />
                   {index !== 4 && (
                     <div className='border-b w-full border-gray-100 dark:border-gray-850' />
                   )}
-                </>
+                </React.Fragment>
               ))}
             </>
           ) : filteredTokens.length === 0 ? (
@@ -244,13 +313,13 @@ export function SelectTokenSheet({
                   const item = group.items[index]
                   return (
                     <Component
-                      key={`${item.coinMinimalDenom}`}
+                      key={`${item.coinMinimalDenom}-${item.chain}-${item.ibcChainInfo?.pretty_name}-${item.skipAsset?.chainId}-${item.skipAsset?.denom}`}
                       index={index}
                       token={item}
                       verified={false}
                       selectedToken={selectedToken}
                       selectedChain={selectedChain}
-                      onTokenSelect={onTokenSelect}
+                      onTokenSelect={handleOnTokenSelect}
                       tokensLength={group.items.length}
                       header={group.headerComponent}
                       isChainAbstractionView={isChainAbstractionView}

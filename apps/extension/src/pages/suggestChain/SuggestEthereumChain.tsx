@@ -2,7 +2,6 @@ import { Key as WalletKey, useChainsStore } from '@leapwallet/cosmos-wallet-hook
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { RootStore } from '@leapwallet/cosmos-wallet-store'
 import { GenericCard } from '@leapwallet/leap-ui'
-import { chainInfosState } from 'atoms/chains'
 import { Divider, Key, Value } from 'components/dapp'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { BETA_CHAINS, BG_RESPONSE, NEW_CHAIN_REQUEST } from 'config/storage-keys'
@@ -13,7 +12,6 @@ import { observer } from 'mobx-react-lite'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useSetRecoilState } from 'recoil'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
@@ -48,7 +46,6 @@ const SuggestEthereumChain = observer(
     const { activeWallet, setActiveWallet } = useActiveWallet()
     const setActiveChain = useSetActiveChain()
 
-    const setChainInfos = useSetRecoilState(chainInfosState)
     const { setChains, chains } = useChainsStore()
 
     const siteName = useMemo(() => origin.replace('https://', ''), [origin])
@@ -103,7 +100,6 @@ const SuggestEthereumChain = observer(
           await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
         }
 
-        setChainInfos({ ...chains, [chainKey]: chainInfo })
         setChains({ ...chains, [chainKey]: chainInfo })
         rootStore.setChains({ ...chains, [chainKey]: chainInfo })
         rootStore.reloadAddresses()

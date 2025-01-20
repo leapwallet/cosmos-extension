@@ -1,5 +1,6 @@
-import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { makeObservable, observable, runInAction } from 'mobx';
+import { computedFn } from 'mobx-utils';
 
 import { ActiveChainStore } from '../../wallet';
 import { ERC20DenomsChainsStore } from './erc20-denom-chains-store';
@@ -27,10 +28,6 @@ export class ERC20DenomsStore {
   async loadAllERC20Denoms() {
     const chains = this.erc20DenomChainsStore.chains;
     const fetchERC20DenomsPromises = chains.map(async (chain) => {
-      if (process.env.APP?.includes('compass') && !this.activeChainStore.isSeiEvm(chain)) {
-        return null;
-      }
-
       try {
         const url = `https://assets.leapwallet.io/cosmos-registry/v1/denoms/${chain}/erc20.json`;
         const response = await fetch(url);
@@ -44,6 +41,10 @@ export class ERC20DenomsStore {
     });
     await Promise.all(fetchERC20DenomsPromises);
   }
+
+  getERC20DenomsForChain = computedFn((chain: SupportedChain) => {
+    return this.denoms[chain] || {};
+  });
 
   get erc20Denoms(): DenomsRecord {
     const activeChain = this.activeChainStore.activeChain;

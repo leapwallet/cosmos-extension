@@ -1,6 +1,5 @@
 import {
   currencyDetail,
-  getCoingeckoPricesStoreSnapshot,
   getKeyToUseForDenoms,
   LeapWalletApi,
   sortTokenBalances,
@@ -9,120 +8,143 @@ import {
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { AutoFetchedCW20DenomsStore } from '@leapwallet/cosmos-wallet-store'
-import { SkipSupportedAsset } from '@leapwallet/elements-hooks'
-// import { captureException } from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
-// import axios from 'axios'
+import { useNonNativeCustomChains } from 'hooks'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
-import { getSortFnBasedOnWhiteListing } from '../utils'
+import { MergedAsset } from './useAssets'
 
 export function useGetSwapAssets(
-  denoms: DenomsRecord,
+  combinedDenoms: DenomsRecord,
+  coingeckoPrices: Record<string, number> | null,
   allAssets: Array<Token>,
   allAssetsLoading: boolean,
   swapChain: SourceChain | undefined,
-  autoFetchedCW20DenomsStore: AutoFetchedCW20DenomsStore,
-  addSkipAssets?: { [key: string]: SkipSupportedAsset[] },
+  addMergedAssets?: { [key: string]: MergedAsset[] },
   filterBalanceTokens = false,
   isChainAbstractionView?: boolean,
   chainsToShow?: SourceChain[],
 ) {
   const chainInfos = useChainInfos()
+  const customChains = useNonNativeCustomChains()
 
-  const skipAssets = useMemo(() => {
-    if (isChainAbstractionView && addSkipAssets) {
+  const mergedAssets = useMemo(() => {
+    if (isChainAbstractionView && addMergedAssets) {
       if (chainsToShow && chainsToShow.length > 0) {
         const chainIdsSupported = chainsToShow.map((chain) => chain.chainId)
-        return Object.keys(addSkipAssets)
+        return Object.keys(addMergedAssets)
           .filter((chainId) => chainIdsSupported.includes(chainId))
-          .map((chainId) => addSkipAssets[chainId])
+          .map((chainId) => addMergedAssets[chainId])
           .flat()
       }
-      return Object.values(addSkipAssets).flat()
+      return Object.values(addMergedAssets).flat()
     }
-    return addSkipAssets?.[swapChain?.chainId ?? '']
-  }, [isChainAbstractionView, addSkipAssets, swapChain?.chainId, chainsToShow])
+    return addMergedAssets?.[swapChain?.chainId ?? '']
+  }, [isChainAbstractionView, addMergedAssets, swapChain?.chainId, chainsToShow])
 
   const assetsMap = useMemo(() => {
     if (!allAssetsLoading && allAssets && allAssets.length > 0) {
+      const chainsData = { ...customChains, ...chainInfos }
       return allAssets.reduce((acc, asset) => {
         if (!asset.tokenBalanceOnChain) return acc
         const denom = asset.ibcDenom || asset.coinMinimalDenom
-        const chainId = chainInfos[asset.tokenBalanceOnChain].chainId
+        const chainId = chainsData[asset.tokenBalanceOnChain].chainId
         acc[`${denom}-${chainId}`] = asset
         return acc
       }, {} as { [key: string]: Token })
     }
     return {}
-  }, [allAssets, chainInfos, allAssetsLoading])
-
-  const combinedDenoms = useMemo(() => {
-    return denoms
-  }, [denoms])
+  }, [allAssetsLoading, allAssets, customChains, chainInfos])
 
   const [preferredCurrency] = useUserPreferredCurrency()
   const { ibcTraceData } = useIbcTraceStore()
   const selectedNetwork = useSelectedNetwork()
 
   const isQueryEnabled = useMemo(() => {
-    return !!swapChain && !!skipAssets?.length && !allAssetsLoading
-  }, [swapChain, skipAssets?.length, allAssetsLoading])
+    return !!swapChain && !!mergedAssets?.length && !allAssetsLoading
+  }, [swapChain, mergedAssets?.length, allAssetsLoading])
 
   return useQuery(
     [
       `swap-assets`,
-      skipAssets,
+      mergedAssets,
       preferredCurrency,
       assetsMap,
       combinedDenoms,
       ibcTraceData,
       filterBalanceTokens,
+      coingeckoPrices,
     ],
     async function () {
-      if (skipAssets && skipAssets.length > 0) {
+      if (mergedAssets && mergedAssets.length > 0) {
         const _swapAssets: SourceToken[] = []
         const preferredCurrencyPointer = currencyDetail[preferredCurrency].currencyPointer
-        const coingeckoPrices = await getCoingeckoPricesStoreSnapshot()
         const needToFetchUsdPriceFor: { [key: string]: string[] } = {}
         //const needToFetchIbcSourceChainsFor: { denom: string; chain_id: string }[] = []
 
-        for (const skipAsset of skipAssets) {
-          const formattedSkipAssetDenom = skipAsset.denom.replace(/(cw20:|erc20\/)/g, '') as string
-          const token = assetsMap[`${formattedSkipAssetDenom}-${skipAsset.chainId}`]
+        for (const mergedAsset of mergedAssets) {
+          const formattedMergedAssetDenom = mergedAsset.denom.replace(
+            /(cw20:|erc20\/)/g,
+            '',
+          ) as string
+          let token = assetsMap[`${formattedMergedAssetDenom}-${mergedAsset.chainId}`]
+
+          if (!token) {
+            token = assetsMap[`${mergedAsset.evmTokenContract}-${mergedAsset.chainId}`]
+          }
 
           if (token) {
-            const decimals = skipAsset.decimals || token.coinDecimals
-            const _skipAsset: SkipSupportedAsset = {
-              ...skipAsset,
-              coingeckoId: token.coinGeckoId ?? skipAsset.coingeckoId,
-              isCw20: skipAsset.isCw20,
+            const decimals = mergedAsset.decimals ?? token.coinDecimals
+            const _mergedAsset: MergedAsset = {
+              ...mergedAsset,
+              coingeckoId: token.coinGeckoId ?? mergedAsset.coingeckoId,
+              isCw20: mergedAsset.isCw20,
             }
-            const updatedSkipAsset: SkipSupportedAsset = decimals
+
+            let denomInfo
+            if (mergedAsset.evmTokenContract) {
+              denomInfo = combinedDenoms[mergedAsset.evmTokenContract]
+            }
+            if (!denomInfo) {
+              denomInfo = combinedDenoms[mergedAsset.originDenom]
+            }
+            const updatedMergedAsset: MergedAsset = decimals
               ? {
-                  ..._skipAsset,
+                  ..._mergedAsset,
                   decimals,
                 }
-              : _skipAsset
+              : _mergedAsset
+
             _swapAssets.push({
               ...token,
-              skipAsset: updatedSkipAsset,
+              skipAsset: updatedMergedAsset,
+              img: token?.img || denomInfo?.icon || mergedAsset.logoUri || '',
+              coinGeckoId:
+                token?.coinGeckoId || denomInfo?.coinGeckoId || mergedAsset.coingeckoId || '',
             })
           }
           if (!token && !filterBalanceTokens) {
-            const _baseDenom = getKeyToUseForDenoms(skipAsset.originDenom, skipAsset.originChainId)
-            const denomInfo = combinedDenoms[_baseDenom]
+            const _baseDenom = getKeyToUseForDenoms(
+              mergedAsset.originDenom,
+              mergedAsset.originChainId,
+            )
+            let denomInfo
+            if (mergedAsset.evmTokenContract) {
+              denomInfo = combinedDenoms[mergedAsset.evmTokenContract]
+            }
+            if (!denomInfo) {
+              denomInfo = combinedDenoms[_baseDenom]
+            }
 
             if (denomInfo) {
               if (denomInfo?.coinDecimals === undefined) {
                 throw new Error(`coinDecimals is undefined for ${denomInfo?.coinDenom}`)
               }
 
-              let usdPrice = '0'
+              let usdPrice: number | undefined
 
               if (denomInfo) {
                 const _chainId =
@@ -130,20 +152,24 @@ export function useGetSwapAssets(
                     ? chainInfos[denomInfo.chain as SupportedChain]?.chainId
                     : chainInfos[denomInfo.chain as SupportedChain]?.testnetChainId
                 const alternatePriceKey = `${_chainId}-${denomInfo.coinMinimalDenom}`
+                const alternateEvmPriceKey = `${_chainId}-${mergedAsset.evmTokenContract}`
 
-                if (
-                  coingeckoPrices[preferredCurrencyPointer] &&
-                  (coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId] ||
-                    coingeckoPrices[preferredCurrencyPointer][alternatePriceKey])
-                ) {
-                  if (coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId]) {
-                    usdPrice = String(
-                      coingeckoPrices[preferredCurrencyPointer][denomInfo.coinGeckoId],
-                    )
-                  } else {
-                    usdPrice = String(coingeckoPrices[preferredCurrencyPointer][alternatePriceKey])
+                if (coingeckoPrices) {
+                  if (coingeckoPrices[denomInfo.coinGeckoId]) {
+                    usdPrice = coingeckoPrices[denomInfo.coinGeckoId]
                   }
-                } else if (denomInfo.coinGeckoId) {
+                  if (!usdPrice) {
+                    usdPrice =
+                      coingeckoPrices[alternatePriceKey] ||
+                      coingeckoPrices[alternatePriceKey.toLowerCase()]
+                  }
+                  if (!usdPrice && mergedAsset.evmTokenContract) {
+                    usdPrice =
+                      coingeckoPrices[alternateEvmPriceKey] ||
+                      coingeckoPrices[alternateEvmPriceKey.toLowerCase()]
+                  }
+                }
+                if (!usdPrice && denomInfo.coinGeckoId) {
                   if (needToFetchUsdPriceFor[denomInfo.chain]) {
                     needToFetchUsdPriceFor[denomInfo.chain].push(denomInfo.coinGeckoId)
                   } else {
@@ -151,29 +177,29 @@ export function useGetSwapAssets(
                   }
                 }
               }
-              if (!skipAsset.decimals) {
-                skipAsset.decimals = denomInfo?.coinDecimals
+              if (!mergedAsset.decimals) {
+                mergedAsset.decimals = denomInfo?.coinDecimals
               }
-              let asset = {
-                skipAsset,
+              let asset: SourceToken = {
+                skipAsset: mergedAsset,
                 name: denomInfo?.name,
                 amount: '0',
                 symbol: denomInfo?.coinDenom ?? '',
                 coinMinimalDenom: denomInfo?.coinMinimalDenom ?? '',
-                img: denomInfo?.icon ?? '',
+                img: denomInfo?.icon ?? mergedAsset.logoUri ?? '',
                 usdValue: '',
-                usdPrice,
+                usdPrice: usdPrice ? String(usdPrice) : '0',
                 coinDecimals: denomInfo?.coinDecimals ?? 6,
-                coinGeckoId: denomInfo?.coinGeckoId ?? '',
+                coinGeckoId: denomInfo?.coinGeckoId ?? mergedAsset.coingeckoId ?? '',
                 chain: denomInfo?.chain,
-              } as SourceToken
+              }
 
-              if (skipAsset.denom.includes('ibc/')) {
-                const trace = ibcTraceData[skipAsset.denom]
+              if (mergedAsset.denom.includes('ibc/')) {
+                const trace = ibcTraceData[mergedAsset.denom]
                 let ibcChainInfo = {
                   pretty_name: 'transfer',
                   icon: '',
-                  channelId: skipAsset?.denom?.split('/')[1] ?? '',
+                  channelId: mergedAsset?.denom?.split('/')[1] ?? '',
                   name: 'transfer',
                 }
 
@@ -186,22 +212,16 @@ export function useGetSwapAssets(
                   }
                 } else {
                   ibcChainInfo = {
-                    pretty_name: skipAsset.originChainId,
+                    pretty_name: mergedAsset.originChainId,
                     icon: '',
-                    name: skipAsset.originChainId,
-                    channelId: skipAsset?.denom?.split('/')[1] ?? '',
+                    name: mergedAsset.originChainId,
+                    channelId: mergedAsset?.denom?.split('/')[1] ?? '',
                   }
                 }
-                // else {
-                //   needToFetchIbcSourceChainsFor.push({
-                //     denom: skipAsset.denom,
-                //     chain_id: String(swapChain?.chainId ?? ''),
-                //   })
-                // }
 
                 asset = {
                   ...asset,
-                  ibcDenom: skipAsset.denom,
+                  ibcDenom: mergedAsset.denom,
                   ibcChainInfo,
                 }
               } else {
@@ -213,21 +233,41 @@ export function useGetSwapAssets(
 
               _swapAssets.push(asset as SourceToken)
             } else {
-              const asset = {
-                skipAsset,
-                name: skipAsset.name,
+              let usdPrice: number | undefined
+              const key = getKeyToUseForDenoms(mergedAsset.originDenom, mergedAsset.originChainId)
+              const alternatePriceKey = `${mergedAsset.originChainId}-${key}`
+              const alternateEvmPriceKey = `${mergedAsset.originChainId}-${mergedAsset.evmTokenContract}`
+
+              if (coingeckoPrices) {
+                if (mergedAsset.coingeckoId && coingeckoPrices[mergedAsset.coingeckoId]) {
+                  usdPrice = coingeckoPrices[mergedAsset.coingeckoId]
+                }
+                if (!usdPrice) {
+                  usdPrice =
+                    coingeckoPrices[alternatePriceKey] ||
+                    coingeckoPrices[alternatePriceKey.toLowerCase()]
+                }
+                if (!usdPrice && mergedAsset.evmTokenContract) {
+                  usdPrice =
+                    coingeckoPrices[alternateEvmPriceKey] ||
+                    coingeckoPrices[alternateEvmPriceKey.toLowerCase()]
+                }
+              }
+              const asset: SourceToken = {
+                skipAsset: mergedAsset,
+                name: mergedAsset.name ?? '',
                 amount: '0',
-                symbol: skipAsset.symbol,
-                coinMinimalDenom: skipAsset.originDenom,
-                img: skipAsset.logoUri,
+                symbol: mergedAsset.symbol,
+                coinMinimalDenom: mergedAsset.originDenom,
+                img: mergedAsset.logoUri,
                 usdValue: '',
-                usdPrice: '',
-                decimals: skipAsset.decimals,
-                coinGeckoId: skipAsset?.coingeckoId ?? '',
+                usdPrice: usdPrice ? String(usdPrice) : '0',
+                coinDecimals: mergedAsset.decimals,
+                coinGeckoId: mergedAsset?.coingeckoId ?? '',
                 chain: Object.values(chainInfos).find(
-                  (chain) => chain.chainId === skipAsset.originChainId,
+                  (chain) => chain.chainId === mergedAsset.originChainId,
                 )?.key as SupportedChain,
-              } as SourceToken
+              }
 
               _swapAssets.push(asset)
             }
@@ -255,27 +295,6 @@ export function useGetSwapAssets(
             })
           },
         )
-
-        /* no need to explicitly fetch ibc source chain info, if trace is available it will be available in the asset list */
-
-        // try {
-        //   const {
-        //     data: { origin_assets },
-        //   } = await axios.post('https://api.skip.money/v1/fungible/ibc_origin_assets', {
-        //     assets: needToFetchIbcSourceChainsFor,
-        //   })
-
-        //   needToFetchIbcSourceChainsFor.forEach((ibcAsset, index) => {
-        //     const destinationAsset = _swapAssets.find((asset) => asset.ibcDenom === ibcAsset.denom)
-
-        //     if (destinationAsset?.ibcChainInfo) {
-        //       destinationAsset.ibcChainInfo.name = origin_assets[index].asset.origin_chain_id
-        //       destinationAsset.ibcChainInfo.pretty_name = origin_assets[index].asset.origin_chain_id
-        //     }
-        //   })
-        // } catch (error) {
-        //   captureException(error)
-        // }
 
         const sortedTokens = sortTokenBalances(_swapAssets) as SourceToken[]
         return {

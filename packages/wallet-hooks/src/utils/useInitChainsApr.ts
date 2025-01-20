@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 
 import { getChainsAprSnapshot, useChainsAprStore } from '../store';
+import { getLeapapiBaseUrl } from './global-vars';
 
 export function useInitChainsApr() {
   const { setChainsApr } = useChainsAprStore();
@@ -11,7 +12,7 @@ export function useInitChainsApr() {
     if (Object.values(chainsApr).length) {
       setChainsApr(chainsApr);
     } else {
-      const url = `${process.env.LEAP_WALLET_BACKEND_API_URL}/market/apr-changes`;
+      const url = `${getLeapapiBaseUrl()}/market/apr-changes`;
       const { data } = await axios.get(url);
       setChainsApr(data);
     }

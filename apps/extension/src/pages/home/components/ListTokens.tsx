@@ -13,6 +13,8 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo, useState } from 'react'
+import { marketDataStore } from 'stores/balance-store'
+import { chainInfoStore, compassTokensAssociationsStore } from 'stores/chain-infos-store'
 import { AggregatedSupportedChain } from 'types/utility'
 
 import { AssetCard } from './index'
@@ -22,7 +24,14 @@ export function ListView({ assets }: { assets: Token[] }) {
     <>
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {assets.map((asset: any) => (
-        <AssetCard key={asset.id} asset={asset} style={{ marginBottom: 16 }} />
+        <AssetCard
+          key={asset.id}
+          asset={asset}
+          style={{ marginBottom: 16 }}
+          marketDataStore={marketDataStore}
+          compassTokensAssociationsStore={compassTokensAssociationsStore}
+          chainInfosStore={chainInfoStore}
+        />
       ))}
     </>
   )

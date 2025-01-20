@@ -7,7 +7,7 @@ import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
-import { useDefaultTokenLogo } from './index'
+import { useDefaultTokenLogo } from './useDefaultTokenLogo'
 
 export function useChainPageInfo() {
   const chains = useGetChains()

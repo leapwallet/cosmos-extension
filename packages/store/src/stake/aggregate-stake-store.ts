@@ -6,7 +6,10 @@ import { AggregatedChainsStore, ChainInfosConfigStore, ChainInfosStore } from '.
 import { ChainInfosConfigType } from '../types';
 import { isFeatureExistForChain } from '../utils';
 import { AddressStore, SelectedNetworkStore } from '../wallet';
-import { ActiveStakingDenomStore, ClaimRewardsStore, DelegationsStore, ValidatorsStore } from './index';
+import { ClaimRewardsStore } from './claim-rewards-store';
+import { DelegationsStore } from './delegations-store';
+import { ActiveStakingDenomStore } from './utils-store';
+import { ValidatorsStore } from './validators-store';
 
 export class AggregateStakeStore {
   chainInfosStore: ChainInfosStore;
@@ -70,8 +73,10 @@ export class AggregateStakeStore {
         this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
       );
 
+      const isEvmChain = activeChainInfo?.evmOnlyChain;
+
       // If stake is coming soon or not supported for a chain then don't include it
-      if (isStakeComingSoon || isStakeNotSupported) {
+      if (isStakeComingSoon || isStakeNotSupported || isEvmChain) {
         continue;
       }
 
@@ -80,6 +85,7 @@ export class AggregateStakeStore {
 
       const totalDelegationAmount = this.delegationsStore.chainWiseDelegations[chainKey]?.totalDelegationAmount;
       const currencyAmountDelegation = this.delegationsStore.chainWiseDelegations[chainKey]?.currencyAmountDelegation;
+      const totalDelegation = this.delegationsStore.chainWiseDelegations[chainKey]?.totalDelegation;
 
       const stakingDenom = this.activeStakingDenomStore.stakingDenomForChain(chain as SupportedChain)?.[0]?.coinDenom;
 
@@ -94,6 +100,7 @@ export class AggregateStakeStore {
         [chain]: {
           totalDelegationAmount,
           currencyAmountDelegation,
+          totalDelegation,
           stakingDenom,
           loading,
           apr,

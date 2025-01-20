@@ -7,9 +7,11 @@ import {
   useAddress,
   useChainsStore,
   useFeatureFlags,
+  useGetAptosGasPrices,
   useGetEvmGasPrices,
   useSeiLinkedAddressState,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   RootBalanceStore,
   RootDenomsStore,
@@ -55,6 +57,7 @@ export const ReviewTransfer = observer(
     const getWallet = Wallet.useGetWallet()
     const [showReviewTxSheet, setShowReviewTxSheet] = useState(false)
     const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
+    const [routeError, setRouteError] = useState(false)
 
     const {
       sendDisabled,
@@ -77,9 +80,12 @@ export const ReviewTransfer = observer(
       sendActiveChain,
       sendSelectedNetwork,
       isSeiEvmTransaction,
+      hasToUseCw20PointerLogic,
     } = useSendContext()
     const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState(getWallet)
     const { status: gasPriceStatus } = useGetEvmGasPrices()
+    const { status: aptosGasPriceStatus } = useGetAptosGasPrices()
+    const isAptosTx = isAptosChain(sendActiveChain)
 
     const { chains } = useChainsStore()
     const userAddress = useAddress(sendActiveChain)
@@ -88,14 +94,21 @@ export const ReviewTransfer = observer(
 
     const effectiveAmountValue = useEffectiveAmountValue(inputAmount)
     const debouncedAmount = useDebouncedValue(effectiveAmountValue, 500)
-    const { data: elementsChains } = useSkipSupportedChains({ chainTypes: ['cosmos'] })
+    const { data: elementsChains } = useSkipSupportedChains({
+      chainTypes: ['cosmos'],
+      onlyTestnets: sendSelectedNetwork === 'testnet',
+    })
     const { data: featureFlags } = useFeatureFlags()
 
     const hCaptchaRef = useRef<HCaptcha>(null)
     const [hCaptchaError, setHCaptchaError] = useState<string>('')
     const [showLoadingMessage, setShowLoadingMessage] = useState('')
 
-    const { data: allSkipAssets } = useAllSkipAssets()
+    const isInitiaTxn = selectedAddress?.address?.startsWith('init') ?? false
+
+    const { data: allSkipAssets } = useAllSkipAssets({
+      only_testnets: sendSelectedNetwork === 'testnet',
+    })
 
     const skipAssets = useMemo(() => {
       return allSkipAssets?.[chains?.[sendActiveChain]?.chainId]
@@ -136,6 +149,22 @@ export const ReviewTransfer = observer(
       }
     }, [selectedToken, skipAssets])
 
+    const destinationAsset: SkipSupportedAsset | undefined = useMemo(() => {
+      if (
+        selectedAddress &&
+        selectedAddress.address?.startsWith('init') &&
+        selectedAddress.chainName !== sendActiveChain
+      ) {
+        const chain = chains[selectedAddress?.chainName as SupportedChain]
+        const asset = allSkipAssets?.[chain?.chainId]?.find(
+          (asset) => asset.denom === Object.values(chain?.nativeDenoms)[0]?.coinMinimalDenom,
+        )
+
+        return asset
+      }
+      return undefined
+    }, [allSkipAssets, chains, selectedAddress, sendActiveChain])
+
     const transferData: useTransferReturnType = useTransfer({
       amount: debouncedAmount,
       asset: asset,
@@ -143,13 +172,14 @@ export const ReviewTransfer = observer(
         //@ts-ignore
         (d) => d.chainId === chains[selectedAddress?.chainName]?.chainId,
       ),
+      destinationAsset: destinationAsset,
       destinationAddress: selectedAddress?.address,
       sourceChain: elementsChains?.find(
         (chain) => chain.chainId === chains[sendActiveChain].chainId,
       ),
       userAddress: userAddress ?? '',
       walletClient: walletClient,
-      enabled: isIBCTransfer && featureFlags?.ibc?.extension !== 'disabled',
+      enabled: (isIBCTransfer || isInitiaTxn) && featureFlags?.ibc?.extension !== 'disabled',
       isMainnet: sendSelectedNetwork === 'mainnet',
     })
 
@@ -174,7 +204,40 @@ export const ReviewTransfer = observer(
       transferData?.messages,
     ])
 
+    useEffect(() => {
+      if (isInitiaTxn) {
+        if (
+          // @ts-ignore
+          !transferData?.isLoadingMessages &&
+          // @ts-ignore
+          !transferData?.isLoadingRoute &&
+          selectedAddress?.chainName &&
+          chains[selectedAddress?.chainName as SupportedChain]?.chainId !==
+            chains[sendActiveChain]?.chainId &&
+          // @ts-ignore
+          !transferData?.messages
+        ) {
+          setRouteError(true)
+        } else {
+          setRouteError(false)
+        }
+      }
+    }, [
+      chains,
+      isInitiaTxn,
+      selectedAddress?.chainName,
+      sendActiveChain,
+      // @ts-ignore
+      transferData?.isLoadingMessages,
+      // @ts-ignore
+      transferData?.messages,
+      // @ts-ignore
+      transferData?.isLoadingRoute,
+    ])
+
     const btnText = useMemo(() => {
+      if (routeError) return 'No routes found'
+
       if (amountError) {
         if (amountError.includes('IBC transfers are not supported')) {
           return 'Select different chain or address'
@@ -219,6 +282,7 @@ export const ReviewTransfer = observer(
       addressWarning.type,
       amountError,
       featureFlags?.link_evm_address?.extension,
+      routeError,
     ])
 
     const handleLinkAddressClick = async () => {
@@ -256,19 +320,28 @@ export const ReviewTransfer = observer(
     }
 
     const showAdjustmentSheet = useCallback(() => {
-      if (chains[sendActiveChain]?.evmOnlyChain || isSeiEvmTransaction) {
-        setShowReviewTxSheet(true)
-        return
-      }
-
       setCheckForAutoAdjust(true)
-    }, [chains, isSeiEvmTransaction, sendActiveChain])
+    }, [])
 
     const hideAdjustmentSheet = useCallback(() => {
       setCheckForAutoAdjust(false)
     }, [])
 
     const isReviewDisabled = useMemo(() => {
+      if (
+        isInitiaTxn &&
+        // @ts-ignore
+        (transferData?.isLoadingRoute ||
+          // @ts-ignore
+          transferData?.isLoadingMessages ||
+          (selectedAddress?.chainName &&
+            chains[selectedAddress?.chainName as SupportedChain]?.chainId !==
+              chains[sendActiveChain]?.chainId &&
+            // @ts-ignore
+            !transferData?.messages))
+      ) {
+        return true
+      }
       if (addressWarning.type === 'link') {
         return (
           ['loading', 'success'].includes(addressLinkState) ||
@@ -279,30 +352,51 @@ export const ReviewTransfer = observer(
         return true
       }
 
+      if (isAptosTx && aptosGasPriceStatus === 'loading') {
+        return true
+      }
+
       return (
         sendDisabled ||
         (!pfmEnabled && !isIbcUnwindingDisabled) ||
-        ['error', 'loading'].includes(fetchAccountDetailsStatus)
+        (['error', 'loading'].includes(fetchAccountDetailsStatus) && !hasToUseCw20PointerLogic)
       )
     }, [
-      addressLinkState,
+      isInitiaTxn,
+      // @ts-ignore
+      transferData?.isLoadingRoute,
+      // @ts-ignore
+      transferData?.isLoadingMessages,
+      // @ts-ignore
+      transferData?.messages,
+      selectedAddress?.chainName,
+      chains,
+      sendActiveChain,
       addressWarning.type,
-      featureFlags?.link_evm_address?.extension,
-      fetchAccountDetailsStatus,
-      isIbcUnwindingDisabled,
-      pfmEnabled,
-      sendDisabled,
-      gasPriceStatus,
       isSeiEvmTransaction,
+      gasPriceStatus,
+      sendDisabled,
+      pfmEnabled,
+      isIbcUnwindingDisabled,
+      fetchAccountDetailsStatus,
+      hasToUseCw20PointerLogic,
+      addressLinkState,
+      featureFlags?.link_evm_address?.extension,
+      aptosGasPriceStatus,
+      isAptosTx,
     ])
 
     if (isSeiEvmTransaction && gasPriceStatus === 'loading') {
       return <></>
     }
 
+    if (isAptosTx && aptosGasPriceStatus === 'loading') {
+      return <></>
+    }
+
     return (
       <>
-        <div className='absolute w-full flex flex-col gap-4 p-4 bottom-0 left-0 dark:bg-black-100 bg-gray-50'>
+        <div className='absolute w-[calc(100%-4px)] flex flex-col gap-4 p-4 !pr-[14px] bottom-0 left-0 dark:bg-black-100 bg-gray-50'>
           {inputAmount &&
             (FIXED_FEE_CHAINS.includes(sendActiveChain) ? (
               <FixedFee />
@@ -326,7 +420,7 @@ export const ReviewTransfer = observer(
           <Buttons.Generic
             size='normal'
             color={
-              addressError || amountError
+              addressError || amountError || routeError
                 ? Colors.red300
                 : isCompassWallet()
                 ? Colors.compassPrimary
@@ -365,6 +459,7 @@ export const ReviewTransfer = observer(
             forceChain={sendActiveChain}
             forceNetwork={sendSelectedNetwork}
             rootDenomsStore={rootDenomsStore}
+            isSeiEvmTransaction={isSeiEvmTransaction}
           />
         ) : null}
 

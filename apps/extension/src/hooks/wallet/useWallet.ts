@@ -1,3 +1,4 @@
+import { Account, Ed25519PrivateKey } from '@aptos-labs/ts-sdk'
 import { AccountData, DirectSecp256k1HdWallet, OfflineSigner } from '@cosmjs/proto-signing'
 import {
   FEATURE_FLAG_STORAGE_KEY,
@@ -7,14 +8,20 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
-  generateWalletFromMnemonic,
   getLedgerTransport,
   LeapLedgerSigner,
   LeapLedgerSignerEth,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
-import { encrypt, KeyChain } from '@leapwallet/leap-keychain'
+import {
+  decrypt,
+  encrypt,
+  generateWalletFromMnemonic,
+  getFullHDPath,
+  getHardenedPath,
+  KeyChain,
+} from '@leapwallet/leap-keychain'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import {
   ACTIVE_CHAIN,
@@ -32,17 +39,16 @@ import { useAuth } from 'context/auth-context'
 import { isAllChainsEnabled, useIsAllChainsEnabled } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { passwordStore } from 'stores/password-store'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import correctMnemonic from 'utils/correct-mnemonic'
-import { getChainInfosList } from 'utils/getChainInfosList'
+import { customKeygenfnMove, getChainInfosList } from 'utils/getChainInfosList'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
-import browser from 'webextension-polyfill'
-import extension from 'webextension-polyfill'
+import { default as browser, default as extension } from 'webextension-polyfill'
 
 import { useActiveChain } from '../settings/useActiveChain'
 import useActiveWallet from '../settings/useActiveWallet'
-import { usePassword } from '../settings/usePassword'
 import { SeedPhrase } from './seed-phrase/useSeedPhrase'
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -50,12 +56,13 @@ export namespace Wallet {
   export type Keystore = Record<string, Key>
 
   export async function storeWallets(newWallets: Record<string, Key>): Promise<void> {
-    const data = await browser.storage.local.get([KEYSTORE, FEATURE_FLAG_STORAGE_KEY])
+    const featureFlagKey = `${isCompassWallet() ? 'compass' : 'leap'}-${FEATURE_FLAG_STORAGE_KEY}`
+    const data = await browser.storage.local.get([KEYSTORE, featureFlagKey])
     const keystore: Keystore[] = data[KEYSTORE] ?? {}
     const newKeystore = { ...keystore, ...newWallets }
     const newWalletEntries = Object.keys(newWallets)
     const lastEntry = newWalletEntries[0]
-    const featureFlags = JSON.parse(data[FEATURE_FLAG_STORAGE_KEY] ?? '{}')
+    const featureFlags = JSON.parse(data[featureFlagKey] ?? '{}')
     const allChainsEnabled = isAllChainsEnabled(featureFlags?.data)
     const leapFallbackChain = allChainsEnabled ? AGGREGATED_CHAIN_KEY : ChainInfos.cosmos.key
 
@@ -70,11 +77,11 @@ export namespace Wallet {
     mnemonic: string,
   ): Promise<{ accounts: readonly AccountData[]; mainWallet: DirectSecp256k1HdWallet }> {
     const hdPath = getHDPath(ChainInfos.cosmos.bip44.coinType)
-    const mainWallet = await generateWalletFromMnemonic(
-      mnemonic,
+    const mainWallet = generateWalletFromMnemonic(mnemonic, {
       hdPath,
-      ChainInfos.cosmos.addressPrefix,
-    )
+      addressPrefix: ChainInfos.cosmos.addressPrefix,
+      ethWallet: false,
+    })
     const accounts = await mainWallet.getAccounts()
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -163,7 +170,6 @@ export namespace Wallet {
 
   export function useCreateNewWallet() {
     const { chains } = useChainsStore()
-    const password = usePassword()
     const { setActiveWallet } = useActiveWallet()
 
     return useCallback(
@@ -196,14 +202,14 @@ export namespace Wallet {
         const chainInfosList = getChainInfosList(chains)
         const newWallet = await KeyChain.createNewWalletAccount(
           name,
-          (forcePassword ?? password) as string,
+          (forcePassword ?? passwordStore.password) as string,
           colorIndex,
           chainInfosList,
         )
         if (newWallet) await setActiveWallet(newWallet)
         else return 'Wallet already exists'
       },
-      [password, setActiveWallet, chains],
+      [setActiveWallet, chains],
     )
   }
 
@@ -258,7 +264,7 @@ export namespace Wallet {
   type importMultipleWalletAccountsParams = {
     mnemonic: string
     selectedAddressIndexes: number[]
-    password: string
+    password: Uint8Array
     type: 'import' | 'create'
   }
 
@@ -327,7 +333,7 @@ export namespace Wallet {
     type?: 'create' | 'import'
     name?: string
     colorIndex?: number
-    password: string
+    password: Uint8Array
   }
 
   export function useImportWallet() {
@@ -388,7 +394,7 @@ export namespace Wallet {
         colorIndex?: number
       }
     >
-    password: string
+    password: Uint8Array
     pubKeys: Uint8Array[]
   }) {
     const allWallets = await KeyChain.getAllWallets()
@@ -435,8 +441,8 @@ export namespace Wallet {
   }
 
   export function useSaveLedgerWallet() {
-    const password = usePassword()
     const { setActiveWallet } = useActiveWallet()
+
     return useCallback(
       async ({
         addresses,
@@ -451,12 +457,12 @@ export namespace Wallet {
             colorIndex?: number
           }
         >
-        password: string
+        password: Uint8Array
         pubKeys: Uint8Array[]
       }) => {
         const wallets = await saveLedgerWallet({
           addresses,
-          password: password as string,
+          password: password,
           pubKeys,
         })
         setActiveWallet(Object.values(wallets)[0])
@@ -465,7 +471,7 @@ export namespace Wallet {
       },
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [password],
+      [],
     )
   }
 
@@ -474,7 +480,7 @@ export namespace Wallet {
     const _activeChain = useActiveChain()
     const activeChain = forceChain || _activeChain
     const { activeWallet } = useActiveWallet()
-    const password = usePassword()
+
     return useCallback(
       async (chain?: SupportedChain, ethWallet?: boolean) => {
         let _chain = activeChain
@@ -501,20 +507,47 @@ export namespace Wallet {
             }) as unknown as OfflineSigner
           }
         } else if (activeWallet?.walletType !== WALLETTYPE.LEDGER) {
+          if (!passwordStore.password) throw new Error('Invalid Password')
           const coinType = chainInfos[_chain]?.bip44?.coinType
           const walletId = activeWallet?.id
-          const signer = await KeyChain.getSigner(walletId as string, password as string, {
+          const signer = await KeyChain.getSigner(walletId as string, passwordStore.password, {
             addressPrefix: chainInfos[_chain].addressPrefix,
             coinType: chainInfos[_chain]?.bip44?.coinType,
             ethWallet,
             pubKeyBech32Address: ethWallet && coinType !== '60',
+            btcNetwork: chainInfos[_chain]?.btcNetwork,
           })
           return signer as unknown as OfflineSigner
         } else {
           throw new Error('Unable to get signer')
         }
       },
-      [activeChain, activeWallet, password, chainInfos],
+      [activeChain, activeWallet, chainInfos],
     )
+  }
+
+  export function useAptosSigner() {
+    const { activeWallet } = useActiveWallet()
+    const chainInfos = useChainInfos()
+    return async (chain: SupportedChain) => {
+      if (!activeWallet) throw new Error('No active wallet')
+      if (!passwordStore.password) throw new Error('Invalid Password')
+
+      const coinType = chainInfos[chain]?.bip44?.coinType
+      const walletType = activeWallet.walletType
+      const addressIndex = activeWallet.addressIndex
+      const path = getFullHDPath('44', coinType, addressIndex.toString())
+      if (walletType === WALLETTYPE.SEED_PHRASE || walletType === WALLETTYPE.SEED_PHRASE_IMPORTED) {
+        const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
+        const account = await customKeygenfnMove(mnemonic, path, 'seedPhrase')
+        return account.signer
+      } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
+        const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
+        const account = await customKeygenfnMove(privateKey, path, 'privateKey')
+        return account.signer
+      } else {
+        throw new Error('Invalid wallet type')
+      }
+    }
   }
 }

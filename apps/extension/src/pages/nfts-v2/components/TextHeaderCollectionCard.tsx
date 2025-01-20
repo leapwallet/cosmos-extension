@@ -95,10 +95,10 @@ export function TextHeaderCollectionCard({
               />
 
               <Text
-                className='text-gray-800 dark:text-white-100 mt-2 capitalize'
+                className='text-gray-800 dark:text-white-100 mt-2'
                 title={nft.collection?.name ?? nft.name ?? ''}
               >
-                {(nft.collection?.name ?? nft.name ?? '').toLowerCase()}
+                {nft.collection?.name ?? nft.name ?? ''}
               </Text>
 
               {(nft.tokenId ?? nft.name) && (

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { storage, useGetStorageLayer } from '../utils';
 import { cachedRemoteDataWithLastModified } from './cached-remote-data';
+import { storage, useGetStorageLayer } from './global-vars';
 
 export type LSProvider = {
   name: string;

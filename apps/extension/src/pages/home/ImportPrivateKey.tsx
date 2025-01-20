@@ -4,7 +4,6 @@ import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
-import { usePassword } from 'hooks/settings/usePassword'
 import { Images } from 'images'
 import React, { useState } from 'react'
 import { Colors } from 'theme/colors'
@@ -12,7 +11,11 @@ import { Colors } from 'theme/colors'
 import { Wallet } from '../../hooks/wallet/useWallet'
 import useImportWallet = Wallet.useImportWallet
 import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
+import { captureException } from '@sentry/react'
 import InfoSheet from 'components/Infosheet'
+import { observer } from 'mobx-react-lite'
+import { passwordStore } from 'stores/password-store'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 
 type ImportPrivateKeyProps = {
@@ -21,13 +24,12 @@ type ImportPrivateKeyProps = {
   onClose: (closeParent: boolean) => void
 }
 
-export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) {
+export const ImportPrivateKey = observer(({ isVisible, onClose }: ImportPrivateKeyProps) => {
   const [privateKey, setPrivateKey] = useState('')
   const [error, setError] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const activeChain = useActiveChain()
   const importWallet = useImportWallet()
-  const password = usePassword()
 
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
   const isSeiEvmChain = useIsSeiEvmChain()
@@ -42,7 +44,7 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
 
     if (
       privateKey &&
-      password &&
+      passwordStore.password &&
       validateSeedPhrase({
         phrase: privateKey,
         isPrivateKey: true,
@@ -51,11 +53,18 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
       })
     ) {
       try {
-        await importWallet({ privateKey, type: 'import', addressIndex: '0', password })
+        await importWallet({
+          privateKey,
+          type: 'import',
+          addressIndex: '0',
+          password: passwordStore.password,
+        })
         setPrivateKey('')
         onClose(true)
-      } catch (error: any) {
-        setError(error.message)
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Something went wrong'
+        captureException(errorMessage)
+        setError(errorMessage)
       }
     }
 
@@ -84,8 +93,10 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
 
         <div className='flex flex-col gap-y-4 items-cente justify-center'>
           <Text size='sm' color='text-center text-gray-600 dark:text-gray-600'>
-            Use private key to import your MetaMask wallet to generate the same EVM address as on
-            MetaMask.
+            {isCompassWallet()
+              ? `Use private key to import your MetaMask wallet to generate the same EVM address as on
+            MetaMask.`
+              : `To import an existing wallet, please enter the private key here.`}
           </Text>
           <TextArea
             onChange={(e) => onChangeHandler(e.target.value)}
@@ -141,4 +152,4 @@ export function ImportPrivateKey({ isVisible, onClose }: ImportPrivateKeyProps) 
       </>
     </BottomModal>
   )
-}
+})

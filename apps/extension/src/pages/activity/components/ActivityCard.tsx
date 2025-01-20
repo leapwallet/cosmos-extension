@@ -2,9 +2,10 @@ import { ActivityCardContent } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { default as classNames } from 'classnames'
 import { useActivityImage } from 'hooks/activity/useActivityImage'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { formatTokenAmount } from 'utils/strings'
 
 import { ActivityIcon } from './index'
@@ -20,7 +21,7 @@ export type ActivityCardProps = {
   imgSize?: 'sm' | 'md' | 'lg'
 }
 
-export function ActivityCard({
+function ActivityCardView({
   content,
   onClick,
   showLoader,
@@ -45,8 +46,6 @@ export function ActivityCard({
 
   const defaultImg = useActivityImage(txType, forceChain)
   const img = customImage || defaultImg
-
-  const { formatHideBalance } = useHideAssets()
 
   const sentAmountInfo =
     sentAmount && sentTokenInfo ? formatTokenAmount(sentAmount, sentTokenInfo.coinDenom) : undefined
@@ -94,12 +93,12 @@ export function ActivityCard({
             <>
               {receivedAmountInfo && (
                 <p className='text-xs text-right font-semibold text-green-600 dark:text-green-600'>
-                  {balanceReduced && '-'} {formatHideBalance(receivedAmountInfo)}
+                  {balanceReduced && '-'} {hideAssetsStore.formatHideBalance(receivedAmountInfo)}
                 </p>
               )}
               {sentAmountInfo && (
                 <p className='text-[10px] text-right text-gray-600 dark:text-gray-400'>
-                  {balanceReduced && '-'} {formatHideBalance(sentAmountInfo)}
+                  {balanceReduced && '-'} {hideAssetsStore.formatHideBalance(sentAmountInfo)}
                 </p>
               )}
             </>
@@ -113,13 +112,14 @@ export function ActivityCard({
                     'text-green-600 dark:text-green-600': balanceIncreased,
                   })}
                 >
-                  {balanceReduced && '-'} ${formatHideBalance(Number(sentUsdValue).toFixed(2))}
+                  {balanceReduced && '-'} $
+                  {hideAssetsStore.formatHideBalance(Number(sentUsdValue).toFixed(2))}
                 </p>
               )}
 
               {sentAmountInfo && (
                 <p className={classNames('text-xs text-right text-gray-600 dark:text-gray-400')}>
-                  {balanceReduced && '-'} {formatHideBalance(sentAmountInfo)}
+                  {balanceReduced && '-'} {hideAssetsStore.formatHideBalance(sentAmountInfo)}
                 </p>
               )}
             </>
@@ -131,3 +131,5 @@ export function ActivityCard({
     </div>
   )
 }
+
+export const ActivityCard = observer(ActivityCardView)

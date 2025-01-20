@@ -10,7 +10,6 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
-import { chainInfosState } from 'atoms/chains'
 import axios from 'axios'
 import { ErrorCard } from 'components/ErrorCard'
 import { InputComponent } from 'components/input-component/InputComponent'
@@ -21,13 +20,12 @@ import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { BETA_CHAINS } from 'config/storage-keys'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
-import { useChainInfos } from 'hooks/useChainInfos'
+import { useChainInfos, useSetChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import SideNav from 'pages/home/side-nav'
 import React, { ChangeEvent, FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useSetRecoilState } from 'recoil'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isNotValidNumber, isNotValidURL } from 'utils/regex'
 import browser from 'webextension-polyfill'
@@ -53,7 +51,7 @@ const AddChainForm = ({
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
 
-  const setChainInfos = useSetRecoilState(chainInfosState)
+  const setChainInfos = useSetChainInfos()
   const [chainInfo, setChainInfo] = useState({
     chainName: '',
     chainId: '',

@@ -22,10 +22,10 @@ import BigNumber from 'bignumber.js'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 
 interface StakeRewardCardProps {
   onClaim?: () => void
@@ -69,7 +69,6 @@ const StakeRewardCard = observer(
 
     const [formatCurrency] = useFormatCurrency()
     const { activeWallet } = useActiveWallet()
-    const { formatHideBalance } = useHideAssets()
     const { rewards: providerRewards } = useDualStaking()
     const { totalRewards, totalRewardsDollarAmt, loadingRewards, rewards } = useStaking(
       denoms,
@@ -94,10 +93,12 @@ const StakeRewardCard = observer(
 
     const formattedRewardAmount = useMemo(() => {
       if (totalRewardsDollarAmt && new BigNumber(totalRewardsDollarAmt).gt(0)) {
-        return formatHideBalance(formatCurrency(new BigNumber(totalRewardsDollarAmt)))
+        return hideAssetsStore.formatHideBalance(
+          formatCurrency(new BigNumber(totalRewardsDollarAmt)),
+        )
       } else {
         const rewardsCount = rewards?.total?.length ?? 0
-        return formatHideBalance(
+        return hideAssetsStore.formatHideBalance(
           `${formatTokenAmount(nativeTokenReward?.amount ?? '', activeStakingDenom?.coinDenom)} ${
             rewardsCount > 1 ? `+${rewardsCount - 1} more` : ''
           }`,
@@ -106,7 +107,6 @@ const StakeRewardCard = observer(
     }, [
       activeStakingDenom?.coinDenom,
       formatCurrency,
-      formatHideBalance,
       nativeTokenReward?.amount,
       rewards?.total.length,
       totalRewardsDollarAmt,
@@ -143,22 +143,20 @@ const StakeRewardCard = observer(
           ) : (
             <button
               disabled={isClaimDisabled}
-              className={`py-2 pl-4 pr-3 hover:cursor-pointer flex items-center rounded-full bg-gray-200 dark:bg-gray-800 gap-x-2 ${
+              className={`hover:cursor-pointer flex items-center rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 ${
                 isClaimDisabled && 'opacity-70 !cursor-not-allowed'
               }`}
             >
               <span
                 onClick={onClaim}
-                className='font-bold text-xs text-black-100 dark:text-white-100'
+                className='pr-2 py-2 pl-4 font-bold text-xs text-black-100 dark:text-white-100'
               >
                 Claim
               </span>
               <div className='w-px h-4 bg-gray-400 dark:bg-gray-700' />
-              <CaretDown
-                size={12}
-                onClick={onClaimAndStake}
-                className='text-black-100 dark:text-white-100'
-              />
+              <span onClick={onClaimAndStake} className='pr-3 py-2 pl-2'>
+                <CaretDown size={12} className='text-black-100 dark:text-white-100' />
+              </span>
             </button>
           ))}
       </div>

@@ -1,8 +1,6 @@
 import {
   SelectedNetwork,
   useChainInfo,
-  useDualStaking,
-  useFeatureFlags,
   useSelectedNetwork,
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -20,6 +18,7 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { imgOnError } from 'utils/imgOnError'
 
 type StakeHeadingProps = {
   rootDenomsStore: RootDenomsStore
@@ -51,9 +50,7 @@ const StakeHeading = observer(
     )
 
     const defaultTokenLogo = useDefaultTokenLogo()
-    const { apy: providersApy } = useDualStaking()
     const activeChainInfo = useChainInfo(activeChain)
-    const { data: featureFlags } = useFeatureFlags()
 
     const denoms = rootDenomsStore.allDenoms
     const chainDelegations = delegationsStore.delegationsForChain(activeChain)
@@ -71,21 +68,14 @@ const StakeHeading = observer(
       activeNetwork,
     )
 
-    const apyValue = useMemo(() => {
-      if (network?.chainApy) {
-        return currency((network?.chainApy * 100).toString(), {
+    const aprValue = useMemo(() => {
+      if (network?.chainApr) {
+        return currency((network?.chainApr * 100).toString(), {
           precision: 2,
           symbol: '',
         }).format()
       }
-    }, [network?.chainApy])
-
-    const providersApyValue = useMemo(() => {
-      if (providersApy) {
-        return currency((providersApy * 100).toString(), { precision: 0, symbol: '' }).format()
-      }
-      return null
-    }, [providersApy])
+    }, [network?.chainApr])
 
     return (
       <div className='flex justify-between w-full'>
@@ -94,42 +84,16 @@ const StakeHeading = observer(
             width={24}
             height={24}
             src={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
+            onError={imgOnError(defaultTokenLogo)}
           />
           <Text size='md' className='font-bold'>
             {activeChainInfo.chainName}
           </Text>
         </div>
-        {activeChain === 'lava' && featureFlags?.restaking?.extension === 'active' ? (
-          <div className='flex gap-x-[18px] items-center'>
-            {apyValue && (
-              <div className='flex flex-col items-center gap-y-0.5'>
-                <Text size='xs' color='dark:text-gray-400 text-gray-700' className='font-medium'>
-                  Validator
-                </Text>
-                <Text size='md' color='dark:text-gray-400 text-gray-700' className='font-medium'>
-                  {`APY ${apyValue}%`}
-                </Text>
-              </div>
-            )}
-            {apyValue && providersApyValue && (
-              <div className='w-0.5 h-8 bg-gray-50 dark:bg-gray-900' />
-            )}
-            {providersApyValue && (
-              <div className='flex flex-col items-center gap-y-0.5'>
-                <Text size='xs' color='dark:text-gray-400 text-gray-700' className='font-medium'>
-                  Provider
-                </Text>
-                <Text size='md' color='dark:text-gray-400 text-gray-700' className='font-medium'>
-                  {`APY ${providersApyValue}%`}
-                </Text>
-              </div>
-            )}
-          </div>
-        ) : (
-          <Text size='md' color='dark:text-gray-400 text-gray-700' className='font-medium'>
-            {apyValue && `APY ${apyValue}%`}
-          </Text>
-        )}
+
+        <Text size='md' color='dark:text-gray-400 text-gray-700' className='font-medium'>
+          {aprValue && `APR ${aprValue}%`}
+        </Text>
       </div>
     )
   },

@@ -1,5 +1,5 @@
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
-import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/constants';
+import { IbcTraceFetcher } from '@leapwallet/cosmos-wallet-store';
 import { ThemeName } from '@leapwallet/leap-ui';
 import { type ParsedTransaction } from '@leapwallet/parser-parfait';
 
@@ -60,7 +60,7 @@ export type getActivityContentProps = {
   restUrl: string;
   address?: string;
   theme?: ThemeName;
-  denoms: DenomsRecord;
   chainId?: string;
   coinDecimals?: number;
+  ibcTraceFetcher: IbcTraceFetcher;
 };

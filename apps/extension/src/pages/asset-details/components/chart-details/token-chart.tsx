@@ -1,4 +1,5 @@
-import { MarketChartPrice, useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
+import { useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
+import { MarketChartPrice } from '@leapwallet/leap-api-js'
 import { BigNumber } from 'bignumber.js'
 import React, { useEffect, useState } from 'react'
 import {
@@ -14,11 +15,8 @@ import {
   Line,
   LinearAxisLine,
   LinearXAxis,
-  LinearXAxisTickLabel,
-  LinearXAxisTickLine,
   LinearXAxisTickSeries,
   LinearYAxis,
-  LinearYAxisTickLabel,
   LinearYAxisTickSeries,
   MarkLine,
   TooltipArea,
@@ -31,12 +29,14 @@ export function TokensChart({
   price,
   minMax,
   chainColor,
+  selectedDays,
 }: {
   chartData: MarketChartPrice[]
   loadingCharts: boolean
   price: number
   chainColor: string
   minMax: MarketChartPrice[]
+  selectedDays: string
 }) {
   const [formatCurrency] = useformatCurrency()
 
@@ -60,55 +60,18 @@ export function TokensChart({
 
   return chartData && !loadingCharts && price ? (
     <AreaChart
-      height={248}
+      height={128}
       xAxis={
         <LinearXAxis
-          tickSeries={
-            <LinearXAxisTickSeries
-              tickSize={25}
-              interval={5}
-              label={
-                <LinearXAxisTickLabel
-                  fontSize={8}
-                  fontFamily={'Satoshi'}
-                  className={'font-medium !leading-[8px] text-gray-500 dark:text-gray-500'}
-                  padding={9}
-                />
-              }
-              line={<LinearXAxisTickLine strokeWidth={1} strokeColor={Colors.gray900} size={13} />}
-            />
-          }
-          axisLine={<LinearAxisLine strokeWidth={1} strokeColor={Colors.gray900} />}
+          tickSeries={<LinearXAxisTickSeries tickSize={0} interval={5} label={null} line={null} />}
+          axisLine={<LinearAxisLine strokeWidth={0} strokeColor={Colors.gray900} />}
           type={'time'}
         />
       }
       yAxis={
         <LinearYAxis
           tickSeries={
-            <LinearYAxisTickSeries
-              tickSize={100}
-              width={0}
-              interval={5}
-              label={
-                <LinearYAxisTickLabel
-                  fontSize={8}
-                  className={'font-medium !leading-[8px] text-gray-500 dark:text-gray-500'}
-                  fontFamily={'Satoshi'}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  format={(data: any) => {
-                    let price = data + minMax[0].price
-                    try {
-                      price = formatCurrency(new BigNumber(price))
-                    } catch (_) {
-                      //
-                    }
-                    return String(price)
-                  }}
-                  padding={10}
-                />
-              }
-              line={null}
-            />
+            <LinearYAxisTickSeries tickSize={0} width={0} interval={5} label={null} line={null} />
           }
           axisLine={<LinearAxisLine strokeWidth={0} />}
         />
@@ -128,20 +91,34 @@ export function TokensChart({
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   content={(data: any) => {
                     let price = data.value + minMax[0].price
+
+                    const date = new Date(data.key)
+                    let formattedDate
+
+                    if (selectedDays === '1Y' || selectedDays === 'YTD' || selectedDays === 'All') {
+                      formattedDate = date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    } else {
+                      formattedDate = date.toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    }
+
                     try {
                       price = formatCurrency(new BigNumber(price))
                     } catch (_) {
                       //
                     }
                     return (
-                      <>
-                        <div className='text-[10px] font-bold !text-blue-300 dark:!text-blue-300'>
-                          {price}
-                        </div>
-                        <div className='text-[10px] font-semibold text-blue-300 dark:text-blue-300'>
-                          {data.metadata}
-                        </div>
-                      </>
+                      <div className='text-xs font-medium !text-black-100 dark:!text-white-100'>
+                        {price} | {formattedDate}
+                      </div>
                     )
                   }}
                 />
@@ -156,8 +133,8 @@ export function TokensChart({
               gradient={
                 <Gradient
                   stops={[
-                    <GradientStop key={0} offset='0' stopOpacity={0} color={'#0068D1'} />,
-                    <GradientStop key={2} offset='1' stopOpacity={0.55} color={'#0068D1'} />,
+                    <GradientStop key={0} offset='0' stopOpacity={0} color={chainColor} />,
+                    <GradientStop key={2} offset='1' stopOpacity={0.55} color={chainColor} />,
                   ]}
                 />
               }
@@ -165,21 +142,10 @@ export function TokensChart({
           }
         />
       }
-      gridlines={
-        <GridlineSeries
-          line={
-            <Gridline
-              direction='y'
-              strokeWidth={1}
-              strokeColor={Colors.gray900}
-              strokeDasharray=''
-            />
-          }
-        />
-      }
+      gridlines={<GridlineSeries line={<Gridline direction='all' strokeWidth={0} />} />}
       data={formattedChartData}
     />
   ) : (
-    <>{price && <div className='h-[248px]' />}</>
+    <>{price && <div className='h-auto' />}</>
   )
 }

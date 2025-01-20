@@ -20,6 +20,11 @@ export class LeapEvm implements Ethereum {
   private origin: string;
   private requestQueue: { [key: string]: (EthereumRequestMessage & { requestQueueId: string })[] };
 
+  private chainChangedEventHandler: (event: any) => void = () => {};
+  private accountsChangedEventHandler: (event: any) => void = () => {};
+  private disconnectEventHandler: (event: any) => void = () => {};
+  private connectEventHandler: (event: any) => void = () => {};
+
   constructor() {
     this.inpageStream = new WindowPostMessageStream({
       name: `${IDENTIFIER}:inpage`,
@@ -133,28 +138,61 @@ export class LeapEvm implements Ethereum {
 
   on(eventName: EthereumListenerType, eventHandler: (data: unknown) => void) {
     if (eventName === 'chainChanged') {
-      window.addEventListener('chainChanged', (event: any) => {
+      this.chainChangedEventHandler = (event: any) => {
         eventHandler(event.detail.data);
-      });
+      };
+
+      window.addEventListener('chainChanged', this.chainChangedEventHandler);
     }
 
     if (eventName === 'accountsChanged') {
-      window.addEventListener('accountsChanged', (event: any) => {
+      this.accountsChangedEventHandler = (event: any) => {
         eventHandler(event.detail.data);
-      });
+      };
+
+      window.addEventListener('accountsChanged', this.accountsChangedEventHandler);
     }
 
     if (eventName === 'disconnect') {
-      window.addEventListener('disconnect', (event: any) => {
+      this.disconnectEventHandler = (event: any) => {
         eventHandler(event.detail.data);
-      });
+      };
+
+      window.addEventListener('disconnect', this.disconnectEventHandler);
     }
 
     if (eventName === 'connect') {
-      window.addEventListener('connect', (event: any) => {
+      this.connectEventHandler = (event: any) => {
         eventHandler(event.detail.data);
-      });
+      };
+
+      window.addEventListener('connect', this.connectEventHandler);
     }
+  }
+
+  removeListener(eventName: EthereumListenerType) {
+    if (eventName === 'chainChanged') {
+      window.removeEventListener('chainChanged', this.chainChangedEventHandler);
+    }
+
+    if (eventName === 'accountsChanged') {
+      window.removeEventListener('accountsChanged', this.accountsChangedEventHandler);
+    }
+
+    if (eventName === 'disconnect') {
+      window.removeEventListener('disconnect', this.disconnectEventHandler);
+    }
+
+    if (eventName === 'connect') {
+      window.removeEventListener('connect', this.connectEventHandler);
+    }
+  }
+
+  removeAllListeners() {
+    window.removeEventListener('chainChanged', this.chainChangedEventHandler);
+    window.removeEventListener('accountsChanged', this.accountsChangedEventHandler);
+    window.removeEventListener('disconnect', this.disconnectEventHandler);
+    window.removeEventListener('connect', this.connectEventHandler);
   }
 
   toJSON() {

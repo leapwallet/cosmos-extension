@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-sdk",
-  "version": "0.12.4",
+  "version": "4.1.0",
   "description": "TypeScript library to create and manage non-custodial wallets for cosmos blockchains.",
   "main": "dist/node/index.js",
   "scripts": {
@@ -26,6 +26,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
+    "@aptos-labs/ts-sdk": "1.33.1",
     "@babel/helper-string-parser": "7.22.5",
     "@cosmjs/amino": "0.29.5",
     "@cosmjs/cosmwasm-stargate": "0.29.5",
@@ -46,15 +47,18 @@
     "@ethersproject/units": "5.7.0",
     "@ethersproject/contracts": "5.7.0",
     "ethers": "5.7.0",
+    "@keystonehq/keystone-sdk": "0.8.0",
     "@improbable-eng/grpc-web": "0.15.0",
     "@improbable-eng/grpc-web-node-http-transport": "0.15.0",
-    "@leapwallet/leap-keychain": "0.2.4",
+    "@leapwallet/leap-keychain": "0.3.4",
     "@ledgerhq/hw-app-eth": "6.29.3",
     "@ledgerhq/hw-transport": "6.31.2",
     "@ledgerhq/hw-transport-webhid": "6.29.2",
     "@ledgerhq/hw-transport-webusb": "6.29.2",
     "@zondax/ledger-cosmos-js": "3.0.3",
-    "axios": "1.2.1",
+    "@scure/btc-signer": "1.4.0",
+    "@scure/base": "1.1.9",
+    "axios": "1.6.4",
     "bech32": "2.0.0",
     "bech32-buffer": "0.2.1",
     "bignumber.js": "9.0.2",

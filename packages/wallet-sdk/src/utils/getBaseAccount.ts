@@ -7,5 +7,9 @@ export function getBaseAccount(account: any) {
     return account.base_account;
   }
 
+  if (account?.base_vesting_account?.base_account) {
+    return account.base_vesting_account.base_account;
+  }
+
   return account;
 }

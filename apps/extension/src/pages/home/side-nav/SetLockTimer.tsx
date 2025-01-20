@@ -4,12 +4,13 @@ import { CheckCircle } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import Text from 'components/text'
-import { TimerLockPeriod, useLockTimer } from 'hooks/settings/usePassword'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React from 'react'
+import { autoLockTimeStore, TimerLockPeriod, TimerLockPeriodKey } from 'stores/password-store'
 import { Colors } from 'theme/colors'
 
-export default function SetLockTimerDropUp({
+export default observer(function SetLockTimerDropUp({
   onCloseHandler,
   isVisible,
 }: {
@@ -17,7 +18,6 @@ export default function SetLockTimerDropUp({
   onCloseHandler: () => void
 }) {
   const activeChain = useActiveChain()
-  const { lockTime, setTimer } = useLockTimer()
 
   return (
     <BottomModal isOpen={isVisible} onClose={onCloseHandler} title={'Set Timer'}>
@@ -34,14 +34,14 @@ export default function SetLockTimerDropUp({
                 <div
                   className='flex py-2 px-4 hover:cursor-pointer justify-between'
                   onClick={() => {
-                    setTimer(time[0])
+                    autoLockTimeStore.setLockTime(time[0] as TimerLockPeriodKey)
                     onCloseHandler()
                   }}
                 >
                   <Text size='md' className='font-bold'>
                     {time[0]}
                   </Text>
-                  {lockTime === time[1] && (
+                  {autoLockTimeStore.time === time[1] && (
                     <CheckCircle
                       weight='fill'
                       size={24}
@@ -69,4 +69,4 @@ export default function SetLockTimerDropUp({
       </div>
     </BottomModal>
   )
-}
+})

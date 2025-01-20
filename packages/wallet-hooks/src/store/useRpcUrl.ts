@@ -1,4 +1,4 @@
-import { getTopNode, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { ChainInfo, getTopNode, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useGetChains, useSelectedNetwork } from '../store';
@@ -28,62 +28,68 @@ export function useApiAvailability(url: string) {
 export function useGetChainApis(
   _activeChain: SupportedChain,
   _selectedNetwork: 'mainnet' | 'testnet',
-  chains: ReturnType<typeof useGetChains>,
+  chains: Record<SupportedChain, ChainInfo>,
 ) {
   return useCallback(
-    (isTestnetRpcAvailable: boolean, forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') => {
-      const activeChain = forceChain || _activeChain;
-      if (!activeChain || !chains[activeChain]) return { rpcUrl: '', lcdUrl: '' };
-
-      const selectedNetwork = forceNetwork || _selectedNetwork;
-      const mainnetLcdUrl = chains[activeChain].apis.rest;
-      const mainnetRpcUrl = chains[activeChain].apis.rpc;
-
-      const testnetLcdUrl =
-        !isTestnetRpcAvailable && chains[activeChain].apis.alternateRestTest
-          ? chains[activeChain].apis.alternateRestTest
-          : chains[activeChain].apis.restTest;
-      const testnetRpcUrl =
-        !isTestnetRpcAvailable && chains[activeChain].apis.alternateRpcTest
-          ? chains[activeChain].apis.alternateRpcTest
-          : chains[activeChain].apis.rpcTest;
-
-      const fallbackRpcURL =
-        selectedNetwork === 'testnet' && chains[activeChain].apis.rpcTest
-          ? removeTrailingSlash(testnetRpcUrl)
-          : removeTrailingSlash(mainnetRpcUrl);
-      const fallbackRestURL =
-        selectedNetwork === 'testnet' && chains[activeChain].apis.restTest
-          ? removeTrailingSlash(testnetLcdUrl)
-          : removeTrailingSlash(mainnetLcdUrl);
-
-      const activeChainId =
-        (selectedNetwork === 'testnet' ? chains[activeChain].testnetChainId : chains[activeChain].chainId) ?? '';
-      const restNode = getTopNode('rest', activeChainId);
-      const { nodeUrl: rest } = restNode ?? {};
-
-      const rpcNode = getTopNode('rpc', activeChainId);
-      const { nodeUrl: rpc } = rpcNode ?? {};
-
-      const evmJsonRpc =
-        selectedNetwork === 'testnet'
-          ? chains[activeChain].apis.evmJsonRpcTest ?? chains[activeChain].apis.evmJsonRpc
-          : chains[activeChain].apis.evmJsonRpc;
-
-      return {
-        rpcUrl: rpc && rpc.length ? rpc : fallbackRpcURL,
-        lcdUrl: rest && rest.length ? rest : fallbackRestURL,
-        grpcUrl:
-          selectedNetwork === 'testnet' && chains[activeChain].apis.grpcTest
-            ? removeTrailingSlash(chains[activeChain].apis.grpcTest)
-            : removeTrailingSlash(chains[activeChain].apis.grpc),
-        txUrl: chains[activeChain].txExplorer?.[selectedNetwork]?.txUrl,
-        evmJsonRpc,
-      };
-    },
+    (isTestnetRpcAvailable: boolean, forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') =>
+      getChainApis(forceChain ?? _activeChain, forceNetwork ?? _selectedNetwork, chains, isTestnetRpcAvailable),
     [_activeChain, _selectedNetwork, chains],
   );
 }
+
+export const getChainApis = (
+  activeChain: SupportedChain,
+  selectedNetwork: 'mainnet' | 'testnet',
+  chains: Record<SupportedChain, ChainInfo>,
+  isTestnetRpcAvailable?: boolean,
+) => {
+  if (!activeChain || !chains[activeChain]) return { rpcUrl: '', lcdUrl: '' };
+
+  const mainnetLcdUrl = chains[activeChain].apis.rest;
+  const mainnetRpcUrl = chains[activeChain].apis.rpc;
+
+  const testnetLcdUrl =
+    !isTestnetRpcAvailable && chains[activeChain].apis.alternateRestTest
+      ? chains[activeChain].apis.alternateRestTest
+      : chains[activeChain].apis.restTest;
+  const testnetRpcUrl =
+    !isTestnetRpcAvailable && chains[activeChain].apis.alternateRpcTest
+      ? chains[activeChain].apis.alternateRpcTest
+      : chains[activeChain].apis.rpcTest;
+
+  const fallbackRpcURL =
+    selectedNetwork === 'testnet' && chains[activeChain].apis.rpcTest
+      ? removeTrailingSlash(testnetRpcUrl)
+      : removeTrailingSlash(mainnetRpcUrl);
+  const fallbackRestURL =
+    selectedNetwork === 'testnet' && chains[activeChain].apis.restTest
+      ? removeTrailingSlash(testnetLcdUrl)
+      : removeTrailingSlash(mainnetLcdUrl);
+
+  const activeChainId =
+    (selectedNetwork === 'testnet' ? chains[activeChain].testnetChainId : chains[activeChain].chainId) ?? '';
+  const restNode = getTopNode('rest', activeChainId);
+  const { nodeUrl: rest } = restNode ?? {};
+
+  const rpcNode = getTopNode('rpc', activeChainId);
+  const { nodeUrl: rpc } = rpcNode ?? {};
+
+  const evmJsonRpc =
+    selectedNetwork === 'testnet'
+      ? chains[activeChain].apis.evmJsonRpcTest ?? chains[activeChain].apis.evmJsonRpc
+      : chains[activeChain].apis.evmJsonRpc;
+
+  return {
+    rpcUrl: rpc && rpc.length ? rpc : fallbackRpcURL,
+    lcdUrl: rest && rest.length ? rest : fallbackRestURL,
+    grpcUrl:
+      selectedNetwork === 'testnet' && chains[activeChain].apis.grpcTest
+        ? removeTrailingSlash(chains[activeChain].apis.grpcTest)
+        : removeTrailingSlash(chains[activeChain].apis.grpc),
+    txUrl: chains[activeChain].txExplorer?.[selectedNetwork]?.txUrl,
+    evmJsonRpc,
+  };
+};
 
 export function useChainApis(forceChain?: SupportedChain, forceNetwork?: 'mainnet' | 'testnet') {
   const chains = useGetChains();
@@ -93,8 +99,9 @@ export function useChainApis(forceChain?: SupportedChain, forceNetwork?: 'mainne
 
   const _activeChain = useActiveChain();
   const activeChain = forceChain ?? _activeChain;
+  const isAptos = isAptosChain(activeChain);
   const isTestnetRpcAvailable = useApiAvailability(
-    selectedNetwork === 'testnet' ? chains[activeChain]?.apis?.rpcTest ?? '' : '',
+    selectedNetwork === 'testnet' && !isAptos ? chains[activeChain]?.apis?.rpcTest ?? '' : '',
   );
 
   const getChainApis = useGetChainApis(activeChain, selectedNetwork, chains);

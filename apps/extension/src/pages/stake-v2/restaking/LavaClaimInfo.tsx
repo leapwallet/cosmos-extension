@@ -19,10 +19,10 @@ import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { SelectedNetwork, useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 
 interface LavaClaimInfoProps {
   isOpen: boolean
@@ -53,7 +53,6 @@ const LavaClaimInfo = observer(
     forceChain,
     forceNetwork,
   }: LavaClaimInfoProps) => {
-    const { formatHideBalance } = useHideAssets()
     const [formatCurrency] = useFormatCurrency()
     const denoms = rootDenomsStore.allDenoms
 
@@ -103,25 +102,22 @@ const LavaClaimInfo = observer(
     }, [activeStakingDenom?.coinMinimalDenom, rewards])
 
     const formattedTokenReward = useMemo(() => {
-      return formatHideBalance(
+      return hideAssetsStore.formatHideBalance(
         `${formatTokenAmount(nativeTokenReward?.amount ?? '', activeStakingDenom.coinDenom)} ${
           rewards?.total?.length > 1 ? `+${rewards?.total?.length - 1} more` : ''
         }`,
       )
-    }, [
-      activeStakingDenom?.coinDenom,
-      formatHideBalance,
-      nativeTokenReward?.amount,
-      rewards?.total.length,
-    ])
+    }, [activeStakingDenom?.coinDenom, nativeTokenReward?.amount, rewards?.total.length])
 
     const validatorRewardTitle = useMemo(() => {
       if (new BigNumber(totalRewardsDollarAmt).gt(0)) {
-        return formatHideBalance(formatCurrency(new BigNumber(totalRewardsDollarAmt)))
+        return hideAssetsStore.formatHideBalance(
+          formatCurrency(new BigNumber(totalRewardsDollarAmt)),
+        )
       } else {
         return formattedTokenReward
       }
-    }, [formatCurrency, formatHideBalance, formattedTokenReward, totalRewardsDollarAmt])
+    }, [formatCurrency, formattedTokenReward, totalRewardsDollarAmt])
 
     const validatorRewardSubtitle = useMemo(() => {
       if (new BigNumber(totalRewardsDollarAmt).gt(0)) {
@@ -131,25 +127,20 @@ const LavaClaimInfo = observer(
     }, [formattedTokenReward, totalRewardsDollarAmt])
 
     const formattedProviderReward = useMemo(() => {
-      return formatHideBalance(
+      return hideAssetsStore.formatHideBalance(
         formatTokenAmount(providerRewards?.totalRewards ?? '', activeStakingDenom?.coinDenom),
       )
-    }, [activeStakingDenom?.coinDenom, formatHideBalance, providerRewards?.totalRewards])
+    }, [activeStakingDenom?.coinDenom, providerRewards?.totalRewards])
 
     const providerRewardTitle = useMemo(() => {
       if (new BigNumber(providerRewards?.totalRewardsDollarAmt).gt(0)) {
-        return formatHideBalance(
+        return hideAssetsStore.formatHideBalance(
           formatCurrency(new BigNumber(providerRewards?.totalRewardsDollarAmt)),
         )
       } else {
         return formattedProviderReward
       }
-    }, [
-      formatCurrency,
-      formatHideBalance,
-      formattedProviderReward,
-      providerRewards?.totalRewardsDollarAmt,
-    ])
+    }, [formatCurrency, formattedProviderReward, providerRewards?.totalRewardsDollarAmt])
 
     const providerRewardSubtitle = useMemo(() => {
       if (new BigNumber(providerRewards?.totalRewardsDollarAmt).gt(0)) {

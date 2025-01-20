@@ -1,4 +1,5 @@
 export * from './aggregated-chains-store';
+export * from './ankr-chain-map-store';
 export * from './beta-evm-nft-token-ids-store';
 export * from './beta-native-denoms-store';
 export * from './beta-nft-chains-store';
@@ -8,6 +9,8 @@ export * from './chain-infos-config-store';
 export * from './chain-infos-store';
 export * from './chain-tags-store';
 export * from './compass-sei-evm-config-store';
+export * from './compass-sei-tokens-association-store';
+export * from './compass-token-tags-store';
 export * from './cw20-denoms';
 export * from './denoms-store';
 export * from './erc20-denoms';

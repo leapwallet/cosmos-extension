@@ -150,7 +150,7 @@ export const useSendNft = (
     };
 
     return [instruction].map((i) => {
-      if (activeChain === 'mainCoreum') {
+      if (['mainCoreum', 'coreum'].includes(activeChain)) {
         return {
           typeUrl: '/coreum.nft.v1beta1.MsgSend',
           value: {
@@ -220,7 +220,7 @@ export const useSendNft = (
 
       const msgs = getMsgs(toAddress, tokenId, memo, fromAddress);
       let options = {};
-      if (activeChain === 'mainCoreum') {
+      if (['mainCoreum', 'coreum'].includes(activeChain)) {
         options = {
           registry,
         };

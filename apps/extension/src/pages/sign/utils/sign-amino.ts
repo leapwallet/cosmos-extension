@@ -2,6 +2,7 @@ import { GasPrice } from '@leapwallet/cosmos-wallet-sdk'
 import BigNumber from 'bignumber.js'
 
 import { getStdFee } from './get-fee'
+import { getMilkywayMemo } from './get-milkyway-memo'
 
 export function getAminoSignDoc({
   signRequestData,
@@ -23,16 +24,16 @@ export function getAminoSignDoc({
   const signOptions = signRequestData['sign-request'].signOptions
 
   const defaultFee = signDoc.fee
-  const defaultMemo = signDoc.memo
+  const defaultMemo = getMilkywayMemo(signRequestData['sign-request'], signDoc, signDoc.memo)
 
   const sortedSignDoc = {
     chain_id: signDoc.chain_id ?? signDoc.chainId,
     account_number: signDoc.account_number ?? signDoc.accountNumber,
     sequence: signDoc.sequence,
     fee: defaultFee,
-    memo: defaultMemo,
     msgs: signDoc.msgs,
     ...signDoc,
+    memo: defaultMemo,
   }
 
   if (!isAdr36) {

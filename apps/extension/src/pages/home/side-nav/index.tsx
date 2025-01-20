@@ -1,21 +1,14 @@
-import { useActiveChain, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import {
-  CardDivider,
-  NavCard,
-  SideNavHeader,
-  ThemeName,
-  ToggleCard,
-  useTheme,
-} from '@leapwallet/leap-ui'
+import { useActiveChain, useFeatureFlags, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { CardDivider, NavCard, SideNavHeader, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classnames from 'classnames'
 import { AlertStrip } from 'components/alert-strip'
+import { BetaTag } from 'components/BetaTag/BetaTag'
 import Text from 'components/text'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useAuth } from 'context/auth-context'
 import { useChainPageInfo } from 'hooks'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
-import { useHideSmallBalances } from 'hooks/settings/useHideSmallBalances'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
@@ -34,9 +27,11 @@ import { CustomEndpoints } from './CustomEndpoints'
 import ExportPrivateKey from './ExportPrivateKey'
 import ExportSeedPhrase from './ExportSeedPhrase'
 import GeneralSecurity from './GeneralSecurity'
+import LightNode from './LightNode/LightNode'
 import NetworkDropUp from './Network'
 import SyncWithMobile from './SyncWithMobile'
 import ThemeDropUp from './Theme'
+import { TokenDisplay } from './TokenDisplay'
 import VersionIndicator from './VersionIndicator'
 
 type InitialFaucetResp = {
@@ -52,6 +47,9 @@ const initialFaucetResp: InitialFaucetResp = {
 export type SideNavProps = {
   readonly isShown: boolean
   readonly toggler?: () => void
+  readonly defaults?: {
+    openLightNodePage: boolean
+  }
 }
 
 export enum NavPages {
@@ -71,6 +69,10 @@ export enum NavPages {
   ChangeEndpoints,
   // eslint-disable-next-line no-unused-vars
   ManageAuthz,
+  // eslint-disable-next-line no-unused-vars
+  LightNode,
+  // eslint-disable-next-line no-unused-vars
+  TokenDisplay,
 }
 
 export function SideNavSectionHeader({ children }: { children: ReactNode }) {
@@ -95,14 +97,13 @@ export function OverflowSideNavSection({ children }: { children: ReactNode }) {
   return <div className='rounded-2xl mt-4 min-h-fit'>{children}</div>
 }
 
-const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
+const SideNav = observer(({ isShown, toggler, defaults }: SideNavProps): ReactElement => {
   const { theme } = useTheme()
   const currentNetwork = useSelectedNetwork()
   const [showGSDropUp, setShowGSDropUp] = useState(false)
   const [showNetworkDropUp, setShowNetworkDropUp] = useState(false)
   const [showFaucetResp, setShowFaucetResp] = useState<InitialFaucetResp>(initialFaucetResp)
   const [selectedCurrency] = useUserPreferredCurrency()
-  const [areSmallBalancesHidden, setAreSmallBalancesHidden] = useHideSmallBalances()
   const [showThemeDropUp, setShowThemeDropUp] = useState(false)
   const [showNavPage, setShowNavPage] = useState<NavPages | undefined>()
   const { activeWallet } = useActiveWallet()
@@ -113,6 +114,17 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
   const isDark = theme === ThemeName.DARK
   const isInExpandView = browser.extension.getViews({ type: 'tab' }).length > 0
   const { topChainColor } = useChainPageInfo()
+  const { data: featureFlags } = useFeatureFlags()
+
+  const LightNodeItem = {
+    title: 'Celestia Light Node',
+    titleIcon: Images.Misc.Sampling,
+    subTitle: '',
+    onClick: () => {
+      setShowNavPage(NavPages.LightNode)
+    },
+    enabled: !isCompassWallet() && featureFlags?.light_node?.extension === 'active',
+  }
 
   const Preferences = [
     {
@@ -159,12 +171,22 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
       },
       enabled: true,
     },
+    LightNodeItem,
     {
       title: 'Custom endpoints',
       titleIcon: Images.Nav.CustomEndpoints,
       subTitle: '',
       onClick: () => {
         setShowNavPage(NavPages.ChangeEndpoints)
+      },
+      enabled: true,
+    },
+    {
+      title: 'Token Display',
+      titleIcon: Images.Nav.DollarCard,
+      subTitle: '',
+      onClick: () => {
+        setShowNavPage(NavPages.TokenDisplay)
       },
       enabled: true,
     },
@@ -200,8 +222,7 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
       title: 'Export Private Key',
       titleIcon: isDark ? Images.Nav.SecretKeyDark : Images.Nav.SecretKeyLight,
       onClick: () => setShowNavPage(NavPages.ExportPrivateKey),
-      enabled:
-        activeWallet?.walletType !== WALLETTYPE.LEDGER && activeChain !== AGGREGATED_CHAIN_KEY,
+      enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
     },
 
     // {
@@ -247,7 +268,7 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
         window.open(
           isCompassWallet()
             ? 'https://twitter.com/compass_wallet'
-            : 'https://twitter.com/leap_cosmos',
+            : 'https://twitter.com/leap_wallet',
         )
       },
       enabled: true,
@@ -279,8 +300,21 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
             chainTagsStore={chainTagsStore}
           />
         )
+      case NavPages.LightNode:
+        return (
+          <LightNode
+            goBack={(toHome?: boolean) => {
+              setShowNavPage(undefined)
+              if (toHome) {
+                toggler?.()
+              }
+            }}
+          />
+        )
+      case NavPages.TokenDisplay:
+        return <TokenDisplay goBack={() => setShowNavPage(undefined)} />
     }
-  }, [showNavPage])
+  }, [showNavPage, toggler])
 
   const handleExpandView = useCallback(() => {
     const views = browser.extension.getViews({ type: 'popup' })
@@ -308,6 +342,12 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
       }
     }
   }, [isShown])
+
+  useEffect(() => {
+    if (defaults?.openLightNodePage) {
+      setShowNavPage(NavPages.LightNode)
+    }
+  }, [defaults])
 
   return (
     <div
@@ -380,24 +420,27 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
                 return (
                   <React.Fragment key={item.title}>
                     {index !== 0 && <CardDivider />}
-                    <NavCard
-                      property={item.title}
-                      imgSrc={item.titleIcon}
-                      value={item.subTitle}
-                      onClick={item.onClick}
-                    />
+                    {item.title === LightNodeItem.title ? (
+                      <div key={item.title} className='relative'>
+                        <NavCard
+                          property={item.title}
+                          imgSrc={item.titleIcon}
+                          value={item.subTitle}
+                          onClick={item.onClick}
+                        />
+                        <BetaTag className='top-[18px] left-[202px]' />
+                      </div>
+                    ) : (
+                      <NavCard
+                        property={item.title}
+                        imgSrc={item.titleIcon}
+                        value={item.subTitle}
+                        onClick={item.onClick}
+                      />
+                    )}
                   </React.Fragment>
                 )
               })}
-              <CardDivider />
-              <ToggleCard
-                isRounded={false}
-                size='sm'
-                title='Hide small balances'
-                imgSrc={Images.Nav.ChildFriendly}
-                isEnabled={areSmallBalancesHidden}
-                onClick={setAreSmallBalancesHidden}
-              />
             </SideNavSection>
             <SideNavSection>
               <SideNavSectionHeader>Security</SideNavSectionHeader>
@@ -433,7 +476,6 @@ const SideNav = observer(({ isShown, toggler }: SideNavProps): ReactElement => {
                   )
                 })}
             </SideNavSection>
-
             <div className='flex flex-col justify-center items-center  mt-[80px] mb-[60px] ml-[24px] mr-[24px]'>
               <Text
                 size='xl'

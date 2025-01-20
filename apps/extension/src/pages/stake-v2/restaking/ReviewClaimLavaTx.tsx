@@ -22,7 +22,6 @@ import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfir
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -38,6 +37,8 @@ import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
@@ -78,7 +79,6 @@ export const ReviewClaimLavaTx = observer(
     })
 
     const [formatCurrency] = useFormatCurrency()
-    const { formatHideBalance } = useHideAssets()
     const defaultTokenLogo = useDefaultTokenLogo()
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
 
@@ -177,6 +177,8 @@ export const ReviewClaimLavaTx = observer(
       }
     }, [customFee, feeDenom, getWallet, onReviewTransaction, setLedgerError, txCallback])
 
+    useCaptureUIException(ledgerError || error)
+
     return (
       <GasPriceOptions
         recommendedGasLimit={recommendedGasLimit}
@@ -221,14 +223,14 @@ export const ReviewClaimLavaTx = observer(
                     color='text-black-100 dark:text-white-100'
                     className='font-bold mb-0.5'
                   >
-                    {formatHideBalance(
+                    {hideAssetsStore.formatHideBalance(
                       formatCurrency(new BigNumber(rewards?.totalRewardsDollarAmt ?? '0')),
                     )}
                   </Text>
                 }
                 subtitle={
                   <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                    {formatHideBalance(
+                    {hideAssetsStore.formatHideBalance(
                       `${formatTokenAmount(
                         rewards?.totalRewards ?? '',
                         activeStakingDenom.coinDenom,

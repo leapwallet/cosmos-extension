@@ -1,4 +1,10 @@
-import { axiosWrapper, CosmosSDK, getNeutronProposals, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  axiosWrapper,
+  CosmosSDK,
+  getNeutronProposals,
+  isAptosChain,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { computed, makeAutoObservable, makeObservable, observable, reaction, runInAction } from 'mobx';
 import qs from 'qs';
 
@@ -209,7 +215,8 @@ export class GovStore {
         : this.chainInfosStore.chainInfos[chain]?.chainId;
     const address = this.addressStore.addresses?.[chain];
 
-    if (!activeChainId || !address || this.chainInfosStore.chainInfos[chain]?.evmOnlyChain) return;
+    if (!activeChainId || !address || this.chainInfosStore.chainInfos[chain]?.evmOnlyChain || isAptosChain(chain))
+      return;
     const chainKey = this.getChainKey(chain);
 
     const isFeatureComingSoon = isFeatureExistForChain(
@@ -384,7 +391,13 @@ export class GovStore {
     activeChainCosmosSDK?: CosmosSDK,
     activeChainId?: string,
   ) {
-    const urlPrefix = activeChainId === 'govgen-1' ? '/govgen' : '/cosmos';
+    let urlPrefix = '/cosmos';
+    if (activeChainId === 'govgen-1') {
+      urlPrefix = '/govgen';
+    }
+    if (activeChainId === 'atomone-1') {
+      urlPrefix = '/atomone';
+    }
     let url = `${urlPrefix}/gov/v1beta1/proposals`;
 
     switch (activeChainCosmosSDK) {

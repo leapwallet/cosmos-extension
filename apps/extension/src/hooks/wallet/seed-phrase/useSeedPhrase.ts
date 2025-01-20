@@ -18,7 +18,7 @@ export namespace SeedPhrase {
     return bip39.validateMnemonic(mnemonic)
   }
 
-  export function useTestPassword(): (password: string, message?: string) => Promise<void> {
+  export function useTestPassword(): (password: Uint8Array, message?: string) => Promise<void> {
     const secret = useRef()
 
     useEffect(() => {
@@ -33,7 +33,7 @@ export namespace SeedPhrase {
     }, [])
 
     const testPassword = useCallback(
-      async (password: string, encryptedMessage?: string) => {
+      async (password: Uint8Array, encryptedMessage?: string) => {
         try {
           const storage = await browser.storage.local.get([V80_KEYSTORE_MIGRATION_COMPLETE])
           const iterations = storage[V80_KEYSTORE_MIGRATION_COMPLETE] ? 10_000 : 100
@@ -55,7 +55,7 @@ export namespace SeedPhrase {
     return mnemonic
   }
 
-  export function useMnemonic(password: string): string {
+  export function useMnemonic(password: Uint8Array): string {
     const [mnemonic, setMnemonic] = useState('')
     const { activeWallet } = useActiveWallet()
 

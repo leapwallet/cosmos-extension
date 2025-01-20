@@ -5,11 +5,13 @@ import {
   SeiEvmTx,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { SelectedNetworkType } from '@leapwallet/cosmos-wallet-store';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { useActiveChain, useChainApis, useGetChains, useSelectedNetwork } from '../store';
-import { cachedRemoteDataWithLastModified, SelectedNetworkType, storage, useGetStorageLayer } from '../utils';
+import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
+import { storage, useGetStorageLayer } from '../utils/global-vars';
 import { useChainId } from './use-chain-id';
 import { useIsSeiEvmChain } from './useIsSeiEvmChain';
 
@@ -42,9 +44,24 @@ export function useGetEvmGasPrices(forceChain?: SupportedChain, forceNetwork?: S
   const { data, status } = useQuery(
     ['get-evm-gas-price-query', activeChain, activeNetwork, storage, activeChainId, isSeiEvmChain, chains],
     async function getEvmGasPrices() {
+      if (activeChain === 'lightlink') {
+        return {
+          gasPrice: {
+            low: 100_000_000,
+            medium: 120_000_000,
+            high: 150_000_000,
+          },
+        };
+      }
+
       if (isSeiEvmChain || chains[activeChain]?.evmOnlyChain) {
-        const evmGasPrices = await fetchEvmGasPrices(storage);
-        const activeChainGasPrices = evmGasPrices[activeChainId ?? ''] ?? EVM_GAS_PRICES[activeChainId ?? ''];
+        let evmGasPrices: Record<string, { low: number; medium: number; high: number }> = {};
+        try {
+          evmGasPrices = await fetchEvmGasPrices(storage);
+        } catch (error) {
+          console.error('Error fetching EVM gas prices', error);
+        }
+        const activeChainGasPrices = evmGasPrices?.[activeChainId ?? ''] ?? EVM_GAS_PRICES[activeChainId ?? ''];
 
         const { maxFeePerGas, gasPrice, maxPriorityFeePerGas } = await SeiEvmTx.GasPrices(evmJsonRpc);
 

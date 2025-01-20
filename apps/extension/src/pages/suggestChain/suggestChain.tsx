@@ -2,18 +2,17 @@
 import { Key as WalletKey, useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { sleep, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { GenericCard } from '@leapwallet/leap-ui'
-import { chainInfosState } from 'atoms/chains'
 import { Divider, Key, Value } from 'components/dapp'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { BETA_CHAINS, BG_RESPONSE, NEW_CHAIN_REQUEST } from 'config/storage-keys'
+import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
-import { useChainInfos } from 'hooks/useChainInfos'
+import { useChainInfos, useSetChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useSetRecoilState } from 'recoil'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
@@ -36,7 +35,7 @@ const SuggestChain = observer(
     const navigate = useNavigate()
     const chainInfos = useChainInfos()
     const customChains = useCustomChains()
-    const setChainInfos = useSetRecoilState(chainInfosState)
+    const setChainInfos = useSetChainInfos()
     const [isLoading, setIsLoading] = useState(false)
 
     const [newChain, setNewChain] = useState<any | null>(null)
@@ -134,6 +133,13 @@ const SuggestChain = observer(
         setIsLoading(false)
       }
     }
+
+    usePerformanceMonitor({
+      page: 'suggest-chain',
+      queryStatus: newChain ? 'loading' : 'success',
+      op: 'suggestedChainLoad',
+      description: 'loading state on suggested chain approval',
+    })
 
     return (
       <>

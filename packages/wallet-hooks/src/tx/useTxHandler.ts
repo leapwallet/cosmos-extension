@@ -1,6 +1,8 @@
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import {
+  AtomOneTx,
+  BabylonTx,
   CWTx,
   EthermintTxHandler,
   GovGenTx,
@@ -86,6 +88,18 @@ export function useTxHandler({
         await _tx.initClient();
         _tx.setLcdEndPoint(lcdUrl ?? '');
         _tx.addGovGenRegistry();
+        return _tx;
+      } else if (chainInfo.chainId === 'atomone-1') {
+        const _tx = new AtomOneTx(`${rpcUrl}/`, wallet);
+        await _tx.initClient();
+        _tx.setLcdEndPoint(lcdUrl ?? '');
+        _tx.addAtomOneRegistry();
+        return _tx;
+      } else if (chain === 'babylon') {
+        const _tx = new BabylonTx(`${rpcUrl}/`, wallet);
+        await _tx.initClient();
+        _tx.setLcdEndPoint(lcdUrl ?? '');
+        _tx.addBabylonRegistry();
         return _tx;
       } else {
         const _tx = new Tx(`${rpcUrl}/`, wallet);

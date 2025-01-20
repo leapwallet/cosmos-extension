@@ -31,13 +31,13 @@ type SelectValidatorSheetProps = {
   onClose: () => void
   onValidatorSelect: (validator: Validator) => void
   validators: Validator[]
-  apy?: Record<string, number>
+  apr?: Record<string, number>
   rootDenomsStore: RootDenomsStore
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
 }
 
-export type STAKE_SORT_BY = 'Amount staked' | 'APY' | 'Random'
+export type STAKE_SORT_BY = 'Amount staked' | 'APR' | 'Random'
 
 type ValidatorCardProps = {
   validator: Validator
@@ -120,7 +120,7 @@ export default function SelectValidatorSheet({
   onClose,
   onValidatorSelect,
   validators,
-  apy,
+  apr,
   rootDenomsStore,
   forceChain,
   forceNetwork,
@@ -150,8 +150,8 @@ export default function SelectValidatorSheet({
       switch (sortBy) {
         case 'Amount staked':
           return +(a.tokens ?? '') < +(b.tokens ?? '') ? 1 : -1
-        case 'APY':
-          return apy ? (apy[a.address] < apy[b.address] ? 1 : -1) : 0
+        case 'APR':
+          return apr ? (apr[a.address] < apr[b.address] ? 1 : -1) : 0
         case 'Random':
           return Math.random() - 0.5
       }
@@ -179,7 +179,7 @@ export default function SelectValidatorSheet({
     const _inactiveValidators = filteredValidators.filter((validator) => validator.active === false)
     setIsLoading(false)
     return [_activeValidators, searchedTerm ? _inactiveValidators : []]
-  }, [validators, searchedTerm, sortBy, apy])
+  }, [validators, searchedTerm, sortBy, apr])
 
   const listItems = useMemo(() => {
     const items: (Validator | { itemType: 'inactiveHeader' })[] = [...activeValidators]

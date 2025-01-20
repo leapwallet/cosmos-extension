@@ -87,14 +87,12 @@ export function useDualStaking() {
   const { delegationInfo, loadingDelegations, refetchDelegations } = useDualStakeDelegationsStore();
   const { rewards } = useDualStakeProviderRewardsStore();
   const { providers } = useDualStakeProvidersStore();
-  let providersApy;
 
   return {
     providers,
     delegations: delegationInfo.delegations,
     loadingDelegations,
     refetchDelegations,
-    apy: providersApy,
     rewards,
   };
 }
@@ -253,7 +251,6 @@ export function useDualStakingTx(
               address,
               toValidator?.address ?? '',
               toProvider?.address ?? '',
-              toProvider?.spec ?? '',
               amount,
             );
           } else {
@@ -266,8 +263,6 @@ export function useDualStakingTx(
               address,
               toProvider?.address ?? '',
               fromProvider?.address ?? '',
-              toProvider?.spec,
-              fromProvider?.spec ?? '',
               amount,
             );
           } else {
@@ -299,7 +294,6 @@ export function useDualStakingTx(
               address,
               toValidator.address ?? '',
               toProvider.address ?? '',
-              toProvider.spec,
               amount,
             );
           } else {
@@ -331,7 +325,6 @@ export function useDualStakingTx(
               address,
               toValidator?.address ?? '',
               toProvider?.address ?? '',
-              toProvider?.spec ?? '',
               amount,
               fee,
             );
@@ -345,7 +338,6 @@ export function useDualStakingTx(
               address,
               toValidator.address ?? '',
               toProvider.address ?? '',
-              toProvider.spec,
               amount,
               fee,
             );
@@ -359,8 +351,6 @@ export function useDualStakingTx(
               address,
               toProvider.address ?? '',
               fromProvider?.address ?? '',
-              toProvider.spec ?? '',
-              fromProvider?.spec ?? '',
               amount,
               fee,
             );

@@ -1,24 +1,27 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
-import { Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { Header, HeaderActionType, useTheme } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
 import { PageName } from 'config/analytics'
 import { motion } from 'framer-motion'
 import { useChainPageInfo } from 'hooks'
 import { usePageView } from 'hooks/analytics/usePageView'
+import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import useQuery from 'hooks/useQuery'
+import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { evmBalanceStore } from 'stores/balance-store'
-import { chainTagsStore } from 'stores/chain-infos-store'
+import { chainTagsStore, compassTokensAssociationsStore } from 'stores/chain-infos-store'
 import {
   rootCW20DenomsStore,
   rootDenomsStore,
   rootERC20DenomsStore,
 } from 'stores/denoms-store-instance'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { rootBalanceStore } from 'stores/root-store'
 
 import { AmountCard } from './components/amount-card'
@@ -36,22 +39,14 @@ const Send = () => {
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
   const setActiveChain = useSetActiveChain()
-  //const { refetchBalances } = useGetTokenSpendableBalances()
 
   const [showChainSelector, setShowChainSelector] = useState<boolean>(false)
-  const { headerChainImgSrc, topChainColor } = useChainPageInfo()
-
-  //const [allAssets, setAllAssets] = useState<Token[]>([])
+  const { headerChainImgSrc } = useChainPageInfo()
+  const { theme } = useTheme()
 
   const chainId = useQuery().get('chainId') ?? undefined
-  const dontShowSelectChain = useDontShowSelectChain()
-
-  // refetch balances
-  // useEffect(() => {
-  //   refetchBalances()
-  //
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [])
+  const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
+  const isAllAssetsLoading = rootBalanceStore.loading
 
   useEffect(() => {
     if (chainId) {
@@ -61,7 +56,13 @@ const Send = () => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainId, chainInfos])
-  const isAllAssetsLoading = rootBalanceStore.loading
+
+  usePerformanceMonitor({
+    page: 'send',
+    queryStatus: isAllAssetsLoading ? 'loading' : 'success',
+    op: 'sendPageLoad',
+    description: 'loading state on send page',
+  })
 
   return (
     <motion.div className='relative h-full w-full'>
@@ -78,27 +79,24 @@ const Send = () => {
           />
         }
       >
-        {/*(activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY ? (
-            <>
-              <LoadAggregateAssets
-                setAllAssets={setAllAssets}
-                setIsAllAssetsLoading={setIsAllAssetsLoading}
-              />
-              <AggregatedSpendableNullComponents />
-            </>
-          ) : (
-            <LoadChainAssets
-              setAllAssets={setAllAssets}
-              setIsAllAssetsLoading={setIsAllAssetsLoading}
-            />
-          )*/}
         <SendContextProvider
           activeChain={activeChain}
           rootDenomsStore={rootDenomsStore}
           rootCW20DenomsStore={rootCW20DenomsStore}
           rootERC20DenomsStore={rootERC20DenomsStore}
         >
-          <div className='p-4 space-y-4 overflow-y-auto' style={{ height: 'calc(100% - 72px)' }}>
+          <div
+            className='p-4 space-y-4 overflow-y-auto scrollbar'
+            style={{ height: 'calc(100% - 72px)' }}
+          >
+            <RecipientCard
+              themeColor={theme === 'dark' ? '#9e9e9e' : '#696969'}
+              rootERC20DenomsStore={rootERC20DenomsStore}
+              rootCW20DenomsStore={rootCW20DenomsStore}
+              chainTagsStore={chainTagsStore}
+              compassSeiTokensAssociationsStore={compassTokensAssociationsStore}
+            />
+
             <AmountCard
               rootBalanceStore={rootBalanceStore}
               isAllAssetsLoading={isAllAssetsLoading}
@@ -107,14 +105,11 @@ const Send = () => {
               rootERC20DenomsStore={rootERC20DenomsStore}
               evmBalanceStore={evmBalanceStore}
             />
-            <RecipientCard
-              themeColor={topChainColor}
-              rootERC20DenomsStore={rootERC20DenomsStore}
-              chainTagsStore={chainTagsStore}
-            />
+
             <Memo />
             <ErrorWarning />
             <div className='h-[100px]' />
+
             <ReviewTransfer
               rootBalanceStore={rootBalanceStore}
               rootDenomsStore={rootDenomsStore}
@@ -122,6 +117,7 @@ const Send = () => {
             />
           </div>
         </SendContextProvider>
+
         <SelectChain
           isVisible={showChainSelector}
           onClose={() => setShowChainSelector(false)}
@@ -134,4 +130,4 @@ const Send = () => {
 
 Send.displayName = 'Send'
 
-export default Send
+export default observer(Send)

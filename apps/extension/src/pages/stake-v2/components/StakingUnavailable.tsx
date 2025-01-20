@@ -21,6 +21,7 @@ import SelectChain from 'pages/home/SelectChain'
 import SelectWallet from 'pages/home/SelectWallet'
 import SideNav from 'pages/home/side-nav'
 import React, { useCallback, useEffect, useState } from 'react'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { UserClipboard } from 'utils/clipboard'
 
 import ComingSoonCard from './ComingSoonCard'
@@ -50,7 +51,7 @@ const StakingUnavailable = observer(
     chainTagsStore,
   }: StakingUnavailableProps) => {
     const { headerChainImgSrc } = useChainPageInfo()
-    const dontShowSelectChain = useDontShowSelectChain()
+    const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const walletAddresses = useGetWalletAddresses()
     const { walletAvatar, walletName, activeWallet } = useWalletInfo()
 

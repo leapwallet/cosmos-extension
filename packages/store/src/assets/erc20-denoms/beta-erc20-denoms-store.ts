@@ -63,6 +63,18 @@ export class BetaERC20DenomsStore {
     await this.storageAdapter.set(BETA_ERC20_TOKENS, JSON.stringify(this.denoms));
   }
 
+  setTempBetaERC20Denoms(tempDenoms: Record<string, any>, chain: string) {
+    runInAction(() => {
+      this.denoms = {
+        ...this.denoms,
+        [chain]: {
+          ...(this.denoms[chain] ?? {}),
+          ...tempDenoms,
+        },
+      };
+    });
+  }
+
   async removeBetaERC20Denoms(coinMinimalDenom: string, chain: string) {
     if (this.denoms[chain]) {
       runInAction(() => {

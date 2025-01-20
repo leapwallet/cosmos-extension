@@ -45,5 +45,5 @@ export function useAddresses(chainIds: string[] | undefined = []) {
     getAddresses()
   }, [activeWallet, chainIds, chains, updateKeyStore])
 
-  return { userAddresses, userAddressesError }
+  return { userAddresses, userAddressesError, setUserAddressesError }
 }

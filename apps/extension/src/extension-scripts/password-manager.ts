@@ -4,7 +4,7 @@ import browser from 'webextension-polyfill'
 
 import { startAutoLockTimer } from './autolock-timer'
 export class PasswordManager {
-  private password: string | undefined
+  private password: Uint8Array | undefined
 
   static create() {
     const passwordManager = new PasswordManager()
@@ -19,11 +19,12 @@ export class PasswordManager {
       if (sender.id !== browser.runtime.id) return
       if (message.type === 'popup-open') {
         if (this.password) {
+          const base64Password = Buffer.from(this.password).toString('base64')
           await browser.runtime.sendMessage({
             type: 'authentication',
             data: {
               status: 'success',
-              password: this.password,
+              password: base64Password,
             },
           })
         } else {
@@ -37,8 +38,8 @@ export class PasswordManager {
       }
 
       if (message.type === 'unlock') {
-        const { password } = message.data
-        this.password = password
+        const { password: base64Password } = message.data
+        this.password = Buffer.from(base64Password, 'base64')
       }
 
       if (message.type === 'lock') {
@@ -49,9 +50,9 @@ export class PasswordManager {
   }
 
   async lockWallet() {
-    if (this.password) {
+    if (this.hasPassword()) {
       const storage = await browser.storage.local.get([ACTIVE_WALLET])
-      if (storage[ACTIVE_WALLET]) {
+      if (storage[ACTIVE_WALLET] && this.password) {
         await KeyChain.encrypt(this.password)
       }
       this.password = undefined
@@ -64,5 +65,9 @@ export class PasswordManager {
 
   getPassword() {
     return this.password
+  }
+
+  hasPassword(): boolean {
+    return !!this.password
   }
 }

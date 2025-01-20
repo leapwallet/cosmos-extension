@@ -5,8 +5,13 @@
  *  > 2.5 - WARNING - You may get an unfavourable exchange rate due to the impact of your trade.
  */
 
-import { UseRouteResponse } from '@leapwallet/elements-hooks'
+import { getKeyToUseForDenoms } from '@leapwallet/cosmos-wallet-hooks'
+import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk'
+import { RouteAggregator } from '@leapwallet/elements-hooks'
 import BigNumber from 'bignumber.js'
+import { SourceToken } from 'types/swap'
+
+import { LifiRouteOverallResponse, SkipRouteResponse } from '../hooks/useRoute'
 
 type PriceImpactRemarks =
   | {
@@ -62,15 +67,113 @@ type PriceImpactReturnType = Readonly<
     }
 >
 
-const getPriceImpactVars = (routeResponse: UseRouteResponse): PriceImpactReturnType => {
-  const shouldCheckPriceImpact = !!routeResponse?.response.does_swap
+export const routeDoesSwap = (
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
+): boolean => {
+  if (!route) {
+    return false
+  }
 
-  const priceImpactPercent = shouldCheckPriceImpact
-    ? new BigNumber(routeResponse?.response.swap_price_impact_percent ?? NaN)
-    : undefined
+  return !!route.response.does_swap
+}
 
-  const sourceAssetUSDValue = new BigNumber(routeResponse?.response.usd_amount_in ?? NaN)
-  const destinationAssetUSDValue = new BigNumber(routeResponse?.response.usd_amount_out ?? NaN)
+export const getPriceImpactPercent = (
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
+): BigNumber => {
+  return new BigNumber(route?.response.swap_price_impact_percent ?? NaN)
+}
+
+export const getSourceAssetUSDValue = (
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
+  sourceToken: SourceToken | null,
+  denoms: DenomsRecord,
+): BigNumber => {
+  let sourceAssetUSDValue =
+    route?.aggregator === RouteAggregator.LIFI
+      ? new BigNumber(route?.response.fromAmountUSD ?? NaN)
+      : new BigNumber(route?.response.usd_amount_in ?? NaN)
+
+  const sourceTokenUsdPrice =
+    sourceToken?.usdPrice && !new BigNumber(sourceToken.usdPrice).isNaN()
+      ? new BigNumber(sourceToken.usdPrice)
+      : undefined
+
+  if (sourceAssetUSDValue.isNaN() && sourceTokenUsdPrice?.gt(0)) {
+    if (route?.aggregator === RouteAggregator.SKIP) {
+      const denom =
+        denoms[
+          getKeyToUseForDenoms(
+            route?.response.source_asset_denom,
+            route?.response.source_asset_chain_id,
+          )
+        ]
+      if (denom) {
+        sourceAssetUSDValue = new BigNumber(route?.response.amount_in)
+          .div(10 ** denom.coinDecimals)
+          .multipliedBy(sourceTokenUsdPrice)
+      }
+    } else {
+      sourceAssetUSDValue = new BigNumber(route?.response.fromAmount ?? NaN)
+        .div(10 ** (route?.response.fromToken.decimals ?? NaN))
+        .multipliedBy(sourceTokenUsdPrice)
+    }
+  }
+  return sourceAssetUSDValue
+}
+
+export const getDestinationAssetUSDValue = (
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
+  destinationToken: SourceToken | null,
+  denoms: DenomsRecord,
+): BigNumber => {
+  let destinationAssetUSDValue =
+    route?.aggregator === RouteAggregator.LIFI
+      ? new BigNumber(route?.response.toAmountUSD ?? NaN)
+      : new BigNumber(route?.response.usd_amount_out ?? NaN)
+
+  const destinationTokenUsdPrice =
+    destinationToken?.usdPrice && !new BigNumber(destinationToken.usdPrice).isNaN()
+      ? new BigNumber(destinationToken.usdPrice)
+      : undefined
+
+  if (destinationAssetUSDValue.isNaN() && destinationTokenUsdPrice?.gt(0)) {
+    if (route?.aggregator === RouteAggregator.SKIP) {
+      const denom =
+        denoms[
+          getKeyToUseForDenoms(
+            route?.response.dest_asset_denom,
+            route?.response.dest_asset_chain_id,
+          )
+        ]
+      if (denom) {
+        destinationAssetUSDValue = new BigNumber(route?.response.amount_out)
+          .div(10 ** denom.coinDecimals)
+          .multipliedBy(destinationTokenUsdPrice)
+      }
+    } else {
+      destinationAssetUSDValue = new BigNumber(route?.response.toAmount ?? NaN)
+        .div(10 ** (route?.response.toToken.decimals ?? NaN))
+        .multipliedBy(destinationTokenUsdPrice)
+    }
+  }
+  return destinationAssetUSDValue
+}
+
+const getPriceImpactVars = (
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
+  sourceToken: SourceToken | null,
+  destinationToken: SourceToken | null,
+  denoms: DenomsRecord,
+): PriceImpactReturnType => {
+  const shouldCheckPriceImpact = routeDoesSwap(route)
+
+  let priceImpactPercent: BigNumber = new BigNumber(NaN)
+  if (shouldCheckPriceImpact) {
+    priceImpactPercent = getPriceImpactPercent(route)
+  }
+
+  const sourceAssetUSDValue = getSourceAssetUSDValue(route, sourceToken, denoms)
+  const destinationAssetUSDValue = getDestinationAssetUSDValue(route, destinationToken, denoms)
 
   /**
    * Have disabled usd price delta validation for amount lesser than $0.01
@@ -100,14 +203,17 @@ const getPriceImpactVars = (routeResponse: UseRouteResponse): PriceImpactReturnT
 type ConversionRateRemark = 'ok' | 'warn' | 'request-confirmation'
 
 const getConversionRateRemark = (
-  routeResponse: UseRouteResponse | undefined,
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
+  sourceToken: SourceToken | null,
+  destinationToken: SourceToken | null,
+  denoms: DenomsRecord,
 ): ConversionRateRemark => {
-  if (!routeResponse?.response) {
+  if (!route) {
     return 'ok'
   }
 
   const { shouldCheckPriceImpact, priceImpactPercent, usdValueDecreasePercent } =
-    getPriceImpactVars(routeResponse)
+    getPriceImpactVars(route, sourceToken, destinationToken, denoms)
 
   if (shouldCheckPriceImpact) {
     if (priceImpactPercent.isNaN()) {

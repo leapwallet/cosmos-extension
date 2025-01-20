@@ -23,13 +23,13 @@ import BigNumber from 'bignumber.js'
 import classnames from 'classnames'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { Images } from 'images'
 import { Cross } from 'images/misc'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { TxResponse } from 'secretjs'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -42,6 +42,9 @@ const txStatusStyles = {
   },
   success: {
     title: 'Complete',
+  },
+  submitted: {
+    title: 'Submitted',
   },
   failed: {
     title: 'Failed',
@@ -99,6 +102,8 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
     txHash: _txHash,
     sourceChain,
     sourceNetwork,
+    toAddress,
+    toChain,
   } = pendingTx ?? {}
 
   const _activeChain = useActiveChain()
@@ -115,7 +120,10 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
 
   const invalidateBalances = useCallback(() => {
     rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
-  }, [activeChain, rootBalanceStore, selectedNetwork])
+    if (toAddress) {
+      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, toAddress)
+    }
+  }, [activeChain, rootBalanceStore, selectedNetwork, toAddress, toChain])
 
   const invalidateDelegations = useCallback(() => {
     rootStakeStore.updateStake(activeChain, selectedNetwork, true)
@@ -134,8 +142,6 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
       pendingTx.promise
         .then(async (result) => {
           if ('code' in result) {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
             if (result && isDeliverTxSuccess(result)) {
               setPendingTx({ ...pendingTx, txStatus: 'success' })
             } else {
@@ -143,6 +149,8 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
             }
           } else if (pendingTx.txType === 'cw20TokenTransfer') {
             setPendingTx({ ...pendingTx, txStatus: 'success' })
+          } else if ('status' in result) {
+            setPendingTx({ ...pendingTx, txStatus: 'submitted' })
           }
 
           if (pendingTx.txType === 'secretTokenTransfer') {
@@ -210,7 +218,6 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
     if (_txHash) setTxHash(_txHash)
   }, [_txHash])
 
-  const { formatHideBalance } = useHideAssets()
   const { status, data } = useMobileAppBanner()
   const [isCopiedClick, setIsCopiedClick] = useState(false)
 
@@ -234,7 +241,6 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
   const isSendTxn = txType
     ? ['ibc/transfer', 'send', 'secretTokenTransfer', 'cw20TokenTransfer'].includes(txType)
     : false
-
   return (
     <PopupLayout>
       <Header title={`Transaction ${txStatusStyles[txStatus ?? 'loading'].title}`} />
@@ -243,7 +249,7 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
           {txStatus === 'loading' && (
             <LoaderAnimation color={Colors.green600} className='w-20 h-20' />
           )}
-          {txStatus === 'success' && (
+          {(txStatus === 'success' || txStatus === 'submitted') && (
             <img src={Images.Activity.SendDetails} className='w-20 h-20' />
           )}
           {txStatus === 'failed' && <img src={Images.Activity.Error} className='w-20 h-20' />}
@@ -251,7 +257,7 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
           <div className='text-xl font-bold text-black-100 dark:text-white-100 text-left mt-1 break-all'>
             {title1}
           </div>
-          {isSendTxn ? (
+          {isSendTxn && txStatus !== 'submitted' ? (
             <div className='text-sm font-medium text-black-100 dark:text-white-100 mt-1'>
               {txStatus === 'success'
                 ? 'sent successfully to'
@@ -277,12 +283,12 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
                 <>
                   {receivedAmountInfo && (
                     <p className='text-right font-semibold text-green-600 dark:text-green-600'>
-                      + {formatHideBalance(receivedAmountInfo)}
+                      + {hideAssetsStore.formatHideBalance(receivedAmountInfo)}
                     </p>
                   )}
                   {sentAmountInfo && (
                     <p className='text-right text-gray-600 dark:text-gray-400'>
-                      - {formatHideBalance(sentAmountInfo)}
+                      - {hideAssetsStore.formatHideBalance(sentAmountInfo)}
                     </p>
                   )}
                 </>
@@ -296,14 +302,14 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
                         'text-green-600 dark:text-green-600': balanceIncreased,
                       })}
                     >
-                      ({balanceReduced && '-'} ${formatHideBalance(Number(sentUsdValue).toFixed(2))}
-                      )
+                      ({balanceReduced && '-'} $
+                      {hideAssetsStore.formatHideBalance(Number(sentUsdValue).toFixed(2))})
                     </p>
                   )}
 
                   {sentAmountInfo && (
                     <p className={classnames('text-right text-gray-600 dark:text-gray-400')}>
-                      {balanceReduced && '-'} {formatHideBalance(sentAmountInfo)}
+                      {balanceReduced && '-'} {hideAssetsStore.formatHideBalance(sentAmountInfo)}
                     </p>
                   )}
                 </>
@@ -391,7 +397,7 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
                   { replace: true },
                 )
               }
-              disabled={txStatus !== 'success'}
+              disabled={txStatus !== 'success' && txStatus !== 'submitted'}
             >
               Send Again
             </Buttons.Generic>

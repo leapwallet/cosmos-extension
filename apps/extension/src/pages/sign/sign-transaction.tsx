@@ -14,12 +14,10 @@ import {
   useChainInfo,
   useDappDefaultFeeStore,
   useDefaultGasEstimates,
-  useSelectedNetwork,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   chainIdToChain,
-  ChainInfos,
   ethSign,
   ethSignEip712,
   GasPrice,
@@ -61,8 +59,7 @@ import { MessageTypes } from 'config/message-types'
 import { BG_RESPONSE } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
-import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
-import { useSetNetwork } from 'hooks/settings/useNetwork'
+import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -80,6 +77,7 @@ import { assert } from 'utils/assert'
 import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
+import { uiErrorTags } from 'utils/sentry'
 import { trim } from 'utils/strings'
 import { uint8ArrayToBase64 } from 'utils/uint8Utils'
 import browser from 'webextension-polyfill'
@@ -117,6 +115,7 @@ type SignTransactionProps = {
   rootStakeStore: RootStakeStore
   evmBalanceStore: EvmBalanceStore
   rootDenomsStore: RootDenomsStore
+  activeChain: SupportedChain
 }
 
 const SignTransaction = observer(
@@ -127,7 +126,7 @@ const SignTransaction = observer(
     rootBalanceStore,
     rootStakeStore,
     rootDenomsStore,
-    evmBalanceStore,
+    activeChain,
   }: SignTransactionProps) => {
     const isDappTxnInitEventLogged = useRef(false)
     const isRejectedRef = useRef(false)
@@ -148,13 +147,17 @@ const SignTransaction = observer(
     const [userMemo, setUserMemo] = useState<string>('')
 
     const [checkedGrantAuthBox, setCheckedGrantAuthBox] = useState(false)
-    const chainInfo = useChainInfo()
+    const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
-    const getWallet = useGetWallet()
+    const getWallet = useGetWallet(activeChain)
     const navigate = useNavigate()
 
-    const activeChain = useActiveChain()
-    const selectedNetwork = useSelectedNetwork()
+    const selectedNetwork = useMemo(() => {
+      return !!chainInfo?.testnetChainId && chainInfo?.testnetChainId === chainId
+        ? 'testnet'
+        : 'mainnet'
+    }, [chainInfo?.testnetChainId, chainId])
+
     const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, { activeChain })
@@ -178,6 +181,11 @@ const SignTransaction = observer(
         }, 10)
       }
     }, [isFeesValid])
+
+    useEffect(() => {
+      rootBalanceStore.loadBalances(activeChain, selectedNetwork)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeChain, selectedNetwork])
 
     const [gasPriceOption, setGasPriceOption] = useState<{
       option: GasOptions
@@ -374,9 +382,8 @@ const SignTransaction = observer(
       setTimeout(() => {
         rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
         rootStakeStore.updateStake(activeChain, selectedNetwork, true)
-        evmBalanceStore.loadEvmBalance(activeChain)
       }, 3000)
-    }, [activeChain, evmBalanceStore, rootBalanceStore, rootStakeStore, selectedNetwork])
+    }, [activeChain, rootBalanceStore, rootStakeStore, selectedNetwork])
 
     const handleCancel = useCallback(async () => {
       if (isRejectedRef.current || isApprovedRef.current) return
@@ -499,7 +506,9 @@ const SignTransaction = observer(
               }
               return null
             } catch (e) {
-              captureException(e)
+              captureException(e, {
+                tags: uiErrorTags,
+              })
               return null
             }
           })()
@@ -518,6 +527,7 @@ const SignTransaction = observer(
             activeWallet?.addresses[activeChain] as string,
             txPostToDb,
             txnDoc.chain_id,
+            selectedNetwork,
           ).catch((e) => {
             captureException(e)
           })
@@ -645,7 +655,9 @@ const SignTransaction = observer(
                   : signOptions?.enableExtraEntropy,
               })
             } catch (e) {
-              captureException(e)
+              captureException(e, {
+                tags: uiErrorTags,
+              })
               return null
             }
           })()
@@ -669,6 +681,7 @@ const SignTransaction = observer(
                   activeChain,
                   activeAddress,
                   siteOrigin ?? origin,
+                  selectedNetwork,
                 )
               } else {
                 await logSignAmino(
@@ -678,6 +691,7 @@ const SignTransaction = observer(
                   activeChain,
                   activeAddress,
                   siteOrigin ?? origin,
+                  selectedNetwork,
                 )
               }
             } catch (e) {
@@ -751,6 +765,7 @@ const SignTransaction = observer(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       activeWallet.addresses,
+      selectedNetwork,
       activeChain,
       refetchData,
       signDoc,
@@ -811,6 +826,13 @@ const SignTransaction = observer(
       siteOrigin,
       transactionTypes,
     ])
+
+    usePerformanceMonitor({
+      page: 'sign-transaction',
+      queryStatus: txnSigningRequest ? 'success' : 'loading',
+      op: 'signTransactionPageLoad',
+      description: 'Load tome for sign transaction page',
+    })
 
     const hasToShowCheckbox = useMemo(() => {
       if (isSignArbitrary) {
@@ -899,6 +921,8 @@ const SignTransaction = observer(
 
               {!ethSignType && !isSignArbitrary && (
                 <TransactionDetails
+                  activeChain={activeChain}
+                  selectedNetwork={selectedNetwork}
                   parsedMessages={
                     Array.isArray(messages) ? messages?.map((msg) => msg.parsed) : null
                   }
@@ -928,6 +952,7 @@ const SignTransaction = observer(
                   disableBalanceCheck={disableBalanceCheck}
                   fee={fee}
                   chain={activeChain}
+                  network={selectedNetwork}
                   validateFee={true}
                   onInvalidFees={(feeTokenData: NativeDenom, isFeesValid: boolean | null) => {
                     try {
@@ -1023,6 +1048,7 @@ const SignTransaction = observer(
                             setMemo={(memo) => {
                               setUserMemo(memo)
                             }}
+                            activeChain={activeChain}
                           />
                           ) : (
                           <div>
@@ -1106,12 +1132,15 @@ const SignTransaction = observer(
                 onClose={() => setShowWalletSelector(false)}
                 currentWalletInfo={currentWalletInfo}
                 title='Select Wallet'
+                activeChain={activeChain}
               />
               <MessageDetailsSheet
                 isOpen={showMessageDetailsSheet}
                 setIsOpen={setShowMessageDetailsSheet}
                 onClose={() => setSelectedMessage(null)}
                 message={selectedMessage}
+                activeChain={activeChain}
+                selectedNetwork={selectedNetwork}
               />
               {isFeesValid === false && (
                 <div
@@ -1205,10 +1234,6 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
     } | null>(null)
 
     const navigate = useNavigate()
-    const activeChain = useActiveChain()
-    const setActiveChain = useSetActiveChain()
-    const selectedNetwork = useSelectedNetwork()
-    const setNetwork = useSetNetwork()
 
     useEffect(() => {
       decodeChainIdToChain().then(setChainIdToChain).catch(captureException)
@@ -1240,17 +1265,6 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
         setChain(chain)
         setChainId(chainId)
         setTxnData(txnData)
-        if (chain && chain !== activeChain) {
-          setActiveChain(chain)
-        }
-        if (chain) {
-          const isTestnet = ChainInfos[chain]?.testnetChainId === chainId
-          if (!isTestnet && selectedNetwork === 'testnet') {
-            setNetwork('mainnet')
-          } else if (isTestnet && selectedNetwork === 'mainnet') {
-            setNetwork('testnet')
-          }
-        }
       }
     }
 
@@ -1264,11 +1278,12 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    if (chain === activeChain && txnData && chainId) {
+    if (chain && txnData && chainId) {
       return (
         <Component
           data={txnData}
           chainId={chainId}
+          activeChain={chain}
           isSignArbitrary={isSignArbitrary}
           rootDenomsStore={rootDenomsStore}
           rootBalanceStore={rootBalanceStore}

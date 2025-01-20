@@ -8,10 +8,12 @@ import {
   cw20TokenBalanceStore,
   erc20TokenBalanceStore,
   evmBalanceStore,
+  marketDataStore,
   nmsStore,
   priceStore,
 } from './balance-store'
-import { chainInfoStore } from './chain-infos-store'
+import { chainInfoStore, compassTokensAssociationsStore } from './chain-infos-store'
+import { stakeEpochStore } from './epoch-store'
 import { selectedNetworkStore } from './selected-network-store'
 import {
   claimRewardsStore,
@@ -25,6 +27,7 @@ export const rootStakeStore = new RootStakeStore(
   claimRewardsStore,
   unDelegationsStore,
   validatorsStore,
+  stakeEpochStore,
 )
 
 export const rootBalanceStore = new RootBalanceStore(
@@ -34,6 +37,7 @@ export const rootBalanceStore = new RootBalanceStore(
   activeChainStore,
   chainInfoStore,
   evmBalanceStore,
+  compassTokensAssociationsStore,
 )
 
 export const rootStore = new RootStore(
@@ -44,6 +48,7 @@ export const rootStore = new RootStore(
   rootBalanceStore,
   rootStakeStore,
   priceStore,
+  marketDataStore,
   currencyStore,
   chainInfoStore,
   evmBalanceStore,

@@ -1,10 +1,12 @@
 import { sliceAddress, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { AggregatedChainsStore } from '@leapwallet/cosmos-wallet-store'
 import { AggregatedNullComponents } from 'components/aggregated'
 import BottomModal from 'components/bottom-modal'
 import { CopyAddressCard } from 'components/card'
 import NoSearchResults from 'components/no-search-results'
 import { SearchInput } from 'components/search-input'
+import { PriorityChains } from 'config/constants'
 import { useWalletInfo } from 'hooks'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { RightArrowSvg } from 'images/misc'
@@ -38,10 +40,11 @@ FetchChainWalletAddresses.displayName = 'FetchChainWalletAddresses'
 type AggregatedCopyAddressSheetProps = {
   isVisible: boolean
   onClose: (refetch?: boolean) => void
+  aggregatedChainsStore: AggregatedChainsStore
 }
 
 const AggregatedCopyAddressSheet = React.memo(
-  ({ isVisible, onClose }: AggregatedCopyAddressSheetProps) => {
+  ({ isVisible, onClose, aggregatedChainsStore }: AggregatedCopyAddressSheetProps) => {
     const [walletAddresses, setWalletAddresses] = useState<AggregatedWalletAddresses>({})
     const { walletAvatar, walletName } = useWalletInfo()
     const chains = useGetChains()
@@ -79,25 +82,43 @@ const AggregatedCopyAddressSheet = React.memo(
       setSelectedChain('cosmos')
     }, [])
 
-    const filteredWalletAddresses: AggregatedWalletAddresses = useMemo(() => {
-      if (searchQuery?.length > 0) {
-        return Object.keys(walletAddresses).reduce((acc, key) => {
-          if (key.includes(searchQuery)) {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            acc[key] = walletAddresses[key]
-          }
-          return acc
-        }, {})
-      } else {
-        return walletAddresses
-      }
-    }, [searchQuery, walletAddresses])
+    const sortedWalletAddresses = useMemo(() => {
+      const _chains = Object.keys(walletAddresses).map((chain) => ({
+        chain: chain as SupportedChain,
+        addresses: walletAddresses[chain],
+      }))
+
+      const priorityChains = _chains
+        .filter((chain) => PriorityChains.includes(chain.chain))
+        .sort(
+          (chainA, chainB) =>
+            PriorityChains.indexOf(chainA.chain) - PriorityChains.indexOf(chainB.chain),
+        )
+
+      const otherChains = _chains
+        .filter((chain) => !PriorityChains.includes(chain.chain))
+        .sort((chainA, chainB) => chainA.chain.localeCompare(chainB.chain))
+
+      return [...priorityChains, ...otherChains]
+    }, [walletAddresses])
+
+    const filteredWalletAddresses: { chain: SupportedChain; addresses: string[] }[] =
+      useMemo(() => {
+        if (searchQuery?.length > 0) {
+          return sortedWalletAddresses.filter((chain) => {
+            const chainName = chains[chain.chain]?.chainName
+            return (chainName ?? chain.chain).toLowerCase().includes(searchQuery.toLowerCase())
+          })
+        } else {
+          return sortedWalletAddresses
+        }
+      }, [chains, searchQuery, sortedWalletAddresses])
 
     return (
       <>
         <AggregatedNullComponents
           setAggregatedStore={setWalletAddresses}
+          aggregatedChainsStore={aggregatedChainsStore}
           render={({ key, chain, setAggregatedStore }) => (
             <FetchChainWalletAddresses
               key={key}
@@ -125,9 +146,9 @@ const AggregatedCopyAddressSheet = React.memo(
             className='flex flex-col items-center justif-center gap-4 h-[375px] w-full'
             style={{ overflowY: 'scroll' }}
           >
-            {Object.entries(filteredWalletAddresses)?.length > 0 ? (
-              Object.entries(filteredWalletAddresses).map(([chain, addresses], index) => {
-                const chainInfo = chains[chain as SupportedChain]
+            {filteredWalletAddresses?.length > 0 ? (
+              filteredWalletAddresses.map(({ chain, addresses }, index) => {
+                const chainInfo = chains[chain]
 
                 if (addresses.length > 1) {
                   const address =
@@ -137,16 +158,14 @@ const AggregatedCopyAddressSheet = React.memo(
                     <CopyAddressCard
                       key={`${addresses[0]}-${index}`}
                       address={address}
-                      forceChain={chain as SupportedChain}
+                      forceChain={chain}
                       showDifferentIconForButton={true}
                       DifferentIconToShow={
                         <RightArrowSvg className='w-[16px] h-[16px] fill-white-100' />
                       }
                       differentIconButtonClassName='cursor-pointer'
                       forceName={chainInfo.chainName}
-                      differentIconButtonOnClick={() =>
-                        handleDifferentIconClick(chain as SupportedChain)
-                      }
+                      differentIconButtonOnClick={() => handleDifferentIconClick(chain)}
                     />
                   )
                 }
@@ -155,7 +174,7 @@ const AggregatedCopyAddressSheet = React.memo(
                   <CopyAddressCard
                     address={addresses[0]}
                     key={`${addresses[0]}-${index}`}
-                    forceChain={chain as SupportedChain}
+                    forceChain={chain}
                     forceName={chainInfo.chainName}
                   />
                 )

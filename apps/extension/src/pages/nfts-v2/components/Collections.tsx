@@ -87,11 +87,11 @@ export const Collections = observer(({ setShowManageCollections, nftStore }: Col
 
               <div className='flex flex-col items-start flex-1'>
                 <Text
-                  className={classNames('text-gray-800 dark:text-white-100 mt-2 capitalize', {
+                  className={classNames('text-gray-800 dark:text-white-100 mt-2', {
                     '!max-w-[95px]': isSidePanel(),
                   })}
                 >
-                  {(name ?? '').toLowerCase()}
+                  {name ?? ''}
                 </Text>
 
                 <div

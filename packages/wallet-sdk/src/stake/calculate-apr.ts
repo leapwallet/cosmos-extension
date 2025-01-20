@@ -1,5 +1,6 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
+import dayjs from 'dayjs';
 import { isNumber } from 'lodash';
 
 import { getChainInfo } from '../chains';
@@ -21,25 +22,63 @@ export async function getAprCrescent() {
   return parseFloat(aprResponse.data.data.apr) / 100;
 }
 
+export async function getAprOsmosis() {
+  const start = dayjs().subtract(7, 'days').format('YYYY-MM-DD');
+  const end = dayjs().format('YYYY-MM-DD');
+
+  const url = `https://public-osmosis-api.numia.xyz/apr?start_date=${start}&end_date=${end}`;
+  const aprResponse = await axios.get<{ symbol: string; apr: number }[]>(url);
+
+  if (!aprResponse.data?.length) return 0;
+
+  const aprData = aprResponse.data.filter((v) => v.symbol === 'total');
+  const avgApr = aprData.reduce((acc: number, v) => acc + v.apr, 0) / aprData.length;
+
+  return avgApr / 100;
+}
+
+export async function getAprMantra(lcd: string, chainInfos: Record<SupportedChain, ChainInfo>, chainData?: ChainData) {
+  let apr = chainData?.params?.calculated_apr ?? 0;
+  if (!isNumber(apr) || apr === 0) {
+    const denom = Object.values(chainInfos.mantra.nativeDenoms)[0];
+    apr = await getAprFromLcd(lcd, denom);
+  }
+
+  const taxModule = 0.6;
+  return apr * taxModule;
+}
+
 export async function getApr(
   chain: SupportedChain,
   testnet: boolean,
   chainInfos?: Record<SupportedChain, ChainInfo>,
   chainData?: ChainData,
 ) {
+  if (chain === 'crescent') {
+    return getAprCrescent();
+  }
+  if (chain === 'osmosis') {
+    return getAprOsmosis();
+  }
+
+  if (!chainInfos) {
+    chainInfos = ChainInfos;
+  }
+
+  const lcd = getRestUrl(chainInfos, chain, testnet);
+  if (['seiTestnet2', 'seiDevnet'].includes(chain)) {
+    return getAprSei(lcd);
+  }
+
   if (!chainData) {
     chainData = await getChainInfo(chain, testnet);
   }
 
-  if (!chainData) {
-    return 0;
+  if (chain === 'mantra') {
+    return getAprMantra(lcd, chainInfos, chainData);
   }
 
-  if (chain === ('crescent' as SupportedChain)) return getAprCrescent();
-  const lcd = getRestUrl(chainInfos ?? ChainInfos, chain, testnet);
-  if (['seiTestnet2', 'seiDevnet'].includes(chain)) return getAprSei(lcd);
-
-  if (isNumber(chainData.params?.calculated_apr)) {
+  if (isNumber(chainData?.params?.calculated_apr)) {
     return chainData.params?.calculated_apr ?? 0;
   }
 
@@ -50,7 +89,7 @@ export async function getApr(
    * apr = new_coins_per_yr / total_bonded_tokens
    */
 
-  const denom = Object.values((chainInfos ?? ChainInfos)[chain].nativeDenoms)[0];
+  const denom = Object.values(chainInfos[chain].nativeDenoms)[0];
   return await getAprFromLcd(lcd, denom);
 }
 

@@ -36,6 +36,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import { SelectChainSheet } from 'pages/home/side-nav/CustomEndpoints'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import {
   betaEvmNftTokenIdsStore,
   betaNftChainsStore,
@@ -105,7 +106,7 @@ export const AddCollection = observer(
     const { rpcUrl, evmJsonRpc } = useChainApis(chain, forceNetwork)
     const isSeiEvmChain = useIsSeiEvmChain()
 
-    const dontShowSelectChain = useDontShowSelectChain()
+    const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const showTokenIdInput = useMemo(() => {
       return enteredCollection.length > 0 && enteredCollection.toLowerCase().startsWith('0x')
     }, [enteredCollection])
@@ -498,8 +499,8 @@ export const AddCollection = observer(
             {Object.keys(nftInfo).length > 0 && (
               <NftToggleCard
                 title={
-                  <NftText className={classNames('capitalize', { 'max-w-[95px]': isSidePanel() })}>
-                    {nftInfo.contractInfo.name.toLowerCase()}
+                  <NftText className={classNames({ 'max-w-[95px]': isSidePanel() })}>
+                    {nftInfo.contractInfo.name ?? ''}
                   </NftText>
                 }
                 size='md'

@@ -6,14 +6,15 @@ import {
   SupportedDenoms,
 } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
-import { computed, makeAutoObservable } from 'mobx';
+import { computed, makeAutoObservable, runInAction } from 'mobx';
 
-import { ChainInfosStore, CompassSeiEvmConfigStore, RootDenomsStore } from '../assets';
+import { AggregatedChainsStore, ChainInfosStore, CompassSeiEvmConfigStore, RootDenomsStore } from '../assets';
 import { AggregatedSupportedChainType, LoadingStatusType, SelectedNetworkType, StorageAdapter } from '../types';
 import { balanceCalculator } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
-import { PriceStore } from './balance-store';
+import { sortTokenBalances } from './balance-calculator';
 import { Token } from './balance-types';
+import { PriceStore } from './price-store';
 
 export class EvmBalanceStore {
   activeChainStore: ActiveChainStore;
@@ -24,6 +25,9 @@ export class EvmBalanceStore {
   rootDenomsStore: RootDenomsStore;
   storageAdapter: StorageAdapter;
   priceStore: PriceStore;
+  aggregatedChainsStore: AggregatedChainsStore;
+
+  aggregatedLoadingStatus: boolean = false;
 
   chainWiseEvmBalance: { [key: string]: { evmBalance: Token[]; currencyInFiatValue: BigNumber } } = {};
   chainWiseEvmStatus: { [key: string]: LoadingStatusType } = {};
@@ -37,6 +41,7 @@ export class EvmBalanceStore {
     rootDenomsStore: RootDenomsStore,
     storageAdapter: StorageAdapter,
     priceStore: PriceStore,
+    aggregatedChainsStore: AggregatedChainsStore,
   ) {
     makeAutoObservable(this, {
       evmBalance: computed,
@@ -49,22 +54,36 @@ export class EvmBalanceStore {
     this.rootDenomsStore = rootDenomsStore;
     this.storageAdapter = storageAdapter;
     this.priceStore = priceStore;
+    this.aggregatedChainsStore = aggregatedChainsStore;
   }
 
   get evmBalance() {
-    return this.evmBalanceForChain(this.activeChainStore.activeChain);
+    return this.evmBalanceForChain(this.activeChainStore.activeChain, this.selectedNetworkStore.selectedNetwork);
   }
 
-  evmBalanceForChain(chain: AggregatedSupportedChainType) {
+  evmBalanceForChain(chain: AggregatedSupportedChainType, network?: SelectedNetworkType) {
     if (chain === 'aggregated') {
+      let allTokens: Token[] = [];
+      const chains = Object.keys(this.chainInfosStore?.chainInfos);
+      let currencyInFiatValue = new BigNumber(0);
+
+      chains.forEach((chain) => {
+        const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
+        const evmTokens = this.chainWiseEvmBalance[balanceKey]?.evmBalance ?? [];
+        allTokens = allTokens.concat(evmTokens);
+        currencyInFiatValue = currencyInFiatValue.plus(
+          this.chainWiseEvmBalance[balanceKey]?.currencyInFiatValue ?? new BigNumber(0),
+        );
+      });
+
       return {
-        evmBalance: [],
-        currencyInFiatValue: new BigNumber(0),
+        evmBalance: sortTokenBalances(allTokens),
+        currencyInFiatValue,
         status: 'success',
       };
     }
 
-    const balanceKey = this.getBalanceKey(chain);
+    const balanceKey = this.getBalanceKey(chain, network);
     return {
       evmBalance: this.chainWiseEvmBalance[balanceKey]?.evmBalance ?? [],
       currencyInFiatValue: this.chainWiseEvmBalance[balanceKey]?.currencyInFiatValue ?? new BigNumber(0),
@@ -72,21 +91,26 @@ export class EvmBalanceStore {
     };
   }
 
-  async loadEvmBalance(_chain?: SupportedChain, _network?: SelectedNetworkType) {
-    const chain = _chain || this.activeChainStore.activeChain;
-    const network = _network || this.selectedNetworkStore.selectedNetwork;
-
+  async fetchEvmBalance(chain: SupportedChain, network: SelectedNetworkType, refetch = false) {
     const isSeiEvmChain = this.activeChainStore.isSeiEvm(chain);
     const chainInfo = this.chainInfosStore.chainInfos[chain as SupportedChain];
     const isEvmChain = isSeiEvmChain || chainInfo?.evmOnlyChain;
 
     const evmBalance: Token[] = [];
     let currencyInFiatValue = new BigNumber(0);
-    const balanceKey = this.getBalanceKey(chain);
-    this.chainWiseEvmStatus[balanceKey] = 'loading';
+
+    const balanceKey = this.getBalanceKey(chain, network);
+
+    if (!refetch && this.chainWiseEvmBalance[balanceKey]) {
+      return;
+    }
+
+    runInAction(() => {
+      this.chainWiseEvmStatus[balanceKey] = 'loading';
+    });
 
     try {
-      if (isEvmChain && chain !== 'aggregated') {
+      if (isEvmChain) {
         const denoms = this.rootDenomsStore.allDenoms;
         const _nativeTokenKey = Object.keys(chainInfo?.nativeDenoms ?? {})?.[0];
         const nativeToken =
@@ -147,6 +171,7 @@ export class EvmBalanceStore {
               usdPrice,
               coinDecimals: nativeToken?.coinDecimals,
               coinGeckoId: nativeToken?.coinGeckoId,
+              tokenBalanceOnChain: chain,
               isEvm: true,
             });
           }
@@ -166,25 +191,62 @@ export class EvmBalanceStore {
       }
 
       currencyInFiatValue = balanceCalculator(evmBalance);
-      this.chainWiseEvmBalance[balanceKey] = { evmBalance, currencyInFiatValue };
-      this.chainWiseEvmStatus[balanceKey] = 'success';
+      runInAction(() => {
+        this.chainWiseEvmBalance[balanceKey] = { evmBalance, currencyInFiatValue };
+        this.chainWiseEvmStatus[balanceKey] = 'success';
+      });
     } catch (_) {
-      this.chainWiseEvmBalance[balanceKey] = { evmBalance, currencyInFiatValue };
-      this.chainWiseEvmStatus[balanceKey] = 'success';
+      runInAction(() => {
+        this.chainWiseEvmBalance[balanceKey] = { evmBalance, currencyInFiatValue };
+        this.chainWiseEvmStatus[balanceKey] = 'error';
+      });
     }
   }
 
-  private getBalanceKey(chain: AggregatedSupportedChainType): string {
-    const chainKey = this.getChainKey(chain as SupportedChain);
+  async fetchAggregatedBalances(network: SelectedNetworkType, refetch = false) {
+    runInAction(() => {
+      this.aggregatedLoadingStatus = true;
+    });
+
+    await Promise.allSettled(
+      this.aggregatedChainsStore.aggregatedChainsData.map((chain) =>
+        this.fetchEvmBalance(chain as SupportedChain, network, refetch),
+      ),
+    );
+    runInAction(() => {
+      this.aggregatedLoadingStatus = false;
+    });
+    return;
+  }
+
+  async loadEvmBalance(_chain?: AggregatedSupportedChainType, _network?: SelectedNetworkType, refetch = false) {
+    const chain = _chain || this.activeChainStore.activeChain;
+    const network = _network || this.selectedNetworkStore.selectedNetwork;
+    if (chain === 'aggregated') {
+      await this.fetchAggregatedBalances(network, refetch);
+    } else {
+      await this.fetchEvmBalance(chain, network, refetch);
+    }
+  }
+
+  getErrorStatusForChain(chain: SupportedChain, network: SelectedNetworkType) {
+    const balanceKey = this.getBalanceKey(chain, network);
+    return this.chainWiseEvmStatus[balanceKey] === 'error';
+  }
+
+  private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+    const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
     const address = this.addressStore.addresses[chain as SupportedChain];
 
     return `${chainKey}-${address}`;
   }
 
-  private getChainKey(chain: AggregatedSupportedChainType): string {
-    if (chain === 'aggregated') return 'aggregated';
+  private getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    if (chain === 'aggregated') return `aggregated-${network}`;
+
     const chainId =
-      this.selectedNetworkStore.selectedNetwork === 'testnet'
+      network === 'testnet'
         ? this.chainInfosStore.chainInfos[chain].testnetChainId
         : this.chainInfosStore.chainInfos[chain].chainId;
     return `${chain}-${chainId}`;

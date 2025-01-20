@@ -23,7 +23,6 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   crc: 'cronos',
   cre: 'crescent',
   cro: 'cryptoorgchain',
-  cudos: 'cudos',
   darc: 'konstellation',
   decentr: 'decentr',
   desmos: 'desmos',
@@ -109,4 +108,8 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   humans: 'human',
   'lava@': 'lava',
   mantra: 'mantra',
+  bc1q: 'bitcoin',
+  tb1q: 'bitcoinSignet',
+  elys: 'elys',
+  babylon: 'bbn',
 };

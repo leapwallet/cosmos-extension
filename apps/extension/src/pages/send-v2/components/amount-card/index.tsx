@@ -102,6 +102,7 @@ export const AmountCard = observer(
       setGasError,
       associatedSeiAddress,
       isSeiEvmTransaction,
+      hasToUsePointerLogic,
     } = useSendContext()
 
     const isSeiEvmChain = useIsSeiEvmChain(sendActiveChain)
@@ -135,11 +136,14 @@ export const AmountCard = observer(
         _assets = [..._assets, ...snip20Tokens]
       }
 
-      const addEvmDetails = hasToAddEvmDetails(
-        isSeiEvmChain,
-        addressLinkState,
-        chainInfos?.[sendActiveChain]?.evmOnlyChain ?? false,
-      )
+      const addEvmDetails =
+        (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY
+          ? false
+          : hasToAddEvmDetails(
+              isSeiEvmChain,
+              addressLinkState,
+              chainInfos?.[sendActiveChain]?.evmOnlyChain ?? false,
+            )
 
       if (addEvmDetails) {
         _assets = [..._assets, ...(evmBalance.evmBalance ?? [])].filter((token) =>
@@ -280,10 +284,10 @@ export const AmountCard = observer(
           isSeiEvmChain &&
           selectedToken &&
           selectedAddress?.address?.toLowerCase()?.startsWith('0x') &&
-          !isERC20Token(Object.keys(allERC20Denoms), selectedToken?.coinMinimalDenom) &&
+          !isERC20Token(Object.keys(allERC20Denoms), selectedToken.coinMinimalDenom) &&
           selectedToken.coinMinimalDenom !== 'usei'
         ) {
-          if (associatedSeiAddress) {
+          if (associatedSeiAddress || hasToUsePointerLogic) {
             return ''
           }
 
@@ -357,6 +361,7 @@ export const AmountCard = observer(
       sendActiveChain,
       chainInfos,
       allERC20Denoms,
+      hasToUsePointerLogic,
     ])
 
     return (

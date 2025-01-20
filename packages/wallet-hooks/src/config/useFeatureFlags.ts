@@ -27,6 +27,7 @@ export type FeatureFlags = {
     extension: FeatureFlagState;
     fees: FeatureFlagState;
     chain_abstraction: FeatureFlagState;
+    default_token_denoms?: string[];
   };
   nfts: {
     mobile: FeatureFlagState;
@@ -46,6 +47,12 @@ export type FeatureFlags = {
   restaking: {
     extension: FeatureFlagState;
   };
+  light_node: {
+    extension: FeatureFlagState;
+    default_block_time_in_seconds: number;
+    tweetText: string;
+    tweetImageUrl: string;
+  };
 };
 
 export const FEATURE_FLAG_STORAGE_KEY = 'feature-flag-v1';
@@ -53,7 +60,7 @@ export const FEATURE_FLAG_STORAGE_KEY = 'feature-flag-v1';
 export function getFeatureFlags(storage: storage, isCompassWallet: boolean): Promise<FeatureFlags> {
   return cachedRemoteDataWithLastModified({
     remoteUrl: isCompassWallet ? COMPASS_FEATURE_FLAG_URL : LEAP_FEATURE_FLAG_URL,
-    storageKey: FEATURE_FLAG_STORAGE_KEY,
+    storageKey: `${isCompassWallet ? 'compass' : 'leap'}-${FEATURE_FLAG_STORAGE_KEY}`,
     storage,
   });
 }

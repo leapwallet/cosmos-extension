@@ -1,5 +1,6 @@
 import { Info } from '@phosphor-icons/react'
 import classNames from 'classnames'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import React, { useEffect, useRef } from 'react'
 
 type ErrorCardProps = React.ComponentPropsWithoutRef<'div'> & {
@@ -14,6 +15,8 @@ export function ErrorCard({ text, className, ...props }: ErrorCardProps) {
   useEffect(() => {
     ref.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
+
+  useCaptureUIException(text)
 
   return (
     <div

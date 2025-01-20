@@ -2,11 +2,11 @@ import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { CardDivider, Header, HeaderActionType, NavCard, ToggleCard } from '@leapwallet/leap-ui'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { useHideAssets, useSetHideAssets } from 'hooks/settings/useHideAssets'
-import { TimerLockPeriodRev, useLockTimer } from 'hooks/settings/usePassword'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { ReactElement, useState } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
+import { autoLockTimeStore, TimerLockPeriodRev } from 'stores/password-store'
 import { AggregatedSupportedChain } from 'types/utility'
 
 import { SideNavSection } from '.'
@@ -31,9 +31,6 @@ const GeneralSecurity = observer(
     const activeChain = useActiveChain()
     const [showLockTimeDropUp, setShowLockTimeDropUp] = useState(false)
     const [page, setPage] = useState(GENERAL_SECURITY_PAGES.DEFAULT)
-    const { lockTime } = useLockTimer()
-    const { hideBalances: balancesHidden } = useHideAssets()
-    const setBalancesVisibility = useSetHideAssets()
 
     if (page === GENERAL_SECURITY_PAGES.CONNECTED_SITES) {
       return <ConnectedSites setPage={setPage} />
@@ -52,7 +49,7 @@ const GeneralSecurity = observer(
       {
         imgSrc: Images.Misc.Timer,
         property: 'Auto-lock timer',
-        value: TimerLockPeriodRev[lockTime],
+        value: TimerLockPeriodRev[autoLockTimeStore.time],
         onClick: () => {
           setShowLockTimeDropUp(true)
         },
@@ -87,14 +84,14 @@ const GeneralSecurity = observer(
             <div className='pt-3 pb-1 bg-white-100 dark:bg-gray-900'>
               <ToggleCard
                 imgSrc={Images.Misc.VisibilityOff}
-                isEnabled={balancesHidden}
+                isEnabled={hideAssetsStore.isHidden}
                 isRounded={false}
                 className='[&_input]:shrink-0'
                 size='sm'
                 title='Hide Assets'
                 subtitle='Balances will be hidden upon loading wallet'
                 onClick={() => {
-                  setBalancesVisibility(!balancesHidden)
+                  hideAssetsStore.setHidden(!hideAssetsStore.isHidden)
                 }}
               />
             </div>

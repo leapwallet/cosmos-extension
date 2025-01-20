@@ -71,7 +71,7 @@ const CopyAddressCard = React.memo(
           <div className='flex flex-col'>
             <p className='text-black-100 dark:text-white-100 font-[700] text-[16px]'>{name}</p>
             <p className='text-gray-600 dark:text-gray-400 text-[14px] font-[500]'>
-              {sliceAddress(address, 5)}
+              {address.includes(', ') ? address : sliceAddress(address, 5)}
             </p>
           </div>
         </div>

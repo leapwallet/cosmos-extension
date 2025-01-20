@@ -3,15 +3,15 @@ import { CosmosTxType } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
   CreateViewingKeyOptions,
-  encrypt,
   SigningSscrt,
   Sscrt,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { encrypt } from '@leapwallet/leap-keychain'
 import { useCallback } from 'react'
+import { passwordStore } from 'stores/password-store'
 import browser from 'webextension-polyfill'
 
 import { VIEWING_KEYS } from '../../config/storage-keys'
-import { usePassword } from '../settings/usePassword'
 import { useSecretWallet } from '../wallet/useScrtWallet'
 
 export async function verifyViewingKey(
@@ -20,14 +20,13 @@ export async function verifyViewingKey(
   contractAddress: string,
   address: string,
 ) {
-  const sscrt = await Sscrt.create(gprcUrl, ChainInfos.secret.chainId, address)
+  const sscrt = Sscrt.create(gprcUrl, ChainInfos.secret.chainId, address)
   const res = await sscrt.getBalance(address, contractAddress, key)
   return !!res.balance
 }
 
 export function useCreateViewingKey() {
   const getWallet = useSecretWallet()
-  const password = usePassword()
   const gasPriceSteps = useGasPriceSteps()
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
 
@@ -43,8 +42,9 @@ export function useCreateViewingKey() {
       importKey: boolean,
       options?: CreateViewingKeyOptions,
     ) => {
+      if (!passwordStore.password) throw new Error('Password not set')
       const wallet = await getWallet()
-      const signingSecretClient = await SigningSscrt.create(lcdUrl ?? '', chainId as string, wallet)
+      const signingSecretClient = SigningSscrt.create(lcdUrl ?? '', chainId as string, wallet)
       let viewingKey = options?.key
 
       if (!importKey) {
@@ -93,7 +93,7 @@ export function useCreateViewingKey() {
         }
       }
 
-      const encryptedViewingKey = encrypt(viewingKey as string, password as string)
+      const encryptedViewingKey = encrypt(viewingKey as string, passwordStore.password)
       const storage = await browser.storage.local.get([VIEWING_KEYS])
       const viewingKeys = storage[VIEWING_KEYS]
 
@@ -124,6 +124,6 @@ export function useCreateViewingKey() {
       }
       return { validKey: true, error: null, key: viewingKey }
     },
-    [getWallet, password, gasPriceSteps, txPostToDB, setViewingKeys],
+    [getWallet, gasPriceSteps, txPostToDB, setViewingKeys],
   )
 }

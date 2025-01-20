@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  useChainApis,
-  useChainId,
-  useChainsStore,
-  useLastEvmActiveChain,
-  useSelectedNetwork,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { getChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { ETHEREUM_METHOD_TYPE } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
-import { formatEtherUnits, getErc20TokenDetails } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  formatEtherUnits,
+  getErc20TokenDetails,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { MessageTypes } from 'config/message-types'
 import { BG_RESPONSE } from 'config/storage-keys'
-import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
+import { getChainOriginStorageKey, getSupportedChains } from 'extension-scripts/utils'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { evmBalanceStore } from 'stores/balance-store'
@@ -22,12 +20,18 @@ import Browser from 'webextension-polyfill'
 import { ArrowHeader, Loading, MessageSignature, SignTransaction } from './components'
 import { handleRejectClick } from './utils'
 
+type TxOriginData = {
+  activeChain: SupportedChain
+  activeNetwork: 'mainnet' | 'testnet'
+}
+
 type SeiEvmTransactionProps = {
+  txOriginData: TxOriginData
   txnDataList: Record<string, any>[]
   setTxnDataList: React.Dispatch<React.SetStateAction<Record<string, any>[] | null>>
 }
 
-function SeiEvmTransaction({ txnDataList, setTxnDataList }: SeiEvmTransactionProps) {
+function SeiEvmTransaction({ txnDataList, setTxnDataList, txOriginData }: SeiEvmTransactionProps) {
   const navigate = useNavigate()
   const [activeTxn, setActiveTxn] = useState(0)
 
@@ -83,6 +87,8 @@ function SeiEvmTransaction({ txnDataList, setTxnDataList }: SeiEvmTransactionPro
 
         return (
           <SignTransaction
+            activeChain={txOriginData.activeChain}
+            activeNetwork={txOriginData.activeNetwork}
             key={txnData.customId}
             txnData={txnData}
             rootDenomsStore={rootDenomsStore}
@@ -102,82 +108,73 @@ function SeiEvmTransaction({ txnDataList, setTxnDataList }: SeiEvmTransactionPro
  */
 const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
   const Wrapped = () => {
-    const lastEvmActiveChain = useLastEvmActiveChain()
-    const _activeChain = useActiveChain()
-    const setActiveChain = useSetActiveChain()
-    const activeChain = isCompassWallet() ? _activeChain : lastEvmActiveChain
-    const [hasCorrectChain, setHasCorrectChain] = useState(false)
-
-    const activeNetwork = useSelectedNetwork()
     const [txnDataList, setTxnDataList] = useState<Record<string, any>[] | null>(null)
-    const { evmJsonRpc } = useChainApis(activeChain, activeNetwork)
-    const evmChainId = useChainId(activeChain, activeNetwork, true)
-    const { chains } = useChainsStore()
+    const [txOriginData, setTxOriginData] = useState<TxOriginData | null>(null)
 
-    useEffect(() => {
-      // if this page opens with a cosmos chain as active chain there is an infinite re render. Setting it to last active evm chain fixes the issue.
-      const fn = async () => {
-        if (!isCompassWallet() && !chains[_activeChain].evmOnlyChain) {
-          await setActiveChain(lastEvmActiveChain)
-          setHasCorrectChain(true)
-        } else {
-          setHasCorrectChain(true)
+    const signSeiEvmTxEventHandler = useCallback(async (message: any, sender: any) => {
+      if (sender.id !== Browser.runtime.id) return
+
+      if (message.type === MessageTypes.signTransaction) {
+        const txnData = message.payload
+        const storageKey = getChainOriginStorageKey(txnData.origin)
+
+        const storage = await Browser.storage.local.get(storageKey)
+        const defaultChain = isCompassWallet() ? 'seiTestnet2' : 'ethereum'
+        const { chainKey = defaultChain, network = 'mainnet' } = storage[storageKey] || {}
+        const supportedChains = await getSupportedChains()
+        const chainData = supportedChains[chainKey as SupportedChain]
+        const evmChainId = Number(
+          network === 'testnet' ? chainData?.evmChainIdTestnet : chainData?.evmChainId,
+        )
+
+        setTxOriginData({ activeChain: chainKey, activeNetwork: network })
+
+        const { evmJsonRpc } = getChainApis(chainKey, network, supportedChains)
+
+        if (txnData?.signTxnData?.spendPermissionCapValue) {
+          const tokenDetails = await getErc20TokenDetails(
+            txnData.signTxnData.to,
+            evmJsonRpc ?? '',
+            Number(evmChainId),
+          )
+          txnData.signTxnData.details = {
+            Permission: `This allows the third party to spend ${formatEtherUnits(
+              txnData.signTxnData.spendPermissionCapValue,
+              tokenDetails.decimals,
+            )} ${tokenDetails.symbol} from your current balance.`,
+
+            ...txnData.signTxnData.details,
+          }
         }
-      }
-      fn()
 
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-
-    const signSeiEvmTxEventHandler = useCallback(
-      async (message: any, sender: any) => {
-        if (sender.id !== Browser.runtime.id) return
-
-        if (message.type === MessageTypes.signTransaction) {
-          const txnData = message.payload
-
-          if (txnData?.signTxnData?.spendPermissionCapValue) {
-            const tokenDetails = await getErc20TokenDetails(
-              txnData.signTxnData.to,
-              evmJsonRpc ?? '',
-              Number(evmChainId),
-            )
-            txnData.signTxnData.details = {
-              Permission: `This allows the third party to spend ${formatEtherUnits(
-                txnData.signTxnData.spendPermissionCapValue,
-                tokenDetails.decimals,
-              )} ${tokenDetails.symbol} from your current balance.`,
-
-              ...txnData.signTxnData.details,
-            }
+        setTxnDataList((prev) => {
+          prev = prev ?? []
+          if (prev.some((txn) => txn?.origin?.toLowerCase() !== txnData?.origin?.toLowerCase())) {
+            return prev
           }
 
-          setTxnDataList((prev) => {
-            prev = prev ?? []
-            if (prev.some((txn) => txn?.origin?.toLowerCase() !== txnData?.origin?.toLowerCase())) {
-              return prev
-            }
-
-            return [...prev, { ...txnData, customId: `${sender.id}-00${prev.length}` }]
-          })
-        }
-      },
-      [evmChainId, evmJsonRpc],
-    )
+          return [...prev, { ...txnData, customId: `${sender.id}-00${prev.length}` }]
+        })
+      }
+    }, [])
 
     useEffect(() => {
-      if (hasCorrectChain) {
-        Browser.runtime.sendMessage({ type: MessageTypes.signingPopupOpen })
-        Browser.runtime.onMessage.addListener(signSeiEvmTxEventHandler)
+      Browser.runtime.sendMessage({ type: MessageTypes.signingPopupOpen })
+      Browser.runtime.onMessage.addListener(signSeiEvmTxEventHandler)
 
-        return () => {
-          Browser.runtime.onMessage.removeListener(signSeiEvmTxEventHandler)
-        }
+      return () => {
+        Browser.runtime.onMessage.removeListener(signSeiEvmTxEventHandler)
       }
-    }, [signSeiEvmTxEventHandler, hasCorrectChain])
+    }, [signSeiEvmTxEventHandler])
 
     if (txnDataList?.length) {
-      return <Component txnDataList={txnDataList} setTxnDataList={setTxnDataList} />
+      return (
+        <Component
+          txnDataList={txnDataList}
+          setTxnDataList={setTxnDataList}
+          txOriginData={txOriginData}
+        />
+      )
     }
 
     return <Loading />

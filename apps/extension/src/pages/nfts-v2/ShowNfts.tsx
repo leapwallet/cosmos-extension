@@ -5,11 +5,11 @@ import { LineDivider } from '@leapwallet/leap-ui'
 import { AlertStrip } from 'components/alert-strip'
 import PopupLayout from 'components/layout/popup-layout'
 import { useChainPageInfo } from 'hooks'
-import { useHiddenNFTs } from 'hooks/settings'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, { Fragment, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { hiddenNftStore } from 'stores/manage-nft-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import {
@@ -48,12 +48,14 @@ export const ShowNfts = observer(({ nftStore, chainTagsStore }: ShowNftsProps) =
   const [showAddCollectionSheet, setShowAddCollectionSheet] = useState(false)
 
   const disabledNfts = useDisabledNFTsCollections()
-  const hiddenNfts = useHiddenNFTs()
 
   const _isLoading = nftStore.nftDetails.loading
   const collectionData = nftStore.nftDetails.collectionData
-  const sortedCollectionChains = nftStore.getSortedCollectionChains(disabledNfts, hiddenNfts)
-  const areAllNftsHidden = nftStore.getAreAllNftsHidden(hiddenNfts)
+  const sortedCollectionChains = nftStore.getSortedCollectionChains(
+    disabledNfts,
+    hiddenNftStore.hiddenNfts,
+  )
+  const areAllNftsHidden = nftStore.getAreAllNftsHidden(hiddenNftStore.hiddenNfts)
 
   const hasToShowNetworkErrorView = useMemo(() => {
     return (

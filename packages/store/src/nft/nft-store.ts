@@ -5,7 +5,7 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
-import { makeAutoObservable, reaction, runInAction } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 
 import {
   BetaEvmNftTokenIdsStore,
@@ -45,6 +45,7 @@ export class NftStore {
   loading: boolean = false;
   networkError: boolean = false; // check if network error occured for any API call
   compassSeiApiIsDown: boolean = false;
+  haveToFetchNfts: boolean = false;
 
   constructor(
     chainInfosStore: ChainInfosStore,
@@ -68,26 +69,6 @@ export class NftStore {
     this.betaNftsCollectionsStore = betaNftsCollectionsStore;
     this.activeChainStore = activeChainStore;
     this.betaEvmNftTokenIdsStore = betaEvmNftTokenIdsStore;
-
-    reaction(
-      () => this.addressStore.addresses,
-      () => this.initialize(),
-    );
-
-    reaction(
-      () => this.activeChainStore.activeChain,
-      () => this.loadNfts(undefined, this.activeChainStore.activeChain),
-    );
-
-    reaction(
-      () => this.selectedNetworkStore.selectedNetwork,
-      (selectedNetwork) => this.loadNfts(selectedNetwork),
-    );
-
-    reaction(
-      () => this.nftChainsStore.nftChains,
-      () => this.initialize(),
-    );
   }
 
   get nftDetails() {
@@ -305,7 +286,7 @@ export class NftStore {
         chains,
       },
       {
-        timeout: 15 * 1000, // 15 seconds
+        timeout: 45 * 1000, // 45 seconds
       },
     );
 

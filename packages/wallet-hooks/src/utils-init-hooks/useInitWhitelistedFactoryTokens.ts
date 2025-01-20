@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 import { useWhitelistedFactoryTokensStore } from '../store';
-import { cachedRemoteDataWithLastModified, storage, useGetStorageLayer } from '../utils';
+import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
+import { storage, useGetStorageLayer } from '../utils/global-vars';
 
 export function getWhitelistedFactoryTokens(storage: storage): Promise<Record<string, boolean>> {
   return cachedRemoteDataWithLastModified({

@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { SKIP_TXN_STATUS } from '@leapwallet/elements-core'
+import { SKIP_TXN_STATUS, TXN_STATUS } from '@leapwallet/elements-core'
 import { ArrowRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { PENDING_SWAP_TXS } from 'config/storage-keys'
 import { Images } from 'images'
 import { useGetChainsToShow } from 'pages/swaps-v2/hooks'
 import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo } from 'react'
-import { moveTxsFromCurrentToPending } from 'utils/pendingSwapsTxsStore'
+import { moveTxsFromCurrentToPending, TxStoreObject } from 'utils/pendingSwapsTxsStore'
 import Browser from 'webextension-polyfill'
 
 function ViewButton({
@@ -45,9 +45,9 @@ function ViewButton({
 }
 
 type Props = {
-  setShowSwapTxPageFor: Dispatch<SetStateAction<any>>
-  setPendingSwapTxs: Dispatch<SetStateAction<any[]>>
-  pendingSwapTxs: any[]
+  setShowSwapTxPageFor: Dispatch<SetStateAction<TxStoreObject | undefined>>
+  setPendingSwapTxs: Dispatch<SetStateAction<TxStoreObject[]>>
+  pendingSwapTxs: TxStoreObject[]
   setShowPendingSwapsSheet: Dispatch<SetStateAction<boolean>>
 }
 
@@ -62,7 +62,9 @@ const PendingSwapsAlertStrip = ({
       const storage = await Browser.storage.local.get([PENDING_SWAP_TXS])
 
       if (storage[PENDING_SWAP_TXS]) {
-        const pendingTxs = Object.values(JSON.parse(storage[PENDING_SWAP_TXS]) ?? {})
+        const pendingTxs = Object.values(
+          JSON.parse(storage[PENDING_SWAP_TXS]) ?? {},
+        ) as TxStoreObject[]
 
         setPendingSwapTxs(pendingTxs)
       } else {
@@ -92,18 +94,23 @@ const PendingSwapsAlertStrip = ({
 
   const noOfFailedSwaps = useMemo(() => {
     return (
-      pendingSwapTxs?.filter(
-        (tx) =>
-          tx.state === SKIP_TXN_STATUS.STATE_COMPLETED_ERROR ||
-          tx.state === SKIP_TXN_STATUS.STATE_ABANDONED,
+      pendingSwapTxs?.filter((tx) =>
+        [
+          SKIP_TXN_STATUS.STATE_COMPLETED_ERROR,
+          SKIP_TXN_STATUS.STATE_ABANDONED,
+          TXN_STATUS.FAILED,
+        ].includes(tx.state ?? TXN_STATUS.PENDING),
       ).length ?? 0
     )
   }, [pendingSwapTxs])
 
   const noOfSuccessfulSwaps = useMemo(() => {
     return (
-      pendingSwapTxs?.filter((tx) => tx.state === SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS)
-        ?.length ?? 0
+      pendingSwapTxs?.filter((tx) =>
+        [SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS, TXN_STATUS.SUCCESS].includes(
+          tx.state ?? TXN_STATUS.PENDING,
+        ),
+      )?.length ?? 0
     )
   }, [pendingSwapTxs])
 

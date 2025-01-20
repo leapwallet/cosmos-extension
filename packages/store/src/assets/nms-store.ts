@@ -17,14 +17,22 @@ export class NmsStore {
   }
 
   async loadRestEndpoints() {
-    const response = await fetch(nmsRestEndpointUrl);
-    const data = await response.json();
-    this.restEndpoints = data;
+    try {
+      const response = await fetch(nmsRestEndpointUrl);
+      const data = await response.json();
+      this.restEndpoints = data;
+    } catch (error) {
+      console.error('Error loading rest endpoints', error);
+    }
   }
 
   async loadRpcEndpoints() {
-    const response = await fetch(nmsRpcEndpointUrl);
-    const data = await response.json();
-    this.rpcEndPoints = data;
+    try {
+      const response = await fetch(nmsRpcEndpointUrl);
+      const data = await response.json();
+      this.rpcEndPoints = data;
+    } catch (error) {
+      console.error('Error loading rpc endpoints', error);
+    }
   }
 }

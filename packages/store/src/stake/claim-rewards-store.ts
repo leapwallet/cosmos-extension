@@ -1,6 +1,6 @@
-import { axiosWrapper, fromSmall, RewardsResponse, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { axiosWrapper, fromSmall, isAptosChain, RewardsResponse, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
-import { computed, makeAutoObservable, makeObservable, observable, runInAction } from 'mobx';
+import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 
 import { AggregatedChainsStore, ChainInfosConfigStore, ChainInfosStore, NmsStore } from '../assets';
@@ -151,7 +151,7 @@ export class ClaimRewardsStore {
     const activeChainInfo = this.chainInfosStore.chainInfos[chain];
     const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
 
-    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain) return;
+    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
     const chainKey = this.getChainKey(chain);
 
     const isFeatureComingSoon = isFeatureExistForChain(

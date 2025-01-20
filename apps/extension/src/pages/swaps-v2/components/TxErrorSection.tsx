@@ -1,37 +1,40 @@
 import { useChains } from '@leapwallet/elements-hooks'
 import { WarningCircle } from '@phosphor-icons/react'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import React, { useMemo } from 'react'
 
-import { useOnline } from '../hooks/useOnline'
+import { RoutingInfo, useOnline } from '../hooks'
+import { getChainIdsFromRoute } from '../utils'
 
 export function TxErrorSection({
   ledgerError,
   firstTxnError,
   timeoutError,
   unableToTrackError,
-  route,
+  routingInfo,
 }: {
   firstTxnError?: string
   ledgerError?: string
   timeoutError?: boolean
   unableToTrackError?: boolean | null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  route?: any
+  routingInfo: RoutingInfo
 }) {
   const isOnline = useOnline()
   const chains = useChains()
 
   const intermediateChainsInvolved = useMemo(
     () =>
-      route?.response?.chain_ids?.slice(1, -1)?.reduce((acc: string[], chainID: string) => {
-        const chainName =
-          chains.data?.find((chain) => chain.chainId === chainID)?.chainName ?? chainID
-        if (chainName) {
-          return [...acc, chainName]
-        }
-        return acc
-      }, [] as string[]),
-    [chains.data, route?.response?.chain_ids],
+      getChainIdsFromRoute(routingInfo?.route)
+        ?.slice(1, -1)
+        ?.reduce((acc: string[], chainID: string) => {
+          const chainName =
+            chains.data?.find((chain) => chain.chainId === chainID)?.chainName ?? chainID
+          if (chainName) {
+            return [...acc, chainName]
+          }
+          return acc
+        }, [] as string[]),
+    [chains.data, routingInfo?.route],
   )
 
   const errorMessage = useMemo(() => {
@@ -58,26 +61,30 @@ export function TxErrorSection({
     return undefined
   }, [isOnline, ledgerError, unableToTrackError, firstTxnError, timeoutError])
 
+  useCaptureUIException(errorMessage)
+
   return (
-    <div className='w-full p-4 flex flex-col dark:bg-gray-950 bg-white-100 justify-start items-start gap-3 rounded-xl'>
-      <div className='flex flex-row justify-start items-start gap-3 dark:text-white-100 text-black-100'>
+    <div className='w-full p-4 flex flex-col dark:bg-gray-950 bg-white-100 justify-start items-start gap-3 rounded-xl overflow-x-auto hide-scrollbar'>
+      <div className='flex flex-row justify-start items-start gap-3 dark:text-white-100 text-black-100 overflow-x-auto hide-scrollbar'>
         <WarningCircle
           size={12}
-          className='mt-1 text-red-300 rounded-full w-[12px] h-[12px] flex items-center justify-center leading-4 bg-white-100'
+          className='mt-1 text-red-300 rounded-full w-[12px] h-[12px] flex items-center justify-center leading-4 bg-white-100 shrink-0'
         />
         <div className='text-sm !leading-[22.4px] font-medium'>{errorMessage}</div>
       </div>
-      {unableToTrackError && route && intermediateChainsInvolved && (
+      {unableToTrackError && !!routingInfo?.route && intermediateChainsInvolved && (
         <>
           <div className='dark:bg-gray-900 bg-gray-50 rounded-xl p-3'>
             <div className='text-sm dark:text-white-100 text-black-100 !leading-[22.4px] font-medium'>
               <p>You can check your funds in the following places</p>
               <ol className='list-decimal list-inside text-sm dark:text-gray-200 text-gray-800 !leading-[22.4px] font-medium mt-2 [&>li::marker]:opacity-80 [&>li::marker]:text-sm [&>li::marker]:normal-nums space-y-1'>
                 <li>
-                  {route.sourceAsset.symbol} on {route.sourceAssetChain.chainName}.
+                  {routingInfo.route.sourceAsset.symbol} on{' '}
+                  {routingInfo.route.sourceAssetChain.chainName}.
                 </li>
                 <li>
-                  {route.destinationAsset.symbol} on {route.destinationAssetChain.chainName}.
+                  {routingInfo.route.destinationAsset.symbol} on{' '}
+                  {routingInfo.route.destinationAssetChain.chainName}.
                 </li>
                 {intermediateChainsInvolved.length > 0 ? (
                   <li>

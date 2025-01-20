@@ -38,6 +38,7 @@ import {
   getVoteMsg,
   getWithDrawRewardsMsg,
 } from './msgs/cosmos';
+import { EthAccount } from './nibiru';
 import { getTxData } from './utils';
 
 function uint64FromProto(input: number | Long): Uint64 {
@@ -52,6 +53,17 @@ function accountFromBaseAccount(input: BaseAccount): Account {
     pubkey: pubkey,
     accountNumber: uint64FromProto(accountNumber).toNumber(),
     sequence: uint64FromProto(sequence).toNumber(),
+  };
+}
+
+function accountFromEthAccount({ address, pubKey, accountNumber, sequence }: BaseAccount): Account {
+  const pubkey = pubKey ? decodePubkey(pubKey) : null;
+
+  return {
+    address,
+    pubkey,
+    accountNumber: accountNumber.toNumber(),
+    sequence: sequence.toNumber(),
   };
 }
 
@@ -91,6 +103,12 @@ export class Tx {
           if (account) {
             return accountFromAny(account);
           }
+        }
+
+        if (typeUrl === '/eth.types.v1.EthAccount') {
+          const baseAccount = EthAccount.decode(value).baseAccount;
+          assert(baseAccount);
+          return accountFromEthAccount(baseAccount);
         }
 
         return accountFromAny(input);

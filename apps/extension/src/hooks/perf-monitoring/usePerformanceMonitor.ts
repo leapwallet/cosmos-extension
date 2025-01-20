@@ -9,6 +9,7 @@ type usePerformanceMonitorProps = {
   queryStatus: QueryStatus
   op: string
   description: string
+  enabled?: boolean
 }
 
 export function usePerformanceMonitor({
@@ -16,44 +17,56 @@ export function usePerformanceMonitor({
   queryStatus,
   op,
   description,
+  enabled = true,
 }: usePerformanceMonitorProps) {
   const span = useRef<Span>()
   const activeChain = useActiveChain()
 
   useEffect(() => {
-    const txName = `${activeChain}-${page}-page-public-node`
-    const transaction = Sentry.startTransaction({ name: txName })
+    if (!enabled) {
+      return
+    }
+
+    const txName = `${page}-page`
+    const transaction = Sentry.startTransaction({
+      name: txName,
+      op,
+      description,
+      tags: {
+        activeChain,
+      },
+    })
     Sentry.getCurrentHub().configureScope((scope) => scope.setSpan(transaction))
-  }, [activeChain, page])
+  }, [activeChain, page, enabled, op, description])
 
   useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
     const loading = queryStatus === 'loading'
     const success = queryStatus === 'success'
     const error = queryStatus === 'error'
 
-    if (loading) {
-      const transaction = Sentry?.getCurrentHub().getScope()?.getTransaction()
+    const transaction = Sentry?.getCurrentHub().getScope()?.getTransaction()
+    if (!transaction) {
+      return
+    }
 
-      if (transaction) {
-        span.current = transaction.startChild({
-          op,
-          description,
-        })
-      }
+    if (loading || !span.current) {
+      span.current = transaction.startChild()
     }
 
     if (success && span.current) {
-      const transaction = Sentry?.getCurrentHub().getScope()?.getTransaction()
       span.current.setStatus('ok')
       span.current.finish()
       transaction?.finish()
     }
 
     if (error && span.current) {
-      const transaction = Sentry?.getCurrentHub().getScope()?.getTransaction()
       span.current.setStatus('internal_error')
       span.current.finish()
       transaction?.finish()
     }
-  }, [description, op, queryStatus])
+  }, [description, op, queryStatus, enabled])
 }

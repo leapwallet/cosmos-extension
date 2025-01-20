@@ -1,6 +1,5 @@
 import { Secp256k1 } from '@cosmjs/crypto';
-import { sha256 } from '@cosmjs/crypto';
-import { fromBase64, toBase64, toHex } from '@cosmjs/encoding';
+import { toBase64 } from '@cosmjs/encoding';
 import { EncodeObject } from '@cosmjs/proto-signing';
 import {
   calculateFee,
@@ -23,6 +22,7 @@ import { keccak256 } from 'ethereumjs-util';
 import { fetchAccountDetails } from '../accounts';
 import { ChainInfos } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
+import { LeapKeystoneSignerEth } from '../keystone';
 import { LeapLedgerSignerEth } from '../ledger';
 import { ChainRestAuthApi, ChainRestTendermintApi } from '../proto/injective/client/chain/rest';
 import {
@@ -62,7 +62,11 @@ export class InjectiveTx {
   chainId: string;
   evmChainId: number;
 
-  constructor(private testnet: boolean, private wallet: EthWallet | LeapLedgerSignerEth, restEndpoint?: string) {
+  constructor(
+    private testnet: boolean,
+    private wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth,
+    restEndpoint?: string,
+  ) {
     this.restEndpoint = restEndpoint ?? getRestUrl(ChainInfos, 'injective', testnet);
     this.chainRestAuthApi = new ChainRestAuthApi(this.restEndpoint);
     this.txRestClient = new TxRestClient(this.restEndpoint);
@@ -597,9 +601,20 @@ export class InjectiveTx {
 
         const txRawEip712 = createTxRawEIP712(txRaw, web3Extension);
         txRawEip712.signatures.push(signatureBuffer);
-        const encodedTx = TxClient.encode(txRawEip712);
-        const txHash = toHex(sha256(fromBase64(encodedTx))).toUpperCase();
-        console.log('logging txHash', txHash);
+        return txRawEip712;
+      }
+
+      if (this.wallet instanceof LeapKeystoneSignerEth || this.wallet.constructor.name === 'LeapKeystoneSignerEth') {
+        const wallet = this.wallet as LeapKeystoneSignerEth;
+        const { eip712Tx, txRaw } = await this.createEip712Tx(signerAddress, msgs, usedFee, memo);
+
+        const signature = await wallet.signEip712(signerAddress, eip712Tx);
+        const signatureStr = joinSignature(signature as SignatureLike);
+        const signatureBuffer = Buffer.from(signatureStr.replace('0x', ''), 'hex');
+        const web3Extension = createWeb3Extension({ ethereumChainId: this.testnet ? 888 : 1 });
+
+        const txRawEip712 = createTxRawEIP712(txRaw, web3Extension);
+        txRawEip712.signatures.push(signatureBuffer);
         return txRawEip712;
       }
       const { txRaw, signBytes, signDoc } = await this.createTx(signerAddress, msgs, usedFee, memo);

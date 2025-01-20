@@ -12,7 +12,6 @@ import BottomModal from 'components/bottom-modal'
 import { ValidatorItemSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -25,6 +24,7 @@ import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { observer } from 'mobx-react-lite'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { isSidePanel } from 'utils/isSidePanel'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 
 interface StakedProviderDetailsProps {
   isOpen: boolean
@@ -61,34 +61,35 @@ const StakedProviderDetails = observer(
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const [formatCurrency] = useFormatCurrency()
     const { theme } = useTheme()
-    const { formatHideBalance } = useHideAssets()
 
     const amountTitleText = useMemo(() => {
       if (new BigNumber(delegation.amount.currencyAmount ?? '').gt(0)) {
-        return formatHideBalance(
+        return hideAssetsStore.formatHideBalance(
           formatCurrency(new BigNumber(delegation.amount.currencyAmount ?? '')),
         )
       } else {
-        return formatHideBalance(delegation.amount.formatted_amount ?? delegation.amount.amount)
+        return hideAssetsStore.formatHideBalance(
+          delegation.amount.formatted_amount ?? delegation.amount.amount,
+        )
       }
     }, [
       delegation.amount.amount,
       delegation.amount.currencyAmount,
       delegation.amount.formatted_amount,
       formatCurrency,
-      formatHideBalance,
     ])
 
     const amountSubtitleText = useMemo(() => {
       if (new BigNumber(delegation.amount.currencyAmount ?? '').gt(0)) {
-        return formatHideBalance(delegation.amount.formatted_amount ?? delegation.amount.amount)
+        return hideAssetsStore.formatHideBalance(
+          delegation.amount.formatted_amount ?? delegation.amount.amount,
+        )
       }
       return ''
     }, [
       delegation.amount.amount,
       delegation.amount.currencyAmount,
       delegation.amount.formatted_amount,
-      formatHideBalance,
     ])
 
     return (
@@ -182,36 +183,37 @@ interface ProviderCardProps {
   onClick?: () => void
 }
 
-function ProviderCard({ provider, delegation, onClick }: ProviderCardProps) {
+const ProviderCard = observer(({ provider, delegation, onClick }: ProviderCardProps) => {
   const [formatCurrency] = useFormatCurrency()
-  const { formatHideBalance } = useHideAssets()
 
   const amountTitleText = useMemo(() => {
     if (new BigNumber(delegation.amount.currencyAmount ?? '').gt(0)) {
-      return formatHideBalance(
+      return hideAssetsStore.formatHideBalance(
         formatCurrency(new BigNumber(delegation.amount.currencyAmount ?? '')),
       )
     } else {
-      return formatHideBalance(delegation.amount.formatted_amount ?? delegation.amount.amount)
+      return hideAssetsStore.formatHideBalance(
+        delegation.amount.formatted_amount ?? delegation.amount.amount,
+      )
     }
   }, [
     delegation.amount.amount,
     delegation.amount.currencyAmount,
     delegation.amount.formatted_amount,
     formatCurrency,
-    formatHideBalance,
   ])
 
   const amountSubtitleText = useMemo(() => {
     if (new BigNumber(delegation.amount.currencyAmount ?? '').gt(0)) {
-      return formatHideBalance(delegation.amount.formatted_amount ?? delegation.amount.amount)
+      return hideAssetsStore.formatHideBalance(
+        delegation.amount.formatted_amount ?? delegation.amount.amount,
+      )
     }
     return ''
   }, [
     delegation.amount.amount,
     delegation.amount.currencyAmount,
     delegation.amount.formatted_amount,
-    formatHideBalance,
   ])
 
   return (
@@ -242,15 +244,9 @@ function ProviderCard({ provider, delegation, onClick }: ProviderCardProps) {
                 3,
               )}
             </Text>
-            {provider.spec && (
+            {provider.specs.length > 0 && (
               <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
-                {sliceWord(
-                  provider.spec.charAt(0).toUpperCase() + provider.spec.slice(1).toLowerCase(),
-                  isSidePanel()
-                    ? 22 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
-                    : 30,
-                  0,
-                )}
+                {`${provider.specs.length} Services`}
               </Text>
             )}
           </div>
@@ -266,7 +262,7 @@ function ProviderCard({ provider, delegation, onClick }: ProviderCardProps) {
       </div>
     </div>
   )
-}
+})
 
 export default function ProviderList({
   forceChain,
@@ -296,10 +292,9 @@ export default function ProviderList({
       provider: emptyProviderDelegation?.provider ?? '',
       moniker: 'Empty Provider',
       address: emptyProviderDelegation?.provider ?? '',
-      chain: emptyProviderDelegation?.chainID ?? '',
-      spec: emptyProviderDelegation?.chainID ?? '',
+      specs: [],
     }
-  }, [emptyProviderDelegation?.chainID, emptyProviderDelegation?.provider])
+  }, [emptyProviderDelegation?.provider])
 
   return (
     <>

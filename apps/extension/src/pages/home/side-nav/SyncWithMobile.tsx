@@ -15,9 +15,10 @@ import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { Dispatch, ReactElement, SetStateAction, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { uiErrorTags } from 'utils/sentry'
 
 type FormData = {
-  readonly password: string
+  readonly rawPassword: string
 }
 
 type EnterPasswordViewProps = {
@@ -72,7 +73,8 @@ function EnterPasswordView({
   const onSubmit = (e?: React.BaseSyntheticEvent) => {
     handleSubmit(async (values) => {
       try {
-        await testPassword(values.password)
+        const password = new TextEncoder().encode(values.rawPassword)
+        await testPassword(password)
 
         const wallets = await Wallet.getAllWallets()
         const walletObjects = Object.values(wallets).filter(Boolean)
@@ -100,16 +102,18 @@ function EnterPasswordView({
         const exportObject = { 0: cipher, 1: derivedWallets }
 
         setQrData && setQrData(JSON.stringify(exportObject))
-        setPassword(values.password)
+        setPassword(values.rawPassword)
         setRevealed(true)
       } catch (err: any) {
         if (err.message.toLowerCase().includes('password')) {
-          setError('password', {
+          setError('rawPassword', {
             type: 'validate',
             message: 'Incorrect Password',
           })
         } else {
-          captureException(err)
+          captureException(err, {
+            tags: uiErrorTags,
+          })
           setWalletError('Could not load your wallets')
         }
       }
@@ -140,14 +144,14 @@ function EnterPasswordView({
               autoFocus
               type='password'
               placeholder='enter password'
-              {...register('password')}
-              isErrorHighlighted={!!errors.password}
+              {...register('rawPassword')}
+              isErrorHighlighted={!!errors.rawPassword}
             />
           </Resize>
 
-          {!!errors.password && (
+          {!!errors.rawPassword && (
             <Text size='sm' color='text-red-300' className='justify-center text-center pt-2'>
-              {errors.password.message}
+              {errors.rawPassword.message}
             </Text>
           )}
 

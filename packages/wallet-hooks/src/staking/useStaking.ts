@@ -125,7 +125,7 @@ interface Staking {
   formattedTotalRewardAmount: string | undefined;
   totalRewards: string | undefined;
   network: Network | undefined;
-  minMaxApy: number[] | undefined;
+  minMaxApr: number[] | undefined;
   delegations: Record<string, Delegation>;
   totalDelegation: BigNumber | undefined;
   token: Token | undefined;
@@ -188,7 +188,7 @@ export function useStaking(
     formattedTotalRewardAmount: rewards?.formattedTotalRewards,
     totalRewards: rewards?.totalRewards,
     network: networkData,
-    minMaxApy: networkData?.minMaxApy,
+    minMaxApr: networkData?.minMaxApr,
     delegations: delegationInfo?.delegations,
     totalDelegation: delegationInfo?.totalDelegation,
     token,
@@ -330,6 +330,7 @@ export function useStakeTx(
   const [ledgerError, setLedgerErrorMsg] = useState<string>();
   const [isLoading, setLoading] = useState<boolean>(false);
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
+  const [showKeystonePopup, setShowKeystonePopup] = useState(false);
   const [, setGasPriceFactor] = useState<'low' | 'average' | 'high'>('low');
   const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
     if (mode === 'REDELEGATE') return DEFAULT_GAS_REDELEGATE.toString();
@@ -480,6 +481,9 @@ export function useStakeTx(
     });
     if (showLedgerPopup) {
       setShowLedgerPopup(false);
+    }
+    if (showKeystonePopup) {
+      setShowKeystonePopup(false);
     }
     callback?.('success');
   };
@@ -641,6 +645,7 @@ export function useStakeTx(
 
     try {
       const isLedgerWallet = activeWallet?.walletType === WALLETTYPE.LEDGER;
+      const isKeystoneWallet = activeWallet?.walletType === WALLETTYPE.KEYSTONE;
       const tx: StakeTxHandler | undefined = !isSimulation && wallet ? await getTxHandler(wallet) : undefined;
 
       const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
@@ -709,6 +714,9 @@ export function useStakeTx(
         if (isLedgerWallet) {
           setShowLedgerPopup(true);
         }
+        if (isKeystoneWallet) {
+          setShowKeystonePopup(true);
+        }
 
         const txHash = await executeTx(amt, fee, tx, creationHeight);
         const txType = getStakeTxType(mode);
@@ -763,6 +771,7 @@ export function useStakeTx(
     } finally {
       setLoading(false);
       setShowLedgerPopup(false);
+      setShowKeystonePopup(false);
     }
   };
 
@@ -829,6 +838,7 @@ export function useStakeTx(
     setAmount,
     setMemo,
     showLedgerPopup,
+    showKeystonePopup,
     onSimulateTx,
     setGasPriceFactor,
     setLedgerError,

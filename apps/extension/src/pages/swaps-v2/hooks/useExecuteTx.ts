@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { fromBase64 } from '@cosmjs/encoding'
 import { OfflineDirectSigner } from '@cosmjs/proto-signing'
@@ -11,7 +12,9 @@ import {
   getTxnLogAmountValue,
   LeapWalletApi,
   useActiveWallet,
+  useChainApis,
   useGasAdjustmentForChain,
+  useGasPriceStepForChain,
   useGasRateQuery,
   useGetChains,
   useInvalidateTokenBalances,
@@ -23,6 +26,7 @@ import {
   LeapLedgerSigner,
   LeapLedgerSignerEth,
   LedgerError,
+  SeiEvmTx,
   sleep,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -32,28 +36,41 @@ import {
   fetchAccountDetails,
   getDecodedMessageMetadataForSigning,
   getMessageMetadataForSigning,
+  LifiAPI,
   SKIP_TXN_STATUS,
   SkipAPI,
   TRANSFER_STATE,
   TxClient,
   TXN_STATUS,
 } from '@leapwallet/elements-core'
-import { LEDGER_ENABLED_EVM_CHAIN_IDS } from 'config/config'
+import { RouteAggregator } from '@leapwallet/elements-hooks'
+import { EthWallet } from '@leapwallet/leap-keychain'
+import { BigNumber } from 'bignumber.js'
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SourceChain, SourceToken, SwapFeeInfo, SwapTxnStatus, TransferInfo } from 'types/swap'
+import { compassSeiEvmConfigStore } from 'stores/balance-store'
+import { SourceChain, SwapFeeInfo, SwapTxnStatus, TransferInfo } from 'types/swap'
 import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
+import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { TxPageProps } from '../components'
 import { handleCosmosTx } from '../tx/cosmosTxHandler'
 import { handleEthermintTx } from '../tx/ethermintTxHandler'
 import { handleInjectiveTx } from '../tx/injectiveTxHandler'
-import { sendTrackingRequest } from '../utils'
+import {
+  approveTokenAllowanceIfNeeded,
+  capitalizeFirstLetter,
+  convertLifiStatusToTxnStatus,
+  getChainIdsFromRoute,
+  getLifiTransferSequence,
+  sendTrackingRequest,
+} from '../utils'
+import { routeDoesSwap } from '../utils/priceImpact'
 import { useGetChainsToShow } from './useGetChainsToShow'
 import { useInvalidateSwapAssetsQueries } from './useInvalidateSwapAssetsQueries'
-import { SWAP_NETWORK } from './useSwapsTx'
+import { RoutingInfo, SkipCosmosMsgWithCustomTxHash, SWAP_NETWORK } from './useSwapsTx'
 
 class TxnError extends Error {
   constructor(message: string) {
@@ -67,6 +84,7 @@ type ExecuteTxParams = Omit<TxPageProps, 'onClose' | 'rootDenomsStore' | 'rootCW
   setLedgerError?: (ledgerError?: string) => void
   setFeeAmount: React.Dispatch<React.SetStateAction<string>>
   setTrackingInSync: React.Dispatch<React.SetStateAction<boolean>>
+  setIsSigningComplete: React.Dispatch<React.SetStateAction<boolean>>
   denoms: DenomsRecord
   cw20Denoms: DenomsRecord
   swapFeeInfo?: SwapFeeInfo
@@ -75,7 +93,7 @@ type ExecuteTxParams = Omit<TxPageProps, 'onClose' | 'rootDenomsStore' | 'rootCW
 export function useExecuteTx({
   setShowLedgerPopup,
   setLedgerError,
-  route,
+  routingInfo,
   sourceChain,
   sourceToken,
   destinationChain,
@@ -90,6 +108,7 @@ export function useExecuteTx({
   setFeeAmount,
   callbackPostTx,
   feeAmount,
+  setIsSigningComplete,
   refetchDestinationBalances,
   refetchSourceBalances,
   setTrackingInSync,
@@ -110,7 +129,7 @@ export function useExecuteTx({
   const invalidateSwapAssets = useInvalidateSwapAssetsQueries()
 
   const [txStatus, setTxStatus] = useState<SwapTxnStatus[]>(() =>
-    Array.from({ length: route?.transactionCount || 1 }, () => ({
+    Array.from({ length: routingInfo?.route?.transactionCount || 1 }, () => ({
       status: TXN_STATUS.INIT,
       responses: [],
       isComplete: false,
@@ -128,6 +147,10 @@ export function useExecuteTx({
   const gasAdjustment = useGasAdjustmentForChain(sourceChain?.key ?? '')
   const gasPrices = useGasRateQuery(denoms, (sourceChain?.key ?? '') as SupportedChain)
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom]
+
+  const { evmJsonRpc } = useChainApis('seiTestnet2', SWAP_NETWORK)
+  const defaultSeiGasPriceSteps = useGasPriceStepForChain('seiTestnet2', SWAP_NETWORK)
+  const defaultSeiGasPrice = defaultSeiGasPriceSteps.low
 
   const fee = useMemo(() => {
     if (feeAmount) {
@@ -239,64 +262,107 @@ export function useExecuteTx({
   }, [])
 
   const logTxToDB = useCallback(
-    async (txHash: string, msgType: string) => {
-      const isIBCSendTx = !route?.response?.does_swap || false
+    async (
+      txHash: string,
+      opts:
+        | { aggregator: RouteAggregator.LIFI }
+        | { aggregator: RouteAggregator.SKIP; msgType: string },
+    ) => {
+      const { aggregator } = opts
+      const isIBCSendTx =
+        aggregator === RouteAggregator.LIFI ? false : !routeDoesSwap(routingInfo?.route) || false
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hasIBC = route?.operations?.some((operation: any) => 'transfer' in operation)
-      const denomChainInfo = chainInfos[(sourceToken?.chain ?? '') as SupportedChain]
+      const hasIBC =
+        aggregator === RouteAggregator.LIFI
+          ? false
+          : !!routingInfo?.route?.operations?.some((operation) => 'transfer' in operation)
 
-      const txnLogAmountValue = await getTxnLogAmountValue(inAmount, {
-        coinGeckoId: sourceToken?.coinGeckoId ?? '',
-        coinMinimalDenom: sourceToken?.coinMinimalDenom ?? '',
-        chainId: getChainId(denomChainInfo, SWAP_NETWORK) ?? String(sourceChain?.chainId ?? ''),
-        chain: (sourceToken?.chain ?? '') as SupportedChain,
-      })
+      const sourceDenomChainInfo = chainInfos[(sourceToken?.chain ?? '') as SupportedChain]
+      const destinationDenomChainInfo =
+        chainInfos[(destinationToken?.chain ?? '') as SupportedChain]
 
-      const txType = isIBCSendTx
-        ? CosmosTxType.IbcSend
-        : hasIBC
-        ? CosmosTxType.IBCSwap
-        : CosmosTxType.Swap
-
-      let metadata = isIBCSendTx
-        ? await getMetaDataForIbcTx(
-            route?.operations?.[0]?.transfer?.channel,
-            activeWallet?.addresses?.[destinationChain?.key as SupportedChain] ?? '',
-            {
-              denom: destinationToken?.coinMinimalDenom ?? '',
-              amount: String(Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0)),
-            },
-            'skip_api',
-            (route?.response?.chain_ids?.length ?? 1) - 1,
-          )
-        : hasIBC
-        ? getMetaDataForIbcSwapTx(
-            msgType,
-            'skip_api',
-            (route?.response?.chain_ids?.length ?? 1) - 1,
-            String(sourceChain?.chainId ?? ''),
-            {
-              denom: sourceToken?.coinMinimalDenom ?? '',
-              amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
-            },
+      const txnLogAmountValue = await getTxnLogAmountValue(
+        inAmount,
+        {
+          coinGeckoId: sourceToken?.coinGeckoId ?? '',
+          coinMinimalDenom: sourceToken?.coinMinimalDenom ?? '',
+          chainId:
+            getChainId(sourceDenomChainInfo, SWAP_NETWORK) ?? String(sourceChain?.chainId ?? ''),
+          chain: (sourceToken?.chain ?? '') as SupportedChain,
+        },
+        amountOut,
+        {
+          coinGeckoId: destinationToken?.coinGeckoId ?? '',
+          coinMinimalDenom: destinationToken?.coinMinimalDenom ?? '',
+          chainId:
+            getChainId(destinationDenomChainInfo, SWAP_NETWORK) ??
             String(destinationChain?.chainId ?? ''),
-            {
-              denom: destinationToken?.coinMinimalDenom ?? '',
-              amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
-            },
-          )
-        : getMetaDataForSwapTx(
-            'skip_api',
-            {
-              denom: sourceToken?.coinMinimalDenom ?? '',
-              amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
-            },
-            {
-              denom: destinationToken?.coinMinimalDenom ?? '',
-              amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
-            },
-          )
+          chain: (destinationToken?.chain ?? '') as SupportedChain,
+        },
+      )
+
+      const txType =
+        aggregator === RouteAggregator.LIFI
+          ? CosmosTxType.Swap
+          : isIBCSendTx
+          ? CosmosTxType.IbcSend
+          : hasIBC
+          ? CosmosTxType.IBCSwap
+          : CosmosTxType.Swap
+
+      let metadata
+      if (aggregator === RouteAggregator.LIFI) {
+        metadata = getMetaDataForSwapTx(
+          'lifi_api',
+          {
+            denom: sourceToken?.coinMinimalDenom ?? '',
+            amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
+          },
+          {
+            denom: destinationToken?.coinMinimalDenom ?? '',
+            amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
+          },
+        )
+      } else if (isIBCSendTx) {
+        metadata = await getMetaDataForIbcTx(
+          routingInfo?.route?.operations?.[0]?.transfer?.channel,
+          activeWallet?.addresses?.[destinationChain?.key as SupportedChain] ?? '',
+          {
+            denom: destinationToken?.coinMinimalDenom ?? '',
+            amount: String(Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0)),
+          },
+          'skip_api',
+          getChainIdsFromRoute(routingInfo?.route)?.length ?? 1,
+        )
+      } else if (hasIBC) {
+        metadata = getMetaDataForIbcSwapTx(
+          opts.msgType,
+          'skip_api',
+          getChainIdsFromRoute(routingInfo?.route)?.length ?? 1,
+          String(sourceChain?.chainId ?? ''),
+          {
+            denom: sourceToken?.coinMinimalDenom ?? '',
+            amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
+          },
+          String(destinationChain?.chainId ?? ''),
+          {
+            denom: destinationToken?.coinMinimalDenom ?? '',
+            amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
+          },
+        )
+      } else {
+        metadata = getMetaDataForSwapTx(
+          'skip_api',
+          {
+            denom: sourceToken?.coinMinimalDenom ?? '',
+            amount: Number(inAmount) * 10 ** Number(sourceToken?.coinDecimals ?? 0),
+          },
+          {
+            denom: destinationToken?.coinMinimalDenom ?? '',
+            amount: Number(amountOut) * 10 ** Number(destinationToken?.coinDecimals ?? 0),
+          },
+        )
+      }
 
       try {
         const swapFeeInfo = await getSwapFeeInfo()
@@ -347,9 +413,7 @@ export function useExecuteTx({
       }, 2000)
     },
     [
-      route?.response?.does_swap,
-      route?.response?.chain_ids?.length,
-      route?.operations,
+      routingInfo?.route,
       chainInfos,
       sourceToken?.chain,
       sourceToken?.coinGeckoId,
@@ -368,12 +432,12 @@ export function useExecuteTx({
       feeDenom.coinMinimalDenom,
       feeAmount,
       fee?.amount,
+      getSwapFeeInfo,
       invalidateBalances,
       invalidateSwapAssets,
       refetchSourceBalances,
       refetchDestinationBalances,
       callbackPostTx,
-      getSwapFeeInfo,
     ],
   )
 
@@ -383,123 +447,162 @@ export function useExecuteTx({
       messageChain,
       messageIndex,
       messageChainId,
-      route,
+      routingInfo,
     }: {
       txHash: string
       messageChain: SourceChain
       messageIndex: number
       messageChainId: string
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      route: any
+      routingInfo: RoutingInfo
     }) => {
       let transferAssetRelease
       let transferSequence: TransferInfo[] | undefined
+      let retryCount = 0
       try {
         while (isMounted.current) {
           if (!isMounted.current) {
             break
           }
-          const txnStatus = await SkipAPI.getTxnStatus({
-            chain_id: String(messageChain.chainId),
-            tx_hash: txHash,
-          })
 
-          if (txnStatus.success) {
-            const { state, error, transfer_sequence, transfer_asset_release } = txnStatus.response
-            transferSequence =
-              transfer_sequence?.map(
-                (transfer: any) =>
-                  (transfer as Extract<TransferEventJSON, { ibc_transfer: unknown }>).ibc_transfer,
-              ) ?? []
-            transferAssetRelease = transfer_asset_release
-              ? {
-                  chainId: transfer_asset_release?.chain_id,
-                  denom: transfer_asset_release?.denom,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  released: (transfer_asset_release as any)?.released,
-                }
-              : undefined
+          if (routingInfo?.aggregator === RouteAggregator.LIFI) {
+            const res = await LifiAPI.trackTransaction({
+              tx_hash: txHash,
+            })
 
-            if (
-              state === SKIP_TXN_STATUS.STATE_SUBMITTED ||
-              state === SKIP_TXN_STATUS.STATE_PENDING ||
-              state === SKIP_TXN_STATUS.STATE_RECEIVED
-            ) {
-              updateTxStatus(messageIndex, {
-                status: TXN_STATUS.SIGNED,
-                // @ts-ignore
-                responses:
-                  transferSequence && transferSequence?.length > 0
-                    ? transferSequence
-                    : [{ state: TRANSFER_STATE.TRANSFER_PENDING }],
-                transferAssetRelease,
-                isComplete: false,
-              })
-
-              setTrackingInSync(true)
-            } else if (state === SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS) {
-              const defaultResponses: TransferInfo[] = [
-                {
-                  src_chain_id: messageChainId,
-                  dst_chain_id: messageChainId,
-                  state: TRANSFER_STATE.TRANSFER_SUCCESS,
-                  packet_txs: {
-                    send_tx: {
-                      chain_id: messageChainId,
-                      tx_hash: txHash,
-                      explorer_link: '',
-                    },
-                    receive_tx: null,
-                    acknowledge_tx: null,
-                    timeout_tx: null,
-                    error: null,
-                  },
-                },
-              ]
-
-              if (transferSequence?.length === 0) {
-                updateTxStatus(messageIndex, {
-                  status: TXN_STATUS.SUCCESS,
-                  responses: defaultResponses,
-                  transferAssetRelease,
-                  isComplete: true,
-                })
-              } else {
-                const responses =
-                  route?.response?.chain_ids?.length === 1 ? defaultResponses : transferSequence
-
-                updateTxStatus(messageIndex, {
-                  status: TXN_STATUS.SUCCESS,
-                  responses: responses as TransferInfo[],
-                  transferAssetRelease,
-                  isComplete: true,
-                })
-              }
-
-              setTrackingInSync(true)
-              break
-            } else if (state === SKIP_TXN_STATUS.STATE_ABANDONED) {
-              setUnableToTrackError(true)
-              throw new Error('Transaction abandoned')
+            if (res.success === false) {
+              throw new Error(res.error)
             }
 
-            if (error?.code) {
-              // find error message from packet_txs in transfer_sequence array
-              let errorMessage = error?.message
-              if ((transferSequence ?? []).length > 0) {
-                const errorResponse = transferSequence?.find(
-                  (transfer) => transfer.state === TRANSFER_STATE.TRANSFER_FAILURE,
-                )
+            const _res = res.response
 
-                if (errorResponse) {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  errorMessage = (errorResponse?.packet_txs?.error as any)?.message
-                }
+            const overallStatus = convertLifiStatusToTxnStatus(_res.status, _res.substatus)
+            const txnStatus: SwapTxnStatus = {
+              status: overallStatus,
+              responses: [getLifiTransferSequence(_res)],
+              isComplete: [TXN_STATUS.SUCCESS, TXN_STATUS.FAILED].includes(overallStatus),
+            }
+            const isInvalid = ['INVALID', 'NOT_FOUND'].includes(_res.status)
+            if (overallStatus !== TXN_STATUS.FAILED || retryCount > 20) {
+              updateTxStatus(messageIndex, txnStatus)
+              setTrackingInSync(true)
+              if ([TXN_STATUS.SUCCESS, TXN_STATUS.FAILED].includes(overallStatus)) {
+                break
               }
-              throw new Error(errorMessage)
+            }
+            if (overallStatus === TXN_STATUS.FAILED) {
+              if (isInvalid) {
+                retryCount += 1
+                await sleep(3000)
+              } else {
+                retryCount += 10
+              }
             }
           } else {
-            throw new Error(txnStatus.error)
+            const txnStatus = await SkipAPI.getTxnStatus({
+              chain_id: String(messageChain.chainId),
+              tx_hash: txHash,
+            })
+
+            if (txnStatus.success) {
+              const { state, error, transfer_sequence, transfer_asset_release } = txnStatus.response
+              transferSequence =
+                transfer_sequence?.map(
+                  (transfer: any) =>
+                    (transfer as Extract<TransferEventJSON, { ibc_transfer: unknown }>)
+                      .ibc_transfer,
+                ) ?? []
+              transferAssetRelease = transfer_asset_release
+                ? {
+                    chainId: transfer_asset_release?.chain_id,
+                    denom: transfer_asset_release?.denom,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    released: (transfer_asset_release as any)?.released,
+                  }
+                : undefined
+
+              if (
+                state === SKIP_TXN_STATUS.STATE_SUBMITTED ||
+                state === SKIP_TXN_STATUS.STATE_PENDING ||
+                state === SKIP_TXN_STATUS.STATE_RECEIVED
+              ) {
+                updateTxStatus(messageIndex, {
+                  status: TXN_STATUS.SIGNED,
+                  // @ts-ignore
+                  responses:
+                    transferSequence && transferSequence?.length > 0
+                      ? transferSequence
+                      : [{ state: TRANSFER_STATE.TRANSFER_PENDING }],
+                  transferAssetRelease,
+                  isComplete: false,
+                })
+
+                setTrackingInSync(true)
+              } else if (state === SKIP_TXN_STATUS.STATE_COMPLETED_SUCCESS) {
+                const defaultResponses: TransferInfo[] = [
+                  {
+                    src_chain_id: messageChainId,
+                    dst_chain_id: messageChainId,
+                    state: TRANSFER_STATE.TRANSFER_SUCCESS,
+                    packet_txs: {
+                      send_tx: {
+                        chain_id: messageChainId,
+                        tx_hash: txHash,
+                        explorer_link: '',
+                      },
+                      receive_tx: null,
+                      acknowledge_tx: null,
+                      timeout_tx: null,
+                      error: null,
+                    },
+                  },
+                ]
+
+                if (transferSequence?.length === 0) {
+                  updateTxStatus(messageIndex, {
+                    status: TXN_STATUS.SUCCESS,
+                    responses: defaultResponses,
+                    transferAssetRelease,
+                    isComplete: true,
+                  })
+                } else {
+                  const responses =
+                    getChainIdsFromRoute(routingInfo?.route)?.length === 1
+                      ? defaultResponses
+                      : transferSequence
+
+                  updateTxStatus(messageIndex, {
+                    status: TXN_STATUS.SUCCESS,
+                    responses: responses as TransferInfo[],
+                    transferAssetRelease,
+                    isComplete: true,
+                  })
+                }
+
+                setTrackingInSync(true)
+                break
+              } else if (state === SKIP_TXN_STATUS.STATE_ABANDONED) {
+                setUnableToTrackError(true)
+                throw new Error('Transaction abandoned')
+              }
+
+              if (error?.code) {
+                // find error message from packet_txs in transfer_sequence array
+                let errorMessage = error?.message
+                if ((transferSequence ?? []).length > 0) {
+                  const errorResponse = transferSequence?.find(
+                    (transfer) => transfer.state === TRANSFER_STATE.TRANSFER_FAILURE,
+                  )
+
+                  if (errorResponse) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    errorMessage = (errorResponse?.packet_txs?.error as any)?.message
+                  }
+                }
+                throw new Error(errorMessage)
+              }
+            } else {
+              throw new Error(txnStatus.error)
+            }
           }
 
           await sleep(2000)
@@ -534,23 +637,148 @@ export function useExecuteTx({
 
   const executeTx = useCallback(async () => {
     if (!fee && !feeAmount) return
+    if (!routingInfo?.messages || !routingInfo?.route) {
+      handleTxError(0, 'Error fetching route info', sourceChain)
+      setIsLoading(false)
+      return
+    }
 
     setTimeoutError(false)
     setFirstTxnError(undefined)
     setUnableToTrackError(null)
     setLedgerError && setLedgerError(undefined)
+
     const messageIndex = 0
 
-    const messageObj = route.messages[messageIndex]
-    const message = messageObj?.multi_chain_msg
-    const messageChain = chainsToShow.find((chain) => chain.chainId === message.chain_id)
+    if (routingInfo?.aggregator === RouteAggregator.LIFI) {
+      if (!isCompassWallet()) {
+        handleTxError(messageIndex, 'Lifi routes are only supported on Compass Wallet', sourceChain)
+        setIsLoading(false)
+        return
+      }
+      const message = routingInfo.messages?.[messageIndex]
+      const messageObj = routingInfo.messages[messageIndex]
+      const messageChain = chainsToShow.find((chain) => chain.key === 'seiTestnet2')
+      if (!messageChain) {
+        handleTxError(messageIndex, 'Transaction failed as chain is not found', messageChain)
+        setIsLoading(false)
+        return
+      }
+
+      updateTxStatus(messageIndex, {
+        status: TXN_STATUS.PENDING,
+        // @ts-ignore
+        responses: [{ state: TRANSFER_STATE.TRANSFER_PENDING }],
+        isComplete: false,
+      })
+
+      try {
+        let txHash: string | undefined
+
+        txHash = message?.customTxHash
+
+        if (!txHash) {
+          const wallet = (await getWallet('seiTestnet2', true)) as unknown as EthWallet
+
+          const seiEvmTx = SeiEvmTx.GetSeiEvmClient(
+            wallet,
+            evmJsonRpc ?? '',
+            Number(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
+          )
+
+          if (!fee) {
+            handleTxError(messageIndex, 'Error calculating fee', messageChain)
+            setIsLoading(false)
+            return
+          }
+          const gas = Number(
+            new BigNumber(fee.gas)
+              .multipliedBy(defaultSeiGasPrice)
+              .multipliedBy(1e12)
+              .dividedBy(message.gasPrice ? message.gasPrice.toString() : 1000_000_000)
+              .toFixed(0, 2),
+          )
+
+          await approveTokenAllowanceIfNeeded(
+            evmJsonRpc ?? '',
+            wallet,
+            message.from ?? '',
+            message.tokenContract,
+            message.to,
+            inAmount,
+            message.gasPrice ? Number(message.gasPrice) : undefined,
+            // TODO: need to improve this
+            routingInfo?.route?.sourceAsset?.decimals ?? 18,
+          )
+
+          const res = await seiEvmTx.sendTransaction(
+            '',
+            message.to,
+            new BigNumber(message.value.toString()).dividedBy(1e18).toString(),
+            gas,
+            message.gasPrice ? Number(message.gasPrice) : undefined,
+            message.data,
+          )
+
+          txHash = res?.hash
+        }
+
+        if (!txHash) {
+          setUnableToTrackError(true)
+          setIsLoading(false)
+          return
+        }
+
+        if (messageIndex === 0) {
+          logTxToDB(txHash, { aggregator: RouteAggregator.LIFI })
+        }
+
+        messageObj.customTxHash = txHash
+        messageObj.customMessageChainId = String(messageChain.chainId)
+
+        setIsSigningComplete(true)
+
+        await pollTx({
+          txHash,
+          messageChain,
+          messageIndex,
+          messageChainId: messageChain.chainId,
+          routingInfo,
+        })
+
+        return
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        let errorMessage = ''
+        if (e?.code === 'INSUFFICIENT_FUNDS') {
+          errorMessage = 'Insufficient funds for transaction'
+        } else if (e?.reason) {
+          errorMessage = capitalizeFirstLetter(e.reason)
+        }
+        if (!errorMessage) {
+          errorMessage = (e as Error)?.message ?? 'Transaction failed'
+        }
+        if (e?.transactionHash) {
+          errorMessage += ` - https://seitrace.com/tx/${e.transactionHash}?chain=pacific-1`
+        }
+        handleTxError(messageIndex, errorMessage, messageChain)
+        setIsSigningComplete(true)
+        setIsLoading(false)
+        return
+      }
+    }
+
+    // TODO: find a better way to `type` this
+    const messageObj = routingInfo.messages[messageIndex] as SkipCosmosMsgWithCustomTxHash
+    const message = messageObj.multi_chain_msg
+    const messageChain = chainsToShow.find((chain) => chain.chainId === message?.chain_id)
 
     if (!messageChain) {
       handleTxError(messageIndex, 'Transaction failed as chain is not found', messageChain)
       throw new Error('Chain info is not found')
     }
 
-    const messageJson = JSON.parse(message.msg)
+    const messageJson = JSON.parse(message?.msg ?? '{}')
 
     updateTxStatus(messageIndex, {
       status: TXN_STATUS.PENDING,
@@ -559,7 +787,7 @@ export function useExecuteTx({
       isComplete: false,
     })
 
-    let txHash: string = messageObj?.customTxHash
+    let txHash: string | undefined = messageObj?.customTxHash
 
     if (!txHash && fee) {
       if (new Date().getTime() > Number(messageJson.timeout_timestamp / 10 ** 6)) {
@@ -694,7 +922,10 @@ export function useExecuteTx({
           if (!success) throw new Error('Submit txn failed')
           txHash = response.tx_hash
           if (messageIndex === 0) {
-            logTxToDB(response.tx_hash, message.msg_type_url)
+            logTxToDB(response.tx_hash, {
+              aggregator: RouteAggregator.SKIP,
+              msgType: message.msg_type_url,
+            })
           }
         }
       } catch (_) {
@@ -708,7 +939,10 @@ export function useExecuteTx({
           txHash = transactionHash
 
           if (messageIndex === 0) {
-            logTxToDB(transactionHash, message.msg_type_url)
+            logTxToDB(transactionHash, {
+              aggregator: RouteAggregator.SKIP,
+              msgType: message.msg_type_url,
+            })
           }
 
           if (txCode !== 0) {
@@ -740,7 +974,7 @@ export function useExecuteTx({
           const { tx_hash } = result.response
           txHash = tx_hash
         } else {
-          if (message === 0) {
+          if (messageIndex === 0) {
             // reset state to init
 
             updateTxStatus(0, {
@@ -761,8 +995,22 @@ export function useExecuteTx({
       messageObj.customTxHash = txHash
       messageObj.customMessageChainId = String(messageChain.chainId)
     }
+    setIsSigningComplete(true)
 
-    await pollTx({ txHash, messageChain, messageIndex, messageChainId: message?.chain_id, route })
+    if (!txHash) {
+      setUnableToTrackError(true)
+      setIsLoading(false)
+
+      return
+    }
+
+    await pollTx({
+      txHash,
+      messageChain,
+      messageIndex,
+      messageChainId: message?.chain_id,
+      routingInfo,
+    })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -775,8 +1023,9 @@ export function useExecuteTx({
     refetchSourceBalances,
     handleTxError,
     logTxToDB,
-    route.messages,
-    route?.response?.chain_ids?.length,
+    evmJsonRpc,
+    routingInfo?.messages,
+    routingInfo?.route,
     sourceChain?.key,
     pollTx,
   ])
@@ -792,7 +1041,7 @@ export function useExecuteTx({
         setLedgerError && setLedgerError(err.message)
       } else {
         setTxStatus(
-          Array.from({ length: route?.transactionCount ?? 1 }, () => ({
+          Array.from({ length: routingInfo?.route?.transactionCount ?? 1 }, () => ({
             status: TXN_STATUS.INIT,
             responses: [],
             isComplete: false,
@@ -802,10 +1051,11 @@ export function useExecuteTx({
     } finally {
       setShowLedgerPopup(false)
       setIsLoading(false)
+      setIsSigningComplete(true)
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executeTx, route?.transactionCount])
+  }, [executeTx, setIsSigningComplete, routingInfo?.route])
 
   return {
     callExecuteTx,

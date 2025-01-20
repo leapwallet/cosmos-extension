@@ -8,6 +8,7 @@ import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
+import { manageChainsStore } from 'stores/manage-chains-store'
 
 type ComingSoonProps = {
   title: string
@@ -19,7 +20,7 @@ export const ComingSoon = observer(({ chainTagsStore, title, bottomNavLabel }: C
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const { headerChainImgSrc } = useChainPageInfo()
-  const dontShowSelectChain = useDontShowSelectChain()
+  const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
 
   return (
     <div className='relative w-full overflow-clip panel-height'>

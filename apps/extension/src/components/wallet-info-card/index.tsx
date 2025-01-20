@@ -85,7 +85,6 @@ function WalletInfoCard({
         })
 
       const results = await Promise.allSettled(promises)
-
       const chainsWithBalances: string[] = []
 
       results.forEach((response) => {
@@ -101,6 +100,9 @@ function WalletInfoCard({
       })
 
       return chainsWithBalances
+    },
+    onError: (error) => {
+      captureException(error)
     },
   })
 
@@ -121,7 +123,6 @@ function WalletInfoCard({
   }, [])
 
   const imgSrc = useMemo(() => getWalletIconAtIndex(id), [id])
-  error && captureException(error)
 
   return (
     <div className={`rounded-xl w-[360px] shrink-0 ${hidden ? 'hidden' : ''}`}>
@@ -198,6 +199,7 @@ function WalletInfoCard({
                       </>
                     )}
                   </div>
+
                   <Text size='sm' className='ml-4 text-gray-600 dark:text-gray-300'>
                     Funds on {data.length} network{data.length > 1 ? 's' : ''}
                   </Text>

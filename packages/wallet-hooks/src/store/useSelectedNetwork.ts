@@ -35,7 +35,6 @@ useSelectedNetworkStore.subscribe(async ({ selectedNetwork }) => {
 
 export const useInitSelectedNetwork = (enabled: boolean) => {
   const { isTestnet } = useIsTestnetActiveChain();
-  const activeChain = useActiveChain();
 
   useEffect(() => {
     const fn = async () => {

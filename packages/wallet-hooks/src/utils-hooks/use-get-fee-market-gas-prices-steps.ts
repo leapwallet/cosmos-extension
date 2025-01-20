@@ -1,8 +1,15 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { SelectedNetworkType } from '@leapwallet/cosmos-wallet-store';
 import { useCallback, useMemo } from 'react';
 
 import { useActiveChain, useChainApis, useSelectedNetwork } from '../store';
-import { GasPriceStep, getFeeMarketGasPrices, roundOf, SelectedNetworkType, useGasPriceStepForChain } from '../utils';
+import { GasPriceStep, getFeeMarketGasPrices, roundOf, useGasPriceStepForChain } from '../utils/useGetGasPrice';
+import { useChainId } from './use-chain-id';
+
+const CHAIN_SPECIFIC_FEE_MARKET_ADJUSTMENT: Record<string, number> = {
+  'cheqd-testnet-6': 1e4,
+  'cheqd-mainnet-1': 1e4,
+};
 
 export type FeeMarketGasPrices = {
   denom: string;
@@ -16,6 +23,8 @@ export function useGetFeeMarketGasPricesSteps(forceChain?: SupportedChain, force
   const _activeNetwork = useSelectedNetwork();
   const activeNetwork = useMemo(() => forceNetwork || _activeNetwork, [_activeNetwork, forceNetwork]);
 
+  const chainId = useChainId(activeChain, activeNetwork);
+
   const { lcdUrl } = useChainApis(activeChain, activeNetwork);
   const baseGasPriceStep = useGasPriceStepForChain(activeChain, activeNetwork);
 
@@ -24,8 +33,10 @@ export function useGetFeeMarketGasPricesSteps(forceChain?: SupportedChain, force
       const feeMarketData: FeeMarketGasPrices = await getFeeMarketGasPrices(lcdUrl ?? '');
       const feeMarketDenomData = feeMarketData.find(({ denom }) => denom === feeDenom);
 
+      const chainFeeMarketAdjustment = CHAIN_SPECIFIC_FEE_MARKET_ADJUSTMENT[chainId ?? ''] ?? 1;
+
       if (feeMarketDenomData) {
-        const minGasPrice = roundOf(Number(feeMarketDenomData.amount), 4);
+        const minGasPrice = roundOf(Number(feeMarketDenomData.amount) * chainFeeMarketAdjustment, 4);
 
         const low = minGasPrice * 1.1;
         const medium = minGasPrice * 1.2;

@@ -15,7 +15,7 @@ import {
   useSelectedNetwork,
 } from '../store';
 import { WALLETTYPE } from '../types';
-import { getPlatformType, storage, useGetStorageLayer } from '../utils';
+import { getPlatformType, storage, useGetStorageLayer } from '../utils/global-vars';
 
 export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams, forceChain?: SupportedChain) {
   const [addressLinkState, setAddressLinkState] = useState<AddressLinkState>('loading');

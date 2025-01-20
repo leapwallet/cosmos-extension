@@ -1,7 +1,7 @@
 import { NetworkChainData, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk';
 import create from 'zustand';
 
-import { SelectedNetwork } from '../utils';
+import { SelectedNetwork } from '../utils/get-staking-selected-network';
 
 type ValidatorData = {
   chainData: NetworkChainData;

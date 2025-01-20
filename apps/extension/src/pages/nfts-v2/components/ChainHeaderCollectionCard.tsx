@@ -116,11 +116,8 @@ export function ChainHeaderCollectionCard({
                   imgClassName='aspect-square w-[150px] object-contain'
                 />
 
-                <Text
-                  className='text-gray-800 dark:text-white-100 mt-2 capitalize'
-                  title={nftName ?? ''}
-                >
-                  {(nftName ?? '').toLowerCase()}
+                <Text className='text-gray-800 dark:text-white-100 mt-2' title={nftName ?? ''}>
+                  {nftName ?? ''}
                 </Text>
 
                 {nftId && (

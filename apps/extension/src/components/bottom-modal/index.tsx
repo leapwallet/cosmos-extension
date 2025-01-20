@@ -1,7 +1,7 @@
 import { Buttons } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import React, { useCallback } from 'react'
-import Sheet from 'react-modal-sheet'
+import { Sheet } from 'react-modal-sheet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 type BottomModalProps = React.PropsWithChildren<{

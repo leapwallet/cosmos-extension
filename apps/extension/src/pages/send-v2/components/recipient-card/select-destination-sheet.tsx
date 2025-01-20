@@ -1,9 +1,12 @@
-import { SelectedAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { SelectedAddress, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
+import { isAptosChain } from '@leapwallet/cosmos-wallet-sdk'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
+import { useSendContext } from 'pages/send-v2/context'
 import React, { useEffect, useState } from 'react'
 
 import MyContacts from './MyContacts'
+import { MyEvmWalletAddresses } from './MyEvmWalletAddresses'
 import MyWallets from './MyWallets'
 
 export type DestinationType = 'My Wallets' | 'My Contacts'
@@ -26,6 +29,11 @@ export const SelectDestinationSheet: React.FC<SelectDestinationSheetProps> = ({
   const [destinationType, setDestinationType] = useState<DestinationType>(
     isOpenType as DestinationType,
   )
+
+  const { chains } = useChainsStore()
+  const { sendActiveChain } = useSendContext()
+
+  const chainData = chains[sendActiveChain]
 
   useEffect(() => {
     setDestinationType(isOpenType as DestinationType)
@@ -62,6 +70,8 @@ export const SelectDestinationSheet: React.FC<SelectDestinationSheetProps> = ({
       <div>
         {destinationType === 'My Contacts' ? (
           <MyContacts handleContactSelect={handleContactSelect} />
+        ) : chainData.evmOnlyChain || isAptosChain(chainData.key) ? (
+          <MyEvmWalletAddresses chainInfo={chainData} setSelectedAddress={setSelectedAddress} />
         ) : (
           <MyWallets
             skipSupportedDestinationChainsIDs={skipSupportedDestinationChainsIDs}

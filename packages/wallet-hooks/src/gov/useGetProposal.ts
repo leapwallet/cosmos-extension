@@ -38,7 +38,13 @@ export function useGetProposal(
           break;
       }
 
-      const prefix = chainInfo?.chainId === 'govgen-1' ? '/govgen' : '/cosmos';
+      let prefix = '/cosmos';
+      if (chainInfo?.chainId === 'govgen-1') {
+        prefix = '/govgen';
+      }
+      if (chainInfo?.chainId === 'atomone-1') {
+        prefix = '/atomone';
+      }
 
       const url = `${prefix}/gov/${version}/proposals/${id}/tally`;
       const tallying = `${prefix}/gov/${version}/params/tallying`;

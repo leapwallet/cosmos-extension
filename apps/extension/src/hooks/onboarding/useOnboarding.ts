@@ -34,7 +34,7 @@ export function useOnboarding() {
 
   const onOnboardingComplete = (
     mnemonic: string,
-    password: string,
+    password: Uint8Array,
     selectedIds: { [key: number]: boolean },
     type: 'create' | 'import',
   ) => {
@@ -50,7 +50,7 @@ export function useOnboarding() {
     }
   }
 
-  const onBoardingCompleteLedger = async (password: string, selectedAddresses: string[]) => {
+  const onBoardingCompleteLedger = async (password: Uint8Array, selectedAddresses: string[]) => {
     if (password) {
       const accountsToSave = Object.entries(addresses.current ?? {})
         .filter(([, addressInfo]) => {
@@ -89,7 +89,9 @@ export function useOnboarding() {
     const addressIndexes = Object.keys(addressesOriginal).map((addressIndex) =>
       parseInt(addressIndex),
     )
+
     const updatedAddresses = { ...addressesOriginal }
+
     for (const addressIndex of addressIndexes) {
       if (updatedAddresses[addressIndex]) {
         updatedAddresses[addressIndex] = {
@@ -100,6 +102,17 @@ export function useOnboarding() {
         updatedAddresses[addressIndex] = addressesNew[addressIndex]
       }
     }
+
+    const newAddressIndexes = Object.keys(addressesNew).map((addressIndex) =>
+      parseInt(addressIndex),
+    )
+
+    for (const addressIndex of newAddressIndexes) {
+      if (!updatedAddresses[addressIndex]) {
+        updatedAddresses[addressIndex] = addressesNew[addressIndex]
+      }
+    }
+
     return updatedAddresses
   }
 
@@ -139,11 +152,11 @@ export function useOnboarding() {
   const getLedgerAccountDetails = async (useEvmApp: boolean) => {
     const defaultChainCosmos = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
     const defaultChainEth = 'injective'
+
     const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccount(
       [0, 1, 2, 3, 4],
       useEvmApp,
       useEvmApp ? defaultChainEth : defaultChainCosmos,
-      //Added as a placeholder
       [],
       chains,
     )
@@ -155,19 +168,68 @@ export function useOnboarding() {
         index,
       })),
     )
-    const newAddresses: Addresses = {}
 
+    const newAddresses: Addresses = {}
     for (const [chain, chainAddresses] of Object.entries(chainWiseAddresses)) {
       let index = 0
+
       for (const address of chainAddresses) {
         if (newAddresses[index]) {
           newAddresses[index][chain] = address
         } else {
           newAddresses[index] = { [chain]: address }
         }
+
         index += 1
       }
     }
+
+    if (addresses.current) {
+      const updatedAddresses = mergeAddresses(newAddresses, addresses.current)
+      setAddresses(updatedAddresses)
+    } else {
+      setAddresses(newAddresses)
+    }
+  }
+
+  const getLedgerAccountDetailsForIdxs = async (useEvmApp: boolean, idxs: number[]) => {
+    const defaultChainCosmos = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
+    const defaultChainEth = 'injective'
+
+    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccount(
+      idxs,
+      useEvmApp,
+      useEvmApp ? defaultChainEth : defaultChainCosmos,
+      //Added as a placeholder
+      [],
+      chains,
+    )
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setWalletAccounts((prev: any) => [
+      ...(prev ?? []),
+      ...primaryChainAccount.map((account, index) => ({
+        address: account.address,
+        pubkey: account.pubkey,
+        index: (prev ?? []).length + index,
+      })),
+    ])
+
+    const newAddresses: Addresses = {}
+    for (const [chain, chainAddresses] of Object.entries(chainWiseAddresses)) {
+      let index = idxs[0]
+
+      for (const address of chainAddresses) {
+        if (newAddresses[index]) {
+          newAddresses[index][chain] = address
+        } else {
+          newAddresses[index] = { [chain]: address }
+        }
+
+        index += 1
+      }
+    }
+
     if (addresses.current) {
       const updatedAddresses = mergeAddresses(newAddresses, addresses.current)
       setAddresses(updatedAddresses)
@@ -184,5 +246,6 @@ export function useOnboarding() {
     onOnboardingComplete,
     onBoardingCompleteLedger,
     getEvmLedgerAccountDetails,
+    getLedgerAccountDetailsForIdxs,
   }
 }

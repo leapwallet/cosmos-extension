@@ -10,6 +10,7 @@ import { captureException } from '@sentry/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BigNumber } from 'bignumber.js'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { uiErrorTags } from 'utils/sentry'
 
 import { fetchCurrency } from '../../utils/findUSDValue'
 import { useActiveChain } from '../settings/useActiveChain'
@@ -27,7 +28,7 @@ export function useGetStakedTokensBalance() {
   const denoms = useDenoms()
   const chainId = useChainId()
 
-  const { data, status, error } = useQuery(
+  const { data, status } = useQuery(
     ['delegations', activeChain, address, lcdUrl, denoms],
     async () => {
       if (lcdUrl) {
@@ -43,9 +44,15 @@ export function useGetStakedTokensBalance() {
         return returnObj
       }
     },
+    {
+      onError: (error) => {
+        captureException(error, {
+          tags: uiErrorTags,
+        })
+      },
+    },
   )
 
-  status === 'error' && error && captureException(error)
   const { delegations = {}, denom } = data || {}
 
   const { data: usdValue, status: usdValueStatus } = useQuery(

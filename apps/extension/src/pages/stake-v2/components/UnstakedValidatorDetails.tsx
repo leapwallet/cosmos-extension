@@ -29,10 +29,11 @@ import Text from 'components/text'
 import currency from 'currency.js'
 import { useDefaultTokenLogo } from 'hooks'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
+import { stakeEpochStore } from 'stores/epoch-store'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -61,6 +62,7 @@ const UnstakedValidatorDetails = observer(
     isOpen,
     onClose,
     validator,
+    unbondingDelegation,
     unbondingDelegationEntry,
     rootDenomsStore,
     delegationsStore,
@@ -72,7 +74,6 @@ const UnstakedValidatorDetails = observer(
     forceNetwork,
   }: UnstakedValidatorDetailsProps) => {
     const _activeChain = useActiveChain()
-    const { formatHideBalance } = useHideAssets()
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
 
     const _activeNetwork = useSelectedNetwork()
@@ -101,34 +102,36 @@ const UnstakedValidatorDetails = observer(
       activeChain,
       activeNetwork,
     )
-    const apys = network?.validatorApys
+    const aprs = network?.validatorAprs
     const { data: imageUrl } = useValidatorImage(validator)
 
     const amountTitleText = useMemo(() => {
       if (new BigNumber(unbondingDelegationEntry?.currencyBalance ?? '').gt(0)) {
-        return formatHideBalance(
+        return hideAssetsStore.formatHideBalance(
           formatCurrency(new BigNumber(unbondingDelegationEntry?.currencyBalance ?? '')),
         )
       } else {
-        return formatHideBalance(unbondingDelegationEntry?.formattedBalance ?? '')
+        return hideAssetsStore.formatHideBalance(unbondingDelegationEntry?.formattedBalance ?? '')
       }
     }, [
       formatCurrency,
-      formatHideBalance,
       unbondingDelegationEntry?.currencyBalance,
       unbondingDelegationEntry?.formattedBalance,
     ])
 
     const amountSubtitleText = useMemo(() => {
       if (new BigNumber(unbondingDelegationEntry?.currencyBalance ?? '').gt(0)) {
-        return formatHideBalance(unbondingDelegationEntry?.formattedBalance ?? '')
+        return hideAssetsStore.formatHideBalance(unbondingDelegationEntry?.formattedBalance ?? '')
       }
       return ''
-    }, [
-      formatHideBalance,
-      unbondingDelegationEntry?.currencyBalance,
-      unbondingDelegationEntry?.formattedBalance,
-    ])
+    }, [unbondingDelegationEntry?.currencyBalance, unbondingDelegationEntry?.formattedBalance])
+
+    const isCancelledScheduled =
+      unbondingDelegation &&
+      unbondingDelegationEntry &&
+      stakeEpochStore.canceledUnBondingDelegationsMap[unbondingDelegation.validator_address]?.some(
+        (ch) => ch === unbondingDelegationEntry.creation_height,
+      )
 
     return (
       <>
@@ -195,13 +198,13 @@ const UnstakedValidatorDetails = observer(
               <div className='w-px h-10 bg-gray-200 dark:bg-gray-850' />
               <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
                 <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  APY
+                  APR
                 </Text>
 
                 <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
-                  {apys &&
-                    (apys[validator?.address]
-                      ? `${currency(apys[validator?.address] * 100, {
+                  {aprs &&
+                    (aprs[validator?.address]
+                      ? `${currency(aprs[validator?.address] * 100, {
                           precision: 2,
                           symbol: '',
                         }).format()}%`
@@ -250,17 +253,19 @@ const UnstakedValidatorDetails = observer(
               </div>
             </div>
 
-            <Buttons.Generic
-              onClick={() => {
-                setShowReviewCancelUnstakeTx(true)
-                onClose()
-              }}
-              className='w-full'
-              size='normal'
-              color={theme === ThemeName.DARK ? Colors.white100 : Colors.black100}
-            >
-              <Text color='text-white-100 dark:text-black-100'>Cancel Unstake</Text>
-            </Buttons.Generic>
+            {!isCancelledScheduled && (
+              <Buttons.Generic
+                onClick={() => {
+                  setShowReviewCancelUnstakeTx(true)
+                  onClose()
+                }}
+                className='w-full'
+                size='normal'
+                color={theme === ThemeName.DARK ? Colors.white100 : Colors.black100}
+              >
+                <Text color='text-white-100 dark:text-black-100'>Cancel Unstake</Text>
+              </Buttons.Generic>
+            )}
           </div>
         </BottomModal>
 

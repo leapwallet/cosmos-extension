@@ -33,6 +33,7 @@ function ErrorWarning() {
     pfmEnabled,
     setPfmEnabled,
     transferData,
+    isCexIbcTransferWarningNeeded,
     isIbcUnwindingDisabled,
     setSelectedAddress,
     selectedAddress,
@@ -212,6 +213,17 @@ function ErrorWarning() {
         <Warning size={16} className='text-[#FFB33D] dark:text-orange-300 self-start' />
         <Text size='xs' className='font-medium'>
           USD value cannot be calculated for this transaction
+        </Text>
+      </div>
+    )
+  }
+
+  if (isCexIbcTransferWarningNeeded) {
+    return (
+      <div className='py-3 px-4 rounded-2xl bg-orange-200 dark:bg-orange-900 items-center flex gap-2'>
+        <Warning size={16} className='text-[#FFB33D] dark:text-orange-300 self-start' />
+        <Text size='xs' className='font-medium'>
+          Avoid transferring IBC tokens to centralised exchanges.
         </Text>
       </div>
     )

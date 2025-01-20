@@ -210,7 +210,7 @@ const AddTokenForm = observer(
           }
         }
 
-        if (foundAsset === false && chain === 'mainCoreum') {
+        if (foundAsset === false && ['mainCoreum', 'coreum'].includes(chain)) {
           try {
             const { symbol, precision } = await getCoreumHybridTokenInfo(
               lcdUrl ?? '',

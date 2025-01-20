@@ -4,6 +4,7 @@ import {
   Delegation,
   DelegationResponse,
   fromSmall,
+  isAptosChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
@@ -23,7 +24,7 @@ import {
 } from '../types';
 import { formatTokenAmount, isFeatureExistForChain } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
-import { ActiveStakingDenomStore } from './index';
+import { ActiveStakingDenomStore } from './utils-store';
 
 export class DelegationsStore {
   chainInfosStore: ChainInfosStore;
@@ -107,7 +108,6 @@ export class DelegationsStore {
         const chainKey = this.getChainKey(chain as SupportedChain);
 
         if (!this.chainWiseDelegations[chainKey] || forceRefetch) {
-          runInAction(() => (this.chainWiseLoading[chainKey] = true));
           this.fetchChainDelegations(chain as SupportedChain, network ?? 'mainnet');
         }
       });
@@ -115,7 +115,6 @@ export class DelegationsStore {
       const chainKey = this.getChainKey(chain);
 
       if (!this.chainWiseDelegations[chainKey] || forceRefetch) {
-        this.chainWiseLoading[chainKey] = true;
         this.fetchChainDelegations(chain, network);
       }
     }
@@ -128,8 +127,12 @@ export class DelegationsStore {
     const activeChainInfo = this.chainInfosStore.chainInfos[chain];
     const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
 
-    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain) return;
+    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
+
     const chainKey = this.getChainKey(chain);
+    runInAction(() => {
+      this.chainWiseLoading[chainKey] = true;
+    });
 
     const isFeatureComingSoon = isFeatureExistForChain(
       'comingSoon',
@@ -147,12 +150,6 @@ export class DelegationsStore {
       this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
     );
 
-    runInAction(() => {
-      this.chainWiseRefetch[chainKey] = async () => {
-        await this.fetchChainDelegations(chain, this.selectedNetworkStore.selectedNetwork);
-      };
-    });
-
     if (isFeatureComingSoon || isFeatureNotSupported) {
       runInAction(() => {
         this.chainWiseLoading[chainKey] = false;
@@ -161,15 +158,21 @@ export class DelegationsStore {
       return;
     }
 
-    const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
-    const hasEntryInNms =
-      this.nmsStore.restEndpoints[activeChainId] && this.nmsStore.restEndpoints[activeChainId].length > 0;
-
-    const lcdUrl = hasEntryInNms
-      ? this.nmsStore.restEndpoints[activeChainId][0].nodeUrl
-      : activeChainInfo?.apis[nodeUrlKey];
+    runInAction(() => {
+      this.chainWiseRefetch[chainKey] = async () => {
+        await this.fetchChainDelegations(chain, this.selectedNetworkStore.selectedNetwork);
+      };
+    });
 
     try {
+      const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
+      const hasEntryInNms =
+        this.nmsStore.restEndpoints[activeChainId] && this.nmsStore.restEndpoints[activeChainId].length > 0;
+
+      const lcdUrl = hasEntryInNms
+        ? this.nmsStore.restEndpoints[activeChainId][0].nodeUrl
+        : activeChainInfo?.apis[nodeUrlKey];
+
       const response = await this.getDelegationsForChain({
         lcdUrl: lcdUrl ?? '',
         address,
@@ -184,7 +187,8 @@ export class DelegationsStore {
           this.chainWiseDelegations[chainKey] = {};
         });
       } else {
-        const { delegations, totalDelegationAmount, currencyAmountDelegation, totalDelegation } = response;
+        const { delegations, totalDelegationAmount, currencyAmountDelegation, totalDelegation, stakingDenom } =
+          response;
 
         runInAction(() => {
           this.chainWiseLoading[chainKey] = false;
@@ -193,6 +197,7 @@ export class DelegationsStore {
             totalDelegationAmount,
             currencyAmountDelegation,
             totalDelegation,
+            stakingDenom,
           };
         });
       }
@@ -290,6 +295,7 @@ export class DelegationsStore {
       totalDelegationAmount,
       currencyAmountDelegation,
       totalDelegation: new BigNumber(tda),
+      stakingDenom: activeStakingDenom?.coinDenom,
     };
   }
 

@@ -2,10 +2,11 @@ import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { Buttons, ProgressBar } from '@leapwallet/leap-ui'
 import ExtensionPage from 'components/extension-page'
-import { useSetPassword } from 'hooks/settings/usePassword'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { passwordStore } from 'stores/password-store'
 import { Colors } from 'theme/colors'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { DEBUG } from 'utils/debug'
@@ -20,7 +21,6 @@ const maxSteps = 4
 
 const ForgotPassword = () => {
   const navigate = useNavigate()
-  const setNewPassword = useSetPassword()
 
   const [mnemonic, setMnemonic] = useState('')
   const [processStep, setProcessStep] = useState(1)
@@ -74,9 +74,9 @@ const ForgotPassword = () => {
    * @returns null
    */
   const onSubmit = useCallback(
-    async (password: string) => {
+    async (password: Uint8Array) => {
       setLoading(true)
-      setNewPassword(password)
+      passwordStore.setPassword(password)
       await removeAll()
       if (mnemonic && password) {
         await importWalletAccounts({
@@ -91,7 +91,7 @@ const ForgotPassword = () => {
       }
       setLoading(false)
     },
-    [importWalletAccounts, incrementStep, mnemonic, removeAll, selectedIds, setNewPassword],
+    [importWalletAccounts, incrementStep, mnemonic, removeAll, selectedIds],
   )
 
   useEffect(() => {
@@ -145,4 +145,4 @@ const ForgotPassword = () => {
   )
 }
 
-export default ForgotPassword
+export default observer(ForgotPassword)

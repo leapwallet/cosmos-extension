@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 import { useCompassSeiEvmConfigStore } from '../store';
-import { cachedRemoteDataWithLastModified, storage, useGetStorageLayer } from '../utils';
+import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
+import { storage, useGetStorageLayer } from '../utils/global-vars';
 
 const COMPASS_SEI_EVM_CONFIG_URL = 'https://assets.leapwallet.io/cosmos-registry/v1/config/compass-sei-evm-config.json';
 

@@ -1,4 +1,5 @@
 import { sliceAddress, useChainApis } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ParsedMessage, ParsedMessageType } from '@leapwallet/parser-parfait'
 import React, { useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
@@ -7,11 +8,13 @@ import { useMessageDetails } from './message-details'
 
 type DetailItemProps = {
   message: ParsedMessage
+  activeChain: SupportedChain
+  selectedNetwork: 'mainnet' | 'testnet'
 }
 
-const DetailItem: React.FC<DetailItemProps> = ({ message }) => {
-  const { lcdUrl } = useChainApis()
-  const { data, isLoading } = useMessageDetails(message, lcdUrl ?? '')
+const DetailItem: React.FC<DetailItemProps> = ({ message, activeChain, selectedNetwork }) => {
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork)
+  const { data, isLoading } = useMessageDetails(message, lcdUrl ?? '', activeChain)
 
   return isLoading ? (
     <Skeleton />
@@ -32,9 +35,15 @@ const DetailItem: React.FC<DetailItemProps> = ({ message }) => {
 
 type TransactionDetailsProps = {
   parsedMessages: ParsedMessage[] | null
+  activeChain: SupportedChain
+  selectedNetwork: 'mainnet' | 'testnet'
 }
 
-const TransactionDetails: React.FC<TransactionDetailsProps> = ({ parsedMessages }) => {
+const TransactionDetails: React.FC<TransactionDetailsProps> = ({
+  parsedMessages,
+  activeChain,
+  selectedNetwork,
+}) => {
   const noMessageIsParsed = parsedMessages === null || parsedMessages.length === 0
   const noMessageIsDecoded = noMessageIsParsed
     ? true
@@ -81,8 +90,14 @@ const TransactionDetails: React.FC<TransactionDetailsProps> = ({ parsedMessages 
             {claimRewardsMessage}
           </li>
         ) : (
-          parsedMessages?.map((msg, i) => <DetailItem key={i} message={msg} />) ??
-          'No information available'
+          parsedMessages?.map((msg, i) => (
+            <DetailItem
+              key={i}
+              message={msg}
+              activeChain={activeChain}
+              selectedNetwork={selectedNetwork}
+            />
+          )) ?? 'No information available'
         )}
       </ul>
     </div>

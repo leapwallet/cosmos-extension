@@ -6,6 +6,7 @@ import {
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { BigNumber } from 'bignumber.js'
 
+// TODO: replace getCoingeckoPricesStoreSnapshot with price store and remove duplicate code
 /**
  * @function currencyFetcher
  * @description utility function to fetch the currency data from the API

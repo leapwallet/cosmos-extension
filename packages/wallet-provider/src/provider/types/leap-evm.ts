@@ -17,7 +17,12 @@ export const ETHEREUM_LISTENER_TYPE = {
 };
 export type EthereumListenerType = ValueOf<typeof ETHEREUM_LISTENER_TYPE>;
 
-export const LINE_TYPE = { ETHEREUM: 'ETHEREUM' };
+export const LINE_TYPE = {
+  APTOS: 'APTOS',
+  ETHEREUM: 'ETHEREUM',
+  BITCOIN: 'BITCOIN',
+};
+
 export type LineType = ValueOf<typeof LINE_TYPE>;
 export type EthereumRequestMessage =
   | EthRequestAccounts
@@ -37,4 +42,7 @@ export interface Ethereum {
   isCompass: boolean;
   chainId?: string;
   networkVersion?: string;
+  on: (eventName: EthereumListenerType, eventHandler: (data: unknown) => void) => void;
+  removeListener: (eventName: EthereumListenerType, eventHandler: (data: unknown) => void) => void;
+  removeAllListeners: () => void;
 }

@@ -6,7 +6,7 @@ import create from 'zustand';
 
 import { ActivityType } from '../types';
 
-export type TxStatus = 'loading' | 'success' | 'failed';
+export type TxStatus = 'loading' | 'success' | 'failed' | 'submitted';
 
 export type PendingTx = {
   txType: ActivityType;
@@ -34,6 +34,7 @@ export type PendingTx = {
   txnLogAmount?: number;
   isEvmTx?: boolean;
   sourceChain?: SupportedChain;
+  toChain?: SupportedChain;
   sourceNetwork?: 'mainnet' | 'testnet';
 };
 

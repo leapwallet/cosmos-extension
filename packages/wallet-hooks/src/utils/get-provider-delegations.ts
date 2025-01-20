@@ -8,7 +8,9 @@ import {
 import { BigNumber } from 'bignumber.js';
 
 import { currencyDetail } from '../settings';
-import { fetchCurrency, formatTokenAmount, GetDelegationForChainParams } from './index';
+import { fetchCurrency } from './findUSDValue';
+import { GetDelegationForChainParams } from './get-delegations-for-chain';
+import { formatTokenAmount } from './strings';
 
 export type GetProviderDelegationReturn = {
   delegations: Record<string, ProviderDelegation>;

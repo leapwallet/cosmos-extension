@@ -1,12 +1,9 @@
-import {
-  formatBigNumber,
-  sliceAddress,
-  useActiveChain,
-  useChainsStore,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { formatBigNumber, sliceAddress, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { parfait, ParsedMessage, ParsedMessageType, Token } from '@leapwallet/parser-parfait'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
+import { useMemo } from 'react'
 import { ibcTraceFetcher } from 'stores/balance-store'
 
 const tokenToString = async (token: Token, restUrl: string, chainId: string) => {
@@ -340,11 +337,16 @@ export const getMessageDetails = async (
         )}`,
       )
     case ParsedMessageType.GovVote: {
-      const proposalId = ['number', 'string'].includes(typeof message.proposalId)
-        ? message.proposalId
-        : // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          message.proposalId?.low ?? JSON.stringify(message.proposalId)
+      let proposalId
+      if (['number', 'string'].includes(typeof message.proposalId)) {
+        proposalId = message.proposalId
+      } else if (typeof message.proposalId === 'bigint') {
+        proposalId = (message.proposalId as bigint).toString()
+      } else {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        proposalId = message.proposalId?.low ?? JSON.stringify(message.proposalId)
+      }
 
       return Promise.resolve(`Vote ${message.option} on proposal ${proposalId}`)
     }
@@ -491,13 +493,27 @@ export const getMessageDetails = async (
   }
 }
 
-export const useMessageDetails = (message: ParsedMessage | undefined, restUrl: string) => {
-  const activeChain = useActiveChain()
+export const useMessageDetails = (
+  message: ParsedMessage | undefined,
+  restUrl: string,
+  activeChain: SupportedChain,
+) => {
   const { chains } = useChainsStore()
 
+  const queryKey = useMemo(() => {
+    const serializedMessage = JSON.stringify(message, (key, value) => {
+      if (typeof value === 'bigint') {
+        return value.toString()
+      }
+      return value
+    })
+    return ['message-details', serializedMessage]
+  }, [message])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['message-details', message],
+    queryKey,
     queryFn: () => {
+      // TODO: Don't we need chainId based on selectedNetwork?
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return getMessageDetails(message!, restUrl, chains[activeChain].chainId)
     },

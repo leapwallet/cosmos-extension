@@ -6,14 +6,24 @@ import {
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
-import { ArrowDown, ArrowUp, Path, ShoppingBag, Star } from '@phosphor-icons/react'
+import {
+  ArrowDown,
+  ArrowsLeftRight,
+  ArrowUp,
+  CurrencyCircleDollar,
+  Path,
+  ShoppingBag,
+  Star,
+} from '@phosphor-icons/react'
 import classNames from 'classnames'
 import ClickableIcon from 'components/clickable-icons'
 import { useHardCodedActions } from 'components/search-modal'
+import { PageName } from 'config/analytics'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import Vote from 'icons/vote'
-import React from 'react'
+import React, { useCallback } from 'react'
+import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
@@ -27,11 +37,18 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
   const isTestnet = useSelectedNetwork() === 'testnet'
   const activeChain = useActiveChain()
   const { activeWallet } = useActiveWallet()
+  const navigate = useNavigate()
 
   const chains = useGetChains()
   const chain = useChainInfo()
-  const { handleVoteClick, handleNftsClick, onSendClick, handleBuyClick, handleBridgeClick } =
-    useHardCodedActions()
+  const {
+    handleVoteClick,
+    handleNftsClick,
+    onSendClick,
+    handleBuyClick,
+    handleBridgeClick,
+    handleSwapClick,
+  } = useHardCodedActions()
 
   const darkTheme = (useTheme()?.theme ?? '') === ThemeName.DARK
   const disabled =
@@ -40,6 +57,10 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
 
   const isNomicChain = activeChain === 'nomic'
   const walletCtaDisabled = isNomicChain || disabled
+
+  const handleStakeClick = useCallback(() => {
+    navigate('/stake')
+  }, [navigate])
 
   if (activeChain === 'initia') {
     return (
@@ -79,47 +100,36 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
           'gap-2': isPacificChain,
         })}
       >
-        {isPacificChain ? (
-          // Buy Button
-          <Buttons.Generic
-            size='sm'
-            disabled={walletCtaDisabled}
-            color={darkTheme ? undefined : Colors.white100}
-            onClick={() => handleBuyClick()}
-          >
-            <div className='flex justify-center text-black-100 items-center'>
-              <ShoppingBag size={20} className='mr-2' />
-              <span>Buy</span>
-            </div>
-          </Buttons.Generic>
-        ) : (
-          // Receive Button
-          <Buttons.Generic
-            size='sm'
-            disabled={walletCtaDisabled}
-            color={darkTheme ? undefined : Colors.white100}
-            onClick={setShowReceiveSheet}
-          >
-            <div className='flex justify-center text-black-100 items-center'>
-              <ArrowDown size={20} className='mr-2' />
-              <span>Receive</span>
-            </div>
-          </Buttons.Generic>
-        )}
-
-        {/* Send Button */}
-        <Buttons.Generic
-          size='sm'
+        <ClickableIcon
+          label='Buy'
+          icon={<ShoppingBag size={20} weight='fill' />}
+          onClick={() => handleBuyClick()}
           disabled={walletCtaDisabled}
-          color={darkTheme ? undefined : Colors.white100}
+        />
+        <ClickableIcon
+          label='Send'
+          icon={<ArrowUp size={20} />}
           onClick={() => onSendClick()}
-          data-testing-id='home-generic-send-btn'
-        >
-          <div className='flex justify-center text-black-100 items-center'>
-            <ArrowUp size={20} className='mr-2' />
-            <span>Send</span>
-          </div>
-        </Buttons.Generic>
+          disabled={walletCtaDisabled}
+        />
+        <ClickableIcon
+          label='Swap'
+          icon={<ArrowsLeftRight size={20} />}
+          onClick={() => handleSwapClick(undefined, `/swap?pageSource=${PageName.Home}`)}
+          disabled={walletCtaDisabled}
+        />
+        <ClickableIcon
+          label='Receive'
+          icon={<ArrowDown size={20} />}
+          onClick={setShowReceiveSheet}
+          disabled={walletCtaDisabled}
+        />
+        <ClickableIcon
+          label='Stake'
+          icon={<CurrencyCircleDollar size={20} />}
+          onClick={handleStakeClick}
+          disabled={walletCtaDisabled}
+        />
       </div>
     )
   }
@@ -211,7 +221,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       />
 
       {/* Vote Button */}
-      {!chain?.evmOnlyChain && chain?.key !== 'mantra' ? (
+      {!chain?.evmOnlyChain && !['mantra', 'bitcoin', 'bitcoinSignet'].includes(chain?.key) ? (
         <ClickableIcon
           label='Vote'
           icon={<Vote weight='fill' size={20} />}
@@ -220,15 +230,17 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       ) : null}
 
       {/* NFTs Button */}
-      <ClickableIcon
-        label='NFTs'
-        icon={
-          <div className='bg-white-100 h-5 w-5 rounded-full flex items-center justify-center'>
-            <Star size={12} weight='fill' className='text-black-100' />
-          </div>
-        }
-        onClick={() => handleNftsClick()}
-      />
+      {!['bitcoin', 'bitcoinSignet'].includes(chain?.key) ? (
+        <ClickableIcon
+          label='NFTs'
+          icon={
+            <div className='bg-white-100 h-5 w-5 rounded-full flex items-center justify-center'>
+              <Star size={12} weight='fill' className='text-black-100' />
+            </div>
+          }
+          onClick={() => handleNftsClick()}
+        />
+      ) : null}
     </div>
   )
 }

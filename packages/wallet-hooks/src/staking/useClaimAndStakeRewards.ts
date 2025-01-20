@@ -74,7 +74,7 @@ export function useClaimAndStakeRewards(
   forceNetwork?: SelectedNetwork,
 ) {
   const txMetadata = useTxMetadata();
-  const _userAddress = useAddress();
+  const _userAddress = useAddress(forceChain);
   const userAddress = useMemo(() => forceAddress || _userAddress, [forceAddress, _userAddress]);
 
   const _activeChain = useActiveChain();

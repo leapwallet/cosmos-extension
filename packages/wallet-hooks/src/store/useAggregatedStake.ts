@@ -8,6 +8,7 @@ export type PerChainDelegations = {
   apr: number;
   claimRewards: string;
   loading: boolean;
+  totalDelegation: BigNumber;
 };
 
 export type AggregatedStake = {

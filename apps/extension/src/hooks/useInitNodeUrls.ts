@@ -5,12 +5,15 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { BETA_CHAINS, CUSTOM_ENDPOINTS } from 'config/storage-keys'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Browser from 'webextension-polyfill'
 
-export function useInitNodeUrls(
-  setNodeUrlInitialised: React.Dispatch<React.SetStateAction<boolean>>,
-) {
+import { useSelectedNetwork } from './settings/useNetwork'
+
+export function useInitNodeUrls() {
+  const [nodeUrlsInitialised, setNodeUrlInitialised] = useState(false)
+  const selectedNetwork = useSelectedNetwork()
+
   useEffect(() => {
     async function updateNodeUrls() {
       const storage = await Browser.storage.local.get([BETA_CHAINS, CUSTOM_ENDPOINTS])
@@ -35,16 +38,23 @@ export function useInitNodeUrls(
 
       if (NODE_URLS) {
         for (const chain in customEndpoints) {
-          const { rpc, lcd } = customEndpoints[chain]
-          const chainId = chains[chain as SupportedChain]?.chainId
+          const { rpc, lcd, rpcTest, lcdTest } = customEndpoints[chain]
+          const chainId =
+            selectedNetwork === 'testnet'
+              ? chains[chain as SupportedChain]?.testnetChainId
+              : chains[chain as SupportedChain]?.chainId
 
           if (chainId) {
             if (lcd && NODE_URLS.rest) {
-              NODE_URLS.rest[chainId] = [{ nodeUrl: lcd, nodeProvider: null }]
+              NODE_URLS.rest[chainId] = [
+                { nodeUrl: selectedNetwork === 'testnet' ? lcdTest : lcd, nodeProvider: null },
+              ]
             }
 
             if (rpc && NODE_URLS.rpc) {
-              NODE_URLS.rpc[chainId] = [{ nodeUrl: rpc, nodeProvider: null }]
+              NODE_URLS.rpc[chainId] = [
+                { nodeUrl: selectedNetwork === 'testnet' ? rpcTest : rpc, nodeProvider: null },
+              ]
             }
           }
         }
@@ -75,5 +85,7 @@ export function useInitNodeUrls(
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedNetwork])
+
+  return nodeUrlsInitialised
 }

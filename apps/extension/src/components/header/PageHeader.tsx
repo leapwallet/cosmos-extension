@@ -1,10 +1,13 @@
+import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { LineDivider } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { ActionButton } from 'components/button'
 import { useDefaultTokenLogo } from 'hooks'
 import useNewChainTooltip from 'hooks/useNewChainTooltip'
 import { Images } from 'images'
-import React from 'react'
+import AddFromChainStore from 'pages/home/AddFromChainStore'
+import React, { useState } from 'react'
 import { PageHeaderProps } from 'types/components'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -16,6 +19,8 @@ const PageHeader = React.memo(
     const { showToolTip: _showToolTip, toolTipData, handleToolTipClose } = useNewChainTooltip()
     const defaultTokenLogo = useDefaultTokenLogo()
     const showToolTip = _showToolTip && !!toolTipData && !!onImgClick
+    const [newChain, setNewChain] = useState<string | null>(null)
+    const customChains = useCustomChains()
 
     return (
       <>
@@ -77,13 +82,8 @@ const PageHeader = React.memo(
                 {showToolTip && (
                   <NewChainSupportTooltip
                     toolTipData={toolTipData}
-                    handleCTAClick={() => {
-                      onImgClick(undefined, {
-                        defaultFilter: toolTipData.defaultFilter,
-                      })
-                      handleToolTipClose()
-                    }}
                     handleToolTipClose={handleToolTipClose}
+                    setNewChain={setNewChain}
                   />
                 )}
               </div>
@@ -94,6 +94,12 @@ const PageHeader = React.memo(
             <LineDivider />
           </div>
         </div>
+
+        <AddFromChainStore
+          isVisible={!!newChain}
+          onClose={() => setNewChain(null)}
+          newAddChain={customChains.find((d) => d.chainName === newChain) as ChainInfo}
+        />
       </>
     )
   },

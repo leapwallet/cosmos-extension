@@ -2,7 +2,8 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useKadoBuyChainsStore } from '../store';
-import { cachedRemoteDataWithLastModified, getPlatformType, storage, useGetStorageLayer } from '../utils';
+import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
+import { getPlatformType, storage, useGetStorageLayer } from '../utils/global-vars';
 
 export type KadoBuyChainsConfigType = {
   Extension: SupportedChain[];

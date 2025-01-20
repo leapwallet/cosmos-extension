@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   SelectedNetwork,
-  sliceWord,
   useActiveChain,
+  useActiveStakingDenom,
   useIsCancleUnstakeSupported,
   useSelectedNetwork,
   useStaking,
-  useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   SupportedChain,
@@ -22,19 +21,16 @@ import {
   UndelegationsStore,
   ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import BigNumber from 'bignumber.js'
 import { ValidatorListItemSkeleton } from 'components/Skeletons/ValidatorListSkeleton'
 import Text from 'components/text'
-import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
-import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
-import { imgOnError } from 'utils/imgOnError'
-import { isSidePanel } from 'utils/isSidePanel'
+import { stakeEpochStore } from 'stores/epoch-store'
 import { timeLeft } from 'utils/timeLeft'
 
+import { EpochPendingValidatorCard } from './EpochPendingValidatorCard'
 import UnstakedValidatorDetails from './UnstakedValidatorDetails'
+import { ValidatorCard } from './ValidatorCard'
 
 type PendingUnstakeListProps = {
   rootDenomsStore: RootDenomsStore
@@ -73,7 +69,10 @@ const PendingUnstakeList = observer(
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
-    const { unboundingDelegationsInfo, network, loadingUnboundingDelegations } = useStaking(
+    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
+    const pendingUnDelegations = stakeEpochStore.getUnDelegationEpochMessages(activeStakingDenom)
+
+    const { unboundingDelegationsInfo, loadingUnboundingDelegations } = useStaking(
       denoms,
       chainDelegations,
       chainValidators,
@@ -100,8 +99,6 @@ const PendingUnstakeList = observer(
       activeNetwork,
     )
     const isLoading = loadingUnboundingDelegations
-    const [formatCurrency] = useFormatCurrency()
-    const { formatHideBalance } = useHideAssets()
     const [showUnstakeValidatorDetails, setShowUnstakeValidatorDetails] = useState(false)
     const [selectedUnbondingDelegation, setSelectedUnbondingDelegation] = useState<
       UnbondingDelegation | undefined
@@ -112,7 +109,8 @@ const PendingUnstakeList = observer(
 
     if (
       !isLoading &&
-      (Object.values(unboundingDelegationsInfo ?? {}).length === 0 || !validators)
+      (Object.values(unboundingDelegationsInfo ?? {}).length === 0 || !validators) &&
+      pendingUnDelegations.length === 0
     ) {
       return <></>
     }
@@ -130,106 +128,50 @@ const PendingUnstakeList = observer(
                 Amount Staked
               </Text>
             </div>
+            {pendingUnDelegations.map((uds, idx) => {
+              const validator = validators[uds.validatorAddress]
+              if (!validator) {
+                return null
+              }
 
-            {Object.values(unboundingDelegationsInfo ?? {}).map((uds: any) => {
+              return (
+                <EpochPendingValidatorCard
+                  key={`${validator?.address} ${idx}`}
+                  currencyBalance={uds.currencyBalance}
+                  formattedBalance={uds.formattedBalance}
+                  validator={validator}
+                />
+              )
+            })}
+
+            {Object.values(unboundingDelegationsInfo ?? {}).map((uds) => {
               const validator = validators[uds?.validator_address]
               if (!validator) {
                 return null
               }
-              return uds.entries.map((ud: any, idx: number) => {
-                const timeLeftText = timeLeft(ud.completion_time)
-                const Component = () => {
-                  const { data: imageUrl } = useValidatorImage(validator)
-                  const amountTitleText = useMemo(() => {
-                    if (new BigNumber(ud.currencyBalance ?? '').gt(0)) {
-                      return formatHideBalance(
-                        formatCurrency(new BigNumber(ud.currencyBalance ?? '')),
-                      )
-                    } else {
-                      return formatHideBalance(ud.formattedBalance ?? '')
-                    }
-                  }, [])
-                  const amountSubtitleText = useMemo(() => {
-                    if (new BigNumber(ud.currencyBalance ?? '').gt(0)) {
-                      return formatHideBalance(ud.formattedBalance ?? '')
-                    }
-                    return ''
-                  }, [])
+              return uds.entries.map((ud, idx) => {
+                const timeLeftText = activeChain === 'babylon' ? null : timeLeft(ud.completion_time)
+                const isCancelledScheduled = stakeEpochStore.canceledUnBondingDelegationsMap[
+                  uds.validator_address
+                ]?.some((ch) => ch === ud.creation_height)
 
-                  return (
-                    <div
-                      onClick={() => {
-                        if (isCancleUnstakeSupported) {
-                          setShowUnstakeValidatorDetails(true)
-                          setSelectedUnbondingDelegation(uds)
-                          setSelectedDelegationEntry(ud)
-                        }
-                      }}
-                      className={`flex justify-between items-center px-4 py-3 bg-white-100 dark:bg-gray-950 cursor-pointer rounded-xl ${
-                        isCancleUnstakeSupported && 'cursor-pointer'
-                      }`}
-                    >
-                      <div className='flex items-center w-full'>
-                        <img
-                          src={imageUrl ?? validator?.image ?? Images.Misc.Validator}
-                          onError={imgOnError(Images.Misc.Validator)}
-                          width={28}
-                          height={28}
-                          className='mr-4 rounded-full'
-                        />
-
-                        <div className='flex justify-between items-center w-full'>
-                          <div className='flex flex-col'>
-                            <Text
-                              size='sm'
-                              color='text-black-100 dark:text-white-100'
-                              className='font-bold  overflow-hidden'
-                            >
-                              {sliceWord(
-                                validator.moniker,
-                                isSidePanel()
-                                  ? 6 +
-                                      Math.floor(
-                                        ((Math.min(window.innerWidth, 400) - 320) / 81) * 7,
-                                      )
-                                  : 10,
-                                3,
-                              )}
-                            </Text>
-
-                            <Text
-                              size='xs'
-                              color='dark:text-gray-400 text-gray-600'
-                              className='font-medium'
-                            >
-                              {timeLeftText}
-                            </Text>
-                          </div>
-
-                          <div className='flex flex-col items-end'>
-                            <Text
-                              size='sm'
-                              color='text-black-100 dark:text-white-100'
-                              className='font-bold'
-                            >
-                              {amountTitleText}
-                            </Text>
-
-                            <Text
-                              size='xs'
-                              color='dark:text-gray-400 text-gray-600'
-                              className='font-medium'
-                            >
-                              {amountSubtitleText}
-                            </Text>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                }
-
-                return <Component key={`${validator?.address} ${idx}`} />
+                return (
+                  <ValidatorCard
+                    entry={ud}
+                    key={`${validator?.address} ${idx}`}
+                    isCancleUnstakeSupported={isCancleUnstakeSupported}
+                    timeLeftText={timeLeftText}
+                    isCancelledScheduled={isCancelledScheduled}
+                    validator={validator}
+                    onClick={() => {
+                      if (isCancleUnstakeSupported) {
+                        setShowUnstakeValidatorDetails(true)
+                        setSelectedUnbondingDelegation(uds)
+                        setSelectedDelegationEntry(ud)
+                      }
+                    }}
+                  />
+                )
               })
             })}
           </div>

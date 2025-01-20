@@ -2,6 +2,7 @@ import { ChainData, ChainInfo, ChainInfos, getApr, getRestUrl, SupportedChain } 
 import axios from 'axios';
 
 import { getChainsAprSnapshot } from '../store';
+import { getLeapapiBaseUrl } from './global-vars';
 
 export async function getChainsApr(
   chain: SupportedChain,
@@ -18,7 +19,7 @@ export async function getChainsApr(
 
     const denom = Object.values((chainInfos ?? ChainInfos)[chain].nativeDenoms)[0];
     const lcd = getRestUrl(chainInfos ?? ChainInfos, chain, testnet);
-    const url = `${process.env.LEAP_WALLET_BACKEND_API_URL}/market/apr-changes`;
+    const url = `${getLeapapiBaseUrl()}/market/apr-changes`;
 
     const requestData = {
       testnet: false,

@@ -1,4 +1,6 @@
 export * from './address-prefixes';
+export * from './aptos-chain-native-mapping';
+export * from './aptos-gas-prices';
 export * from './chain-infos';
 export * from './chain-infos-config';
 export * from './chainIds';

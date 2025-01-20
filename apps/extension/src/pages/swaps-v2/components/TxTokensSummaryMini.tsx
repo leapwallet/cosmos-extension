@@ -1,9 +1,10 @@
 import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import { ArrowRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -17,10 +18,9 @@ type Props = {
 
 function TxTokensSummaryMini({ inAmount, sourceToken, amountOut, destinationToken }: Props) {
   const defaultTokenLogo = useDefaultTokenLogo()
-  const { formatHideBalance } = useHideAssets()
 
   const sourceBalance = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(inAmount ?? '0', sliceWord(sourceToken?.symbol ?? '', 4, 4), 3),
     )
 
@@ -28,7 +28,7 @@ function TxTokensSummaryMini({ inAmount, sourceToken, amountOut, destinationToke
   }, [inAmount, sourceToken?.symbol])
 
   const destinationBalance = useMemo(() => {
-    return formatHideBalance(
+    return hideAssetsStore.formatHideBalance(
       formatTokenAmount(amountOut ?? '0', sliceWord(destinationToken?.symbol ?? '', 4, 4), 3),
     )
 
@@ -92,4 +92,4 @@ function TxTokensSummaryMini({ inAmount, sourceToken, amountOut, destinationToke
   )
 }
 
-export default TxTokensSummaryMini
+export default observer(TxTokensSummaryMini)

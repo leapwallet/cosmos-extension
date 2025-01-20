@@ -24,6 +24,7 @@ export type Delegation = {
     shares: string;
   };
   balance: Amount;
+  status?: 'delegation_pending_epoch_cycle' | 're_delegation_pending_epoch_cycle';
 };
 
 export type DelegationResponse = {
@@ -73,8 +74,7 @@ export type Provider = {
   provider: string;
   address?: string;
   moniker?: string;
-  spec: string;
-  chain: string;
+  specs: string[];
   image?: string;
   stakestatus?: string;
   delegateCommission?: string;

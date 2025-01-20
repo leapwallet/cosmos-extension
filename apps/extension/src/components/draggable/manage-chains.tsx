@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider, ToggleCard } from '@leapwallet/leap-ui'
-import { deleteChain } from 'atoms/delete-chain'
 import Text from 'components/text'
 import Fuse from 'fuse.js'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
-import type { ManageChainSettings } from 'hooks/settings/useManageChains'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { GenericLight } from 'images/logos'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
 import { Draggable } from 'react-beautiful-dnd'
-import { useSetRecoilState } from 'recoil'
+import { deleteChainStore } from 'stores/delete-chain-store'
+import type { ManageChainSettings } from 'stores/manage-chains-store'
 import { imgOnError } from 'utils/imgOnError'
 import { capitalize } from 'utils/strings'
 
@@ -22,8 +22,7 @@ interface PropTypes {
   title?: string
 }
 
-const BetaCard = ({ chain }: { chain: ManageChainSettings }) => {
-  const setDeleteChain = useSetRecoilState(deleteChain)
+const BetaCard = observer(({ chain }: { chain: ManageChainSettings }) => {
   const chainInfos = useChainInfos()
   const img = chainInfos[chain.chainName]?.chainSymbolImageUrl
 
@@ -52,7 +51,7 @@ const BetaCard = ({ chain }: { chain: ManageChainSettings }) => {
               style={{ backgroundColor: 'rgba(255, 112, 126, 0.1)' }}
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
-              onClick={() => setDeleteChain(chain)}
+              onClick={() => deleteChainStore.setChainInfo(chain)}
             >
               Remove
             </button>
@@ -61,7 +60,7 @@ const BetaCard = ({ chain }: { chain: ManageChainSettings }) => {
       </div>
     </>
   )
-}
+})
 
 const ManageChainDraggables = ({ chains, searchQuery, updateChainFunction }: PropTypes) => {
   const [errorSwitch, setErrorSwitch] = useState(false)

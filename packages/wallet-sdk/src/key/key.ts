@@ -1,11 +1,10 @@
-import { Secp256k1Wallet } from '@cosmjs/amino';
 import { Slip10, Slip10Curve, stringToPath } from '@cosmjs/crypto';
-import { fromHex, toHex } from '@cosmjs/encoding';
-import { DirectSecp256k1HdWallet, DirectSecp256k1Wallet, OfflineDirectSigner } from '@cosmjs/proto-signing';
-import { EthWallet, Wallet } from '@leapwallet/leap-keychain';
+import { DirectSecp256k1HdWallet, DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
+import { BtcWalletHD, NETWORK } from '@leapwallet/leap-keychain';
+import { hex } from '@scure/base';
 import * as bip39 from 'bip39';
 
-import getHDPath from '../utils/get-hdpath';
+import { ChainInfos } from '../constants';
 
 export { DirectSecp256k1HdWallet, DirectSecp256k1Wallet };
 /**
@@ -29,7 +28,17 @@ export function createMnemonic(numberOfWords: 12 | 24 = 24): string {
 export async function generatePrivateKeyFromHdPath(mnemonic: string, hdPath: string): Promise<string> {
   const seed = await bip39.mnemonicToSeed(mnemonic);
   const res = Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath(hdPath));
-  return toHex(res.privkey);
+  return hex.encode(res.privkey);
+}
+
+export function generateBitcoinPrivateKey(mnemonic: string, hdPath: string) {
+  const btcWallet = BtcWalletHD.generateWalletFromMnemonic(mnemonic, {
+    addressPrefix: ChainInfos.bitcoin.addressPrefix,
+    paths: [hdPath],
+    network: NETWORK,
+  });
+  const privKey = btcWallet.getAccountsWithPrivKey()[0].privateKey;
+  return hex.encode(privKey);
 }
 
 /**
@@ -39,64 +48,4 @@ export async function generatePrivateKeyFromHdPath(mnemonic: string, hdPath: str
  */
 export async function generateNewWallet(strength: 12 | 24 = 24) {
   return DirectSecp256k1HdWallet.generate(strength);
-}
-
-/**
- *
- * @param mnemonic
- * @param hdPath
- * @param prefix
- *
- * @param isAmino
- * @returns {Promise<DirectSecp256k1HdWallet>}
- */
-export async function generateWalletFromMnemonic(
-  mnemonic: string,
-  hdPath: string,
-  prefix: string,
-): Promise<OfflineDirectSigner> {
-  const hdPathParams = hdPath.split('/');
-  const coinType = hdPathParams[2];
-
-  if (coinType.replace("'", '') === '60') {
-    return new Promise((resolve) =>
-      resolve(
-        EthWallet.generateWalletFromMnemonic(mnemonic, {
-          paths: [hdPath],
-          addressPrefix: prefix,
-        }) as unknown as OfflineDirectSigner,
-      ),
-    );
-  }
-
-  return new Promise((resolve) =>
-    resolve(
-      Wallet.generateWallet(mnemonic, { paths: [hdPath], addressPrefix: prefix }) as unknown as OfflineDirectSigner,
-    ),
-  );
-}
-
-/**
- *
- * @param key
- * @param prefix
- * @param isAmino
- * @returns {Promise<DirectSecp256k1HdWallet>}
- */
-export async function generateWalletFromPrivateKey(
-  key: string,
-  prefix = 'cosmos',
-  coinType: string,
-  isAmino?: boolean,
-) {
-  const privateKey = key.startsWith('0x') || key.startsWith('0X') ? key.slice(2) : key;
-  if (coinType === '60') {
-    // hd path is passed here for completeness but is not used
-    return EthWallet.generateWalletFromPvtKey(key, { addressPrefix: prefix, paths: [getHDPath('60', '1')] });
-  }
-  if (!isAmino) {
-    return DirectSecp256k1Wallet.fromKey(fromHex(privateKey), prefix);
-  } else {
-    return Secp256k1Wallet.fromKey(fromHex(privateKey), prefix);
-  }
 }

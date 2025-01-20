@@ -192,6 +192,16 @@ input[type='number']::-webkit-outer-spin-button {
   @apply translate-x-4;
 }
 
+#toggle-switch3::after {
+  content: '';
+  @apply h-[20px] w-[20px] absolute left-1 top-1 bg-white-100 rounded-full transform scale-110 transition duration-200;
+}
+
+#toggle-switch3:checked:after {
+  content: '';
+  @apply transform scale-110 translate-x-[22px];
+}
+
 .material-icons-round {
   font-family: 'Material Icons Round';
   font-weight: normal;
@@ -360,6 +370,21 @@ input[type='number']::-webkit-outer-spin-button {
   /* border: 3px solid #212121; */
 }
 
+.scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: #212121;
+  border-radius: 6px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background-color: #696969;
+  border-radius: 2px;
+  /* border: 3px solid #212121; */
+}
+
 .panel-height {
   height: 600px;
 }
@@ -387,4 +412,45 @@ input[type='number']::-webkit-outer-spin-button {
 
 .side-panel .panel-width {
   max-width: 100%;
+}
+
+#light-node-progress-bar div:only-child {
+  transform: scale(1.6);
+  overflow: visible;
+}
+
+#light-node-progress-bar div {
+  border-radius: 0.5rem;
+}
+
+#light-node-progress-bar div:only-child div:nth-child(1) {
+  background-color: #492b78;
+}
+
+#light-node-progress-bar div:only-child div:nth-child(2) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+#light-node-progress-bar div div:nth-child(2)::after {
+  display: block;
+  content: '';
+  background-image: url('../../extension/src/images/logos/leap-logo.png');
+  position: absolute;
+  right: -2px;
+  top: -3px;
+  height: 9px;
+  width: 14px;
+  background-size: cover;
+}
+
+#light-node-progress-bar.paused div div:nth-child(2)::after {
+  background-image: url('../../extension/src/images/logos/leap-o-logo.png');
+  right: -3px;
+  top: -6px;
+  height: 15px;
+}
+
+#light-node-progress-bar.side-panel div:only-child {
+  transform: scale(1.38);
 }

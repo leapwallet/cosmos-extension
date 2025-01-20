@@ -15,17 +15,14 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import { PageName } from 'config/analytics'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { hideAssetsStore } from 'stores/hide-assets-store'
+import { searchModalStore } from 'stores/search-modal-store'
 import { Colors } from 'theme/colors'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
-import {
-  searchModalActiveOptionState,
-  searchModalEnteredOptionState,
-  searchModalState,
-} from '../../atoms/search-modal'
 import { QuickSearchOptions } from './QuickSearchOptions'
 import { useHardCodedActions } from './useHardCodedActions'
 
@@ -33,21 +30,16 @@ function openLink(url: string, target?: string) {
   window.open(url, target)
 }
 
-export function SearchModal() {
+const SearchModalView = () => {
   const { data: dappsList } = useFetchDappListForQuickSearch()
   const activeChain = useActiveChain()
   const chain = useChainInfo()
   const chains = useGetChains()
   const navigate = useNavigate()
-  const [showModal, setShowSearchModal] = useRecoilState(searchModalState)
-  const [searchModalActiveOption, setSearchModalActiveOption] = useRecoilState(
-    searchModalActiveOptionState,
-  )
   const activeWallet = useActiveWallet()
   const [searchedText, setSearchedText] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { data: suggestions, status } = useGetQuickSearchOptions()
-  const setSearchModalEnteredOption = useSetRecoilState(searchModalEnteredOptionState)
   const {
     setAlertMessage,
     setShowAlert,
@@ -55,9 +47,7 @@ export function SearchModal() {
     alertMessage,
     handleConnectLedgerClick,
     handleCopyAddressClick,
-    handleHideBalancesClick,
     handleLockWalletClick,
-    handleSettingsClick,
     handleSwapClick,
     handleNftsClick,
   } = useHardCodedActions()
@@ -106,37 +96,36 @@ export function SearchModal() {
   }, [activeSuggestions, dappsList, searchedText])
 
   useEffect(() => {
-    if (searchInputRef.current && showModal) {
+    if (searchInputRef.current && searchModalStore.showModal) {
       searchInputRef.current.focus()
     }
 
     return () => {
       setSearchedText('')
-      setSearchModalActiveOption((currVal) => ({ ...currVal, active: 0 }))
-      setSearchModalEnteredOption(null)
+      searchModalStore.updateActiveOption({ active: 0 })
+      searchModalStore.setEnteredOption(null)
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showModal])
+  }, [searchModalStore.showModal])
 
   useEffect(() => {
     const newHighLimit = filteredSuggestions.length
 
-    setSearchModalActiveOption((currVal) => {
-      const newActive = currVal.active >= newHighLimit ? newHighLimit - 1 : currVal.active
-
-      return {
-        ...currVal,
-        active: newActive,
-        highLimit: newHighLimit,
-      }
+    const newActive =
+      searchModalStore.activeOption.active >= newHighLimit
+        ? newHighLimit - 1
+        : searchModalStore.activeOption.active
+    searchModalStore.updateActiveOption({
+      active: newActive,
+      highLimit: newHighLimit,
     })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredSuggestions.length])
 
   const handleClose = useCallback(() => {
-    setShowSearchModal(false)
+    searchModalStore.setShowModal(false)
   }, [])
 
   const handleNoRedirectActions = (actionName: string) => {
@@ -169,12 +158,14 @@ export function SearchModal() {
       }
 
       case 'Hide Balances': {
-        handleHideBalancesClick()
+        hideAssetsStore.setHidden(!hideAssetsStore.isHidden)
+        setAlertMessage(`Balances ${!hideAssetsStore.isHidden ? 'Hidden' : 'Visible'}`)
+        setShowAlert(true)
         break
       }
 
       case 'Settings': {
-        handleSettingsClick()
+        searchModalStore.setShowSideNavFromSearchModal(true)
         break
       }
     }
@@ -185,7 +176,7 @@ export function SearchModal() {
     optionIndex: number,
     actionName: string,
   ) => {
-    setShowSearchModal(false)
+    searchModalStore.setShowModal(false)
 
     switch (config.action_type) {
       case 'no-redirect': {
@@ -202,7 +193,7 @@ export function SearchModal() {
         if (actionName === 'View NFTs') {
           handleNftsClick()
         } else {
-          navigate(`${config.redirect_url}?pageSource=${PageName.QuickSearch}` ?? '')
+          navigate(`${config.redirect_url}?pageSource=${PageName.QuickSearch}`)
         }
 
         break
@@ -233,8 +224,10 @@ export function SearchModal() {
         className={classNames(
           'w-full h-full flex items-center justify-center bg-[#f4f4f4bf] dark:bg-black-80',
           {
-            'opacity-0 pointer-events-none transition-opacity duration-75': !showModal,
-            'opacity-100 pointer-events-auto transition-opacity duration-75': showModal,
+            'opacity-0 pointer-events-none transition-opacity duration-75':
+              !searchModalStore.showModal,
+            'opacity-100 pointer-events-auto transition-opacity duration-75':
+              searchModalStore.showModal,
           },
         )}
         onClick={handleClose}
@@ -265,7 +258,7 @@ export function SearchModal() {
             {status === 'success' ? (
               <QuickSearchOptions
                 suggestionsList={filteredSuggestions}
-                activeSearchOption={searchModalActiveOption.active}
+                activeSearchOption={searchModalStore.activeOption.active}
                 handleOptionClick={handleOptionClick}
               />
             ) : null}
@@ -275,3 +268,5 @@ export function SearchModal() {
     </div>
   )
 }
+
+export const SearchModal = observer(SearchModalView)

@@ -68,4 +68,16 @@ export class BetaCW20DenomsStore {
     }
     await this.storageAdapter.set(BETA_CW20_TOKENS, JSON.stringify(this.denoms));
   }
+
+  setTempBetaCW20Denoms(tempDenoms: Record<string, NativeDenom>, chain: string) {
+    runInAction(() => {
+      this.denoms = {
+        ...this.denoms,
+        [chain]: {
+          ...(this.denoms[chain] ?? {}),
+          ...tempDenoms,
+        },
+      };
+    });
+  }
 }

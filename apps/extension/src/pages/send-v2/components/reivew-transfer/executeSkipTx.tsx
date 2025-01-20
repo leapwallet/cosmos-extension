@@ -13,6 +13,7 @@ import {
   useDenoms,
   usePendingTxState,
   useTxMetadata,
+  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
@@ -38,6 +39,7 @@ import {
 import { useChains } from '@leapwallet/elements-hooks'
 import BigNumber from 'bignumber.js'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useWalletClient } from 'hooks/useWalletClient'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { useSendContext } from 'pages/send-v2/context'
@@ -74,8 +76,9 @@ export const useExecuteSkipTx = () => {
   const txPostToDB = LeapWalletApi.useOperateCosmosTx()
   const [showLedgerPopupSkipTx, setShowLedgerPopup] = useState(false)
   const getWallet = Wallet.useGetWallet()
-  const activeWalletAddress = useAddress(sendActiveChain)
   const activeChainId = useChainId(sendActiveChain, sendSelectedNetwork)
+  const { activeWallet } = useActiveWallet()
+  const activeWalletAddress = activeWallet?.addresses[sendActiveChain]
 
   const ledgerEnabledEvmChains = useMemo(() => {
     return getLedgerEnabledEvmChainsKey(Object.values(chains))
@@ -149,84 +152,81 @@ export const useExecuteSkipTx = () => {
         signer,
         account,
       )
+      const wallet = await getWallet(messageChain.key as SupportedChain)
 
       try {
-        if (!ledgerEnabledEvmChains.includes(messageChain.key as SupportedChain)) {
-          const wallet = await getWallet(messageChain.key as SupportedChain)
-          const res = await handleCosmosTx(
-            encodedMessage,
-            fee,
-            messageChain as SourceChain,
-            wallet as LeapLedgerSigner,
-            senderAddress,
-            memo,
-          )
-          txBytesString = res.txBytesString
-        } else {
-          if (messageChain.key === 'injective') {
-            const wallet = await getWallet(messageChain.key)
-
-            const injectiveTx = new InjectiveTx(false, wallet as any, messageChain.restUrl)
-
-            const channelIdData = await getClientState(
-              messageChain.restUrl,
-              encodedMessage.value.sourceChannel,
-              'transfer',
-            )
-
-            const latest_height =
-              channelIdData.data.identified_client_state.client_state.latest_height
-
-            const height = {
-              revisionHeight: new BigNumber(latest_height.revision_height).plus(150),
-              revisionNumber: latest_height.revision_number,
-            }
-
-            const newEncodedMessage = {
-              ...encodedMessage,
-              value: {
-                memo: encodedMessage.value.memo,
-                receiver: encodedMessage.value.receiver,
-                sender: encodedMessage.value.sender,
-                amount: encodedMessage.value.token,
-                height,
-                timeout: encodedMessage.value.timeoutTimestamp,
-                port: encodedMessage.value.sourcePort,
-                channelId: encodedMessage.value.sourceChannel,
-              },
-            }
-            const txRaw = await injectiveTx.signTx(senderAddress, [newEncodedMessage], fee, memo)
-            txBytesString = InjectiveTxClient.encode(txRaw)
-          } else if (
-            messageChain.key === 'dymension' ||
-            messageChain.key === 'evmos' ||
-            messageChain.key === 'humans'
-          ) {
-            const wallet = await getWallet(messageChain.key)
-            const ethermintTx = new EthermintTxHandler(
-              messageChain.restUrl,
-              wallet as any,
-              ChainInfos[messageChain.key].chainId,
-              ChainInfos[messageChain.key].evmChainId,
-            )
-            const msgValue = encodedMessage.value as MsgTransfer
-            if (!msgValue.token) {
-              throw new Error('Invalid token')
-            }
-
-            txBytesString = await ethermintTx.signIbcTx({
-              fromAddress: msgValue.sender,
-              toAddress: msgValue.receiver,
-              transferAmount: msgValue.token,
-              sourcePort: msgValue.sourcePort,
-              sourceChannel: msgValue.sourceChannel,
-              timeoutTimestamp: undefined,
-              timeoutHeight: undefined,
+        if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
+          if (!ledgerEnabledEvmChains.includes(messageChain.key as SupportedChain)) {
+            const res = await handleCosmosTx(
+              encodedMessage,
               fee,
-              memo: memo || '',
-              txMemo: msgValue.memo,
-            })
+              messageChain as SourceChain,
+              wallet as LeapLedgerSigner,
+              senderAddress,
+              memo,
+            )
+            txBytesString = res.txBytesString
+          } else {
+            if (messageChain.key === 'injective') {
+              const injectiveTx = new InjectiveTx(false, wallet as any, messageChain.restUrl)
+              const channelIdData = await getClientState(
+                messageChain.restUrl,
+                encodedMessage.value.sourceChannel,
+                'transfer',
+              )
+              const latest_height =
+                channelIdData.data.identified_client_state.client_state.latest_height
+              const height = {
+                revisionHeight: new BigNumber(latest_height.revision_height).plus(150),
+                revisionNumber: latest_height.revision_number,
+              }
+              const newEncodedMessage = {
+                ...encodedMessage,
+                value: {
+                  memo: encodedMessage.value.memo,
+                  receiver: encodedMessage.value.receiver,
+                  sender: encodedMessage.value.sender,
+                  amount: encodedMessage.value.token,
+                  height,
+                  timeout: encodedMessage.value.timeoutTimestamp,
+                  port: encodedMessage.value.sourcePort,
+                  channelId: encodedMessage.value.sourceChannel,
+                },
+              }
+              const txRaw = await injectiveTx.signTx(senderAddress, [newEncodedMessage], fee, memo)
+              txBytesString = InjectiveTxClient.encode(txRaw)
+            } else if (
+              messageChain.key === 'dymension' ||
+              messageChain.key === 'evmos' ||
+              messageChain.key === 'humans'
+            ) {
+              const ethermintTx = new EthermintTxHandler(
+                messageChain.restUrl,
+                wallet as any,
+                ChainInfos[messageChain.key].chainId,
+                ChainInfos[messageChain.key].evmChainId,
+              )
+              const msgValue = encodedMessage.value as MsgTransfer
+              if (!msgValue.token) {
+                throw new Error('Invalid token')
+              }
+
+              txBytesString = await ethermintTx.signIbcTx({
+                fromAddress: msgValue.sender,
+                toAddress: msgValue.receiver,
+                transferAmount: msgValue.token,
+                sourcePort: msgValue.sourcePort,
+                sourceChannel: msgValue.sourceChannel,
+                timeoutTimestamp: undefined,
+                timeoutHeight: undefined,
+                fee,
+                memo: memo || '',
+                txMemo: msgValue.memo,
+              })
+            }
           }
+        } else {
+          txBytesString = await tx.sign(senderAddress, [encodedMessage], fee, memo)
         }
       } catch (e: any) {
         const err = e as Error
@@ -313,6 +313,8 @@ export const useExecuteSkipTx = () => {
           promise: getTxStatus(),
           sourceChain: sendActiveChain,
           sourceNetwork: sendSelectedNetwork,
+          toAddress,
+          toChain: selectedAddress?.chainName,
         }
 
         const denomChainInfo =

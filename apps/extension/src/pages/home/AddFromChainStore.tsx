@@ -1,8 +1,7 @@
 import { Key as WalletKey, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, sleep } from '@leapwallet/cosmos-wallet-sdk'
-import { Buttons, GenericCard } from '@leapwallet/leap-ui'
+import { Buttons, GenericCard, useTheme } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
-import { chainInfosState } from 'atoms/chains'
 import BottomModal from 'components/bottom-modal'
 import { Divider, Key, Value } from 'components/dapp'
 import { ErrorCard } from 'components/ErrorCard'
@@ -12,13 +11,11 @@ import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { BETA_CHAINS } from 'config/storage-keys'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet, { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
-import { useThemeState } from 'hooks/settings/useTheme'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import mixpanel from 'mixpanel-browser'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useSetRecoilState } from 'recoil'
 import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
@@ -29,12 +26,16 @@ type AddFromChainStoreProps = {
   readonly isVisible: boolean
   readonly onClose: VoidFunction
   newAddChain: ChainInfo
+  skipUpdatingActiveChain?: boolean
+  successCallback?: () => void
 }
 
 export default function AddFromChainStore({
   isVisible,
   onClose,
   newAddChain,
+  skipUpdatingActiveChain,
+  successCallback,
 }: AddFromChainStoreProps) {
   const [showMore, setShowMore] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -42,13 +43,12 @@ export default function AddFromChainStore({
 
   const defaultTokenLogo = useDefaultTokenLogo()
   const setChains = useChainsStore((store) => store.setChains)
-  const setChainInfos = useSetRecoilState(chainInfosState)
   const updateKeyStore = useUpdateKeyStore()
   const { activeWallet, setActiveWallet } = useActiveWallet()
   const setActiveChain = useSetActiveChain()
   const chainInfos = useChainInfos()
   const navigate = useNavigate()
-  const { theme } = useThemeState()
+  const { theme } = useTheme()
 
   const handleCancel = async () => {
     onClose()
@@ -71,7 +71,6 @@ export default function AddFromChainStore({
     }
 
     setIsLoading(true)
-    setChainInfos({ ...chainInfos, [newChainKey]: newAddChain })
     setChains({ ...chainInfos, [newChainKey]: newAddChain })
     rootStore.setChains({ ...chainInfos, [newChainKey]: newAddChain })
     await sleep(500)
@@ -89,11 +88,14 @@ export default function AddFromChainStore({
         betaChains[newChainKey] = newAddChain
         await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
 
-        if (activeWallet) {
-          await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
+        if (!skipUpdatingActiveChain) {
+          if (activeWallet) {
+            await setActiveWallet(updatedKeystore[activeWallet.id] as WalletKey)
+          }
+          await setActiveChain(newChainKey, newAddChain)
+          navigate('/')
         }
-        await setActiveChain(newChainKey, newAddChain)
-        navigate('/')
+        successCallback?.()
       } catch (error) {
         setErrors((s) => ({ ...s, submit: 'Unable to add chain' }))
       } finally {

@@ -71,6 +71,7 @@ export function useFillAggregatedStake(
             apr: 0,
             claimRewards: '0',
             loading: true,
+            totalDelegation: new BigNumber(0),
           },
         },
         totalCurrencyAmountDelegation: new BigNumber(0),
@@ -107,7 +108,7 @@ export function useFillAggregatedStake(
 
       // Delegations
       if (delegationsResponse.status === 'fulfilled' && delegationsResponse.value) {
-        const { totalDelegationAmount, currencyAmountDelegation } = delegationsResponse.value;
+        const { totalDelegationAmount, currencyAmountDelegation, totalDelegation } = delegationsResponse.value;
 
         aggregatedStake.perChainDelegations = {
           [chain]: {
@@ -117,6 +118,7 @@ export function useFillAggregatedStake(
             apr: 0,
             claimRewards: '0',
             loading: false,
+            totalDelegation,
           },
         };
       }

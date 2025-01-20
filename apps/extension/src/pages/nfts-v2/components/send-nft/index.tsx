@@ -72,6 +72,10 @@ export const SendNftCard = observer(
     const fromAddress = useMemo(() => {
       let address = walletAddresses[0]
       if (isSeiEvmChain && !collectionAddress.toLowerCase().startsWith('0x')) {
+        if (!address.toLowerCase().startsWith('0x')) {
+          return address
+        }
+
         address = walletAddresses[1]
       }
 

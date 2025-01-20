@@ -2,13 +2,14 @@ import {
   Amount,
   axiosWrapper,
   fromSmall,
+  isAptosChain,
   SupportedChain,
   UnbondingDelegation,
   UnbondingDelegationEntry,
   UnbondingDelegationResponse,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
-import { computed, makeAutoObservable, makeObservable, observable, reaction, runInAction } from 'mobx';
+import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 
 import { AggregatedChainsStore, ChainInfosConfigStore, ChainInfosStore, DenomsStore, NmsStore } from '../assets';
@@ -24,7 +25,7 @@ import {
 } from '../types';
 import { formatTokenAmount, isFeatureExistForChain } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
-import { ActiveStakingDenomStore } from './index';
+import { ActiveStakingDenomStore } from './utils-store';
 
 export class UndelegationsStore {
   chainInfosStore: ChainInfosStore;
@@ -136,7 +137,7 @@ export class UndelegationsStore {
     const activeChainInfo = this.chainInfosStore.chainInfos[chain];
     const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
 
-    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain) return;
+    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
     const chainKey = this.getChainKey(chain);
 
     const isFeatureComingSoon = isFeatureExistForChain(

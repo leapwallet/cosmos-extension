@@ -1,7 +1,6 @@
 import { Label, ThemeName } from '@leapwallet/leap-ui'
 import { useTheme } from '@leapwallet/leap-ui'
 import IconButton from 'components/icon-button'
-import { useThemeState } from 'hooks/settings/useTheme'
 import { Images } from 'images'
 import { CompassCircle, LeapLogo } from 'images/logos'
 import React, { PropsWithChildren, ReactNode } from 'react'
@@ -19,7 +18,6 @@ export default function SuccessExtensionPage(props: PropsWithChildren<SuccessExt
   const { titleComponent, children, headerRightComponent } = props
   const { theme, setTheme } = useTheme()
 
-  const { setTheme: setThemeState } = useThemeState()
   const isDark = theme === ThemeName.DARK
 
   return (
@@ -48,7 +46,6 @@ export default function SuccessExtensionPage(props: PropsWithChildren<SuccessExt
                 isFilled={true}
                 onClick={() => {
                   setTheme(isDark ? ThemeName.LIGHT : ThemeName.DARK)
-                  setThemeState(isDark ? ThemeName.LIGHT : ThemeName.DARK)
                 }}
                 image={{
                   src: isDark ? Images.Misc.LightTheme : Images.Misc.DarkTheme,

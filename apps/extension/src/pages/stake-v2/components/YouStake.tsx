@@ -7,7 +7,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { fromSmall, SupportedChain, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Amount } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
-import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { ArrowsLeftRight } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -34,9 +34,11 @@ interface YouStakeProps {
   amount: string
   adjustAmount: boolean
   setAdjustAmount: (val: boolean) => void
+  tokenLoading: boolean
   rootDenomsStore: RootDenomsStore
   activeChain?: SupportedChain
   activeNetwork?: SelectedNetwork
+  delegationBalanceLoading: boolean
 }
 
 const YouStake = observer(
@@ -51,9 +53,11 @@ const YouStake = observer(
     delegationBalance,
     adjustAmount,
     setAdjustAmount,
+    tokenLoading,
     rootDenomsStore,
     activeChain,
     activeNetwork,
+    delegationBalanceLoading,
   }: YouStakeProps) => {
     const [activeStakingDenom] = useActiveStakingDenom(
       rootDenomsStore.allDenoms,
@@ -204,12 +208,12 @@ const YouStake = observer(
     }, [inputValue, isDollarInput, token?.usdPrice, hasError])
 
     useEffect(() => {
-      if ((mode === 'DELEGATE' && !token) || (mode !== 'DELEGATE' && !delegationBalance)) {
-        setBalanceLoading(true)
+      if (mode === 'DELEGATE') {
+        setBalanceLoading(tokenLoading)
       } else {
-        setBalanceLoading(false)
+        setBalanceLoading(delegationBalanceLoading)
       }
-    }, [delegationBalance, mode, token])
+    }, [mode, tokenLoading, delegationBalanceLoading])
 
     return (
       <div className='p-4 flex flex-col gap-y-3 rounded-2xl bg-white-100 dark:bg-gray-950'>

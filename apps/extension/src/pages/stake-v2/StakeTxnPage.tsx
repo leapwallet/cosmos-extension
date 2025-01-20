@@ -33,6 +33,8 @@ import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
+import { TxSuccessEpochDurationMessage } from './components/TxSuccessEpochDurationMessage'
+
 export type StakeTxnPageState = {
   validator: Validator
   provider: Provider
@@ -47,6 +49,9 @@ const txStatusStyles = {
   },
   success: {
     title: 'Complete',
+  },
+  submitted: {
+    title: 'Submitted',
   },
   failed: {
     title: 'Failed',
@@ -135,31 +140,37 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
         loading: 'claiming rewards',
         success: 'claimed successfully',
         failed: 'failed claiming',
+        submitted: 'claim submitted',
       },
       DELEGATE: {
         loading: 'staking',
         success: 'staked successfully',
         failed: 'failed staking',
+        submitted: 'stake submitted',
       },
       UNDELEGATE: {
         loading: 'unstaking',
         success: 'unstaked successfully',
         failed: 'failed unstaking',
+        submitted: 'unstake submitted',
       },
       CANCEL_UNDELEGATION: {
         loading: 'cancelling unstake',
         success: 'unstake cancelled successfully',
         failed: 'failed cancelling unstake',
+        submitted: 'cancel undelegation submitted',
       },
       REDELEGATE: {
         loading: `switching ${provider ? 'provider' : 'validator'}`,
         success: `${provider ? 'provider' : 'validator'} switched successfully`,
         failed: `failed switching ${provider ? 'provider' : 'validator'}`,
+        submitted: 'redelegation submitted',
       },
       CLAIM_AND_DELEGATE: {
         loading: 'claiming and staking rewards',
         success: 'claimed and staked successfully',
         failed: 'failed claiming and staking',
+        submitted: 'claim and delegate submitted',
       },
     }
   }, [provider])
@@ -272,6 +283,7 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
               )}
             </div>
           </div>
+
           {txHash && (
             <GenericCard
               isRounded
@@ -319,6 +331,10 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
                 </div>
               }
             />
+          )}
+
+          {pendingTx?.txStatus === 'success' && activeChain === 'babylon' && (
+            <TxSuccessEpochDurationMessage mode={mode as STAKE_MODE} />
           )}
         </div>
 

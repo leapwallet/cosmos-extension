@@ -4,7 +4,6 @@ import { useChainPageInfo } from 'hooks'
 import React from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import GasPriceOptions from './index'
 
@@ -12,15 +11,16 @@ type FeesSettingsSheetProps = {
   showFeesSettingSheet: boolean
   onClose: () => void
   gasError: string | null
+  hideAdditionalSettings?: boolean
 }
 
 export const FeesSettingsSheet: React.FC<FeesSettingsSheetProps> = ({
   onClose,
   showFeesSettingSheet,
   gasError,
+  hideAdditionalSettings,
 }) => {
   const { topChainColor } = useChainPageInfo()
-
   return (
     <BottomModal
       isOpen={showFeesSettingSheet}
@@ -33,19 +33,24 @@ export const FeesSettingsSheet: React.FC<FeesSettingsSheetProps> = ({
           About transaction fee
         </h3>
         <p className='text-gray-800 dark:text-white-100 dark:text-white mt-2'>
-          Transaction fee is charged by the network. {isCompassWallet() ? 'Compass' : 'Leap'} Wallet
-          is free to use. Higher the transaction fee, faster the transaction will go through.
+          Transaction fee is charged by the network. Higher the transaction fee, faster the
+          transaction will go through.
         </p>
         <GasPriceOptions.Selector className='mt-4' />
-        <div className='flex justify-end w-full mt-4'>
-          <GasPriceOptions.AdditionalSettingsToggle />
-        </div>
-        <GasPriceOptions.AdditionalSettings
-          className='mt-4'
-          showGasLimitWarning={true}
-          rootDenomsStore={rootDenomsStore}
-          rootBalanceStore={rootBalanceStore}
-        />
+        {!hideAdditionalSettings && (
+          <div className='flex justify-end w-full mt-4'>
+            <GasPriceOptions.AdditionalSettingsToggle />
+          </div>
+        )}
+        {!hideAdditionalSettings && (
+          <GasPriceOptions.AdditionalSettings
+            className='mt-4'
+            showGasLimitWarning={true}
+            rootDenomsStore={rootDenomsStore}
+            rootBalanceStore={rootBalanceStore}
+          />
+        )}
+
         {gasError ? (
           <p className='text-red-300 text-sm font-medium mt-3 px-1 text-center'>{gasError}</p>
         ) : null}

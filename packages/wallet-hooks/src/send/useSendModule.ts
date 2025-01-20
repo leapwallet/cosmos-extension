@@ -1,13 +1,18 @@
+import { Ed25519PublicKey } from '@aptos-labs/ts-sdk';
 import { coin, StdFee } from '@cosmjs/amino';
 import { calculateFee, GasPrice } from '@cosmjs/stargate';
 import {
   AccountDetails,
+  AptosTx,
   ChainInfos,
   DefaultGasEstimates,
   DenomsRecord,
   Dict,
+  estimateVSize,
+  fetchUtxos,
   fromSmall,
   getSimulationFee,
+  isAptosChain,
   isEthAddress,
   NativeDenom,
   pubKeyToEvmAddressToShow,
@@ -15,8 +20,10 @@ import {
   simulateIbcTransfer,
   simulateSend,
   SupportedChain,
+  toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { EthWallet } from '@leapwallet/leap-keychain';
+import { base64 } from '@scure/base';
 import { FetchStatus, QueryStatus, useQuery } from '@tanstack/react-query';
 import { bech32 } from 'bech32';
 import { BigNumber } from 'bignumber.js';
@@ -52,6 +59,7 @@ import {
 } from '../utils';
 import {
   useChainId,
+  useChainInfo,
   useFetchAccountDetails,
   useGetFeeMarketGasPricesSteps,
   useHasToCalculateDynamicFee,
@@ -151,6 +159,13 @@ export type SendModuleType = Readonly<{
   setAssociatedSeiAddress: React.Dispatch<React.SetStateAction<string>>;
   associated0xAddress: string;
   setAssociated0xAddress: React.Dispatch<React.SetStateAction<string>>;
+  isCexIbcTransferWarningNeeded: boolean;
+  hasToUsePointerLogic: boolean;
+  setHasToUsePointerLogic: React.Dispatch<React.SetStateAction<boolean>>;
+  pointerAddress: string;
+  setPointerAddress: React.Dispatch<React.SetStateAction<string>>;
+  hasToUseCw20PointerLogic: boolean;
+  setHasToUseCw20PointerLogic: React.Dispatch<React.SetStateAction<boolean>>;
 }>;
 
 export function useSendModule({
@@ -217,9 +232,11 @@ export function useSendModule({
     return _selectedNetwork;
   }, [_selectedNetwork, _activeChain]);
 
+  const isAptosTx = isAptosChain(activeChain);
   const isSeiEvmChain = useIsSeiEvmChain(activeChain);
-  const { lcdUrl, evmJsonRpc } = useChainApis(activeChain, selectedNetwork);
+  const { lcdUrl, evmJsonRpc, rpcUrl } = useChainApis(activeChain, selectedNetwork);
   const fromAddress = useAddress(activeChain);
+  const activeChainInfo = useChainInfo(activeChain);
   const activeChainId = useChainId(activeChain, selectedNetwork);
 
   const {
@@ -251,7 +268,7 @@ export function useSendModule({
    * Send Tx related hooks
    */
   const { setPendingTx } = usePendingTxState();
-  const getIbcChannelId = useGetIbcChannelId();
+  const getIbcChannelId = useGetIbcChannelId(activeChain);
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const { isSending, sendTokens, showLedgerPopup, sendTokenEth } = useSimpleSend(
     denoms,
@@ -267,27 +284,46 @@ export function useSendModule({
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
   const [feeDenom, setFeeDenom] = useState<NativeDenom & { ibcDenom?: string }>(nativeFeeDenom);
 
+  const [hasToUseCw20PointerLogic, setHasToUseCw20PointerLogic] = useState(false);
+  const [hasToUsePointerLogic, setHasToUsePointerLogic] = useState(false);
+  const [pointerAddress, setPointerAddress] = useState('');
+
   const isSeiEvmTransaction = useMemo(() => {
-    if (selectedAddress && selectedToken && !associatedSeiAddress) {
-      let toAddress = selectedAddress.address ?? '';
-      const _isERC20Token = isERC20Token(Object.keys(erc20Denoms), selectedToken?.coinMinimalDenom);
+    if (activeChainInfo?.evmOnlyChain) {
+      return true;
+    }
 
-      if (isSeiEvmChain && (selectedToken.isEvm || _isERC20Token)) {
-        if (
-          toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
-          fetchAccountDetailsData?.pubKey.key
-        ) {
-          toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key);
-        }
+    if (!isSeiEvmChain) {
+      return false;
+    }
 
-        if (associated0xAddress) {
-          toAddress = associated0xAddress;
-        }
+    if (hasToUsePointerLogic) {
+      return true;
+    }
+
+    if (associated0xAddress && isEthAddress(associated0xAddress)) {
+      return true;
+    }
+
+    if (associatedSeiAddress) {
+      return false;
+    }
+
+    let toAddress = selectedAddress?.address ?? '';
+    const _isERC20Token = isERC20Token(Object.keys(erc20Denoms), selectedToken?.coinMinimalDenom ?? '');
+    const isNativeEvmToken = selectedToken?.isEvm;
+
+    if (isNativeEvmToken || _isERC20Token) {
+      if (
+        toAddress.toLowerCase().startsWith(ChainInfos[activeChain].addressPrefix) &&
+        fetchAccountDetailsData?.pubKey.key
+      ) {
+        toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key);
       }
+    }
 
-      if (isSeiEvmChain && isEthAddress(toAddress)) {
-        return true;
-      }
+    if (isEthAddress(toAddress)) {
+      return true;
     }
 
     return false;
@@ -298,6 +334,8 @@ export function useSendModule({
     fetchAccountDetailsData?.pubKey.key,
     associatedSeiAddress,
     erc20Denoms,
+    associated0xAddress,
+    hasToUsePointerLogic,
   ]);
 
   const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork);
@@ -375,11 +413,10 @@ export function useSendModule({
       const stdFee = calculateFee(Math.ceil(gasEstimate * gasAdjustmentValue), gasPriceOption);
       return fromSmall(stdFee.amount[0].amount, feeDenom?.coinDecimals);
     };
-
     return {
-      low: getFeeValue(gasPriceOptions.low),
-      medium: getFeeValue(gasPriceOptions.medium),
-      high: getFeeValue(gasPriceOptions.high),
+      low: getFeeValue(gasPriceOptions.low as GasPrice),
+      medium: getFeeValue(gasPriceOptions.medium as GasPrice),
+      high: getFeeValue(gasPriceOptions.high as GasPrice),
     };
   }, [activeChain, gasEstimate, gasPriceOptions, feeDenom?.coinDecimals]);
 
@@ -388,9 +425,9 @@ export function useSendModule({
     const _gasLimit = userPreferredGasLimit ?? gasEstimate;
     const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption];
     if (!_gasPrice) return;
-
-    const gasAdjustmentValue = gasAdjustment * (selectedToken && isCW20Token(selectedToken) ? 2 : 1);
-    return calculateFee(Math.ceil(_gasLimit * gasAdjustmentValue), _gasPrice);
+    const isBtcTx = activeChain === 'bitcoin' || activeChain === 'bitcoinSignet';
+    const gasAdjustmentValue = isBtcTx ? 1 : gasAdjustment * (selectedToken && isCW20Token(selectedToken) ? 2 : 1);
+    return calculateFee(Math.ceil(_gasLimit * gasAdjustmentValue), _gasPrice as GasPrice);
   }, [
     gasPriceOptions,
     gasOption,
@@ -436,6 +473,26 @@ export function useSendModule({
     !selectedToken ||
     new BigNumber(inputAmount.trim() || 0).lte(0);
 
+  const isCexIbcTransferWarningNeeded = useMemo(() => {
+    try {
+      if (!selectedAddress || !selectedAddress.address || !inputAmount || !selectedToken?.ibcChainInfo) return false;
+
+      const tokenSourceChainId = selectedToken?.ibcChainInfo?.name;
+
+      if (!tokenSourceChainId) return false;
+      const tokenSourceChain = Object.values(chains).find(
+        (chain) => chain.chainId === tokenSourceChainId || chain.testnetChainId === tokenSourceChainId,
+      );
+
+      if (!tokenSourceChain) return false;
+
+      const { prefix: toAddressPrefix } = bech32.decode(selectedAddress.address);
+      return toAddressPrefix === tokenSourceChain.addressPrefix;
+    } catch {
+      return false;
+    }
+  }, [selectedToken, selectedAddress, inputAmount, chains]);
+
   const confirmSend = useCallback(
     async (args: Omit<sendTokensParams, 'gasEstimate'>, callback: TxCallback) => {
       const result = await sendTokens({
@@ -454,15 +511,18 @@ export function useSendModule({
 
         const txLogAmountValue = await getTxnLogAmountValue(inputAmount, txLogAmountDenom);
 
-        if (result.data)
-          txPostToDB({
+        if (result.data) {
+          const txLog = {
             ...result.data,
             amount: txLogAmountValue,
             forceChain: activeChain,
             forceNetwork: selectedNetwork,
             forceWalletAddress: fromAddress,
             chainId: activeChainId,
-          });
+            isAptos: isAptosTx,
+          };
+          txPostToDB(txLog);
+        }
 
         setPendingTx({
           ...result.pendingTx,
@@ -540,7 +600,13 @@ export function useSendModule({
           }
         }
 
-        result.pendingTx && setPendingTx(result.pendingTx);
+        result.pendingTx &&
+          setPendingTx({
+            ...result.pendingTx,
+            toAddress,
+            sourceChain: activeChain,
+            sourceNetwork: selectedNetwork,
+          });
         callback('success');
       } else {
         result.errors && setTxError(result.errors.join(',\n'));
@@ -566,14 +632,22 @@ export function useSendModule({
 
   useEffect(() => {
     const fn = async () => {
+      if ((activeChain === 'bitcoin' || activeChain === 'bitcoinSignet') && rpcUrl) {
+        const utxos = await fetchUtxos(fromAddress, rpcUrl);
+        const estimatedVSize = estimateVSize(utxos.length, 2, 'p2wpkh');
+        setGasEstimate(estimatedVSize);
+        return;
+      }
+
       const defaultIbcGasEstimate =
         defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ?? DefaultGasEstimates.DEFAULT_GAS_IBC;
+
       const defaultNonIbcGasEstimate =
         (defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER) *
         (selectedToken && isCW20Token(selectedToken) ? 2 : 1);
 
-      setGasEstimate(isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
       const inputAmountNumber = new BigNumber(inputAmount);
+      setGasEstimate(isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
 
       if (
         !selectedAddress?.address ||
@@ -589,42 +663,61 @@ export function useSendModule({
         .multipliedBy(10 ** (selectedToken?.coinDecimals ?? 6))
         .toFixed(0, BigNumber.ROUND_DOWN);
 
-      let token = selectedToken.ibcDenom || selectedToken.coinMinimalDenom;
-
-      token = isEthAddress(token) ? `erc20/${token}` : token;
-      const amountOfCoins = coin(normalizedAmount, token);
-
-      const channelId = customIbcChannelId ?? ibcChannelId ?? '';
-
       try {
-        if (
-          (isEthAddress(selectedAddress.address) || associated0xAddress || fetchAccountDetailsData?.pubKey.key) &&
-          (isSeiEvmChain || chains[activeChain]?.evmOnlyChain) &&
-          !associatedSeiAddress
-        ) {
-          const erc20Token = isERC20Token(Object.keys(erc20Denoms), selectedToken?.coinMinimalDenom);
-          const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
+        if (isSeiEvmTransaction) {
+          const erc20Token =
+            hasToUsePointerLogic || isERC20Token(Object.keys(erc20Denoms), selectedToken?.coinMinimalDenom);
+          const erc20Address = hasToUsePointerLogic ? pointerAddress : selectedToken.coinMinimalDenom;
 
           try {
             const fromEthAddress = pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]);
+
+            const toAddress = isEthAddress(selectedAddress.address)
+              ? selectedAddress.address
+              : fetchAccountDetailsData?.pubKey?.key
+              ? pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
+              : associated0xAddress;
+
             const gasUsed = await SeiEvmTx.SimulateTransaction(
-              selectedAddress.address ?? '',
+              toAddress,
               inputAmountNumber.toString(),
               evmJsonRpc,
               undefined,
               undefined,
               fromEthAddress,
-              erc20Token ? selectedToken.coinMinimalDenom : undefined,
+              erc20Token ? erc20Address : undefined,
               erc20Token ? selectedToken.coinDecimals : undefined,
             );
 
             setGasEstimate(gasUsed);
           } catch (_) {
+            const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
             setGasEstimate(ARCTIC_EVM_GAS_LIMIT);
           }
 
           return;
         }
+
+        if (isAptosTx) {
+          const aptos = await AptosTx.getAptosClient(lcdUrl ?? '');
+          const publicKey = new Ed25519PublicKey(base64.decode(activeWallet?.pubKeys?.[activeChain] ?? ''));
+          const normalizedAmount = toSmall(inputAmount.toString(), selectedToken?.coinDecimals ?? 6);
+          const fee = await aptos.simulateSendTokens(
+            fromAddress,
+            selectedAddress.address,
+            [{ amount: normalizedAmount, denom: selectedToken.coinMinimalDenom }],
+            memo,
+            publicKey,
+          );
+          setGasEstimate(Number(fee.gasEstimate));
+          return;
+        }
+
+        const channelId = customIbcChannelId ?? ibcChannelId ?? '';
+        let token = selectedToken.ibcDenom || selectedToken.coinMinimalDenom;
+
+        token = isEthAddress(token) ? `erc20/${token}` : token;
+        const amountOfCoins = coin(normalizedAmount, token);
 
         const fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom);
         const toAddress = associatedSeiAddress || selectedAddress.address || '';
@@ -673,6 +766,11 @@ export function useSendModule({
     associated0xAddress,
     chains,
     erc20Denoms,
+    isSeiEvmTransaction,
+    hasToUsePointerLogic,
+    isAptosTx,
+    pointerAddress,
+    fetchAccountDetailsData?.pubKey?.key,
   ]);
 
   return {
@@ -733,5 +831,12 @@ export function useSendModule({
     setAssociatedSeiAddress,
     associated0xAddress,
     setAssociated0xAddress,
+    isCexIbcTransferWarningNeeded,
+    hasToUsePointerLogic,
+    setHasToUsePointerLogic,
+    pointerAddress,
+    setPointerAddress,
+    hasToUseCw20PointerLogic,
+    setHasToUseCw20PointerLogic,
   } as const;
 }

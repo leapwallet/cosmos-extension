@@ -1,5 +1,5 @@
 import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import browser from 'webextension-polyfill'
 
 import { LEDGER_ENABLED_EVM_CHAIN_IDS } from '../../config/config'
@@ -9,8 +9,13 @@ import { Bech32Address } from '../../utils/bech32'
 import { formatWalletName } from '../../utils/formatWalletName'
 import { toUint8Array } from '../../utils/uint8Utils'
 import { PasswordManager } from '../password-manager'
-import { checkConnection, decodeChainIdToChain } from '../utils'
-import { awaitApproveChainResponse, openPopup, requestEnableAccess } from '../utils'
+import {
+  awaitApproveChainResponse,
+  checkConnection,
+  decodeChainIdToChain,
+  openPopup,
+  requestEnableAccess,
+} from '../utils'
 
 type GetKeyRequest = {
   message: {
@@ -35,7 +40,7 @@ export async function getKey(chainId: string, passwordManager: PasswordManager) 
   if (!activeWallet.addresses[chain] && ChainInfos[chain as SupportedChain].enabled && password) {
     if (
       activeWallet.walletType === WALLETTYPE.LEDGER &&
-      ChainInfos[chain as SupportedChain].bip44.coinType === '60'
+      ['60', '637'].includes(ChainInfos[chain as SupportedChain].bip44.coinType)
     ) {
       throw new Error('Ledger wallet is not supported for this chain')
     }
@@ -47,6 +52,13 @@ export async function getKey(chainId: string, passwordManager: PasswordManager) 
       'UPDATE',
     )
     activeWallet = updatedKeyStore
+  }
+
+  if (isAptosChain(chain)) {
+    return {
+      address: activeWallet.addresses[chain],
+      publicKey: activeWallet.pubKeys?.[chain] ?? '',
+    }
   }
 
   return {
@@ -62,10 +74,19 @@ export async function getKey(chainId: string, passwordManager: PasswordManager) 
 async function getKeys(chainIds: string[]) {
   const { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
-  const chains = chainIds.map((chainId) => _chainIdToChain[chainId])
+  const chains = chainIds.map((chainId) => {
+    const _chain = _chainIdToChain[chainId]
+    return _chain === 'cosmoshub' ? 'cosmos' : _chain
+  })
   const keys = Object.keys(activeWallet.addresses)
     .filter((chain: string) => chains.indexOf(chain) > -1)
     .map((chain) => {
+      if (isAptosChain(chain)) {
+        return {
+          address: activeWallet.addresses[chain],
+          publicKey: activeWallet.pubKeys?.[chain] ?? '',
+        }
+      }
       return {
         address: Bech32Address.fromBech32(activeWallet.addresses[chain] ?? '').address,
         algo: 'secp256k1',
@@ -162,7 +183,7 @@ export async function handleGetKey({ message, passwordManager, sendResponse }: G
           })
       }
     }
-  } catch (e) {
-    sendResponse(eventName, { error: 'Unable to get key' }, payload.id)
+  } catch (e: any) {
+    sendResponse(eventName, { error: `Unable to get key ${e.message}` }, payload.id)
   }
 }

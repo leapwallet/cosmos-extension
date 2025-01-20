@@ -11,7 +11,6 @@ import {
   useSelectedNetwork,
   useStakeTx,
   useStaking,
-  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk'
@@ -42,7 +41,6 @@ import { YouStakeSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { addSeconds } from 'date-fns'
-import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
@@ -59,11 +57,13 @@ import SelectValidatorCard from './components/SelectValidatorCard'
 import SelectValidatorSheet from './components/SelectValidatorSheet'
 import YouStake from './components/YouStake'
 import useGetWallet = Wallet.useGetWallet
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import AutoAdjustAmountSheet from './components/AutoAdjustModal'
-import SelectProviderCard from './restaking/SelectProviderCard'
+import { SelectProviderCard } from './restaking/SelectProviderCard'
 import SelectProviderSheet from './restaking/SelectProviderSheet'
+import SuggestSelectProviderSheet from './restaking/SuggestSelectProviderSheet'
 import { StakeTxnPageState } from './StakeTxnPage'
 
 export type StakeInputPageState = {
@@ -120,11 +120,11 @@ const StakeInputPage = observer(
     const [showSelectProviderSheet, setShowSelectProviderSheet] = useState(false)
     const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
     const [showReviewStakeTx, setShowReviewStakeTx] = useState(false)
+    const [showSuggestSelectProviderSheet, setShowSuggestSelectProviderSheet] = useState(false)
     const [hasError, setHasError] = useState(false)
     const [loadingSelectedValidator, setLoadingSelectedValidator] = useState(false)
     const [showAdjustAmountSheet, setShowAdjustAmountSheet] = useState(false)
     const [adjustAmount, setAdjustAmount] = useState(false)
-    const { activeWallet } = useActiveWallet()
 
     const navigate = useNavigate()
     const location = useLocation()
@@ -195,7 +195,7 @@ const StakeInputPage = observer(
         }, {} as Record<string, Validator>),
       [chainValidators.validatorData.validators],
     )
-    const apy = network?.validatorApys
+    const apr = network?.validatorAprs
     const { data: featureFlags } = useFeatureFlags()
     const {
       amount,
@@ -281,8 +281,7 @@ const StakeInputPage = observer(
           provider: 'empty_provider',
           moniker: 'Empty Provider',
           address: 'empty_provider',
-          chain: '',
-          spec: '',
+          specs: [],
           stakestatus: 'Active',
           delegateCommission: '',
           delegateLimit: '',
@@ -419,6 +418,17 @@ const StakeInputPage = observer(
       }
     }, [delegation, providerDelegation])
 
+    useCaptureUIException(ledgerError || error, {
+      activeChain,
+      activeNetwork,
+      mode,
+    })
+
+    const tokenLoading = rootBalanceStore.getLoadingStatusForChain(activeChain, activeNetwork)
+
+    const delegationBalanceLoading =
+      delegationsStore.delegationsForChain(activeChain)?.loadingDelegations
+
     return (
       <>
         <PopupLayout
@@ -452,6 +462,7 @@ const StakeInputPage = observer(
                   selectedProvider={fromProvider}
                   setShowSelectProviderSheet={setShowSelectProviderSheet}
                   selectDisabled={true}
+                  rootDenomsStore={rootDenomsStore}
                 />
               )}
 
@@ -465,17 +476,25 @@ const StakeInputPage = observer(
                 hasError={hasError}
                 setHasError={setHasError}
                 mode={mode}
+                tokenLoading={tokenLoading}
                 delegationBalance={delegationBalance}
                 rootDenomsStore={rootDenomsStore}
                 activeChain={activeChain}
                 activeNetwork={activeNetwork}
+                delegationBalanceLoading={delegationBalanceLoading}
               />
               {!fromProvider &&
                 (loadingSelectedValidator ? (
                   <YouStakeSkeleton />
                 ) : (
                   <SelectValidatorCard
-                    title='Validator'
+                    title={
+                      activeChain === 'lava' &&
+                      featureFlags?.restaking?.extension === 'active' &&
+                      mode === 'DELEGATE'
+                        ? 'Stake to Validator'
+                        : 'Validator'
+                    }
                     selectedValidator={selectedValidator}
                     setShowSelectValidatorSheet={setShowSelectValidatorSheet}
                     selectDisabled={mode === 'UNDELEGATE' && !!toValidator}
@@ -488,11 +507,12 @@ const StakeInputPage = observer(
                   (mode === 'REDELEGATE' && fromProvider) ||
                   (mode === 'UNDELEGATE' && toProvider)) && (
                   <SelectProviderCard
-                    title='Provider'
+                    title={mode === 'DELEGATE' ? 'Restake to Provider' : 'Provider'}
                     optional={mode === 'DELEGATE'}
                     selectedProvider={selectedProvider}
                     setShowSelectProviderSheet={setShowSelectProviderSheet}
                     selectDisabled={mode === 'UNDELEGATE'}
+                    rootDenomsStore={rootDenomsStore}
                   />
                 )}
 
@@ -503,34 +523,32 @@ const StakeInputPage = observer(
                   activeNetwork={activeNetwork}
                 />
               )}
-
-              {selectedValidator &&
-                selectedValidator.active === false &&
-                (mode === 'DELEGATE' || mode === 'REDELEGATE') && <InactiveValidatorCard />}
             </div>
 
             <div className={classNames({ 'mt-auto': isSidePanel() })}>
               {new BigNumber(amount).isGreaterThan(0) && (
                 <div className='flex items-center justify-between pt-2 px-2'>
-                  <div className='flex gap-x-1'>
-                    <Text
-                      size='xs'
-                      color='text-gray-700 dark:text-gray-400'
-                      className='font-medium text-center'
-                    >
-                      Unstaking period
-                    </Text>
-                    <Text
-                      size='xs'
-                      color='text-black-100 dark:text-white-100'
-                      className='font-medium'
-                    >
-                      {unstakingPeriod}
-                    </Text>
-                  </div>
+                  {activeChain !== 'babylon' && (
+                    <div className='flex gap-x-1'>
+                      <Text
+                        size='xs'
+                        color='text-gray-700 dark:text-gray-400'
+                        className='font-medium text-center'
+                      >
+                        Unstaking period
+                      </Text>
+                      <Text
+                        size='xs'
+                        color='text-black-100 dark:text-white-100'
+                        className='font-medium'
+                      >
+                        {unstakingPeriod}
+                      </Text>
+                    </div>
+                  )}
                   <div
                     onClick={() => setShowFeesSettingSheet(true)}
-                    className='flex gap-x-1 items-center hover:cursor-pointer'
+                    className='flex gap-x-1 items-center hover:cursor-pointer ml-auto'
                   >
                     <GasPump size={20} className='text-black-100 dark:text-white-100' />
                     <Text
@@ -563,7 +581,16 @@ const StakeInputPage = observer(
                   ) {
                     setShowAdjustAmountSheet(true)
                   } else {
-                    setShowReviewStakeTx(true)
+                    if (
+                      activeChain === 'lava' &&
+                      featureFlags?.restaking?.extension === 'active' &&
+                      mode === 'DELEGATE' &&
+                      !selectedProvider
+                    ) {
+                      setShowSuggestSelectProviderSheet(true)
+                    } else {
+                      setShowReviewStakeTx(true)
+                    }
                   }
                 }}
                 disabled={
@@ -590,7 +617,7 @@ const StakeInputPage = observer(
             setShowSelectValidatorSheet(false)
           }}
           validators={activeValidators}
-          apy={apy}
+          apr={apr}
           rootDenomsStore={rootDenomsStore}
           forceChain={activeChain}
           forceNetwork={activeNetwork}
@@ -644,6 +671,23 @@ const StakeInputPage = observer(
             isOpen={showAdjustAmountSheet}
           />
         ) : null}
+
+        {activeChain === 'lava' &&
+          featureFlags?.restaking?.extension === 'active' &&
+          mode === 'DELEGATE' && (
+            <SuggestSelectProviderSheet
+              isVisible={showSuggestSelectProviderSheet}
+              onClose={() => setShowSuggestSelectProviderSheet(false)}
+              setShowSelectProviderSheet={() => {
+                setShowSuggestSelectProviderSheet(false)
+                setShowSelectProviderSheet(true)
+              }}
+              onReviewStake={() => {
+                setShowSuggestSelectProviderSheet(false)
+                setShowReviewStakeTx(true)
+              }}
+            />
+          )}
 
         <GasPriceOptions
           recommendedGasLimit={recommendedGasLimit}

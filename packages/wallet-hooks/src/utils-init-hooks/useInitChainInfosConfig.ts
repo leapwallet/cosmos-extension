@@ -2,7 +2,8 @@ import { ChainInfosConfigType } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useChainInfosConfigStore } from '../store';
-import { cachedRemoteDataWithLastModified, storage, useGetStorageLayer } from '../utils';
+import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
+import { storage, useGetStorageLayer } from '../utils/global-vars';
 
 export function getChainInfosConfig(storage: storage): Promise<ChainInfosConfigType> {
   return cachedRemoteDataWithLastModified({

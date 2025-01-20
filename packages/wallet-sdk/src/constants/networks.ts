@@ -254,10 +254,6 @@ export const networkData: NetworkData[] = [
     enabled: true,
     name: 'carbon',
   },
-  {
-    enabled: true,
-    name: 'cudos',
-  },
   { enabled: true, name: 'kava' },
   { enabled: true, name: 'omniflix' },
   { enabled: true, name: 'passage' },
@@ -302,14 +298,12 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'humans' },
   { enabled: true, name: 'lava' },
   { enabled: true, name: 'mantra' },
-  { enabled: true, name: 'blackwing' },
   { enabled: true, name: 'civitia' },
-  { enabled: true, name: 'init_ai' },
   { enabled: true, name: 'milkyway' },
   { enabled: true, name: 'minimove' },
   { enabled: true, name: 'miniwasm' },
-  { enabled: true, name: 'noon' },
-  { enabled: true, name: 'tucana' },
+  { enabled: true, name: 'elys' },
+  { enabled: true, name: 'babylon' },
 ];
 
 export default networkData;

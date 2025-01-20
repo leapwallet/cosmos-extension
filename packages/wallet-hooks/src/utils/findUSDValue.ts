@@ -5,6 +5,8 @@ import { LeapWalletApi } from '../apis/LeapWalletApi';
 import { Currency, MarketPricesResponse } from '../connectors';
 import { getCoingeckoPricesStoreSnapshot } from '../store';
 
+// TODO: replace getCoingeckoPricesStoreSnapshot with price store
+
 /**
  * @function currencyFetcher
  * @description utility function to fetch the currency data from the API

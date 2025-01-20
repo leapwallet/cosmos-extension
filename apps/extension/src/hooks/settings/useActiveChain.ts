@@ -10,14 +10,12 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQueryClient } from '@tanstack/react-query'
-import { selectedChainAlertState } from 'atoms/selected-chain-alert'
 import { COMPASS_CHAINS } from 'config/config'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { ACTIVE_CHAIN, KEYSTORE, LAST_EVM_ACTIVE_CHAIN } from 'config/storage-keys'
 import { useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useEffect, useState } from 'react'
-import { useSetRecoilState } from 'recoil'
 import { rootStore } from 'stores/root-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { sendMessageToTab } from 'utils'
@@ -33,7 +31,6 @@ export function useActiveChain(): SupportedChain {
 
 export function useSetActiveChain() {
   const chainInfos = useGetChains()
-  const setSelectedChainAlert = useSetRecoilState(selectedChainAlertState)
   const { setPendingTx } = usePendingTxState()
   const setNetwork = useSetNetwork()
 
@@ -43,7 +40,11 @@ export function useSetActiveChain() {
   const setLastEvmActiveChain = useSetLastEvmActiveChain()
   const queryClient = useQueryClient()
 
-  return async (chain: AggregatedSupportedChain, chainInfo?: ChainInfo) => {
+  return async (
+    chain: AggregatedSupportedChain,
+    chainInfo?: ChainInfo,
+    forceNetwork?: 'mainnet' | 'testnet',
+  ) => {
     const storage = await browser.storage.local.get(['networkMap', KEYSTORE, ACTIVE_CHAIN])
     if (chain !== AGGREGATED_CHAIN_KEY) {
       const keystore = storage[KEYSTORE]
@@ -62,7 +63,6 @@ export function useSetActiveChain() {
     await queryClient.cancelQueries()
     setActiveChain(chain as SupportedChain)
     rootStore.setActiveChain(chain)
-    setSelectedChainAlert(true)
     browser.storage.local.set({ [ACTIVE_CHAIN]: chain })
     setPendingTx(null)
 
@@ -79,7 +79,10 @@ export function useSetActiveChain() {
           await browser.storage.local.set({ [LAST_EVM_ACTIVE_CHAIN]: chain })
         }
 
-        if (networkMap[chain]) {
+        if (forceNetwork) {
+          _network = forceNetwork
+          setNetwork(forceNetwork)
+        } else if (networkMap[chain]) {
           let network = networkMap[chain]
           let hasChainOnlyTestnet = false
 
@@ -129,9 +132,7 @@ export function useInitActiveChain(enabled: boolean) {
       }
 
       let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
-      const leapFallbackChain = isAllChainsEnabled
-        ? (AGGREGATED_CHAIN_KEY as SupportedChain)
-        : chainInfos.cosmos.key
+      const leapFallbackChain = AGGREGATED_CHAIN_KEY as SupportedChain
 
       const defaultActiveChain = isCompassWallet() ? chainInfos.seiTestnet2.key : leapFallbackChain
       setLastEvmActiveChain(storage[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum')

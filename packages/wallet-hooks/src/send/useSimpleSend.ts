@@ -1,7 +1,12 @@
+import { Ed25519Account } from '@aptos-labs/ts-sdk';
 import { coin, OfflineSigner } from '@cosmjs/proto-signing';
 import { StdFee } from '@cosmjs/stargate';
 import { parseEther, parseUnits } from '@ethersproject/units';
 import {
+  APTOS_CHAINS,
+  AptosTx,
+  BTC_CHAINS,
+  BtcTx,
   denoms as DefaultDenoms,
   DenomsRecord,
   Dict,
@@ -11,6 +16,7 @@ import {
   isEthAddress,
   isValidAddress,
   isValidAddressWithPrefix,
+  isValidBtcAddress,
   MayaTx,
   NativeDenom,
   SeiEvmTx,
@@ -24,6 +30,7 @@ import {
   txDeclinedErrorUser,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { EthWallet } from '@leapwallet/leap-keychain';
+import { BtcWallet, BtcWalletHD, BtcWalletPk } from '@leapwallet/leap-keychain/dist/browser/key/btc-wallet';
 import { bech32 } from 'bech32';
 import { BigNumber } from 'bignumber.js';
 import { useCallback, useMemo, useState } from 'react';
@@ -56,7 +63,7 @@ export type sendTokensParams = {
   selectedToken: Token;
   amount: BigNumber;
   memo: string;
-  getWallet: () => Promise<OfflineSigner | Wallet>;
+  getWallet: () => Promise<OfflineSigner | Wallet | Ed25519Account>;
   fees: StdFee;
   ibcChannelId?: string;
   txHandler?: SigningSscrt | InjectiveTx | EthermintTxHandler | Tx;
@@ -76,9 +83,11 @@ export type sendTokensReturnType =
       pendingTx: ActivityCardContent & {
         txHash?: string;
         promise: Promise<any>;
-        txStatus: 'loading' | 'success' | 'failed';
+        txStatus: 'loading' | 'success' | 'failed' | 'submitted';
         feeDenomination?: string;
         feeQuantity?: string;
+        toAddress?: string;
+        toChain?: SupportedChain;
       };
       data?: {
         txHash: string;
@@ -116,6 +125,8 @@ export const useSimpleSend = (
   const _selectedNetwork = useSelectedNetwork();
   const selectedNetwork = useMemo(() => forceNetwork || _selectedNetwork, [forceNetwork, _selectedNetwork]);
 
+  const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
+
   const chainInfo = useChainInfo(activeChain);
   const getTxHandler = useTxHandler({ forceChain: activeChain, forceNetwork: selectedNetwork });
   const getScrtTxHandler = useScrtTxHandler();
@@ -124,7 +135,7 @@ export const useSimpleSend = (
   const addressPrefixes = useAddressPrefixes();
   const validateIbcChannelId = useValidateIbcChannelId();
   const { chains } = useChainsStore();
-  const { evmJsonRpc } = useChainApis(activeChain, selectedNetwork);
+  const { evmJsonRpc, rpcUrl } = useChainApis(activeChain, selectedNetwork);
   const evmChainId = useChainId(activeChain, selectedNetwork, true);
 
   const sendCW20 = useCallback(
@@ -177,6 +188,7 @@ export const useSimpleSend = (
             promise,
             feeDenomination: fees.amount[0].denom,
             feeQuantity: fees.amount[0].amount,
+            toAddress,
           },
         };
       } catch (error) {
@@ -223,6 +235,7 @@ export const useSimpleSend = (
             txStatus: 'loading',
             txType: 'secretTokenTransfer',
             promise,
+            toAddress,
           },
         };
       } catch (e: any) {
@@ -293,6 +306,7 @@ export const useSimpleSend = (
             txStatus: 'loading',
             txType: 'send',
             promise: Promise.resolve({ code: 0 }),
+            toAddress,
           },
           data: {
             txHash,
@@ -306,7 +320,6 @@ export const useSimpleSend = (
           },
         };
       } catch (e: any) {
-        console.log('logging error', e);
         return {
           success: false,
           errors: ['Failed to send tokens', e.message?.slice(0, 200)],
@@ -314,6 +327,154 @@ export const useSimpleSend = (
       }
     },
     [],
+  );
+
+  const sendAptos = useCallback(
+    async ({
+      account,
+      fromAddress,
+      amount,
+      selectedDenom,
+      toAddress,
+      memo,
+      gasPrice,
+      gasLimit,
+    }: {
+      account: Ed25519Account;
+      fromAddress: string;
+      amount: BigNumber;
+      selectedDenom: _TokenDenom;
+      toAddress: string;
+      memo: string;
+      gasPrice?: number;
+      gasLimit?: number;
+    }): Promise<sendTokensReturnType> => {
+      try {
+        const aptos = await AptosTx.getAptosClient(lcdUrl ?? '', account);
+        const normalizedAmount = toSmall(amount.toString(), selectedDenom?.coinDecimals ?? 6);
+
+        const txHash = await aptos.sendTokens(
+          fromAddress,
+          toAddress,
+          [{ amount: normalizedAmount, denom: selectedDenom.coinMinimalDenom }],
+          gasPrice,
+          gasLimit,
+          memo,
+        );
+        return {
+          success: true,
+          pendingTx: {
+            txHash: txHash ?? '',
+            img: chainInfo.chainSymbolImageUrl,
+            sentAmount: amount.toString(),
+            sentTokenInfo: selectedDenom as unknown as NativeDenom,
+            sentUsdValue: '0',
+            subtitle1: sliceAddress(fromAddress),
+            title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
+            txStatus: 'submitted',
+            txType: 'send',
+            promise: new Promise((resolve) => {
+              resolve({ status: 'submitted' });
+            }),
+          },
+          data: {
+            txHash,
+            txType: CosmosTxType.Send,
+            metadata: getMetaDataForSendTx(toAddress, coin(normalizedAmount, selectedDenom.coinMinimalDenom)),
+            feeDenomination: selectedDenom.coinMinimalDenom,
+            feeQuantity: gasPrice && gasLimit ? (gasPrice * gasLimit).toString() : '',
+          },
+        };
+      } catch (e: any) {
+        return {
+          success: false,
+          errors: [e.message],
+        };
+      }
+    },
+    [lcdUrl, chainInfo],
+  );
+
+  const sendBtc = useCallback(
+    async ({
+      sourceAddress,
+      destinationAddress,
+      wallet,
+      amount,
+      selectedToken,
+      rpcUrl,
+      fees,
+    }: {
+      sourceAddress: string;
+      destinationAddress: string;
+      wallet: BtcWallet;
+      amount: BigNumber;
+      selectedToken: NativeDenom;
+      memo: string;
+      fees: StdFee;
+      rpcUrl?: string;
+    }): Promise<sendTokensReturnType> => {
+      setIsSending(true);
+      const chainInfo = chains[activeChain];
+      const normalizedAmount = amount
+        .multipliedBy(10 ** (selectedToken?.coinDecimals ?? 8))
+        .toFixed(0, BigNumber.ROUND_DOWN);
+
+      const network = activeChain === 'bitcoin' ? 'mainnet' : 'testnet';
+      const btcTx = new BtcTx(network, wallet, rpcUrl);
+      try {
+        const feeRate = parseInt(fees.amount[0].amount) / parseInt(fees.gas);
+        const accounts = wallet.getAccounts();
+
+        if (!accounts[0].pubkey) {
+          throw new Error('No public key found');
+        }
+        const result = await btcTx.createTransaction({
+          sourceAddress: sourceAddress,
+          addressType: 'p2wpkh',
+          destinationAddress: destinationAddress,
+          amount: Number(normalizedAmount),
+          feeRate: feeRate,
+          pubkey: accounts[0].pubkey,
+        });
+
+        const response = await btcTx.broadcastTx(result.txHex);
+
+        return {
+          success: true,
+          pendingTx: {
+            txHash: response.result ?? '',
+            img: chainInfo.chainSymbolImageUrl,
+            sentAmount: amount.toString(),
+            sentTokenInfo: selectedToken as unknown as NativeDenom,
+            sentUsdValue: '0',
+            subtitle1: sliceAddress(sourceAddress),
+            title1: `${amount.toString()} ${selectedToken.coinDenom}`,
+            txStatus: 'submitted',
+            txType: 'send',
+            promise: new Promise((resolve) => {
+              resolve({ status: 'submitted' });
+            }),
+          },
+          data: {
+            txHash: response.result,
+            txType: CosmosTxType.Send,
+            metadata: getMetaDataForSendTx(destinationAddress, {
+              amount: amount.toString(),
+              denom: selectedToken.coinMinimalDenom,
+            }),
+            feeDenomination: selectedToken.coinMinimalDenom,
+            feeQuantity: result.fee.toString(),
+          },
+        };
+      } catch (e: any) {
+        return {
+          success: false,
+          errors: [e.message?.slice(0, 200)],
+        };
+      }
+    },
+    [activeChain, chains],
   );
 
   const sendTokenEth = useCallback(
@@ -368,6 +529,7 @@ export const useSimpleSend = (
           promise: new Promise((resolve) => {
             resolve({ code: 0 } as any);
           }),
+          toAddress,
         };
 
         return {
@@ -461,7 +623,7 @@ export const useSimpleSend = (
         };
 
         const ibcChannelId =
-          _ibcChannelId ?? (await getSourceChannelIdUnsafe(srcChainRegistryPath, destChainRegistryPath));
+          _ibcChannelId || (await getSourceChannelIdUnsafe(srcChainRegistryPath, destChainRegistryPath));
 
         if (isIBCTx) {
           if (!ibcChannelId) {
@@ -517,6 +679,8 @@ export const useSimpleSend = (
             txStatus: 'loading',
             txType: isIBCTx ? 'ibc/transfer' : 'send',
             promise: pollPromise,
+            toAddress,
+            toChain: destChainKey,
           },
           data: {
             txHash,
@@ -555,6 +719,8 @@ export const useSimpleSend = (
       ibcChannelId,
     }: sendTokensParams): Promise<sendTokensReturnType> => {
       setIsSending(true);
+      const isBtcTx = BTC_CHAINS.includes(activeChain);
+      const isAptosTx = APTOS_CHAINS.includes(activeChain);
 
       if (!selectedToken) {
         return {
@@ -570,7 +736,13 @@ export const useSimpleSend = (
         };
       }
 
-      if (!isValidAddress(toAddress)) {
+      if (!isBtcTx && !isAptosTx && !isValidAddress(toAddress)) {
+        return {
+          success: false,
+          errors: ['Invalid recipient address'],
+        };
+      }
+      if (isBtcTx && !isValidBtcAddress(toAddress, activeChain === 'bitcoin' ? 'mainnet' : 'testnet')) {
         return {
           success: false,
           errors: ['Invalid recipient address'],
@@ -651,6 +823,39 @@ export const useSimpleSend = (
           },
           memo,
           fees,
+        });
+      } else if (isBtcTx) {
+        const res = await sendBtc({
+          sourceAddress: activeWallet.addresses[activeChain],
+          destinationAddress: toAddress,
+          wallet: (await getWallet()) as unknown as BtcWalletPk | BtcWalletHD,
+          amount: amount,
+          selectedToken: selectedDenomData,
+          memo,
+          fees,
+          rpcUrl: rpcUrl,
+        });
+        if (!res) {
+          throw new Error('Unable to send transaction');
+        }
+
+        result = res;
+      } else if (isAptosTx) {
+        const gasLimit = Number(fees.gas);
+        const gasPrice = Math.floor(Number(fees.amount[0].amount) / gasLimit);
+        const account = (await getWallet()) as Ed25519Account;
+        result = await sendAptos({
+          account,
+          fromAddress: activeWallet.addresses[activeChain],
+          amount: amount,
+          selectedDenom: {
+            ibcDenom: selectedToken.ibcDenom,
+            ...selectedDenomData,
+          },
+          toAddress,
+          memo,
+          gasPrice,
+          gasLimit,
         });
       } else {
         result = await send({

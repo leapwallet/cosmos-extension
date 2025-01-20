@@ -1,7 +1,8 @@
 import { NftStore } from '@leapwallet/cosmos-wallet-store'
 import classNames from 'classnames'
-import { useFavNFTs, useHiddenNFTs } from 'hooks/settings'
+import { observer } from 'mobx-react-lite'
 import React, { ReactNode, useLayoutEffect, useMemo } from 'react'
+import { favNftStore, hiddenNftStore } from 'stores/manage-nft-store'
 import { nftStore } from 'stores/nft-store'
 
 import { useNftContext } from '../context'
@@ -46,29 +47,27 @@ type ChainChipsProps = {
   nftStore: NftStore
 }
 
-export function ChainChips({ handleTabClick }: ChainChipsProps) {
-  const hiddenNfts = useHiddenNFTs()
-  const favNfts = useFavNFTs()
+export const ChainChips = observer(({ handleTabClick }: ChainChipsProps) => {
   const { activeTab, setActiveTab } = useNftContext()
-  const _collectionData = nftStore.getVisibleCollectionData(hiddenNfts)
+  const _collectionData = nftStore.getVisibleCollectionData(hiddenNftStore.hiddenNfts)
 
   const chips = useMemo(() => {
     const _chips = ['All']
 
     if (_collectionData?.collections) {
-      if (favNfts.length) {
+      if (favNftStore.favNfts.length) {
         _chips.push('Favorites')
       }
 
       _chips.push('Collections')
 
-      if (hiddenNfts.length) {
+      if (hiddenNftStore.hiddenNfts.length) {
         _chips.push('Hidden')
       }
     }
 
     return _chips
-  }, [_collectionData?.collections, favNfts.length, hiddenNfts.length])
+  }, [_collectionData?.collections])
 
   useLayoutEffect(() => {
     if (!chips.includes(activeTab)) {
@@ -92,4 +91,4 @@ export function ChainChips({ handleTabClick }: ChainChipsProps) {
       })}
     </div>
   )
-}
+})

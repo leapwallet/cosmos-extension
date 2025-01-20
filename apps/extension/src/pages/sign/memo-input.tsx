@@ -1,4 +1,5 @@
-import { useActiveChain, useDebounce } from '@leapwallet/cosmos-wallet-hooks'
+import { useDebounce } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import Tooltip from 'components/better-tooltip'
 import { Images } from 'images'
@@ -10,8 +11,8 @@ export const MemoInput: React.FC<{
   // eslint-disable-next-line no-unused-vars
   setMemo: (memo: string) => void
   disabled: boolean
-}> = ({ memo, setMemo, disabled }) => {
-  const activeChain = useActiveChain()
+  activeChain: SupportedChain
+}> = ({ memo, setMemo, disabled, activeChain }) => {
   const [input, setInput] = useState<string>(memo)
 
   const debouncedInputValue = useDebounce(input, 200)

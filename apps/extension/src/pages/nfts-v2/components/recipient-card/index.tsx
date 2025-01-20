@@ -1,6 +1,5 @@
 import {
   SelectedAddress,
-  useActiveChain,
   useActiveWallet,
   useAddress,
   useAddressPrefixes,
@@ -21,11 +20,11 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { motion } from 'framer-motion'
-import { useManageChainData } from 'hooks/settings/useManageChains'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useContactsSearch } from 'hooks/useContacts'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
@@ -54,7 +53,7 @@ type RecipientCardProps = {
 
 const nameServiceMatcher = /^[a-zA-Z0-9_-]+\.[a-z]+$/
 
-export const RecipientCard: React.FC<RecipientCardProps> = ({
+const RecipientCardView: React.FC<RecipientCardProps> = ({
   themeColor,
   selectedAddress,
   setSelectedAddress,
@@ -80,7 +79,6 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
   const [isAddContactSheetVisible, setIsAddContactSheetVisible] = useState<boolean>(false)
   const [recipientInputValue, setRecipientInputValue] = useState<string>('')
 
-  const [manageChains] = useManageChainData()
   const [customIbcChannelId, setCustomIbcChannelId] = useState<string>()
 
   const { ibcSupportData, isIBCTransfer } = {
@@ -478,7 +476,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     }
 
     if (isIBC && destinationChain && isCompassWallet()) {
-      const compassChains = manageChains.filter((chain) => chain.chainName !== 'cosmos')
+      const compassChains = manageChainsStore.chains.filter((chain) => chain.chainName !== 'cosmos')
 
       if (!compassChains.find((chain) => chain.chainName === destinationChain)) {
         const destinationChainName = chains[destinationChain as SupportedChain].chainName
@@ -513,7 +511,7 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     chains,
     addressPrefixes,
     collectionAddress,
-    manageChains,
+    manageChainsStore.chains,
     associatedSeiAddress,
   ])
 
@@ -659,3 +657,5 @@ export const RecipientCard: React.FC<RecipientCardProps> = ({
     </div>
   )
 }
+
+export const RecipientCard = observer(RecipientCardView)

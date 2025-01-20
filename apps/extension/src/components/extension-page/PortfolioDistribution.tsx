@@ -1,13 +1,14 @@
 import { BigNumber } from 'bignumber.js'
-import { useHideAssets } from 'hooks/settings/useHideAssets'
+import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 
 import { useFormatCurrency } from '../../hooks/settings/useCurrency'
 import { Colors } from '../../theme/colors'
 import TokenCardSkeleton from '../Skeletons/TokenCardSkeleton'
 import Text from '../text'
 
-export function _PortfolioDistribution({
+function _PortfolioDistribution({
   stakeBalance,
   walletBalance,
   loading,
@@ -20,7 +21,6 @@ export function _PortfolioDistribution({
     () => walletBalance?.plus(stakeBalance as BigNumber),
     [stakeBalance, walletBalance],
   )
-  const { formatHideBalance } = useHideAssets()
 
   const threshold = useMemo(() => 3, [])
   const [formatCurrency] = useFormatCurrency()
@@ -73,7 +73,7 @@ export function _PortfolioDistribution({
                   Wallet Balance
                 </Text>
                 <Text size='sm' className='font-bold'>
-                  {formatHideBalance(formatCurrency(walletBalance))}
+                  {hideAssetsStore.formatHideBalance(formatCurrency(walletBalance))}
                 </Text>
               </div>
             </div>
@@ -88,7 +88,7 @@ export function _PortfolioDistribution({
                     Stake Balance
                   </Text>
                   <Text size='sm' className='font-bold'>
-                    {formatHideBalance(formatCurrency(stakeBalance))}
+                    {hideAssetsStore.formatHideBalance(formatCurrency(stakeBalance))}
                   </Text>
                 </div>
               </div>
@@ -100,4 +100,4 @@ export function _PortfolioDistribution({
   )
 }
 
-export const PortfolioDistribution = React.memo(_PortfolioDistribution)
+export const PortfolioDistribution = observer(_PortfolioDistribution)

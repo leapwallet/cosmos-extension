@@ -10,7 +10,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 
-import { LoadingStatusType, SelectedNetworkType } from './index';
+import { LoadingStatusType, SelectedNetworkType } from './global.type';
 
 export type ChainsAprData = { [key: string]: number };
 
@@ -36,6 +36,7 @@ export type DelegationInfo = {
   currencyAmountDelegation: string;
   delegations: Record<string, Delegation>;
   totalDelegation: BigNumber;
+  stakingDenom: string;
 };
 
 export type GetDelegationsForChainParams = {
@@ -48,6 +49,7 @@ export type GetDelegationsForChainParams = {
 
 export type GetDelegationsForChainReturn = {
   delegations: Record<string, Delegation>;
+  stakingDenom: string;
   totalDelegationAmount: string;
   currencyAmountDelegation: string;
   totalDelegation: BigNumber;

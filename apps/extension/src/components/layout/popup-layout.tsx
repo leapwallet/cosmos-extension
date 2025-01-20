@@ -17,7 +17,7 @@ export default function PopupLayout({
   header,
   className,
   showBetaTag = false,
-  headerZIndex = 1,
+  headerZIndex = 2,
 }: PopupLayoutProps) {
   const activeChain = useActiveChain()
 

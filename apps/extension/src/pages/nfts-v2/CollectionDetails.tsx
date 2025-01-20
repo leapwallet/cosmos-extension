@@ -2,10 +2,10 @@ import { Collection } from '@leapwallet/cosmos-wallet-hooks'
 import { NftStore } from '@leapwallet/cosmos-wallet-store'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import PopupLayout from 'components/layout/popup-layout'
-import { useHiddenNFTs } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { hiddenNftStore } from 'stores/manage-nft-store'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 
 import { ChainHeaderCollectionCard, CollectionAvatar } from './components'
@@ -19,7 +19,6 @@ export const CollectionDetails = observer(({ nftStore }: CollectionDetailsProps)
   const { setActivePage, showCollectionDetailsFor } = useNftContext()
   const collectionData = nftStore.nftDetails.collectionData
   const chainInfos = useChainInfos()
-  const hiddenNfts = useHiddenNFTs()
 
   const { collection, nfts } = useMemo(() => {
     const collection =
@@ -35,7 +34,7 @@ export const CollectionDetails = observer(({ nftStore }: CollectionDetailsProps)
 
     const nfts = collectionNfts.filter(
       (nft) =>
-        !hiddenNfts.some((hiddenNft) => {
+        !hiddenNftStore.hiddenNfts.some((hiddenNft) => {
           const [address, tokenId] = hiddenNft.split('-:-')
 
           return (
@@ -46,7 +45,13 @@ export const CollectionDetails = observer(({ nftStore }: CollectionDetailsProps)
     )
 
     return { collection, nfts }
-  }, [collectionData?.collections, collectionData?.nfts, hiddenNfts, showCollectionDetailsFor])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    collectionData?.collections,
+    collectionData?.nfts,
+    hiddenNftStore.hiddenNfts,
+    showCollectionDetailsFor,
+  ])
 
   return (
     <div className='relative w-full overflow-clip panel-height'>

@@ -94,6 +94,7 @@ import Language from './language.svg'
 import LeapQrIcon from './leap-qr-icon.svg'
 import LeapReward from './leap-reward.svg'
 import Ledger from './ledger.svg'
+import LightNodeBanner from './light-node-banner.svg'
 import LightTheme from './light-theme.svg'
 import LineDividerDarkMode from './line-divider-dark-mode.svg'
 import LineDividerLightMode from './line-divider-light-mode.svg'
@@ -121,6 +122,7 @@ import RemoveCircle from './remove-circle.svg'
 import RightArrow from './right-arrow.svg'
 import RightArrowCollapsed from './right-arrow-collapsed.svg'
 import { RightArrowSvg } from './RightArrowSvg'
+import Sampling from './sampling.svg'
 import Search from './search.svg'
 import SearchModalGlass from './search-modal-glass.svg'
 import SearchWhiteIcon from './search-white-icon.svg'
@@ -275,6 +277,7 @@ export {
   LeapQrIcon,
   LeapReward,
   Ledger,
+  LightNodeBanner,
   LightTheme,
   LineDividerDarkMode,
   LineDividerLightMode,
@@ -302,6 +305,7 @@ export {
   RightArrow,
   RightArrowCollapsed,
   RightArrowSvg,
+  Sampling,
   Search,
   SearchModalGlass,
   SearchWhiteIcon,

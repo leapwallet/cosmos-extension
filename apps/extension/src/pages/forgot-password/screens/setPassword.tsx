@@ -10,12 +10,12 @@ import { getPassScore } from 'utils/passChecker'
 interface PropsType {
   loading: boolean
   // eslint-disable-next-line no-unused-vars
-  resetPassword: (password: string) => void
+  resetPassword: (password: Uint8Array) => void
 }
 
 /**
  *
- * @decription This component is used to promt the user to enter their new passwords
+ * @description This component is used to prompt the user to enter their new passwords
  * @param props PropsType - props.incrementStep() is called when the user clicks the button to move to the next step, props.setPasswordAtRoot() is called when the entered password is verified.
  * @returns React Component
  */
@@ -91,7 +91,8 @@ const SetPassword: React.FC<PropsType> = ({ loading, resetPassword }) => {
   const handleSubmit: React.FormEventHandler = (e) => {
     e.preventDefault()
     if (validatePasswordMatch()) {
-      resetPassword(password1)
+      const password = new TextEncoder().encode(password1)
+      resetPassword(password)
     }
   }
 

@@ -1,10 +1,7 @@
 import {
+  LSProvider,
   SelectedNetwork,
   useActiveChain,
-  useActiveStakingDenom,
-  useChainInfo,
-  useLiquidStakingProviders,
-  useSelectedNetwork,
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
@@ -19,20 +16,18 @@ import { GenericCard } from '@leapwallet/leap-ui'
 import { CaretDown, CaretUp } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
-import { EventName, PageName } from 'config/analytics'
 import currency from 'currency.js'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
 
-import { StakeInputPageState } from '../StakeInputPage'
 import { ProviderCard } from './SelectLSProvider'
 
 type StakeSelectSheetProps = {
   isVisible: boolean
   title: string
   onClose: () => void
+  tokenLSProviders: LSProvider[]
+  handleStakeClick: () => void
   rootDenomsStore: RootDenomsStore
   delegationsStore: DelegationsStore
   validatorsStore: ValidatorsStore
@@ -47,22 +42,17 @@ const StakeSelectSheet = observer(
     isVisible,
     title,
     onClose,
+    tokenLSProviders,
+    handleStakeClick,
     rootDenomsStore,
     delegationsStore,
     validatorsStore,
     unDelegationsStore,
     claimRewardsStore,
     forceChain,
-    forceNetwork,
   }: StakeSelectSheetProps) => {
     const _activeChain = useActiveChain()
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
-
-    const _activeNetwork = useSelectedNetwork()
-    const activeNetwork = useMemo(
-      () => forceNetwork || _activeNetwork,
-      [_activeNetwork, forceNetwork],
-    )
 
     const denoms = rootDenomsStore.allDenoms
     const chainDelegations = delegationsStore.delegationsForChain(activeChain)
@@ -71,13 +61,7 @@ const StakeSelectSheet = observer(
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
     const [showLSProviders, setShowLSProviders] = useState(false)
-    const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
-    const chain = useChainInfo(activeChain)
-    const { data: lsProviders = {} } = useLiquidStakingProviders()
-    const tokenLSProviders = useMemo(() => {
-      return lsProviders[activeStakingDenom?.coinDenom]
-    }, [activeStakingDenom?.coinDenom, lsProviders])
-    const { minMaxApy } = useStaking(
+    const { minMaxApr } = useStaking(
       denoms,
       chainDelegations,
       chainValidators,
@@ -85,13 +69,13 @@ const StakeSelectSheet = observer(
       chainClaimRewards,
     )
 
-    const avgApyValue = useMemo(() => {
-      if (minMaxApy) {
-        const avgApy = (minMaxApy[0] + minMaxApy[1]) / 2
-        return currency((avgApy * 100).toString(), { precision: 2, symbol: '' }).format()
+    const avgAprValue = useMemo(() => {
+      if (minMaxApr) {
+        const avgApr = (minMaxApr[0] + minMaxApr[1]) / 2
+        return currency((avgApr * 100).toString(), { precision: 2, symbol: '' }).format()
       }
       return null
-    }, [minMaxApy])
+    }, [minMaxApr])
     const maxLSAPY = useMemo(() => {
       if (tokenLSProviders?.length > 0) {
         const _maxAPY = Math.max(...tokenLSProviders.map((provider) => provider.apy))
@@ -100,24 +84,7 @@ const StakeSelectSheet = observer(
         return 'N/A'
       }
     }, [tokenLSProviders])
-    const navigate = useNavigate()
 
-    const handleStakeClick = () => {
-      navigate('/stake/input', {
-        state: {
-          mode: 'DELEGATE',
-          forceChain: activeChain,
-          forceNetwork: activeNetwork,
-        } as StakeInputPageState,
-      })
-      mixpanel.track(EventName.PageView, {
-        pageName: PageName.Stake,
-        pageViewSource: PageName.AssetDetails,
-        chainName: chain.chainName,
-        chainId: chain.chainId,
-        time: Date.now() / 1000,
-      })
-    }
     return (
       <BottomModal
         isOpen={isVisible}
@@ -139,7 +106,7 @@ const StakeSelectSheet = observer(
             }
             subtitle={
               <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-                APY {avgApyValue}%
+                APR {avgAprValue}%
               </Text>
             }
             size='md'
