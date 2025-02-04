@@ -895,6 +895,20 @@ const connectRemote = (remotePort: any) => {
         break
       }
 
+      case ETHEREUM_METHOD_TYPE.ETH__GET_TRANSACTION_COUNT: {
+        try {
+          const result = await SeiEvmTx.GetTransactionCount(payload.params, evmRpcUrl)
+          sendResponse(sendResponseName, { success: result }, payloadId)
+        } catch (error) {
+          sendResponse(
+            sendResponseName,
+            { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, (error as Error).message) },
+            payloadId,
+          )
+        }
+        break
+      }
+
       case ETHEREUM_METHOD_TYPE.ETH__GET_TRANSACTION_RECEIPT:
       case ETHEREUM_METHOD_TYPE.ETH__GET_TRANSACTION_BY_HASH: {
         const transactionHash = payload.params[0]

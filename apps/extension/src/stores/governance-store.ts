@@ -12,7 +12,7 @@ import { chainInfoStore } from './chain-infos-store'
 import { selectedNetworkStore } from './selected-network-store'
 
 const spamProposalsStore = new SpamProposalsStore()
-const chainCosmosSdkStore = new ChainCosmosSdkStore()
+export const chainCosmosSdkStore = new ChainCosmosSdkStore()
 export const chainInfosConfigStore = new ChainInfosConfigStore()
 
 export const governanceStore = new GovStore(

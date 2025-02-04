@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { initResourceFromS3, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { Erc20Denoms } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants/erc20-denoms';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -6,7 +6,6 @@ import { useMemo } from 'react';
 import { useActiveChain, useERC20TokensStore } from '../store';
 import { cachedRemoteDataWithLastModified } from './cached-remote-data';
 import { storage, useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const ERC20_TOKENS = 'erc20-tokens';
 const ERC20_TOKENS_LAST_UPDATED_AT = 'erc20-tokens-last-updated-at';

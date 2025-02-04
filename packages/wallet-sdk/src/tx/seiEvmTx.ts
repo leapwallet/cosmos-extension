@@ -253,6 +253,11 @@ export class SeiEvmTx {
     return await SeiEvmTx.fetchRequest(fetchParams, rpc);
   }
 
+  public static async GetTransactionCount(txParams: any, rpc?: string) {
+    const fetchParams = getFetchParams(txParams, 'eth_getTransactionCount');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
   public static async GetBlockByNumber(txParams: any, rpc?: string) {
     const fetchParams = getFetchParams(txParams, 'eth_getBlockByNumber');
     return await SeiEvmTx.fetchRequest(fetchParams, rpc);
@@ -365,8 +370,7 @@ export class SeiEvmTx {
   public async linkAddressWithoutFunds(ethAddress: string, token: string) {
     const accounts = await this.wallet.getAccounts();
     const account = accounts[0];
-    const message =
-      'Please sign this message to link your EVM and Sei addresses on Compass. No SEI will be spent as a result of this signature.';
+    const message = 'Signing message to link.';
     const signature = await personalSign(message, account.address, this.wallet);
 
     const url = 'https://app-api.seinetwork.io/associate';

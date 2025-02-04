@@ -28,6 +28,14 @@ export type FeatureFlags = {
     fees: FeatureFlagState;
     chain_abstraction: FeatureFlagState;
     default_token_denoms?: string[];
+    providers: {
+      skip?: {
+        disabled_on_versions?: string[];
+      };
+      lifi?: {
+        disabled_on_versions?: string[];
+      };
+    };
   };
   nfts: {
     mobile: FeatureFlagState;
@@ -65,6 +73,9 @@ export function getFeatureFlags(storage: storage, isCompassWallet: boolean): Pro
   });
 }
 
+/**
+ * @description Please use `FeatureFlagStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export function useFeatureFlags() {
   /**
    * We are using `getAppName()` here to determine if we are in the Compass Wallet, instead of using the `useIsCompassWallet` hook.

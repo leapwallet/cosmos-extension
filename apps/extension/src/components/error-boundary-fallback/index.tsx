@@ -23,7 +23,10 @@ const ErrorBoundaryFallback = () => {
 
   return (
     <div className='relative w-full overflow-clip enclosing-panel panel-height'>
-      <PopupLayout header={<Header title={isCompassWallet() ? 'Compass Wallet' : 'Leap Wallet'} />}>
+      <PopupLayout
+        header={<Header title={isCompassWallet() ? 'Compass Wallet' : 'Leap Wallet'} />}
+        skipWatchingWalletHeader
+      >
         <div
           className='flex flex-col items-center justify-center w-full'
           style={{

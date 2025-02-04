@@ -54,7 +54,7 @@ export const ChainChips = observer(({ handleTabClick }: ChainChipsProps) => {
   const chips = useMemo(() => {
     const _chips = ['All']
 
-    if (_collectionData?.collections) {
+    if (_collectionData?.collections?.length) {
       if (favNftStore.favNfts.length) {
         _chips.push('Favorites')
       }

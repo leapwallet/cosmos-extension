@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  AccountAuthenticator,
   AccountAuthenticatorEd25519,
   AnyRawTransaction,
   AptosApiError,
@@ -20,6 +19,7 @@ import {
   useDappDefaultFeeStore,
   useDefaultGasEstimates,
   useNativeFeeDenom,
+  useTxMetadata,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -65,6 +65,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { dappDefaultFeeStore } from 'stores/fee-store'
 import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
@@ -134,6 +135,7 @@ const SignTransaction = observer(
     const selectedGasOptionRef = useRef(false)
     const [isFeesValid, setIsFeesValid] = useState<boolean | null>(null)
     const [highFeeAccepted, setHighFeeAccepted] = useState<boolean>(false)
+    const globalTxMeta = useTxMetadata()
 
     const { setDefaultFee: setDappDefaultFee } = useDappDefaultFeeStore()
 
@@ -338,6 +340,7 @@ const SignTransaction = observer(
             txHash,
             txType: CosmosTxType.Dapp,
             metadata: {
+              ...globalTxMeta,
               dapp_url: siteOrigin,
             },
             feeQuantity: fee?.amount[0]?.amount,
@@ -428,6 +431,8 @@ const SignTransaction = observer(
 
     useEffect(() => {
       setDappDefaultFee(defaultFee)
+      dappDefaultFeeStore.setDefaultFee(defaultFee)
+
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defaultFee])
 

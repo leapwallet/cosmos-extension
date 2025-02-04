@@ -390,7 +390,19 @@ export class Tx {
       throw new Error('Client not initialized');
     }
 
-    return await this.client.sign(signerAddress, msgs, usedFee, memo);
+    try {
+      return await this.client.sign(signerAddress, msgs, usedFee, memo);
+    } catch (error) {
+      if (signerAddress.startsWith('union')) {
+        const signerData = {
+          accountNumber: 0,
+          chainId: await this.client.getChainId(),
+          sequence: 0,
+        };
+        return await this.client.sign(signerAddress, msgs, usedFee, memo, signerData);
+      }
+      throw new Error(error);
+    }
   }
 
   async claimAndStake(

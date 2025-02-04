@@ -24,6 +24,7 @@ import useSWR, { SWRConfiguration, unstable_serialize, useSWRConfig } from 'swr'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { MergedAsset } from './useAssets'
+import { useProviderFeatureFlags } from './useProviderFeatureFlags'
 
 function onErrorRetry(err: unknown) {
   if (err instanceof RouteError) {
@@ -211,7 +212,7 @@ function useLifiRoute(
 ) {
   const { mutate } = useSWRConfig()
 
-  const shouldCallLifi = !!isCompassWallet()
+  const shouldCallLifi = !!isCompassWallet() && enabled
 
   const key = enabled
     ? unstable_serialize([
@@ -541,6 +542,8 @@ export const useAggregatedRoute = (
   },
   config?: SWRConfiguration,
 ): AggregatedRouteResponse => {
+  const { isLifiEnabled, isSkipEnabled } = useProviderFeatureFlags()
+
   const {
     routeResponse: skipRouteResponse,
     routeError: skipRouteError,
@@ -555,7 +558,7 @@ export const useAggregatedRoute = (
       sourceAssetChain,
       destinationAsset,
       destinationAssetChain,
-      enabled,
+      enabled: enabled && isSkipEnabled,
       allowedBridges,
       swapVenues,
       enableSmartSwap,
@@ -609,9 +612,10 @@ export const useAggregatedRoute = (
       enabled &&
       sourceAndDestinationBothLifiSupported &&
       !!isCompassWallet() &&
-      activeWallet?.walletType !== WALLETTYPE.LEDGER
+      activeWallet?.walletType !== WALLETTYPE.LEDGER &&
+      isLifiEnabled
     )
-  }, [enabled, sourceAndDestinationBothLifiSupported, activeWallet])
+  }, [enabled, sourceAndDestinationBothLifiSupported, activeWallet, isLifiEnabled])
 
   const {
     routeResponse: lifiRouteResponse,

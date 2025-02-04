@@ -17,6 +17,9 @@ export function getTransactionConfigs(storage: storage): Promise<TransactionConf
   });
 }
 
+/**
+ * Please use `TransactionConfigsStore` from `@leapwallet/cosmos-wallet-store` instead.
+ */
 export function useTransactionConfigs() {
   const storage = useGetStorageLayer();
 

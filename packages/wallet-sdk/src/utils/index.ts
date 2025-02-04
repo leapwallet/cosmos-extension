@@ -6,6 +6,7 @@ export * from './get-hdpath';
 export * from './getBaseAccount';
 export * from './getErrorMessageFromCode';
 export { getRestUrl } from './getRestURL';
+export * from './initResourceFromS3';
 export * from './is-aptos-chain';
 export * from './mathUtil';
 export * from './sei-evm';

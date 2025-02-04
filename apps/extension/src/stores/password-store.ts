@@ -1,23 +1,11 @@
+import { PasswordStore } from '@leapwallet/cosmos-wallet-store'
+import { AUTO_LOCK_TIME } from 'config/storage-keys'
 import { makeAutoObservable } from 'mobx'
 import browser from 'webextension-polyfill'
 
-import { AUTO_LOCK_TIME } from '../config/storage-keys'
+export const passwordStore = new PasswordStore()
 
 const DEFAULT_AUTO_LOCK_TIME = 1440
-
-export class PasswordStore {
-  password?: Uint8Array | null
-
-  constructor() {
-    makeAutoObservable(this)
-  }
-
-  setPassword(password: Uint8Array | undefined | null) {
-    this.password = password
-  }
-}
-
-export const passwordStore = new PasswordStore()
 
 export const TimerLockPeriod = {
   '15 min': 15,

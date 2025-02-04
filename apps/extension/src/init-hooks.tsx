@@ -9,6 +9,8 @@ import {
   useInitBetaNFTsCollections,
   useInitChainCosmosSDK,
   useInitChainInfosConfig,
+  useInitChainsApr,
+  useInitCoingeckoPrices,
   useInitCompassSeiEvmConfig,
   useInitCustomChannelsStore,
   useInitDefaultGasEstimates,
@@ -30,7 +32,6 @@ import {
   useMobileAppBanner,
   useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { useInitChainsApr, useInitCoingeckoPrices } from '@leapwallet/cosmos-wallet-hooks'
 import { useInitSnipDenoms } from '@leapwallet/cosmos-wallet-hooks/dist/utils/useInitSnipDenoms'
 import { useInitAnalytics } from 'hooks/analytics/useInitAnalytics'
 import { useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'

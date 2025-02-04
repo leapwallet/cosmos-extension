@@ -70,12 +70,6 @@ export default observer(function Onboarding() {
     } else {
       return {
         Keplr: keplrWallet,
-        Cosmostation: {
-          imgSrc: Images.Logos.CosmoStation,
-          title: 'Cosmostation',
-          'data-testing-id': '',
-          mixpanelMethod: 'existing-cosmostation',
-        },
         ...IMPORT_WALLET_DATA,
       }
     }
@@ -114,7 +108,7 @@ export default observer(function Onboarding() {
   }, [])
 
   return (
-    <ExtensionPage>
+    <ExtensionPage childrenMargin={true}>
       {loading ? (
         <Loader color='#fff' />
       ) : (
@@ -162,17 +156,49 @@ export default observer(function Onboarding() {
               )
             })}
           </div>
-          <Link
-            className='flex w-full bg-white-100 dark:bg-gray-900 px-[30px] py-[20px] rounded-[16px]'
-            to='/onboardingImport?walletName=hardwarewallet'
-            onClick={() => trackCTAEvent('hardware-ledger')}
+
+          {isCompassWallet() ? null : (
+            <div
+              className='flex gap-x-4 items-center px-[30px] py-[20px] pl-[24px] rounded-xl dark:bg-gray-900 bg-gray-50 w-full cursor-pointer'
+              onClick={() => {
+                navigate('/onboardingWatchAddress')
+                trackCTAEvent('watch-wallet')
+              }}
+            >
+              <img src={Images.Misc.EyeDark} />
+              <div className='flex w-full gap-x-2 items-center'>
+                <Text size='lg' color='text-black-100 dark:text-white-100' className='font-medium'>
+                  Watch wallet
+                </Text>
+                <Text
+                  size='xs'
+                  color='text-green-400'
+                  className='bg-green-500 bg-opacity-20 rounded-3xl py-1 px-2.5 font-medium'
+                >
+                  NEW
+                </Text>
+              </div>
+              <img src={Images.Misc.RightArrow} />
+            </div>
+          )}
+
+          <div
+            className='flex gap-x-4 items-center px-[30px] py-[20px] pl-[24px] rounded-xl dark:bg-gray-900 bg-gray-50 w-full cursor-pointer'
+            onClick={() => {
+              navigate('/onboardingImport?walletName=hardwarewallet')
+              trackCTAEvent('hardware-ledger')
+            }}
           >
-            <img src={Images.Misc.HardwareWallet} className='mr-4' />
-            <Text className='font-bold' size='md'>
+            <img src={Images.Misc.HardwareWallet} className='mx-1' />
+            <Text
+              size='lg'
+              color='text-black-100 dark:text-white-100'
+              className='font-medium w-full'
+            >
               Connect hardware wallet
             </Text>
-            <img src={Images.Misc.RightArrow} className='ml-auto' />
-          </Link>
+            <img src={Images.Misc.RightArrow} />
+          </div>
         </div>
       )}
     </ExtensionPage>

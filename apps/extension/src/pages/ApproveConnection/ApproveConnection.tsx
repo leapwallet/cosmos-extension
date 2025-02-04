@@ -18,11 +18,13 @@ import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
+import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
 import { addToConnections } from './utils'
+import WatchWalletPopup from './WatchWalletPopup'
 
 type WebsiteProps = {
   name: string
@@ -367,6 +369,10 @@ const ApproveConnection = () => {
 
   const isFullScreen = width && width > 800
 
+  if (activeWallet?.watchWallet) {
+    return <WatchWalletPopup origin={approvalRequests?.[0]?.origin} handleCancel={handleCancel} />
+  }
+
   if (!showApprovalUi) {
     return (
       <div className='panel-height enclosing-panel relative w-screen max-w-3xl h-full self-center p-5 pt-0'>
@@ -411,9 +417,9 @@ const ApproveConnection = () => {
             <div className='flex items-center'>
               <img src={Images.Misc.WalletIconTeal} className='h-[20px] w-[20px] mr-3' />
               <Text size='md' className='text-black-100 dark:text-white-100 font-bold'>
-                {`${displayedRequestedChains.type === 'chains' ? 'Connecting' : ''}${
-                  activeWallet?.name
-                }`}
+                {`${
+                  displayedRequestedChains.type === 'chains' ? 'Connecting ' : ''
+                }${formatWalletName(activeWallet?.name ?? '')}`}
               </Text>
               {displayedRequestedChains.type === 'chains' &&
                 displayedRequestedChains.chains &&

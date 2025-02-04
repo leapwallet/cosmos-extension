@@ -6,6 +6,9 @@ type GasAdjustmentsState = {
   setGasAdjustments: (gasAdjustments: GasAdjustments) => void;
 };
 
+/**
+ * Please use `GasAdjustmentsQueryStore` from `@leapwallet/cosmos-wallet-store` instead.
+ */
 export const useGasAdjustmentsStore = create<GasAdjustmentsState>((set) => ({
   gasAdjustments: gasAdjustments,
   setGasAdjustments: (gasAdjustments) =>

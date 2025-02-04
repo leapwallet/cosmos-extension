@@ -49,9 +49,9 @@ export default function SearchChainWithWalletFilter({
     if (selectedWallet?.avatar) {
       return selectedWallet.avatar
     } else {
-      return Images.Misc.getWalletIconAtIndex(selectedWallet.colorIndex)
+      return Images.Misc.getWalletIconAtIndex(selectedWallet.colorIndex, selectedWallet.watchWallet)
     }
-  }, [selectedWallet?.avatar, selectedWallet.colorIndex])
+  }, [selectedWallet.avatar, selectedWallet.colorIndex, selectedWallet.watchWallet])
 
   return (
     <div

@@ -14,6 +14,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { ReactElement, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { chainTagsStore } from 'stores/chain-infos-store'
+import { manageChainsStore } from 'stores/manage-chains-store'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { DEBUG } from 'utils/debug'
@@ -126,6 +127,8 @@ const SideNav = observer(({ isShown, toggler, defaults }: SideNavProps): ReactEl
     enabled: !isCompassWallet() && featureFlags?.light_node?.extension === 'active',
   }
 
+  const manageChain = manageChainsStore.chains.find((chain) => chain.chainName === activeChain)
+
   const Preferences = [
     {
       title: 'Currency',
@@ -152,7 +155,8 @@ const SideNav = observer(({ isShown, toggler, defaults }: SideNavProps): ReactEl
       },
       enabled: !(
         (isCompassWallet() && activeChain === 'seiDevnet') ||
-        activeChain === AGGREGATED_CHAIN_KEY
+        activeChain === AGGREGATED_CHAIN_KEY ||
+        manageChain?.beta
       ),
     },
     // {
@@ -192,6 +196,27 @@ const SideNav = observer(({ isShown, toggler, defaults }: SideNavProps): ReactEl
     },
   ]
 
+  const managePasswords = []
+  if (!activeWallet?.watchWallet) {
+    managePasswords.push(
+      {
+        title: 'Show Recovery Phrase',
+        titleIcon: Images.Nav.SecretPhrase,
+        onClick: () => setShowNavPage(NavPages.ExportSeedPhrase),
+        enabled:
+          activeWallet?.walletType === WALLETTYPE.SEED_PHRASE ||
+          activeWallet?.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED,
+        'data-testing-id': 'sidenav-show-secret-phrase-card',
+      },
+      {
+        title: 'Export Private Key',
+        titleIcon: isDark ? Images.Nav.SecretKeyDark : Images.Nav.SecretKeyLight,
+        onClick: () => setShowNavPage(NavPages.ExportPrivateKey),
+        enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
+      },
+    )
+  }
+
   const Privacy = [
     {
       title: 'Sync with mobile app',
@@ -209,21 +234,7 @@ const SideNav = observer(({ isShown, toggler, defaults }: SideNavProps): ReactEl
       },
       enabled: true,
     },
-    {
-      title: 'Show Recovery Phrase',
-      titleIcon: Images.Nav.SecretPhrase,
-      onClick: () => setShowNavPage(NavPages.ExportSeedPhrase),
-      enabled:
-        activeWallet?.walletType === WALLETTYPE.SEED_PHRASE ||
-        activeWallet?.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED,
-      'data-testing-id': 'sidenav-show-secret-phrase-card',
-    },
-    {
-      title: 'Export Private Key',
-      titleIcon: isDark ? Images.Nav.SecretKeyDark : Images.Nav.SecretKeyLight,
-      onClick: () => setShowNavPage(NavPages.ExportPrivateKey),
-      enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
-    },
+    ...managePasswords,
 
     // {
     //   title: 'Auto-lock timer',

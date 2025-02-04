@@ -538,6 +538,8 @@ const StakePage = observer(
                 unDelegationsStore={unDelegationsStore}
                 claimRewardsStore={claimRewardsStore}
                 rootBalanceStore={rootBalanceStore}
+                forceChain={forceChain}
+                forceNetwork={forceNetwork}
               />
             )}
 

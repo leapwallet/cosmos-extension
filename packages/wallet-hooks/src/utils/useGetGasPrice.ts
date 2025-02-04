@@ -1,11 +1,11 @@
 import {
   axiosWrapper,
-  BtcTx,
   ChainInfo,
   defaultGasPriceStep,
   DenomsRecord,
   GasPrice,
   GasPriceStepsRecord,
+  getGasPricesSteps,
   isAptosChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
@@ -14,56 +14,8 @@ import BigNumber from 'bignumber.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChainApis, useChainsStore, useGasPriceSteps, useGetChains, useSelectedNetwork } from '../store';
-import { FeeModel } from '../types/fee-model';
 import { useGetAptosGasPrices, useGetEvmGasPrices } from '../utils-hooks';
-import { useLowGasPriceStep } from './useLowGasPriceStep';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
-
-export function roundOf(value: number, tillDecimal: number) {
-  return Math.round(value * 10 ** tillDecimal) / 10 ** tillDecimal;
-}
-
-async function getCoreumGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
-  const coreumGasLcd1 = 'https://full-node.mainnet-1.coreum.dev:1317';
-
-  const gasPrice1 = await axios.get<FeeModel>(`${coreumGasLcd1}/coreum/feemodel/v1/min_gas_price`);
-  const gasPrice2 = await axios.get<FeeModel>(`${lcdUrl}/coreum/feemodel/v1/min_gas_price`);
-
-  const minGasPrice1 = parseFloat(gasPrice1.data.min_gas_price.amount);
-  const minGasPrice2 = parseFloat(gasPrice2.data.min_gas_price.amount);
-
-  const defaultGasPrice = gasPriceSteps.coreum?.low ?? 0;
-  const minGasPrice = Math.max(minGasPrice1, minGasPrice2, defaultGasPrice);
-
-  return isNaN(minGasPrice) ? defaultGasPrice : minGasPrice;
-}
-
-async function getSeiGasPrice(gasPriceSteps: GasPriceStepsRecord, chainId: string, chainKey: SupportedChain) {
-  const seiGasJSON = 'https://raw.githubusercontent.com/sei-protocol/chain-registry/main/gas.json';
-  const { data } = await axios.get(seiGasJSON);
-
-  const minGas = data[chainId]?.min_gas_price ?? 0;
-  const defaultGasPrice = gasPriceSteps[chainKey]?.low ?? 0;
-
-  return Math.max(minGas, defaultGasPrice);
-}
-
-async function getOsmosisGasPrice(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
-  const url = `${lcdUrl}/osmosis/txfees/v1beta1/cur_eip_base_fee`;
-  const { data } = await axios.get(url);
-
-  return roundOf(Number(data.base_fee), 4) ?? gasPriceSteps.osmosis?.low ?? 0;
-}
-
-export async function getOsmosisGasPriceSteps(lcdUrl: string, gasPriceSteps: GasPriceStepsRecord) {
-  const minGasPrice = await getOsmosisGasPrice(lcdUrl ?? '', gasPriceSteps);
-
-  const low = Math.max(gasPriceSteps.osmosis?.low ?? 0, minGasPrice);
-  const medium = Math.max(gasPriceSteps.osmosis?.average ?? 0, roundOf(minGasPrice * 1.1, 5));
-  const high = Math.max(gasPriceSteps.osmosis?.high ?? 0, roundOf(minGasPrice * 2, 5));
-
-  return { low, medium, high };
-}
 
 export async function getFeeMarketGasPrices(lcdUrl: string) {
   try {
@@ -109,37 +61,21 @@ export function useGetGasPrice(chain: SupportedChain, forceNetwork?: 'mainnet' |
   const { chains } = useChainsStore();
   const { lcdUrl } = useChainApis(chain, selectedNetwork);
   const gasPriceSteps = useGasPriceSteps();
-  const lowGasPriceStep = useLowGasPriceStep(chain);
 
   return useCallback(async () => {
     const chainInfo = chains[chain];
     const feeDenom = Object.values(chainInfo.nativeDenoms)[0];
-    let gasPrice = lowGasPriceStep;
 
-    try {
-      if ((chain === 'coreum' || chain === 'mainCoreum') && lcdUrl) {
-        gasPrice = await getCoreumGasPrice(lcdUrl ?? '', gasPriceSteps);
-      }
+    const { low: lowGasPrice } = await getGasPricesSteps({
+      activeChain: chain,
+      selectedNetwork,
+      allChainsGasPriceSteps: gasPriceSteps,
+      chains,
+      lcdUrl,
+    });
 
-      if (chain === 'seiTestnet2') {
-        const chainId =
-          selectedNetwork === 'mainnet' ? chains['seiTestnet2'].chainId : chains['seiTestnet2'].testnetChainId ?? '';
-        gasPrice = await getSeiGasPrice(gasPriceSteps, chainId, 'seiTestnet2');
-      }
-
-      if (chain === 'seiDevnet') {
-        gasPrice = await getSeiGasPrice(gasPriceSteps, chains['seiDevnet'].chainId, 'seiDevnet');
-      }
-
-      if (chain === 'osmosis') {
-        gasPrice = await getOsmosisGasPrice(lcdUrl ?? '', gasPriceSteps);
-      }
-    } catch {
-      gasPrice = gasPriceSteps[chain]?.low ?? lowGasPriceStep;
-    }
-
-    return GasPrice.fromString(`${gasPrice + feeDenom.coinMinimalDenom}`);
-  }, [chains, chain, lowGasPriceStep, selectedNetwork, lcdUrl]);
+    return GasPrice.fromString(`${lowGasPrice + feeDenom.coinMinimalDenom}`);
+  }, [chains, chain, selectedNetwork, lcdUrl]);
 }
 
 export enum GasOptions {
@@ -150,6 +86,9 @@ export enum GasOptions {
 
 export type GasPriceStep = { low: number; medium: number; high: number };
 
+/**
+ * Please use `GasPriceStepForChainStore` from `@leapwallet/cosmos-wallet-store` instead.
+ */
 export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?: 'mainnet' | 'testnet'): GasPriceStep {
   const { chains } = useChainsStore();
   const chain = useMemo(() => chains[chainKey], [chains, chainKey]);
@@ -163,39 +102,15 @@ export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?:
   });
 
   const setGasPrice = useCallback(async () => {
-    try {
-      if ((chainKey === 'coreum' || chainKey === 'mainCoreum') && lcdUrl) {
-        const minGasPrice = await getCoreumGasPrice(lcdUrl, allChainsGasPriceSteps);
-        setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
-      }
-      if (chainKey === 'bitcoin' || chainKey === 'bitcoinSignet') {
-        const gasPrices = await BtcTx.GetFeeRates(chainKey === 'bitcoin' ? 'mainnet' : 'testnet');
-        setGasPriceStep(gasPrices);
-      }
+    const gasData = await getGasPricesSteps({
+      activeChain: chainKey,
+      selectedNetwork,
+      allChainsGasPriceSteps,
+      chains,
+      lcdUrl,
+    });
 
-      if (chainKey === 'seiTestnet2') {
-        const chainId =
-          selectedNetwork === 'mainnet' ? chains['seiTestnet2'].chainId : chains['seiTestnet2'].testnetChainId ?? '';
-        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chainId, 'seiTestnet2');
-        setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
-      }
-
-      if (chainKey === 'seiDevnet') {
-        const minGasPrice = await getSeiGasPrice(allChainsGasPriceSteps, chains['seiDevnet'].chainId, 'seiDevnet');
-        setGasPriceStep({ low: minGasPrice, medium: minGasPrice * 1.2, high: minGasPrice * 1.5 });
-      }
-
-      if (chainKey === 'osmosis') {
-        const { low, medium, high } = await getOsmosisGasPriceSteps(lcdUrl ?? '', allChainsGasPriceSteps);
-        setGasPriceStep({ low, medium, high });
-      }
-    } catch {
-      setGasPriceStep({
-        low: allChainsGasPriceSteps[chainKey]?.low ?? defaultGasPriceStep.low,
-        medium: allChainsGasPriceSteps[chainKey]?.average ?? defaultGasPriceStep.average,
-        high: allChainsGasPriceSteps[chainKey]?.high ?? defaultGasPriceStep.high,
-      });
-    }
+    setGasPriceStep(gasData);
   }, [allChainsGasPriceSteps, chainKey, selectedNetwork, lcdUrl]);
 
   useEffect(() => {

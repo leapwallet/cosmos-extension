@@ -1,14 +1,10 @@
-import { APTOS_COIN } from '@aptos-labs/ts-sdk';
+import { Aptos, APTOS_COIN, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import { aptosChainNativeTokenMapping, axiosWrapper } from '@leapwallet/cosmos-wallet-sdk';
 import { AxiosError } from 'axios';
 import { makeObservable } from 'mobx';
 
 import { BaseQueryStore } from '../base/base-data-store';
-
-export interface IRawBalanceResponse {
-  balances: Array<{ amount: string; denom: string }>;
-  pagination: { next_key: any; total: string };
-}
+import { IRawBalanceResponse } from './bitcoin-balance-store';
 
 export class AptosBalanceStore extends BaseQueryStore<IRawBalanceResponse> {
   restUrl: string;
@@ -24,6 +20,30 @@ export class AptosBalanceStore extends BaseQueryStore<IRawBalanceResponse> {
     this.chain = chain;
   }
 
+  async getNativeTokenBalance() {
+    try {
+      const config = new AptosConfig({
+        network: Network.CUSTOM,
+        fullnode: this.restUrl,
+      });
+      const aptos = new Aptos(config);
+      const balance = await aptos.getAccountCoinAmount({
+        accountAddress: this.address,
+        coinType: APTOS_COIN,
+      });
+      if (balance > 0) {
+        return {
+          denom: aptosChainNativeTokenMapping[this.chain],
+          amount: BigInt(balance).toString(),
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching Native balance', error);
+      return null;
+    }
+  }
+
   async fetchData() {
     try {
       const { data } = await axiosWrapper({
@@ -34,29 +54,47 @@ export class AptosBalanceStore extends BaseQueryStore<IRawBalanceResponse> {
       // Filter for CoinStore resources
       const coinStores = data.filter((r: any) => r.type.includes('0x1::coin::CoinStore'));
 
+      let foundNativeToken = false;
       // Extract balances
-      const balances = coinStores.map((store: any) => {
-        const type = store.type.replace('0x1::coin::CoinStore<', '').replace('>', '');
-        if (type === APTOS_COIN) {
-          return {
-            denom: aptosChainNativeTokenMapping[this.chain],
-            amount: BigInt(store.data.coin.value),
-          };
-        }
+      const balances: IRawBalanceResponse['balances'] =
+        coinStores?.map((store: any) => {
+          const type = store.type.replace('0x1::coin::CoinStore<', '').replace('>', '');
+          if (type === APTOS_COIN) {
+            if (store.data.coin.value > 0) {
+              foundNativeToken = true;
+            }
+            return {
+              denom: aptosChainNativeTokenMapping[this.chain],
+              amount: BigInt(store.data.coin.value).toString(),
+            };
+          }
 
-        return {
-          denom: type,
-          amount: BigInt(store.data.coin.value),
-        };
-      });
+          return {
+            denom: type,
+            amount: BigInt(store.data.coin.value).toString(),
+          };
+        }) ?? [];
+
+      if (!foundNativeToken) {
+        const nativeBalance = await this.getNativeTokenBalance();
+        if (nativeBalance) {
+          balances.unshift(nativeBalance);
+        }
+      }
+
       return {
         balances,
         pagination: { next_key: null, total: balances?.length?.toString() || '0' },
       };
     } catch (error) {
       if (error instanceof AxiosError && error.response?.data?.error_code === 'account_not_found') {
+        const balances: IRawBalanceResponse['balances'] = [];
+        const nativeBalance = await this.getNativeTokenBalance();
+        if (nativeBalance) {
+          balances.unshift(nativeBalance);
+        }
         return {
-          balances: [],
+          balances,
           pagination: { next_key: null, total: '0' },
         };
       }

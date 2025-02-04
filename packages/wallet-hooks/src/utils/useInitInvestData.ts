@@ -1,8 +1,8 @@
+import { initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useInvestDataStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const INVEST_DATA = 'invest-data';
 const INVEST_DATA_LAST_UPDATED_AT = 'invest-data-last-updated-at';

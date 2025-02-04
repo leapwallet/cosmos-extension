@@ -10,6 +10,7 @@ import { useChains, useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { SidePanelNavigation } from 'components/side-panel-navigation'
+import ImportWatchWalletSeedPopup from 'components/watch-watch/ImportWatchWalletSeedPopup'
 import { useActiveInfoEventDispatcher } from 'hooks/settings/useActiveInfoEventDispatcher'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainAbstractionView } from 'hooks/settings/useChainAbstractionView'
@@ -17,6 +18,7 @@ import { useAirdropsData } from 'hooks/useAirdropsData'
 import { InitHooks } from 'init-hooks'
 import Home from 'pages/home/Home'
 import { AddEvmLedger, AddEvmTitle } from 'pages/onboarding/import/AddEvmLedger'
+import OnboardingWatchAddress from 'pages/onboarding/watchAddress'
 import useAssets from 'pages/swaps-v2/hooks/useAssets'
 import React, { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
@@ -148,6 +150,14 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuthOnboarding>
                   <OnboardingImportWallet />
+                </RequireAuthOnboarding>
+              }
+            />
+            <Route
+              path='onboardingWatchAddress'
+              element={
+                <RequireAuthOnboarding>
+                  <OnboardingWatchAddress />
                 </RequireAuthOnboarding>
               }
             />
@@ -447,6 +457,7 @@ export default function AppRoutes(): JSX.Element {
               }
             />
           </RoutesMatch>
+          <ImportWatchWalletSeedPopup />
         </HashRouter>
       </AuthProvider>
     </Suspense>

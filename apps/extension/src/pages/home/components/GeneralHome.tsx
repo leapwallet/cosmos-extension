@@ -23,6 +23,7 @@ import { AggregatedBalanceLoading, AggregatedLoading } from 'components/aggregat
 import { AlertStrip, TestnetAlertStrip } from 'components/alert-strip'
 import { ApiStatusWarningStrip } from 'components/alert-strip/ApiStatusWarningStrip'
 import RewardStrip from 'components/alert-strip/RewardStrip'
+import { WatchingWalletStrip } from 'components/alert-strip/WatchingWalletStrip'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { WalletButton } from 'components/button'
 import { EmptyCard } from 'components/empty-card'

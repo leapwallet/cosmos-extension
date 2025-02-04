@@ -1,9 +1,9 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { FeeMarketGasPrices, roundOf, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { SelectedNetworkType } from '@leapwallet/cosmos-wallet-store';
 import { useCallback, useMemo } from 'react';
 
 import { useActiveChain, useChainApis, useSelectedNetwork } from '../store';
-import { GasPriceStep, getFeeMarketGasPrices, roundOf, useGasPriceStepForChain } from '../utils/useGetGasPrice';
+import { GasPriceStep, getFeeMarketGasPrices, useGasPriceStepForChain } from '../utils/useGetGasPrice';
 import { useChainId } from './use-chain-id';
 
 const CHAIN_SPECIFIC_FEE_MARKET_ADJUSTMENT: Record<string, number> = {
@@ -11,11 +11,9 @@ const CHAIN_SPECIFIC_FEE_MARKET_ADJUSTMENT: Record<string, number> = {
   'cheqd-mainnet-1': 1e4,
 };
 
-export type FeeMarketGasPrices = {
-  denom: string;
-  amount: string;
-}[];
-
+/**
+ * Please use `FeeMarketGasPriceStepStore` from `@leapwallet/cosmos-wallet-store` instead.
+ */
 export function useGetFeeMarketGasPricesSteps(forceChain?: SupportedChain, forceNetwork?: SelectedNetworkType) {
   const _activeChain = useActiveChain();
   const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain]);

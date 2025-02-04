@@ -6,6 +6,9 @@ type DefaultGasEstimates = {
   setDefaultGasEstimates: (defaultGasEstimates: DefaultGasEstimatesRecord | null) => void;
 };
 
+/**
+ * Please use `DefaultGasEstimatesStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export const useDefaultGasEstimatesStore = create<DefaultGasEstimates>((set) => ({
   defaultGasEstimates: null,
   setDefaultGasEstimates: (defaultGasEstimates) =>
@@ -26,6 +29,9 @@ export const useDefaultGasEstimatesStore = create<DefaultGasEstimates>((set) => 
     }),
 }));
 
+/**
+ * Please use `DefaultGasEstimatesStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export const useDefaultGasEstimates = () => {
   const { defaultGasEstimates } = useDefaultGasEstimatesStore();
   return defaultGasEstimates ?? ({} as DefaultGasEstimatesRecord);

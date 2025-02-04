@@ -85,16 +85,21 @@ export class LavaTx extends Tx {
     return await this.signAndBroadcastTx(fromAddress, [delegateMessage], fee, memo);
   }
 
-  async claimProviderRewards(fromAddress: string, providerAddress: string, fee: number | StdFee | 'auto', memo = '') {
-    const claimRewardsMessage = {
+  async claimProviderRewards(
+    fromAddress: string,
+    providerAddresses: string[],
+    fee: number | StdFee | 'auto',
+    memo = '',
+  ) {
+    const claimRewardsMessages = providerAddresses.map((provider) => ({
       typeUrl: '/lavanet.lava.dualstaking.MsgClaimRewards',
       value: {
         creator: fromAddress,
-        provider: providerAddress,
+        provider: provider,
       },
-    };
+    }));
 
-    return await this.signAndBroadcastTx(fromAddress, [claimRewardsMessage], fee, memo);
+    return await this.signAndBroadcastTx(fromAddress, claimRewardsMessages, fee, memo);
   }
 
   async unDelegateLava(
@@ -201,13 +206,20 @@ export async function simulateReDelegateLava(
   return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
 }
 
-export async function simulateClaimProviderRewards(lcdEndpoint: string, fromAddress: string, providerAddress: string) {
-  const encodedMsg = {
-    typeUrl: '/lavanet.lava.dualstaking.MsgClaimRewards',
-    value: MsgClaimRewards.encode({
-      creator: fromAddress,
-      provider: providerAddress,
-    }).finish(),
-  };
-  return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg]);
+export async function simulateClaimProviderRewards(
+  lcdEndpoint: string,
+  fromAddress: string,
+  providerAddresses: string[],
+  fee: Coin[],
+) {
+  const encodedMsgs = providerAddresses.map((provider) => {
+    return {
+      typeUrl: '/lavanet.lava.dualstaking.MsgClaimRewards',
+      value: MsgClaimRewards.encode({
+        creator: fromAddress,
+        provider: provider,
+      }).finish(),
+    };
+  });
+  return await simulateTx(lcdEndpoint, fromAddress, encodedMsgs, { amount: fee });
 }

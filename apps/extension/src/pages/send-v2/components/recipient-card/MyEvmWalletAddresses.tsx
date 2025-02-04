@@ -3,13 +3,16 @@ import {
   Key,
   SelectedAddress,
   sliceAddress,
+  useGetChains,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
+import classNames from 'classnames'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
-import React from 'react'
+import React, { useMemo } from 'react'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 type WalletCardProps = {
   chainInfo: ChainInfo
@@ -18,24 +21,58 @@ type WalletCardProps = {
 }
 
 const WalletCard = ({ wallet, onClick, chainInfo }: WalletCardProps) => {
+  const chains = useGetChains()
+
   const walletAddress = chainInfo?.evmOnlyChain
-    ? pubKeyToEvmAddressToShow(wallet.pubKeys?.[chainInfo?.key])
+    ? pubKeyToEvmAddressToShow(wallet.pubKeys?.[chainInfo?.key], true)
     : wallet.addresses[chainInfo?.key]
 
-  const walletLabel =
-    wallet.walletType === WALLETTYPE.LEDGER
-      ? ` · /0'/0/${wallet.addressIndex}`
-      : wallet.walletType === WALLETTYPE.PRIVATE_KEY ||
-        wallet.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
-      ? ` · Imported`
-      : ''
+  const addressText = useMemo(() => {
+    if (
+      wallet.walletType === WALLETTYPE.LEDGER &&
+      !isLedgerEnabled(chainInfo.key, chainInfo.bip44.coinType, Object.values(chains))
+    ) {
+      return `Ledger not supported on ${chainInfo.chainName}`
+    }
 
-  const addressText = `${sliceAddress(walletAddress)}${walletLabel}`
+    if (
+      wallet.walletType === WALLETTYPE.LEDGER &&
+      isLedgerEnabled(chainInfo.key, chainInfo.bip44.coinType, Object.values(chains)) &&
+      !wallet.addresses[chainInfo.key]
+    ) {
+      return `Please import EVM wallet`
+    }
+
+    const walletLabel =
+      wallet.walletType === WALLETTYPE.LEDGER
+        ? ` · /0'/0/${wallet.addressIndex}`
+        : wallet.walletType === WALLETTYPE.PRIVATE_KEY ||
+          wallet.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
+        ? ` · Imported`
+        : ''
+
+    return `${sliceAddress(walletAddress)}${walletLabel}`
+  }, [
+    wallet.walletType,
+    wallet.addresses,
+    wallet.addressIndex,
+    chainInfo.key,
+    chainInfo.bip44.coinType,
+    chainInfo.chainName,
+    chains,
+    walletAddress,
+  ])
 
   return (
     <button
       key={wallet.id}
-      className='flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 gap-3 cursor-pointer rounded-2xl'
+      className={classNames(
+        'flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 gap-3 cursor-pointer rounded-2xl',
+        {
+          '!cursor-not-allowed opacity-50': !walletAddress,
+        },
+      )}
+      disabled={!walletAddress}
       onClick={() => {
         const name = `${
           wallet.name.length > 12 ? `${wallet.name.slice(0, 12)}...` : wallet.name

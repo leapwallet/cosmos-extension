@@ -42,7 +42,7 @@ export function useFetchStakeClaimRewards(
 
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
   const address = useAddress(activeChain);
-  const getIbcDenomInfo = useGetIbcDenomInfo(activeChain);
+  const getIbcDenomInfo = useGetIbcDenomInfo(denoms, activeChain);
   const [preferredCurrency] = useUserPreferredCurrency();
 
   const chainInfos = useGetChains();

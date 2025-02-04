@@ -6,7 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Keystore, WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Buttons } from '@leapwallet/leap-ui'
-import { LEDGER_ENABLED_EVM_CHAINS } from 'config/config'
+import { captureException } from '@sentry/react'
 import { KEYSTORE } from 'config/storage-keys'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -110,7 +110,8 @@ export function AddEvmLedger() {
       const chainWiseAddresses = await getEvmLedgerAccountDetails()
       await confirmImport(chainWiseAddresses)
       setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step3)
-    } catch {
+    } catch (error) {
+      captureException(error)
       setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step1)
     }
   }

@@ -1,10 +1,9 @@
 // use init snip20 denoms
-import { SnipDenoms as defaultDenoms } from '@leapwallet/cosmos-wallet-sdk';
+import { initResourceFromS3, SnipDenoms as defaultDenoms } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useEffect } from 'react';
 
 import { useSnipDenomsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const SNIP_DENOMS = 'snip-denoms';
 const SNIP_DENOMS_LAST_UPDATED_AT = 'snip-denoms-last-updated-at';

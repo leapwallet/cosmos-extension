@@ -6,6 +6,9 @@ type FeeDenomsState = {
   setFeeDenoms: (feeDenoms: FeeDenoms | null) => void;
 };
 
+/**
+ * Please use `FeeDenomsStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export const useFeeDenomsStore = create<FeeDenomsState>((set) => ({
   feeDenoms: null,
   setFeeDenoms: (feeDenoms) =>
@@ -28,6 +31,9 @@ export const useFeeDenomsStore = create<FeeDenomsState>((set) => ({
     }),
 }));
 
+/**
+ * Please use `FeeDenomsStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export const useFeeDenoms = (): FeeDenoms | Record<'mainnet' | 'testnet', Record<string, never>> => {
   return useFeeDenomsStore((state) => state.feeDenoms) ?? { mainnet: {}, testnet: {} };
 };

@@ -1,9 +1,8 @@
-import { denoms as defaultDenoms } from '@leapwallet/cosmos-wallet-sdk';
+import { denoms as defaultDenoms, initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useEffect } from 'react';
 
 import { useDenomsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const BASE_DENOMS = 'base-denoms';
 const BASE_DENOMS_LAST_UPDATED_AT = 'base-denoms-last-updated-at';

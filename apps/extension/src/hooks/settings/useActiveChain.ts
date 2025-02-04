@@ -23,6 +23,7 @@ import browser from 'webextension-polyfill'
 
 import { isCompassWallet } from '../../utils/isCompassWallet'
 import useActiveWallet, { useUpdateKeyStore } from './useActiveWallet'
+import { useHandleWatchWalletChainSwitch } from './useHandleWWChainSwitch'
 import { useIsAllChainsEnabled } from './useIsAllChainsEnabled'
 
 export function useActiveChain(): SupportedChain {
@@ -51,7 +52,9 @@ export function useSetActiveChain() {
       if (keystore) {
         const shouldUpdateKeystore = Object.keys(keystore).some((key) => {
           const wallet = keystore[key]
-          return wallet && (!wallet.addresses[chain] || !wallet.pubKeys?.[chain])
+          return (
+            wallet && !wallet.watchWallet && (!wallet.addresses[chain] || !wallet.pubKeys?.[chain])
+          )
         })
         if (activeWallet && shouldUpdateKeystore) {
           const updatedKeystore = await updateKeyStore(activeWallet, chain)
@@ -123,6 +126,7 @@ export function useInitActiveChain(enabled: boolean) {
   const setActiveChain = useSetActiveChainWalletHooks()
   const setLastEvmActiveChain = useSetLastEvmActiveChain()
   const isAllChainsEnabled = useIsAllChainsEnabled()
+
   const [isActiveChainInitialized, setIsActiveChainInitialized] = useState<boolean>(false)
 
   useEffect(() => {
@@ -164,5 +168,6 @@ export function useInitActiveChain(enabled: boolean) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainInfos, chains, isAllChainsEnabled, enabled])
 
+  useHandleWatchWalletChainSwitch(isActiveChainInitialized)
   useInitSelectedNetwork(isActiveChainInitialized)
 }

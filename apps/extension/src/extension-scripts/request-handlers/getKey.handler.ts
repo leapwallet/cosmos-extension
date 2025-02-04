@@ -2,7 +2,6 @@ import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import browser from 'webextension-polyfill'
 
-import { LEDGER_ENABLED_EVM_CHAIN_IDS } from '../../config/config'
 import { ACTIVE_WALLET, CONNECTIONS } from '../../config/storage-keys'
 import { getUpdatedKeyStore } from '../../hooks/wallet/getUpdatedKeyStore'
 import { Bech32Address } from '../../utils/bech32'
@@ -13,6 +12,7 @@ import {
   awaitApproveChainResponse,
   checkConnection,
   decodeChainIdToChain,
+  getSupportedChains,
   openPopup,
   requestEnableAccess,
 } from '../utils'
@@ -40,7 +40,7 @@ export async function getKey(chainId: string, passwordManager: PasswordManager) 
   if (!activeWallet.addresses[chain] && ChainInfos[chain as SupportedChain].enabled && password) {
     if (
       activeWallet.walletType === WALLETTYPE.LEDGER &&
-      ['60', '637'].includes(ChainInfos[chain as SupportedChain].bip44.coinType)
+      ['637'].includes(ChainInfos[chain as SupportedChain].bip44.coinType)
     ) {
       throw new Error('Ledger wallet is not supported for this chain')
     }
@@ -124,21 +124,40 @@ export async function handleGetKey({ message, passwordManager, sendResponse }: G
       sendResponse(eventName, { error: 'Invalid chain id' }, payload.id)
       return
     }
-    const isEvmChainId = validChainIds.some((chainId) =>
-      LEDGER_ENABLED_EVM_CHAIN_IDS.includes(chainId),
-    )
 
-    if (activeWallet && activeWallet.walletType === WALLETTYPE.LEDGER && isEvmChainId) {
-      const chainIdToChain = await decodeChainIdToChain()
-      const requestedChainKeys = validChainIds
-        .map((chainId) => [chainId, chainIdToChain[chainId]])
-        .filter(([_, chainKey]) => !!activeWallet.addresses[chainKey])
+    if (activeWallet && activeWallet.walletType === WALLETTYPE.LEDGER) {
+      const allSupportedChains = await getSupportedChains()
+      const evmChainIds: string[] = []
+      Object.values(allSupportedChains).forEach((chain) => {
+        if (chain.evmOnlyChain || chain.bip44.coinType === '60') {
+          if (chain.chainId) {
+            evmChainIds.push(chain.chainId)
+          }
+          if (chain.testnetChainId) {
+            evmChainIds.push(chain.testnetChainId)
+          }
+          if (chain.evmChainId) {
+            evmChainIds.push(chain.evmChainId)
+          }
+          if (chain.evmChainIdTestnet) {
+            evmChainIds.push(chain.evmChainIdTestnet)
+          }
+        }
+      })
+      const isEvmChainId = validChainIds.some((chainId) => chainId && evmChainIds.includes(chainId))
 
-      if (requestedChainKeys.length === 0) {
-        requestedChainKeys.forEach(([requestedChainId]) => {
-          sendResponse(eventName, { error: `No public key for ${requestedChainId}` }, payload.id)
-        })
-        return
+      if (isEvmChainId) {
+        const chainIdToChain = await decodeChainIdToChain()
+        const requestedChainKeys = validChainIds
+          .map((chainId) => [chainId, chainIdToChain[chainId]])
+          .filter(([_, chainKey]) => !!activeWallet.addresses[chainKey])
+
+        if (requestedChainKeys.length === 0) {
+          validChainIds.forEach((requestedChainId) => {
+            sendResponse(eventName, { error: `No public key for ${requestedChainId}` }, payload.id)
+          })
+          return
+        }
       }
     }
 

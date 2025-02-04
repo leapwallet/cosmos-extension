@@ -258,6 +258,9 @@ export const getFeeTokens = async ({
   return feeTokens;
 };
 
+/**
+ * Please use `FeeTokensQueryStore` from `@leapwallet/cosmos-wallet-store` instead.
+ */
 export const useFeeTokens = (
   allAssets: Token[],
   denoms: DenomsRecord,

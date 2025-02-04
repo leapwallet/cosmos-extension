@@ -181,4 +181,6 @@ export const chainIdToChainName: Record<string, string> = {
   'aptos-250': 'movementBardock',
   'aptos-1': 'aptos',
   'aptos-2': 'aptos',
+  '2741': 'abstract',
+  '11124': 'abstract',
 };

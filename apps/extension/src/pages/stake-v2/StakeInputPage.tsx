@@ -12,8 +12,7 @@ import {
   useStakeTx,
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Delegation,
   Provider,
@@ -41,12 +40,14 @@ import { YouStakeSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { addSeconds } from 'date-fns'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { timeLeft } from 'utils/timeLeft'
 
@@ -57,8 +58,9 @@ import SelectValidatorCard from './components/SelectValidatorCard'
 import SelectValidatorSheet from './components/SelectValidatorSheet'
 import YouStake from './components/YouStake'
 import useGetWallet = Wallet.useGetWallet
+
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 
 import AutoAdjustAmountSheet from './components/AutoAdjustModal'
 import { SelectProviderCard } from './restaking/SelectProviderCard'
@@ -228,6 +230,7 @@ const StakeInputPage = observer(
             [providerDelegation as ProviderDelegation],
             selectedProvider,
             fromProvider,
+            undefined,
             activeChain,
             activeNetwork,
           )
@@ -246,6 +249,7 @@ const StakeInputPage = observer(
       selectedNetwork: activeNetwork,
     })
     const getWallet = useGetWallet(activeChain)
+    const { activeWallet } = useActiveWallet()
 
     const [gasError, setGasError] = useState<string | null>(null)
     const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
@@ -442,110 +446,108 @@ const StakeInputPage = observer(
             />
           }
         >
-          <div
-            className='flex flex-col justify-between p-4'
-            style={{ height: 'calc(100% - 72px)' }}
-          >
-            <div className='space-y-4 overflow-y-auto'>
-              {fromValidator && (
-                <SelectValidatorCard
-                  title='Current Validator'
-                  selectedValidator={fromValidator}
-                  setShowSelectValidatorSheet={setShowSelectValidatorSheet}
-                  selectDisabled={true}
-                />
-              )}
+          <div className='space-y-4 overflow-y-auto p-4'>
+            {fromValidator && (
+              <SelectValidatorCard
+                title='Current Validator'
+                selectedValidator={fromValidator}
+                setShowSelectValidatorSheet={setShowSelectValidatorSheet}
+                selectDisabled={true}
+              />
+            )}
 
-              {fromProvider && (
+            {fromProvider && (
+              <SelectProviderCard
+                title='Current Provider'
+                selectedProvider={fromProvider}
+                setShowSelectProviderSheet={setShowSelectProviderSheet}
+                selectDisabled={true}
+                rootDenomsStore={rootDenomsStore}
+              />
+            )}
+
+            <YouStake
+              amount={amount}
+              setAmount={setAmount}
+              adjustAmount={adjustAmount}
+              setAdjustAmount={setAdjustAmount}
+              token={token}
+              fees={customFee?.amount[0]}
+              hasError={hasError}
+              setHasError={setHasError}
+              mode={mode}
+              tokenLoading={tokenLoading}
+              delegationBalance={delegationBalance}
+              rootDenomsStore={rootDenomsStore}
+              activeChain={activeChain}
+              activeNetwork={activeNetwork}
+              delegationBalanceLoading={delegationBalanceLoading}
+            />
+            {!fromProvider &&
+              (loadingSelectedValidator ? (
+                <YouStakeSkeleton />
+              ) : (
+                <SelectValidatorCard
+                  title={
+                    activeChain === 'lava' &&
+                    featureFlags?.restaking?.extension === 'active' &&
+                    mode === 'DELEGATE'
+                      ? 'Stake to Validator'
+                      : 'Validator'
+                  }
+                  selectedValidator={selectedValidator}
+                  setShowSelectValidatorSheet={setShowSelectValidatorSheet}
+                  selectDisabled={mode === 'UNDELEGATE' && !!toValidator}
+                />
+              ))}
+
+            {activeChain === 'lava' &&
+              featureFlags?.restaking?.extension === 'active' &&
+              (mode === 'DELEGATE' ||
+                (mode === 'REDELEGATE' && fromProvider) ||
+                (mode === 'UNDELEGATE' && toProvider)) && (
                 <SelectProviderCard
-                  title='Current Provider'
-                  selectedProvider={fromProvider}
+                  title={mode === 'DELEGATE' ? 'Restake to Provider' : 'Provider'}
+                  optional={mode === 'DELEGATE'}
+                  selectedProvider={selectedProvider}
                   setShowSelectProviderSheet={setShowSelectProviderSheet}
-                  selectDisabled={true}
+                  selectDisabled={mode === 'UNDELEGATE'}
                   rootDenomsStore={rootDenomsStore}
                 />
               )}
 
-              <YouStake
-                amount={amount}
-                setAmount={setAmount}
-                adjustAmount={adjustAmount}
-                setAdjustAmount={setAdjustAmount}
-                token={token}
-                fees={customFee?.amount[0]}
-                hasError={hasError}
-                setHasError={setHasError}
-                mode={mode}
-                tokenLoading={tokenLoading}
-                delegationBalance={delegationBalance}
+            {token && new BigNumber(token.amount).isEqualTo(0) && (
+              <InsufficientBalanceCard
                 rootDenomsStore={rootDenomsStore}
                 activeChain={activeChain}
                 activeNetwork={activeNetwork}
-                delegationBalanceLoading={delegationBalanceLoading}
               />
-              {!fromProvider &&
-                (loadingSelectedValidator ? (
-                  <YouStakeSkeleton />
-                ) : (
-                  <SelectValidatorCard
-                    title={
-                      activeChain === 'lava' &&
-                      featureFlags?.restaking?.extension === 'active' &&
-                      mode === 'DELEGATE'
-                        ? 'Stake to Validator'
-                        : 'Validator'
-                    }
-                    selectedValidator={selectedValidator}
-                    setShowSelectValidatorSheet={setShowSelectValidatorSheet}
-                    selectDisabled={mode === 'UNDELEGATE' && !!toValidator}
-                  />
-                ))}
+            )}
+          </div>
 
-              {activeChain === 'lava' &&
-                featureFlags?.restaking?.extension === 'active' &&
-                (mode === 'DELEGATE' ||
-                  (mode === 'REDELEGATE' && fromProvider) ||
-                  (mode === 'UNDELEGATE' && toProvider)) && (
-                  <SelectProviderCard
-                    title={mode === 'DELEGATE' ? 'Restake to Provider' : 'Provider'}
-                    optional={mode === 'DELEGATE'}
-                    selectedProvider={selectedProvider}
-                    setShowSelectProviderSheet={setShowSelectProviderSheet}
-                    selectDisabled={mode === 'UNDELEGATE'}
-                    rootDenomsStore={rootDenomsStore}
-                  />
+          <div className={classNames('absolute bottom-4 px-3', { 'mt-auto': isSidePanel() })}>
+            {new BigNumber(amount).isGreaterThan(0) && (
+              <div className='flex items-center justify-between pt-2 px-2'>
+                {activeChain !== 'babylon' && (
+                  <div className='flex gap-x-1'>
+                    <Text
+                      size='xs'
+                      color='text-gray-700 dark:text-gray-400'
+                      className='font-medium text-center'
+                    >
+                      Unstaking period
+                    </Text>
+                    <Text
+                      size='xs'
+                      color='text-black-100 dark:text-white-100'
+                      className='font-medium'
+                    >
+                      {unstakingPeriod}
+                    </Text>
+                  </div>
                 )}
 
-              {token && new BigNumber(token.amount).isEqualTo(0) && (
-                <InsufficientBalanceCard
-                  rootDenomsStore={rootDenomsStore}
-                  activeChain={activeChain}
-                  activeNetwork={activeNetwork}
-                />
-              )}
-            </div>
-
-            <div className={classNames({ 'mt-auto': isSidePanel() })}>
-              {new BigNumber(amount).isGreaterThan(0) && (
-                <div className='flex items-center justify-between pt-2 px-2'>
-                  {activeChain !== 'babylon' && (
-                    <div className='flex gap-x-1'>
-                      <Text
-                        size='xs'
-                        color='text-gray-700 dark:text-gray-400'
-                        className='font-medium text-center'
-                      >
-                        Unstaking period
-                      </Text>
-                      <Text
-                        size='xs'
-                        color='text-black-100 dark:text-white-100'
-                        className='font-medium'
-                      >
-                        {unstakingPeriod}
-                      </Text>
-                    </div>
-                  )}
+                {displayFeeValue?.fiatValue && (
                   <div
                     onClick={() => setShowFeesSettingSheet(true)}
                     className='flex gap-x-1 items-center hover:cursor-pointer ml-auto'
@@ -560,52 +562,54 @@ const StakeInputPage = observer(
                     </Text>
                     <CaretDown size={16} className='text-black-100 dark:text-white-100' />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              <Buttons.Generic
-                size='normal'
-                className='mt-2'
-                color={
-                  hasError
-                    ? Colors.red300
-                    : !isCompassWallet()
-                    ? Colors.green600
-                    : Colors.compassPrimary
-                }
-                onClick={() => {
+            <Buttons.Generic
+              size='normal'
+              className='mt-2'
+              color={
+                hasError
+                  ? Colors.red300
+                  : !isCompassWallet()
+                  ? Colors.green600
+                  : Colors.compassPrimary
+              }
+              onClick={() => {
+                if (
+                  mode === 'DELEGATE' &&
+                  parseFloat(amount) + (displayFeeValue?.value ?? 0) >
+                    parseFloat(token?.amount ?? '')
+                ) {
+                  setShowAdjustAmountSheet(true)
+                } else {
                   if (
+                    activeChain === 'lava' &&
+                    featureFlags?.restaking?.extension === 'active' &&
                     mode === 'DELEGATE' &&
-                    parseFloat(amount) + (displayFeeValue?.value ?? 0) >
-                      parseFloat(token?.amount ?? '')
+                    !selectedProvider
                   ) {
-                    setShowAdjustAmountSheet(true)
+                    setShowSuggestSelectProviderSheet(true)
                   } else {
-                    if (
-                      activeChain === 'lava' &&
-                      featureFlags?.restaking?.extension === 'active' &&
-                      mode === 'DELEGATE' &&
-                      !selectedProvider
-                    ) {
-                      setShowSuggestSelectProviderSheet(true)
+                    if (activeWallet?.watchWallet) {
+                      importWatchWalletSeedPopupStore.setShowPopup(true)
                     } else {
                       setShowReviewStakeTx(true)
                     }
                   }
-                }}
-                disabled={
-                  !new BigNumber(amount).isGreaterThan(0) ||
-                  hasError ||
-                  ((fromValidator || mode === 'DELEGATE') && !selectedValidator) ||
-                  (fromProvider && !selectedProvider) ||
-                  !!ledgerError
                 }
-              >
-                {hasError
-                  ? 'Insufficient Balance'
-                  : `Review ${getButtonTitle(mode, !!fromProvider)}`}
-              </Buttons.Generic>
-            </div>
+              }}
+              disabled={
+                !new BigNumber(amount).isGreaterThan(0) ||
+                hasError ||
+                ((fromValidator || mode === 'DELEGATE') && !selectedValidator) ||
+                (fromProvider && !selectedProvider) ||
+                !!ledgerError
+              }
+            >
+              {hasError ? 'Insufficient Balance' : `Review ${getButtonTitle(mode, !!fromProvider)}`}
+            </Buttons.Generic>
           </div>
         </PopupLayout>
 

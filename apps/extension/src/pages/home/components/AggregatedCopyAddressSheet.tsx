@@ -37,6 +37,22 @@ const FetchChainWalletAddresses = React.memo(
 
 FetchChainWalletAddresses.displayName = 'FetchChainWalletAddresses'
 
+const RemoveChainWalletAddresses = React.memo(
+  ({ chain, setWalletAddresses }: FetchChainWalletAddressesProps) => {
+    useEffect(() => {
+      setWalletAddresses((prev) => {
+        const updatedAddresses = { ...prev }
+        delete updatedAddresses[chain]
+        return updatedAddresses
+      })
+    }, [chain, setWalletAddresses])
+
+    return null
+  },
+)
+
+RemoveChainWalletAddresses.displayName = 'RemoveChainWalletAddresses'
+
 type AggregatedCopyAddressSheetProps = {
   isVisible: boolean
   onClose: (refetch?: boolean) => void
@@ -121,6 +137,13 @@ const AggregatedCopyAddressSheet = React.memo(
           aggregatedChainsStore={aggregatedChainsStore}
           render={({ key, chain, setAggregatedStore }) => (
             <FetchChainWalletAddresses
+              key={key}
+              chain={chain}
+              setWalletAddresses={setAggregatedStore}
+            />
+          )}
+          reset={({ key, chain, setAggregatedStore }) => (
+            <RemoveChainWalletAddresses
               key={key}
               chain={chain}
               setWalletAddresses={setAggregatedStore}

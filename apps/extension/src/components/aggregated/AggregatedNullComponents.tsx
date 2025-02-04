@@ -4,9 +4,7 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { AggregatedChainsStore } from '@leapwallet/cosmos-wallet-store'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
-import { ManageChainSettings } from 'stores/manage-chains-store'
-import { manageChainsStore } from 'stores/manage-chains-store'
-import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
+import { ManageChainSettings, manageChainsStore } from 'stores/manage-chains-store'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 type AggregatedNullComponentsProps = {
@@ -21,43 +19,32 @@ type AggregatedNullComponentsProps = {
     chain: SupportedChain
     setAggregatedStore: any
   }) => JSX.Element
+  reset?: ({
+    key,
+    chain,
+    setAggregatedStore,
+  }: {
+    key: string
+    chain: SupportedChain
+    setAggregatedStore: any
+  }) => JSX.Element
 }
 
 export const AggregatedNullComponents = observer(function ({
   setAggregatedStore,
   aggregatedChainsStore,
   render,
+  reset,
 }: AggregatedNullComponentsProps) {
   const chains = useGetChains()
   const aggregatedChains = aggregatedChainsStore.aggregatedChainsData as SupportedChain[]
   const activeWallet = useActiveWallet()
-
-  const ledgerEnabledEvmChainsIds = useMemo(() => {
-    return getLedgerEnabledEvmChainsIds(Object.values(chains))
-  }, [chains])
+  const managedChains = manageChainsStore.chains
 
   const chainsToFetch = useMemo(() => {
     return aggregatedChains.reduce((acc: ManageChainSettings[], chain) => {
       const chainInfo = chains[chain]
       const noAddress = !activeWallet?.addresses[chain]
-
-      // If `connectEVMLedger` check is true, then we will skip the chain
-      if (
-        noAddress &&
-        activeWallet?.walletType === WALLETTYPE.LEDGER &&
-        ledgerEnabledEvmChainsIds.includes(chainInfo?.chainId)
-      ) {
-        return acc
-      }
-
-      // If `ledgerNotSupported` check is true, then we will skip the chain
-      if (
-        noAddress &&
-        activeWallet?.walletType === WALLETTYPE.LEDGER &&
-        !ledgerEnabledEvmChainsIds.includes(chainInfo?.chainId)
-      ) {
-        return acc
-      }
 
       // If no address, chain is testnet or apiStatus is false, then we will skip the chain
       if (
@@ -77,23 +64,27 @@ export const AggregatedNullComponents = observer(function ({
       }
 
       // If managed chain is not active, skip fetching the chain
-      const managedChain = manageChainsStore.chains.find(
-        (managedChain) => managedChain.chainName === chain,
-      )
+      const managedChain = managedChains.find((managedChain) => managedChain.chainName === chain)
       if (managedChain && managedChain.active) {
         return [...acc, managedChain]
       }
 
       return acc
     }, [])
-  }, [
-    activeWallet?.addresses,
-    activeWallet?.walletType,
-    aggregatedChains,
-    chains,
-    ledgerEnabledEvmChainsIds,
-    manageChainsStore.chains,
-  ])
+  }, [activeWallet?.addresses, activeWallet?.walletType, aggregatedChains, managedChains, chains])
+
+  const chainsToReset = useMemo(() => {
+    const _chainsToReset: ManageChainSettings[] = []
+    aggregatedChains.forEach((chain) => {
+      const manageChain = manageChainsStore.chains.find(
+        (manageChain) => manageChain.chainName === chain,
+      )
+      if (manageChain && !chainsToFetch.includes(manageChain)) {
+        _chainsToReset.push(manageChain)
+      }
+    })
+    return _chainsToReset
+  }, [aggregatedChains, chainsToFetch])
 
   return (
     <>
@@ -104,6 +95,14 @@ export const AggregatedNullComponents = observer(function ({
           setAggregatedStore,
         }),
       )}
+      {reset &&
+        chainsToReset.map((chain) =>
+          reset({
+            key: chain.chainName,
+            chain: chain.chainName,
+            setAggregatedStore,
+          }),
+        )}
     </>
   )
 })

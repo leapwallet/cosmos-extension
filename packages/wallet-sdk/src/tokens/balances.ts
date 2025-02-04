@@ -78,7 +78,11 @@ export async function fetchCW20Balances(rpcUrl: string, address: string, cw20Tok
 }
 
 export async function fetchERC20Balances(evmJsonRpc: string, ethWalletAddress: string, erc20Tokens: Array<string>) {
-  const provider = new JsonRpcProvider(evmJsonRpc);
+  const provider = new JsonRpcProvider({
+    url: evmJsonRpc,
+    timeout: 10000,
+    throttleLimit: 3,
+  });
   const contractAbi = ['function balanceOf(address account) view returns (uint256)'];
 
   const promises = erc20Tokens.map(async (tokenAddress) => {

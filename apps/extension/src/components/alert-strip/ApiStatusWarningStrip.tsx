@@ -17,7 +17,7 @@ export const ApiStatusWarningStrip = () => {
       message={
         <span className='flex items-center justify-between gap-1 font-medium text-xs dark:text-amber-400 text-amber-500'>
           <Warning weight='fill' size={14} />
-          <span>Failed to fetch network data. Check again later.</span>
+          <span>Failed to fetch balances. Check again later.</span>
           <button
             title='hide'
             className='dark:text-gray-400 text-gray-600 absolute right-4'

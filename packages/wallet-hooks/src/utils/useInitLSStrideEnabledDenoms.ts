@@ -1,8 +1,8 @@
+import { initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useLSStrideEnabledDenomsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const LS_STRIDE_ENABLED_DENOMS = 'ls-stride-enabled-denoms';
 const LS_STRIDE_ENABLED_DENOMS_LAST_UPDATED_AT = 'ls-stride-enabled-denoms-last-updated-at';

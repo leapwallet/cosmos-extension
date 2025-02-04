@@ -1,3 +1,4 @@
+import { DenomsRecord } from '../types';
 import { Cw20Denoms } from './cw20-denoms';
 
 export type SupportedDenoms = 'uatom' | 'uosmo' | 'uion' | 'uscrt' | 'ujuno' | 'ujunox' | 'ustars' | 'uusdc' | 'usdc';
@@ -16,7 +17,7 @@ export type NativeDenom = {
 
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
-export const denoms = {
+export const denoms: DenomsRecord = {
   ubbn: {
     name: 'Babylon',
     coinDenom: 'tBABY',
@@ -151,6 +152,14 @@ export const denoms = {
     coinGeckoId: 'matic-network',
     icon: 'https://assets.leapwallet.io/polygon.png',
     chain: 'polygon',
+  },
+  'abstract-native': {
+    coinDenom: 'ETH',
+    coinMinimalDenom: 'abstract-native',
+    coinDecimals: 18,
+    coinGeckoId: 'ethereum',
+    icon: 'https://assets.leapwallet.io/eth.png',
+    chain: 'abstract',
   },
   'arbitrum-native': {
     coinDenom: 'ETH',

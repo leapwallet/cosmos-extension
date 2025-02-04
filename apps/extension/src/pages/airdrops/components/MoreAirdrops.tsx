@@ -21,11 +21,11 @@ export default function MoreAirdrops() {
         <br />
         eligibility for other addresses.
       </Text>
-      <GoToLeapboard className='relative z-[2]' />
+      <GoToLeapboard className='relative' />
       <img
         src={Images.Misc.FrogHappy}
         alt='FrogHappy'
-        className={classNames('absolute right-0 bottom-0 z-[1]', {
+        className={classNames('absolute right-0 bottom-0', {
           'min-[350px]:!max-w-[40%] max-[349px]:!max-w-[32%]': isSidePanel(),
         })}
       />

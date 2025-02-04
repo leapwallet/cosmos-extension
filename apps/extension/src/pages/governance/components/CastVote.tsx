@@ -2,7 +2,6 @@ import { calculateFee } from '@cosmjs/stargate'
 import {
   FeeTokenData,
   GasOptions,
-  getOsmosisGasPriceSteps,
   useChainApis,
   useChainCosmosSDK,
   useDefaultGasEstimates,
@@ -20,6 +19,7 @@ import {
   CosmosSDK,
   DefaultGasEstimates,
   GasPrice,
+  getOsmosisGasPriceSteps,
   getSimulationFee,
   NativeDenom,
   SupportedChain,

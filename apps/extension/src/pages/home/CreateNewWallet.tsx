@@ -1,17 +1,14 @@
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
 import { Wallet as WalletIcon } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import React, { useCallback, useState } from 'react'
 
-import { Wallet } from '../../hooks/wallet/useWallet'
-import useCreateNewWallet = Wallet.useCreateNewWallet
-
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
-
 import CreateWalletInput from '../../components/create-wallet-form/CreateWalletInput'
 import SelectWalletColors from '../../components/create-wallet-form/SelectWalletColors'
 import { ErrorCard } from '../../components/ErrorCard'
 import { LoaderAnimation } from '../../components/loader/Loader'
+import { Wallet } from '../../hooks/wallet/useWallet'
 import { Colors } from '../../theme/colors'
 
 type NewWalletFormProps = {
@@ -22,7 +19,7 @@ type NewWalletFormProps = {
 
 export function NewWalletForm({ isVisible, onClose }: NewWalletFormProps) {
   const [isLoading, setLoading] = useState<boolean>(false)
-  const createNewWallet = useCreateNewWallet()
+  const createNewWallet = Wallet.useCreateNewWallet()
   const [name, setName] = useState('')
   const [colorIndex, setColorIndex] = useState<number>(0)
   const [error, setError] = useState('')

@@ -3,6 +3,7 @@ import { makeObservable, reaction } from 'mobx';
 import { BaseQueryStore } from '../base/base-data-store';
 import { CurrencyStore } from '../wallet';
 
+// replaces useCoingeckoPricesStore, useInitCoingeckoPrices and fetchCurrency from findUSDValue
 export class PriceStore extends BaseQueryStore<Record<string, number>> {
   prices: Record<string, number> = {};
   readyPromise: Promise<void>;

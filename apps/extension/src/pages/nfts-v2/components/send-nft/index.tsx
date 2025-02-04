@@ -84,7 +84,7 @@ export const SendNftCard = observer(
     const denoms = rootDenomsStore.allDenoms
 
     const sendNftReturn = useSendNft(denoms, collectionAddress, activeChain, forceNetwork)
-    const { status: gasPriceStatus } = useGetEvmGasPrices()
+    const { status: gasPriceStatus } = useGetEvmGasPrices(activeChain, forceNetwork)
     const {
       isSending,
       fee,

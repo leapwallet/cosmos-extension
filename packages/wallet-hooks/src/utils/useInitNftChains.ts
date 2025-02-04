@@ -1,8 +1,8 @@
+import { initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useEffect } from 'react';
 
 import { useNftChainsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 export const BETA_NFT_CHAINS = 'beta-nft-chains';
 const NFT_CHAINS = 'nft-chains';

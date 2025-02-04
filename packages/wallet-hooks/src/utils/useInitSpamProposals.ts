@@ -1,8 +1,8 @@
+import { initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useSpamProposalsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const SPAM_PROPOSALS = 'spam-proposals';
 const SPAM_PROPOSALS_LAST_UPDATED_AT = 'spam-proposals-last-updated-at';

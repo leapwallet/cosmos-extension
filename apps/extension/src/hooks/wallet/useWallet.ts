@@ -1,4 +1,3 @@
-import { Account, Ed25519PrivateKey } from '@aptos-labs/ts-sdk'
 import { AccountData, DirectSecp256k1HdWallet, OfflineSigner } from '@cosmjs/proto-signing'
 import {
   FEATURE_FLAG_STORAGE_KEY,
@@ -8,7 +7,9 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
+  getFetchParams,
   getLedgerTransport,
+  isEthAddress,
   LeapLedgerSigner,
   LeapLedgerSignerEth,
   SupportedChain,
@@ -18,10 +19,11 @@ import {
   decrypt,
   encrypt,
   generateWalletFromMnemonic,
+  generateWalletFromPrivateKey,
   getFullHDPath,
-  getHardenedPath,
   KeyChain,
 } from '@leapwallet/leap-keychain'
+import { COMPASS_CHAINS } from 'config/config'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import {
   ACTIVE_CHAIN,
@@ -38,10 +40,13 @@ import {
 import { useAuth } from 'context/auth-context'
 import { isAllChainsEnabled, useIsAllChainsEnabled } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { Images } from 'images'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { passwordStore } from 'stores/password-store'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import correctMnemonic from 'utils/correct-mnemonic'
+import { generateAddresses } from 'utils/generateAddresses'
 import { customKeygenfnMove, getChainInfosList } from 'utils/getChainInfosList'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
@@ -281,11 +286,12 @@ export namespace Wallet {
       }: importMultipleWalletAccountsParams) => {
         const correctedMnemonic = correctMnemonic(mnemonic)
         const chainInfosList = getChainInfosList(chainInfos)
+        const existingWallets = await KeyChain.getAllWallets()
+        const allWallets: Key[] = new Array(selectedAddressIndexes.length)
         if (SeedPhrase.validateSeedPhrase(correctedMnemonic)) {
           // here assumption is there are no wallet-accounts currently in the wallet
           // when this changes - make sure the addressIndex is handled properly
           let i = 0
-          const allWallets = new Array(selectedAddressIndexes.length)
           const sortedAddressIndices = selectedAddressIndexes.sort()
 
           for (const addressIndex of sortedAddressIndices) {
@@ -304,10 +310,8 @@ export namespace Wallet {
             allWallets[i] = wallet
             i++
           }
-          setActiveWallet(allWallets[0])
         } else {
           let i = 0
-          const allWallets = new Array(selectedAddressIndexes.length)
           for (const addressIndex of selectedAddressIndexes) {
             const wallet = await KeyChain.importNewWallet(
               mnemonic.trim(),
@@ -319,8 +323,24 @@ export namespace Wallet {
             allWallets[i] = wallet
             i++
           }
-          setActiveWallet(allWallets[0])
         }
+        if (existingWallets) {
+          const watchWalletsToRemove = Object.values(existingWallets).filter((wallet) => {
+            if ((wallet as any)?.watchWallet) {
+              const chainKey = Object.keys(wallet.addresses)[0]
+              const newWallet = allWallets.find(
+                (value) =>
+                  wallet.addresses?.[chainKey] === value.addresses?.[chainKey as SupportedChain],
+              )
+              return !!newWallet
+            }
+            return false
+          })
+          if (watchWalletsToRemove.length > 0) {
+            await KeyChain.removeWallets(watchWalletsToRemove.map((v) => v.id))
+          }
+        }
+        setActiveWallet(allWallets[0])
       },
       [chainInfos, setActiveWallet],
     )
@@ -480,7 +500,7 @@ export namespace Wallet {
     const _activeChain = useActiveChain()
     const activeChain = forceChain || _activeChain
     const { activeWallet } = useActiveWallet()
-
+    const password = passwordStore.password
     return useCallback(
       async (chain?: SupportedChain, ethWallet?: boolean) => {
         let _chain = activeChain
@@ -507,10 +527,14 @@ export namespace Wallet {
             }) as unknown as OfflineSigner
           }
         } else if (activeWallet?.walletType !== WALLETTYPE.LEDGER) {
-          if (!passwordStore.password) throw new Error('Invalid Password')
+          if (!password) throw new Error('Invalid Password')
+          if (activeWallet?.watchWallet) {
+            importWatchWalletSeedPopupStore.setShowPopup(true)
+            throw new Error('Seed phrase not available')
+          }
           const coinType = chainInfos[_chain]?.bip44?.coinType
           const walletId = activeWallet?.id
-          const signer = await KeyChain.getSigner(walletId as string, passwordStore.password, {
+          const signer = await KeyChain.getSigner(walletId as string, password, {
             addressPrefix: chainInfos[_chain].addressPrefix,
             coinType: chainInfos[_chain]?.bip44?.coinType,
             ethWallet,
@@ -522,7 +546,159 @@ export namespace Wallet {
           throw new Error('Unable to get signer')
         }
       },
-      [activeChain, activeWallet, chainInfos],
+      [activeChain, activeWallet, chainInfos, password],
+    )
+  }
+
+  export function useSaveWatchWallet() {
+    const { setActiveWallet } = useActiveWallet()
+    const chainInfos = useChainInfos()
+    const savedpassword = passwordStore.password
+
+    return useCallback(
+      async (_address: string, walletName: string, _password?: Uint8Array) => {
+        try {
+          const password = _password ?? savedpassword
+          const allWallets = await KeyChain.getAllWallets()
+          const lastIndex = Object.keys(allWallets ?? {}).length
+          const walletId = crypto.randomUUID()
+          let address = _address
+          if (isCompassWallet() && isEthAddress(_address)) {
+            const res = await fetch(
+              chainInfos?.seiTestnet2.apis.evmJsonRpc ?? '',
+              getFetchParams([address], 'sei_getSeiAddress'),
+            )
+            const response = await res.json()
+            address = response.result ?? address
+          }
+
+          const addresses = generateAddresses(address)
+          const invalidPubkeys = {} as Record<SupportedChain, string>
+          for (const [chain, address] of Object.entries(addresses)) {
+            invalidPubkeys[chain as SupportedChain] = 'PLACEHOLDER ' + address
+            if (COMPASS_CHAINS.includes(chain)) {
+              const res = await fetch(
+                chainInfos?.seiTestnet2.apis.evmJsonRpc ?? '',
+                getFetchParams([address], 'sei_getEVMAddress'),
+              )
+              const response = await res.json()
+              invalidPubkeys[chain as SupportedChain] = 'PLACEHOLDER ' + response.result
+            }
+          }
+
+          if (!password) throw new Error('Invalid Password')
+
+          const newWallet = {
+            walletType: WALLETTYPE.WATCH_WALLET,
+            name: walletName || `Wallet ${lastIndex + 1}`,
+            addresses,
+            addressIndex: 0,
+            id: walletId,
+            colorIndex: 0,
+            cipher: encrypt(Buffer.from('PLACEHOLDER').toString('hex'), password),
+            pubKeys: invalidPubkeys,
+            watchWallet: true,
+            avatar: Images.Misc.EyeDark,
+          }
+
+          await Wallet.storeWallets({ [walletId]: newWallet })
+          setActiveWallet(newWallet)
+        } catch (error) {
+          throw new Error('Unable to save watch wallet')
+        }
+      },
+      [chainInfos?.seiTestnet2.apis.evmJsonRpc, savedpassword, setActiveWallet],
+    )
+  }
+
+  export function useUpdateWatchWalletSeed() {
+    const { activeWallet, setActiveWallet } = useActiveWallet()
+    const importWallet = Wallet.useImportWallet()
+    const password = passwordStore.password
+    const chainInfos = useChainInfos()
+    const chainInfosList = getChainInfosList(chainInfos)
+    return useCallback(
+      async (secret: string) => {
+        if (!activeWallet) throw new Error('No active wallet')
+        if (!password) throw new Error('Invalid password')
+        const [existingWalletChain, existingAddress] = Object.entries(
+          activeWallet?.addresses ?? {},
+        )[0]
+        const walletChainInfo = chainInfos[existingWalletChain as SupportedChain]
+        if (SeedPhrase.validateSeedPhrase(secret)) {
+          let walletAccount
+          let addressIndex = 0
+          for (let i = 0; i < 20; i++) {
+            const wallet = generateWalletFromMnemonic(secret, {
+              hdPath: getFullHDPath(
+                walletChainInfo.bip44.coinType === '1' || walletChainInfo.bip44.coinType === '0'
+                  ? '84'
+                  : '44',
+                walletChainInfo.bip44.coinType,
+                i.toString(),
+              ),
+              addressPrefix: walletChainInfo.addressPrefix,
+              ethWallet: false,
+              btcNetwork: walletChainInfo.btcNetwork,
+            })
+
+            if (wallet.getAccounts()[0].address === existingAddress) {
+              walletAccount = wallet
+              addressIndex = i
+              break
+            }
+          }
+
+          if (walletAccount) {
+            await KeyChain.removeWallets([activeWallet.id])
+            await importWallet({
+              name: activeWallet.name,
+              addressIndex: addressIndex.toString(),
+              password,
+              privateKey: secret,
+              colorIndex: activeWallet.colorIndex,
+            })
+          } else {
+            await importWallet({
+              privateKey: secret,
+              addressIndex: '0',
+              password,
+            })
+          }
+        } else {
+          const pkWallet = generateWalletFromPrivateKey(
+            secret,
+            getFullHDPath(
+              walletChainInfo.bip44.coinType === '1' || walletChainInfo.bip44.coinType === '0'
+                ? '84'
+                : '44',
+              walletChainInfo.bip44.coinType,
+            ),
+            walletChainInfo.addressPrefix,
+            walletChainInfo.btcNetwork,
+          )
+
+          const wallet =
+            pkWallet.getAccounts()[0].address === existingAddress ? pkWallet : undefined
+          if (wallet) {
+            await KeyChain.removeWallets([activeWallet.id])
+            await importWallet({
+              name: activeWallet.name,
+              addressIndex: '0',
+              password,
+              privateKey: secret,
+              colorIndex: activeWallet.colorIndex,
+            })
+          } else {
+            await importWallet({
+              privateKey: secret,
+              addressIndex: '0',
+              password,
+            })
+          }
+        }
+      },
+      [activeWallet, chainInfos, importWallet, password],
     )
   }
 

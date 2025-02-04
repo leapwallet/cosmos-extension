@@ -22,6 +22,13 @@ export async function getAprCrescent() {
   return parseFloat(aprResponse.data.data.apr) / 100;
 }
 
+export async function getAprLava(): Promise<number> {
+  const url = 'https://jsinfo.mainnet.lavanet.xyz/apr';
+  const aprResponse = await axios.get(url);
+  const apr = aprResponse.data.staking_apr_percentile;
+  return apr;
+}
+
 export async function getAprOsmosis() {
   const start = dayjs().subtract(7, 'days').format('YYYY-MM-DD');
   const end = dayjs().format('YYYY-MM-DD');
@@ -59,6 +66,10 @@ export async function getApr(
   }
   if (chain === 'osmosis') {
     return getAprOsmosis();
+  }
+
+  if (chain === 'lava') {
+    return getAprLava();
   }
 
   if (!chainInfos) {

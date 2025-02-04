@@ -300,7 +300,9 @@ export class CW20DenomBalanceStore {
 
       const denoms = Object.assign({}, _denoms, _compassDenoms);
       const allTokens = await this.fetchAllSeiTraceCW20Tokens(chainId, address);
-
+      if (!allTokens || allTokens?.length === 0) {
+        throw new Error('No tokens found from sei-trace');
+      }
       const formattedBalances = allTokens.map((item: any) => {
         const token = {
           address: item.token_contract,

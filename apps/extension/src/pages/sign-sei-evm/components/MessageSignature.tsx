@@ -10,6 +10,7 @@ import { LeapLedgerSignerEth, personalSign, signTypedData } from '@leapwallet/co
 import { EthWallet } from '@leapwallet/leap-keychain'
 import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
 import assert from 'assert'
+import classNames from 'classnames'
 import { ErrorCard } from 'components/ErrorCard'
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
@@ -132,8 +133,18 @@ export function MessageSignature({
   const isApproveBtnDisabled = !!signingError || txStatus === 'loading'
 
   return (
-    <div className='w-[400px] h-full relative self-center justify-self-center flex justify-center items-center mt-2'>
-      <div className='relative w-full overflow-clip rounded-md border border-gray-300 dark:border-gray-900'>
+    <div
+      className={classNames(
+        'panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center',
+        { 'mt-2': !isSidePanel() },
+      )}
+    >
+      <div
+        className={classNames(
+          'relative w-full overflow-clip rounded-md border border-gray-300 dark:border-gray-900',
+          { 'panel-height': isSidePanel() },
+        )}
+      >
         <PopupLayout
           header={
             <div className='w-[396px]'>

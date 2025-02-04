@@ -37,6 +37,7 @@ export function SelectWalletView({
 
       for (const wallet of Object.values(allWallets ?? {})) {
         const address = isCompassWallet() ? wallet.addresses.seiTestnet2 : wallet.addresses.cosmos
+        if ((wallet as any)?.watchWallet) continue
         addresses.push(address)
       }
 

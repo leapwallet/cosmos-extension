@@ -37,7 +37,7 @@ export type GasPriceOptionsContextType = {
   activeChain: SupportedChain
   selectedNetwork: 'mainnet' | 'testnet'
   isSeiEvmTransaction?: boolean
-  chainNativeFeeTokenData: FeeTokenData
+  chainNativeFeeTokenData?: FeeTokenData
   rootDenomsStore: RootDenomsStore
 }
 

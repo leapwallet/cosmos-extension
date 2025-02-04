@@ -3,6 +3,9 @@ import { useMemo } from 'react';
 
 import { useActiveChain, useChainsStore, useDenoms, useFeeDenoms, useSelectedNetwork } from '../store';
 
+/**
+ * Please use `FeeDenomsStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export const useAdditionalFeeDenoms = (
   forceChain?: string,
   forceNetwork?: 'mainnet' | 'testnet',

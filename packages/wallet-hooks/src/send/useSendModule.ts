@@ -11,6 +11,7 @@ import {
   estimateVSize,
   fetchUtxos,
   fromSmall,
+  getOsmosisGasPriceSteps,
   getSimulationFee,
   isAptosChain,
   isEthAddress,
@@ -51,7 +52,6 @@ import {
   GasOptions,
   getChainId,
   getErrorMsg,
-  getOsmosisGasPriceSteps,
   getTxnLogAmountValue,
   isERC20Token,
   useGasRateQuery,
@@ -160,6 +160,7 @@ export type SendModuleType = Readonly<{
   associated0xAddress: string;
   setAssociated0xAddress: React.Dispatch<React.SetStateAction<string>>;
   isCexIbcTransferWarningNeeded: boolean;
+  setIsSending: React.Dispatch<React.SetStateAction<boolean>>;
   hasToUsePointerLogic: boolean;
   setHasToUsePointerLogic: React.Dispatch<React.SetStateAction<boolean>>;
   pointerAddress: string;
@@ -270,7 +271,7 @@ export function useSendModule({
   const { setPendingTx } = usePendingTxState();
   const getIbcChannelId = useGetIbcChannelId(activeChain);
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-  const { isSending, sendTokens, showLedgerPopup, sendTokenEth } = useSimpleSend(
+  const { isSending, sendTokens, showLedgerPopup, sendTokenEth, setIsSending } = useSimpleSend(
     denoms,
     isCW20Token,
     activeChain,
@@ -832,6 +833,7 @@ export function useSendModule({
     associated0xAddress,
     setAssociated0xAddress,
     isCexIbcTransferWarningNeeded,
+    setIsSending,
     hasToUsePointerLogic,
     setHasToUsePointerLogic,
     pointerAddress,

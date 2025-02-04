@@ -1,24 +1,23 @@
 import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import Text from 'components/text'
-import { Wallet } from 'hooks/wallet/useWallet'
-import React, { useState } from 'react'
-import { Colors } from 'theme/colors'
-import { validateSeedPhrase } from 'utils/validateSeedPhrase'
-
-import useImportWallet = Wallet.useImportWallet
 import { captureException } from '@sentry/react'
 import InfoSheet from 'components/Infosheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { SeedPhraseInput } from 'components/seed-phrase-input'
+import Text from 'components/text'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
+import React, { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { passwordStore } from 'stores/password-store'
+import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 
 type ImportSeedPhraseProps = {
   isVisible: boolean
-  // eslint-disable-next-line no-unused-vars
   onClose: (closeParent: boolean) => void
 }
 
@@ -27,7 +26,9 @@ export const ImportSeedPhrase = observer(({ isVisible, onClose }: ImportSeedPhra
   const [secret, setSecret] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const importWallet = useImportWallet()
+  const { activeWallet } = useActiveWallet()
+  const importWallet = Wallet.useImportWallet()
+  const updateWatchWalletSeed = Wallet.useUpdateWatchWalletSeed()
 
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
   const isSeiEvmChain = useIsSeiEvmChain()
@@ -46,14 +47,19 @@ export const ImportSeedPhrase = observer(({ isVisible, onClose }: ImportSeedPhra
       validateSeedPhrase({ phrase: secret, isPrivateKey: false, setError, setSecret })
     ) {
       try {
-        await importWallet({
-          privateKey: secret,
-          type: 'import',
-          addressIndex: '0',
-          password: passwordStore.password,
-        })
+        if (activeWallet?.watchWallet) {
+          await updateWatchWalletSeed(secret)
+        } else {
+          await importWallet({
+            privateKey: secret,
+            type: 'import',
+            addressIndex: '0',
+            password: passwordStore.password,
+          })
+        }
         setSecret('')
         onClose(true)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Something went wrong'
         captureException(errorMessage)
@@ -65,7 +71,7 @@ export const ImportSeedPhrase = observer(({ isVisible, onClose }: ImportSeedPhra
   }
 
   if (!isVisible) return null
-  return (
+  return createPortal(
     <div className='panel-height panel-width enclosing-panel overflow-scroll bg-white-100 dark:bg-black-100 absolute top-0 z-[10000000]'>
       {isSeiEvmChain ? (
         <button
@@ -107,7 +113,7 @@ export const ImportSeedPhrase = observer(({ isVisible, onClose }: ImportSeedPhra
           <div className='w-full h-auto rounded-xl dark:bg-gray-900 bg-gray-50 flex items-center p-[16px] pr-[21px]'>
             <img className='mr-[16px]' src={Images.Misc.Warning} />
             <div className='flex flex-col gap-y-[2px]'>
-              <Text size='sm' className='tex font-black font-bold'>
+              <Text size='sm' className='tex font-black'>
                 Recommended security practice:
               </Text>
               <Text size='xs' color='text-gray-400'>
@@ -138,6 +144,7 @@ export const ImportSeedPhrase = observer(({ isVisible, onClose }: ImportSeedPhra
           className='!z-[20000000]'
         />
       ) : null}
-    </div>
+    </div>,
+    document.getElementById('popup-layout')?.parentNode as HTMLElement,
   )
 })

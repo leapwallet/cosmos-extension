@@ -106,6 +106,7 @@ export function useDualStakingTx(
   providerDelegations?: ProviderDelegation[],
   toProvider?: Provider,
   fromProvider?: Provider,
+  rewardProviders?: Provider[],
   forceChain?: SupportedChain,
   forceNetwork?: 'mainnet' | 'testnet',
 ) {
@@ -276,7 +277,8 @@ export function useDualStakingTx(
             );
           }
         case 'CLAIM_REWARDS': {
-          return simulateClaimProviderRewards(lcdUrl ?? '', address, '');
+          const providers = rewardProviders?.map((p) => p.provider);
+          return simulateClaimProviderRewards(lcdUrl ?? '', address, providers ?? [], fee);
         }
         case 'CANCEL_UNDELEGATION':
           return simulateCancelUndelegation(
@@ -366,7 +368,8 @@ export function useDualStakingTx(
           }
         }
         case 'CLAIM_REWARDS': {
-          return await txHandler.claimProviderRewards(address, '', fee);
+          const providers = rewardProviders?.map((p) => p.provider);
+          return await txHandler.claimProviderRewards(address, providers ?? [], fee);
         }
 
         case 'CANCEL_UNDELEGATION': {
@@ -425,7 +428,7 @@ export function useDualStakingTx(
         return;
       }
     }
-    if (mode === 'CLAIM_REWARDS' && new BigNumber(amount).lte(0.00001)) {
+    if (mode === 'CLAIM_REWARDS' && new BigNumber(amount).lte(0.000001)) {
       setError('Reward is too low');
       return;
     }

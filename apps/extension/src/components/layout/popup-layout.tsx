@@ -1,5 +1,6 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import classNames from 'classnames'
+import { WatchingWalletStrip } from 'components/alert-strip/WatchingWalletStrip'
 import Text from 'components/text'
 import React, { ReactNode } from 'react'
 import { Colors } from 'theme/colors'
@@ -10,6 +11,7 @@ type PopupLayoutProps = {
   showBetaTag?: boolean
   className?: string
   headerZIndex?: number
+  skipWatchingWalletHeader?: boolean
 }
 
 export default function PopupLayout({
@@ -18,6 +20,7 @@ export default function PopupLayout({
   className,
   showBetaTag = false,
   headerZIndex = 2,
+  skipWatchingWalletHeader = false,
 }: PopupLayoutProps) {
   const activeChain = useActiveChain()
 
@@ -47,6 +50,7 @@ export default function PopupLayout({
         </div>
       )}
       {header && <div className='mt-[72px]' />}
+      {header && !skipWatchingWalletHeader && <WatchingWalletStrip />}
       {children}
     </div>
   )
