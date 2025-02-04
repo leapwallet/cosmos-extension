@@ -114,6 +114,7 @@ export const nativeFeeDenoms: FeeDenoms = {
     movement: 'movement-native',
     aptos: 'aptos-native',
     movementBardock: 'movement-native',
+    abstract: 'abstract-native',
   },
   testnet: {
     akash: 'uakt',
@@ -223,5 +224,6 @@ export const nativeFeeDenoms: FeeDenoms = {
     movement: 'movement-native',
     aptos: 'aptos-native',
     movementBardock: 'movement-native',
+    abstract: 'abstract-native',
   },
 };

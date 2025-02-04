@@ -1,8 +1,8 @@
+import { initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useAstroportPoolsChainsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const ASTROPORT_POOLS_CHAINS = 'astroport-pool-chains';
 const ASTROPORT_POOLS_CHAINS_LAST_UPDATED_AT = 'astroport-pool-chains-last-updated-at';

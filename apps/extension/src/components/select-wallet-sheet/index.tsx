@@ -64,7 +64,10 @@ export default function SelectWalletSheet({
             <div className='flex flex-col p-4 mb-4 rounded-2xl bg-white-100 dark:bg-gray-900 min-h-[100px] justify-center items-center'>
               <div className='mt-2 flex flex-row items-center'>
                 <img
-                  src={Images.Misc.getWalletIconAtIndex(walletColorIndex as number)}
+                  src={Images.Misc.getWalletIconAtIndex(
+                    walletColorIndex as number,
+                    currentWalletInfo?.wallets?.[0]?.watchWallet,
+                  )}
                   className='z-10 border-2 border-gray-900 rounded-full relative left-2'
                 />
                 <Avatar
@@ -131,7 +134,7 @@ export default function SelectWalletSheet({
                     title={shortenedWalletName}
                     subtitle={`${sliceAddress(wallet.addresses[activeChain])}${walletLabel}`}
                     iconSrc={activeWallet?.id === wallet.id ? Images.Misc.CheckCosmos : undefined}
-                    imgSrc={Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
+                    imgSrc={Images.Misc.getWalletIconAtIndex(wallet.colorIndex, wallet.watchWallet)}
                     isRounded={true}
                   />
                   {!isLast ? <CardDivider /> : null}

@@ -30,6 +30,7 @@ import { ArrowSquareOut } from '@phosphor-icons/react'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { FIXED_FEE_CHAINS } from 'config/constants'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useEffectiveAmountValue } from 'hooks/useEffectiveAmountValue'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useWalletClient } from 'hooks/useWalletClient'
@@ -37,6 +38,7 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
@@ -54,6 +56,7 @@ export const ReviewTransfer = observer(
     rootBalanceStore: RootBalanceStore
     rootERC20DenomsStore: RootERC20DenomsStore
   }) => {
+    const { activeWallet } = useActiveWallet()
     const getWallet = Wallet.useGetWallet()
     const [showReviewTxSheet, setShowReviewTxSheet] = useState(false)
     const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
@@ -81,10 +84,14 @@ export const ReviewTransfer = observer(
       sendSelectedNetwork,
       isSeiEvmTransaction,
       hasToUseCw20PointerLogic,
+      feeDenom,
     } = useSendContext()
     const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState(getWallet)
-    const { status: gasPriceStatus } = useGetEvmGasPrices()
-    const { status: aptosGasPriceStatus } = useGetAptosGasPrices()
+    const { status: gasPriceStatus } = useGetEvmGasPrices(sendActiveChain, sendSelectedNetwork)
+    const { status: aptosGasPriceStatus } = useGetAptosGasPrices(
+      sendActiveChain,
+      sendSelectedNetwork,
+    )
     const isAptosTx = isAptosChain(sendActiveChain)
 
     const { chains } = useChainsStore()
@@ -319,9 +326,13 @@ export const ReviewTransfer = observer(
       setAddressWarning(INITIAL_ADDRESS_WARNING)
     }
 
-    const showAdjustmentSheet = useCallback(() => {
-      setCheckForAutoAdjust(true)
-    }, [])
+    const showAdjustmentSheet = () => {
+      if (activeWallet?.watchWallet) {
+        importWatchWalletSeedPopupStore.setShowPopup(true)
+      } else {
+        setCheckForAutoAdjust(true)
+      }
+    }
 
     const hideAdjustmentSheet = useCallback(() => {
       setCheckForAutoAdjust(false)
@@ -385,6 +396,11 @@ export const ReviewTransfer = observer(
       aptosGasPriceStatus,
       isAptosTx,
     ])
+
+    const feeValue = {
+      amount: fee?.amount[0].amount.toString() ?? '',
+      denom: feeDenom.coinMinimalDenom,
+    }
 
     if (isSeiEvmTransaction && gasPriceStatus === 'loading') {
       return <></>
@@ -453,7 +469,7 @@ export const ReviewTransfer = observer(
             amount={inputAmount}
             setAmount={setInputAmount}
             selectedToken={selectedToken}
-            fee={fee.amount[0]}
+            fee={feeValue}
             setShowReviewSheet={setShowReviewTxSheet}
             closeAdjustmentSheet={hideAdjustmentSheet}
             forceChain={sendActiveChain}

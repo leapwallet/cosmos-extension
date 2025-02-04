@@ -116,14 +116,9 @@ export const useShouldShowAutoAdjustSheet = (
 
   const shouldShowAutoAdjustSheet = useCallback(
     ({ tokenAmount, tokenDenom, feeAmount, feeDenom, tokenBalance }: shouldShowAutoAdjustArgs): AdjustmentType => {
-      const isFeeDenomNativeDenom = feeDenom === coinMinimalDenom;
-      const isTokenDenomNativeDenom = tokenDenom === coinMinimalDenom;
-
-      // TODO:- handle non-native fee denom in v2
-      if (!isFeeDenomNativeDenom || !isTokenDenomNativeDenom) {
+      if (feeDenom !== tokenDenom) {
         return AdjustmentType.NONE;
       }
-
       const tokenBalanceBN = new BigNumber(tokenBalance);
       const tokenAmountBN = new BigNumber(tokenAmount);
       const feeAmountBN = new BigNumber(feeAmount);

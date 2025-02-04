@@ -131,7 +131,7 @@ export class ClaimRewardsStore {
 
         if (!this.chainWiseRewards[chainKey] || forceRefetch) {
           runInAction(() => (this.chainWiseLoading[chainKey] = 'loading'));
-          this.fetchChainRewards(chain as SupportedChain, network ?? 'mainnet', forceRefetch);
+          this.fetchChainRewards(chain as SupportedChain, network ?? 'mainnet');
         }
       });
     } else {
@@ -139,12 +139,12 @@ export class ClaimRewardsStore {
 
       if (!this.chainWiseRewards[chainKey] || forceRefetch) {
         this.chainWiseLoading[chainKey] = 'loading';
-        this.fetchChainRewards(chain, network, forceRefetch);
+        this.fetchChainRewards(chain, network);
       }
     }
   }
 
-  async fetchChainRewards(chain: SupportedChain, network: SelectedNetworkType, forceRefetch = false) {
+  async fetchChainRewards(chain: SupportedChain, network: SelectedNetworkType) {
     const isTestnet = network === 'testnet';
     const address = this.addressStore.addresses?.[chain];
 
@@ -207,7 +207,6 @@ export class ClaimRewardsStore {
         chainKey,
         activeChain: chain as SupportedChain,
         selectedNetwork: network,
-        forceRefetch,
       });
 
       if (response) {
@@ -291,14 +290,11 @@ export class ClaimRewardsStore {
     activeChain,
     chainKey,
     selectedNetwork,
-    forceRefetch = false,
   }: GetRewardsForChainParams) {
     if (!this.rewardsQueryStore[chainKey]) {
       this.rewardsQueryStore[chainKey] = new RewardsQuery(lcdUrl, address, activeChain);
     }
-    const res = forceRefetch
-      ? await this.rewardsQueryStore[chainKey].fetchData()
-      : await this.rewardsQueryStore[chainKey].getData();
+    const res = await this.rewardsQueryStore[chainKey].fetchData();
 
     const { total, rewards: _rewards } = res as RewardsResponse;
 

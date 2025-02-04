@@ -3,7 +3,6 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { AggregatedChainsStore } from '@leapwallet/cosmos-wallet-store'
 import { useMemo } from 'react'
 import { ManageChainSettings, ManageChainsStore } from 'stores/manage-chains-store'
-import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 export const useAggregatedChainsToFetch = (
@@ -14,32 +13,12 @@ export const useAggregatedChainsToFetch = (
   const activeWallet = useActiveWallet()
 
   const chainsToFetch = useMemo(() => {
-    const ledgerEnabledEvmChainsIds = getLedgerEnabledEvmChainsIds(Object.values(chains))
-
     return (aggregatedChainsStore.aggregatedChainsData as SupportedChain[]).reduce(
       (acc: ManageChainSettings[], chain) => {
         const chainInfo = chains[chain]
         const noAddress = !activeWallet?.addresses[chain]
 
-        // If `connectEVMLedger` check is true, then we will skip the chain
-        if (
-          noAddress &&
-          activeWallet?.walletType === WALLETTYPE.LEDGER &&
-          ledgerEnabledEvmChainsIds.includes(chainInfo?.chainId)
-        ) {
-          return acc
-        }
-
-        // If `ledgerNotSupported` check is true, then we will skip the chain
-        if (
-          noAddress &&
-          activeWallet?.walletType === WALLETTYPE.LEDGER &&
-          !ledgerEnabledEvmChainsIds.includes(chainInfo?.chainId)
-        ) {
-          return acc
-        }
-
-        // If no address, chain is testnet or apiStatus is false, then we will skip the chain
+        // If no address or chain is testnet or apiStatus is false, then we will skip the chain
         if (
           noAddress ||
           chainInfo?.chainId === chainInfo?.testnetChainId ||

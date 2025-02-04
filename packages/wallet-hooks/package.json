@@ -31,7 +31,7 @@
     "@tanstack/react-query-devtools": "4.2.3",
     "dotenv": "16.3.1",
     "zustand": "4.1.1",
-    "@leapwallet/wallet-api": "*"
+    "@leapwallet/leap-api-js": "0.21.12"
   },
   "devDependencies": {
     "@babel/preset-env": "7.18.0",

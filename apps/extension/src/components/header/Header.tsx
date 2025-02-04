@@ -19,10 +19,6 @@ export const Header: React.FC<Props> = ({
 }) => {
   return (
     <div className='flex flex-col justify-center items-center mb-3'>
-      <img
-        src={isCompassWallet() ? Images.Logos.CompassCircle : Images.Logos.LeapCosmos}
-        className='h-[64px]'
-      />
       {HeadingComponent ? (
         <HeadingComponent />
       ) : (
@@ -31,7 +27,7 @@ export const Header: React.FC<Props> = ({
         </Text>
       )}
       {subtitle && (
-        <Text size='lg' color='text-gray-400' className='justify-center'>
+        <Text size='md' color='text-gray-400' className='justify-center'>
           {subtitle}
         </Text>
       )}

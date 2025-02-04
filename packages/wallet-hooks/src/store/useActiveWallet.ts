@@ -14,6 +14,7 @@ export type Key = {
   colorIndex: number;
   avatar?: string;
   avatarIndex?: string;
+  watchWallet?: boolean;
 };
 
 type ActiveWallet = {

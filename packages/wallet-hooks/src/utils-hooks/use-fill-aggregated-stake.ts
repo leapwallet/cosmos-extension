@@ -27,7 +27,7 @@ export function useFillAggregatedStake(
   const chainId = useChainId(chain, NETWORK);
   const [preferredCurrency] = useUserPreferredCurrency();
   const chains = useGetChains();
-  const getIbcDenomInfo = useGetIbcDenomInfo();
+  const getIbcDenomInfo = useGetIbcDenomInfo(denoms);
 
   const isStakeComingSoon = useIsFeatureExistForChain({
     checkForExistenceType: 'comingSoon',

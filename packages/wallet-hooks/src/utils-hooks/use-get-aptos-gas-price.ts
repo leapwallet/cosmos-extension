@@ -20,6 +20,9 @@ export type AptosGasPrices = {
   deprioritizedGasPrice?: Record<EvmFeeType, string>;
 };
 
+/**
+ * @description Please use `AptosGasPricesStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export function useGetAptosGasPrices(forceChain?: SupportedChain, forceNetwork?: SelectedNetworkType) {
   const _activeChain = useActiveChain();
   const _activeNetwork = useSelectedNetwork();

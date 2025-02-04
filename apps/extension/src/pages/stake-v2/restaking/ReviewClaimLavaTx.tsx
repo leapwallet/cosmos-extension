@@ -1,6 +1,5 @@
 import {
   FeeTokenData,
-  formatTokenAmount,
   SelectedNetwork,
   sliceWord,
   useActiveChain,
@@ -9,7 +8,7 @@ import {
   useDualStakingTx,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { Provider, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, Card } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
@@ -36,7 +35,6 @@ import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
-
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -82,6 +80,15 @@ export const ReviewClaimLavaTx = observer(
     const defaultTokenLogo = useDefaultTokenLogo()
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
 
+    const { rewards, providers } = useDualStaking()
+    const rewardProviders = useMemo(() => {
+      if (rewards && providers) {
+        const _rewardProviders = rewards?.rewards
+          ?.map((reward) => providers.find((provider) => provider.address === reward.provider))
+          .filter((provider) => provider !== undefined)
+        return _rewardProviders as Provider[]
+      }
+    }, [providers, rewards])
     const {
       showLedgerPopup,
       onReviewTransaction,
@@ -108,10 +115,10 @@ export const ReviewClaimLavaTx = observer(
       undefined,
       undefined,
       undefined,
+      rewardProviders,
       activeChain,
       activeNetwork,
     )
-    const { rewards, providers } = useDualStaking()
     const [showFeesSettingSheet, setShowFeesSettingSheet] = useState<boolean>(false)
     const [gasError, setGasError] = useState<string | null>(null)
     const [gasPriceOption, setGasPriceOption] = useState<GasPriceOptionValue>({
@@ -126,6 +133,25 @@ export const ReviewClaimLavaTx = observer(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [rewards?.totalRewards])
 
+    const formattedTokenProviderReward = useMemo(() => {
+      if (rewards) {
+        const rewardItems = rewards.rewards
+          .flatMap((reward) => reward.amount)
+          .reduce((acc, curr) => {
+            acc[curr.denom] = acc[curr.denom]
+              ? new BigNumber(acc[curr.denom]).plus(new BigNumber(curr.amount))
+              : new BigNumber(curr.amount)
+            return acc
+          }, {} as Record<string, BigNumber>)
+        const rewardsLength = Object.keys(rewardItems).length
+        return hideAssetsStore.formatHideBalance(
+          `${rewards.formattedTotalRewards} ${
+            rewardsLength > 1 ? `+${rewardsLength - 1} more` : ''
+          }`,
+        )
+      }
+    }, [rewards])
+
     const onGasPriceOptionChange = useCallback(
       (value: GasPriceOptionValue, feeBaseDenom: FeeTokenData) => {
         setGasPriceOption(value)
@@ -136,14 +162,6 @@ export const ReviewClaimLavaTx = observer(
       },
       [setFeeDenom, setGasOption],
     )
-
-    const rewardProviders = useMemo(() => {
-      if (rewards && providers) {
-        return rewards?.rewards?.map((reward) =>
-          providers.find((provider) => provider.address === reward.provider),
-        )
-      }
-    }, [providers, rewards])
 
     const handleCloseFeeSettingSheet = useCallback(() => {
       setShowFeesSettingSheet(false)
@@ -162,7 +180,7 @@ export const ReviewClaimLavaTx = observer(
 
     const onClaimRewardsClick = useCallback(async () => {
       try {
-        const wallet = await getWallet()
+        const wallet = await getWallet(activeChain)
         onReviewTransaction(wallet, txCallback, false, {
           stdFee: customFee,
           feeDenom: feeDenom,
@@ -175,7 +193,15 @@ export const ReviewClaimLavaTx = observer(
           setLedgerError('')
         }, 6000)
       }
-    }, [customFee, feeDenom, getWallet, onReviewTransaction, setLedgerError, txCallback])
+    }, [
+      activeChain,
+      customFee,
+      feeDenom,
+      getWallet,
+      onReviewTransaction,
+      setLedgerError,
+      txCallback,
+    ])
 
     useCaptureUIException(ledgerError || error)
 
@@ -230,12 +256,7 @@ export const ReviewClaimLavaTx = observer(
                 }
                 subtitle={
                   <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                    {hideAssetsStore.formatHideBalance(
-                      `${formatTokenAmount(
-                        rewards?.totalRewards ?? '',
-                        activeStakingDenom.coinDenom,
-                      )}`,
-                    )}
+                    {formattedTokenProviderReward}
                   </Text>
                 }
               />
@@ -260,7 +281,7 @@ export const ReviewClaimLavaTx = observer(
                   >
                     {rewardProviders &&
                       sliceWord(
-                        rewardProviders[0]?.address,
+                        rewardProviders[0]?.moniker,
                         isSidePanel()
                           ? 2 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
                           : 10,

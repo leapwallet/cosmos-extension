@@ -7,6 +7,7 @@ export const walletLabels: Record<WALLETTYPE, string> = {
   [WALLETTYPE.PRIVATE_KEY]: 'Imported',
   [WALLETTYPE.KEYSTONE]: 'Keystone',
   [WALLETTYPE.SEED_PHRASE]: '',
+  [WALLETTYPE.WATCH_WALLET]: '',
 }
 
 export const PriorityChains: Array<SupportedChain> = [

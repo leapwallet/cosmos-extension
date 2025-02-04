@@ -1,9 +1,33 @@
-import { CardDivider, WalletCard } from '@leapwallet/leap-ui'
+import {
+  Key,
+  useActiveChain,
+  useChainInfo,
+  useGetChains,
+  WALLETTYPE,
+} from '@leapwallet/cosmos-wallet-hooks'
+import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
+import { CardDivider, ThemeName, useTheme, WalletCard } from '@leapwallet/leap-ui'
+import { DotsThree, DownloadSimple, PlusCircle, Usb } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
+import { ButtonName, EventName } from 'config/analytics'
+import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
+import { AGGREGATED_CHAIN_KEY, walletLabels } from 'config/constants'
+import { useChainPageInfo } from 'hooks'
+import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Images } from 'images'
+import mixpanel from 'mixpanel-browser'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { activeChainStore } from 'stores/active-chain-store'
+import { chainInfoStore } from 'stores/chain-infos-store'
+import { AggregatedSupportedChain } from 'types/utility'
+import { closeSidePanel } from 'utils/closeSidePanel'
+import { formatWalletName } from 'utils/formatWalletName'
+import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
+import { isCompassWallet } from 'utils/isCompassWallet'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
+import { isSidePanel } from 'utils/isSidePanel'
 import extension from 'webextension-polyfill'
 
 import Text from '../../components/text'
@@ -14,30 +38,7 @@ import { NewWalletForm } from './CreateNewWallet'
 import { EditWalletForm } from './EditWallet'
 import { ImportPrivateKey } from './ImportPrivateKey'
 import { ImportSeedPhrase } from './ImportSeedPhrase'
-import useWallets = Wallet.useWallets
-
-import {
-  Key,
-  useActiveChain,
-  useChainInfo,
-  useGetChains,
-  WALLETTYPE,
-} from '@leapwallet/cosmos-wallet-hooks'
-import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
-import { ChainInfosStore } from '@leapwallet/cosmos-wallet-store'
-import { DotsThree, DownloadSimple, PlusCircle, Usb } from '@phosphor-icons/react'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { AGGREGATED_CHAIN_KEY, walletLabels } from 'config/constants'
-import { useChainPageInfo } from 'hooks'
-import { useSiteLogo } from 'hooks/utility/useSiteLogo'
-import { activeChainStore } from 'stores/active-chain-store'
-import { chainInfoStore } from 'stores/chain-infos-store'
-import { AggregatedSupportedChain } from 'types/utility'
-import { closeSidePanel } from 'utils/closeSidePanel'
-import { formatWalletName } from 'utils/formatWalletName'
-import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
-import { isLedgerEnabled } from 'utils/isLedgerEnabled'
-import { isSidePanel } from 'utils/isSidePanel'
+import ImportWatchWallet from './ImportWatchWallet'
 
 type SelectWalletProps = {
   readonly isVisible: boolean
@@ -60,23 +61,27 @@ export default function SelectWallet({
 }: SelectWalletProps) {
   const [isNewWalletFormVisible, setIsNewWalletFormVisible] = useState(false)
   const [isEditWalletVisible, setIsEditWalletVisible] = useState(false)
-  const wallets = useWallets()
+  const wallets = Wallet.useWallets()
   const activeChainInfo = useChainInfo()
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const { activeWallet, setActiveWallet } = useActiveWallet()
   const [editWallet, setEditWallet] = useState<Key>()
   const navigate = useNavigate()
+  const { theme } = useTheme()
 
   const chains = useGetChains()
   const { topChainColor } = useChainPageInfo()
   const [showImportPrivateKey, setShowImportPrivateKey] = useState(false)
   const [showImportSeedPhrase, setShowImportSeedPhrase] = useState(false)
+  const [showImportWatchWallet, setShowImportWatchWallet] = useState(false)
 
   const walletsList = useMemo(() => {
     return wallets
       ? Object.values(wallets)
           .map((wallet) => wallet)
-          .sort((a, b) => a.name.localeCompare(b.name))
+          .sort((a, b) =>
+            a.watchWallet === b.watchWallet ? a.name.localeCompare(b.name) : a.watchWallet ? 1 : -1,
+          )
       : []
   }, [wallets])
 
@@ -114,7 +119,10 @@ export default function SelectWallet({
             <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 min-h-[100px] justify-center items-center p-2'>
               <div className='pt-8 pb-2 flex flex-row'>
                 <img
-                  src={Images.Misc.getWalletIconAtIndex(walletColorIndex as number)}
+                  src={Images.Misc.getWalletIconAtIndex(
+                    walletColorIndex as number,
+                    currentWalletInfo?.wallets?.[0]?.watchWallet,
+                  )}
                   className='z-10 border-2 border-gray-900 rounded-full relative left-2'
                 />
                 <object data={siteLogo} type='image' className='relative -left-2 z-0'>
@@ -156,8 +164,9 @@ export default function SelectWallet({
               }
 
               if (
-                wallet.walletType === WALLETTYPE.PRIVATE_KEY ||
-                wallet.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
+                (wallet.walletType === WALLETTYPE.PRIVATE_KEY ||
+                  wallet.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED) &&
+                !wallet.watchWallet
               ) {
                 walletLabel = ` · Imported`
               }
@@ -174,11 +183,15 @@ export default function SelectWallet({
                   ? walletName.slice(0, sliceLength) + '...'
                   : walletName
 
-              let addressText = `${sliceAddress(
-                activeChainInfo?.evmOnlyChain
-                  ? pubKeyToEvmAddressToShow(wallet.pubKeys?.[activeChainInfo?.key])
-                  : wallet.addresses[activeChainInfo?.key],
-              )}${walletLabel}`
+              const addressValue = activeChainInfo?.evmOnlyChain
+                ? pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChainInfo?.key]) ??
+                  wallet?.addresses?.[activeChainInfo?.key]
+                : wallet?.addresses?.[activeChainInfo?.key] ?? ''
+              let addressText = `${
+                addressValue
+                  ? sliceAddress(addressValue) + walletLabel
+                  : walletLabel.replace(' · ', '')
+              }`
 
               let disableEdit = false
 
@@ -247,7 +260,10 @@ export default function SelectWallet({
                         : addressText
                     }
                     isSelected={activeWallet?.id === wallet.id}
-                    imgSrc={wallet?.avatar ?? Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
+                    imgSrc={
+                      wallet?.avatar ??
+                      Images.Misc.getWalletIconAtIndex(wallet.colorIndex, wallet.watchWallet)
+                    }
                     color={topChainColor}
                     isRounded={true}
                   />
@@ -259,11 +275,11 @@ export default function SelectWallet({
 
           {!hideCreateNewWallet ? (
             <>
-              <div className='bg-white-100 dark:bg-gray-900 rounded-2xl py-4 mb-4'>
+              <div className='bg-white-100 dark:bg-gray-900 rounded-2xl mb-4 overflow-hidden'>
                 <div
                   data-testing-id='create-new-wallet-div'
                   onClick={handleCreateNewWalletClick}
-                  className='flex items-center px-4 pb-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+                  className='flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
                 >
                   <PlusCircle size={20} className='text-gray-400 mr-4' />
                   <Text size='md' className='font-bold'>
@@ -285,13 +301,39 @@ export default function SelectWallet({
                 <CardDivider />
                 <div
                   onClick={() => setShowImportPrivateKey(true)}
-                  className='flex items-center px-4 pt-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+                  className='flex items-center px-4 py-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
                 >
                   <img src={Images.Misc.FilledKey} alt='filled-key' className='mr-4' />
                   <Text size='md' className='font-bold'>
                     Import using private key
                   </Text>
                 </div>
+
+                {isCompassWallet() ? null : (
+                  <>
+                    <CardDivider />
+                    <div
+                      onClick={() => {
+                        setShowImportWatchWallet(true)
+                        mixpanel.track(EventName.ButtonClick, {
+                          buttonName: ButtonName.WATCH_WALLET,
+                        })
+                      }}
+                      className='flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+                    >
+                      <img
+                        src={theme === ThemeName.DARK ? Images.Misc.EyeDark : Images.Misc.EyeLight}
+                        className='mr-4 w-5 h-5 dark:opacity-60'
+                      />
+                      <Text size='md' className='font-bold'>
+                        Watch wallet
+                      </Text>
+                      <div className='text-xs font-medium text-green-500 bg-green-500/10 py-1 px-2.5 rounded-2xl ml-2'>
+                        NEW
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div
@@ -349,6 +391,14 @@ export default function SelectWallet({
         onClose={(closeSelectWallet: boolean) => {
           if (closeSelectWallet) onClose()
           setShowImportPrivateKey(false)
+        }}
+      />
+
+      <ImportWatchWallet
+        isVisible={showImportWatchWallet}
+        onClose={(closeSelectWallet: boolean) => {
+          if (closeSelectWallet) onClose()
+          setShowImportWatchWallet(false)
         }}
       />
     </>

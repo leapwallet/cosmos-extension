@@ -4,18 +4,24 @@ import {
   GasPriceStep,
   getGasPricesForOsmosisFee,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { defaultGasPriceStep, GasPrice, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  defaultGasPriceStep,
+  GasPrice,
+  NetworkType,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { captureException } from '@sentry/react'
+import { chainApisStore } from 'stores/chains-api-store'
+import { gasPriceStepForChainStore } from 'stores/fee-store'
 import { uiErrorTags } from 'utils/sentry'
 
 import { GasPriceOptionValue } from './context'
 
 type UpdateFeeTokenDataParams = {
-  foundFeeTokenData: FeeTokenData | undefined
+  foundFeeTokenData?: FeeTokenData
   activeChain: SupportedChain
-  lcdUrl: string | undefined
-  baseGasPriceStep: GasPriceStep
-  chainNativeFeeTokenData: FeeTokenData
+  selectedNetwork: NetworkType
+  chainNativeFeeTokenData?: FeeTokenData
   setFeeTokenData: (feeDenom: FeeTokenData) => void
   onGasPriceOptionChange: (value: GasPriceOptionValue, feeDenom: FeeTokenData) => void
   notUpdateGasPrice?: boolean
@@ -32,7 +38,6 @@ type UpdateFeeTokenDataParams = {
  *
  * @param foundFeeTokenData - Fee Token data that we want to set as default fee token data
  * @param activeChain - Active chain
- * @param lcdUrl - Lcd URL of the active chain. This is used in case of osmosis to fetch gas prices
  * @param baseGasPriceStep - Base gas price step. This is used in case of osmosis, when fetching gas prices fails somehow.
  * @param chainNativeFeeTokenData - Native fee token data of the active chain. This is used as fallback in case of not finding fee token data.
  * @param setFeeTokenData - Function to set fee token data
@@ -42,8 +47,7 @@ type UpdateFeeTokenDataParams = {
 export async function updateFeeTokenData({
   foundFeeTokenData,
   activeChain,
-  lcdUrl,
-  baseGasPriceStep,
+  selectedNetwork,
   chainNativeFeeTokenData,
   setFeeTokenData,
   onGasPriceOptionChange,
@@ -60,6 +64,11 @@ export async function updateFeeTokenData({
       ![foundFeeTokenData.ibcDenom, foundFeeTokenData.denom.coinMinimalDenom].includes('uosmo')
     ) {
       try {
+        const [baseGasPriceStep, { lcdUrl }] = await Promise.all([
+          gasPriceStepForChainStore.getGasPriceSteps(activeChain, selectedNetwork),
+          chainApisStore.getChainApis(activeChain, selectedNetwork),
+        ])
+
         const gasPriceStep = await getGasPricesForOsmosisFee(
           lcdUrl ?? '',
           foundFeeTokenData.ibcDenom ?? foundFeeTokenData?.denom?.coinMinimalDenom ?? '',

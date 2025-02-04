@@ -2,6 +2,7 @@ export * from './accounts';
 export * from './chains';
 export * from './constants';
 export * from './coreum';
+export * from './fees';
 export * from './globals';
 export * from './gov';
 export * from './healthy-nodes';

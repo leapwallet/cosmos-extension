@@ -1,9 +1,8 @@
-import { defaultGasEstimates } from '@leapwallet/cosmos-wallet-sdk';
+import { defaultGasEstimates, initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useDefaultGasEstimatesStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const DEFAULT_GAS_ESTIMATES = 'default-gas-estimates';
 const DEFAULT_GAS_ESTIMATES_LAST_UPDATED_AT = 'default-gas-estimates-last-updated-at';
@@ -12,6 +11,9 @@ const DEFAULT_GAS_ESTIMATES_URL = 'https://assets.leapwallet.io/cosmos-registry/
 const DEFAULT_GAS_ESTIMATES_LAST_UPDATED_AT_URL =
   'https://assets.leapwallet.io/cosmos-registry/v1/gas/gas-estimates-last-updated-at.json';
 
+/**
+ * Please use `DefaultGasEstimatesStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export function useInitDefaultGasEstimates() {
   const storage = useGetStorageLayer();
   const { setDefaultGasEstimates } = useDefaultGasEstimatesStore();

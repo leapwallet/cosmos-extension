@@ -116,7 +116,8 @@ export type SupportedChain =
   | 'babylon'
   | 'movement'
   | 'movementBardock'
-  | 'aptos';
+  | 'aptos'
+  | 'abstract';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -218,7 +219,8 @@ export type AddressPrefix =
   | 'elys'
   | 'bbn'
   | 'move'
-  | 'aptos';
+  | 'aptos'
+  | 'abstract';
 
 export type Denom =
   | 'JUNO'
@@ -4838,5 +4840,47 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#3281fa',
     },
     enabled: true,
+  },
+  abstract: {
+    chainId: '2741',
+    evmChainId: '2741',
+    testnetChainId: '11124',
+    evmChainIdTestnet: '11124',
+    key: 'abstract',
+    chainName: 'Abstract',
+    chainRegistryPath: 'abstract',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/abstract.jpg',
+    apis: {
+      rpc: 'https://api.mainnet.abs.xyz',
+      evmJsonRpc: 'https://api.mainnet.abs.xyz',
+      rpcTest: 'https://api.testnet.abs.xyz',
+      evmJsonRpcTest: 'https://api.testnet.abs.xyz',
+    },
+    denom: 'ETH',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'abstract',
+    txExplorer: {
+      mainnet: {
+        name: 'Abstract Explorer',
+        txUrl: 'https://abscan.org/tx',
+        accountUrl: 'https://abscan.org/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'abstract-native': denoms['abstract-native'],
+    },
+    theme: {
+      primaryColor: '#13aaff',
+      gradient: 'linear-gradient(180deg, rgba(19, 170, 255, 0.32) 0%, rgba(19, 170, 255, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
   },
 };

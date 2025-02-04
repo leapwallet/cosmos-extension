@@ -1,9 +1,13 @@
 import axios from 'axios';
 
-import { storage } from './global-vars';
+export type StorageLayer = {
+  set: (key: string, value: string) => Promise<void>;
+  get: (key: string) => Promise<any>;
+  remove: (key: string) => Promise<void>;
+};
 
 type InitResourceFromS3 = {
-  storage: storage;
+  storage: StorageLayer;
   setResource: (param: any) => void;
   resourceURL: string;
   lastUpdatedAtURL: string;

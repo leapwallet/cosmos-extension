@@ -113,4 +113,5 @@ export const gasAdjustments: GasAdjustments = {
   movement: 1,
   aptos: 1,
   movementBardock: 1,
+  abstract: 1,
 };

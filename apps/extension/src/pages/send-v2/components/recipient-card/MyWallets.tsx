@@ -1,6 +1,7 @@
-import { Key, SelectedAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { Key, SelectedAddress, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Question } from '@phosphor-icons/react'
+import classNames from 'classnames'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -11,6 +12,7 @@ import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useEffect, useMemo, useState } from 'react'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import { capitalize, sliceAddress } from 'utils/strings'
 
 import SearchChainWithWalletFilter from './SearchChainWithWalletFilter'
@@ -45,7 +47,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
   const _displayAccounts =
     _displaySkipAccounts.length > 0 ? _displaySkipAccounts : _displayMyAccounts
 
-  const { name, colorIndex } = selectedWallet as Key
+  const { name, colorIndex, watchWallet } = selectedWallet as Key
 
   const displayAccounts = useMemo(
     () =>
@@ -70,7 +72,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
 
       setSelectedAddress({
         address: toChain?.[1],
-        avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex),
+        avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex, watchWallet),
         chainIcon: img ?? '',
         chainName: toChain?.[0],
         emoji: undefined,
@@ -108,18 +110,37 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
         {displayAccounts.length > 0 ? (
           displayAccounts.map(([_chain, address], index) => {
             const chain = _chain as unknown as SupportedChain
-            const img = chainInfos[chain]?.chainSymbolImageUrl ?? defaultTokenLogo
-            const chainName = chainInfos[chain]?.chainName ?? chain
+            const chainInfo = chainInfos[chain]
+            const img = chainInfo?.chainSymbolImageUrl ?? defaultTokenLogo
+            const chainName = chainInfo?.chainName ?? chain
             const isLast = index === displayAccounts.length - 1
+
+            let addressText = ''
+            if (
+              selectedWallet?.walletType === WALLETTYPE.LEDGER &&
+              !isLedgerEnabled(chainInfo.key, chainInfo.bip44.coinType, Object.values(chainInfos))
+            ) {
+              addressText = `Ledger not supported on ${chainInfo.chainName}`
+            }
+
+            if (
+              selectedWallet?.walletType === WALLETTYPE.LEDGER &&
+              isLedgerEnabled(chainInfo.key, chainInfo.bip44.coinType, Object.values(chainInfos)) &&
+              !address
+            ) {
+              addressText = `Please import EVM wallet`
+            }
 
             return (
               <React.Fragment key={_chain}>
                 <button
-                  className='w-full flex items-center gap-3 py-3'
+                  className={classNames('w-full flex items-center gap-3 py-3', {
+                    '!cursor-not-allowed opacity-50': !!addressText,
+                  })}
                   onClick={() => {
                     setSelectedAddress({
                       address: address,
-                      avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex),
+                      avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex, watchWallet),
                       chainIcon: img ?? '',
                       chainName: chain,
                       emoji: undefined,
@@ -129,6 +150,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
                       selectionType: 'currentWallet',
                     })
                   }}
+                  disabled={!!addressText}
                 >
                   <img
                     src={img}
@@ -141,8 +163,8 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
                       {chainName}
                     </p>
 
-                    <p className='text-sm font-medium dark:text-gray-400 text-gray-600'>
-                      {sliceAddress(address)}
+                    <p className='text-sm font-medium dark:text-gray-400 text-gray-600 text-left'>
+                      {addressText || sliceAddress(address)}
                     </p>
                   </div>
                 </button>

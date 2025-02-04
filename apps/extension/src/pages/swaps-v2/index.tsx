@@ -36,9 +36,9 @@ import {
   rootDenomsStore,
   whitelistedFactoryTokensStore,
 } from 'stores/denoms-store-instance'
+import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { SourceChain, SourceToken } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
-import { isLedgerEnabledChainId } from 'utils/isLedgerEnabled'
 
 import {
   InterchangeButton,
@@ -316,14 +316,11 @@ const SwapPage = observer(() => {
         )
         if (!chainInfo) return false
         const hasAddress = activeWallet.addresses[chainInfo.key]
-        return (
-          isLedgerEnabledChainId(chain.chainId as string, chain.coinType, Object.values(chains)) &&
-          hasAddress
-        )
+        return hasAddress
       })
     }
     return chainsToShow
-  }, [activeWallet, chainsToShow, chains])
+  }, [activeWallet, chainsToShow])
 
   const { _destinationChainsToShow, _destinationAssets } = useMemo(() => {
     const _destinationAssets = destinationAssets.filter((asset) => {
@@ -816,7 +813,13 @@ const SwapPage = observer(() => {
                 })}
                 disabled={reviewDisabled}
                 style={{ boxShadow: 'none' }}
-                onClick={() => setCheckForAutoAdjust(true)}
+                onClick={() => {
+                  if (activeWallet?.watchWallet) {
+                    importWatchWalletSeedPopupStore.setShowPopup(true)
+                  } else {
+                    setCheckForAutoAdjust(true)
+                  }
+                }}
               >
                 {reviewBtnText}
               </Buttons.Generic>

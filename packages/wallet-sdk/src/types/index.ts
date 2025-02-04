@@ -2,6 +2,7 @@ export * from './bank';
 export * from './chains-directory';
 export * from './chains-metadata';
 export * from './constants';
+export * from './fees';
 export * from './ibc';
 export * from './ibc-data';
 export * from './signer';

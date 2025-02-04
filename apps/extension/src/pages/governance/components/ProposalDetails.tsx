@@ -18,11 +18,13 @@ import PopupLayout from 'components/layout/popup-layout'
 import { ProposalDescription } from 'components/proposal-description'
 import Text from 'components/text'
 import { useChainPageInfo } from 'hooks'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { PieChart } from 'react-minimal-pie-chart'
+import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { delegationsStore } from 'stores/stake-store'
 import { imgOnError } from 'utils/imgOnError'
 import { uiErrorTags } from 'utils/sentry'
@@ -55,7 +57,7 @@ export const ProposalDetails = observer(
       () => forceNetwork || _selectedNetwork,
       [_selectedNetwork, forceNetwork],
     )
-
+    const { activeWallet } = useActiveWallet()
     const address = useAddress(activeChain)
     const activeChainInfo = useChainInfo(activeChain)
     const { lcdUrl, txUrl } = useChainApis(activeChain, selectedNetwork)
@@ -287,7 +289,13 @@ export const ProposalDetails = observer(
             <VoteDetails
               proposal={proposal}
               activeChain={activeChain}
-              onVote={() => setShowCastVoteSheet(true)}
+              onVote={() => {
+                if (activeWallet?.watchWallet) {
+                  importWatchWalletSeedPopupStore.setShowPopup(true)
+                } else {
+                  setShowCastVoteSheet(true)
+                }
+              }}
               currVote={currVote ?? ''}
               isLoading={isLoading}
               hasMinStaked={hasMinAmountStaked}

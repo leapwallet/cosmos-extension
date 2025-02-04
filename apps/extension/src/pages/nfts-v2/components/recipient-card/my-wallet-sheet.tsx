@@ -34,7 +34,7 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
   }
 
   const {
-    activeWallet: { addresses, name, colorIndex },
+    activeWallet: { addresses, name, colorIndex, watchWallet },
   } = useActiveWallet() as {
     activeWallet: Key
   }
@@ -103,7 +103,10 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                             onClick={() => {
                               setSelectedAddress({
                                 address: address,
-                                avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex),
+                                avatarIcon: Images.Misc.getWalletIconAtIndex(
+                                  colorIndex,
+                                  watchWallet,
+                                ),
                                 chainIcon: img ?? '',
                                 chainName: chain,
                                 emoji: undefined,

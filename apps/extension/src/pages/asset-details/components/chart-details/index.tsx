@@ -50,6 +50,7 @@ import { useChainPageInfo } from 'hooks'
 import { usePageView } from 'hooks/analytics/usePageView'
 import useGetTopCGTokens from 'hooks/explore/useGetTopCGTokens'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import useQuery from 'hooks/useQuery'
@@ -104,13 +105,13 @@ const TokensDetails = observer(
     const assetType = undefined
     const chainInfos = useChainInfos()
     const _activeChain = useActiveChain()
+    const { activeWallet } = useActiveWallet()
     const assetsId = useQuery().get('assetName') ?? undefined
     const tokenChain = useQuery().get('tokenChain') ?? undefined
     const pageSource = useQuery().get('pageSource') ?? undefined
     const navigate = useNavigate()
     const { data: cgTokens = [] } = useGetTopCGTokens()
     const { data: featureFlags } = useFeatureFlags()
-    const { data: socials } = useAssetSocials(tokenChain)
     const marketData = marketDataStore.data
 
     const location = useLocation()
@@ -121,12 +122,6 @@ const TokensDetails = observer(
 
       return (location?.state ?? navigateAssetDetailsState) as Token
     }, [location?.state])
-
-    const [websiteUrl, twitterUrl] = useMemo(() => {
-      const website = socials?.find((item) => item.type === 'website')?.url
-      const twitter = socials?.find((item) => item.type === 'twitter')?.url
-      return [website, twitter]
-    }, [socials])
 
     const activeChain = useMemo(() => {
       return portfolio?.tokenBalanceOnChain ?? _activeChain
@@ -222,7 +217,11 @@ const TokensDetails = observer(
       selectedDays,
       denomInfo: _denomInfo,
     } = useAssetDetails({
-      denoms: Object.assign({}, denomsStore.denoms, compassTokenTagsStore.compassTokenDenomInfo),
+      denoms: Object.assign(
+        {},
+        rootDenomsStore.allDenoms,
+        compassTokenTagsStore.compassTokenDenomInfo,
+      ),
       denom: assetsId as unknown as SupportedDenoms,
       tokenChain: (tokenChain ?? 'cosmos') as unknown as SupportedChain,
       compassParams,
@@ -243,6 +242,12 @@ const TokensDetails = observer(
     })
 
     const [preferredCurrency] = useUserPreferredCurrency()
+    const { data: socials } = useAssetSocials(denomInfo?.coinGeckoId)
+    const [websiteUrl, twitterUrl] = useMemo(() => {
+      const website = socials?.find((item) => item.type === 'website')?.url
+      const twitter = socials?.find((item) => item.type === 'twitter')?.url
+      return [website, twitter]
+    }, [socials])
 
     const {
       data: chartDataCGTokens,
@@ -426,9 +431,8 @@ const TokensDetails = observer(
           headerZIndex={showReceiveSheet ? 0 : 3}
         >
           <div
-            className={classNames(' overflow-y-scroll', {
-              'h-[448px]': !isSwapDisabled,
-              'h-[499px]': isSidePanel() && !isSwapDisabled,
+            className={classNames('overflow-y-scroll h-[calc(100%-72px)] relative', {
+              'h-[calc(100%-72px-36px)]': activeWallet?.watchWallet,
             })}
           >
             {/* chart */}
@@ -700,31 +704,31 @@ const TokensDetails = observer(
                 )}
               </div>
             </div>
+            {!isSwapDisabled && (
+              <div className='flex w-full py-4 px-6 mt-auto sticky bottom-0 z-[2] bg-gray-50 dark:bg-black-100 '>
+                <Buttons.Generic
+                  size='normal'
+                  color={Colors.green600}
+                  onClick={() => {
+                    const denomKey = getKeyToUseForDenoms(
+                      denomInfo?.coinMinimalDenom ?? '',
+                      chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId,
+                    )
+                    handleSwapClick(
+                      `https://swapfast.app/?destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
+                      `/swap?destinationChainId=${chainInfos[activeChain].chainId}&destinationToken=${denomKey}&pageSource=assetDetails`,
+                    )
+                  }}
+                  disabled={isSwapDisabled}
+                >
+                  <div className='flex flex-row items-center gap-x-1'>
+                    <ArrowsLeftRight size={20} className='text-white-100' />
+                    <Text color='text-white-100'>Swap</Text>
+                  </div>
+                </Buttons.Generic>
+              </div>
+            )}
           </div>
-          {!isSwapDisabled && (
-            <div className='flex w-full py-4 px-6'>
-              <Buttons.Generic
-                size='normal'
-                color={Colors.green600}
-                onClick={() => {
-                  const denomKey = getKeyToUseForDenoms(
-                    denomInfo?.coinMinimalDenom ?? '',
-                    chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId,
-                  )
-                  handleSwapClick(
-                    `https://swapfast.app/?destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
-                    `/swap?destinationChainId=${chainInfos[activeChain].chainId}&destinationToken=${denomKey}&pageSource=assetDetails`,
-                  )
-                }}
-                disabled={isSwapDisabled}
-              >
-                <div className='flex flex-row items-center gap-x-1'>
-                  <ArrowsLeftRight size={20} className='text-white-100' />
-                  <Text color='text-white-100'>Swap</Text>
-                </div>
-              </Buttons.Generic>
-            </div>
-          )}
         </PopupLayout>
         <ReceiveToken
           isVisible={showReceiveSheet}

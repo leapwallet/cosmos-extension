@@ -33,6 +33,7 @@ import CompassNftVerifiedCollection from './compass-nft-verified-collection.svg'
 import CompassNoStake from './compass-no-stake.svg'
 import CompassPinExtension from './compass-pin-extension.png'
 import CompassReward from './compass-reward.svg'
+import Connect from './connect.svg'
 import ConnectLedgerSteps from './connect-ledger-steps.svg'
 import ConnectedSitesIcon from './connected-sites.svg'
 import Contacts from './contacts.svg'
@@ -57,6 +58,8 @@ import EditItems from './edit-items.svg'
 import EvmWalletIcon from './evm-wallet.svg'
 import ExpandContent from './expand-content.svg'
 import Explore from './explore.svg'
+import EyeDark from './eye-dark.svg'
+import EyeLight from './eye-light.svg'
 import FilledArrowDown from './filled-arrow-down.svg'
 import FilledExclamationMark from './filled-exclamation-mark.svg'
 import FilledFavStar from './filled-fav-star.svg'
@@ -71,8 +74,10 @@ import FrogSad from './frog-sad.svg'
 import Gear from './gear.svg'
 import GearWhiteIcon from './gear-white.svg'
 import Globe from './globe.svg'
+import GreenEye from './green-eye.svg'
 import GreenTick from './green-tick.svg'
 import GreyCross from './grey-cross.svg'
+import GreyEye from './grey-eye.svg'
 import HardwareWallet from './hardware-wallet.svg'
 import HeartIcon from './heart.svg'
 import HeartOutlineIcon from './heart-outline.svg'
@@ -132,6 +137,7 @@ import SideNavIcon from './side-nav-icon.svg'
 import SortIcon from './sort.svg'
 import SuggestChainIcon from './suggest-chain-icon.svg'
 import SwapVert from './swap-vert.svg'
+import SyncDisabled from './sync-disabled.svg'
 import TextSnippet from './text-snippet.svg'
 import Tick from './tick.svg'
 import Timer from './timer.svg'
@@ -216,6 +222,7 @@ export {
   CompassNoStake,
   CompassPinExtension,
   CompassReward,
+  Connect,
   ConnectedSitesIcon,
   ConnectLedgerSteps,
   Contacts,
@@ -240,6 +247,8 @@ export {
   EvmWalletIcon,
   ExpandContent,
   Explore,
+  EyeDark,
+  EyeLight,
   FilledArrowDown,
   FilledDownArrowSvg,
   FilledExclamationMark,
@@ -254,8 +263,10 @@ export {
   Gear,
   GearWhiteIcon,
   Globe,
+  GreenEye,
   GreenTick,
   GreyCross,
+  GreyEye,
   HardwareWallet,
   HeartIcon,
   HeartOutlineIcon,
@@ -315,6 +326,7 @@ export {
   SortIcon,
   SuggestChainIcon,
   SwapVert,
+  SyncDisabled,
   TextSnippet,
   Tick,
   Timer,
@@ -336,7 +348,10 @@ export {
   Warning,
 }
 
-export const getWalletIconAtIndex = (ind: number) => {
+export const getWalletIconAtIndex = (ind: number, isWatchWallet?: boolean) => {
+  if (isWatchWallet) {
+    return GreyEye
+  }
   const wallets = [Wallet0, Wallet1, Wallet2, Wallet3, Wallet4, Wallet5]
   return wallets[ind % Colors.walletColors.length] ?? Wallet0
 }

@@ -37,7 +37,7 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
     useSendContext() as SendContextType
 
   const {
-    activeWallet: { name, colorIndex },
+    activeWallet: { name, colorIndex, watchWallet },
   } = useActiveWallet() as {
     activeWallet: Key
   }
@@ -79,7 +79,7 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
 
       setSelectedAddress({
         address: toChain?.[1],
-        avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex),
+        avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex, watchWallet),
         chainIcon: img ?? '',
         chainName: toChain?.[0],
         emoji: undefined,
@@ -147,7 +147,10 @@ export const MyWalletSheet: React.FC<MyWalletSheetProps> = ({
                             onClick={() => {
                               setSelectedAddress({
                                 address: address,
-                                avatarIcon: Images.Misc.getWalletIconAtIndex(colorIndex),
+                                avatarIcon: Images.Misc.getWalletIconAtIndex(
+                                  colorIndex,
+                                  watchWallet,
+                                ),
                                 chainIcon: img ?? '',
                                 chainName: chain,
                                 emoji: undefined,

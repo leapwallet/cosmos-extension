@@ -113,6 +113,7 @@ export const stakingDenoms: StakingDenoms = {
     movement: [],
     aptos: [],
     movementBardock: [],
+    abstract: [],
   },
   testnet: {
     akash: ['uakt'],
@@ -222,5 +223,6 @@ export const stakingDenoms: StakingDenoms = {
     movement: [],
     aptos: [],
     movementBardock: [],
+    abstract: [],
   },
 };

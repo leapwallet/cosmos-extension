@@ -24,6 +24,7 @@ export const ETHEREUM_NO_POPUP_METHOD_TYPE = {
   WALLET__REVOKE_PERMISSIONS: 'wallet_revokePermissions',
   ETH__GET_TRANSACTION_RECEIPT: 'eth_getTransactionReceipt',
   ETH__GET_TRANSACTION_BY_HASH: 'eth_getTransactionByHash',
+  ETH__GET_TRANSACTION_COUNT: 'eth_getTransactionCount',
 };
 
 export type ValueOf<T> = T[keyof T];

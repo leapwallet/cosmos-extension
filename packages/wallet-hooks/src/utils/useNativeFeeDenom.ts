@@ -8,6 +8,9 @@ import { useMemo } from 'react';
 
 import { useActiveChain, useChainsStore, useFeeDenoms, useSelectedNetwork } from '../store';
 
+/**
+ * Please use `FeeDenomsStore` from `@leapwallet/cosmos-wallet-store` instead of this hook
+ */
 export const useNativeFeeDenom = (
   denoms: DenomsRecord,
   forceChain?: string,

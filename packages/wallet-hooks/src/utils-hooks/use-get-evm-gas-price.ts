@@ -29,6 +29,9 @@ export type EvmGasPrices = {
   maxPriorityFeePerGas?: Record<EvmFeeType, string>;
 };
 
+/**
+ * Please use `EvmGasPricesQueryStore` from `@leapwallet/cosmos-wallet-store` instead.
+ */
 export function useGetEvmGasPrices(forceChain?: SupportedChain, forceNetwork?: SelectedNetworkType) {
   const _activeChain = useActiveChain();
   const _activeNetwork = useSelectedNetwork();

@@ -472,6 +472,8 @@ export const useSimpleSend = (
           success: false,
           errors: [e.message?.slice(0, 200)],
         };
+      } finally {
+        setIsSending(false);
       }
     },
     [activeChain, chains],
@@ -702,6 +704,8 @@ export const useSimpleSend = (
             errors: [e.message?.slice(0, 200)],
           };
         }
+      } finally {
+        setIsSending(false);
       }
     },
     [addressPrefixes, activeChain],
@@ -887,5 +891,6 @@ export const useSimpleSend = (
     sendTokens,
     sendTokenEth,
     isSending,
+    setIsSending,
   };
 };

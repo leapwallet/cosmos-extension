@@ -17,6 +17,9 @@ import {
 import { WALLETTYPE } from '../types';
 import { getPlatformType, storage, useGetStorageLayer } from '../utils/global-vars';
 
+/**
+ * Please use `SeiLinkedAddressState` from `@leapwallet/cosmos-wallet-store` instead.
+ */
 export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams, forceChain?: SupportedChain) {
   const [addressLinkState, setAddressLinkState] = useState<AddressLinkState>('loading');
   const storage = useGetStorageLayer();

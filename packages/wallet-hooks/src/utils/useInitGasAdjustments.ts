@@ -1,9 +1,8 @@
-import { gasAdjustments } from '@leapwallet/cosmos-wallet-sdk';
+import { gasAdjustments, initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useGasAdjustmentsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const GAS_ADJUSTMENTS = 'gas-adjustments';
 const GAS_ADJUSTMENTS_LAST_UPDATED_AT = 'gas-adjustments-last-updated-at';

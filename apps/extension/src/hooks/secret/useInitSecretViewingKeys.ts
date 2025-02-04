@@ -1,7 +1,7 @@
 import { useScrtKeysStore } from '@leapwallet/cosmos-wallet-hooks'
+import { PasswordStore } from '@leapwallet/cosmos-wallet-store'
 import { decrypt } from '@leapwallet/leap-keychain'
 import { useEffect } from 'react'
-import { PasswordStore } from 'stores/password-store'
 import browser from 'webextension-polyfill'
 
 import { QUERY_PERMIT, VIEWING_KEYS } from '../../config/storage-keys'

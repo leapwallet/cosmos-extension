@@ -35,7 +35,7 @@ export function useFetchDualStakeProviderRewards(denoms: DenomsRecord) {
   }, [_selectedNetwork, _activeChain]);
 
   const address = useAddress(activeChain);
-  const getIbcDenomInfo = useGetIbcDenomInfo(activeChain);
+  const getIbcDenomInfo = useGetIbcDenomInfo(denoms, activeChain);
   const [preferredCurrency] = useUserPreferredCurrency();
 
   const chainInfos = useGetChains();
@@ -72,15 +72,21 @@ export function useFetchDualStakeProviderRewards(denoms: DenomsRecord) {
             return;
           }
 
-          const response = await getProviderRewards(address);
+          const response = await getProviderRewards(address, selectedNetwork);
           const { rewards } = response;
-          const rewardItems = rewards.flatMap((reward) => reward.amount);
+          const rewardItems = rewards
+            .flatMap((reward) => reward.amount)
+            .reduce((acc, curr) => {
+              acc[curr.denom] = acc[curr.denom]
+                ? new BigNumber(acc[curr.denom]).plus(new BigNumber(curr.amount))
+                : new BigNumber(curr.amount);
+              return acc;
+            }, {} as Record<string, BigNumber>);
 
           const claimTotal = await Promise.all(
-            rewardItems.map(async (claim) => {
-              const { amount: _amount, denom } = claim;
+            Object.entries(rewardItems).map(async ([denom, _amount]) => {
               const { denomInfo } = await getIbcDenomInfo(denom);
-              const amount = fromSmall(_amount, denomInfo?.coinDecimals ?? 6);
+              const amount = fromSmall(_amount.toString(), denomInfo?.coinDecimals ?? 6);
 
               let denomFiatValue = '0';
               if (denomInfo) {
@@ -109,7 +115,7 @@ export function useFetchDualStakeProviderRewards(denoms: DenomsRecord) {
               }
 
               return {
-                ...claim,
+                denom,
                 amount,
                 currencyAmount,
                 formatted_amount,
@@ -132,10 +138,12 @@ export function useFetchDualStakeProviderRewards(denoms: DenomsRecord) {
               return a + +v.amount;
             }, 0)
             .toString();
-          let formattedTotalRewards = formatTokenAmount(totalRewards, activeStakingDenom.coinDenom, 4);
-          if (formattedTotalRewards === 'NaN') {
-            formattedTotalRewards = '0 ' + activeStakingDenom.coinDenom;
-          }
+
+          const formattedTotalRewards = formatTokenAmount(
+            claimTotal.find((token) => token.denom === activeStakingDenom.coinMinimalDenom)?.amount ?? '0',
+            activeStakingDenom.coinDenom,
+            4,
+          );
           setClaimRewards({
             rewards,
             totalRewards,

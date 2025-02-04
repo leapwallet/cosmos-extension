@@ -49,12 +49,10 @@ export function isValidBtcAddress(address: string, network: NetworkType) {
 
 export function isValidAddress(address: string): boolean {
   if (address.startsWith('tb1q')) {
-    // TODO: Add support for validating bitcoin testnet addresses
-    return true;
+    return isValidBtcAddress(address, 'testnet');
   }
   if (address.startsWith('bc1q')) {
-    // TODO: Add support for validating bitcoin mainnet addresses
-    return true;
+    return isValidBtcAddress(address, 'mainnet');
   }
   const chainPrefix = getBlockChainFromAddress(address);
   return !!chainPrefix && isValidAddressWithPrefix(address, chainPrefix);
@@ -62,4 +60,8 @@ export function isValidAddress(address: string): boolean {
 
 export function isEthAddress(address: string): boolean {
   return isValidEthAddress(address);
+}
+
+export function isValidWalletAddress(address: string): boolean {
+  return isValidAddress(address) || isValidEthAddress(address);
 }

@@ -55,6 +55,7 @@ export enum ButtonName {
   ONRAMP_PROVIDER_REDIRECTION = 'on-ramp provider redirection',
   SYNC_START = 'sync start',
   SYNC_STOP = 'sync stop',
+  WATCH_WALLET = 'watch wallet',
 }
 
 export enum PageName {

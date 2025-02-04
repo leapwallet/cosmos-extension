@@ -9,6 +9,7 @@ import { compassTokenTagsStore, rootDenomsStore } from 'stores/denoms-store-inst
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import useCustomAddedERC20Tokens from './useCustomAddedERC20Tokens'
+import { useProviderFeatureFlags } from './useProviderFeatureFlags'
 
 export type MergedAsset = SkipSupportedAsset & {
   evmChainId?: string
@@ -27,16 +28,21 @@ const useAllSkipAssetsParams = {
 export default function useAssets() {
   const associations = compassTokensAssociationsStore.compassEvmToSeiMapping
   const reverseAssociations = compassTokensAssociationsStore.compassSeiToEvmMapping
+  const { isSkipEnabled, isLifiEnabled } = useProviderFeatureFlags()
 
-  const { data: allSkipAssets, isLoading: loadingAllSkipAssets } =
+  const { data: _allSkipAssets, isLoading: loadingAllSkipAssets } =
     useAllSkipAssets(useAllSkipAssetsParams)
 
   const { data: seiLifiAssets } = useLifiAssets(
-    String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
+    isLifiEnabled
+      ? String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID)
+      : undefined,
     {
       includeEVMAssets: true,
     },
   )
+
+  const allSkipAssets = isSkipEnabled ? _allSkipAssets : undefined
 
   const customAddedERC20Tokens = useCustomAddedERC20Tokens()
   const allDenoms = rootDenomsStore.allDenoms
@@ -126,6 +132,22 @@ export default function useAssets() {
         ?.map((lifiAsset) => {
           const evmTokenContract = lifiAsset.originDenom
           commonAssets.add(evmTokenContract)
+          if (evmTokenContract === AddressZero) {
+            const originDenom = 'usei'
+            return {
+              ...lifiAsset,
+              originDenom,
+              denom: originDenom,
+              chainId: seiCosmosChainId,
+              evmTokenContract: AddressZero,
+              evmChainId: seiEvmChainId,
+              evmDecimals: 18,
+              decimals: combinedCompassTokenDenomInfo[originDenom]?.coinDecimals ?? 18,
+              logoUri: combinedCompassTokenDenomInfo[originDenom]?.icon ?? lifiAsset.logoUri,
+              coingeckoId:
+                combinedCompassTokenDenomInfo[originDenom]?.icon ?? lifiAsset.coingeckoId,
+            }
+          }
           return {
             ...lifiAsset,
             chainId: seiCosmosChainId,

@@ -1,8 +1,8 @@
+import { initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useAirdropsDataStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const AIRDROPS_DATA = 'airdrops-data';
 const AIRDROPS_DATA_LAST_UPDATED_AT = 'airdrops-data-last-updated-at';

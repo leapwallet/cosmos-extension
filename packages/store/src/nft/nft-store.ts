@@ -360,7 +360,9 @@ export class NftStore {
         },
       };
 
-      this.loading = false;
+      if (Object.values(nfts).some((nft) => nft.length > 0)) {
+        this.loading = false;
+      }
     });
   }
 

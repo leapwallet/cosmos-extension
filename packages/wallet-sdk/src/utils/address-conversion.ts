@@ -3,6 +3,10 @@ import { Secp256k1 } from '@leapwallet/leap-keychain';
 import { bech32 } from 'bech32';
 import { Address, pubToAddress } from 'ethereumjs-util';
 
+import { isEthAddress, isValidAddress } from './validateAddress';
+
+export const UNABLE_TO_SHOW_EVM_ADDRESS = 'Unable to show EVM address';
+
 function toHex(array: Uint8Array) {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -27,13 +31,25 @@ export function pubKeyToEvmAddress(decompressedPubKey: Uint8Array): string {
   return `0x${address.toString('hex')}`;
 }
 
-export function pubKeyToEvmAddressToShow(pubkey: string | Uint8Array | undefined): string {
-  if (pubkey === undefined) return 'Unable to show EVM address';
-  const pubKeyBytes = typeof pubkey === 'string' ? fromBase64(pubkey) : pubkey;
+export function pubKeyToEvmAddressToShow(pubkey: string | Uint8Array | undefined, noPlaceHolder?: boolean): string {
+  if (pubkey === undefined) {
+    return noPlaceHolder ? '' : UNABLE_TO_SHOW_EVM_ADDRESS;
+  }
+  if (typeof pubkey === 'string' && pubkey.startsWith('PLACEHOLDER')) {
+    const address = pubkey.split(' ')[1];
+    return isValidAddress(address)
+      ? getEthereumAddress(address)
+      : isEthAddress(address)
+      ? address
+      : 'Unable to show EVM address';
+  }
 
+  const pubKeyBytes = typeof pubkey === 'string' ? fromBase64(pubkey) : pubkey;
   const seiEvmAddress = pubKeyBytes
     ? pubKeyToEvmAddress(Secp256k1.publicKeyConvert(pubKeyBytes, false))
-    : 'Unable to show EVM address';
+    : noPlaceHolder
+    ? ''
+    : UNABLE_TO_SHOW_EVM_ADDRESS;
 
   return seiEvmAddress;
 }

@@ -101,6 +101,25 @@ const LavaClaimInfo = observer(
       }
     }, [activeStakingDenom?.coinMinimalDenom, rewards])
 
+    const formattedTokenProviderReward = useMemo(() => {
+      if (providerRewards) {
+        const rewardItems = providerRewards.rewards
+          .flatMap((reward) => reward.amount)
+          .reduce((acc, curr) => {
+            acc[curr.denom] = acc[curr.denom]
+              ? new BigNumber(acc[curr.denom]).plus(new BigNumber(curr.amount))
+              : new BigNumber(curr.amount)
+            return acc
+          }, {} as Record<string, BigNumber>)
+        const rewardsLength = Object.keys(rewardItems).length
+        return hideAssetsStore.formatHideBalance(
+          `${providerRewards.formattedTotalRewards} ${
+            rewardsLength > 1 ? `+${rewardsLength - 1} more` : ''
+          }`,
+        )
+      }
+    }, [providerRewards])
+
     const formattedTokenReward = useMemo(() => {
       return hideAssetsStore.formatHideBalance(
         `${formatTokenAmount(nativeTokenReward?.amount ?? '', activeStakingDenom.coinDenom)} ${
@@ -126,28 +145,22 @@ const LavaClaimInfo = observer(
       return ''
     }, [formattedTokenReward, totalRewardsDollarAmt])
 
-    const formattedProviderReward = useMemo(() => {
-      return hideAssetsStore.formatHideBalance(
-        formatTokenAmount(providerRewards?.totalRewards ?? '', activeStakingDenom?.coinDenom),
-      )
-    }, [activeStakingDenom?.coinDenom, providerRewards?.totalRewards])
-
     const providerRewardTitle = useMemo(() => {
       if (new BigNumber(providerRewards?.totalRewardsDollarAmt).gt(0)) {
         return hideAssetsStore.formatHideBalance(
           formatCurrency(new BigNumber(providerRewards?.totalRewardsDollarAmt)),
         )
       } else {
-        return formattedProviderReward
+        return formattedTokenProviderReward
       }
-    }, [formatCurrency, formattedProviderReward, providerRewards?.totalRewardsDollarAmt])
+    }, [formatCurrency, formattedTokenProviderReward, providerRewards?.totalRewardsDollarAmt])
 
     const providerRewardSubtitle = useMemo(() => {
       if (new BigNumber(providerRewards?.totalRewardsDollarAmt).gt(0)) {
-        return formattedProviderReward
+        return formattedTokenProviderReward
       }
       return ''
-    }, [formattedProviderReward, providerRewards?.totalRewardsDollarAmt])
+    }, [formattedTokenProviderReward, providerRewards?.totalRewardsDollarAmt])
 
     return (
       <BottomModal

@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { ETHEREUM_METHOD_TYPE } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import {
   formatEtherUnits,
+  getChainApis,
   getErc20TokenDetails,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'

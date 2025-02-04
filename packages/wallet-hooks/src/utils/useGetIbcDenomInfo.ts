@@ -1,11 +1,10 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback } from 'react';
 
-import { fetchIbcTrace, useActiveChain, useChainApis, useChainsStore, useDenoms, useIbcTraceStore } from '../store';
+import { fetchIbcTrace, useActiveChain, useChainApis, useChainsStore, useIbcTraceStore } from '../store';
 
-export function useGetIbcDenomInfo(forceChain?: SupportedChain) {
+export function useGetIbcDenomInfo(denoms: DenomsRecord, forceChain?: SupportedChain) {
   const { ibcTraceData, addIbcTraceData } = useIbcTraceStore();
-  const denoms = useDenoms();
   const _activeChain = useActiveChain();
   const activeChain = forceChain ?? _activeChain;
   const { lcdUrl } = useChainApis(activeChain);

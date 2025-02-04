@@ -720,7 +720,7 @@ export class ERC20DenomBalanceStore {
     const pubKey = this.addressStore.pubKeys?.[chain];
     const ethAddress = pubKeyToEvmAddressToShow(pubKey);
 
-    if (!chainId || !ethAddress) {
+    if (!chainId || !ethAddress || !pubKey || !ethAddress.startsWith('0x')) {
       runInAction(() => {
         this.chainWiseBalances[balanceKey] = {};
         this.chainWiseStatus[balanceKey] = 'error';
@@ -735,7 +735,9 @@ export class ERC20DenomBalanceStore {
 
       const denoms = Object.assign({}, _denoms, _compassDenoms);
       const allTokens = await this.fetchAllSeiTraceERC20Tokens(chainId, ethAddress);
-
+      if (!allTokens || allTokens?.length === 0) {
+        throw new Error('No tokens found from sei-trace');
+      }
       const formattedBalances = allTokens.map((item: any) => {
         const token = {
           address: item.token_contract,

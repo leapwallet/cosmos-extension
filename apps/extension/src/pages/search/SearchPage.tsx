@@ -1,4 +1,4 @@
-import { formatPercentAmount } from '@leapwallet/cosmos-wallet-hooks'
+import { formatPercentAmount, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { getErc20TokenDetails } from '@leapwallet/cosmos-wallet-sdk'
 import {
   CompassTokenTagsStore,
@@ -109,6 +109,10 @@ const TokenCard = observer(
       return marketData?.[key] ?? marketData?.[key?.toLowerCase()]
     }, [marketData, token])
 
+    const { data: featureFlags } = useFeatureFlags()
+
+    const isSwapDisabled = featureFlags?.swaps?.extension === 'disabled'
+
     const onTokenSelect = useCallback(() => {
       const asset: Token = token
       sessionStorage.setItem('navigate-assetDetails-state', JSON.stringify(asset))
@@ -125,6 +129,10 @@ const TokenCard = observer(
 
     const onSwapClick = useCallback(
       (event) => {
+        if (isSwapDisabled) {
+          event.stopPropagation()
+          return
+        }
         navigate(
           `/swap?destinationToken=${
             token.skipAsset.denom ?? token.skipAsset.evmTokenContract
@@ -132,7 +140,13 @@ const TokenCard = observer(
         )
         event.stopPropagation()
       },
-      [navigate, token.skipAsset.chainId, token.skipAsset.denom, token.skipAsset.evmTokenContract],
+      [
+        navigate,
+        token.skipAsset.chainId,
+        token.skipAsset.denom,
+        token.skipAsset.evmTokenContract,
+        isSwapDisabled,
+      ],
     )
 
     const usdPrice = useMemo(() => {
@@ -183,7 +197,12 @@ const TokenCard = observer(
         <ArrowsLeftRight
           size={32}
           onClick={onSwapClick}
-          className='text-black-100 dark:text-white-100 rounded-full p-2 bg-gray-100 dark:bg-gray-850 cursor-pointer'
+          className={classNames(
+            'text-black-100 dark:text-white-100 rounded-full p-2 bg-gray-100 dark:bg-gray-850 cursor-pointer',
+            {
+              'opacity-50 cursor-not-allowed': isSwapDisabled,
+            },
+          )}
         />
       </div>
     )

@@ -62,8 +62,9 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
           }
 
           if (
-            wallet.walletType === WALLETTYPE.PRIVATE_KEY ||
-            wallet.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
+            (wallet.walletType === WALLETTYPE.PRIVATE_KEY ||
+              wallet.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED) &&
+            !wallet.watchWallet
           ) {
             walletLabel = ` · Imported`
           }
@@ -77,12 +78,16 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
           const sliceLength = wallet.walletType === WALLETTYPE.LEDGER ? 10 : 19
           const shortenedWalletName =
             walletNameLength > sliceLength ? walletName.slice(0, sliceLength) + '...' : walletName
+          const walletAddress = activeChainInfo?.evmOnlyChain
+            ? pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChainInfo?.key], true)
+            : wallet?.addresses?.[activeChainInfo?.key]
 
-          let addressText = `${sliceAddress(
-            activeChainInfo?.evmOnlyChain
-              ? pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChainInfo?.key])
-              : wallet?.addresses?.[activeChainInfo?.key],
-          )}${walletLabel}`
+          const addressValue = activeChainInfo?.evmOnlyChain
+            ? pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChainInfo?.key])
+            : wallet?.addresses?.[activeChainInfo?.key] ?? ''
+          let addressText = `${
+            addressValue ? sliceAddress(addressValue) + walletLabel : walletLabel.replace(' · ', '')
+          }`
 
           if (
             wallet.walletType === WALLETTYPE.LEDGER &&
@@ -117,7 +122,10 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
                 }}
               >
                 <img
-                  src={wallet?.avatar ?? Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
+                  src={
+                    wallet?.avatar ??
+                    Images.Misc.getWalletIconAtIndex(wallet.colorIndex, wallet.watchWallet)
+                  }
                   alt={`wallet icon`}
                   className='rounded-full border border-white-30 h-10 w-10'
                 />

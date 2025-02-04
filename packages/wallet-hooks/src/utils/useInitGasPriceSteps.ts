@@ -1,9 +1,8 @@
-import { GAS_PRICE_STEPS as defaultGasPriceSteps } from '@leapwallet/cosmos-wallet-sdk';
+import { GAS_PRICE_STEPS as defaultGasPriceSteps, initResourceFromS3 } from '@leapwallet/cosmos-wallet-sdk';
 import { useEffect } from 'react';
 
 import { useGasPriceStepsStore } from '../store';
 import { useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 
 const GAS_PRICE_STEPS = 'gas-price-steps';
 const GAS_PRICE_STEPS_LAST_UPDATED_AT = 'gas-price-steps-last-updated-at';

@@ -71,6 +71,7 @@ export const ReviewTransferSheet = observer(
       associatedSeiAddress,
       sendActiveChain,
       associated0xAddress,
+      setIsSending,
       isSeiEvmTransaction,
       hasToUsePointerLogic,
       pointerAddress,
@@ -170,6 +171,7 @@ export const ReviewTransferSheet = observer(
           })
         }
       } catch (err: unknown) {
+        setIsSending(false)
         captureException(err)
       }
     }, [
@@ -199,6 +201,7 @@ export const ReviewTransferSheet = observer(
       confirmSend,
       memo,
       confirmSkipTx,
+      setIsSending,
     ])
 
     useCaptureTxError(txError)

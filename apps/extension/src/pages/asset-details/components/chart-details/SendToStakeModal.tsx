@@ -8,6 +8,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { chainInfoStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -22,7 +23,8 @@ type SendToStakeModalProps = {
 const SendToStakeModal = observer(
   ({ isVisible, onClose, ibcDenom, nativeDenom }: SendToStakeModalProps) => {
     const defaultIconLogo = useDefaultTokenLogo()
-    const nativeChainName = ChainInfos[nativeDenom.chain as SupportedChain]
+    const chainInfos = chainInfoStore.chainInfos
+    const nativeChainName = chainInfos[nativeDenom.chain as SupportedChain]
     const navigate = useNavigate()
     const { activeWallet } = useActiveWallet()
 

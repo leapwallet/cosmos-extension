@@ -155,6 +155,10 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
               isErrorHighlighted={!!errors.pass1 || !!errors.pass2}
               onChange={handleInputChange}
               data-testing-id='input-password'
+              className={classNames('border', {
+                '!border-transparent focus:!border-gray-400': !errors.pass1 && !errors.pass2,
+                '!border-red-300 focus:!border-red-300': !!errors.pass1 || !!errors.pass2,
+              })}
             />
             {passScore !== null && (
               <div className='absolute flex justify-center items-center top-[1px] right-[40px] w-[80px] h-[45px] bg-white-100 dark:bg-gray-900'>
@@ -189,6 +193,10 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
               isErrorHighlighted={!!errors.pass2}
               onChange={handleInputChange}
               data-testing-id='input-confirm-password'
+              className={classNames('border', {
+                '!border-transparent focus:!border-gray-400': !errors.pass2,
+                '!border-red-300 focus:!border-red-300': !!errors.pass2,
+              })}
             />
             {errors.pass2 && (
               <Text size='sm' color='text-red-300' data-testing-id='password-error-ele'>

@@ -135,7 +135,7 @@ export const SelectWallets = ({
                       : ''
                   }
                   title={`Connecting to ${walletName}`}
-                  imgSrc={Images.Misc.getWalletIconAtIndex(wallet.colorIndex)}
+                  imgSrc={Images.Misc.getWalletIconAtIndex(wallet.colorIndex, wallet.watchWallet)}
                   onClick={() => handleCardClick(wallet)}
                 />
                 {!isLast && !isFullScreen ? <CardDivider /> : null}

@@ -1,8 +1,8 @@
 diff --git a/node_modules/@cosmjs/tendermint-rpc/build/tendermint34/adaptor/responses.js b/node_modules/@cosmjs/tendermint-rpc/build/tendermint34/adaptor/responses.js
-index bd05037..a2a973f 100644
+index bd05037..a723d4b 100644
 --- a/node_modules/@cosmjs/tendermint-rpc/build/tendermint34/adaptor/responses.js
 +++ b/node_modules/@cosmjs/tendermint-rpc/build/tendermint34/adaptor/responses.js
-@@ -1,103 +1,121 @@
+@@ -1,103 +1,126 @@
 -"use strict";
 -Object.defineProperty(exports, "__esModule", { value: true });
 -exports.Responses = exports.decodeValidatorInfo = exports.decodeValidatorGenesis = exports.decodeValidatorUpdate = exports.decodeEvent = void 0;
@@ -178,6 +178,11 @@ index bd05037..a2a973f 100644
 +          algorithm: 'bn254',
 +          data: (0, encoding_1.fromBase64)((0, encodings_1.assertNotEmpty)(data.value)),
 +        };
++      case 'cometbft/PubKeyBn254':
++        return {
++          algorithm: 'bn254',
++          data: (0, encoding_1.fromBase64)((0, encodings_1.assertNotEmpty)(data.value)),
++        };
 +      default:
 +        throw new Error(`unknown pubkey type: ${data.type}`);
      }
@@ -202,7 +207,7 @@ index bd05037..a2a973f 100644
  }
  /**
   * Note: we do not parse block.time_iota_ms for now because of this CHANGELOG entry
-@@ -106,108 +124,108 @@ function decodePubkey(data) {
+@@ -106,108 +129,108 @@ function decodePubkey(data) {
   * https://github.com/tendermint/tendermint/blob/master/CHANGELOG.md#v0310
   */
  function decodeBlockParams(data) {
@@ -388,7 +393,7 @@ index bd05037..a2a973f 100644
  }
  /**
   * In some cases a timestamp is optional and set to the value 0 in Go.
-@@ -216,229 +234,230 @@ function decodeBlockIdFlag(blockIdFlag) {
+@@ -216,229 +239,230 @@ function decodeBlockIdFlag(blockIdFlag) {
   * into undefined values.
   */
  function decodeOptionalTime(timestamp) {
@@ -802,3 +807,4 @@ index bd05037..a2a973f 100644
  }
  exports.Responses = Responses;
  //# sourceMappingURL=responses.js.map
+\ No newline at end of file

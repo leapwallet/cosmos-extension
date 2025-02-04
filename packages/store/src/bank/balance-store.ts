@@ -1,4 +1,5 @@
-import { denoms as ConstantDenoms, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { denoms as ConstantDenoms, DenomsRecord, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { computed, makeAutoObservable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
@@ -265,16 +266,27 @@ export class BalanceStore {
 
       let formattedBalances: Array<Token> = [];
       let formattedSpendableBalances: Array<Token> = [];
+      const tokensToAddInDenoms: DenomsRecord = {};
 
       const rawBalance = forceRefetch ? await rawBalanceStore.refetchData() : await rawBalanceStore.getData();
-      formattedBalances = this.formatBalance(rawBalance.balances, chain, network);
+      formattedBalances = await this.formatBalance(restUrl, rawBalance.balances, chain, network, tokensToAddInDenoms);
 
       if (!this.chainsWithoutSpendableBalance.includes(chain)) {
         const rawSpendableBalance = forceRefetch
           ? await rawSpendableBalanceStore.refetchData()
           : await rawSpendableBalanceStore.getData();
 
-        formattedSpendableBalances = this.formatBalance(rawSpendableBalance.balances, chain, network);
+        formattedSpendableBalances = await this.formatBalance(
+          restUrl,
+          rawSpendableBalance.balances,
+          chain,
+          network,
+          tokensToAddInDenoms,
+        );
+      }
+
+      if (Object.keys(tokensToAddInDenoms).length > 0) {
+        this.rootDenomsStore.baseDenomsStore.setDenoms({ ...this.rootDenomsStore.allDenoms, ...tokensToAddInDenoms });
       }
 
       runInAction(() => {
@@ -364,16 +376,42 @@ export class BalanceStore {
       });
   }
 
-  private formatBalance(
+  private async getAptosDenomDetails(lcdUrl: string, denom: string, chain: SupportedChain) {
+    try {
+      const res = await axios.get(
+        `${lcdUrl}/accounts/${denom.split('::')?.[0]}/resource/0x1::coin::CoinInfo<${denom}>`,
+      );
+      const fetchedDenom = res.data?.data;
+      if (fetchedDenom && fetchedDenom.symbol && fetchedDenom.decimals) {
+        return {
+          name: fetchedDenom.name ?? '',
+          coinDenom: fetchedDenom.symbol,
+          coinMinimalDenom: denom,
+          coinDecimals: fetchedDenom.decimals,
+          icon: '',
+          chain,
+          coinGeckoId: '',
+        };
+      }
+
+      return null;
+    } catch (e) {
+      console.error(`Error fetching aptos denom info for ${denom}`, e);
+    }
+  }
+
+  private async formatBalance(
+    lcdUrl: string,
     balances: Array<{ amount: string; denom: string }>,
     chain: SupportedChain,
     network: SelectedNetworkType,
+    tokensToAddInDenoms: DenomsRecord,
   ) {
     const chainInfos = this.chainInfosStore.chainInfos;
     const coingeckoPrices = this.priceStore.data;
 
     const rootDenoms = this.rootDenomsStore.allDenoms;
-    const allDenoms: Record<string, any> = { ...ConstantDenoms, ...rootDenoms };
+    const allDenoms: DenomsRecord = { ...ConstantDenoms, ...rootDenoms };
 
     if (!!process.env.APP?.includes('compass') && balances.length === 0) {
       const nativeDenom = getNativeDenom(chainInfos, chain, network);
@@ -413,92 +451,102 @@ export class BalanceStore {
       ];
     }
 
-    const formattedBalances = balances.map((balance) => {
-      const chainInfo = chainInfos[chain];
-      let _denom = balance.denom;
-      if (chain === 'noble' && _denom === 'uusdc') {
-        _denom = 'usdc';
-      }
+    const formattedBalances = await Promise.all(
+      balances.map(async (balance) => {
+        const chainInfo = chainInfos[chain];
+        let _denom = balance.denom;
+        if (chain === 'noble' && _denom === 'uusdc') {
+          _denom = 'usdc';
+        }
 
-      let isIbcDenom = false;
-      let ibcChainInfo;
+        let isIbcDenom = false;
+        let ibcChainInfo;
 
-      if (_denom.startsWith('ibc/')) {
-        isIbcDenom = true;
-        const ibcTraceData = getIbcTraceData();
-        const trace = ibcTraceData[_denom];
+        if (_denom.startsWith('ibc/')) {
+          isIbcDenom = true;
+          const ibcTraceData = getIbcTraceData();
+          const trace = ibcTraceData[_denom];
 
-        if (!trace) {
+          if (!trace) {
+            return null as unknown as Token;
+          }
+
+          _denom = getKeyToUseForDenoms(trace.baseDenom, trace.originChainId);
+          ibcChainInfo = {
+            pretty_name: trace?.originChainId,
+            icon: '',
+            name: trace?.originChainId,
+            channelId: trace.channelId,
+          };
+        }
+
+        let denomInfo = allDenoms[_denom];
+
+        if (!denomInfo && chainInfo.beta) {
+          if (Object.values(chainInfo.nativeDenoms)[0].coinMinimalDenom === _denom) {
+            denomInfo = Object.values(chainInfo.nativeDenoms)[0];
+          }
+        }
+
+        if (!denomInfo && isAptosChain(chain)) {
+          const fetchedDenom = await this.getAptosDenomDetails(lcdUrl, _denom, chain);
+          if (fetchedDenom) {
+            denomInfo = fetchedDenom;
+            tokensToAddInDenoms[_denom] = denomInfo;
+          }
+        }
+
+        if (!denomInfo) {
           return null as unknown as Token;
         }
 
-        _denom = getKeyToUseForDenoms(trace.baseDenom, trace.originChainId);
-        ibcChainInfo = {
-          pretty_name: trace?.originChainId,
-          icon: '',
-          name: trace?.originChainId,
-          channelId: trace.channelId,
+        const amount = fromSmall(new BigNumber(balance.amount).toString(), denomInfo?.coinDecimals);
+        let usdValue;
+
+        if (parseFloat(amount) > 0) {
+          if (coingeckoPrices) {
+            let tokenPrice;
+            const coinGeckoId = denomInfo.coinGeckoId;
+
+            const alternateCoingeckoKey = `${(chainInfos?.[denomInfo?.chain as SupportedChain] ?? chainInfo).chainId}-${
+              denomInfo.coinMinimalDenom
+            }`;
+
+            if (coinGeckoId) {
+              tokenPrice = coingeckoPrices[coinGeckoId];
+            }
+
+            if (!tokenPrice) {
+              tokenPrice =
+                coingeckoPrices[alternateCoingeckoKey] ?? coingeckoPrices[alternateCoingeckoKey?.toLowerCase()];
+            }
+
+            if (tokenPrice) {
+              usdValue = new BigNumber(amount).times(tokenPrice).toString();
+            }
+          }
+        }
+
+        const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
+
+        return {
+          chain: denomInfo?.chain ?? '',
+          name: denomInfo?.name,
+          amount,
+          symbol: denomInfo?.coinDenom,
+          usdValue: usdValue ?? '',
+          coinMinimalDenom: denomInfo?.coinMinimalDenom,
+          img: denomInfo?.icon,
+          ibcDenom: isIbcDenom ? balance.denom : undefined,
+          ibcChainInfo,
+          usdPrice,
+          coinDecimals: denomInfo?.coinDecimals,
+          coinGeckoId: denomInfo?.coinGeckoId,
+          tokenBalanceOnChain: chain,
+          id: generateRandomString(10),
         };
-      }
-
-      let denomInfo = allDenoms[_denom];
-
-      if (!denomInfo && chainInfo.beta) {
-        if (Object.values(chainInfo.nativeDenoms)[0].coinMinimalDenom === _denom) {
-          denomInfo = Object.values(chainInfo.nativeDenoms)[0];
-        }
-      }
-
-      if (!denomInfo) {
-        return null as unknown as Token;
-      }
-
-      const amount = fromSmall(new BigNumber(balance.amount).toString(), denomInfo?.coinDecimals);
-      let usdValue;
-
-      if (parseFloat(amount) > 0) {
-        if (coingeckoPrices) {
-          let tokenPrice;
-          const coinGeckoId = denomInfo.coinGeckoId;
-
-          const alternateCoingeckoKey = `${(chainInfos?.[denomInfo?.chain as SupportedChain] ?? chainInfo).chainId}-${
-            denomInfo.coinMinimalDenom
-          }`;
-
-          if (coinGeckoId) {
-            tokenPrice = coingeckoPrices[coinGeckoId];
-          }
-
-          if (!tokenPrice) {
-            tokenPrice =
-              coingeckoPrices[alternateCoingeckoKey] ?? coingeckoPrices[alternateCoingeckoKey?.toLowerCase()];
-          }
-
-          if (tokenPrice) {
-            usdValue = new BigNumber(amount).times(tokenPrice).toString();
-          }
-        }
-      }
-
-      const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
-
-      return {
-        chain: denomInfo?.chain ?? '',
-        name: denomInfo?.name,
-        amount,
-        symbol: denomInfo?.coinDenom,
-        usdValue: usdValue ?? '',
-        coinMinimalDenom: denomInfo?.coinMinimalDenom,
-        img: denomInfo?.icon,
-        ibcDenom: isIbcDenom ? balance.denom : undefined,
-        ibcChainInfo,
-        usdPrice,
-        coinDecimals: denomInfo?.coinDecimals,
-        coinGeckoId: denomInfo?.coinGeckoId,
-        tokenBalanceOnChain: chain,
-        id: generateRandomString(10),
-      };
-    });
+      }),
+    );
 
     return formattedBalances.filter((balance) => balance !== null);
   }

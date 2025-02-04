@@ -1,8 +1,11 @@
 export * from './assets';
 export * from './bank';
+export * from './chains';
+export * from './fees';
 export { setBaseURL, setIsCompass } from './globals/config';
 export * from './gov';
 export * from './nft';
+export * from './password';
 export * from './root';
 export * from './stake';
 export * from './types';

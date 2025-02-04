@@ -364,9 +364,8 @@ export async function getSupportedChains(): Promise<Record<SupportedChain, Chain
 
   let allChains = ChainInfos
   try {
-    const resp = await browser.storage.local.get([BETA_CHAINS])
-    const betaChains = resp[BETA_CHAINS]
-    allChains = { ...ChainInfos, ...JSON.parse(betaChains ?? '{}') }
+    const betaChains = (await getExperimentalChains()) ?? {}
+    allChains = { ...ChainInfos, ...betaChains }
   } catch (_) {
     //
   }

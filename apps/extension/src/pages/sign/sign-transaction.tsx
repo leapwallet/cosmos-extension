@@ -71,6 +71,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { dappDefaultFeeStore } from 'stores/fee-store'
 import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
@@ -780,6 +781,8 @@ const SignTransaction = observer(
 
     useEffect(() => {
       setDappDefaultFee(defaultFee)
+      dappDefaultFeeStore.setDefaultFee(defaultFee)
+
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defaultFee])
 

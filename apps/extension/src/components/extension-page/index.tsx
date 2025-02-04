@@ -14,10 +14,11 @@ type ExtensionPageProps = {
   readonly titleComponent?: ReactNode
   readonly children?: ReactNode
   readonly headerRightComponent?: ReactNode
+  readonly childrenMargin?: boolean
 }
 
 export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProps>) {
-  const { titleComponent, children, headerRightComponent } = props
+  const { titleComponent, children, headerRightComponent, childrenMargin } = props
   const { theme, setTheme } = useTheme()
 
   const isDark = theme === ThemeName.DARK
@@ -39,8 +40,10 @@ export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProp
       )}
 
       <div
-        className={classNames('flex z-10 overflow-scroll mt-16 items-start justify-center', {
+        className={classNames('flex z-10 overflow-scroll items-start justify-center', {
           'panel-height enclosing-panel': isSidePanel(),
+          'mt-16': !childrenMargin,
+          'mt-8': !!childrenMargin,
         })}
       >
         {children}

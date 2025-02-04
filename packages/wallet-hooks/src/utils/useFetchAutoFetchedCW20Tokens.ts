@@ -1,11 +1,10 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { initResourceFromS3, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 
 import { useActiveChain, useAutoFetchedCW20TokensStore } from '../store';
 import { cachedRemoteDataWithLastModified } from './cached-remote-data';
 import { fetchCW20TokensQueryParams } from './cw20TokensQueryParams';
 import { storage, useGetStorageLayer } from './global-vars';
-import { initResourceFromS3 } from './initResourceFromS3';
 import { BETA_CW20_TOKENS } from './useInitDenoms';
 
 const AUTO_FETCHED_CW20_TOKENS = 'auto-fetched-cw20-tokens';

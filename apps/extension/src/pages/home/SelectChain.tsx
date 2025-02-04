@@ -1,4 +1,4 @@
-import { useCustomChains, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
+import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
@@ -8,6 +8,7 @@ import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { AGGREGATED_CHAIN_KEY, PriorityChains } from 'config/constants'
 import { useIsAllChainsEnabled } from 'hooks/settings'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
@@ -18,7 +19,6 @@ import { manageChainsStore } from 'stores/manage-chains-store'
 import { starredChainsStore } from 'stores/starred-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
-import extension from 'webextension-polyfill'
 
 import { useActiveChain, useSetActiveChain } from '../../hooks/settings/useActiveChain'
 import AddFromChainStore from './AddFromChainStore'
@@ -54,6 +54,7 @@ export const ListChains = observer(
     const [newChain, setNewChain] = useState<string | null>(null)
     const [newSearchedChain, setNewSearchedChain] = useState('')
     const [selectedFilter, setSelectedFilter] = useState(defaultFilter)
+    const { activeWallet } = useActiveWallet()
 
     const isAllChainsEnabled = useIsAllChainsEnabled()
     const { theme } = useTheme()
@@ -87,7 +88,6 @@ export const ListChains = observer(
     )
 
     let customChains = useCustomChains()
-    const { data: featureFlags } = useFeatureFlags()
 
     if (isCompassWallet()) {
       customChains = []
@@ -123,7 +123,7 @@ export const ListChains = observer(
 
     const showChains = useMemo(
       () => [...manageChainsStore.chains, ..._customChains],
-      [_customChains, manageChainsStore.chains],
+      [_customChains],
     )
 
     const newChainToAdd = useMemo(
@@ -197,8 +197,27 @@ export const ListChains = observer(
         )
         .sort((chainA, chainB) => chainA.chainName.localeCompare(chainB.chainName))
 
-      return [...favouriteChains, ...priorityChains, ...otherChains]
-    }, [_filteredChains, getChainTags, searchedChain, selectedFilter, starredChainsStore.chains])
+      const chainsList = [...favouriteChains, ...priorityChains, ...otherChains]
+      if (activeWallet?.watchWallet) {
+        const walletChains = new Set(Object.keys(activeWallet.addresses))
+        return chainsList.sort((a, b) =>
+          walletChains.has(a.chainName) === walletChains.has(b.chainName)
+            ? 0
+            : walletChains.has(a.chainName)
+            ? -1
+            : 1,
+        )
+      }
+
+      return chainsList
+    }, [
+      _filteredChains,
+      activeWallet?.addresses,
+      activeWallet?.watchWallet,
+      getChainTags,
+      searchedChain,
+      selectedFilter,
+    ])
 
     const tagWiseChains = useMemo(() => {
       return _filteredChains.reduce((acc, chain) => {
@@ -388,9 +407,7 @@ const SelectChain = observer(
     }
 
     const handleAddNewChainClick = useCallback(() => {
-      const views = extension.extension.getViews({ type: 'popup' })
-      if (views.length === 0) navigate('/add-chain', { replace: true })
-      else window.open(extension.runtime.getURL('index.html#/add-chain'))
+      navigate('/add-chain', { replace: true })
     }, [navigate])
 
     return (

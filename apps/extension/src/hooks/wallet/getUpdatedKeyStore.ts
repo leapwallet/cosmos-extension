@@ -1,7 +1,7 @@
 import { rawSecp256k1PubkeyToRawAddress } from '@cosmjs/amino'
 import { fromBase64, fromHex, toBech32 } from '@cosmjs/encoding'
 import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { decrypt } from '@leapwallet/leap-keychain'
 import {
   generateWalletFromMnemonic,
@@ -21,6 +21,9 @@ export const getUpdatedKeyStore = async (
   actionType: ActionType,
   _chainInfo?: ChainInfo,
 ): Promise<Key | undefined> => {
+  if (existingWallet.watchWallet) {
+    return existingWallet
+  }
   const chainInfo = _chainInfo ?? chainInfos[chain]
   const addressPrefix = chainInfo?.addressPrefix
   const coinType = chainInfo?.bip44.coinType
@@ -114,31 +117,33 @@ export const getUpdatedKeyStore = async (
       }
     }
   } else if (existingWallet.walletType === WALLETTYPE.LEDGER) {
-    if (
-      coinType === '60' ||
-      coinType === '931' ||
-      coinType === '0' ||
-      coinType === '1' ||
-      coinType === '637'
-    ) {
+    if (coinType === '931' || coinType === '0' || coinType === '1' || coinType === '637') {
       return existingWallet
     }
-    const pubKeyVal = existingWallet.pubKeys
-      ? fromBase64(Object.values(existingWallet.pubKeys)[0])
-      : fromHex(secret)
-    const compressedPubKey = rawSecp256k1PubkeyToRawAddress(
-      Secp256k1.publicKeyConvert(pubKeyVal, true),
+    const sameCoinTypeChains = Object.values(chainInfos).filter(
+      (chain) => chain.bip44.coinType === coinType,
     )
 
-    const address = toBech32(addressPrefix, compressedPubKey)
-    let pubKeyString
-    if (existingWallet.pubKeys) {
-      pubKeyString = Object.values(existingWallet.pubKeys)[0]
-    } else {
-      const rawPubKey = Secp256k1.publicKeyConvert(fromHex(secret), true)
-      pubKeyString = Buffer.from(rawPubKey).toString('base64')
-    }
+    const existingPubKeys = existingWallet.pubKeys
 
+    if (!existingPubKeys) {
+      return existingWallet
+    }
+    const chainWithPubKey = sameCoinTypeChains?.find((chain) => !!existingPubKeys[chain.key])
+    if (!chainWithPubKey) {
+      return existingWallet
+    }
+    const pubKeyString = existingPubKeys[chainWithPubKey.key]
+    const pubKeyVal = fromBase64(pubKeyString)
+
+    let compressedPubKey = rawSecp256k1PubkeyToRawAddress(
+      Secp256k1.publicKeyConvert(pubKeyVal, true),
+    )
+    if (coinType === '60') {
+      const hexAddress = pubKeyToEvmAddressToShow(pubKeyString)
+      compressedPubKey = fromHex(hexAddress.replace('0x', ''))
+    }
+    const address = toBech32(addressPrefix, compressedPubKey)
     const pubKeys = existingWallet.pubKeys
       ? {
           ...existingWallet.pubKeys,

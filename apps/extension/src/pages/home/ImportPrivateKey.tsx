@@ -1,26 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, TextArea } from '@leapwallet/leap-ui'
+import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
+import InfoSheet from 'components/Infosheet'
 import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
-import React, { useState } from 'react'
-import { Colors } from 'theme/colors'
-
-import { Wallet } from '../../hooks/wallet/useWallet'
-import useImportWallet = Wallet.useImportWallet
-import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
-import { captureException } from '@sentry/react'
-import InfoSheet from 'components/Infosheet'
 import { observer } from 'mobx-react-lite'
+import React, { useState } from 'react'
 import { passwordStore } from 'stores/password-store'
+import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 
+import { Wallet } from '../../hooks/wallet/useWallet'
+
 type ImportPrivateKeyProps = {
   isVisible: boolean
-  // eslint-disable-next-line no-unused-vars
   onClose: (closeParent: boolean) => void
 }
 
@@ -29,7 +28,9 @@ export const ImportPrivateKey = observer(({ isVisible, onClose }: ImportPrivateK
   const [error, setError] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const activeChain = useActiveChain()
-  const importWallet = useImportWallet()
+  const { activeWallet } = useActiveWallet()
+  const importWallet = Wallet.useImportWallet()
+  const updateWatchWalletSeed = Wallet.useUpdateWatchWalletSeed()
 
   const [viewInfoSheet, setViewInfoSheet] = useState(false)
   const isSeiEvmChain = useIsSeiEvmChain()
@@ -53,12 +54,16 @@ export const ImportPrivateKey = observer(({ isVisible, onClose }: ImportPrivateK
       })
     ) {
       try {
-        await importWallet({
-          privateKey,
-          type: 'import',
-          addressIndex: '0',
-          password: passwordStore.password,
-        })
+        if (activeWallet?.watchWallet) {
+          await updateWatchWalletSeed(privateKey)
+        } else {
+          await importWallet({
+            privateKey,
+            type: 'import',
+            addressIndex: '0',
+            password: passwordStore.password,
+          })
+        }
         setPrivateKey('')
         onClose(true)
       } catch (error: unknown) {
