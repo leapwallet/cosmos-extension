@@ -1,5 +1,6 @@
 import { Buttons } from '@leapwallet/leap-ui'
 import { CaretDown, CaretUp, GasPump } from '@phosphor-icons/react'
+import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import { PageName } from 'config/analytics'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -9,6 +10,7 @@ import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useSwapContext } from '../context'
+import { useAggregatorBridgeRelayerFee } from '../hooks/useBridgeFee'
 import { MoreDetails } from './MoreDetails'
 import { ConversionRateDisplay } from './SwapInfo/ConversionRateDisplay'
 import TxTokensSummary from './TxTokensSummary'
@@ -18,6 +20,8 @@ type TxReviewSheetProps = {
   onClose: () => void
   onProceed: () => void
   setShowFeesSettingSheet: Dispatch<SetStateAction<boolean>>
+  destinationAssetUSDValue?: BigNumber
+  sourceAssetUSDValue?: BigNumber
 }
 
 export function TxReviewSheet({
@@ -25,6 +29,8 @@ export function TxReviewSheet({
   onClose,
   onProceed,
   setShowFeesSettingSheet,
+  destinationAssetUSDValue,
+  sourceAssetUSDValue,
 }: TxReviewSheetProps) {
   const {
     displayFee,
@@ -36,6 +42,8 @@ export function TxReviewSheet({
     destinationChain,
     routingInfo,
   } = useSwapContext()
+
+  const { totalBridgeFee } = useAggregatorBridgeRelayerFee(routingInfo?.route)
 
   const reviewPageProperties = useMemo(() => {
     let inAmountDollarValue, outAmountDollarValue
@@ -111,6 +119,8 @@ export function TxReviewSheet({
             amountOut={amountOut}
             destinationToken={destinationToken}
             destinationChain={destinationChain}
+            destinationAssetUSDValue={destinationAssetUSDValue}
+            sourceAssetUSDValue={sourceAssetUSDValue}
           />
 
           <div className='w-full flex-col bg-gray-50 dark:bg-gray-900 flex items-center justify-between p-4 gap-3 rounded-2xl overflow-hidden'>
@@ -130,6 +140,7 @@ export function TxReviewSheet({
                 <GasPump size={16} className='dark:text-white-100' />
                 <span className='dark:text-white-100 text-xs font-medium'>
                   {displayFee?.fiatValue}
+                  {totalBridgeFee && ` + $${totalBridgeFee}`}
                 </span>
                 {showMoreDetails ? (
                   <CaretUp size={16} className='dark:text-white-100' />

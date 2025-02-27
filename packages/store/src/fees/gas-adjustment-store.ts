@@ -15,6 +15,7 @@ const GAS_ADJUSTMENTS_URL = 'https://assets.leapwallet.io/cosmos-registry/v1/gas
 const GAS_ADJUSTMENTS_LAST_UPDATED_AT_URL =
   'https://assets.leapwallet.io/cosmos-registry/v1/gas/gas-adjustments-last-updated-at.json';
 
+// replaces useGasAdjustments
 export class GasAdjustmentStore {
   adjustments = defaultGasAdjustments;
 

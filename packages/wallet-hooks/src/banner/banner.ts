@@ -176,7 +176,11 @@ export function useGetBannerData(chain: string) {
        */
 
       const chainData = (data?.[chain] as BannerAD[]) ?? [];
-      const allChainData = (data?.[ALL_CHAIN_BANNERS] as BannerAD[]) ?? [];
+      const _allChainData = (data?.[ALL_CHAIN_BANNERS] as BannerAD[]) ?? [];
+
+      const allChainData = _allChainData.filter(
+        (banner) => !chain || !banner.exclude_chain_ids || !banner.exclude_chain_ids?.split(',').includes(chain),
+      );
 
       return [...chainData, ...allChainData].sort((a, b) =>
         (String(a?.display_position) ?? '0') > (String(b?.display_position) ?? '0') ? 1 : -1,

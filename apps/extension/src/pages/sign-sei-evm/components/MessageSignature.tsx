@@ -165,7 +165,10 @@ export function MessageSignature({
             </div>
           }
         >
-          <div className='px-7 py-3 overflow-y-auto relative h-[450px]'>
+          <div
+            className='px-7 py-3 overflow-y-auto relative'
+            style={{ height: (isSidePanel() ? window.innerHeight : 600) - 150 }}
+          >
             <h2 className='text-center text-lg font-bold dark:text-white-100 text-gray-900 w-full'>
               Signature request
             </h2>

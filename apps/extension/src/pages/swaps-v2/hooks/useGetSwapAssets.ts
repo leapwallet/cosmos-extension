@@ -86,14 +86,22 @@ export function useGetSwapAssets(
         //const needToFetchIbcSourceChainsFor: { denom: string; chain_id: string }[] = []
 
         for (const mergedAsset of mergedAssets) {
-          const formattedMergedAssetDenom = mergedAsset.denom.replace(
+          let formattedMergedAssetDenom = mergedAsset.denom.replace(
             /(cw20:|erc20\/)/g,
             '',
           ) as string
-          let token = assetsMap[`${formattedMergedAssetDenom}-${mergedAsset.chainId}`]
 
-          if (!token) {
-            token = assetsMap[`${mergedAsset.evmTokenContract}-${mergedAsset.chainId}`]
+          if (formattedMergedAssetDenom === 'ethereum-native') {
+            formattedMergedAssetDenom = 'wei'
+          }
+          let token =
+            assetsMap[`${formattedMergedAssetDenom}-${mergedAsset.chainId}`] ||
+            assetsMap[`${formattedMergedAssetDenom.toLowerCase()}-${mergedAsset.chainId}`]
+
+          if (!token && mergedAsset.evmTokenContract) {
+            token =
+              assetsMap[`${mergedAsset.evmTokenContract}-${mergedAsset.chainId}`] ||
+              assetsMap[`${mergedAsset.evmTokenContract.toLowerCase()}-${mergedAsset.chainId}`]
           }
 
           if (token) {

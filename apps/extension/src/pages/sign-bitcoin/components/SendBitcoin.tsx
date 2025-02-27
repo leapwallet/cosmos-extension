@@ -22,7 +22,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { BtcWallet } from '@leapwallet/leap-keychain/dist/browser/key/btc-wallet'
-import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
+import { Avatar, Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import assert from 'assert'
 import BigNumber from 'bignumber.js'
@@ -38,6 +38,7 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
+import { GenericDark, GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -67,6 +68,7 @@ export const SendBitcoin = observer(
     const activeChain = useActiveChain()
     const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
+    const { theme } = useTheme()
 
     assert(activeWallet !== null, 'activeWallet is null')
     const walletName = useMemo(() => {
@@ -227,7 +229,11 @@ export const SendBitcoin = observer(
             header={
               <div className='w-[396px]'>
                 <Header
-                  imgSrc={chainInfo.chainSymbolImageUrl ?? Images.Logos.GenericLight}
+                  imgSrc={
+                    chainInfo.chainSymbolImageUrl ??
+                    (theme === ThemeName.DARK ? GenericDark : GenericLight)
+                  }
+                  imgOnError={imgOnError(theme === ThemeName.DARK ? GenericDark : GenericLight)}
                   title={
                     <Buttons.Wallet title={trim(walletName, 10)} className='pr-4 cursor-default' />
                   }

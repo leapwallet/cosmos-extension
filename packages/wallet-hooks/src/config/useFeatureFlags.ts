@@ -27,13 +27,24 @@ export type FeatureFlags = {
     extension: FeatureFlagState;
     fees: FeatureFlagState;
     chain_abstraction: FeatureFlagState;
+    evm?: {
+      disabled_on_versions?: string[];
+    };
     default_token_denoms?: string[];
-    providers: {
+    providers?: {
       skip?: {
         disabled_on_versions?: string[];
       };
       lifi?: {
         disabled_on_versions?: string[];
+        gas_price_multiplier?: {
+          extension?: Record<string, Record<string, number>>;
+          mobile?: Record<string, Record<string, number>>;
+        };
+        gas_limit_multiplier?: {
+          extension?: Record<string, Record<string, number>>;
+          mobile?: Record<string, Record<string, number>>;
+        };
       };
     };
   };

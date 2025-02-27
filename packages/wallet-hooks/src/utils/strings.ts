@@ -10,9 +10,11 @@ export const sliceSearchWord = (word?: string, visibleLetters = 5) => {
   return word?.slice(0, visibleLetters) + '...' + word?.slice(word.length - visibleLetters, word.length);
 };
 
-export const sliceWord = (word?: string, visibleFrontLetters = 5, visibleLastLetters = 5) => {
+export const sliceWord = (word?: string, visibleFrontLetters = 5, visibleLastLetters = 5, customEllipsis = '...') => {
   if (word && word.length <= visibleFrontLetters + visibleLastLetters) return word;
-  return word?.slice(0, visibleFrontLetters) + '...' + word?.slice(word.length - visibleLastLetters, word.length);
+  return (
+    word?.slice(0, visibleFrontLetters) + customEllipsis + word?.slice(word.length - visibleLastLetters, word.length)
+  );
 };
 
 export const capitalize = (words: string) => {
@@ -45,7 +47,10 @@ export const formatTokenAmount = (amount: string, symbol = '', precision = 3, cu
     return `${amount} ${symbol}`;
   }
 
-  return currency(amount, { precision: 3, pattern: '# !', symbol }).format();
+  const numberOfDecimals = new BigNumber(amount).dp();
+  const precisionToUse = Math.min(precision, numberOfDecimals || 0);
+
+  return currency(amount, { precision: precisionToUse, pattern: '# !', symbol }).format();
 };
 
 export const formatPercentAmount = (amount: string, precision = 3) => {

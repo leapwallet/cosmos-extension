@@ -3,10 +3,9 @@ import { DenomData, TRANSFER_STATE } from '@leapwallet/elements-core'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { Images } from 'images'
 import React, { useMemo } from 'react'
-import { imgOnError } from 'utils/imgOnError'
 
 export function TxStepsStatusIcon({
   state,
@@ -16,7 +15,6 @@ export function TxStepsStatusIcon({
   denomData: DenomData | undefined
 }) {
   const { theme } = useTheme()
-  const defaultTokenLogo = useDefaultTokenLogo()
 
   const { isCompleted, isPending, isNotYetStarted } = useMemo(() => {
     const _isNotYetStarted = !(
@@ -65,12 +63,16 @@ export function TxStepsStatusIcon({
       )}
       {isPending && (
         <>
-          <img
-            src={denomData?.icon ?? defaultTokenLogo}
-            onError={imgOnError(defaultTokenLogo)}
-            alt={denomData?.coinMinimalDenom}
-            className='rounded-full w-6 h-6'
+          <TokenImageWithFallback
+            assetImg={denomData?.icon}
+            text={denomData?.coinDenom ?? ''}
+            altText={denomData?.coinDenom ?? ''}
+            imageClassName='rounded-full w-6 h-6'
+            containerClassName='w-6 h-6'
+            textClassName='text-[7px] !leading-[10px]'
+            key={denomData?.icon}
           />
+
           <img
             src={
               theme === ThemeName.DARK

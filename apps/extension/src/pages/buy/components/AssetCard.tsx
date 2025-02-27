@@ -1,8 +1,7 @@
 import { sliceWord } from '@leapwallet/cosmos-wallet-hooks'
-import { GenericCard, ThemeName, useTheme } from '@leapwallet/leap-ui'
-import { ImgNotAvailableDark, ImgNotAvailableLight } from 'images/logos'
+import { GenericCard } from '@leapwallet/leap-ui'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import React from 'react'
-import { imgOnError } from 'utils/imgOnError'
 
 export type AssetCardProps = {
   id?: string
@@ -20,7 +19,6 @@ export default function AssetCard({
   onClick,
   chainSymbolImageUrl,
 }: AssetCardProps) {
-  const { theme } = useTheme()
   return (
     <GenericCard
       title={
@@ -36,14 +34,13 @@ export default function AssetCard({
       subtitle={chainName}
       img={
         <div className='relative'>
-          <img
-            src={
-              assetImg ?? (theme === ThemeName.DARK ? ImgNotAvailableDark : ImgNotAvailableLight)
-            }
-            onError={imgOnError(
-              theme === ThemeName.DARK ? ImgNotAvailableDark : ImgNotAvailableLight,
-            )}
-            className='w-[28px] h-[28px] mr-2 rounded-full bg-black-100 dark:bg-black-100'
+          <TokenImageWithFallback
+            assetImg={assetImg}
+            text={symbol}
+            altText={symbol}
+            imageClassName='w-[28px] h-[28px] mr-2 rounded-full bg-black-100 dark:bg-gray-850'
+            containerClassName='w-[28px] h-[28px] mr-2 rounded-full'
+            textClassName='text-[8px] !leading-[12px]'
           />
           <img
             src={chainSymbolImageUrl}

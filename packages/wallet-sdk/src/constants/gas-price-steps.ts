@@ -427,6 +427,11 @@ export const GAS_PRICE_STEPS = {
   mantra: { low: 0.01, average: 0.02, high: 0.03 },
   civitia: { low: 0.01, average: 0.025, high: 0.04 },
   milkyway: { low: 0.01, average: 0.025, high: 0.04 },
+  milkywayL1: {
+    low: 0.000025,
+    high: 0.00003,
+    average: 0.000035,
+  },
   minimove: { low: 0.01, average: 0.025, high: 0.04 },
   miniwasm: { low: 0.01, average: 0.025, high: 0.04 },
 };

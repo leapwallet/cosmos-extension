@@ -16,6 +16,7 @@ import {
   formatEtherValue,
   getEvmChainIdMap,
   getRestUrl,
+  isAptosChain,
   NetworkType,
   parseStandardTokenTransactionData,
   pubKeyToEvmAddressToShow,
@@ -96,6 +97,7 @@ import {
 } from './utils'
 import { addLeapEthereumChain } from './utils-provider-method-functions'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { switchEthereumChain } from './utils-provider-method-functions/switch-ethereum-chain'
 
 const lightNode = new LightNode()
 lightNode.attachListener()
@@ -274,8 +276,9 @@ const connectRemote = (remotePort: any) => {
                 supportedChains.some(
                   (chain: ChainInfo) =>
                     (chain.chainId.toLowerCase() === payload.chainInfo.chainId.toLowerCase() ||
-                      chain.testnetChainId?.toLowerCase() ===
-                        payload.chainInfo.chainId.toLowerCase()) &&
+                      (chain.beta !== true &&
+                        chain.testnetChainId?.toLowerCase() ===
+                          payload.chainInfo.chainId.toLowerCase())) &&
                     chain.enabled === true,
                 ) &&
                 !allowCoreumFromLeap
@@ -654,21 +657,23 @@ const connectRemote = (remotePort: any) => {
 
   const aptosRequestHandler = async (data: any) => {
     const { method, ...payload } = data
+    const activeChainIdStorageKey = getChainOriginStorageKey(payload.origin, 'aptos-')
+    const storage = await browser.storage.local.get([
+      ACTIVE_WALLET,
+      ENCRYPTED_ACTIVE_WALLET,
+      activeChainIdStorageKey,
+    ])
+    const activeChain = (storage[activeChainIdStorageKey]?.chainKey as SupportedChain) || 'movement'
+    const activeNetwork = (storage[activeChainIdStorageKey]?.network as NetworkType) || 'mainnet'
+    const allChains = await getSupportedChains()
 
-    const cosmosCustomOpenPopup = async (page: Page, queryString?: string) => {
-      return await customOpenPopup(page, queryString, [
-        `on${method.toUpperCase()}`,
-        { error: 'Requests exceeded' },
-        payload.id,
-      ])
-    }
-
-    // const popupWindowId = 0
-    // let hasUnApprovedTx = false
-    // this condition exists to prevent infinite extension popups
-
-    //check if account exists
-    const storage = await browser.storage.local.get([ACTIVE_WALLET, ENCRYPTED_ACTIVE_WALLET])
+    const chainInfo = allChains[activeChain]
+    const chainId =
+      (activeNetwork === 'testnet' ? chainInfo?.testnetChainId : chainInfo?.chainId) ?? ''
+    const restUrl =
+      (activeNetwork === 'testnet' ? chainInfo?.apis?.restTest : chainInfo?.apis?.rest) ?? ''
+    const rpcUrl =
+      (activeNetwork === 'testnet' ? chainInfo?.apis?.rpcTest : chainInfo?.apis?.rpc) ?? ''
 
     if (!storage[ACTIVE_WALLET] && !storage[ENCRYPTED_ACTIVE_WALLET]) {
       browser.storage.local.set({ [REDIRECT_REQUEST]: null })
@@ -680,31 +685,86 @@ const connectRemote = (remotePort: any) => {
       )
     }
 
+    const cosmosCustomOpenPopup = async (page: Page, queryString?: string) => {
+      return await customOpenPopup(page, queryString, [
+        `on${method.toUpperCase()}`,
+        { error: 'Requests exceeded' },
+        payload.id,
+      ])
+    }
+
+    const getAptosChains = async () => {
+      try {
+        const aptosChains: string[] = []
+        Object.values(allChains).forEach((chain) => {
+          if (isAptosChain(chain.chainId)) {
+            aptosChains.push(chain.chainId)
+          }
+          if (
+            !!chain.testnetChainId &&
+            chain.testnetChainId !== chain.chainId &&
+            isAptosChain(chain.testnetChainId)
+          ) {
+            aptosChains.push(chain.testnetChainId)
+          }
+        })
+        return aptosChains
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(error)
+        return []
+      }
+    }
+
     switch (method) {
       case APTOS_METHOD_TYPE.GET_NETWORK: {
-        return getActiveNetworkInfo().then((data) =>
-          sendResponse(`on${method.toUpperCase()}`, data, payload.id),
+        sendResponse(
+          `on${method.toUpperCase()}`,
+          {
+            chainId,
+            restUrl,
+            rpcUrl,
+            selectedNetwork: activeNetwork,
+          },
+          payload.id,
         )
+        return
       }
 
       case APTOS_METHOD_TYPE.DISCONNECT: {
-        return disconnect(payload).then((data) =>
-          sendResponse(`on${method.toUpperCase()}`, data, payload.id),
-        )
+        try {
+          const aptosChains = await getAptosChains()
+          const response = await disconnect({ chainId: aptosChains, origin: payload.origin })
+          sendResponse(`on${method.toUpperCase()}`, response, payload.id)
+        } catch (error) {
+          sendResponse(`on${method.toUpperCase()}`, { error: error }, payload.id)
+        }
+        return
       }
 
-      case SUPPORTED_METHODS.GET_KEYS:
-        {
+      case SUPPORTED_METHODS.GET_KEYS: {
+        try {
+          const aptosChains = await getAptosChains()
           await handleGetKey({
-            message: { type: SUPPORTED_METHODS.GET_KEYS, payload },
+            message: {
+              type: SUPPORTED_METHODS.GET_KEYS,
+              payload: { ...payload, chainIds: aptosChains },
+            },
             passwordManager,
             sendResponse,
           })
+        } catch (error) {
+          sendResponse(`on${method.toUpperCase()}`, { error: error }, payload.id)
         }
-        break
+        return
+      }
 
       case APTOS_METHOD_TYPE.SWITCH_NETWORK: {
         try {
+          const aptosChains = await getAptosChains()
+          if (!aptosChains.includes(payload.chainId)) {
+            throw new Error('Chain not supported')
+          }
           await browser.storage.local.set({
             [REDIRECT_REQUEST]: { method, payload },
           })
@@ -763,13 +823,18 @@ const connectRemote = (remotePort: any) => {
 
     const activeChainIdStorageKey = getChainOriginStorageKey(payload.origin)
     const storage = await browser.storage.local.get(activeChainIdStorageKey)
+    const supportedChains = await getSupportedChains()
 
-    const activeChain =
-      (storage[activeChainIdStorageKey]?.chainKey as SupportedChain) ||
-      (payload?.isCompass ? 'seiTestnet2' : 'ethereum')
+    let activeChain = storage[activeChainIdStorageKey]?.chainKey as SupportedChain
+
+    if (!activeChain || !Object.keys(supportedChains).includes(activeChain)) {
+      if (activeChain) {
+        browser.storage.local.remove(getChainOriginStorageKey(payload.origin))
+      }
+      activeChain = payload?.isCompass ? 'seiTestnet2' : 'ethereum'
+    }
 
     const activeNetwork = (storage[activeChainIdStorageKey]?.network as NetworkType) || 'mainnet'
-    const supportedChains = await getSupportedChains()
 
     const evmChainIdMap = getEvmChainIdMap(supportedChains, isCompassWallet())
     const chainInfo = supportedChains[activeChain]
@@ -1329,6 +1394,14 @@ const connectRemote = (remotePort: any) => {
           // @ts-ignore
           !Object.keys(payload.params?.[0] ?? {}).includes(ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS)
         ) {
+          const errorMessage = !payload?.params
+            ? `Parameters required for ${method} method.`
+            : 'Invalid method parameter(s).'
+          sendResponse(
+            sendResponseName,
+            { error: getEvmError(ETHEREUM_RPC_ERROR.INVALID_PARAMS, errorMessage) },
+            payloadId,
+          )
           break
         }
 
@@ -1431,40 +1504,47 @@ const connectRemote = (remotePort: any) => {
               } else {
                 // When wallet is in locked state, on visiting any EVM dApp the pop-up comes up,
                 // to avoid that copy the same code at two place
-                const seiEvmAddress = await getWalletAddress(payloadId)
-                if (seiEvmAddress === 'error') {
-                  throw new Error('Unable to get wallet address')
-                }
-
-                const successResponse =
-                  method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
-                    ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
-                      [
-                        {
-                          id: payloadId,
-                          parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
-                          invoker: msg?.origin,
-                          caveats: [
-                            {
-                              type: 'restrictReturnedAccounts',
-                              value: [seiEvmAddress],
-                            },
-                          ],
-                          date: Date.now(),
-                        },
-                      ]
-                    : [seiEvmAddress]
-
-                if (seiEvmAddress.startsWith('0x')) {
-                  sendResponse(sendResponseName, { success: successResponse }, payloadId)
+                if (
+                  !passwordManager.getPassword() &&
+                  method === ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS
+                ) {
+                  sendResponse(sendResponseName, { success: [] }, payloadId)
                 } else {
-                  sendResponse(
-                    sendResponseName,
-                    { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, seiEvmAddress) },
-                    payloadId,
-                  )
+                  const seiEvmAddress = await getWalletAddress(payloadId)
+                  if (seiEvmAddress === 'error') {
+                    throw new Error('Unable to get wallet address')
+                  }
+
+                  const successResponse =
+                    method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
+                      ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
+                        [
+                          {
+                            id: payloadId,
+                            parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
+                            invoker: msg?.origin,
+                            caveats: [
+                              {
+                                type: 'restrictReturnedAccounts',
+                                value: [seiEvmAddress],
+                              },
+                            ],
+                            date: Date.now(),
+                          },
+                        ]
+                      : [seiEvmAddress]
+
+                  if (seiEvmAddress.startsWith('0x')) {
+                    sendResponse(sendResponseName, { success: successResponse }, payloadId)
+                  } else {
+                    sendResponse(
+                      sendResponseName,
+                      { error: getEvmError(ETHEREUM_RPC_ERROR.INTERNAL, seiEvmAddress) },
+                      payloadId,
+                    )
+                  }
+                  enableAccessRequests.delete(queryString)
                 }
-                enableAccessRequests.delete(queryString)
               }
             } else {
               sendResponse(
@@ -1594,6 +1674,11 @@ const connectRemote = (remotePort: any) => {
         if (payload.isLeap) {
           if (payload.params && payload.params.length > 0) {
             const result = await addLeapEthereumChain(payload, evmChainIdMap, evmCustomOpenPopup)
+            await switchEthereumChain(
+              result?.success?.chainId,
+              payload.origin,
+              activeChainIdStorageKey,
+            )
             sendResponse(sendResponseName, result, payloadId)
           } else {
             sendResponse(

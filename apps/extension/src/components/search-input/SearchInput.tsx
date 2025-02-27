@@ -1,3 +1,4 @@
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { Images } from 'images'
 import React, { useEffect, useRef } from 'react'
@@ -23,6 +24,7 @@ export function SearchInput({
   ...rest
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const { theme } = useTheme()
 
   useEffect(() => {
     if (inputRef.current) {
@@ -54,7 +56,10 @@ export function SearchInput({
       />
 
       {value.length === 0 ? (
-        <img className='h-5 w-5 mt-0.5' src={Images.Misc.SearchWhiteIcon} />
+        <img
+          className='h-5 w-5 mt-0.5'
+          src={theme === ThemeName.DARK ? Images.Misc.SearchWhiteIcon : Images.Misc.Search}
+        />
       ) : (
         <img
           className='cursor-pointer h-4 w-4 mt-1'

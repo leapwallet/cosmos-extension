@@ -1,10 +1,12 @@
 import { formatPercentAmount } from '@leapwallet/cosmos-wallet-hooks'
 import { useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import { ArrowRight, CaretRight, Info } from '@phosphor-icons/react'
+import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { useSwapContext } from 'pages/swaps-v2/context'
+import { useAggregatorBridgeRelayerFee } from 'pages/swaps-v2/hooks/useBridgeFee'
 import { getPriceImpactPercent } from 'pages/swaps-v2/utils/priceImpact'
 import { getChainIdsFromRoute } from 'pages/swaps-v2/utils/route'
 import { getSlippageRemarks } from 'pages/swaps-v2/utils/slippage'
@@ -13,6 +15,17 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 
 import LeapFeesInfoSheet from './LeapFeesInfoSheet'
 import PriceImpactSheet from './PriceImpactSheet'
+
+function formatAmount(amount: BigNumber.Value) {
+  const amountBN = new BigNumber(amount)
+  return amountBN.isEqualTo(0)
+    ? '0'
+    : amountBN.isNaN()
+    ? '-'
+    : amountBN.isLessThan('0.00001')
+    ? '< 0.00001'
+    : amountBN.toFormat(5, BigNumber.ROUND_DOWN)
+}
 
 function OrderRoutingDisplay({
   orderRouting,
@@ -47,6 +60,8 @@ export function MoreDetails({
   const { slippagePercent, displayFee, routingInfo, leapFeeBps, isSwapFeeEnabled } =
     useSwapContext()
 
+  const { bridgeFee, relayerFee } = useAggregatorBridgeRelayerFee(routingInfo?.route)
+
   const slippageRemarks = useMemo(() => {
     return getSlippageRemarks(String(slippagePercent))
   }, [slippagePercent])
@@ -63,6 +78,85 @@ export function MoreDetails({
     }
     return priceImpactPercent
   }, [routingInfo.route])
+
+  const bridgeFeeDisplay = () => {
+    if (bridgeFee?.bridgeFees?.length) {
+      return bridgeFee.bridgeFees.map((fee, index) => {
+        if (!fee) {
+          return null
+        }
+        const [amt, symbol] = fee.split(' ')
+
+        if (!amt) {
+          return null
+        }
+        const formattedAmount = formatAmount(amt)
+
+        const usdFee = bridgeFee.usdBridgeFees?.[index]
+
+        const hasUsdFee = usdFee?.isGreaterThan(0)
+
+        return (
+          <div className='flex w-full justify-between items-center' key='bridge-fees'>
+            <div className='flex justify-start items-center gap-1'>
+              <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px]'>
+                {bridgeFee?.feeLabels?.[index] || 'Bridge fee'}
+              </span>
+            </div>
+            <span
+              className={classNames('text-sm font-bold !leading-[19.8px] text-right', {
+                'text-black-100 dark:text-white-100': !slippageRemarks,
+                'text-orange-500 dark:text-orange-300': slippageRemarks?.color === 'orange',
+                'text-red-400 dark:text-red-300': slippageRemarks?.color === 'red',
+              })}
+            >
+              {hasUsdFee
+                ? `(${formattedAmount} ${symbol}) $${bridgeFee.usdBridgeFees?.[index]?.toString()}`
+                : `${formattedAmount} ${symbol}`}
+            </span>
+          </div>
+        )
+      })
+    }
+    return null
+  }
+
+  const relayerFeeDisplay = () => {
+    if (relayerFee?.gasFees) {
+      const [amt, symbol] = relayerFee.gasFees.split(' ')
+
+      if (!amt) {
+        return null
+      }
+
+      const formattedAmount = formatAmount(amt)
+
+      const usdFee = relayerFee.usdGasFees
+      const hasUsdFee = usdFee?.isGreaterThan(0)
+
+      return (
+        <div className='flex w-full justify-between items-center' key='bridge-fees'>
+          <div className='flex justify-start items-center gap-1'>
+            <span className='text-sm font-medium text-gray-800 dark:text-gray-200 !leading-[22.4px]'>
+              Relayer fee
+            </span>
+          </div>
+          <span
+            className={classNames('text-sm font-bold !leading-[19.8px] text-right', {
+              'text-black-100 dark:text-white-100': !slippageRemarks,
+              'text-orange-500 dark:text-orange-300': slippageRemarks?.color === 'orange',
+              'text-red-400 dark:text-red-300': slippageRemarks?.color === 'red',
+            })}
+          >
+            {hasUsdFee
+              ? `(${formattedAmount} ${symbol}) $${relayerFee.usdGasFees.toString()}`
+              : `${formattedAmount} ${symbol}`}
+          </span>
+        </div>
+      )
+    }
+    return null
+  }
 
   const orderRouting = useMemo(() => {
     const chainIds = getChainIdsFromRoute(routingInfo.route)
@@ -196,6 +290,10 @@ export function MoreDetails({
             </span>
           </div>
         )}
+
+        {bridgeFeeDisplay()}
+
+        {relayerFeeDisplay()}
 
         <div className='flex w-full justify-between items-start p-[1.5px]'>
           <div

@@ -29,10 +29,11 @@ import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import Text from 'components/text'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { EventName } from 'config/analytics'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
@@ -41,15 +42,13 @@ import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isSidePanel } from 'utils/isSidePanel'
-import useGetWallet = Wallet.useGetWallet
-
-import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
-import { hideAssetsStore } from 'stores/hide-assets-store'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 
+import useGetWallet = Wallet.useGetWallet
 import { StakeTxnPageState } from '../StakeTxnPage'
 
 interface ReviewClaimAndStakeTxProps {
@@ -94,7 +93,6 @@ const ReviewClaimAndStakeTx = observer(
 
     const getWallet = useGetWallet(activeChain)
     const [formatCurrency] = useFormatCurrency()
-    const defaultTokenLogo = useDefaultTokenLogo()
 
     const denoms = rootDenomsStore.allDenoms
     const chainDelegations = delegationsStore.delegationsForChain(activeChain)
@@ -300,12 +298,13 @@ const ReviewClaimAndStakeTx = observer(
               <Card
                 className='bg-white-100 dark:bg-gray-950'
                 avatar={
-                  <img
-                    src={activeStakingDenom?.icon}
-                    onError={imgOnError(defaultTokenLogo)}
-                    width={36}
-                    height={36}
-                    className='rounded-full'
+                  <TokenImageWithFallback
+                    assetImg={activeStakingDenom.icon}
+                    text={activeStakingDenom.coinDenom}
+                    altText={activeStakingDenom.coinDenom}
+                    imageClassName='w-9 h-9 rounded-full'
+                    containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
+                    textClassName='text-[10px] !leading-[14px]'
                   />
                 }
                 isRounded

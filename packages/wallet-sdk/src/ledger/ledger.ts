@@ -30,6 +30,7 @@ import {
   declinedEthAppOpenError,
   deviceDisconnectedError,
   deviceLockedError,
+  ethAppEnableContractDataError,
   ledgerDisconnectMessage,
   LedgerError,
   ledgerLockedError,
@@ -141,6 +142,9 @@ export async function getLedgerTransport(): Promise<Transport> {
 }
 
 function handleError(e: any) {
+  if (e instanceof LedgerError) {
+    return e;
+  }
   if (e.message.includes(bolosErrorMessage)) {
     return bolosError;
   } else if (e.message.includes(bolosErrorMessageEthApp)) {
@@ -155,6 +159,8 @@ function handleError(e: any) {
     return sizeLimitExceededErrorUser;
   } else if (e.message === ledgerLockedError2) {
     return deviceLockedError;
+  } else if (e.message.includes(ethAppEnableContractDataError)) {
+    return new LedgerError(ethAppEnableContractDataError);
   } else if (
     e.message.includes('Please close the') ||
     e.message.includes(declinedCosmosAppOpenError) ||
@@ -435,6 +441,9 @@ export class LeapLedgerSignerEth {
       await this.getAccount(signerAddress);
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPath = this.options.hdPaths?.toString() ?? defaultHdPath;
+      if (!message.startsWith('0x')) {
+        message = `0x${message}`;
+      }
       const messageHex = utils.hexlify(message).substring(2);
 
       const signature = await this.ledger.signPersonalMessage(hdPath, messageHex);
@@ -484,7 +493,11 @@ export class LeapLedgerSignerEth {
       const response = await ledgerSignerEthers.sendTransaction(transactionRequest);
       return response;
     } catch (e) {
-      await this.transport.close();
+      try {
+        await this.transport.close();
+      } catch (e) {
+        // do nothing
+      }
       throw handleError(e);
     }
   }

@@ -1,4 +1,4 @@
-import { AddressPrefix, CoinType, Denom, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { AddressPrefix, ChainInfo, CoinType, Denom, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 
 type Currency = {
   coinDenom: string;
@@ -24,7 +24,14 @@ interface FeeCurrency extends Currency {
   };
 }
 
-export interface CustomChainsType {
+export type CustomChainsType = CosmosCustomChainType | EVMCustomChainType;
+
+export type EVMCustomChainType = ChainInfo & {
+  addressPrefix: string;
+  evmOnlyChain: true;
+};
+
+export type CosmosCustomChainType = {
   rpc: string;
   rest: string;
   rpcTest?: string | undefined;
@@ -64,7 +71,7 @@ export interface CustomChainsType {
   status: 'live';
   key_algos: 'secp256k1' | 'ethsecp256k1';
   cosmosSDK?: string;
-}
+};
 
 function removeTrailingSlash(url: string) {
   if (!url) return '';
@@ -72,6 +79,9 @@ function removeTrailingSlash(url: string) {
 }
 
 export function formatNewChainInfo(chainInfo: CustomChainsType) {
+  if ('evmOnlyChain' in chainInfo) {
+    return { ...chainInfo, beta: true };
+  }
   const apis = {
     rest: removeTrailingSlash(chainInfo.rest),
     rpc: removeTrailingSlash(chainInfo.rpc),

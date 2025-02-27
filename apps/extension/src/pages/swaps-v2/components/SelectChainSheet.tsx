@@ -1,4 +1,3 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import BottomModal from 'components/bottom-modal'
 import { EventName } from 'config/analytics'
 import { PriorityChains } from 'config/constants'
@@ -6,17 +5,20 @@ import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useMemo, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
-import { ChainsList } from './ChainsList'
+import { useAllChainsPlaceholder } from '../hooks/useAllChainsPlaceholder'
+import { ChainsList, TokenAssociatedChain } from './ChainsList'
 
 type SelectChainSheetProps = {
   title?: string
   isOpen: boolean
   onClose: () => void
-  chainsToShow: SourceChain[]
+  chainsToShow: TokenAssociatedChain[]
   selectedChain: SourceChain | undefined
+  selectedToken: SourceToken | null
   // eslint-disable-next-line no-unused-vars
-  onChainSelect: (chain: SourceChain) => void
+  onChainSelect: (chain: TokenAssociatedChain) => void
   destinationAssets?: SourceToken[]
+  showAllChainsOption?: boolean
 }
 
 export function SelectChainSheet({
@@ -26,25 +28,32 @@ export function SelectChainSheet({
   chainsToShow,
   onChainSelect,
   selectedChain,
+  selectedToken,
   destinationAssets,
+  showAllChainsOption = false,
 }: SelectChainSheetProps) {
   const [searchedChain, setSearchedChain] = useState('')
+  const allChainsPlaceholder = useAllChainsPlaceholder()
 
   const sortedChainsToShow = useMemo(() => {
-    const priorityChains: SourceChain[] = []
+    const priorityChains: TokenAssociatedChain[] = []
     PriorityChains.forEach((chain) => {
-      const chainToShow = chainsToShow.find((chainToShow) => chainToShow.key === chain)
+      const chainToShow = chainsToShow.find((chainToShow) => chainToShow.chain.key === chain)
       if (chainToShow) {
         priorityChains.push(chainToShow)
       }
     })
 
     const otherChains = chainsToShow
-      .filter((chain) => !PriorityChains.includes(chain.key))
-      .sort((chainA, chainB) => chainA.chainName.localeCompare(chainB.chainName))
+      .filter((chain) => !PriorityChains.includes(chain.chain.key))
+      .sort((chainA, chainB) => chainA.chain.chainName.localeCompare(chainB.chain.chainName))
 
-    return [...priorityChains, ...otherChains]
-  }, [chainsToShow])
+    const sortedChains = [...priorityChains, ...otherChains]
+    if (showAllChainsOption) {
+      sortedChains.unshift(allChainsPlaceholder)
+    }
+    return sortedChains
+  }, [allChainsPlaceholder, chainsToShow, showAllChainsOption])
 
   const emitMixpanelDropdownCloseEvent = useCallback(
     (tokenSelected?: string) => {
@@ -62,18 +71,16 @@ export function SelectChainSheet({
   )
 
   const handleOnChainSelect = useCallback(
-    (chain: SupportedChain) => {
-      const selectedChain = chainsToShow.find((chainToShow) => chainToShow.key === chain)
-
-      if (selectedChain) {
-        onChainSelect(selectedChain)
-        const destToken = destinationAssets?.find(
-          (asset) => asset.skipAsset.chainId === selectedChain.chainId,
-        )
-        emitMixpanelDropdownCloseEvent(`${destToken?.symbol} (${selectedChain.chainName})`)
-      }
+    (tokenAssociatedChain: TokenAssociatedChain) => {
+      onChainSelect(tokenAssociatedChain)
+      const destToken = destinationAssets?.find(
+        (asset) => asset.skipAsset.chainId === tokenAssociatedChain.chain.chainId,
+      )
+      emitMixpanelDropdownCloseEvent(
+        `${destToken?.symbol} (${tokenAssociatedChain.chain.chainName})`,
+      )
     },
-    [chainsToShow, destinationAssets, emitMixpanelDropdownCloseEvent, onChainSelect],
+    [destinationAssets, emitMixpanelDropdownCloseEvent, onChainSelect],
   )
 
   return (
@@ -86,11 +93,12 @@ export function SelectChainSheet({
       isOpen={isOpen}
       closeOnBackdropClick={true}
       contentClassName='!bg-white-100 dark:!bg-gray-950 !overflow-hidden'
-      className='p-6'
+      className='p-0'
     >
       <ChainsList
         onChainSelect={handleOnChainSelect}
-        selectedChain={(selectedChain?.key ?? '') as SupportedChain}
+        selectedChain={selectedChain}
+        selectedToken={selectedToken}
         chainsToShow={sortedChainsToShow}
         searchedChain={searchedChain}
         setSearchedChain={setSearchedChain}

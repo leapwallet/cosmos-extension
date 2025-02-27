@@ -29,7 +29,7 @@ export async function handleCosmosTx(
 ) {
   let txRaw
   let txBytesString
-  const accountDetails = await fetchAccountDetails(messageChain.restUrl, senderAddress)
+  const accountDetails = await fetchAccountDetails(messageChain.restUrl ?? '', senderAddress)
   const walletAccounts = await wallet.getAccounts()
   const aminoTypes = new AminoTypes({
     ...createDefaultAminoConverters('cosmos'),

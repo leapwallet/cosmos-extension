@@ -1126,6 +1126,8 @@ export enum CosmosTxType {
   LSUnstake = 'LS_UNSTAKE',
   StakeClaimAndDelegate = 'STAKE_CLAIM_AND_DELEGATE',
   IBCSwap = 'IBC_SWAP',
+  BridgeSend = 'BRIDGE_SEND',
+  BridgeSwap = 'BRIDGE_SWAP',
 }
 
 export enum App {

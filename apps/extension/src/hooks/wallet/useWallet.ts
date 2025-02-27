@@ -75,6 +75,7 @@ export namespace Wallet {
       [KEYSTORE]: newKeystore,
       [ACTIVE_WALLET]: newWallets[lastEntry],
       [ACTIVE_CHAIN]: isCompassWallet() ? ChainInfos.seiTestnet2.key : leapFallbackChain,
+      [SELECTED_NETWORK]: 'mainnet',
     })
   }
 

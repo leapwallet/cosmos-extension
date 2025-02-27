@@ -1,6 +1,5 @@
 import { useDenomData as useElementsDenomData } from '@leapwallet/elements-hooks'
 import { useMemo } from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import useAssets from './useAssets'
 
@@ -13,7 +12,7 @@ export function useDenomData(denom: string, chainId: string) {
   const { data: allAssets, loading: isAllAssetsLoading } = useAssets()
 
   const mergedDenomData = useMemo(() => {
-    if (!allAssets || !isCompassWallet()) {
+    if (!allAssets || elementsDenomData) {
       return { data: elementsDenomData, isLoading: isElementsDenomDataLoading }
     }
 

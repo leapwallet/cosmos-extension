@@ -1,4 +1,5 @@
 import {
+  baseEthereumGasPrices,
   defaultGasPriceStep,
   EVM_GAS_PRICES,
   EvmFeeType,
@@ -9,10 +10,10 @@ import {
   StorageLayer,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { makeObservable } from 'mobx';
+import { makeObservable, runInAction } from 'mobx';
 
 import { ChainInfosStore } from '../assets';
-import { BaseQueryStore } from '../base/base-data-store';
+import { BaseObservableQueryStore } from '../base/base-observable-data-store';
 import { ChainApisStore } from '../chains';
 import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
 
@@ -22,14 +23,26 @@ export type EvmGasPrices = {
   maxPriorityFeePerGas?: Record<EvmFeeType, string>;
 };
 
+type EvmGasConfig = {
+  refetchInterval: Record<string, number>;
+  multiplier: Record<string, Record<EvmFeeType, number>>;
+};
+
 type EvmGasPricesData = EvmGasPrices;
 
-export class EvmGasPricesQueryStore extends BaseQueryStore<EvmGasPricesData> {
+/**
+ * Use enableRefetch() to start polling for latest gas prices data
+ *
+ * Use disableRefetch() to stop polling for latest gas prices data
+ */
+export class EvmGasPricesQueryStore extends BaseObservableQueryStore<EvmGasPricesData> {
   private activeChain: SupportedChain;
   private activeNetwork: NetworkType;
   private chainInfosStore: ChainInfosStore;
   private chainApisStore: ChainApisStore;
-  private storage: StorageLayer;
+  private refetchInterval: ReturnType<typeof setInterval> | null = null;
+  private gasConfig: EvmGasConfig | null = null;
+  private evmGasPrices: Record<string, EvmGasPrices['gasPrice']> | undefined;
 
   data: EvmGasPricesData;
 
@@ -38,7 +51,8 @@ export class EvmGasPricesQueryStore extends BaseQueryStore<EvmGasPricesData> {
     activeNetwork: NetworkType,
     chainInfosStore: ChainInfosStore,
     chainApisStore: ChainApisStore,
-    storage: StorageLayer,
+    evmGasPrices: Record<string, EvmGasPrices['gasPrice']> | undefined,
+    gasConfig: EvmGasConfig | null,
   ) {
     super();
 
@@ -46,13 +60,14 @@ export class EvmGasPricesQueryStore extends BaseQueryStore<EvmGasPricesData> {
     this.activeNetwork = activeNetwork;
     this.chainInfosStore = chainInfosStore;
     this.chainApisStore = chainApisStore;
-    this.storage = storage;
+    this.evmGasPrices = evmGasPrices;
+    this.gasConfig = gasConfig;
     this.data = this.getDefaultData();
 
     makeObservable(this);
   }
 
-  private getChainId() {
+  private get chainId() {
     return getChainId(this.chainInfosStore.chainInfos[this.activeChain], this.activeNetwork);
   }
 
@@ -61,7 +76,7 @@ export class EvmGasPricesQueryStore extends BaseQueryStore<EvmGasPricesData> {
   }
 
   private getDefaultData() {
-    const chainId = this.getChainId();
+    const chainId = this.chainId;
 
     return {
       gasPrice: {
@@ -83,40 +98,56 @@ export class EvmGasPricesQueryStore extends BaseQueryStore<EvmGasPricesData> {
       };
     }
 
-    if (!this.checkIsSeiEvmChain() && !this.chainInfosStore.chainInfos[this.activeChain]?.evmOnlyChain) {
+    const activeChainInfo = this.chainInfosStore?.chainInfos?.[this.activeChain];
+
+    if (!this.checkIsSeiEvmChain() && !activeChainInfo?.evmOnlyChain) {
       return this.getDefaultData();
     }
 
-    let evmGasPrices: Record<string, { low: number; medium: number; high: number }> = {};
-    try {
-      evmGasPrices = await cachedRemoteDataWithLastModified({
-        remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/gas/evm-gas-prices.json',
-        storageKey: 'evm-gas-prices',
-        storage: this.storage,
-      });
-    } catch (error) {
-      console.error('Error fetching EVM gas prices', error);
-    }
+    const activeChainId = this.chainId;
 
-    const activeChainId = this.getChainId();
-    const activeChainGasPrices = evmGasPrices?.[activeChainId ?? ''] ?? EVM_GAS_PRICES[activeChainId ?? ''];
+    const fallbackGasPrices: { low: number; medium: number; high: number } = {
+      low: activeChainInfo?.gasPriceStep?.low ?? baseEthereumGasPrices.low,
+      medium: activeChainInfo?.gasPriceStep?.average ?? baseEthereumGasPrices.medium,
+      high: activeChainInfo?.gasPriceStep?.high ?? baseEthereumGasPrices.high,
+    };
+    const activeChainGasPrices: { low: number; medium: number; high: number } | undefined =
+      this.evmGasPrices?.[activeChainId ?? ''] ?? EVM_GAS_PRICES[activeChainId ?? ''] ?? fallbackGasPrices;
 
     const { evmJsonRpc } = await this.chainApisStore.getChainApis(this.activeChain, this.activeNetwork);
-    const { maxFeePerGas, gasPrice, maxPriorityFeePerGas } = await SeiEvmTx.GasPrices(evmJsonRpc);
+    const { maxFeePerGas, gasPrice, maxPriorityFeePerGas } = await SeiEvmTx.GasPrices(
+      evmJsonRpc,
+      this.gasConfig?.multiplier?.[activeChainId ?? ''],
+    );
 
-    const low = Number(maxFeePerGas?.low ?? gasPrice?.low);
-    const medium = Number(maxFeePerGas?.medium ?? gasPrice?.medium);
-    const high = Number(maxFeePerGas?.high ?? gasPrice?.high);
+    const low = Math.ceil(Number(maxFeePerGas?.low || gasPrice?.low || activeChainGasPrices?.low));
+    const medium = Math.ceil(Number(maxFeePerGas?.medium || gasPrice?.medium || activeChainGasPrices?.medium));
+    const high = Math.ceil(Number(maxFeePerGas?.high || gasPrice?.high || activeChainGasPrices?.high));
 
     return {
       maxFeePerGas,
       maxPriorityFeePerGas,
       gasPrice: {
-        low: low || activeChainGasPrices?.low,
-        medium: medium || activeChainGasPrices?.medium,
-        high: high || activeChainGasPrices?.high,
+        low,
+        medium,
+        high,
       },
     };
+  }
+
+  enableRefetch() {
+    if (this.refetchInterval) {
+      clearInterval(this.refetchInterval);
+    }
+
+    const interval = this.gasConfig?.refetchInterval?.[this.chainId ?? ''] ?? 5_000;
+    this.refetchInterval = setInterval(() => {
+      this.refetchData();
+    }, interval);
+  }
+
+  disableRefetch() {
+    this.refetchInterval && clearInterval(this.refetchInterval);
   }
 }
 
@@ -126,22 +157,79 @@ export class EvmGasPricesStore {
   private chainApisStore: ChainApisStore;
   private storage: StorageLayer;
   private store = {} as Partial<Record<`${SupportedChain}-${NetworkType}`, EvmGasPricesQueryStore>>;
+  private evmGasPrices: Record<string, EvmGasPrices['gasPrice']> | undefined;
+  private gasConfig: EvmGasConfig | null = null;
+  private initializingEvmPrices: 'pending' | 'done' | 'error' = 'pending';
+  private initializingGasConfig: 'pending' | 'done' | 'error' = 'pending';
 
   constructor(chainInfosStore: ChainInfosStore, chainApisStore: ChainApisStore, storage: StorageLayer) {
     this.chainInfosStore = chainInfosStore;
     this.chainApisStore = chainApisStore;
     this.storage = storage;
+
+    Promise.allSettled([this.fetchEvmGasPricesFromS3(), this.initGasConfig()]);
+  }
+
+  private async fetchEvmGasPricesFromS3() {
+    try {
+      const _evmGasPrices = await cachedRemoteDataWithLastModified<Record<string, EvmGasPrices['gasPrice']>>({
+        remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/gas/evm-gas-prices.json',
+        storageKey: 'evm-gas-prices',
+        storage: this.storage,
+      });
+      runInAction(() => {
+        this.evmGasPrices = _evmGasPrices;
+        this.initializingEvmPrices = 'done';
+      });
+    } catch (error) {
+      console.error('Error fetching EVM gas prices', error);
+      runInAction(() => {
+        this.initializingEvmPrices = 'error';
+      });
+    }
+  }
+
+  private async initGasConfig() {
+    try {
+      const gasConfig = await cachedRemoteDataWithLastModified<EvmGasConfig>({
+        remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/config/evm-gas-config.json',
+        storageKey: 'evm-gas-config',
+        storage: this.storage,
+      });
+      runInAction(() => {
+        this.gasConfig = gasConfig ?? {
+          refetchInterval: {},
+          multiplier: {},
+        };
+        this.initializingGasConfig = 'done';
+      });
+    } catch (error) {
+      console.error('Error fetching EVM gas config', error);
+      runInAction(() => {
+        this.gasConfig = {
+          refetchInterval: {},
+          multiplier: {},
+        };
+        this.initializingGasConfig = 'error';
+      });
+    }
   }
 
   getStore(chain: SupportedChain, network: NetworkType) {
+    if (this.initializingEvmPrices === 'pending' || this.initializingGasConfig === 'pending') {
+      return null;
+    }
+
     const key = `${chain}-${network}` as const;
+
     if (!this.store[key]) {
       this.store[key] = new EvmGasPricesQueryStore(
         chain,
         network,
         this.chainInfosStore,
         this.chainApisStore,
-        this.storage,
+        this.evmGasPrices,
+        this.gasConfig,
       );
     }
 

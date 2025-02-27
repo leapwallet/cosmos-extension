@@ -7,7 +7,6 @@ import {
   getTxnLogAmountValue,
   LeapWalletApi,
   sliceAddress,
-  useAddress,
   useChainId,
   useChainsStore,
   useDenoms,

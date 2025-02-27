@@ -34,6 +34,8 @@ const SendToStakeModal = observer(
       navigate(url)
     }
 
+    if (!nativeChainName) return null
+
     return (
       <BottomModal
         isOpen={isVisible}

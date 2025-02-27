@@ -8,8 +8,6 @@ import {
   Token,
   useActiveChain,
   useChainId,
-  useChainInfo,
-  useFeeTokens,
   useGetAptosGasPrices,
   useGetChains,
   useGetEvmGasPrices,
@@ -33,8 +31,9 @@ import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import Tooltip from 'components/better-tooltip'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import { useEnableEvmGasRefetch } from 'hooks/cosm-wasm/use-enable-evm-gas-refetch'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -59,7 +58,6 @@ import {
 import { rootBalanceStore } from 'stores/root-store'
 import { selectedNetworkStore } from 'stores/selected-network-store'
 import { Colors } from 'theme/colors'
-import { imgOnError } from 'utils/imgOnError'
 import { sliceWord } from 'utils/strings'
 
 import { GasPriceOptionsContext, GasPriceOptionsContextType, useGasPriceContext } from './context'
@@ -203,7 +201,7 @@ const GasPriceOptions = observer(
     )
 
     const chainInfo = chainInfoStore.chainInfos[activeChain]
-    const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain)
+    const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork)
 
     const isSeiEvmChain = chainGasPriceOptionsStore.isSeiEvmChain
     const feeTokenData = chainGasPriceOptionsStore.feeTokenData
@@ -216,6 +214,8 @@ const GasPriceOptions = observer(
 
     const getWallet = Wallet.useGetWallet()
     const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+
+    useEnableEvmGasRefetch(activeChain, selectedNetwork)
 
     const allTokens = useMemo(() => {
       if (
@@ -669,7 +669,11 @@ export const calculateFeeAmount = ({
 
   return {
     amount,
-    formattedAmount: amount.isEqualTo(0) ? '0' : amount.toFormat(5, BigNumber.ROUND_DOWN),
+    formattedAmount: amount.isEqualTo(0)
+      ? '0'
+      : amount.isLessThan('0.00001')
+      ? '< 0.00001'
+      : amount.toFormat(5, BigNumber.ROUND_DOWN),
     isVerySmallAmount: amount.isLessThan('0.00001') && !amount.isEqualTo(0),
   } as const
 }
@@ -926,21 +930,19 @@ GasPriceOptions.AdditionalSettings = observer(
       considerGasAdjustment,
       activeChain,
       selectedNetwork,
+      isSeiEvmTransaction,
     } = useGasPriceContext()
 
     // hardcoded
-    const activeChainInfo = useChainInfo(activeChain)
     const hasToCalculateDynamicFee = useHasToCalculateDynamicFee(activeChain, selectedNetwork)
 
-    const defaultTokenLogo = useDefaultTokenLogo()
-    const denoms = rootDenomsStore.allDenoms
-    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
-    const { data: feeTokensList, isLoading } = useFeeTokens(
-      allAssets,
-      denoms,
-      activeChainInfo.key,
+    const activeChainfeeTokensStore = feeTokensStore.getStore(
+      activeChain,
       selectedNetwork,
+      isSeiEvmTransaction,
     )
+    const feeTokensList = activeChainfeeTokensStore?.data
+    const isLoading = activeChainfeeTokensStore?.isLoading
     const [gasLimitInputValue, setGasLimitInputValue] = useState('100000')
 
     useEffect(() => {
@@ -1029,7 +1031,7 @@ GasPriceOptions.AdditionalSettings = observer(
     const onlySingleFeeToken = feeTokensList?.length === 1
 
     const handleTokenSelect = async (selectedMinimalDenom: string, selectedIbcDenom?: string) => {
-      const selectedFeeTokenData = feeTokensList.find((feeToken) => {
+      const selectedFeeTokenData = feeTokensList?.find((feeToken) => {
         if (feeToken.ibcDenom && selectedIbcDenom) {
           return feeToken.ibcDenom === selectedIbcDenom
         }
@@ -1102,10 +1104,13 @@ GasPriceOptions.AdditionalSettings = observer(
                 setShowTokenSelectSheet(true)
               }}
             >
-              <img
-                src={feeTokenData.denom.icon ?? defaultTokenLogo}
-                onError={imgOnError(defaultTokenLogo)}
-                className='h-6 w-6 mr-1'
+              <TokenImageWithFallback
+                assetImg={feeTokenData.denom.icon}
+                text={feeTokenData.denom.coinDenom}
+                altText={feeTokenData.denom.coinDenom}
+                imageClassName='h-6 w-6 mr-1'
+                containerClassName='h-6 w-6 mr-1 bg-gray-300 dark:bg-gray-700'
+                textClassName='text-[7px] !leading-[9px]'
               />
               <p className='text-black-100 dark:text-white-100 font-bold text-base mr-2'>
                 {sliceWord(feeTokenData?.denom?.coinDenom ?? '', 3, 3)}

@@ -18,7 +18,8 @@ export class ChainApisStore {
   }
 
   private async isTestNetRpcAvailable(activeChain: SupportedChain, activeNetwork: NetworkType) {
-    if (activeNetwork !== 'testnet' || isAptosChain(activeChain)) {
+    const isEvmChain = this.getActiveChainInfo(activeChain)?.evmOnlyChain;
+    if (activeNetwork !== 'testnet' || isAptosChain(activeChain) || isEvmChain) {
       return true;
     }
 

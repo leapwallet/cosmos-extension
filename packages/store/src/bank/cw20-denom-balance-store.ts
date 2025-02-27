@@ -204,6 +204,7 @@ export class CW20DenomBalanceStore {
     try {
       rawBalances = await fetchCW20Balances(`${rpcUrl}/`, address, cw20DenomAddresses);
       if (rawBalances && rawBalances.length > 0) {
+        await this.waitForPriceStore();
         await Promise.allSettled(
           rawBalances.map(async (balance) => {
             try {
@@ -303,6 +304,7 @@ export class CW20DenomBalanceStore {
       if (!allTokens || allTokens?.length === 0) {
         throw new Error('No tokens found from sei-trace');
       }
+      await this.waitForPriceStore();
       const formattedBalances = allTokens.map((item: any) => {
         const token = {
           address: item.token_contract,
@@ -541,7 +543,7 @@ export class CW20DenomBalanceStore {
       ibcDenom: '',
       usdPrice,
       coinDecimals: decimals,
-      coinGeckoId: '',
+      coinGeckoId: denomInfo?.coinGeckoId || '',
       tokenBalanceOnChain: chain,
     };
   }
@@ -627,5 +629,13 @@ export class CW20DenomBalanceStore {
 
     const balanceKey = this.getBalanceKey(activeChain);
     return this.chainWiseStatus[balanceKey] === 'loading';
+  }
+
+  private async waitForPriceStore() {
+    try {
+      await this.priceStore.readyPromise;
+    } catch (e) {
+      //
+    }
   }
 }

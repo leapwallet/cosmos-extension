@@ -1,5 +1,6 @@
 import { ExecuteResult } from '@cosmjs/cosmwasm-stargate';
 import { DeliverTxResponse } from '@cosmjs/stargate';
+import { TransactionReceipt } from '@ethersproject/abstract-provider';
 import { NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
 import create from 'zustand';
@@ -24,7 +25,11 @@ export type PendingTx = {
   receivedUsdValue?: string;
   feeAmount?: string;
   txStatus: TxStatus;
-  promise: Promise<DeliverTxResponse | ExecuteResult>;
+  promise: Promise<
+    | DeliverTxResponse
+    | ExecuteResult
+    | { code: number; txType: 'evm'; transactionHash: string; rawResponse?: TransactionReceipt }
+  >;
   feeDenomination?: string;
   feeQuantity?: string;
   toAddress?: string;

@@ -214,6 +214,7 @@ export class UndelegationsStore {
     });
 
     const denoms = this.denomsStore.denoms;
+    await this.waitForPriceStore();
     const coingeckoPrices = this.priceStore.data;
 
     const activeChainInfo = this.chainInfosStore.chainInfos[activeChain];
@@ -309,5 +310,13 @@ export class UndelegationsStore {
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
     return `${cosmosAddress}-${chain}-${chainId}`;
+  }
+
+  private async waitForPriceStore() {
+    try {
+      await this.priceStore.readyPromise;
+    } catch (e) {
+      //
+    }
   }
 }

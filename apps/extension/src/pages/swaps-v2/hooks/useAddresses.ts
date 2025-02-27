@@ -1,4 +1,5 @@
 import { useActiveWallet, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
 import { useEffect, useState } from 'react'
 
@@ -21,11 +22,24 @@ export function useAddresses(chainIds: string[] | undefined = []) {
             setUserAddressesError(`Failed to get address for chain ${chainId}`)
             return
           }
-          let address = activeWallet?.addresses?.[chain.key]
+
+          let address
+          if (chain.evmOnlyChain) {
+            const evmAddress = pubKeyToEvmAddressToShow(activeWallet.pubKeys?.[chain.key])
+            address = evmAddress
+          } else {
+            address = activeWallet?.addresses?.[chain.key]
+          }
+
           if (!address) {
             try {
               const keyStore = await updateKeyStore(activeWallet, chain.key)
-              const _address = keyStore[activeWallet.id]?.addresses[chain.key]
+              let _address
+              if (chain.evmOnlyChain) {
+                _address = pubKeyToEvmAddressToShow(keyStore[activeWallet.id]?.pubKeys?.[chain.key])
+              } else {
+                _address = keyStore[activeWallet.id]?.addresses[chain.key]
+              }
               if (!_address) {
                 throw new Error('Failed to get address for chain ' + chainId)
               }

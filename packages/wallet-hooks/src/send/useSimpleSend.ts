@@ -493,7 +493,7 @@ export const useSimpleSend = (
         setIsSending(true);
         const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', Number(evmChainId));
 
-        let result = { hash: '' };
+        let result;
         let denom = options?.nativeTokenKey ?? Object.keys(chainInfo.nativeDenoms)[0];
         let weiValue = parseEther(value);
         if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
@@ -501,7 +501,7 @@ export const useSimpleSend = (
         }
 
         if (!options?.isERC20Token) {
-          result = await seiEvmTx.sendTransaction(fromAddress, toAddress, value, gas, gasPrice);
+          result = await seiEvmTx.sendTransaction(fromAddress, toAddress, value, gas, gasPrice, undefined, false);
         } else {
           denom = options?.contractAddress ?? '';
           weiValue = parseUnits(value, options?.decimals ?? 18);
@@ -513,6 +513,7 @@ export const useSimpleSend = (
             options?.decimals ?? 18,
             gas,
             gasPrice,
+            false,
           );
         }
 
@@ -525,12 +526,22 @@ export const useSimpleSend = (
           sentUsdValue: '',
           subtitle1: sliceAddress(toAddress),
           title1: `${value.toString()} ${denomInfo.coinDenom}`,
-          txStatus: 'success',
+          txStatus: 'loading',
           txType: 'send',
           isEvmTx: true,
-          promise: new Promise((resolve) => {
-            resolve({ code: 0 } as any);
-          }),
+          promise: (async () => {
+            try {
+              const res = await result.wait();
+              return {
+                code: res.status !== 0 ? 0 : 1,
+                txType: 'evm',
+                rawResponse: res,
+                transactionHash: res.transactionHash,
+              };
+            } catch (e: any) {
+              return { code: 1, txType: 'evm', transactionHash: result.hash, rawResponse: e };
+            }
+          })(),
           toAddress,
         };
 

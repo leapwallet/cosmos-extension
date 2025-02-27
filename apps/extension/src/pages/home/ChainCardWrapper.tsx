@@ -11,12 +11,14 @@ import { ChainCard } from './components'
 export function ChainCardWrapper({
   chain,
   handleClick,
+  handleDeleteClick,
   selectedChain,
   onPage,
   index,
 }: {
   chain: ManageChainSettings
   handleClick: (chainName: AggregatedSupportedChain, beta?: boolean) => void
+  handleDeleteClick?: (chainKey: SupportedChain) => void
   selectedChain: SupportedChain
   onPage: 'AddCollection' | undefined
   showStars: boolean
@@ -35,7 +37,7 @@ export function ChainCardWrapper({
   }
 
   const img = chainInfo?.chainSymbolImageUrl ?? GenericLight
-  const chainName = chainInfo?.chainName ?? chain.chainName
+  const chainName = chainInfo?.chainName ?? chain.formattedName ?? chain.chainName
 
   return (
     <div
@@ -44,6 +46,7 @@ export function ChainCardWrapper({
     >
       <ChainCard
         handleClick={handleClick}
+        handleDeleteClick={handleDeleteClick}
         beta={chain.beta}
         formattedChainName={chainName}
         chainName={chain.chainName}

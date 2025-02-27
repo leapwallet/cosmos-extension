@@ -6,16 +6,15 @@ import {
   useGetChains,
   useGetExplorerAccountUrl,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { useChains } from '@leapwallet/elements-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ArrowSquareOut, CopySimple } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Text from 'components/text'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useNonNativeCustomChains } from 'hooks'
 import { useFormatCurrency, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo, useState } from 'react'
@@ -24,13 +23,14 @@ import { hideAssetsStore } from 'stores/hide-assets-store'
 import { SourceChain, SourceToken } from 'types/swap'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
-import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import { sliceWord } from 'utils/strings'
 
+import { useGetChainsToShow } from '../hooks'
+
 export const TokenCardSkeleton = () => {
   return (
-    <div className='flex py-3 w-full z-0'>
+    <div className='flex py-3 mx-6 z-0'>
       <div className='w-10'>
         <Skeleton
           circle
@@ -74,7 +74,6 @@ function TokenCardView({
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const [formatCurrency] = useFormatCurrency()
   const [preferredCurrency] = useUserPreferredCurrency()
-  const defaultTokenLogo = useDefaultTokenLogo()
   const { theme } = useTheme()
   const formattedTokenAmount = hideAssetsStore.formatHideBalance(
     formatTokenAmount(
@@ -88,24 +87,59 @@ function TokenCardView({
   const nonNativeChains = useNonNativeCustomChains()
   const chains = useGetChains()
 
-  const { data: skipChains } = useChains()
+  const { chainsToShow: skipChains } = useGetChainsToShow()
   const ibcChainInfo = useMemo(() => {
     if (!token.ibcChainInfo) return
-
-    return (
-      Object.values(chains).find(
-        (chain) =>
-          chain.chainId === token.ibcChainInfo?.name ||
-          chain.testnetChainId === token.ibcChainInfo?.name,
-      ) ??
-      Object.values(nonNativeChains).find(
-        (chain) =>
-          chain.chainId === token.ibcChainInfo?.name ||
-          chain.testnetChainId === token.ibcChainInfo?.name,
-      ) ??
-      skipChains?.find((chain) => chain.chainId === token.ibcChainInfo?.name)
+    let _chainInfo = Object.values(chains).find(
+      (chain) =>
+        chain.chainId === token.ibcChainInfo?.name ||
+        chain.testnetChainId === token.ibcChainInfo?.name,
     )
+    if (_chainInfo) {
+      return _chainInfo
+    }
+    _chainInfo = Object.values(nonNativeChains).find(
+      (chain) =>
+        chain.chainId === token.ibcChainInfo?.name ||
+        chain.testnetChainId === token.ibcChainInfo?.name,
+    )
+    if (_chainInfo) {
+      return _chainInfo
+    }
+    return skipChains?.find((chain) => chain.chainId === token.ibcChainInfo?.name)
   }, [chains, nonNativeChains, skipChains, token.ibcChainInfo])
+
+  const tokenChain = useMemo(() => {
+    if (token?.tokenBalanceOnChain) {
+      const chainFromBalanceInfo =
+        chains[token?.tokenBalanceOnChain] ?? nonNativeChains[token?.tokenBalanceOnChain]
+      if (chainFromBalanceInfo) {
+        return chainFromBalanceInfo
+      }
+    }
+
+    if (!token?.skipAsset?.chainId) return
+
+    let _chainInfo = Object.values(chains).find(
+      (chain) =>
+        chain.chainId === token?.skipAsset?.chainId ||
+        chain.testnetChainId === token?.skipAsset?.chainId,
+    )
+    if (_chainInfo) {
+      return _chainInfo
+    }
+
+    _chainInfo = Object.values(nonNativeChains).find(
+      (chain) =>
+        chain.chainId === token?.skipAsset?.chainId ||
+        chain.testnetChainId === token?.skipAsset?.chainId,
+    )
+
+    if (_chainInfo) {
+      return _chainInfo
+    }
+    return skipChains?.find((chain) => chain.chainId === token?.skipAsset?.chainId)
+  }, [chains, nonNativeChains, skipChains, token?.skipAsset?.chainId, token?.tokenBalanceOnChain])
 
   const formattedFiatValue = hideAssetsStore.formatHideBalance(
     token.usdValue ? formatCurrency(new BigNumber(token.usdValue)) : '-',
@@ -173,17 +207,20 @@ function TokenCardView({
   return (
     <div
       onClick={() => onTokenSelect(token)}
-      className={classNames('flex flex-1 items-center py-3 cursor-pointer w-full', {
+      className={classNames('flex flex-1 items-center py-3 cursor-pointer w-full px-6', {
         'opacity-20': isSelected,
       })}
     >
       <div className='flex items-center flex-1 flex-row justify-between w-full gap-2'>
         <div className='flex items-center flex-1'>
           <div className='relative mr-3'>
-            <img
-              src={token.img ?? defaultTokenLogo}
-              className='h-10 w-10'
-              onError={imgOnError(defaultTokenLogo)}
+            <TokenImageWithFallback
+              assetImg={token?.img}
+              text={tokenName}
+              altText={tokenName}
+              imageClassName='h-10 w-10'
+              containerClassName='h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-850'
+              textClassName='text-[11px] !leading-[15px]'
             />
 
             {verified && (
@@ -255,12 +292,9 @@ function TokenCardView({
               ) : null}
             </div>
 
-            {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
-            token?.tokenBalanceOnChain ? (
+            {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) && tokenChain ? (
               <p className='font-medium text-[10px] dark:text-white-100 text-black-100'>
-                {chains[token?.tokenBalanceOnChain]?.chainName ??
-                  nonNativeChains[token?.tokenBalanceOnChain]?.chainName ??
-                  'Unknown Chain'}
+                {tokenChain?.chainName ?? 'Unknown Chain'}
               </p>
             ) : (
               <>

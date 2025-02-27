@@ -1,26 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ChainTransactionJSON } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/skip-core/lifecycle'
 import {
   LifiTrackerResponse,
-  LifiTransactionDetails,
   LifiTransactionStatus,
   TRANSFER_STATE,
   TXN_STATUS,
 } from '@leapwallet/elements-core'
-import { TransferInfo } from 'types/swap'
-
-const LifiPacketFromJSON = (
-  p: LifiTransactionDetails | null,
-  lifiExplorerLink: string,
-): ChainTransactionJSON | null => {
-  if (!p) return null
-
-  return {
-    chain_id: p.chainId.toString(),
-    tx_hash: p.txHash,
-    explorer_link: lifiExplorerLink,
-  }
-}
+import { LifiPacketTxnSeq, LifiTransactionSubState } from 'types/swap'
 
 export function convertLifiErrorToDisplayError(
   status: LifiTransactionStatus,
@@ -79,30 +64,38 @@ export function getLifiTransferSequence(res: LifiTrackerResponse) {
     res.substatus,
     res.substatusMessage,
   )
-  const cleanTransferSequence: TransferInfo = {
-    src_chain_id: res.sending.chainId.toString(),
-    dst_chain_id: res.receiving.chainId.toString(),
-    packet_txs: {
-      send_tx: LifiPacketFromJSON(res.sending, res.lifiExplorerLink),
-      receive_tx: LifiPacketFromJSON(res.receiving, res.lifiExplorerLink),
-      acknowledge_tx: null,
-      timeout_tx: null,
-      error:
-        state === TXN_STATUS.FAILED
-          ? {
-              code: 0,
-              message: displayError ?? 'Transaction failed',
-              type: 'PACKET_ERROR_UNKNOWN',
-              details: {
-                acknowledgementError: {
-                  code: 0,
-                  message: displayError ?? 'Transaction failed',
-                },
-              },
-            }
-          : null,
+  const cleanTransferSequence: LifiPacketTxnSeq = {
+    type: 'lifiTransfer',
+    srcChainID: res.sending.chainId.toString(),
+    destChainID: res.receiving.chainId.toString(),
+    packetTxs: {
+      sendTx: {
+        chainID: res.sending.chainId.toString(),
+        txHash: res.sending.txHash,
+        explorerLink: res.lifiExplorerLink,
+      },
+      receiveTx: {
+        chainID: res.receiving.chainId.toString(),
+        txHash: res.receiving.txHash,
+        explorerLink: res.lifiExplorerLink,
+      },
     },
     state: convertLifiStatusToTransferState(res.status, res.substatus),
+    originalState: (res.substatus ?? 'UNKNOWN_ERROR') as LifiTransactionSubState,
+    error:
+      state === TXN_STATUS.FAILED
+        ? {
+            code: 0,
+            message: displayError ?? 'Transaction failed',
+            type: 'PACKET_ERROR_UNKNOWN',
+            details: {
+              acknowledgementError: {
+                code: 0,
+                message: displayError ?? 'Transaction failed',
+              },
+            },
+          }
+        : null,
   }
 
   return cleanTransferSequence

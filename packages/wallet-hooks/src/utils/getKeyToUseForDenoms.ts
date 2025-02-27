@@ -4,7 +4,11 @@ import { APTOS_CHAINS, aptosChainNativeTokenMapping, AptosTx } from '@leapwallet
 import { isTerraClassic } from './isTerraClassic';
 
 export function getKeyToUseForDenoms(denom: string, originChainId: string) {
-  const skipSanitizedDenom = denom.replace(/(cw20:|erc20\/)/g, '');
+  let skipSanitizedDenom = denom.replace(/(cw20:)/g, '');
+  if (denom.startsWith('erc20/0x')) {
+    skipSanitizedDenom = denom.replace('erc20', '');
+  }
+
   const _denom = AptosTx.sanitizeTokenDenom(skipSanitizedDenom);
 
   if (_denom === APTOS_COIN && (APTOS_CHAINS.includes(originChainId) || originChainId.includes('aptos-'))) {

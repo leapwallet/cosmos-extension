@@ -10,6 +10,7 @@ import { AGGREGATED_CHAIN_KEY, LEAPBOARD_URL } from 'config/constants'
 import { useAuth } from 'context/auth-context'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
+import { useProviderFeatureFlags } from 'pages/swaps-v2/hooks'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -22,6 +23,7 @@ export function useHardCodedActions() {
   const navigate = useNavigate()
   const auth = useAuth()
   const { data: featureFlags } = useFeatureFlags()
+  const { isEvmSwapEnabled } = useProviderFeatureFlags()
 
   const address = useAddress()
   const activeChain = useActiveChain() as AggregatedSupportedChain
@@ -72,18 +74,27 @@ export function useHardCodedActions() {
     }
   }
 
-  function handleBridgeClick() {
-    const baseUrl = 'https://swapfast.app/bridge'
-    let redirectURL = `${baseUrl}?destinationChainId=${activeChainInfo?.chainId}`
+  function handleBridgeClick(navigateUrl?: string) {
+    let redirectURL = ''
+    if (
+      featureFlags?.all_chains?.swap === 'redirect' ||
+      !isEvmSwapEnabled ||
+      ['mainCoreum', 'coreum'].includes(activeChainInfo?.key)
+    ) {
+      const baseUrl = 'https://swapfast.app/bridge'
+      redirectURL = `${baseUrl}?destinationChainId=${activeChainInfo?.chainId}`
 
-    if (['mainCoreum', 'coreum'].includes(activeChainInfo?.key)) {
-      redirectURL = 'https://sologenic.org/bridge/coreum-bridge'
-    } else if (activeChainInfo?.key === 'mantra') {
-      redirectURL = 'https://mantra.swapfast.app'
-    } else if (activeChain === AGGREGATED_CHAIN_KEY) {
-      redirectURL = baseUrl
+      if (['mainCoreum', 'coreum'].includes(activeChainInfo?.key)) {
+        redirectURL = 'https://sologenic.org/bridge/coreum-bridge'
+      } else if (activeChainInfo?.key === 'mantra') {
+        redirectURL = 'https://mantra.swapfast.app'
+      } else if (activeChain === AGGREGATED_CHAIN_KEY) {
+        redirectURL = baseUrl
+      }
+      window.open(redirectURL, '_blank')
+    } else {
+      navigate(navigateUrl ?? '/swap')
     }
-    window.open(redirectURL, '_blank')
 
     try {
       mixpanel.track(EventName.ButtonClick, {

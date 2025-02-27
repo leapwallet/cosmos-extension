@@ -29,7 +29,7 @@ export class ApiAvailabilityStore {
   store: Record<string, ApiAvailabilityQueryStore> = {};
 
   async getStatus(url: string) {
-    if (this.store[url].data === null) {
+    if (!this.store[url] || this.store[url].data === null) {
       this.store[url] = new ApiAvailabilityQueryStore(url);
       return this.store[url].getData();
     }

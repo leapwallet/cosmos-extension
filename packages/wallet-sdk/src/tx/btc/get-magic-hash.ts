@@ -12,6 +12,7 @@ function varintNum(n: number): Uint8Array {
     arr = new Uint8Array(3);
     arr[0] = 253;
     view = new DataView(arr.buffer);
+    view.setUint16(1, n, true);
   } else if (n < 0x100000000) {
     arr = new Uint8Array(5);
     arr[0] = 254;

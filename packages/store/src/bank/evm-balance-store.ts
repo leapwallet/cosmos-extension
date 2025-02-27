@@ -7,6 +7,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
 import { computed, makeAutoObservable, runInAction } from 'mobx';
+import { computedFn } from 'mobx-utils';
 
 import { AggregatedChainsStore, ChainInfosStore, CompassSeiEvmConfigStore, RootDenomsStore } from '../assets';
 import { AggregatedSupportedChainType, LoadingStatusType, SelectedNetworkType, StorageAdapter } from '../types';
@@ -129,6 +130,7 @@ export class EvmBalanceStore {
 
           if (ethWalletAddress.startsWith('0x') && evmJsonRpcUrl) {
             const balance = await fetchSeiEvmBalances(evmJsonRpcUrl, ethWalletAddress);
+            await this.waitForPriceStore();
             const coingeckoPrices = this.priceStore.data;
 
             let usdValue;
@@ -234,6 +236,19 @@ export class EvmBalanceStore {
     return this.chainWiseEvmStatus[balanceKey] === 'error';
   }
 
+  getAggregatedEvmTokens = computedFn((network: SelectedNetworkType) => {
+    let allTokens: Token[] = [];
+    const chains = Object.keys(this.chainInfosStore?.chainInfos);
+
+    chains.forEach((chain) => {
+      const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
+      const cw20Tokens = Object.values(this.chainWiseEvmBalance[balanceKey]?.evmBalance ?? {});
+      allTokens = allTokens.concat(cw20Tokens);
+    });
+
+    return sortTokenBalances(allTokens);
+  });
+
   private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
     const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
     const address = this.addressStore.addresses[chain as SupportedChain];
@@ -250,5 +265,13 @@ export class EvmBalanceStore {
         ? this.chainInfosStore.chainInfos[chain].testnetChainId
         : this.chainInfosStore.chainInfos[chain].chainId;
     return `${chain}-${chainId}`;
+  }
+
+  private async waitForPriceStore() {
+    try {
+      await this.priceStore.readyPromise;
+    } catch (e) {
+      //
+    }
   }
 }

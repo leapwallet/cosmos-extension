@@ -7,9 +7,14 @@ import Text from '../text'
 type Props = {
   showLedgerPopup: boolean
   onCloseLedgerPopup?: VoidFunction
+  showLedgerPopupText?: string
 }
 
-export default function LedgerConfirmationPopup({ showLedgerPopup, onCloseLedgerPopup }: Props) {
+export default function LedgerConfirmationPopup({
+  showLedgerPopup,
+  onCloseLedgerPopup,
+  showLedgerPopupText,
+}: Props) {
   const onClose = () => {
     //Placeholder function
   }
@@ -25,7 +30,7 @@ export default function LedgerConfirmationPopup({ showLedgerPopup, onCloseLedger
           <RadarAnimation />
         </div>
         <Text size='md' className='font-bold mb-7'>
-          Approve transaction on your hardware wallet
+          {showLedgerPopupText || 'Approve transaction on your hardware wallet'}
         </Text>
       </div>
     </BottomModal>

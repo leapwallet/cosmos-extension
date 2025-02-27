@@ -2,7 +2,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { getChains } from '@leapwallet/cosmos-wallet-hooks'
 import { LineType } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
-import { chainIdToChain, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  chainIdToChain,
+  ChainInfo,
+  isAptosChain,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
 import { COMPASS_CHAINS } from 'config/config'
@@ -219,47 +224,26 @@ export async function openPopup(page: Page, queryString?: string, isEvm?: boolea
       url = url + queryString
     }
 
-    let popupWidth = POPUP_WIDTH
-    if (
-      isEvm &&
-      ['suggest-ethereum-chain', 'switch-ethereum-chain', 'suggest-erc-20', 'signSeiEvm'].includes(
-        page,
-      )
-    ) {
-      popupWidth += 75
-    }
-
-    let popupHeight = POPUP_HEIGHT
-    if (
-      isEvm &&
-      ['suggest-ethereum-chain', 'switch-ethereum-chain', 'suggest-erc-20', 'signSeiEvm'].includes(
-        page,
-      )
-    ) {
-      popupHeight += 75
-    }
-
     let left = 0
     let top = 0
 
-    if (!isEvm) {
-      try {
-        const res = await browser.windows.getLastFocused()
-        if (res.width && res.left) {
-          left = Math.round(res.width - popupWidth + res.left)
-        }
-        if (res.height && res.top) {
-          top = res.top
-        }
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(`Error calculating popup positions: ${(e as Error)?.message ?? e}`)
+    try {
+      const res = await browser.windows.getLastFocused()
+
+      if (res.width && res.left !== undefined) {
+        left = Math.round(res.width - POPUP_WIDTH + res.left)
       }
+      if (res.height && res.top) {
+        top = res.top
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(`Error calculating popup positions: ${(e as Error)?.message ?? e}`)
     }
 
     const popup = {
-      width: popupWidth,
-      height: popupHeight,
+      width: POPUP_WIDTH,
+      height: POPUP_HEIGHT,
       type: 'popup' as const,
       left,
       top,
@@ -326,14 +310,21 @@ export async function isConnected(msg: { chainId: string; origin: string }) {
   return false
 }
 
-export const getChainOriginStorageKey = (origin: string) => `origin-active-key-${origin}`
+export const getChainOriginStorageKey = (origin: string, prefix?: string) =>
+  `${prefix ?? ''}origin-active-key-${origin}`
 
-export async function disconnect(msg: { chainId: string | string[]; origin: string }) {
+export async function disconnect(msg: { chainId?: string | string[]; origin: string }) {
+  if (!msg.chainId) return false
+  const isAptos = Array.isArray(msg.chainId)
+    ? !!msg?.chainId?.every((_chainId) => isAptosChain(_chainId))
+    : isAptosChain(msg.chainId)
+
   const [activeWallet, connections] = await Promise.all([
     getActiveWallet(),
     getConnections(),
-    browser.storage.local.remove(getChainOriginStorageKey(msg.origin)),
+    browser.storage.local.remove(getChainOriginStorageKey(msg.origin, isAptos ? 'aptos-' : '')),
   ])
+
   if (Array.isArray(msg.chainId)) {
     let foundOneChainIdWithOrigin = false
     for (const chainId of msg.chainId) {

@@ -679,7 +679,7 @@ export class EthermintTxHandler {
       return this.signAndBroadcastEvmosLedgerTx(tx, fromAddress, fee);
     } else {
       const txRaw = await this.signRevokeGrantTx({ msgType, fromAddress, grantee, fee, memo });
-      return this.broadcastTx(txRaw + '123');
+      return this.broadcastTx(txRaw);
     }
   }
 

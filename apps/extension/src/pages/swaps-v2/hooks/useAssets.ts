@@ -17,18 +17,20 @@ export type MergedAsset = SkipSupportedAsset & {
   evmDecimals?: number
 }
 
-const useAllSkipAssetsParams = {
-  includeCW20Assets: true,
-  includeNoMetadataAssets: false,
-  includeEVMAssets: isCompassWallet() ? true : false,
-  includeSVMAssets: false,
-  nativeOnly: false,
-}
-
 export default function useAssets() {
   const associations = compassTokensAssociationsStore.compassEvmToSeiMapping
   const reverseAssociations = compassTokensAssociationsStore.compassSeiToEvmMapping
-  const { isSkipEnabled, isLifiEnabled } = useProviderFeatureFlags()
+  const { isSkipEnabled, isLifiEnabled, isEvmSwapEnabled } = useProviderFeatureFlags()
+
+  const useAllSkipAssetsParams = useMemo(() => {
+    return {
+      includeCW20Assets: true,
+      includeNoMetadataAssets: false,
+      includeEVMAssets: isEvmSwapEnabled,
+      includeSVMAssets: false,
+      nativeOnly: false,
+    }
+  }, [isEvmSwapEnabled])
 
   const { data: _allSkipAssets, isLoading: loadingAllSkipAssets } =
     useAllSkipAssets(useAllSkipAssetsParams)

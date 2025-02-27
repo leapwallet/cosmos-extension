@@ -14,7 +14,7 @@ export function useOnline() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  })
+  }, [])
 
   return isOnline
 }

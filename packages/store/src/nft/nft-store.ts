@@ -180,7 +180,7 @@ export class NftStore {
       const chainInfo = this.chainInfosStore.chainInfos[chain];
       const chainId = isTestnet ? chainInfo?.testnetChainId : chainInfo?.chainId;
 
-      if (activeNetwork === network && chainId) {
+      if ((activeNetwork === network || chainInfo.evmOnlyChain) && chainId) {
         const nodeUrlKey = isTestnet ? 'rpcTest' : 'rpc';
         const hasEntryInNms = this.nmsStore.rpcEndPoints[chainId] && this.nmsStore.rpcEndPoints[chainId].length > 0;
 
@@ -359,10 +359,6 @@ export class NftStore {
           ...nfts,
         },
       };
-
-      if (Object.values(nfts).some((nft) => nft.length > 0)) {
-        this.loading = false;
-      }
     });
   }
 
@@ -462,8 +458,6 @@ export class NftStore {
               [chain]: [...prevChainNfts, ...newNfts],
             },
           };
-
-          this.loading = false;
         });
       }
     });

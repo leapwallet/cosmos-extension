@@ -71,6 +71,13 @@ export async function getErc20TokenDetails(contractAddress: string, rpcUrl: stri
   return { name, symbol, decimals: Number(decimals) };
 }
 
+export async function getErc721TokenDetails(contractAddress: string, rpcUrl: string, chainId: number) {
+  const provider = new JsonRpcProvider(rpcUrl, chainId);
+  const contract = new Contract(contractAddress, abiERC721, provider);
+  const [name, symbol] = await Promise.all([contract.name(), contract.symbol()]);
+  return { name, symbol };
+}
+
 export async function getCw20Pointer(contractAddress: string, rpcUrl: string, chainId: number) {
   const provider = new JsonRpcProvider(rpcUrl, chainId);
   const contract = new Contract('0x000000000000000000000000000000000000100A', abiPointerView, provider);

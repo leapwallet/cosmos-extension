@@ -27,6 +27,15 @@ export const denoms: DenomsRecord = {
     icon: 'https://assets.leapwallet.io/babylon.png',
     chain: 'babylon',
   },
+  uzig: {
+    name: 'Zig',
+    coinDenom: 'ZIG',
+    coinMinimalDenom: 'uzig',
+    coinDecimals: 6,
+    coinGeckoId: '',
+    icon: 'https://assets.leapwallet.io/zigchain.svg',
+    chain: 'zigchain',
+  },
   'movement-native': {
     name: 'Move Coin',
     coinDenom: 'MOVE',
@@ -82,6 +91,7 @@ export const denoms: DenomsRecord = {
     chain: 'bitcoin',
   },
   'unichain-native': {
+    name: 'ETH',
     coinDenom: 'ETH',
     coinMinimalDenom: 'unichain-native',
     coinDecimals: 18,
@@ -90,6 +100,7 @@ export const denoms: DenomsRecord = {
     chain: 'unichain',
   },
   'avalanche-native': {
+    name: 'AVAX',
     coinDenom: 'AVAX',
     coinMinimalDenom: 'avalanche-native',
     coinDecimals: 18,
@@ -98,6 +109,7 @@ export const denoms: DenomsRecord = {
     chain: 'avalanche',
   },
   'binance-native': {
+    name: 'BNB',
     coinDenom: 'BNB',
     coinMinimalDenom: 'binance-native',
     coinDecimals: 18,
@@ -106,6 +118,7 @@ export const denoms: DenomsRecord = {
     chain: 'bsc',
   },
   'lightlink-native': {
+    name: 'ETH',
     coinDenom: 'ETH',
     coinMinimalDenom: 'lightlink-native',
     coinDecimals: 18,
@@ -114,6 +127,7 @@ export const denoms: DenomsRecord = {
     chain: 'lightlink',
   },
   'manta-native': {
+    name: 'ETH',
     coinDenom: 'ETH',
     coinMinimalDenom: 'manta-native',
     coinDecimals: 18,
@@ -122,6 +136,7 @@ export const denoms: DenomsRecord = {
     chain: 'manta',
   },
   'blast-native': {
+    name: 'ETH',
     coinDenom: 'ETH',
     coinMinimalDenom: 'blast-native',
     coinDecimals: 18,
@@ -130,6 +145,7 @@ export const denoms: DenomsRecord = {
     chain: 'blast',
   },
   'optimism-native': {
+    name: 'ETH',
     coinDenom: 'ETH',
     coinMinimalDenom: 'optimism-native',
     coinDecimals: 18,
@@ -138,6 +154,7 @@ export const denoms: DenomsRecord = {
     chain: 'optimism',
   },
   'base-native': {
+    name: 'ETH',
     coinDenom: 'ETH',
     coinMinimalDenom: 'base-native',
     coinDecimals: 18,
@@ -146,6 +163,7 @@ export const denoms: DenomsRecord = {
     chain: 'base',
   },
   'polygon-native': {
+    name: 'MATIC',
     coinDenom: 'MATIC',
     coinMinimalDenom: 'polygon-native',
     coinDecimals: 18,
@@ -154,12 +172,37 @@ export const denoms: DenomsRecord = {
     chain: 'polygon',
   },
   'abstract-native': {
+    name: 'ETH',
     coinDenom: 'ETH',
     coinMinimalDenom: 'abstract-native',
     coinDecimals: 18,
     coinGeckoId: 'ethereum',
     icon: 'https://assets.leapwallet.io/eth.png',
     chain: 'abstract',
+  },
+  'berachain-native': {
+    coinDenom: 'BERA',
+    coinDecimals: 18,
+    coinMinimalDenom: 'berachain-native',
+    icon: 'https://assets.leapwallet.io/berachain.svg',
+    chain: 'berachain',
+    coinGeckoId: 'berachain-bera',
+  },
+  'monad-native': {
+    coinDenom: 'MON',
+    coinDecimals: 18,
+    coinMinimalDenom: 'monad-native',
+    icon: 'https://assets.leapwallet.io/monad.svg',
+    chain: 'monad',
+    coinGeckoId: 'monad',
+  },
+  'story-native': {
+    coinDenom: 'IP',
+    coinDecimals: 18,
+    coinMinimalDenom: 'story-native',
+    icon: 'https://assets.leapwallet.io/story.svg',
+    chain: 'story',
+    coinGeckoId: 'story-2',
   },
   'arbitrum-native': {
     coinDenom: 'ETH',
@@ -458,6 +501,14 @@ export const denoms: DenomsRecord = {
     chain: 'quasar',
     coinGeckoId: 'osmo',
     icon: 'https://assets.leapwallet.io/osmo.svg',
+  },
+  'ibc/16065EE5282C5217685C8F084FC44864C25C706AC37356B0D62811D50B96920F': {
+    coinDenom: 'milkTIA',
+    coinMinimalDenom: 'ibc/16065EE5282C5217685C8F084FC44864C25C706AC37356B0D62811D50B96920F',
+    coinDecimals: 6,
+    chain: 'milkywayL1',
+    coinGeckoId: 'milkyway-staked-tia',
+    icon: 'https://assets.leapwallet.io/milkTIA.svg',
   },
   'ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9': {
     coinDenom: 'ATOM',

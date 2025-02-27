@@ -224,6 +224,7 @@ export class DelegationsStore {
         address,
     });
 
+    await this.waitForPriceStore();
     const coingeckoPrices = this.priceStore.data;
     let { delegation_responses } = res.data as DelegationResponse;
     let denomFiatValue: string | undefined = undefined;
@@ -307,5 +308,13 @@ export class DelegationsStore {
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
     return `${cosmosAddress}-${chain}-${chainId}`;
+  }
+
+  private async waitForPriceStore() {
+    try {
+      await this.priceStore.readyPromise;
+    } catch (e) {
+      //
+    }
   }
 }

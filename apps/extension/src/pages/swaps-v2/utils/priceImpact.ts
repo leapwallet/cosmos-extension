@@ -100,13 +100,11 @@ export const getSourceAssetUSDValue = (
 
   if (sourceAssetUSDValue.isNaN() && sourceTokenUsdPrice?.gt(0)) {
     if (route?.aggregator === RouteAggregator.SKIP) {
-      const denom =
-        denoms[
-          getKeyToUseForDenoms(
-            route?.response.source_asset_denom,
-            route?.response.source_asset_chain_id,
-          )
-        ]
+      const denomKey = getKeyToUseForDenoms(
+        route?.response.source_asset_denom,
+        route?.response.source_asset_chain_id,
+      )
+      const denom = denoms[denomKey] ?? denoms[denomKey.toLowerCase()]
       if (denom) {
         sourceAssetUSDValue = new BigNumber(route?.response.amount_in)
           .div(10 ** denom.coinDecimals)
@@ -138,13 +136,11 @@ export const getDestinationAssetUSDValue = (
 
   if (destinationAssetUSDValue.isNaN() && destinationTokenUsdPrice?.gt(0)) {
     if (route?.aggregator === RouteAggregator.SKIP) {
-      const denom =
-        denoms[
-          getKeyToUseForDenoms(
-            route?.response.dest_asset_denom,
-            route?.response.dest_asset_chain_id,
-          )
-        ]
+      const denomKey = getKeyToUseForDenoms(
+        route?.response.dest_asset_denom,
+        route?.response.dest_asset_chain_id,
+      )
+      const denom = denoms[denomKey] ?? denoms[denomKey.toLowerCase()]
       if (denom) {
         destinationAssetUSDValue = new BigNumber(route?.response.amount_out)
           .div(10 ** denom.coinDecimals)

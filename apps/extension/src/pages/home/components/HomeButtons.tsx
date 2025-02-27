@@ -22,6 +22,7 @@ import { PageName } from 'config/analytics'
 import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import Vote from 'icons/vote'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
@@ -33,7 +34,7 @@ type HomeButtonsProps = {
   setShowReceiveSheet: () => void
 }
 
-export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
+export const HomeButtons = observer(({ setShowReceiveSheet }: HomeButtonsProps) => {
   const isTestnet = useSelectedNetwork() === 'testnet'
   const activeChain = useActiveChain()
   const { activeWallet } = useActiveWallet()
@@ -135,61 +136,36 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
   }
 
   if (isTestnet) {
-    if (isSidePanel()) {
-      return (
-        <div className='flex flex-row justify-center gap-[32px] mb-4 w-full'>
-          {/* Send Button */}
-          <ClickableIcon
-            label='Send'
-            icon={<ArrowUp size={20} />}
-            onClick={() => onSendClick()}
-            disabled={walletCtaDisabled}
-            data-testing-id='home-generic-send-btn'
-          />
-
-          {/* Receive Button */}
-          <ClickableIcon
-            label='Receive'
-            icon={<ArrowDown size={20} />}
-            onClick={setShowReceiveSheet}
-            disabled={walletCtaDisabled}
-          />
-        </div>
-      )
-    }
-
     return (
-      <div className='flex justify-between mb-4 w-full'>
-        {/* Deposit/Receive Button */}
-        <Buttons.Generic
-          size='sm'
-          disabled={walletCtaDisabled}
-          color={darkTheme ? undefined : Colors.white100}
-          onClick={setShowReceiveSheet}
-        >
-          <div className='flex justify-center text-black-100 items-center'>
-            <ArrowDown size={20} className='mr-2' />
-            {ON_RAMP_SUPPORT_CHAINS.includes(activeChain) ? (
-              <span>Deposit</span>
-            ) : (
-              <span>Receive</span>
-            )}
-          </div>
-        </Buttons.Generic>
-
+      <div className='flex flex-row justify-center gap-[32px] mb-4 w-full'>
         {/* Send Button */}
-        <Buttons.Generic
-          size='sm'
-          disabled={walletCtaDisabled}
-          color={darkTheme ? undefined : Colors.white100}
+        <ClickableIcon
+          label='Send'
+          icon={<ArrowUp size={20} />}
           onClick={() => onSendClick()}
+          disabled={walletCtaDisabled}
           data-testing-id='home-generic-send-btn'
-        >
-          <div className='flex justify-center text-black-100 items-center'>
-            <ArrowUp size={20} className='mr-2' />
-            <span>Send</span>
-          </div>
-        </Buttons.Generic>
+        />
+
+        {/* Receive Button */}
+        <ClickableIcon
+          label='Receive'
+          icon={<ArrowDown size={20} />}
+          onClick={setShowReceiveSheet}
+          disabled={walletCtaDisabled}
+        />
+
+        {!['bitcoin', 'bitcoinSignet'].includes(chain?.key) ? (
+          <ClickableIcon
+            label='NFTs'
+            icon={
+              <div className='bg-white-100 h-5 w-5 rounded-full flex items-center justify-center'>
+                <Star size={12} weight='fill' className='text-black-100' />
+              </div>
+            }
+            onClick={() => handleNftsClick()}
+          />
+        ) : null}
       </div>
     )
   }
@@ -216,7 +192,7 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       <ClickableIcon
         label='Bridge'
         icon={<Path size={20} />}
-        onClick={() => handleBridgeClick()}
+        onClick={() => handleBridgeClick(`/swap?pageSource=${PageName.Home}`)}
         disabled={walletCtaDisabled}
       />
 
@@ -243,4 +219,4 @@ export function HomeButtons({ setShowReceiveSheet }: HomeButtonsProps) {
       ) : null}
     </div>
   )
-}
+})

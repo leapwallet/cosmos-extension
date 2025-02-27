@@ -26,7 +26,7 @@ export class PriceStore extends BaseQueryStore<Record<string, number>> {
 
   async initialize() {
     await this.currencyStore.readyPromise;
-    this.getData();
+    await this.getData();
   }
 
   async fetchEcosystemPrices(ecosystem: string) {
@@ -37,15 +37,19 @@ export class PriceStore extends BaseQueryStore<Record<string, number>> {
   }
 
   async fetchData() {
-    const [cosmosPrices, ethereumPrices, avalanchePrices] = await Promise.all([
+    const promises = await Promise.allSettled<Record<string, number>>([
       this.fetchEcosystemPrices('cosmos-ecosystem'),
       this.fetchEcosystemPrices('ethereum-ecosystem'),
       this.fetchEcosystemPrices('avalanche-ecosystem'),
     ]);
+    const [cosmosPrices, ethereumPrices, avalanchePrices] = promises.map((p) =>
+      p.status === 'fulfilled' ? p.value : null,
+    );
+
     return {
-      ...avalanchePrices,
-      ...ethereumPrices,
-      ...cosmosPrices,
+      ...(avalanchePrices ?? {}),
+      ...(ethereumPrices ?? {}),
+      ...(cosmosPrices ?? {}),
     };
   }
 }

@@ -297,13 +297,15 @@ export class ClaimRewardsStore {
     const res = await this.rewardsQueryStore[chainKey].fetchData();
 
     const { total, rewards: _rewards } = res as RewardsResponse;
-
+    await this.waitForPriceStore();
     const claimTotal = await Promise.all(
       total.map(async (claim) => {
         const { amount: _amount, denom } = claim;
         let { denomInfo } = await this.ibcDenomInfoStore.ibcDenomInfoForChain(activeChain, selectedNetwork, denom);
         if (!denomInfo) {
-          denomInfo = this.activeStakingDenomStore?.activeStakingDenom?.find((d) => d?.coinMinimalDenom === denom);
+          denomInfo = this.activeStakingDenomStore
+            ?.stakingDenomForChain(activeChain)
+            ?.find((d) => d?.coinMinimalDenom === denom);
         }
         const amount = fromSmall(_amount, denomInfo?.coinDecimals ?? 6);
 
@@ -375,5 +377,13 @@ export class ClaimRewardsStore {
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
     return `${cosmosAddress}-${chain}-${chainId}`;
+  }
+
+  private async waitForPriceStore() {
+    try {
+      await this.priceStore.readyPromise;
+    } catch (e) {
+      //
+    }
   }
 }

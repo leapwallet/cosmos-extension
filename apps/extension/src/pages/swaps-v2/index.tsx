@@ -52,6 +52,7 @@ import {
   TokenInputCard,
   TxReviewSheet,
 } from './components'
+import { TokenAssociatedChain } from './components/ChainsList'
 import FeesSheet from './components/FeesSheet'
 import InputPageHeader from './components/InputPageHeader'
 import { WarningsSection } from './components/WarningsSection'
@@ -89,10 +90,12 @@ const SwapPage = observer(() => {
   const [isQuoteReadyEventLogged, setIsQuoteReadyEventLogged] = useState<boolean>(false)
   const [newChain, setNewChain] = useState<ChainInfo | null>(null)
   const [tokenToSet, setTokenToSet] = useState<SourceToken | null>(null)
-  const [chainToSet, setChainToSet] = useState<{
-    chain: SourceChain
-    callbackToUse: 'handleSetChain' | 'handleSetDestinationChain'
-  } | null>(null)
+  const [chainToSet, setChainToSet] = useState<
+    | (TokenAssociatedChain & {
+        callbackToUse: 'handleSetDestinationChain' | 'handleSetChain'
+      })
+    | null
+  >(null)
 
   const chains = useGetChains()
   const customChains = useNonNativeCustomChains()
@@ -145,7 +148,12 @@ const SwapPage = observer(() => {
     isChainAbstractionView,
     loadingRoutes,
   } = useSwapContext()
-  const { priceImpactPercent, usdValueDecreasePercent } = getPriceImpactVars(
+  const {
+    priceImpactPercent,
+    usdValueDecreasePercent,
+    destinationAssetUSDValue,
+    sourceAssetUSDValue,
+  } = getPriceImpactVars(
     routingInfo?.route,
     sourceToken,
     destinationToken,
@@ -324,29 +332,25 @@ const SwapPage = observer(() => {
 
   const { _destinationChainsToShow, _destinationAssets } = useMemo(() => {
     const _destinationAssets = destinationAssets.filter((asset) => {
-      if (asset.skipAsset.originDenom === 'uusdc') {
-        return (
-          asset.skipAsset.originDenom === destinationToken?.skipAsset.originDenom &&
-          asset.skipAsset.originChainId === destinationToken?.skipAsset.originChainId
-        )
-      }
-      return asset.skipAsset.originDenom === destinationToken?.skipAsset.originDenom
+      return asset.skipAsset.symbol === destinationToken?.skipAsset.symbol
     })
-    const destinationChainIds = _destinationAssets.map((asset) => asset.skipAsset.chainId)
 
+    const _destinationChainsToShow: TokenAssociatedChain[] = []
+    _destinationAssets.forEach((asset) => {
+      _chainsToShow.forEach((chain) => {
+        if (chain.chainId === asset.skipAsset.chainId) {
+          _destinationChainsToShow.push({
+            chain,
+            asset,
+          })
+        }
+      })
+    })
     return {
       _destinationAssets,
-      _destinationChainsToShow: _chainsToShow.filter((chain) =>
-        destinationChainIds.includes(chain.chainId),
-      ),
+      _destinationChainsToShow,
     }
   }, [_chainsToShow, destinationToken, destinationAssets])
-
-  const _destinationAssetsToShow = useMemo(() => {
-    return destinationAssets.filter((asset) => {
-      return isCompassWallet() ? true : !asset.skipAsset.denom.includes('ibc/')
-    })
-  }, [destinationAssets])
 
   const reviewBtnText = useMemo(() => {
     if (invalidAmount) {
@@ -520,28 +524,31 @@ const SwapPage = observer(() => {
   )
 
   const handleOnChainSelect = useCallback(
-    (chain: SourceChain) => {
+    (tokenAssociatedChain: TokenAssociatedChain) => {
       const customChain = Object.values(customChains).find(
-        (_customChain) => _customChain.chainId === chain.chainId,
+        (_customChain) => _customChain.chainId === tokenAssociatedChain.chain.chainId,
       )
       if (customChain) {
         setChainToSet({
-          chain,
+          chain: tokenAssociatedChain.chain,
           callbackToUse: 'handleSetChain',
         })
         setNewChain(customChain)
         return
       }
-      handleSetChain(chain)
+      handleSetChain(tokenAssociatedChain.chain)
     },
     [customChains, handleSetChain],
   )
 
   const handleSetDestinationChain = useCallback(
-    (chain: SourceChain) => {
-      setDestinationChain(chain)
+    (tokenAssociatedChain: TokenAssociatedChain) => {
+      setDestinationChain(tokenAssociatedChain.chain)
       const _destToken = _destinationAssets.find(
-        (asset) => asset.skipAsset.chainId === chain.chainId,
+        (asset) =>
+          asset.skipAsset.chainId === tokenAssociatedChain.chain.chainId &&
+          (!tokenAssociatedChain.asset ||
+            asset.skipAsset.denom === tokenAssociatedChain.asset.skipAsset.denom),
       )
       setDestinationToken(_destToken as SourceToken)
       setShowChainSelectSheet(false)
@@ -557,19 +564,20 @@ const SwapPage = observer(() => {
   )
 
   const handleOnDestinationChainSelect = useCallback(
-    (chain: SourceChain) => {
+    (tokenAssociatedChain: TokenAssociatedChain) => {
       const customChain = Object.values(customChains).find(
-        (_customChain) => _customChain.chainId === chain.chainId,
+        (_customChain) => _customChain.chainId === tokenAssociatedChain.chain.chainId,
       )
       if (customChain) {
         setChainToSet({
-          chain,
+          asset: tokenAssociatedChain.asset,
+          chain: tokenAssociatedChain.chain,
           callbackToUse: 'handleSetDestinationChain',
         })
         setNewChain(customChain)
         return
       }
-      handleSetDestinationChain(chain)
+      handleSetDestinationChain(tokenAssociatedChain)
     },
     [customChains, handleSetDestinationChain],
   )
@@ -629,9 +637,12 @@ const SwapPage = observer(() => {
       setTokenToSet(null)
     } else if (chainToSet) {
       if (chainToSet.callbackToUse === 'handleSetChain') {
-        handleOnChainSelect(chainToSet.chain)
+        handleOnChainSelect(chainToSet)
       } else if (chainToSet.callbackToUse === 'handleSetDestinationChain') {
-        handleSetDestinationChain(chainToSet.chain)
+        handleSetDestinationChain({
+          asset: chainToSet.asset,
+          chain: chainToSet.chain,
+        })
       }
       setChainToSet(null)
     }
@@ -766,12 +777,13 @@ const SwapPage = observer(() => {
                 loadingAssets={loadingChains || loadingDestinationAssets}
                 chainName={destinationChain?.chainName}
                 chainLogo={destinationChain?.icon ?? defaultTokenLogo}
-                selectTokenDisabled={_destinationAssetsToShow.length === 0 || !destinationChain}
+                selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}
                 selectChainDisabled={_chainsToShow.length === 0}
                 onTokenSelectSheet={handleOutputTokenSelectSheetOpen}
                 onChainSelectSheet={handleOutputChainSelectSheetOpen}
                 isChainAbstractionView={isChainAbstractionView}
                 showFor='destination'
+                assetUsdValue={destinationAssetUSDValue}
               />
             </div>
 
@@ -831,7 +843,7 @@ const SwapPage = observer(() => {
       <SelectTokenSheet
         isOpen={showTokenSelectSheet}
         sourceAssets={sourceAssets}
-        destinationAssets={_destinationAssetsToShow}
+        destinationAssets={destinationAssets}
         sourceToken={sourceToken}
         selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
         destinationToken={destinationToken}
@@ -856,15 +868,17 @@ const SwapPage = observer(() => {
             setShowSelectSheetFor('')
           }}
           selectedChain={destinationChain}
+          selectedToken={destinationToken}
           onChainSelect={handleOnDestinationChainSelect}
           destinationAssets={_destinationAssets}
         />
       ) : (
         <SelectChainSheet
           isOpen={showChainSelectSheet}
-          chainsToShow={_chainsToShow}
+          chainsToShow={_chainsToShow.map((chain) => ({ chain }))}
           onClose={handleOnChainSelectSheetClose}
           selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
+          selectedToken={showSelectSheetFor === 'source' ? sourceToken : destinationToken}
           onChainSelect={handleOnChainSelect}
         />
       )}
@@ -906,9 +920,11 @@ const SwapPage = observer(() => {
         onClose={handleOnTxReviewSheetClose}
         onProceed={handleOnTxReviewSheetProceed}
         setShowFeesSettingSheet={setShowFeesSettingSheet}
+        destinationAssetUSDValue={destinationAssetUSDValue}
+        sourceAssetUSDValue={sourceAssetUSDValue}
       />
 
-      {routingInfo?.route?.response && (
+      {routingInfo?.route?.response && sourceChain && (
         <FeesSheet
           showFeesSettingSheet={showFeesSettingSheet}
           setShowFeesSettingSheet={setShowFeesSettingSheet}

@@ -16,6 +16,8 @@ export type ManageChainSettings = {
   testnetChainId?: string
   evmChainId?: string
   evmChainIdTestnet?: string
+  formattedName?: string
+  evmOnlyChain?: boolean
 }
 
 export class ManageChainsStore {
@@ -70,6 +72,7 @@ export class ManageChainsStore {
             testnetChainId: chainInfos[chain].testnetChainId,
             evmChainId: chainInfos[chain].evmChainId,
             evmChainIdTestnet: chainInfos[chain].evmChainIdTestnet,
+            formattedName: chainInfos[chain].chainName,
           }
         })
 

@@ -10,7 +10,7 @@ export async function handleEthermintTx(
   fee: StdFee,
 ) {
   const ethermintTx = new EthermintTxHandler(
-    messageChain.restUrl,
+    messageChain.restUrl ?? '',
     wallet,
     ChainInfos[messageChain.key].chainId,
     ChainInfos[messageChain.key].evmChainId,

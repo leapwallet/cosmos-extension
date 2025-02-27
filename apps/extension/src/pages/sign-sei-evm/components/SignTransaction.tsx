@@ -21,6 +21,7 @@ import {
 import {
   DefaultGasEstimates,
   GasPrice,
+  LedgerError,
   NetworkType,
   pubKeyToEvmAddressToShow,
   SeiEvmTx,
@@ -28,8 +29,9 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { EvmBalanceStore, RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { EthWallet } from '@leapwallet/leap-keychain'
-import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
+import { Avatar, Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
+import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
@@ -44,10 +46,11 @@ import { MessageTypes } from 'config/message-types'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
-import { GenericLight } from 'images/logos'
+import { GenericDark, GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { feeTokensStore } from 'stores/fee-store'
 import { Colors } from 'theme/colors'
 import { TransactionStatus } from 'types/utility'
 import { assert } from 'utils/assert'
@@ -87,12 +90,14 @@ export const SignTransaction = observer(
     activeNetwork,
   }: SignTransactionProps) => {
     const getWallet = useGetWallet(activeChain)
-
+    const { theme } = useTheme()
     const { addressLinkState } = useSeiLinkedAddressState(getWallet, activeChain)
     const evmBalance = evmBalanceStore.evmBalance
     const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
     const allAssets = rootBalanceStore.getBalancesForChain(activeChain, activeNetwork)
+    feeTokensStore.getStore(activeChain, activeNetwork, true)
+
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
 
     const assets = useMemo(() => {
@@ -143,7 +148,6 @@ export const SignTransaction = observer(
     const [gasPriceError, setGasPriceError] = useState<string | null>(null)
     const [signingError, setSigningError] = useState<string | null>(null)
 
-    const [isLoadingGasLimit, setIsLoadingGasLimit] = useState<boolean>(false)
     const defaultGasEstimates = useDefaultGasEstimates()
     const gasAdjustment = useGasAdjustmentForChain(activeChain)
     const defaultGasLimit = useMemo(
@@ -157,7 +161,6 @@ export const SignTransaction = observer(
       [activeChain, defaultGasEstimates, gasAdjustment],
     )
 
-    const [recommendedGasLimit, setRecommendedGasLimit] = useState<number>(defaultGasLimit)
     const [gasPriceOption, setGasPriceOption] = useState<{
       option: GasOptions
       gasPrice: GasPrice
@@ -184,15 +187,25 @@ export const SignTransaction = observer(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeChain, activeNetwork])
 
-    useEffect(() => {
-      ;(async function fetchGasEstimate() {
-        if (txnData.signTxnData.gas) {
-          setRecommendedGasLimit(Number(txnData.signTxnData.gas))
-          return
+    const { data: recommendedGasLimit, isLoading: isLoadingGasLimit } = useQuery({
+      queryKey: [
+        activeChain,
+        activeWallet?.pubKeys,
+        defaultGasLimit,
+        evmJsonRpc,
+        gasAdjustment,
+        txnData.signTxnData.data,
+        txnData.signTxnData.gas,
+        txnData.signTxnData.params,
+        txnData.signTxnData.to,
+        txnData.signTxnData.value,
+      ],
+      queryFn: async function fetchGasEstimate() {
+        if (txnData?.signTxnData?.gas) {
+          return Math.ceil(Number(txnData.signTxnData.gas) * gasAdjustment)
         }
 
         try {
-          setIsLoadingGasLimit(true)
           let gasUsed = defaultGasLimit
 
           if (txnData.signTxnData.params) {
@@ -201,7 +214,7 @@ export const SignTransaction = observer(
               evmJsonRpc,
             )
 
-            gasUsed = Math.ceil(Number(_gasUsed))
+            gasUsed = Math.ceil(Number(_gasUsed) * gasAdjustment)
           } else {
             const fromEthAddress = pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain])
 
@@ -213,53 +226,27 @@ export const SignTransaction = observer(
               undefined,
               fromEthAddress,
             )
+            gasUsed = Math.ceil(Number(gasUsed) * gasAdjustment)
           }
 
-          setRecommendedGasLimit(gasUsed)
+          return gasUsed
         } catch (_) {
-          setRecommendedGasLimit(defaultGasLimit)
-        } finally {
-          setIsLoadingGasLimit(false)
+          return defaultGasLimit
         }
-      })()
-    }, [
-      activeChain,
-      activeWallet?.pubKeys,
-      defaultGasLimit,
-      evmJsonRpc,
-      gasAdjustment,
-      txnData.signTxnData.data,
-      txnData.signTxnData.gas,
-      txnData.signTxnData.params,
-      txnData.signTxnData.to,
-      txnData.signTxnData.value,
-    ])
+      },
+      initialData: defaultGasLimit,
+    })
 
     useEffect(() => {
       function resetGasPriceError() {
-        if (
-          gasPriceError?.includes('Max fee per gas is less than the block base fee') ||
-          gasPriceError?.includes('Insufficient funds to cover gas and transaction amount.')
-        ) {
+        if (gasPriceError?.includes('Insufficient funds to cover gas and transaction amount.')) {
           setGasPriceError('')
         }
       }
 
-      async function compareAgainstBlockBaseFee() {
+      async function checkIfFundsAreSufficient() {
         if (gasPriceStatus === 'loading' || !gasPriceOption?.gasPrice?.amount) {
           resetGasPriceError()
-          return
-        }
-
-        const latestBaseFeePerGas = await SeiEvmTx.BlockBaseFee(evmJsonRpc)
-
-        if (
-          latestBaseFeePerGas &&
-          new BigNumber(gasPriceOption.gasPrice.amount.toString()).lt(latestBaseFeePerGas)
-        ) {
-          setGasPriceError(
-            'Max fee per gas is less than the block base fee. Please increase the gas fee.',
-          )
           return
         }
 
@@ -284,7 +271,7 @@ export const SignTransaction = observer(
         resetGasPriceError()
       }
 
-      compareAgainstBlockBaseFee()
+      checkIfFundsAreSufficient()
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       evmJsonRpc,
@@ -325,6 +312,7 @@ export const SignTransaction = observer(
           parseInt(Number(userPreferredGasLimit || recommendedGasLimit).toString()),
           parseInt(gasPriceOption.gasPrice.amount.toString()),
           txnData.signTxnData.data,
+          false,
         )
 
         try {
@@ -389,6 +377,11 @@ export const SignTransaction = observer(
         }
       } catch (error) {
         setTxStatus('error')
+        if (error instanceof LedgerError) {
+          setTimeout(() => {
+            setSigningError(null)
+          }, 5000)
+        }
         const errorMessage = error instanceof Error ? error.message : 'Something went wrong.'
         if (errorMessage.includes('intrinsic gas too low')) {
           setSigningError('Please try again with higher gas fee.')
@@ -434,7 +427,11 @@ export const SignTransaction = observer(
             header={
               <div className='w-[396px]'>
                 <Header
-                  imgSrc={chainInfo.chainSymbolImageUrl ?? GenericLight}
+                  imgSrc={
+                    chainInfo.chainSymbolImageUrl ??
+                    (theme === ThemeName.DARK ? GenericDark : GenericLight)
+                  }
+                  imgOnError={imgOnError(theme === ThemeName.DARK ? GenericDark : GenericLight)}
                   title={
                     <Buttons.Wallet
                       brandLogo={

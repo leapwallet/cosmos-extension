@@ -69,6 +69,7 @@ import {
   useGetErrorMsg,
   useGetInfoMsg,
   useGetSwapAssets,
+  useProviderFeatureFlags,
 } from './index'
 import { useAggregatorGasFeeSWR } from './useAggregatorGasFee'
 import useAssets from './useAssets'
@@ -239,6 +240,7 @@ export function useSwapsTx({
   const { data: feeValues } = useFees()
   const { data: leapFeeAddresses } = useFeeAddresses()
   const { data: swapVenue } = useSwapVenues()
+  const { isEvmSwapEnabled } = useProviderFeatureFlags()
   /**
    * states for chain, token and amount
    */
@@ -417,8 +419,12 @@ export function useSwapsTx({
 
   const searchedSourceChain = useQuery().get('sourceChainId') ?? undefined
   const searchedDestinationChain = useQuery().get('destinationChainId') ?? undefined
-  const searchedSourceToken = useQuery().get('sourceToken') ?? undefined
-  const searchedDestinationToken = useQuery().get('destinationToken') ?? undefined
+  const _searchedSourceToken = useQuery().get('sourceToken') ?? undefined
+  const _searchedDestinationToken = useQuery().get('destinationToken') ?? undefined
+  const searchedSourceToken =
+    _searchedSourceToken === 'wei' ? 'ethereum-native' : _searchedSourceToken
+  const searchedDestinationToken =
+    _searchedDestinationToken === 'wei' ? 'ethereum-native' : _searchedDestinationToken
 
   const isRouteQueryEnabled = useMemo(() => {
     if (!sourceChain || !destinationChain || !sourceToken || !destinationToken) return false
@@ -660,7 +666,7 @@ export function useSwapsTx({
         }
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        const baseDenomToSet = sourceChain.baseDenom
+        const baseDenomToSet = sourceChain.baseDenom ?? ''
         const sourceToken = sourceAssets.find((asset) =>
           !destinationChain ||
           destinationChain.chainId !== sourceChain.chainId ||
@@ -768,7 +774,8 @@ export function useSwapsTx({
 
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        const baseDenomToSet = chainToSet ? chainToSet.baseDenom : destinationChain.baseDenom
+        const baseDenomToSet =
+          (chainToSet ? chainToSet.baseDenom : destinationChain.baseDenom) ?? ''
         const _destinationChain = chainToSet ?? destinationChain
         const destinationToken = destinationAssets.find((asset) =>
           !sourceChain ||
@@ -862,11 +869,13 @@ export function useSwapsTx({
     enabled: isRouteQueryEnabled,
     swapVenues: swapVenue,
     leapFeeBps: leapFeeBps,
-    smartRelay: false,
+    smartRelay: true,
     leapFeeAddresses,
     isSwapFeeEnabled,
     slippage: slippagePercent,
     enableSmartSwap: true,
+    enableEvmSwap: isEvmSwapEnabled,
+    enableGoFast: true,
   })
 
   const invalidAmount = useMemo(() => {
@@ -929,8 +938,9 @@ export function useSwapsTx({
   )
   const { data: skipGasFee, isLoading: isSkipGasFeeLoading } = useAggregatorGasFeeSWR(
     routeResponse,
-    messages,
+    messages?.messages,
     userAddresses,
+    sourceChain,
     true,
     undefined,
     !!messages,
@@ -964,16 +974,19 @@ export function useSwapsTx({
       }
     }
 
-    if (
-      !mergedAssets ||
-      !routeResponse?.response?.does_swap ||
-      !routeResponse?.response?.swap_venue?.chain_id
-    ) {
+    let lastSwapVenue = routeResponse?.response?.swap_venue
+    if (!lastSwapVenue) {
+      lastSwapVenue =
+        routeResponse?.response?.swap_venues?.[routeResponse?.response?.swap_venues?.length - 1]
+    }
+    const lastSwapVenueChainId = lastSwapVenue?.chain_id
+
+    if (!mergedAssets || !routeResponse?.response?.does_swap || !lastSwapVenueChainId) {
       return undefined
     }
 
     const messageIndex = 0
-    const messageObj = messages[messageIndex]
+    const messageObj = messages?.messages[messageIndex]
     let min_asset: any = null
     let amount = 0
     let denom = ''
@@ -1002,8 +1015,7 @@ export function useSwapsTx({
 
     const leapFeePercentage = (Number(appliedLeapFeeBps) * 0.01) / 100
 
-    const swapVenueChainId = (routeResponse?.response as RouteResponse)?.swap_venue?.chain_id
-    const skipAsset = mergedAssets[swapVenueChainId ?? ''].find(
+    const skipAsset = mergedAssets[lastSwapVenueChainId ?? ''].find(
       (asset) => asset.denom.replace(/(cw20:|erc20\/)/g, '') === denom,
     )
     if (skipAsset && amount > 0) {
@@ -1013,7 +1025,8 @@ export function useSwapsTx({
     return {
       feeAmountValue: feeAmountValue ? feeAmountValue : null,
       feeCharged: Number(appliedLeapFeeBps) * 0.01,
-      feeCollectionAddress: leapFeeAddresses && (leapFeeAddresses[swapVenueChainId ?? ''] ?? ''),
+      feeCollectionAddress:
+        leapFeeAddresses && (leapFeeAddresses[lastSwapVenueChainId ?? ''] ?? ''),
       swapFeeDenomInfo: skipAsset,
     }
   }, [
@@ -1227,14 +1240,14 @@ export function useSwapsTx({
       return {
         aggregator: RouteAggregator.LIFI,
         route: routeResponse,
-        messages: messages as LifiMsgWithCustomTxHash[] | undefined,
+        messages: messages?.messages as LifiMsgWithCustomTxHash[] | undefined,
         userAddresses: userAddresses,
       }
     }
     return {
       aggregator: RouteAggregator.SKIP,
       route: routeResponse,
-      messages: messages as SkipMsgWithCustomTxHash[] | undefined,
+      messages: messages?.messages as SkipMsgWithCustomTxHash[] | undefined,
       userAddresses: userAddresses,
     }
   }, [messages, routeResponse, userAddresses])

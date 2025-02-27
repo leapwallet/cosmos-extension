@@ -37,7 +37,7 @@ export class SeiEvmTx {
   }
 
   // EIP-1559 fee mechanism
-  public static async GasPrices(rpc?: string) {
+  public static async GasPrices(rpc?: string, multiplier?: Record<EvmFeeType, number>) {
     const feeHistory = await SeiEvmTx.EthFeeHistory(
       EVM_FEE_HISTORY_BLOCK_COUNT,
       EVM_FEE_HISTORY_NEWEST_BLOCK,
@@ -54,7 +54,7 @@ export class SeiEvmTx {
 
       for (const key in EVM_FEE_SETTINGS) {
         baseFeePerGases[key as EvmFeeType] = new BigNumber(latestBaseFeePerGas).multipliedBy(
-          EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier,
+          multiplier?.[key as EvmFeeType] ?? EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier,
         );
 
         const priorityFeesPerGas = feeHistory.reward?.map(
@@ -112,7 +112,7 @@ export class SeiEvmTx {
       if (block && latestBaseFeePerGas && maxPriorityFeePerGas) {
         const baseFeePerGases = Object.keys(EVM_FEE_SETTINGS).reduce((acc: Record<EvmFeeType, BigNumber>, key) => {
           acc[key as EvmFeeType] = new BigNumber(latestBaseFeePerGas).multipliedBy(
-            EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier,
+            multiplier?.[key as EvmFeeType] ?? EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier,
           );
           return acc;
         }, {} as Record<EvmFeeType, BigNumber>);
@@ -135,7 +135,7 @@ export class SeiEvmTx {
         if (gasPrice) {
           const gasPrices = Object.keys(EVM_FEE_SETTINGS).reduce((acc: Record<EvmFeeType, string>, key) => {
             acc[key as EvmFeeType] = new BigNumber(Number(gasPrice))
-              .multipliedBy(EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier)
+              .multipliedBy(multiplier?.[key as EvmFeeType] ?? EVM_FEE_SETTINGS[key as EvmFeeType].gasMultiplier)
               .toString();
 
             return acc;
@@ -278,7 +278,15 @@ export class SeiEvmTx {
     return await SeiEvmTx.fetchRequest(fetchParams, rpc);
   }
 
-  async sendTransaction(_: string, toAddress: string, value: string, gas: number, gasPrice?: number, data?: BytesLike) {
+  async sendTransaction(
+    _: string,
+    toAddress: string,
+    value: string,
+    gas: number,
+    gasPrice?: number,
+    data?: BytesLike,
+    wait: boolean = true,
+  ) {
     const weiValue = parseEther(value);
     const txn = await this.wallet.sendTransaction({
       to: toAddress,
@@ -288,8 +296,16 @@ export class SeiEvmTx {
       data,
     });
 
-    await txn.wait();
+    if (wait) {
+      await txn.wait();
+    }
     return txn;
+  }
+
+  public static async waitForTransaction(txHash: string, chainId: number, rpcUrl?: string) {
+    const provider = new JsonRpcProvider(rpcUrl, chainId);
+    provider.getTransaction(txHash);
+    return await provider.waitForTransaction(txHash);
   }
 
   async sendERC20Transaction(
@@ -299,6 +315,7 @@ export class SeiEvmTx {
     decimals: number,
     gas: number,
     gasPrice?: number,
+    wait: boolean = true,
   ) {
     const weiValue = parseUnits(value, decimals);
     const contract = new Contract(contractAddress, abiERC20);
@@ -313,7 +330,9 @@ export class SeiEvmTx {
     };
 
     const txn = await this.wallet.sendTransaction(txObject);
-    await txn.wait();
+    if (wait) {
+      await txn.wait();
+    }
     return txn;
   }
 

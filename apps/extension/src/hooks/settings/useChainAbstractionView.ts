@@ -1,6 +1,7 @@
 import { useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useEffect, useState } from 'react'
+import { nmsStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -20,7 +21,7 @@ export function useChainAbstractionView() {
       (activeChain as AggregatedSupportedChain) !== AGGREGATED_CHAIN_KEY
     ) {
       const fn = async () => {
-        await rootDenomsStore.readyPromise
+        await Promise.allSettled([rootDenomsStore.readyPromise, nmsStore.readyPromise])
         rootBalanceStore.loadBalances('aggregated', 'mainnet')
       }
       fn()

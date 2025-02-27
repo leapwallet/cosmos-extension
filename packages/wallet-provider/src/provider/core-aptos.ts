@@ -53,7 +53,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LINE_TYPE, RequestSignAptosMsg } from './types';
 import { APTOS_METHOD_TYPE } from './types/aptos';
 
-const IDENTIFIER = 'leap';
+const IDENTIFIER = process.env.APP?.includes('compass') ? 'compass' : 'leap';
 export const APTOS_CHAIN_IDS = ['aptos-1', 'aptos-2', 'aptos-126', 'aptos-177', 'aptos-250'];
 
 /**
@@ -154,9 +154,9 @@ export class LeapAptos implements AptosWallet {
   //chains = APTOS_CHAINS.filter((chain) => !chain.includes('devnet'));
   chainIds: string[] = APTOS_CHAIN_IDS;
   activeNetwork: NetworkInfo & { chainKey: string } = {
-    name: Network.CUSTOM,
-    chainId: Number(ChainInfos.movement.testnetChainId?.replace('aptos-', '') ?? ''),
-    url: ChainInfos.movement.apis.restTest,
+    name: Network.MAINNET,
+    chainId: Number(ChainInfos.movement.chainId?.replace('aptos-', '') ?? ''),
+    url: ChainInfos.movement.apis.rpc,
     chainKey: ChainInfos.movement.key,
   };
 
@@ -300,15 +300,13 @@ export class LeapAptos implements AptosWallet {
    * @throws Error when unable to connect to the Wallet provider.
    */
   connect: AptosConnectMethod = async (
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _?: boolean,
-    networkInfo?: NetworkInfo,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _networkInfo?: NetworkInfo,
   ): Promise<UserResponse<AptosConnectOutput>> => {
     try {
-      const chainIds = networkInfo ? [`aptos-${networkInfo.chainId}`] : this.chainIds;
-      // TODO: replace this with non-hardcoded chains
-      const response = await this.requestWrapper(APTOS_METHOD_TYPE.GET_KEYS, {
-        chainIds,
-      });
+      const response = await this.requestWrapper(APTOS_METHOD_TYPE.GET_KEYS);
       const key = response?.keys[0];
       this.accounts = [
         new LeapWalletAccount({
@@ -347,7 +345,7 @@ export class LeapAptos implements AptosWallet {
       }
 
       const chainId = Number(networkInfo.chainId?.replace('aptos-', ''));
-      const networkName = [1, 2].includes(chainId) ? networkInfo.selectedNetwork : Network.CUSTOM;
+      const networkName = networkInfo.selectedNetwork;
       this.activeNetwork = {
         name: networkName,
         chainId: chainId,
@@ -368,9 +366,7 @@ export class LeapAptos implements AptosWallet {
    * @returns Resolves when done cleaning up.
    */
   disconnect: AptosDisconnectMethod = async (): Promise<void> => {
-    await this.requestWrapper(APTOS_METHOD_TYPE.DISCONNECT, {
-      chainId: this.chainIds,
-    });
+    await this.requestWrapper(APTOS_METHOD_TYPE.DISCONNECT);
 
     return;
   };
@@ -393,7 +389,7 @@ export class LeapAptos implements AptosWallet {
     const txBytes = Buffer.from(serializer.toUint8Array()).toString('hex');
     const msg = new RequestSignAptosMsg(chainId, this.accounts[0].address, txBytes, false, false, {
       asFeePayer,
-      preferNoSetFee: true,
+      preferNoSetFee: transaction?.rawTransaction?.max_gas_amount !== undefined,
     });
     msg.validateBasic();
     const signResponse = await this.requestWrapper(APTOS_METHOD_TYPE.SIGN_TRANSACTION, msg);
@@ -458,7 +454,6 @@ export class LeapAptos implements AptosWallet {
       throw new Error('Invalid transaction payload. Currently only entry function payloads are supported.');
     }
     const config = new AptosConfig({
-      network: this.activeNetwork.name,
       fullnode: this.activeNetwork.url ?? '',
     });
     const aptos = new Aptos(config);
@@ -480,7 +475,7 @@ export class LeapAptos implements AptosWallet {
     const txBytes = Buffer.from(serializer.toUint8Array()).toString('hex');
     const msg = new RequestSignAptosMsg(chainId, this.accounts[0].address, txBytes, true, false, {
       asFeePayer: false,
-      preferNoSetFee: true,
+      preferNoSetFee: transaction.maxGasAmount !== undefined,
     });
     msg.validateBasic();
     const txHash = await this.requestWrapper(APTOS_METHOD_TYPE.SIGN_TRANSACTION, msg);
@@ -566,11 +561,13 @@ export class LeapAptos implements AptosWallet {
         });
       }
       const chainId = `aptos-${input.chainId}`;
-      if (!this.chainIds.includes(chainId)) {
-        throw new Error('Chain not supported');
-      }
       const existingChainId = `aptos-${this.activeNetwork.chainId}`;
-      await this.requestWrapper(APTOS_METHOD_TYPE.SWITCH_NETWORK, { chainId, existingChainId });
+      const response = await this.requestWrapper(APTOS_METHOD_TYPE.SWITCH_NETWORK, { chainId, existingChainId });
+      if (!response.success) {
+        throw new Error('Failed to switch network');
+      }
+
+      this.network();
 
       return Promise.resolve({
         status: UserResponseStatus.APPROVED,
@@ -608,10 +605,12 @@ export class LeapAptos implements AptosWallet {
   onNetworkChange: AptosOnNetworkChangeMethod = async (input: AptosOnNetworkChangeInput): Promise<void> => {
     window.addEventListener('leap_activeChainInfoChanged', (e) => {
       const { chainId: _chainId, network, restUrl, chainKey } = (e as CustomEvent).detail.data;
+      const isAptosChain = _chainId?.startsWith('aptos-');
       const chainId = Number(_chainId?.replace('aptos-', ''));
 
-      if (this.activeNetwork.chainId !== chainId || this.activeNetwork.name !== network) {
-        const networkName = [1, 2].includes(chainId) ? network : Network.CUSTOM;
+      if ((isAptosChain && this.activeNetwork.chainId !== chainId) || this.activeNetwork.name !== network) {
+        console.log('onNetworkChange', { chainId, network, restUrl, chainKey });
+        const networkName = network;
         this.activeNetwork = {
           name: networkName,
           chainId: chainId,

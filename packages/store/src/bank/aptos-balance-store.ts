@@ -1,4 +1,4 @@
-import { Aptos, APTOS_COIN, AptosConfig, Network } from '@aptos-labs/ts-sdk';
+import { Aptos, APTOS_COIN, AptosConfig } from '@aptos-labs/ts-sdk';
 import { aptosChainNativeTokenMapping, axiosWrapper } from '@leapwallet/cosmos-wallet-sdk';
 import { AxiosError } from 'axios';
 import { makeObservable } from 'mobx';
@@ -23,7 +23,6 @@ export class AptosBalanceStore extends BaseQueryStore<IRawBalanceResponse> {
   async getNativeTokenBalance() {
     try {
       const config = new AptosConfig({
-        network: Network.CUSTOM,
         fullnode: this.restUrl,
       });
       const aptos = new Aptos(config);

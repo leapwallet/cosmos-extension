@@ -19,6 +19,8 @@ export const transactionDeclinedError2 = 'Condition of use not satisfied (denied
 export const sizeLimitExceededError = 'Ledger Native Error: Data is invalid : JSON. Too many tokens';
 export const declinedCosmosAppOpenError = 'Please open the Cosmos app on your Ledger device.';
 export const declinedEthAppOpenError = 'Please open the Ethereum app on your Ledger device.';
+export const ethAppEnableContractDataError =
+  'Please enable Blind signing or Contract data in the Ethereum app Settings';
 
 export const transactionDeclinedErrors = [
   transactionDeclinedError,

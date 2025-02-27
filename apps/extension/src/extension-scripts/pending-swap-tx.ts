@@ -1,5 +1,11 @@
 // eslint-disable-next-line simple-import-sort/imports
-import { LifiTrackerResponse, SKIP_TXN_STATUS, TXN_STATUS } from '@leapwallet/elements-core'
+import {
+  LifiTrackerResponse,
+  LifiTransactionStatus,
+  SKIP_TXN_STATUS,
+  SkipAPI,
+  TXN_STATUS,
+} from '@leapwallet/elements-core'
 import { originalFetch } from './fetch-preserver'
 import { sleep } from '@leapwallet/cosmos-wallet-sdk'
 import { PENDING_SWAP_TXS } from 'config/storage-keys'
@@ -10,6 +16,7 @@ import {
   convertLifiErrorToDisplayError,
   convertLifiStatusToTxnStatus,
 } from 'pages/swaps-v2/utils/lifiTracking'
+import { convertSkipStatusToTxnStatus } from 'pages/swaps-v2/utils'
 
 const pendingTxTrackPromises: Record<string, Promise<'not-tracked' | 'resolved'> | undefined> = {}
 
@@ -29,7 +36,14 @@ async function getTxnStatus({
   tx_hash: string
   chain_id: string
   aggregator: RouteAggregator
-}) {
+}): Promise<{
+  success: boolean
+  response: {
+    error?: string | object
+    state?: TXN_STATUS
+    rawStatus?: LifiTransactionStatus
+  }
+}> {
   if (aggregator === RouteAggregator.LIFI) {
     const result = await originalFetch(`https://li.quest/v1/status?txHash=${tx_hash}`, {
       method: 'GET',
@@ -38,7 +52,9 @@ async function getTxnStatus({
     if (!result.ok) {
       return {
         success: false,
-        error: 'Unable to get txn status',
+        response: {
+          error: new Error('Unable to get txn status'),
+        },
       }
     }
     const data: LifiTrackerResponse = await result.json()
@@ -60,23 +76,26 @@ async function getTxnStatus({
           },
     }
   }
-  const result = await originalFetch(
-    `https://api.skip.money/v1/tx/status?tx_hash=${tx_hash}&chain_id=${chain_id}`,
-    {
-      method: 'GET',
-    },
-  )
+  const result = await SkipAPI.getTxnStatus({
+    chain_id,
+    tx_hash,
+  })
 
-  if (!result.ok) {
+  if (!result.success) {
     return {
       success: false,
-      error: 'Unable to get txn status',
+      response: {
+        error: 'Unable to get txn status',
+      },
     }
   }
-  const data = await result.json()
+  const data = result.response
   return {
     success: true,
-    response: data,
+    response: {
+      error: data.error?.message,
+      state: convertSkipStatusToTxnStatus(data.state),
+    },
   }
 }
 
@@ -127,7 +146,7 @@ export async function trackPendingSwapTx(key: string, pendingTx: TxStoreObject) 
           const isFailedLifiTxn =
             pendingTx.routingInfo?.aggregator === RouteAggregator.LIFI &&
             state === TXN_STATUS.FAILED
-          if (SKIP_TERMINAL_STATES.includes(state)) {
+          if (SKIP_TERMINAL_STATES.includes(state ?? TXN_STATUS.PENDING)) {
             if (!isFailedLifiTxn || retryCount > 20) {
               await addTxToPendingTxList(pendingTx)
               break
@@ -138,8 +157,8 @@ export async function trackPendingSwapTx(key: string, pendingTx: TxStoreObject) 
             await sleep(3000)
             retryCount += 1
           }
-          if (error?.code && retryCount > 20) {
-            throw new Error(error.message)
+          if (typeof error === 'object' && 'code' in error && retryCount > 20) {
+            throw new Error((error as { code: number; message: string }).message)
           }
         }
 
@@ -148,6 +167,7 @@ export async function trackPendingSwapTx(key: string, pendingTx: TxStoreObject) 
     } catch (error) {
       // eslint-disable-next-line no-console
       console.log('track background error', error)
+      return 'not-tracked'
     }
   }
   return 'resolved'
