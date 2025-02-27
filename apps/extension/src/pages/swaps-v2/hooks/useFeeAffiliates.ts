@@ -19,8 +19,13 @@ export const useFeeAffiliates = (
 
   const affiliates = useMemo(() => {
     if (!routeResponse?.response || !enabled) return undefined
-    const swapVenue = routeResponse?.response.swap_venue
-    const lastSwapVenueChainId = swapVenue?.chain_id as string
+    let lastSwapVenue = routeResponse?.response?.swap_venue
+    if (!lastSwapVenue) {
+      lastSwapVenue =
+        routeResponse?.response?.swap_venues?.[routeResponse?.response?.swap_venues?.length - 1]
+    }
+    const lastSwapVenueChainId = lastSwapVenue?.chain_id as string
+    if (!lastSwapVenueChainId) return undefined
     const externalAffiliates = feesInfo?.map(({ basisPointFee, feeAddresses }) => {
       return {
         basis_points_fee: String(basisPointFee),

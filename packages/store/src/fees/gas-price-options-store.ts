@@ -32,7 +32,7 @@ export class ChainGasPriceOptionsStore {
   finalRecommendedGasLimit: string;
   viewAdditionalOptions = false;
   error: string | null = null;
-  feeTokenData: FeeToken;
+  feeTokenData: FeeToken = undefined;
   userHasSelectedToken: boolean = false;
   feeIbcDenomTracker: { current?: string; previous?: string } = {};
   gasPriceOption?: GasPriceOption;

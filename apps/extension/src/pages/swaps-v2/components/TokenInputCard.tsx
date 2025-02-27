@@ -4,11 +4,10 @@ import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import { IconActionButton } from 'pages/home/components'
 import React, {
   Dispatch,
   SetStateAction,
@@ -46,6 +45,7 @@ type TokenInputCardProps = {
   showFor?: 'source' | 'destination'
   selectedChain?: SourceChain
   isChainAbstractionView?: boolean
+  assetUsdValue?: BigNumber
 }
 
 function TokenInputCardView({
@@ -68,6 +68,7 @@ function TokenInputCardView({
   showFor,
   selectedChain,
   isChainAbstractionView,
+  assetUsdValue,
 }: TokenInputCardProps) {
   const [formatCurrency] = useFormatCurrency()
   const { theme } = useTheme()
@@ -104,6 +105,15 @@ function TokenInputCardView({
       _dollarAmount = String(parseFloat(token.usdPrice) * parseFloat(value))
     }
 
+    if (
+      (!_dollarAmount || _dollarAmount === '0') &&
+      assetUsdValue &&
+      !assetUsdValue.isNaN() &&
+      assetUsdValue.gt(0)
+    ) {
+      _dollarAmount = assetUsdValue.toString()
+    }
+
     return {
       dollarAmount: _dollarAmount,
       formattedDollarAmount: hideAssetsStore.formatHideBalance(
@@ -111,7 +121,7 @@ function TokenInputCardView({
       ),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formatCurrency, token, value])
+  }, [formatCurrency, token, value, assetUsdValue])
 
   const formattedInputValue = useMemo(() => {
     return hideAssetsStore.formatHideBalance(
@@ -135,6 +145,10 @@ function TokenInputCardView({
   const showMaxButton = useMemo(() => {
     return showFor === 'source' && token?.amount && token?.amount !== '0' && !isMaxAmount
   }, [isMaxAmount, showFor, token?.amount])
+
+  const isHalfAmount = token && Number(token.amount) === 2 * Number(value)
+  const showHalfAmountBtn =
+    showFor === 'source' && token?.amount && token?.amount !== '0' && !isHalfAmount
 
   const switchToUSDDisabled = useMemo(() => {
     return !selectedAssetUSDPrice || new BigNumber(selectedAssetUSDPrice ?? 0).isLessThan(10 ** -6)
@@ -182,6 +196,20 @@ function TokenInputCardView({
       setTextInputValue(usdAmount.toString())
     } else {
       setTextInputValue(token?.amount ?? '0')
+    }
+  }, [isInputInUSDC, selectedAssetUSDPrice, token?.amount, setTextInputValue])
+
+  const onHalfBtnClick = useCallback(() => {
+    if (isInputInUSDC) {
+      if (!selectedAssetUSDPrice) throw 'USD price is not available'
+
+      const usdAmount = new BigNumber(token?.amount ?? '0')
+        .dividedBy(2)
+        .multipliedBy(selectedAssetUSDPrice)
+      setTextInputValue(usdAmount.toString())
+    } else {
+      const amount = new BigNumber(token?.amount ?? '0').dividedBy(2).toFixed(6, 1)
+      setTextInputValue(amount)
     }
   }, [isInputInUSDC, selectedAssetUSDPrice, token?.amount, setTextInputValue])
 
@@ -287,10 +315,14 @@ function TokenInputCardView({
               onClick={onTokenSelectSheet}
             >
               <div className='relative'>
-                <img
-                  src={token?.img ?? defaultTokenLogo}
-                  className='w-[24px] h-[24px] rounded-full'
-                  onError={imgOnError(defaultTokenLogo)}
+                <TokenImageWithFallback
+                  assetImg={token?.img}
+                  text={token?.symbol ?? token?.name ?? ''}
+                  altText={token?.symbol ?? token?.name ?? ''}
+                  imageClassName='w-[24px] h-[24px] rounded-full'
+                  containerClassName='w-[24px] h-[24px] !bg-gray-200 dark:!bg-gray-800'
+                  textClassName='text-[7px] !leading-[11px]'
+                  key={token?.img}
                 />
                 {selectedChain ? (
                   <img
@@ -379,10 +411,18 @@ function TokenInputCardView({
               )}
             </span>
           )}
+          {showHalfAmountBtn && (
+            <button
+              onClick={onHalfBtnClick}
+              className='rounded-full dark:bg-gray-850 bg-gray-100 py-1 px-[10px] font-medium text-xs dark:text-gray-400 text-gray-600 hover:!bg-[#29A87433] hover:!text-[#22D292]'
+            >
+              50%
+            </button>
+          )}
           {showMaxButton && (
             <button
               onClick={onMaxBtnClick}
-              className='rounded-full bg-[#29A87433] py-1 px-[10px] font-medium text-xs text-[#22D292]'
+              className='rounded-full dark:bg-gray-850 bg-gray-100 py-1 px-[10px] font-medium text-xs dark:text-gray-400 text-gray-600 hover:!bg-[#29A87433] hover:!text-[#22D292]'
             >
               Max
             </button>

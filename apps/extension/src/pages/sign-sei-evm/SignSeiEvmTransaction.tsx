@@ -4,6 +4,7 @@ import {
   formatEtherUnits,
   getChainApis,
   getErc20TokenDetails,
+  getErc721TokenDetails,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { MessageTypes } from 'config/message-types'
@@ -132,18 +133,40 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
         const { evmJsonRpc } = getChainApis(chainKey, network, supportedChains)
 
         if (txnData?.signTxnData?.spendPermissionCapValue) {
-          const tokenDetails = await getErc20TokenDetails(
-            txnData.signTxnData.to,
-            evmJsonRpc ?? '',
-            Number(evmChainId),
-          )
-          txnData.signTxnData.details = {
-            Permission: `This allows the third party to spend ${formatEtherUnits(
-              txnData.signTxnData.spendPermissionCapValue,
-              tokenDetails.decimals,
-            )} ${tokenDetails.symbol} from your current balance.`,
-
-            ...txnData.signTxnData.details,
+          try {
+            let tokenDetails
+            try {
+              tokenDetails = await getErc20TokenDetails(
+                txnData.signTxnData.to,
+                evmJsonRpc ?? '',
+                Number(evmChainId),
+              )
+              txnData.signTxnData.details = {
+                Permission: `This allows the third party to spend ${formatEtherUnits(
+                  txnData.signTxnData.spendPermissionCapValue,
+                  tokenDetails?.decimals ?? 18,
+                )} ${tokenDetails.symbol} from your current balance.`,
+                ...txnData.signTxnData.details,
+              }
+            } catch (error) {
+              // eslint-disable-next-line no-console
+              console.error(
+                'Error fetching token details as ERC20 token, retrying as ERC721 token',
+                error,
+              )
+              tokenDetails = await getErc721TokenDetails(
+                txnData.signTxnData.to,
+                evmJsonRpc ?? '',
+                Number(evmChainId),
+              )
+              txnData.signTxnData.details = {
+                Permission: `This allows the third party to transfer your ${txnData.signTxnData.spendPermissionCapValue} ${tokenDetails.symbol} token.`,
+                ...txnData.signTxnData.details,
+              }
+            }
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('Error fetching token details', error)
           }
         }
 

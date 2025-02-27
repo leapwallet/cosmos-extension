@@ -1,32 +1,31 @@
-import { useChains } from '@leapwallet/elements-hooks'
 import { LightbulbFilament } from '@phosphor-icons/react'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { TransferAssetRelease } from '@skip-go/client'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import React from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { imgOnError } from 'utils/imgOnError'
 
-import { useDenomData } from '../hooks'
+import { useDenomData, useGetChainsToShow } from '../hooks'
 
-type Props = { transferAssetRelease: { chainId: string; released?: boolean; denom: string } }
+type Props = { transferAssetRelease: TransferAssetRelease }
 
 export default function SwapActionFailedSection({ transferAssetRelease }: Props) {
-  const defaultTokenLogo = useDefaultTokenLogo()
+  const { chainsToShow: chains, chainsToShowLoading: isLoadingChainsInfo } = useGetChainsToShow()
+  const { chainID, denom, released } = transferAssetRelease
+  const { data: denomInfo, isLoading: isLoadingDenomsInfo } = useDenomData(denom, chainID)
 
-  const { data: chains, isLoading: isLoadingChainsInfo } = useChains()
-  const { chainId, denom, released } = transferAssetRelease
-  const { data: denomInfo, isLoading: isLoadingDenomsInfo } = useDenomData(denom, chainId)
-
-  const chain = chains?.find((chain) => chain.chainId === chainId)
+  const chain = chains?.find((chain) => chain.chainId === chainID)
 
   return (
     <div className='flex w-full rounded-2xl bg-white-100 dark:bg-gray-950 flex-col items-center justify-center gap-4 p-4'>
       <div className='flex w-full flex-row justify-between items-center gap-2'>
         <div className='flex flex-row items-center gap-2 justify-start'>
-          <img
-            src={denomInfo?.icon ?? defaultTokenLogo}
-            onError={imgOnError(defaultTokenLogo)}
-            className='rounded-full h-6 w-6'
-            alt={'token-logo'}
+          <TokenImageWithFallback
+            assetImg={denomInfo?.icon}
+            text={denomInfo?.coinDenom ?? denom}
+            altText={denomInfo?.coinDenom ?? denom}
+            imageClassName='rounded-full h-6 w-6'
+            containerClassName='rounded-full h-6 w-6 bg-gray-100 dark:bg-gray-850'
+            textClassName='text-[7px] !leading-[12px]'
           />
           <span className='text-sm font-bold text-black-100 dark:text-white-100 !leading-[19.6px]'>
             {isLoadingDenomsInfo ? (
@@ -45,7 +44,7 @@ export default function SwapActionFailedSection({ transferAssetRelease }: Props)
           {isLoadingChainsInfo ? (
             <Skeleton width={70} height={17} containerClassName='inline rounded-xl !leading-none' />
           ) : (
-            chain?.chainName ?? chainId
+            chain?.chainName ?? chainID
           )}
         </span>
       </div>

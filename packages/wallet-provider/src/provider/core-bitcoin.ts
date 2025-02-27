@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { BITCOIN_METHOD_TYPE, ILeapBitcoin, LINE_TYPE, Network } from './types';
 
-const IDENTIFIER = 'leap';
+const IDENTIFIER = process.env.APP?.includes('compass') ? 'compass' : 'leap';
 
 export class LeapBitcoin implements ILeapBitcoin {
   private inpageStream: WindowPostMessageStream;

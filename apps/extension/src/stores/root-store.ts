@@ -38,6 +38,8 @@ export const rootBalanceStore = new RootBalanceStore(
   chainInfoStore,
   evmBalanceStore,
   compassTokensAssociationsStore,
+  addressStore,
+  selectedNetworkStore,
 )
 
 export const rootStore = new RootStore(

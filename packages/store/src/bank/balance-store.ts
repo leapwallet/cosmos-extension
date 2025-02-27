@@ -408,6 +408,7 @@ export class BalanceStore {
     tokensToAddInDenoms: DenomsRecord,
   ) {
     const chainInfos = this.chainInfosStore.chainInfos;
+    await this.waitForPriceStore();
     const coingeckoPrices = this.priceStore.data;
 
     const rootDenoms = this.rootDenomsStore.allDenoms;
@@ -629,6 +630,14 @@ export class BalanceStore {
       return this.getAggregatedTokens(balanceSource, network);
     } else {
       return this.getChainTokens(chain as SupportedChain, network, balanceSource);
+    }
+  }
+
+  private async waitForPriceStore() {
+    try {
+      await this.priceStore.readyPromise;
+    } catch (e) {
+      //
     }
   }
 }

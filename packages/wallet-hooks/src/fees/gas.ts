@@ -15,6 +15,6 @@ export const useGasAdjustmentForChain = (forceChain?: string) => {
       return defaultGasAdjustments[chain];
     }
 
-    return gasAdjustments[chain] ?? gasAdjustments.cosmos;
+    return gasAdjustments[chain] ?? defaultGasAdjustments[chain] ?? gasAdjustments.cosmos;
   }, [gasAdjustments, chain]);
 };

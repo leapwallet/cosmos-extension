@@ -1,21 +1,21 @@
 import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
-import {
-  SkipSupportedChainData,
-  useChains,
-  useSkipSupportedChains,
-} from '@leapwallet/elements-hooks'
+import { useChains, useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import { useNonNativeCustomChains } from 'hooks/useNonNativeCustomChains'
 import { useMemo } from 'react'
 import { SourceChain } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
+import { useProviderFeatureFlags } from './useProviderFeatureFlags'
+
 export function useGetChainsToShow() {
   const chains = useGetChains()
   const customChains = useNonNativeCustomChains()
-
+  const { isEvmSwapEnabled } = useProviderFeatureFlags()
   const { isLoading } = useChains()
   const { data: skipSupportedChains, isLoading: skipSupportedChainsLoading } =
-    useSkipSupportedChains()
+    useSkipSupportedChains({
+      chainTypes: isEvmSwapEnabled ? ['cosmos', 'evm'] : ['cosmos'],
+    })
 
   const chainsToShow = useMemo(() => {
     if (skipSupportedChains) {
@@ -27,11 +27,12 @@ export function useGetChainsToShow() {
         .filter((chain) => (isCompassWallet() ? chain.chainId === 'pacific-1' : true))
         .forEach((chain) => {
           const skipChain = skipSupportedChains.find(
-            (_skipChain): _skipChain is Extract<SkipSupportedChainData, { chainType: 'cosmos' }> =>
-              _skipChain.chainId === chain.chainId,
+            (_skipChain) =>
+              _skipChain.chainId === chain.chainId ||
+              (chain.evmOnlyChain && _skipChain.chainId === chain.evmChainId),
           )
 
-          if (skipChain) {
+          if (skipChain?.chainType === 'cosmos') {
             _chainsToShow.push({
               key: chain.key,
               addressPrefix: skipChain.bech32Prefix ?? chain.addressPrefix,
@@ -51,6 +52,23 @@ export function useGetChainsToShow() {
               bech32Prefix: skipChain.bech32Prefix ?? chain.addressPrefix,
               isTestnet: false,
               enabled: !!chains[chain.key], // disable custom chains
+            })
+          } else if (skipChain?.chainType === 'evm') {
+            const chainId = skipChain.chainId as string
+            _chainsToShow.push({
+              key: chain.key,
+              baseDenom: skipChain.baseDenom ?? Object.keys(chain.nativeDenoms)[0],
+              chainId: (chainId ?? chain.chainId) as never,
+              chainName: skipChain.chainName ?? chain.chainName,
+              coinType: chain.bip44?.coinType,
+              chainType: skipChain.chainType,
+              icon: chain.chainSymbolImageUrl ?? skipChain.icon,
+              txExplorer: skipChain.txExplorer ?? chain.txExplorer,
+              pfmEnabled: skipChain.pfmEnabled,
+              logoUri: skipChain.logoUri ?? chain.chainSymbolImageUrl,
+              bech32Prefix: skipChain.bech32Prefix ?? chain.addressPrefix,
+              isTestnet: false,
+              enabled: !!chains[chain.key],
             })
           }
         })

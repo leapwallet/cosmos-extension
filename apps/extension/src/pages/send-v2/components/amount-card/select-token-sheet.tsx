@@ -3,11 +3,9 @@ import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
 import { SearchInput } from 'components/search-input'
-import useQuery from 'hooks/useQuery'
 import { useSendContext } from 'pages/send-v2/context'
 import { TokenCard } from 'pages/swaps-v2/components/TokenCard'
 import React, { useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
 import { SourceToken } from 'types/swap'
 
 type SelectTokenSheetProps = {
@@ -29,20 +27,7 @@ export const SelectTokenSheet = ({
 }: SelectTokenSheetProps) => {
   const [searchQuery, setSearchQuery] = useState('')
   const { sendActiveChain } = useSendContext()
-  const locationState = useLocation().state
   const activeChainInfo = useChainInfo(sendActiveChain)
-
-  // TODO: remove this if unused please?
-  let assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
-  assetCoinDenom = useMemo(() => {
-    if (locationState && (locationState as Token).coinMinimalDenom) {
-      const token = locationState as Token
-
-      return token.ibcDenom || token.coinMinimalDenom
-    }
-
-    return assetCoinDenom
-  }, [assetCoinDenom, locationState])
 
   const _assets = useMemo(() => {
     return assets.filter((token) => {
@@ -76,17 +61,19 @@ export const SelectTokenSheet = ({
       closeOnBackdropClick={true}
       onClose={onClose}
       contentClassName='!bg-white-100 dark:!bg-gray-950'
-      className='p-6'
+      className='p-0 scrollbar'
     >
-      <div className='flex flex-col items-center h-full'>
-        <SearchInput
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onClear={() => setSearchQuery('')}
-          placeholder='Search tokens...'
-          divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
-          inputClassName='flex flex-grow text-base outline-none bg-white-0 font-bold text-black-100 dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400 !leading-[21px]'
-        />
+      <div className='flex flex-col items-center h-full py-6'>
+        <div className='w-full px-6'>
+          <SearchInput
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onClear={() => setSearchQuery('')}
+            placeholder='Search tokens...'
+            divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
+            inputClassName='flex flex-grow text-base outline-none bg-white-0 font-bold text-black-100 dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400 !leading-[21px]'
+          />
+        </div>
 
         <div
           className='bg-white-100 dark:bg-gray-950 rounded-2xl min-h-[200px] max-h-[calc(100%-240px)] w-full mt-4'
@@ -115,13 +102,13 @@ export const SelectTokenSheet = ({
                     showRedirection={false}
                   />
                   {!isLast && (
-                    <div className='border-b w-full border-gray-100 dark:border-gray-850' />
+                    <div className='border-b mx-6 border-gray-100 dark:border-gray-850' />
                   )}
                 </React.Fragment>
               )
             })
           ) : (
-            <NoSearchResults searchQuery={searchQuery} />
+            <NoSearchResults searchQuery={searchQuery} classname='mx-6' />
           )}
         </div>
       </div>

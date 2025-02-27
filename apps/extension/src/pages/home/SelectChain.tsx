@@ -1,4 +1,4 @@
-import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainsStore, useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
@@ -7,18 +7,22 @@ import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import { AGGREGATED_CHAIN_KEY, PriorityChains } from 'config/constants'
+import { BETA_CHAINS, CONNECTIONS } from 'config/storage-keys'
+import { disconnect } from 'extension-scripts/utils'
 import { useIsAllChainsEnabled } from 'hooks/settings'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { useNonNativeCustomChains } from 'hooks/useNonNativeCustomChains'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ManageChainSettings } from 'stores/manage-chains-store'
-import { manageChainsStore } from 'stores/manage-chains-store'
+import { ManageChainSettings, manageChainsStore } from 'stores/manage-chains-store'
+import { rootStore } from 'stores/root-store'
 import { starredChainsStore } from 'stores/starred-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import browser from 'webextension-polyfill'
 
 import { useActiveChain, useSetActiveChain } from '../../hooks/settings/useActiveChain'
 import AddFromChainStore from './AddFromChainStore'
@@ -55,6 +59,9 @@ export const ListChains = observer(
     const [newSearchedChain, setNewSearchedChain] = useState('')
     const [selectedFilter, setSelectedFilter] = useState(defaultFilter)
     const { activeWallet } = useActiveWallet()
+    const setChains = useChainsStore((store) => store.setChains)
+    const activeChain = useActiveChain()
+    const setActiveChain = useSetActiveChain()
 
     const isAllChainsEnabled = useIsAllChainsEnabled()
     const { theme } = useTheme()
@@ -82,6 +89,9 @@ export const ListChains = observer(
         if (!tags || tags.length === 0) {
           tags = allChainTags?.[chain.evmChainIdTestnet ?? ''] ?? []
         }
+        if ((!tags || tags.length === 0) && chain.evmOnlyChain) {
+          tags = ['EVM']
+        }
         return tags
       },
       [allChainTags],
@@ -95,7 +105,7 @@ export const ListChains = observer(
 
     const searchedChain = paramsSearchedChain ?? newSearchedChain
     const setSearchedChain = paramsSetSearchedChain ?? setNewSearchedChain
-
+    const nonNativeCustomChains = useNonNativeCustomChains()
     const chainInfos = useChainInfos()
     const allNativeChainID = Object.values(chainInfos)
       .filter((chain) => chain.enabled)
@@ -109,6 +119,7 @@ export const ListChains = observer(
 
     const _customChains: ManageChainSettings[] = customChains
       .filter((d) => !allNativeChainID.includes(d.chainId))
+      .filter((d) => !manageChainsStore.chains.map((chain) => chain.chainId).includes(d.chainId))
       .sort((a, b) => a.chainName.localeCompare(b.chainName))
       .map((d, index) => ({
         active: d.enabled,
@@ -119,6 +130,7 @@ export const ListChains = observer(
         preferenceOrder: 100 + index,
         chainId: d.chainId,
         testnetChainId: d.testnetChainId,
+        evmOnlyChain: d.evmOnlyChain,
       }))
 
     const showChains = useMemo(
@@ -159,10 +171,13 @@ export const ListChains = observer(
           return false
         }
 
-        const chainName = chainInfos[chain.chainName]?.chainName ?? chain.chainName
+        const chainName =
+          chainInfos[chain.chainName]?.chainName ??
+          nonNativeCustomChains?.[chain.chainName]?.chainName ??
+          chain.chainName
         return chainName.toLowerCase().includes(searchedChain.toLowerCase())
       })
-    }, [chainInfos, showChains, chainsToShow, onPage, searchedChain])
+    }, [showChains, onPage, chainsToShow, chainInfos, nonNativeCustomChains, searchedChain])
 
     const filteredChains = useMemo(() => {
       let chains = _filteredChains
@@ -248,6 +263,49 @@ export const ListChains = observer(
         }, 100)
       }
     }, [])
+
+    const handleDeleteClick = useCallback(
+      async (chainKey: SupportedChain) => {
+        if (activeChain === chainKey) {
+          await setActiveChain('aggregated')
+        }
+        const oldChains = chainInfos
+        const chainInfo = oldChains[chainKey]
+        delete oldChains[chainKey]
+        setChains(oldChains)
+        rootStore.setChains(oldChains)
+
+        chainTagsStore.removeBetaChainTags(chainKey)
+
+        browser.storage.local.get([BETA_CHAINS, CONNECTIONS]).then(async (resp) => {
+          try {
+            let betaChains = resp?.[BETA_CHAINS]
+            betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
+            delete betaChains[chainKey]
+
+            let connections = resp?.[CONNECTIONS]
+            if (!connections) {
+              connections = {}
+            }
+            Object.values(connections).forEach((wallet: any) => {
+              const originConnections = wallet[chainInfo.chainId]
+              if (originConnections && originConnections.length > 0) {
+                originConnections.forEach((origin: any) =>
+                  disconnect({ chainId: chainInfo.chainId, origin }),
+                )
+              }
+            })
+
+            browser.storage.local.set({
+              [BETA_CHAINS]: JSON.stringify(betaChains),
+            })
+          } catch (error) {
+            //
+          }
+        })
+      },
+      [activeChain, chainInfos, chainTagsStore, setActiveChain, setChains],
+    )
 
     return (
       <>
@@ -339,6 +397,7 @@ export const ListChains = observer(
                 key={chain.chainName + index}
                 chain={chain}
                 handleClick={handleClick}
+                handleDeleteClick={handleDeleteClick}
                 selectedChain={selectedChain}
                 onPage={onPage}
                 index={index}
@@ -361,6 +420,7 @@ export const ListChains = observer(
                       key={chain.chainName + index}
                       chain={chain}
                       handleClick={handleClick}
+                      handleDeleteClick={handleDeleteClick}
                       selectedChain={selectedChain}
                       onPage={onPage}
                       index={index}

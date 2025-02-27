@@ -385,6 +385,16 @@ input[type='number']::-webkit-outer-spin-button {
   /* border: 3px solid #212121; */
 }
 
+.light .scrollbar::-webkit-scrollbar-track {
+  background: #e8e8e8;
+  border-radius: 6px;
+}
+
+.light .scrollbar::-webkit-scrollbar-thumb {
+  background-color: #9e9e9e;
+  border-radius: 2px;
+}
+
 .panel-height {
   height: 600px;
 }

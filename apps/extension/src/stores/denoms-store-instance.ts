@@ -76,6 +76,7 @@ export const rootDenomsStore = new RootDenomsStore(
   denomsStore,
   rootCW20DenomsStore,
   rootERC20DenomsStore,
+  betaNativeDenomsStore,
   chainInfoStore,
 )
 

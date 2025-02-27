@@ -34,7 +34,7 @@ import {
   RootStakeStore,
 } from '@leapwallet/cosmos-wallet-store'
 import { EthWallet } from '@leapwallet/leap-keychain'
-import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
+import { Avatar, Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import {
   MessageParser,
   parfait,
@@ -63,7 +63,7 @@ import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonit
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
-import { GenericLight } from 'images/logos'
+import { GenericDark, GenericLight } from 'images/logos'
 import Long from 'long'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
@@ -71,7 +71,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
-import { dappDefaultFeeStore } from 'stores/fee-store'
+import { dappDefaultFeeStore, feeTokensStore } from 'stores/fee-store'
 import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
@@ -132,6 +132,7 @@ const SignTransaction = observer(
     const isDappTxnInitEventLogged = useRef(false)
     const isRejectedRef = useRef(false)
     const isApprovedRef = useRef(false)
+    const { theme } = useTheme()
 
     const [showWalletSelector, setShowWalletSelector] = useState(false)
     const [showMessageDetailsSheet, setShowMessageDetailsSheet] = useState(false)
@@ -159,7 +160,6 @@ const SignTransaction = observer(
         : 'mainnet'
     }, [chainInfo?.testnetChainId, chainId])
 
-    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, { activeChain })
     const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
@@ -171,7 +171,10 @@ const SignTransaction = observer(
     const { setDefaultFee: setDappDefaultFee } = useDappDefaultFeeStore()
 
     const errorMessageRef = useRef<any>(null)
-    const feeValidation = useFeeValidation(allAssets, denoms, activeChain)
+    const activeChainfeeTokensStore = feeTokensStore.getStore(activeChain, selectedNetwork, false)
+    const feeTokens = activeChainfeeTokensStore?.data
+    const isFeeTokensLoading = activeChainfeeTokensStore?.isLoading
+    const feeValidation = useFeeValidation(denoms, activeChain, feeTokens, isFeeTokensLoading)
 
     useEffect(() => {
       // Check if the error message is rendered and visible
@@ -877,7 +880,11 @@ const SignTransaction = observer(
             header={
               <div className='w-[396px]'>
                 <Header
-                  imgSrc={chainInfo.chainSymbolImageUrl ?? GenericLight}
+                  imgSrc={
+                    chainInfo.chainSymbolImageUrl ??
+                    (theme === ThemeName.DARK ? GenericDark : GenericLight)
+                  }
+                  imgOnError={imgOnError(theme === ThemeName.DARK ? GenericDark : GenericLight)}
                   title={
                     <Buttons.Wallet
                       brandLogo={
@@ -1028,10 +1035,10 @@ const SignTransaction = observer(
                               error={gasPriceError}
                               setError={setGasPriceError}
                               disableBalanceCheck={disableBalanceCheck}
-                              rootDenomsStore={rootDenomsStore}
                               rootBalanceStore={rootBalanceStore}
                               activeChain={activeChain}
                               selectedNetwork={selectedNetwork}
+                              feeTokensList={feeTokens}
                             />
                             <div className='flex items-center justify-end'>
                               <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />

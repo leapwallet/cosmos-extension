@@ -1,6 +1,6 @@
 import { StdFee } from '@cosmjs/stargate'
-import { useGasPriceStepForChain } from '@leapwallet/cosmos-wallet-hooks'
-import { SeiEvmTx } from '@leapwallet/cosmos-wallet-sdk'
+import { useChainApis, useGasPriceStepForChain } from '@leapwallet/cosmos-wallet-hooks'
+import { SeiEvmTx, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { SkipMsg, SkipMsgV2, TransactionRequestType } from '@leapwallet/elements-core'
 import {
   LifiRouteOverallResponse,
@@ -13,6 +13,7 @@ import {
 import { BigNumber } from 'bignumber.js'
 import { compassSeiEvmConfigStore } from 'stores/balance-store'
 import useSWR, { SWRConfiguration, unstable_serialize } from 'swr'
+import { SourceChain } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { SWAP_NETWORK } from './useSwapsTx'
@@ -57,6 +58,7 @@ export function useAggregatorGasFeeSWR(
   routeResponse: SkipRouteResponse | LifiRouteOverallResponse | undefined,
   skipMessages: SkipMsgV2[] | SkipMsg[] | TransactionRequestType[] | undefined,
   userAddressesMap: Record<string, string> | string[] | null,
+  sourceChain: SourceChain | undefined,
   isMainnet: boolean,
   config?: SWRConfiguration,
   enabled = true,
@@ -71,8 +73,73 @@ export function useAggregatorGasFeeSWR(
     enabled && routeResponse?.aggregator !== RouteAggregator.LIFI,
   )
 
+  const { evmJsonRpc } = useChainApis((sourceChain?.key ?? '') as SupportedChain, SWAP_NETWORK)
+
+  const isEvmTx = !!skipMessages?.[0] && 'evm_tx' in skipMessages[0]
+
+  const skipEvmGasFeeSWR = useSWR<SkipGasFeeData>(
+    enabled && !!routeResponse && routeResponse?.aggregator !== RouteAggregator.LIFI && isEvmTx
+      ? unstable_serialize([
+          'skip-evm-gas-fee',
+          routeResponse?.response,
+          routeResponse?.aggregator,
+          skipMessages,
+          userAddressesMap,
+          isMainnet,
+        ])
+      : null,
+    async function calculateGasFee() {
+      try {
+        if (!routeResponse?.response || !skipMessages || !userAddressesMap || !isMainnet) {
+          throw new Error('missing data')
+        }
+
+        const message = skipMessages[0]
+
+        if (!('evm_tx' in message)) {
+          throw new Error('missing data')
+        }
+
+        const evmTx = message.evm_tx
+        const address = (evmTx as any).signer_address
+
+        const gasUsed = await SeiEvmTx.SimulateTransaction(
+          evmTx.to,
+          new BigNumber(evmTx.value.toString()).dividedBy(1e18).toString(),
+          evmJsonRpc ?? '',
+          `0x${evmTx.data}`,
+          undefined,
+          address,
+        )
+
+        const gasFeesAmount: StdFee[] = [
+          {
+            gas: new BigNumber(gasUsed).integerValue(BigNumber.ROUND_UP).toFixed(0),
+            amount: [],
+          },
+        ]
+        return {
+          gasFees: [],
+          gasFeesAmount,
+          gasFeesError: '',
+          usdGasFees: [],
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e)
+        return {
+          gasFees: [],
+          gasFeesAmount: [],
+          gasFeesError: '',
+          usdGasFees: [],
+        }
+      }
+    },
+    config,
+  )
+
   const defaultSeiGasPriceSteps = useGasPriceStepForChain('seiTestnet2', SWAP_NETWORK)
-  const evmJsonRpc = compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_EVM_RPC_URL
+  const seiEvmRpc = compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_EVM_RPC_URL
 
   const defaultSeiGasPrice = defaultSeiGasPriceSteps.low
   // @ts-expect-error bignumber.js types are not compatible with the types in the package
@@ -130,7 +197,7 @@ export function useAggregatorGasFeeSWR(
         gasUsed = await SeiEvmTx.SimulateTransaction(
           message.tokenContract,
           new BigNumber(message.value.toString()).dividedBy(1e18).toString(),
-          evmJsonRpc ?? '',
+          seiEvmRpc ?? '',
           message.data,
           undefined,
           message.from,
@@ -175,6 +242,10 @@ export function useAggregatorGasFeeSWR(
 
   if (routeResponse?.aggregator === RouteAggregator.LIFI) {
     return lifiGasFeeSWRResponse
+  }
+
+  if (isEvmTx) {
+    return skipEvmGasFeeSWR
   }
 
   return skipGasFeeSWRResponse

@@ -6,6 +6,7 @@ import {
   useActiveWallet,
   useAddress,
   useBannerConfig,
+  useChainId,
   useChainInfo,
   useCustomChains,
   useGetBannerData,
@@ -23,6 +24,7 @@ import { DISABLE_BANNER_ADS } from 'config/storage-keys'
 import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import mixpanel from 'mixpanel-browser'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -63,105 +65,108 @@ function getDisplayAds(bannerAds: BannerAD[], disabledBannerAds: string[] | null
   })
 }
 
-function BannerAdCard({
-  bannerData,
-  chain,
-  index,
-  onClick,
-  onClose,
-  handleBtcBannerClick,
-  handleAddChainClick,
-  handleSwitchChainClick,
-  isActive,
-}: {
-  bannerData: BannerADData
-  chain: ChainInfo
-  index: number
-  // eslint-disable-next-line no-unused-vars
-  onClick: (bannerId: string, index: number) => void
-  // eslint-disable-next-line no-unused-vars
-  onClose: (bannerId: string, index: number) => void
-  handleBtcBannerClick: () => void
-  handleAddChainClick: (chain: string) => void
-  handleSwitchChainClick: (chain: string) => void
-  isActive: boolean
-}) {
-  const navigate = useNavigate()
+const BannerAdCard = observer(
+  ({
+    bannerData,
+    chain,
+    index,
+    onClick,
+    onClose,
+    handleBtcBannerClick,
+    handleAddChainClick,
+    handleSwitchChainClick,
+    isActive,
+  }: {
+    bannerData: BannerADData
+    chain: ChainInfo
+    index: number
+    // eslint-disable-next-line no-unused-vars
+    onClick: (bannerId: string, index: number) => void
+    // eslint-disable-next-line no-unused-vars
+    onClose: (bannerId: string, index: number) => void
+    handleBtcBannerClick: () => void
+    handleAddChainClick: (chain: string) => void
+    handleSwitchChainClick: (chain: string) => void
+    isActive: boolean
+  }) => {
+    const navigate = useNavigate()
 
-  const handleClick = useCallback(() => {
-    if (bannerData.id.trim().toLowerCase().includes('nbtc-banner')) {
-      handleBtcBannerClick()
-    } else if (bannerData.banner_type === 'redirect-interanlly') {
-      const bannerId = getMixpanelBannerId(bannerData?.id, bannerData.attributes?.campaign_id)
-      navigate(`${bannerData.redirect_url}&bannerId=${bannerId}`)
-    } else if (bannerData.banner_type === 'add-chain') {
-      handleAddChainClick(bannerData.redirect_url)
-    } else if (bannerData.banner_type === 'switch-chain') {
-      handleSwitchChainClick(bannerData.redirect_url)
-    } else {
-      if (bannerData?.redirect_url && bannerData?.redirect_url !== '#') {
-        window.open(bannerData.redirect_url)
+    const handleClick = useCallback(() => {
+      if (bannerData.id.trim().toLowerCase().includes('nbtc-banner')) {
+        handleBtcBannerClick()
+      } else if (bannerData.banner_type === 'redirect-interanlly') {
+        const bannerId = getMixpanelBannerId(bannerData?.id, bannerData.attributes?.campaign_id)
+        navigate(`${bannerData.redirect_url}&bannerId=${bannerId}`)
+      } else if (bannerData.banner_type === 'add-chain') {
+        handleAddChainClick(bannerData.redirect_url)
+      } else if (bannerData.banner_type === 'switch-chain') {
+        handleSwitchChainClick(bannerData.redirect_url)
+      } else {
+        if (bannerData?.redirect_url && bannerData?.redirect_url !== '#') {
+          window.open(bannerData.redirect_url)
+        }
       }
-    }
 
-    onClick(bannerData.id, index)
+      onClick(bannerData.id, index)
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bannerData, index, onClick])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [bannerData, index, onClick])
 
-  return (
-    <div
-      className={`relative inline-block w-[22rem] overflow-hidden snap-center transform transition-transform ease-out duration-300 ${
-        isActive ? 'scale-100' : 'scale-x-[93%] scale-y-[88%]'
-      }`}
-    >
-      <button
-        className='overflow-hidden rounded-lg w-full items-center flex dark:bg-gray-900 bg-white-100 aspect-[11/2]'
-        onClick={handleClick}
+    return (
+      <div
+        className={`relative inline-block w-[22rem] overflow-hidden snap-center transform transition-transform ease-out duration-300 ${
+          isActive ? 'scale-100' : 'scale-x-[93%] scale-y-[88%]'
+        }`}
       >
-        {bannerData?.image_url ? (
-          <img
-            src={bannerData.image_url}
-            alt='chain logo'
-            className='z-0 right-0 h-[64px] w-full'
-          />
-        ) : (
-          <div className='p-4 flex items-center'>
+        <button
+          className='overflow-hidden rounded-lg w-full items-center flex dark:bg-gray-900 bg-white-100 aspect-[11/2]'
+          onClick={handleClick}
+        >
+          {bannerData?.image_url ? (
             <img
-              src={bannerData?.logo ?? chain?.chainSymbolImageUrl}
+              src={bannerData.image_url}
               alt='chain logo'
-              width='24'
-              height='24'
-              className='object-contain rounded-full h-10 w-10 mr-2 m-w-10'
-              style={{
-                border: `8px solid ${chain?.theme.primaryColor}`,
-              }}
+              className='z-0 right-0 h-[64px] w-full'
             />
-            <div>
-              <Text size='xs' color='dark:text-white-100 text-gray-800 text-left'>
-                {bannerData.title}
-              </Text>
+          ) : (
+            <div className='p-4 flex items-center'>
+              <img
+                src={bannerData?.logo ?? chain?.chainSymbolImageUrl}
+                alt='chain logo'
+                width='24'
+                height='24'
+                className='object-contain rounded-full h-10 w-10 mr-2 m-w-10'
+                style={{
+                  border: `8px solid ${chain?.theme.primaryColor}`,
+                }}
+              />
+              <div>
+                <Text size='xs' color='dark:text-white-100 text-gray-800 text-left'>
+                  {bannerData.title}
+                </Text>
+              </div>
             </div>
-          </div>
-        )}
-      </button>
+          )}
+        </button>
 
-      <button
-        className='absolute top-[4px] right-[4px] bg-gray-800 rounded-full w-[16px] h-[16px] flex cursor-pointer'
-        onClick={(event) => {
-          event.stopPropagation()
-          onClose(bannerData.id, index)
-        }}
-      >
-        <X size={12} className='text-gray-100 m-auto' />
-      </button>
-    </div>
-  )
-}
+        <button
+          className='absolute top-[4px] right-[4px] bg-gray-800 rounded-full w-[16px] h-[16px] flex cursor-pointer'
+          onClick={(event) => {
+            event.stopPropagation()
+            onClose(bannerData.id, index)
+          }}
+        >
+          <X size={12} className='text-gray-100 m-auto' />
+        </button>
+      </div>
+    )
+  },
+)
 
 const GlobalBannersAD = React.memo(
   ({ handleBtcBannerClick }: { handleBtcBannerClick: () => void }) => {
     const chain = useChainInfo()
+    const _chainId = useChainId()
     const [disabledBannerAds, setDisableBannerAds] = useState<string[] | null>(null)
     const scrollableContainerRef = useRef<HTMLDivElement>(null)
     const [timeCounter, setTimeCounter] = useState(0)
@@ -180,11 +185,11 @@ const GlobalBannersAD = React.memo(
 
     const activeChain = useActiveChain() as AggregatedSupportedChain
     const isAggregatedView = activeChain === AGGREGATED_CHAIN_KEY
-    const chainId = isAggregatedView ? 'all' : chain?.chainId ?? ''
+    const chainId = isAggregatedView ? 'all' : _chainId ?? ''
     const chainName = isAggregatedView ? 'All Chains' : chain?.chainName ?? ''
 
     const { data: bannerConfig, status: bannerConfigStatus } = useBannerConfig()
-    const { leapBanners, isLeapBannersLoading } = useGetBannerData(chain?.chainId)
+    const { leapBanners, isLeapBannersLoading } = useGetBannerData(_chainId ?? '')
 
     const { data: numiaBanners, status: numiaStatus } = useGetNumiaBanner(
       osmoWalletAddress ?? '',
@@ -547,6 +552,14 @@ const GlobalBannersAD = React.memo(
       [chainInfos, setActiveChain],
     )
 
+    const handleLeftArrowClick = useCallback(() => {
+      handleContainerScroll(activeBannerIndex - 1)
+    }, [activeBannerIndex, handleContainerScroll])
+
+    const handleRightArrowClick = useCallback(() => {
+      handleContainerScroll(activeBannerIndex + 1)
+    }, [activeBannerIndex, handleContainerScroll])
+
     if (!bannerAds || bannerAds.length === 0 || displayADs.length === 0) {
       if (!showBannersLoading) {
         return null
@@ -585,7 +598,7 @@ const GlobalBannersAD = React.memo(
           <div className='flex w-[352px] items-center justify-between'>
             <ArrowLeft
               size={17}
-              onClick={() => handleContainerScroll(activeBannerIndex - 1)}
+              onClick={handleLeftArrowClick}
               className={`text-gray-600 dark:text-gray-400 hover:text-black-100 hover:dark:text-white-100 cursor-pointer ${
                 activeBannerIndex === 0 ? 'invisible' : ''
               }`}
@@ -614,7 +627,7 @@ const GlobalBannersAD = React.memo(
             </div>
             <ArrowRight
               size={17}
-              onClick={() => handleContainerScroll(activeBannerIndex + 1)}
+              onClick={handleRightArrowClick}
               className={`text-gray-600 dark:text-gray-400 hover:text-black-100 hover:dark:text-white-100 cursor-pointer ${
                 activeBannerIndex === displayADs.length - 1 ? 'invisible' : ''
               }`}

@@ -93,6 +93,7 @@ export const gasAdjustments: GasAdjustments = {
   forma: 1,
   civitia: 1.5,
   milkyway: 1.5,
+  milkywayL1: 1.5,
   minimove: 1.5,
   miniwasm: 1.5,
   arbitrum: 1,
@@ -114,4 +115,8 @@ export const gasAdjustments: GasAdjustments = {
   aptos: 1,
   movementBardock: 1,
   abstract: 1,
+  berachain: 1,
+  monad: 1,
+  story: 1,
+  zigchain: 1.5,
 };

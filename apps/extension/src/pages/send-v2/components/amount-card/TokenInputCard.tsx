@@ -4,22 +4,14 @@ import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send-v2/context'
-import React, {
-  Dispatch,
-  SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { hideAssetsStore } from 'stores/hide-assets-store'
-import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 
 type TokenInputCardProps = {
@@ -221,10 +213,14 @@ function TokenInputCardView({
               onClick={onTokenSelectSheet}
             >
               <div className='relative'>
-                <img
-                  src={token?.img ?? defaultTokenLogo}
-                  className='w-[24px] h-[24px] rounded-full'
-                  onError={imgOnError(defaultTokenLogo)}
+                <TokenImageWithFallback
+                  assetImg={token?.img}
+                  text={token?.symbol ?? ''}
+                  altText={token?.symbol ?? ''}
+                  imageClassName='w-[24px] h-[24px] rounded-full'
+                  containerClassName='w-[24px] h-[24px] rounded-full !bg-gray-200 dark:!bg-gray-800'
+                  textClassName='text-[7px] !leading-[9px]'
+                  key={token?.img}
                 />
                 {selectedChain ? (
                   <img

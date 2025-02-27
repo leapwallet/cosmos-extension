@@ -26,8 +26,8 @@ import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import currency from 'currency.js'
-import { useDefaultTokenLogo } from 'hooks'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
@@ -89,7 +89,6 @@ const UnstakedValidatorDetails = observer(
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
-    const defaultTokenLogo = useDefaultTokenLogo()
     const [formatCurrency] = useFormatCurrency()
     const { theme } = useTheme()
     const [showReviewCancelUnstakeTx, setShowReviewCancelUnstakeTx] = useState(false)
@@ -218,10 +217,13 @@ const UnstakedValidatorDetails = observer(
             </Text>
 
             <div className='flex gap-x-4 w-full p-4 bg-white-100 dark:bg-gray-950 rounded-lg'>
-              <img
-                className='w-9 h-9'
-                src={activeStakingDenom.icon}
-                onError={imgOnError(defaultTokenLogo)}
+              <TokenImageWithFallback
+                assetImg={activeStakingDenom.icon}
+                text={activeStakingDenom.coinDenom}
+                altText={activeStakingDenom.coinDenom}
+                imageClassName='w-9 h-9 rounded-full'
+                containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
+                textClassName='text-[10px] !leading-[14px]'
               />
               <div className='flex flex-col justify-center'>
                 <Text

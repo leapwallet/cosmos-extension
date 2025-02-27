@@ -7,11 +7,11 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
-import { makeObservable } from 'mobx';
+import { makeObservable, runInAction } from 'mobx';
 
 import { ChainInfosStore, fetchIbcTraceData, getIbcTrace, RootDenomsStore } from '../assets';
 import { Token } from '../bank/balance-types';
-import { BaseQueryStore } from '../base/base-data-store';
+import { BaseObservableQueryStore } from '../base/base-observable-data-store';
 import { ChainApisStore } from '../chains';
 import { RootBalanceStore } from '../root';
 import { getKeyToUseForDenoms } from '../utils/get-denom-key';
@@ -22,7 +22,7 @@ import { FeeDenomsStore } from './fee-denoms-store';
 import { GasPriceStepForChainStore } from './get-price-step-for-chain-store';
 import { FeeTokenData, GasPriceStep, IbcDenomData, RemoteFeeTokenData } from './types';
 
-type FeeTokensStoreData = FeeTokenData[];
+export type FeeTokensStoreData = FeeTokenData[];
 
 type GetFeeTokenFnArgs = {
   baseGasPriceStep: GasPriceStep;
@@ -30,7 +30,7 @@ type GetFeeTokenFnArgs = {
   nativeDenom: NativeDenom;
 };
 
-export class FeeTokensQueryStore extends BaseQueryStore<FeeTokensStoreData> {
+export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStoreData> {
   data: FeeTokensStoreData | null = null;
   private activeChain: SupportedChain;
   private activeNetwork: NetworkType;
@@ -45,6 +45,7 @@ export class FeeTokensQueryStore extends BaseQueryStore<FeeTokensStoreData> {
   private rootDenomsStore: RootDenomsStore;
   private rootBalanceStore: RootBalanceStore;
   private addIbcTraceData: (data: Record<string, IbcDenomData>) => void;
+  private feeTokenChains: string[] = [];
 
   constructor(params: {
     activeChain: SupportedChain;
@@ -60,6 +61,7 @@ export class FeeTokensQueryStore extends BaseQueryStore<FeeTokensStoreData> {
     rootDenomsStore: RootDenomsStore;
     rootBalanceStore: RootBalanceStore;
     addIbcTraceData: (data: Record<string, IbcDenomData>) => void;
+    feeTokenChains: string[];
   }) {
     super();
 
@@ -76,6 +78,7 @@ export class FeeTokensQueryStore extends BaseQueryStore<FeeTokensStoreData> {
     this.rootDenomsStore = params.rootDenomsStore;
     this.rootBalanceStore = params.rootBalanceStore;
     this.addIbcTraceData = params.addIbcTraceData;
+    this.feeTokenChains = params.feeTokenChains;
 
     makeObservable(this);
   }
@@ -184,10 +187,7 @@ export class FeeTokensQueryStore extends BaseQueryStore<FeeTokensStoreData> {
     };
 
     try {
-      const { data: fee_token_chains } = await axios.get(
-        `https://assets.leapwallet.io/cosmos-registry/v1/fee-tokens/fee-token-chains.json`,
-      );
-      if (!fee_token_chains?.chains.includes(chain)) return [nativeFeeToken];
+      if (!this.feeTokenChains?.includes(chain)) return [nativeFeeToken];
       const { data } = await axios.get<RemoteFeeTokenData[]>(
         `https://assets.leapwallet.io/cosmos-registry/v1/fee-tokens/${chain}.json`,
       );
@@ -359,6 +359,8 @@ export class FeeTokensStore {
   private rootDenomsStore: RootDenomsStore;
   private rootBalanceStore: RootBalanceStore;
   private addIbcTraceData: (data: Record<string, IbcDenomData>) => void;
+  private feeTokenChains: string[] = [];
+  private initializing: 'pending' | 'done' | 'error' = 'pending';
 
   constructor(params: {
     dappDefaultFeeStore: DappDefaultFeeStore;
@@ -382,9 +384,31 @@ export class FeeTokensStore {
     this.rootDenomsStore = params.rootDenomsStore;
     this.rootBalanceStore = params.rootBalanceStore;
     this.addIbcTraceData = params.addIbcTraceData;
+
+    this.getFeeTokenChains();
+  }
+
+  async getFeeTokenChains() {
+    try {
+      const { data: fee_token_chains } = await axios.get(
+        `https://assets.leapwallet.io/cosmos-registry/v1/fee-tokens/fee-token-chains.json`,
+      );
+
+      runInAction(() => {
+        this.feeTokenChains = fee_token_chains?.chains;
+        this.initializing = 'done';
+      });
+    } catch (e) {
+      runInAction(() => {
+        this.initializing = 'error';
+      });
+    }
   }
 
   getStore(chain: SupportedChain, network: NetworkType, isSeiEvmTransaction = false) {
+    if (this.initializing === 'pending') {
+      return;
+    }
     const key = `${chain}-${network}-${isSeiEvmTransaction}` as const;
 
     if (!this.store[key]) {
@@ -402,6 +426,7 @@ export class FeeTokensStore {
         rootDenomsStore: this.rootDenomsStore,
         rootBalanceStore: this.rootBalanceStore,
         addIbcTraceData: this.addIbcTraceData,
+        feeTokenChains: this.feeTokenChains,
       });
 
       this.store[key]?.getData();

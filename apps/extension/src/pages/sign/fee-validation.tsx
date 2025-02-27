@@ -1,11 +1,8 @@
 import {
   currencyDetail,
   fetchCurrency,
-  Token,
   useChainApis,
   useChainId,
-  useFeeTokens,
-  useSelectedNetwork,
   useTransactionConfigs,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
@@ -15,6 +12,7 @@ import {
   SupportedChain,
   SupportedDenoms,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { FeeTokensStoreData } from '@leapwallet/cosmos-wallet-store'
 import Long from 'long'
 import { useCallback } from 'react'
 
@@ -61,19 +59,13 @@ type UseFeeValidationReturn = (
 ) => Promise<boolean | null>
 
 export function useFeeValidation(
-  allAssets: Token[],
   denoms: DenomsRecord,
   chain: SupportedChain,
+  feeTokens: FeeTokensStoreData | null | undefined,
+  isFeeTokensLoading: boolean | undefined,
 ): UseFeeValidationReturn {
   const { data: txConfig } = useTransactionConfigs()
-  const selectedNetwork = useSelectedNetwork()
 
-  const { data: feeTokens, status } = useFeeTokens(
-    allAssets,
-    denoms,
-    chain,
-    selectedNetwork ?? 'mainnet',
-  )
   const { lcdUrl } = useChainApis(chain)
   const chainId = useChainId()
 
@@ -114,6 +106,6 @@ export function useFeeValidation(
     },
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [feeTokens, txConfig, status, lcdUrl],
+    [feeTokens, txConfig, isFeeTokensLoading, lcdUrl],
   )
 }

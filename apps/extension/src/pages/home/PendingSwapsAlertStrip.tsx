@@ -49,6 +49,7 @@ type Props = {
   setPendingSwapTxs: Dispatch<SetStateAction<TxStoreObject[]>>
   pendingSwapTxs: TxStoreObject[]
   setShowPendingSwapsSheet: Dispatch<SetStateAction<boolean>>
+  setHandlePendingAlertStrip: Dispatch<SetStateAction<boolean>>
 }
 
 const PendingSwapsAlertStrip = ({
@@ -56,6 +57,7 @@ const PendingSwapsAlertStrip = ({
   setPendingSwapTxs,
   pendingSwapTxs,
   setShowPendingSwapsSheet,
+  setHandlePendingAlertStrip,
 }: Props) => {
   useEffect(() => {
     async function updatePendingSwapTxs() {
@@ -159,6 +161,14 @@ const PendingSwapsAlertStrip = ({
       return Images.Swap.CheckCircle
     }
   }, [swapsState])
+
+  useEffect(() => {
+    if (totalSwaps === 0) {
+      setHandlePendingAlertStrip(false)
+      return
+    }
+    setHandlePendingAlertStrip(true)
+  }, [setHandlePendingAlertStrip, totalSwaps])
 
   if (totalSwaps === 0) {
     return null

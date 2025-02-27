@@ -16,6 +16,7 @@ import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import Text from 'components/text'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
@@ -174,7 +175,7 @@ export default function ReviewStakeTx({
           <div className='flex flex-col gap-y-6 items-center'>
             {mode === 'REDELEGATE' && validator && (
               <div className='flex items-start gap-x-3 p-4 rounded-2xl bg-blue-200 dark:bg-blue-900'>
-                <Info size={20} className='text-blue-500 dark:text-blue-300' />
+                <Info size={20} className='text-black-100 dark:text-white-100 shrink-0' />
                 <Text size='xs' color='text-black-100 dark:text-white-100'>
                   Redelegating to a new validator takes {unstakingPeriod} as funds unbond from the
                   source validator, then moved to the new one.
@@ -185,12 +186,13 @@ export default function ReviewStakeTx({
               <Card
                 className='bg-white-100 dark:bg-gray-950'
                 avatar={
-                  <img
-                    src={token?.img}
-                    onError={imgOnError(GenericLight)}
-                    width={36}
-                    height={36}
-                    className='border rounded-full dark:border-[#333333] border-[#cccccc]'
+                  <TokenImageWithFallback
+                    assetImg={token?.img}
+                    text={token?.symbol ?? ''}
+                    altText={token?.symbol ?? ''}
+                    imageClassName='w-9 h-9 rounded-full'
+                    containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
+                    textClassName='text-[10px] !leading-[14px]'
                   />
                 }
                 isRounded

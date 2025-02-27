@@ -20,7 +20,7 @@ import {
   UndelegationsStore,
   ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { Buttons, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { HeaderActionType, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { WalletButton } from 'components/button'
@@ -28,7 +28,6 @@ import { EmptyCard } from 'components/empty-card'
 import { PageHeader } from 'components/header'
 import PopupLayout from 'components/layout/popup-layout'
 import { AmountCardSkeleton } from 'components/Skeletons/StakeSkeleton'
-import Text from 'components/text'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useChainPageInfo, useWalletInfo } from 'hooks'
@@ -47,9 +46,7 @@ import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
 import { stakeEpochStore } from 'stores/epoch-store'
 import { manageChainsStore } from 'stores/manage-chains-store'
-import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import ClaimInfo from './components/ClaimInfo'
 import NotStakedCard from './components/NotStakedCard'
@@ -58,6 +55,7 @@ import ReviewClaimTx from './components/ReviewClaimTx'
 import SelectLSProvider from './components/SelectLSProvider'
 import StakeAmountCard from './components/StakeAmountCard'
 import StakeHeading from './components/StakeHeading'
+import StakingCTAs from './components/StakingCTAs'
 import TabList from './components/TabList'
 import LavaClaimInfo from './restaking/LavaClaimInfo'
 import { ReviewClaimLavaTx } from './restaking/ReviewClaimLavaTx'
@@ -142,7 +140,6 @@ const StakePage = observer(
     }, [loadingDelegations, loadingNetwork, loadingRewards, loadingUnboundingDelegations])
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
-    const { theme } = useTheme()
 
     const [showChainSelector, setShowChainSelector] = useState(false)
     const [defaultFilter, setDefaultFilter] = useState('All')
@@ -417,35 +414,13 @@ const StakePage = observer(
               {isLSProvidersLoading && <Skeleton width={352} borderRadius={100} height={50} />}
 
               {!isLSProvidersLoading && (
-                <>
-                  {tokenLSProviders?.length > 0 && (
-                    <Buttons.Generic
-                      size='normal'
-                      className='w-full'
-                      color={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray200}
-                      disabled={isLSProvidersLoading}
-                      onClick={() => setShowSelectLSProvider(true)}
-                    >
-                      <Text color='dark:text-white-100 text-black-100'>Liquid Stake</Text>
-                    </Buttons.Generic>
-                  )}
-                  <Buttons.Generic
-                    size='normal'
-                    className='w-full'
-                    color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-                    onClick={async () => {
-                      navigate('/stake/input', {
-                        state: {
-                          mode: 'DELEGATE',
-                          forceChain: activeChain,
-                          forceNetwork: activeNetwork,
-                        } as StakeInputPageState,
-                      })
-                    }}
-                  >
-                    Stake
-                  </Buttons.Generic>
-                </>
+                <StakingCTAs
+                  tokenLSProviders={tokenLSProviders}
+                  isLSProvidersLoading={isLSProvidersLoading}
+                  setShowSelectLSProvider={setShowSelectLSProvider}
+                  activeChain={activeChain}
+                  activeNetwork={activeNetwork}
+                />
               )}
             </div>
 

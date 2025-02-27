@@ -12,14 +12,13 @@ import { GenericCard } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
 import Badge from 'components/badge/Badge'
 import IBCTokenBadge from 'components/badge/IbcTokenBadge'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { AggregatedSupportedChain } from 'types/utility'
-import { imgOnError } from 'utils/imgOnError'
 
 type TokenCardProps = {
   readonly title: string
@@ -64,7 +63,6 @@ function TokenCardView({
   const chains = useGetChains()
   const [formatCurrency] = useFormatCurrency()
 
-  const defaultTokenLogo = useDefaultTokenLogo()
   const [preferredCurrency] = useUserPreferredCurrency()
   const formattedFiatValue = usdValue ? formatCurrency(new BigNumber(usdValue)) : '-'
 
@@ -134,10 +132,13 @@ function TokenCardView({
         )
       }
       img={
-        <img
-          src={assetImg ?? defaultTokenLogo}
-          className='w-[28px] h-[28px] mr-2 border rounded-full dark:border-[#333333] border-[#cccccc]'
-          onError={imgOnError(defaultTokenLogo)}
+        <TokenImageWithFallback
+          assetImg={assetImg}
+          text={symbol}
+          altText={symbol}
+          imageClassName='w-[28px] h-[28px] mr-2 border dark:border-[#333333] border-[#cccccc] rounded-full'
+          containerClassName='w-[28px] h-[28px] mr-2 border dark:border-[#333333] border-[#cccccc]'
+          textClassName='text-[7px] !leading-[9px]'
         />
       }
       icon={<img className={`w-5 h-5 ml-2 ${isIconVisible ? '' : 'hidden'}`} src={iconSrc} />}

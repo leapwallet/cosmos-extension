@@ -1,6 +1,7 @@
 import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
@@ -15,6 +16,7 @@ export type TxReviewTokenInfoProps = {
   chain: SourceChain | undefined
   tokenImgClassName?: string
   chainImgClassName?: string
+  assetUsdValue?: BigNumber
 }
 
 function TxReviewTokenInfoView({
@@ -23,15 +25,24 @@ function TxReviewTokenInfoView({
   chain,
   tokenImgClassName,
   chainImgClassName,
+  assetUsdValue,
 }: TxReviewTokenInfoProps) {
   const [formatCurrency] = useFormatCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
-
   const dollarAmount = useMemo(() => {
     let _dollarAmount = '0'
 
     if (token && token.usdPrice && amount) {
       _dollarAmount = String(parseFloat(token.usdPrice) * parseFloat(amount))
+    }
+
+    if (
+      (!_dollarAmount || _dollarAmount === '0') &&
+      assetUsdValue &&
+      !assetUsdValue.isNaN() &&
+      assetUsdValue.gt(0)
+    ) {
+      _dollarAmount = assetUsdValue.toString()
     }
 
     return hideAssetsStore.formatHideBalance(formatCurrency(new BigNumber(_dollarAmount)))
@@ -50,17 +61,22 @@ function TxReviewTokenInfoView({
   return (
     <div className='flex flex-col items-center w-full max-w-[140px] max-[399px]:!max-w-[calc(min(140px,45%))] gap-4 max-[399px]:overflow-visible'>
       <div className='relative'>
-        <img
-          className={classNames(
+        <TokenImageWithFallback
+          assetImg={token?.img}
+          text={token?.symbol ?? token?.name ?? ''}
+          altText={token?.symbol ?? token?.name ?? ''}
+          imageClassName={classNames(
             'border-[8px] border-gray-100 bg-gray-100 dark:bg-gray-850 dark:border-gray-850 rounded-full',
             {
               'w-[44px] h-[44px]': !tokenImgClassName,
               [tokenImgClassName ?? '']: tokenImgClassName,
             },
           )}
-          src={token?.img ?? defaultTokenLogo}
-          onError={imgOnError(defaultTokenLogo)}
+          containerClassName='w-[44px] h-[44px] !bg-gray-200 dark:!bg-gray-800 border-[8px] border-gray-100 dark:border-gray-850'
+          textClassName='text-[8px] !leading-[12px]'
+          key={token?.img ?? ''}
         />
+
         <img
           className={classNames(
             'absolute -bottom-[6px] border-[4px] border-gray-100 bg-gray-100 dark:border-gray-850 dark:bg-gray-850 z-10 rounded-full',

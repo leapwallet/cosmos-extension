@@ -1,14 +1,14 @@
 import { useGetExplorerTxnUrl } from '@leapwallet/cosmos-wallet-hooks'
 import { TransferState } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/skip-core'
-import { PacketContent, TRANSFER_STATE } from '@leapwallet/elements-core'
-import { Action, useChains } from '@leapwallet/elements-hooks'
+import { TRANSFER_STATE } from '@leapwallet/elements-core'
+import { Action } from '@leapwallet/elements-hooks'
 import { ArrowSquareOut } from '@phosphor-icons/react'
 import React, { useCallback, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { TransferInfo } from 'types/swap'
+import { TransferSequence } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
-import { useDenomData } from '../hooks'
+import { useDenomData, useGetChainsToShow } from '../hooks'
 import { sanitizeChainIdForCompass } from '../utils'
 import { TxStepsStatusIcon } from './TxStepsStatusIcon'
 
@@ -16,7 +16,7 @@ type TxPageStepsTypeProps = {
   action: Action
   isFirst: boolean
   isLast: boolean
-  response?: TransferInfo
+  response?: TransferSequence
   prevAction: Action | undefined
   prevTransferSequenceIndex: number
   transferSequenceIndex: number
@@ -71,7 +71,7 @@ export function TxPageStepsType({
     }
   }, [action])
 
-  const { data: chains, isLoading: isChainsLoading } = useChains()
+  const { chainsToShow: chains, chainsToShowLoading: isChainsLoading } = useGetChainsToShow()
   const { data: srcDenomData, isLoading: isSrcDenomLoading } = useDenomData(srcAsset, srcChainId)
   const { data: destDenomData, isLoading: isDestDenomLoading } = useDenomData(
     destAsset,
@@ -94,8 +94,7 @@ export function TxPageStepsType({
     (chainId: string, txHash: string) => {
       if (isCompassWallet()) {
         const explorerLink =
-          response?.packet_txs?.send_tx?.explorer_link ??
-          response?.packet_txs?.receive_tx?.explorer_link
+          response?.packetTxs?.sendTx?.explorerLink ?? response?.packetTxs?.receiveTx?.explorerLink
         if (explorerLink) {
           window.open(explorerLink, '_blank', 'noopener noreferrer')
           return
@@ -111,13 +110,14 @@ export function TxPageStepsType({
     [
       chains,
       getExplorerTxnUrl,
-      response?.packet_txs?.receive_tx?.explorer_link,
-      response?.packet_txs?.send_tx?.explorer_link,
+      response?.packetTxs?.receiveTx?.explorerLink,
+      response?.packetTxs?.sendTx?.explorerLink,
     ],
   )
 
   const { status, txData } = useMemo(() => {
-    const packetTxs = response?.packet_txs
+    const packetTxs = response?.packetTxs
+    const error = response?.error
     let _status: TransferState | undefined
     let _txData
 
@@ -127,23 +127,27 @@ export function TxPageStepsType({
           ? response?.state
           : undefined
 
+      if (actionIndex === 0 && !_status) {
+        _status = TRANSFER_STATE.TRANSFER_PENDING
+      }
+
       return {
         status: _status,
         txData: _txData,
       }
     }
 
-    if (packetTxs?.error) {
+    if (error) {
       _status = TRANSFER_STATE.TRANSFER_FAILURE
-
-      if (transferSequenceIndex === prevTransferSequenceIndex) {
-        _txData = packetTxs.receive_tx ?? packetTxs?.timeout_tx ?? packetTxs?.send_tx
-      } else {
-        if (prevAction !== undefined) {
-          _txData = packetTxs.receive_tx ?? packetTxs?.timeout_tx ?? packetTxs?.send_tx
-        } else {
-          _txData = packetTxs?.timeout_tx ?? packetTxs?.send_tx
-        }
+      _txData = packetTxs.receiveTx
+      if (transferSequenceIndex !== prevTransferSequenceIndex && prevAction === undefined) {
+        _txData = undefined
+      }
+      if (!_txData && 'timeoutTx' in packetTxs) {
+        _txData = packetTxs?.timeoutTx
+      }
+      if (!_txData) {
+        _txData = packetTxs?.sendTx
       }
 
       return {
@@ -152,28 +156,22 @@ export function TxPageStepsType({
       }
     }
 
-    if (transferSequenceIndex === prevTransferSequenceIndex) {
-      if (packetTxs?.receive_tx) {
+    if (
+      transferSequenceIndex === prevTransferSequenceIndex ||
+      (prevAction !== undefined && prevAction?.type !== action?.type)
+    ) {
+      if (packetTxs?.receiveTx) {
         _status = TRANSFER_STATE.TRANSFER_SUCCESS
-        _txData = packetTxs?.receive_tx
-      } else if (packetTxs?.send_tx) {
+        _txData = packetTxs?.receiveTx
+      } else if (packetTxs?.sendTx) {
         _status = TRANSFER_STATE.TRANSFER_PENDING
       }
     } else {
-      if (prevAction !== undefined && prevAction?.type !== action?.type) {
-        if (packetTxs?.receive_tx) {
-          _status = TRANSFER_STATE.TRANSFER_SUCCESS
-          _txData = packetTxs?.receive_tx
-        } else if (packetTxs?.send_tx) {
-          _status = TRANSFER_STATE.TRANSFER_PENDING
-        }
+      if (packetTxs?.sendTx) {
+        _status = TRANSFER_STATE.TRANSFER_SUCCESS
+        _txData = packetTxs?.sendTx
       } else {
-        if (packetTxs?.send_tx) {
-          _status = TRANSFER_STATE.TRANSFER_SUCCESS
-          _txData = packetTxs?.send_tx
-        } else {
-          _status = TRANSFER_STATE.TRANSFER_PENDING
-        }
+        _status = TRANSFER_STATE.TRANSFER_PENDING
       }
     }
 
@@ -183,18 +181,24 @@ export function TxPageStepsType({
     prevAction,
     actionIndex,
     prevTransferSequenceIndex,
-    response?.packet_txs,
+    response?.error,
+    response?.packetTxs,
     response?.state,
     transferSequenceIndex,
   ])
 
   const { txHash, chainId } = useMemo(() => {
     if (!txData) return { txHash: undefined, chainId: undefined }
-
-    return {
-      txHash: txData?.tx_hash,
-      chainId: txData?.chain_id,
+    if ('txHash' in txData) {
+      return {
+        txHash: txData?.txHash,
+        chainId: txData?.chainID,
+      }
     }
+    // TODO: fix this
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    return { txHash: (txData as unknown)?.tx_hash, chainId: (txData as unknown)?.chain_id }
   }, [txData])
 
   return (

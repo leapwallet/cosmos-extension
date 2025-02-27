@@ -12,6 +12,7 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { sendMessageToAllTabs } from 'utils'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import Browser, { Storage } from 'webextension-polyfill'
@@ -171,6 +172,7 @@ const ConnectedSites = ({ setPage }: Props) => {
       websites.splice(index, 1)
       await Browser.storage.local.set({ [CONNECTIONS]: { ...connections } })
       await updateSites()
+      await sendMessageToAllTabs({ event: 'disconnectFromOrigin', data: siteName })
     },
     [activeChainId, activeWallet?.id, updateSites],
   )

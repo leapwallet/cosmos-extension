@@ -190,6 +190,52 @@ export function getMetaDataForIbcSwapTx(
   };
 }
 
+/************* Bridge *************/
+
+export const getMetaDataForBridgeSendTx = (
+  provider: string,
+  hops: number,
+  fromChain: string,
+  fromToken: { amount: number; denom: string },
+  toChain: string,
+  toToken: { amount: number; denom: string },
+  bridge: string,
+) => {
+  const globalTxMeta = useTxMetadataStore.getState().txMetadata;
+  return {
+    ...globalTxMeta,
+    provider,
+    hops,
+    fromChain,
+    fromToken,
+    toChain,
+    toToken,
+    bridge,
+  };
+};
+
+export const getMetaDataForBridgeSwapTx = (
+  provider: string,
+  hops: number,
+  fromChain: string,
+  fromToken: { amount: number; denom: string },
+  toChain: string,
+  toToken: { amount: number; denom: string },
+  bridge: string,
+) => {
+  const globalTxMeta = useTxMetadataStore.getState().txMetadata;
+  return {
+    ...globalTxMeta,
+    provider,
+    hops,
+    fromChain,
+    fromToken,
+    toChain,
+    toToken,
+    bridge,
+  };
+};
+
 /************* Governance Vote *************/
 
 export function getMetaDataForGovVoteTx(proposalId: string, option: VoteOption) {

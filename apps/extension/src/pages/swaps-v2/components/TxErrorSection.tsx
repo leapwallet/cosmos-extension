@@ -3,7 +3,7 @@ import { WarningCircle } from '@phosphor-icons/react'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import React, { useMemo } from 'react'
 
-import { RoutingInfo, useOnline } from '../hooks'
+import { RoutingInfo, useGetChainsToShow, useOnline } from '../hooks'
 import { getChainIdsFromRoute } from '../utils'
 
 export function TxErrorSection({
@@ -20,21 +20,20 @@ export function TxErrorSection({
   routingInfo: RoutingInfo
 }) {
   const isOnline = useOnline()
-  const chains = useChains()
+  const { chainsToShow: chains } = useGetChainsToShow()
 
   const intermediateChainsInvolved = useMemo(
     () =>
       getChainIdsFromRoute(routingInfo?.route)
         ?.slice(1, -1)
         ?.reduce((acc: string[], chainID: string) => {
-          const chainName =
-            chains.data?.find((chain) => chain.chainId === chainID)?.chainName ?? chainID
+          const chainName = chains?.find((chain) => chain.chainId === chainID)?.chainName ?? chainID
           if (chainName) {
             return [...acc, chainName]
           }
           return acc
         }, [] as string[]),
-    [chains.data, routingInfo?.route],
+    [chains, routingInfo?.route],
   )
 
   const errorMessage = useMemo(() => {

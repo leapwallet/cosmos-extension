@@ -302,7 +302,7 @@ const TokenList = observer(
     marketDataStore: MarketDataStore
   }) => {
     return (
-      <div className='flex flex-col'>
+      <div className='flex flex-col mx-6'>
         <Text size='md' color='text-gray-600 dark:text-gray-400'>
           {header}
         </Text>
@@ -488,10 +488,10 @@ export const SelectDestinationSheet = observer(
         isOpen={true}
         closeOnBackdropClick={true}
         contentClassName='!bg-white-100 dark:!bg-gray-950 !overflow-hidden'
-        className='!px-6 !pt-6 !pb-0'
+        className='!p-0'
       >
         <div className='flex flex-col gap-y-4 h-full'>
-          <div className='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent mb-2'>
+          <div className='rounded-2xl flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent mb-2 mx-6 mt-6'>
             <input
               placeholder={'Search a token by name or address'}
               className='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
@@ -516,14 +516,14 @@ export const SelectDestinationSheet = observer(
                 <>
                   <TokenCardSkeleton key={index} />
                   {index !== 4 && (
-                    <div className='border-b w-full border-gray-100 dark:border-gray-850' />
+                    <div className='border-b border-gray-100 dark:border-gray-850 mx-6' />
                   )}
                 </>
               ))}
             </div>
           ) : (
             <div
-              className='flex flex-col gap-y-2 pb-4 relative'
+              className='flex flex-col gap-y-2 pb-6 relative scrollbar'
               style={{
                 height: (isSidePanel() ? window.innerHeight : 600) - 200,
                 overflowY: 'scroll',
@@ -532,7 +532,7 @@ export const SelectDestinationSheet = observer(
               {/* tabs */}
               {searchQuery.length === 0 && (
                 <>
-                  <div className='flex gap-x-2 pb-4 sticky z-[2] top-0 bg-white-100 dark:bg-gray-950'>
+                  <div className='flex gap-x-2 pb-4 sticky z-[2] top-0 bg-white-100 dark:bg-gray-950 px-6'>
                     {(Object.keys(TabType) as Array<keyof typeof TabType>).map((key) => {
                       const tab = TabType[key]
                       return (
@@ -592,7 +592,7 @@ export const SelectDestinationSheet = observer(
               )}
               <div
                 onClick={handleResetClick}
-                className='flex bg-gray-100 dark:bg-gray-850 items-center justify-between rounded-xl px-5 py-3 mt-auto cursor-pointer'
+                className='flex bg-gray-100 dark:bg-gray-850 items-center justify-between rounded-xl px-5 py-3 mt-auto cursor-pointer mx-6'
               >
                 <div className='flex flex-col'>
                   <Text size='xs' className='font-bold' color='text-black-100 dark:text-white-100'>

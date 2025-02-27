@@ -36,6 +36,13 @@ browser.runtime.onMessage.addListener((data, sender) => {
     window.dispatchEvent(customEvent)
   }
 
+  if (data?.event === 'disconnectFromOrigin') {
+    if (data?.data && window.location.origin.startsWith(data.data)) {
+      const customEvent = new CustomEvent('disconnect', { detail: { data: data.data } })
+      window.dispatchEvent(customEvent)
+    }
+  }
+
   if (data?.event === 'leap_activeChainInfoChanged') {
     const customEvent = new CustomEvent('leap_activeChainInfoChanged', {
       detail: { data: data?.data },

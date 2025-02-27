@@ -10,7 +10,6 @@ import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { sendMessageToTab } from 'utils'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 import Text from '../../../components/text'
@@ -75,7 +74,7 @@ export default function NetworkDropUp({
   )
 
   return (
-    <BottomModal isOpen={isVisible} onClose={onCloseHandler} title={'Network'}>
+    <BottomModal isOpen={isVisible} closeOnBackdropClick onClose={onCloseHandler} title={'Network'}>
       <div className='overflow-hidden rounded-2xl'>
         {chains.map((chain, index) => {
           const unavailable = !chain.enabled ? '(Unavailable)' : ''

@@ -1,4 +1,4 @@
-const baseEthereumGasPrices: { low: number; medium: number; high: number } = {
+export const baseEthereumGasPrices: { low: number; medium: number; high: number } = {
   low: 1_000_000_000,
   medium: 1_200_000_000,
   high: 1_500_000_000,
@@ -32,10 +32,16 @@ export const EVM_GAS_PRICES: Record<string, { low: number; medium: number; high:
   '1890': baseEthereumGasPrices,
   '1891': baseEthereumGasPrices,
   '1301': baseEthereumGasPrices,
+  '130': baseEthereumGasPrices,
   '253368190': baseEthereumGasPrices,
   '16604737732183': baseEthereumGasPrices,
   '43114': baseEthereumGasPrices,
   '56': baseEthereumGasPrices,
   '2741': baseEthereumGasPrices,
   '11124': baseEthereumGasPrices,
+  '80084': baseEthereumGasPrices,
+  '80094': baseEthereumGasPrices,
+  '10143': baseEthereumGasPrices,
+  '1514': baseEthereumGasPrices,
+  '1513': baseEthereumGasPrices,
 };

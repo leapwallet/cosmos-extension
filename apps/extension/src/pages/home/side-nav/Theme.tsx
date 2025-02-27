@@ -35,7 +35,12 @@ export default function ThemeDropUp({
   ]
 
   return (
-    <BottomModal isOpen={isVisible} onClose={onCloseHandler} title={'Select Theme'}>
+    <BottomModal
+      closeOnBackdropClick
+      isOpen={isVisible}
+      onClose={onCloseHandler}
+      title={'Select Theme'}
+    >
       <div className='overflow-hidden rounded-2xl'>
         {themes.map((item, index) => {
           return (

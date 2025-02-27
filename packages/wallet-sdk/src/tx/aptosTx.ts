@@ -5,7 +5,6 @@ import {
   APTOS_COIN,
   AptosConfig,
   HexInput,
-  Network,
   PublicKey,
   SimpleTransaction,
 } from '@aptos-labs/ts-sdk';
@@ -16,7 +15,6 @@ export class AptosTx {
 
   static async getAptosClient(lcdUrl: string, account?: Account) {
     const config = new AptosConfig({
-      network: Network.CUSTOM,
       fullnode: lcdUrl,
       faucet: 'https://fund.testnet.porto.movementlabs.xyz/',
     });
@@ -87,6 +85,17 @@ export class AptosTx {
     const sendTxn = await this.generateSendTokensTx(fromAddress, toAddress, amount, undefined, undefined, memo);
     const simulation = await this.aptos.transaction.simulate.simple({
       transaction: sendTxn,
+      signerPublicKey: publicKey,
+    });
+    return {
+      gasEstimate: simulation[0].gas_used,
+      gasUnitPrice: simulation[0].gas_unit_price,
+    };
+  }
+
+  async simulateTransaction(txn: SimpleTransaction, publicKey?: PublicKey) {
+    const simulation = await this.aptos.transaction.simulate.simple({
+      transaction: txn,
       signerPublicKey: publicKey,
     });
     return {

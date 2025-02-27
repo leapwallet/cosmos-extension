@@ -120,6 +120,7 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   forma: DefaultGasEstimates,
   civitia: DefaultGasEstimates,
   milkyway: DefaultGasEstimates,
+  milkywayL1: DefaultGasEstimates,
   minimove: DefaultGasEstimates,
   miniwasm: DefaultGasEstimates,
   arbitrum: DefaultGasEstimates,
@@ -141,4 +142,8 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   movementBardock: { DEFAULT_GAS_TRANSFER: 100, DEFAULT_GAS_STAKE: 100, DEFAULT_GAS_IBC: 100 },
   aptos: { DEFAULT_GAS_TRANSFER: 100, DEFAULT_GAS_STAKE: 100, DEFAULT_GAS_IBC: 100 },
   abstract: DefaultGasEstimates,
+  berachain: DefaultGasEstimates,
+  monad: DefaultGasEstimates,
+  story: DefaultGasEstimates,
+  zigchain: DefaultGasEstimates,
 };

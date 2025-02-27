@@ -11,6 +11,7 @@ import {
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { Delegation } from '@leapwallet/cosmos-wallet-sdk'
 import {
   ClaimRewardsStore,
   DelegationsStore,
@@ -29,9 +30,9 @@ import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sh
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import Text from 'components/text'
 import { EventName } from 'config/analytics'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
@@ -42,14 +43,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isSidePanel } from 'utils/isSidePanel'
-import useGetWallet = Wallet.useGetWallet
-
-import { Delegation } from '@leapwallet/cosmos-wallet-sdk'
-import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { isCompassWallet } from 'utils/isCompassWallet'
+import { isSidePanel } from 'utils/isSidePanel'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
+
+import useGetWallet = Wallet.useGetWallet
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 
 interface ReviewValidatorClaimTxProps {
   isOpen: boolean
@@ -99,7 +99,6 @@ const ReviewValidatorClaimTx = observer(
     })
 
     const [formatCurrency] = useFormatCurrency()
-    const defaultTokenLogo = useDefaultTokenLogo()
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
 
     const chainDelegations = delegationsStore.delegationsForChain(activeChain)
@@ -283,12 +282,13 @@ const ReviewValidatorClaimTx = observer(
               <Card
                 className='bg-white-100 dark:bg-gray-950'
                 avatar={
-                  <img
-                    src={activeStakingDenom.icon}
-                    onError={imgOnError(defaultTokenLogo)}
-                    width={36}
-                    height={36}
-                    className='rounded-full'
+                  <TokenImageWithFallback
+                    assetImg={activeStakingDenom.icon}
+                    text={activeStakingDenom.coinDenom}
+                    altText={activeStakingDenom.coinDenom}
+                    imageClassName='w-9 h-9 rounded-full'
+                    containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
+                    textClassName='text-[10px] !leading-[14px]'
                   />
                 }
                 isRounded

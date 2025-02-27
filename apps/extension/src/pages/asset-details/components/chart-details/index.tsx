@@ -17,7 +17,12 @@ import {
   useSelectedNetwork,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { NativeDenom, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  ChainInfos,
+  NativeDenom,
+  SupportedChain,
+  SupportedDenoms,
+} from '@leapwallet/cosmos-wallet-sdk'
 import {
   ChainTagsStore,
   CompassSeiEvmConfigStore,
@@ -44,6 +49,7 @@ import ReadMoreText from 'components/read-more-text'
 import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { EventName, PageName } from 'config/analytics'
 import { differenceInDays } from 'date-fns'
 import { useChainPageInfo } from 'hooks'
@@ -75,7 +81,6 @@ import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
-import { isSidePanel } from 'utils/isSidePanel'
 import { capitalize } from 'utils/strings'
 
 import ChartSkeleton from '../chart-skeleton/ChartSkeleton'
@@ -142,24 +147,32 @@ const TokensDetails = observer(
     }, [assetType, assetsId, cgTokens])
 
     const skipSupportsToken = useMemo(() => {
+      const assetToFind: string[] = []
+      if (assetsId) {
+        assetToFind.push(assetsId)
+      }
+      if (portfolio?.coinMinimalDenom) {
+        assetToFind.push(portfolio?.coinMinimalDenom)
+      }
+      if (portfolio?.ibcDenom) {
+        assetToFind.push(portfolio?.ibcDenom)
+      }
+
       return (
         skipAssets &&
         skipAssets?.length > 0 &&
         !!skipAssets?.find((skipAsset) => {
-          const assetToFind = []
-          if (assetsId) {
-            assetToFind.push(assetsId)
-          }
-          if (portfolio?.coinMinimalDenom) {
-            assetToFind.push(portfolio?.coinMinimalDenom)
-          }
-          if (portfolio?.ibcDenom) {
-            assetToFind.push(portfolio?.ibcDenom)
+          if (skipAsset.denom === 'ethereum-native') {
+            return assetToFind.includes('wei')
           }
           return (
             assetToFind.includes(skipAsset.denom.replace(/(cw20:|erc20\/)/g, '')) ||
+            assetToFind.includes(skipAsset.denom.replace(/(cw20:|erc20\/)/g, '').toLowerCase()) ||
             (!!skipAsset.evmTokenContract &&
-              assetToFind.includes(skipAsset.evmTokenContract.replace(/(cw20:|erc20\/)/g, '')))
+              (assetToFind.includes(skipAsset.evmTokenContract.replace(/(cw20:|erc20\/)/g, '')) ||
+                assetToFind.includes(
+                  skipAsset.evmTokenContract.replace(/(cw20:|erc20\/)/g, '').toLowerCase(),
+                )))
           )
         })
       )
@@ -236,6 +249,7 @@ const TokensDetails = observer(
       icon: portfolio?.img ?? '',
       coinGeckoId: portfolio?.coinGeckoId ?? '',
     }
+    const assetImg = denomInfo?.icon ?? cgToken?.image
     usePageView(PageName.AssetDetails, true, {
       pageViewSource: pageSource,
       tokenName: denomInfo.coinDenom,
@@ -316,7 +330,11 @@ const TokensDetails = observer(
     const { chartData, minMax } = chartsData ?? { chartData: undefined, minMax: undefined }
     const totalHoldingsInUsd = portfolio?.usdValue
     const filteredChartDays = ChartDays
-    const displayChain = chainInfos[tokenChain as SupportedChain]?.chainName ?? tokenChain
+    const displayChain =
+      chainInfos[portfolio?.tokenBalanceOnChain as SupportedChain]?.chainName ??
+      portfolio?.tokenBalanceOnChain ??
+      chainInfos[tokenChain as SupportedChain]?.chainName ??
+      tokenChain
 
     const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const defaultIconLogo = useDefaultTokenLogo()
@@ -355,7 +373,8 @@ const TokensDetails = observer(
         isStakeComingSoon ||
         isStakeNotSupported ||
         !!chainInfos[activeChain].evmOnlyChain ||
-        activeStakingDenom?.coinMinimalDenom !== portfolio?.coinMinimalDenom
+        activeStakingDenom?.coinMinimalDenom !== portfolio?.coinMinimalDenom ||
+        (!!portfolio?.ibcDenom && isCompassWallet())
       )
     }, [
       activeChain,
@@ -364,6 +383,7 @@ const TokensDetails = observer(
       isStakeComingSoon,
       isStakeNotSupported,
       portfolio?.coinMinimalDenom,
+      portfolio?.ibcDenom,
     ])
     const { data: lsProviders = {} } = useLiquidStakingProviders()
     const tokenLSProviders = lsProviders[activeStakingDenom?.coinDenom]
@@ -524,14 +544,21 @@ const TokensDetails = observer(
                 <div className='flex flex-col dark:bg-gray-950 bg-gray-100 rounded-lg p-4 gap-y-4 border dark:border-gray-850 border-gray-100'>
                   <div className='flex gap-x-2 items-center'>
                     <div className='relative w-[50px] h-[40px] flex items-center justify-center'>
-                      <img
-                        src={denomInfo?.icon ?? cgToken?.image ?? defaultIconLogo}
-                        onError={imgOnError(defaultIconLogo)}
-                        className='w-[30px] h-[30px] rounded-full'
+                      <TokenImageWithFallback
+                        assetImg={assetImg}
+                        text={denomInfo?.coinDenom}
+                        altText={denomInfo?.coinDenom}
+                        imageClassName='w-[30px] h-[30px] rounded-full shrink-0'
+                        containerClassName='w-[30px] h-[30px] rounded-full shrink-0 !bg-gray-200 dark:!bg-gray-800'
+                        textClassName='text-[8.34px] !leading-[11px]'
                       />
                       <img
-                        src={chainInfos[denomInfo?.chain as SupportedChain]?.chainSymbolImageUrl}
-                        className='w-[15px] h-[15px] absolute bottom-[3px] right-[3px] rounded-full bg-black-100 dark:bg-black-100'
+                        src={
+                          chainInfos[denomInfo?.chain as SupportedChain]?.chainSymbolImageUrl ??
+                          ChainInfos[denomInfo?.chain as SupportedChain]?.chainSymbolImageUrl
+                        }
+                        onError={imgOnError(defaultIconLogo)}
+                        className='w-[15px] h-[15px] absolute bottom-[3px] right-[3px] rounded-full bg-white-100 dark:bg-black-100'
                       />
                     </div>
                     <div className='flex flex-row items-center justify-between w-full'>
@@ -712,7 +739,7 @@ const TokensDetails = observer(
                   onClick={() => {
                     const denomKey = getKeyToUseForDenoms(
                       denomInfo?.coinMinimalDenom ?? '',
-                      chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId,
+                      chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId ?? '',
                     )
                     handleSwapClick(
                       `https://swapfast.app/?destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,

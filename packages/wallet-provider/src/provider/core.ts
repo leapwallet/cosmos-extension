@@ -34,7 +34,7 @@ export class Leap implements ILeap {
   public defaultOptions: LeapIntereactionOptions = {};
   protected enigmaUtils: Map<string, any> = new Map();
 
-  constructor(public readonly version: string, public readonly mode: LeapMode) {}
+  constructor(public readonly version: string, public readonly mode: LeapMode, public readonly aptos?: LeapAptos) {}
 
   async enable(chainIds: string | string[]): Promise<void> {
     if (typeof chainIds === 'string') {
@@ -310,5 +310,4 @@ export class Leap implements ILeap {
   }
 
   public readonly ethereum = new LeapEvm();
-  public readonly aptos = new LeapAptos();
 }

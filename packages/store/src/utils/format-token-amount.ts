@@ -23,5 +23,8 @@ export function formatTokenAmount(amount: string, symbol = '', precision = 3, cu
     return `${amount} ${symbol}`;
   }
 
-  return currency(amount, { precision: 3, pattern: '# !', symbol }).format();
+  const numberOfDecimals = new BigNumber(amount).dp();
+  const precisionToUse = Math.min(precision, numberOfDecimals || 0);
+
+  return currency(amount, { precision: precisionToUse, pattern: '# !', symbol }).format();
 }

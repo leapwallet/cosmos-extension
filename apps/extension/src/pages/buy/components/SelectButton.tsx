@@ -1,7 +1,7 @@
 import { sliceWord } from '@leapwallet/cosmos-wallet-hooks'
-import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { Images } from 'images'
-import { GenericLight, ImgNotAvailableDark, ImgNotAvailableLight } from 'images/logos'
+import { GenericLight } from 'images/logos'
 import React from 'react'
 import { imgOnError } from 'utils/imgOnError'
 
@@ -28,13 +28,16 @@ export function SelectCurrencyButton({ onClick, logo, title }: SelectButtonProps
 }
 
 export function SelectAssetButton({ onClick, logo, title, subtitle, chainImg }: SelectButtonProps) {
-  const { theme } = useTheme()
   return (
     <button className='flex items-center cursor-pointer' onClick={onClick}>
       <div className='relative'>
-        <img
-          src={logo ?? (theme === ThemeName.DARK ? ImgNotAvailableDark : ImgNotAvailableLight)}
-          className='w-[24px] h-[24px] mr-1 rounded-full bg-black-100 dark:bg-black-100'
+        <TokenImageWithFallback
+          assetImg={logo}
+          text={title}
+          altText={title}
+          imageClassName='w-[24px] h-[24px] mr-1 rounded-full bg-black-100 dark:bg-gray-850'
+          containerClassName='w-[24px] h-[24px] mr-1 rounded-full !bg-black-200 dark:!bg-gray-800'
+          textClassName='text-[7px] !leading-[10px]'
         />
         <img
           src={chainImg}

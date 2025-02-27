@@ -6,9 +6,10 @@ import assert from 'assert'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { ACTIVE_CHAIN, BG_RESPONSE, REDIRECT_REQUEST } from 'config/storage-keys'
+import { BG_RESPONSE, REDIRECT_REQUEST } from 'config/storage-keys'
+import { getChainOriginStorageKey } from 'extension-scripts/utils'
 import { useChainPageInfo } from 'hooks'
-import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
@@ -17,6 +18,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
+import { sendMessageToTab } from 'utils'
 import { formatWalletName } from 'utils/formatWalletName'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -31,8 +33,6 @@ export default function SwitchChain() {
 
   const activeWallet = useActiveWallet()
   const { topChainColor } = useChainPageInfo()
-
-  const setActiveChain = useSetActiveChain()
 
   assert(activeWallet !== null, 'activeWallet is null')
   const walletName = useMemo(() => {
@@ -98,7 +98,7 @@ export default function SwitchChain() {
     Browser.storage.local
       .get([REDIRECT_REQUEST])
       .then(async function initializeContractInfo(response) {
-        const { chainId, existingChainId } = response[REDIRECT_REQUEST].payload
+        const { chainId, existingChainId, origin } = response[REDIRECT_REQUEST].payload
         setRequestedChainId(chainId)
         setExistingChainId(existingChainId)
         setOrigin(origin)
@@ -155,12 +155,30 @@ export default function SwitchChain() {
     setIsLoading(true)
 
     await addToConnections([requestedChainId], [activeWallet.id], origin)
+    const storageKey = getChainOriginStorageKey(origin, 'aptos-')
+
     await Browser.storage.local.set({
-      [ACTIVE_CHAIN]: requestedChain,
+      [storageKey]: {
+        chainKey: requestedChain,
+        network: requestedNetwork,
+      },
     })
-
-    setActiveChain(requestedChain as SupportedChain, undefined, requestedNetwork)
-
+    await sendMessageToTab({
+      event: 'leap_activeChainInfoChanged',
+      data: {
+        chainId: requestedChainId,
+        network: requestedNetwork,
+        restUrl:
+          requestedNetwork === 'testnet'
+            ? chains[requestedChain as SupportedChain]?.apis?.restTest
+            : chains[requestedChain as SupportedChain]?.apis?.rest,
+        rpcUrl:
+          requestedNetwork === 'testnet'
+            ? chains[requestedChain as SupportedChain]?.apis?.rpcTest
+            : chains[requestedChain as SupportedChain]?.apis?.rpc,
+        chainKey: requestedChain,
+      },
+    })
     await Browser.storage.local.set({
       [BG_RESPONSE]: { success: true, chainId: requestedChainId },
     })

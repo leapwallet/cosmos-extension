@@ -1,7 +1,7 @@
 import { ChainInfo, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { Token } from 'bank/balance-types';
 import BigNumber from 'bignumber.js';
-import { computed, makeObservable } from 'mobx';
+import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 
 import { ChainInfosStore, CompassSeiTokensAssociationStore, NmsStore } from '../assets';
@@ -58,6 +58,9 @@ export class RootBalanceStore {
   chainInfosStore: ChainInfosStore;
   evmBalanceStore: EvmBalanceStore;
   compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore;
+  addressStore: AddressStore;
+  selectedNetworkStore: SelectedNetworkStore;
+  forcedLoading: Record<string, boolean> = {};
 
   constructor(
     balanceStore: BalanceStore,
@@ -67,6 +70,8 @@ export class RootBalanceStore {
     chainInfosStore: ChainInfosStore,
     evmBalanceStore: EvmBalanceStore,
     compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore,
+    addressStore: AddressStore,
+    selectedNetworkStore: SelectedNetworkStore,
   ) {
     this.nativeBalanceStore = balanceStore;
     this.erc20BalanceStore = erc20BalanceStore;
@@ -75,13 +80,39 @@ export class RootBalanceStore {
     this.chainInfosStore = chainInfosStore;
     this.evmBalanceStore = evmBalanceStore;
     this.compassSeiTokensAssociationsStore = compassSeiTokensAssociationsStore;
+    this.addressStore = addressStore;
+    this.selectedNetworkStore = selectedNetworkStore;
 
     makeObservable(this, {
       allTokens: computed,
       allSpendableTokens: computed,
       loading: computed,
       totalFiatValue: computed,
+      forcedLoading: observable.deep,
     });
+  }
+
+  public getBalanceKey(
+    chain: AggregatedSupportedChainType,
+    forceNetwork?: SelectedNetworkType,
+    _address?: string,
+  ): string {
+    const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
+    const address = _address ?? this.addressStore.addresses[chain as SupportedChain];
+
+    return `${chainKey}-${address}`;
+  }
+
+  public getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    if (chain === 'aggregated') return `aggregated-${network}`;
+
+    const chainId =
+      network === 'testnet'
+        ? this.chainInfosStore.chainInfos[chain].testnetChainId
+        : this.chainInfosStore.chainInfos[chain].chainId;
+
+    return `${chain}-${chainId}`;
   }
 
   get allTokens() {
@@ -215,8 +246,9 @@ export class RootBalanceStore {
       );
       const erc20Tokens = this.erc20BalanceStore.getAggregatedERC20Tokens(network);
       const cw20Tokens = this.cw20BalanceStore.getAggregatedCW20Tokens(network);
+      const evmTokens = this.evmBalanceStore.getAggregatedEvmTokens(network);
 
-      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens)));
+      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens, evmTokens)));
     },
   );
 
@@ -293,14 +325,23 @@ export class RootBalanceStore {
   get loading() {
     const activeChain = this.activeChainStore?.activeChain;
     if (this.chainInfosStore.chainInfos[activeChain as SupportedChain]?.evmOnlyChain) {
-      return this.evmBalanceStore.evmBalance.status === 'loading' || this.erc20BalanceStore.loading;
+      return (
+        this.evmBalanceStore.evmBalance.status === 'loading' ||
+        this.erc20BalanceStore.loading ||
+        (this.forcedLoading[this.getBalanceKey(activeChain)] ?? false)
+      );
     }
 
     if (activeChain === 'aggregated' && this.nativeBalanceStore.aggregateBalanceVisible) {
       return false;
     }
 
-    return this.nativeBalanceStore.loadingStatus || this.erc20BalanceStore.loading || this.cw20BalanceStore.loading;
+    return (
+      this.nativeBalanceStore.loadingStatus ||
+      this.erc20BalanceStore.loading ||
+      this.cw20BalanceStore.loading ||
+      (this.forcedLoading[this.getBalanceKey(activeChain)] ?? false)
+    );
   }
 
   get totalFiatValue() {
@@ -379,7 +420,7 @@ export class RootStore {
   async initStores() {
     if (this.initializing !== 'pending') return;
     this.initializing = 'inprogress';
-    await this.nmsStore.readyPromise;
+    await Promise.allSettled([this.nmsStore.readyPromise, this.priceStore.readyPromise]);
     await this.addressStore.loadAddresses();
     this.initPromise = Promise.all([this.rootBalanceStore.loadBalances(), this.rootStakeStore.updateStake()]);
     await this.initPromise;
@@ -399,7 +440,18 @@ export class RootStore {
   async setActiveChain(chain: AggregatedSupportedChainType) {
     if (this.activeChainStore.activeChain === chain) return;
     this.activeChainStore.setActiveChain(chain);
-    if (this.initializing !== 'done') return;
+    console.log(this.initializing, chain, 'setactivechain');
+
+    if (this.initializing !== 'done') {
+      const key = this.rootBalanceStore.getBalanceKey(chain);
+      runInAction(() => {
+        this.rootBalanceStore.forcedLoading[key] = true;
+      });
+      this.initPromise && (await this.initPromise);
+      runInAction(() => {
+        this.rootBalanceStore.forcedLoading[key] = false;
+      });
+    }
     await Promise.all([
       this.rootBalanceStore.loadBalances(chain, this.selectedNetworkStore.selectedNetwork),
       this.rootStakeStore.updateStake(chain, this.selectedNetworkStore.selectedNetwork),

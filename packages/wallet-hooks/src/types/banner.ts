@@ -28,6 +28,7 @@ export type BannerAD = {
   display_position?: string;
   attributes?: NumiaBannerAttribute;
   visibleOn?: 'ALL' | 'EXTENSION' | 'MOBILE';
+  exclude_chain_ids?: string;
 };
 
 export type NumiaBannerAD = NumiaBannerAttribute & {

@@ -1,5 +1,5 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { CheckCircle, Star } from '@phosphor-icons/react'
+import { CheckCircle, DotsThreeVertical, Star, TrashSimple } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import Text from 'components/text'
@@ -10,7 +10,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
-import React from 'react'
+import React, { useState } from 'react'
 import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { starredChainsStore } from 'stores/starred-chains-store'
 import { Colors } from 'theme/colors'
@@ -23,6 +23,7 @@ type Chain = SupportedChain | typeof AGGREGATED_CHAIN_KEY
 type ChainCardProps = {
   img: string
   handleClick: (chainName: Chain, beta?: boolean) => void
+  handleDeleteClick?: (chainKey: SupportedChain) => void
   beta?: boolean
   onPage?: 'AddCollection'
   formattedChainName: string
@@ -35,6 +36,7 @@ type ChainCardProps = {
 const ChainCardView = ({
   img,
   handleClick,
+  handleDeleteClick,
   beta,
   formattedChainName,
   chainName,
@@ -45,6 +47,7 @@ const ChainCardView = ({
 }: ChainCardProps) => {
   const { activeWallet } = useActiveWallet()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const [showDeleteBtn, setShowDeleteBtn] = useState(false)
 
   const isStarred = starredChainsStore.chains.includes(chainName)
 
@@ -76,6 +79,19 @@ const ChainCardView = ({
     }
   }
 
+  const handleToggleDelete = (e: any) => {
+    e.stopPropagation()
+    setShowDeleteBtn((showDeleteBtn) => !showDeleteBtn)
+  }
+
+  const deleteChain = (e: any) => {
+    if (handleDeleteClick && chainName !== 'aggregated') {
+      e.stopPropagation()
+      handleDeleteClick(chainName)
+      setShowDeleteBtn(false)
+    }
+  }
+
   return (
     <div
       onClick={() => {
@@ -85,7 +101,7 @@ const ChainCardView = ({
           handleClick(chainName, beta)
         }
       }}
-      className='flex flex-1 items-center pr-4 p-3 cursor-pointer'
+      className='flex flex-1 items-center pr-4 p-3 cursor-pointer relative'
     >
       <div className='flex items-center flex-1 gap-2'>
         {showStars && (
@@ -155,10 +171,29 @@ const ChainCardView = ({
             }}
           />
         ) : null}
+        {beta && (
+          <DotsThreeVertical
+            onClick={handleToggleDelete}
+            size={20}
+            className='text-gray-400 ml-2 cursor-pointer'
+          />
+        )}
         {isWatchWalletNotAvailableChain && (
           <img src={Images.Misc.SyncDisabled} onError={imgOnError(defaultTokenLogo)} />
         )}
       </div>
+
+      {showDeleteBtn && (
+        <div
+          className='flex p-2.5 gap-x-2 absolute dark:bg-gray-900 bg-gray-50 rounded-lg items-center w-[120px] h-[42px] right-4 -bottom-[34px] z-[1]'
+          onClick={deleteChain}
+        >
+          <TrashSimple size={16} weight='fill' className='text-black-100 dark:text-white-100' />
+          <Text size='sm' className='font-medium'>
+            Delete
+          </Text>
+        </div>
+      )}
     </div>
   )
 }

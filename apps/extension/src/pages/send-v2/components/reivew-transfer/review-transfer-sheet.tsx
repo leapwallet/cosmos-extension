@@ -20,12 +20,13 @@ import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import { ErrorCard } from 'components/ErrorCard'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send-v2/context'
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -42,6 +43,7 @@ export const ReviewTransferSheet = observer(
   ({ isOpen, onClose, rootERC20DenomsStore }: ReviewTransactionSheetProps) => {
     const [formatCurrency] = useformatCurrency()
     const defaultTokenLogo = useDefaultTokenLogo()
+    const [useChainImgFallback, setUseChainImgFallback] = useState(false)
     const chains = useGetChains()
     const getWallet = Wallet.useGetWallet()
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
@@ -221,13 +223,26 @@ export const ReviewTransferSheet = observer(
         <div className='flex flex-col items-center w-full gap-y-4'>
           <div className='w-full flex items-center gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
             <div className='flex flex-col flex-1 items-center'>
-              <Avatar
-                avatarImage={selectedToken?.img ?? defaultTokenLogo}
-                chainIcon={chains?.[sendActiveChain]?.chainSymbolImageUrl}
-                size='sm'
-                avatarOnError={imgOnError(defaultTokenLogo)}
-                className='mb-4 bg-gray-100 dark:bg-gray-850 rounded-full p-2 !h-11 !w-11'
-              />
+              <div className='w-11 h-11 rounded-full relative bg-gray-100 p-2 mb-4 dark:bg-gray-850 shrink-0 flex items-center justify-center'>
+                <TokenImageWithFallback
+                  assetImg={selectedToken?.img}
+                  text={selectedToken?.symbol ?? ''}
+                  altText={selectedToken?.symbol ?? ''}
+                  imageClassName='w-full h-full rounded-full bg-gray-200 dark:bg-gray-800'
+                  containerClassName='w-full h-full rounded-full bg-gray-200 dark:bg-gray-800'
+                  textClassName='text-[8px] !leading-[11px]'
+                />
+                {chains?.[sendActiveChain]?.chainSymbolImageUrl && !useChainImgFallback ? (
+                  <img
+                    src={chains?.[sendActiveChain]?.chainSymbolImageUrl}
+                    alt={chains?.[sendActiveChain]?.chainName ?? ''}
+                    onError={() => {
+                      setUseChainImgFallback(true)
+                    }}
+                    className='absolute bottom-0 right-0 h-4 w-4'
+                  />
+                ) : null}
+              </div>
 
               <p
                 className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
@@ -256,7 +271,7 @@ export const ReviewTransferSheet = observer(
               />
 
               <p
-                className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
+                className='text-sm text-black-100 dark:text-white-100 font-bold mb-1 text-center'
                 data-testing-id='send-review-sheet-to-ele'
               >
                 {selectedAddress?.ethAddress && selectedAddress?.chainName !== 'injective'

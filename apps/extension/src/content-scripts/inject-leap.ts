@@ -4,11 +4,12 @@ import { LeapBitcoin } from '@leapwallet/cosmos-wallet-provider/dist/provider/co
 import { LeapEvm } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-evm'
 
 import manifest from '../../public/base_manifest.json'
+import { isCompassWallet } from '../utils/isCompassWallet'
 import { init } from './init'
 
 const bitcoin = new LeapBitcoin()
 const ethereum = new LeapEvm()
-const leap = new Leap(manifest.version, 'core')
 export const aptos = new LeapAptos()
+const leap = new Leap(manifest.version, 'core', isCompassWallet() ? undefined : aptos)
 
 init(leap, ethereum, aptos, bitcoin)

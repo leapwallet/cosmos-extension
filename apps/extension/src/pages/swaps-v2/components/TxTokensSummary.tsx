@@ -1,4 +1,5 @@
 import { ArrowRight } from '@phosphor-icons/react'
+import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import React from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
@@ -13,6 +14,8 @@ type Props = {
   destinationToken: SourceToken | null
   destinationChain: SourceChain | undefined
   className?: string
+  sourceAssetUSDValue?: BigNumber
+  destinationAssetUSDValue?: BigNumber
 }
 
 function TxTokensSummary({
@@ -23,6 +26,8 @@ function TxTokensSummary({
   destinationToken,
   destinationChain,
   className,
+  sourceAssetUSDValue,
+  destinationAssetUSDValue,
 }: Props) {
   return (
     <div
@@ -31,7 +36,12 @@ function TxTokensSummary({
         className,
       )}
     >
-      <TxReviewTokenInfo amount={inAmount} token={sourceToken} chain={sourceChain} />
+      <TxReviewTokenInfo
+        amount={inAmount}
+        token={sourceToken}
+        chain={sourceChain}
+        assetUsdValue={sourceAssetUSDValue}
+      />
 
       <div className='bg-gray-100 dark:bg-gray-850 shrink-0 flex justify-center items-center w-[24px] h-[24px] max-[350px]:w-[20px] max-[350px]:h-[20px] rounded-full'>
         <ArrowRight
@@ -40,7 +50,12 @@ function TxTokensSummary({
         />
       </div>
 
-      <TxReviewTokenInfo amount={amountOut} token={destinationToken} chain={destinationChain} />
+      <TxReviewTokenInfo
+        amount={amountOut}
+        token={destinationToken}
+        chain={destinationChain}
+        assetUsdValue={destinationAssetUSDValue}
+      />
     </div>
   )
 }

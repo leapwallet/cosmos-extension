@@ -12,6 +12,7 @@ import {
 import { SupportedChain, UnbondingDelegationEntry, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { Info } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
@@ -20,8 +21,9 @@ import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import Text from 'components/text'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { EventName } from 'config/analytics'
-import { useDefaultTokenLogo } from 'hooks'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -35,16 +37,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { timeLeft } from 'utils/timeLeft'
-import useGetWallet = Wallet.useGetWallet
-
-import { Info } from '@phosphor-icons/react'
-import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
 
+import useGetWallet = Wallet.useGetWallet
 interface ReviewCancelUnstakeTxProps {
   isOpen: boolean
   onClose: () => void
@@ -86,7 +85,7 @@ const ReviewCancelUnstakeTx = observer(
 
     const [formatCurrency] = useFormatCurrency()
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
-    const defaultTokenLogo = useDefaultTokenLogo()
+
     const { theme } = useTheme()
 
     const {
@@ -244,10 +243,13 @@ const ReviewCancelUnstakeTx = observer(
             </div>
 
             <div className='flex gap-x-4 w-full p-4 bg-white-100 dark:bg-gray-950 rounded-lg'>
-              <img
-                className='w-9 h-9'
-                src={activeStakingDenom.icon}
-                onError={imgOnError(defaultTokenLogo)}
+              <TokenImageWithFallback
+                assetImg={activeStakingDenom.icon}
+                text={activeStakingDenom.coinDenom}
+                altText={activeStakingDenom.coinDenom}
+                imageClassName='w-9 h-9 rounded-full'
+                containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
+                textClassName='text-[10px] !leading-[14px]'
               />
               <div>
                 <Text

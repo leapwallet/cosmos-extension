@@ -23,8 +23,8 @@ import BigNumber from 'bignumber.js'
 import BottomModal from 'components/bottom-modal'
 import { ValidatorItemSkeleton } from 'components/Skeletons/StakeSkeleton'
 import Text from 'components/text'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import currency from 'currency.js'
-import { useDefaultTokenLogo } from 'hooks'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
@@ -91,7 +91,6 @@ const StakedValidatorDetails = observer(
     const chainValidators = validatorsStore.validatorsForChain(activeChain)
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
-    const defaultTokenLogo = useDefaultTokenLogo()
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const [formatCurrency] = useFormatCurrency()
@@ -110,7 +109,7 @@ const StakedValidatorDetails = observer(
     const { theme } = useTheme()
 
     const [validatorRewardCurrency, validatorRewardToken, validatorRewardTotal] = useMemo(() => {
-      const validatorRewards = chainClaimRewards.rewards.rewards[validator?.address ?? '']
+      const validatorRewards = chainClaimRewards.rewards?.rewards?.[validator?.address ?? '']
       const _validatorRewardCurrency = validatorRewards?.reward.reduce(
         (acc, reward) => acc.plus(new BigNumber(reward.currencyAmount ?? '')),
         new BigNumber(0),
@@ -247,12 +246,14 @@ const StakedValidatorDetails = observer(
             </Text>
 
             <div className='flex gap-x-4 mt-4'>
-              <img
-                className='w-9 h-9'
-                src={activeStakingDenom.icon}
-                onError={imgOnError(defaultTokenLogo)}
+              <TokenImageWithFallback
+                assetImg={activeStakingDenom.icon}
+                text={activeStakingDenom.coinDenom}
+                altText={activeStakingDenom.coinDenom}
+                imageClassName='w-9 h-9 rounded-full'
+                containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
+                textClassName='text-[10px] !leading-[14px]'
               />
-
               <div className='flex flex-col justify-center'>
                 <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
                   {amountTitleText}
@@ -351,7 +352,7 @@ interface ValidatorCardProps {
   validator: Validator
   delegation: Delegation
   status?: Delegation['status']
-  onClick: () => void
+  onClick: (delegation: Delegation) => void
 }
 
 const ValidatorCard = observer(({ validator, delegation, onClick, status }: ValidatorCardProps) => {
@@ -388,9 +389,13 @@ const ValidatorCard = observer(({ validator, delegation, onClick, status }: Vali
     delegation.balance.formatted_amount,
   ])
 
+  const handleValidatorCardClick = useCallback(() => {
+    onClick(delegation)
+  }, [onClick, delegation])
+
   return (
     <div
-      onClick={onClick}
+      onClick={handleValidatorCardClick}
       className='flex justify-between items-center px-4 py-3 bg-white-100 dark:bg-gray-950 cursor-pointer rounded-xl'
     >
       <div className='flex items-center w-full'>
@@ -571,6 +576,11 @@ const ValidatorList = observer(
       setShowReviewValidatorClaimTx(true)
     }, [])
 
+    const handleValidatorCardClick = useCallback((delegation: Delegation) => {
+      setSelectedDelegation(delegation)
+      setShowStakedValidatorDetails(true)
+    }, [])
+
     return (
       <>
         {isLoading && <ValidatorItemSkeleton />}
@@ -594,10 +604,7 @@ const ValidatorList = observer(
                     delegation={d}
                     validator={validator}
                     status={d.status}
-                    onClick={() => {
-                      setSelectedDelegation(d)
-                      setShowStakedValidatorDetails(true)
-                    }}
+                    onClick={handleValidatorCardClick}
                   />
                 )
               })}
@@ -621,10 +628,7 @@ const ValidatorList = observer(
                     key={validator.address}
                     delegation={d}
                     validator={validator}
-                    onClick={() => {
-                      setSelectedDelegation(d)
-                      setShowStakedValidatorDetails(true)
-                    }}
+                    onClick={handleValidatorCardClick}
                   />
                 )
               })}

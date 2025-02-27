@@ -4,7 +4,7 @@ import { CardDivider, Header, HeaderActionType, NavCard, ToggleCard } from '@lea
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, { ReactElement, useState } from 'react'
+import React, { ReactElement, useMemo, useState } from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { autoLockTimeStore, TimerLockPeriodRev } from 'stores/password-store'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -32,6 +32,40 @@ const GeneralSecurity = observer(
     const [showLockTimeDropUp, setShowLockTimeDropUp] = useState(false)
     const [page, setPage] = useState(GENERAL_SECURITY_PAGES.DEFAULT)
 
+    const NavOptions = useMemo(
+      () => [
+        {
+          imgSrc: Images.Misc.Timer,
+          property: 'Auto-lock timer',
+          value: TimerLockPeriodRev[autoLockTimeStore.time],
+          onClick: () => {
+            setShowLockTimeDropUp(true)
+          },
+          disabled: false,
+        },
+        {
+          imgSrc: Images.Misc.Globe,
+          property: 'Connected Sites',
+          value: '',
+          onClick: () => {
+            setPage(GENERAL_SECURITY_PAGES.CONNECTED_SITES)
+          },
+          disabled: (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY,
+        },
+
+        {
+          imgSrc: Images.Nav.ManageAuthZ,
+          property: 'Manage AuthZ',
+          value: '',
+          onClick: () => {
+            setPage(GENERAL_SECURITY_PAGES.MANAGE_AUTHZ)
+          },
+          disabled: false,
+        },
+      ],
+      [activeChain],
+    )
+
     if (page === GENERAL_SECURITY_PAGES.CONNECTED_SITES) {
       return <ConnectedSites setPage={setPage} />
     }
@@ -44,37 +78,6 @@ const GeneralSecurity = observer(
         />
       )
     }
-
-    const NavOptions = [
-      {
-        imgSrc: Images.Misc.Timer,
-        property: 'Auto-lock timer',
-        value: TimerLockPeriodRev[autoLockTimeStore.time],
-        onClick: () => {
-          setShowLockTimeDropUp(true)
-        },
-        disabled: false,
-      },
-      {
-        imgSrc: Images.Misc.Globe,
-        property: 'Connected Sites',
-        value: '',
-        onClick: () => {
-          setPage(GENERAL_SECURITY_PAGES.CONNECTED_SITES)
-        },
-        disabled: (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY,
-      },
-
-      {
-        imgSrc: Images.Nav.ManageAuthZ,
-        property: 'Manage AuthZ',
-        value: '',
-        onClick: () => {
-          setPage(GENERAL_SECURITY_PAGES.MANAGE_AUTHZ)
-        },
-        disabled: false,
-      },
-    ]
 
     return (
       <div className='panel-height enclosing-panel'>

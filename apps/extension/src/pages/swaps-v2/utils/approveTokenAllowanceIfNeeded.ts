@@ -3,10 +3,8 @@ import { BigNumber as EthersBigNumber } from '@ethersproject/bignumber'
 import { AddressZero } from '@ethersproject/constants'
 import { Contract } from '@ethersproject/contracts'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { SeiEvmTx } from '@leapwallet/cosmos-wallet-sdk'
+import { LedgerError, SeiEvmTx } from '@leapwallet/cosmos-wallet-sdk'
 import { EthWallet } from '@leapwallet/leap-keychain'
-import { BigNumber } from 'bignumber.js'
-import { compassSeiEvmConfigStore } from 'stores/balance-store'
 
 // Minimal ERC20 ABI - we only need approve function
 const ERC20_ABI = [
@@ -15,6 +13,7 @@ const ERC20_ABI = [
 ]
 
 export async function approveTokenAllowanceIfNeeded(
+  chainId: number,
   evmJsonRpc: string,
   wallet: EthWallet,
   owner: string,
@@ -22,7 +21,9 @@ export async function approveTokenAllowanceIfNeeded(
   routerAddress: string, // The DEX router address
   amount: string, // Amount to approve
   gasPrice: number | undefined,
-  decimals: number,
+  isLedgerTypeWallet: boolean,
+  setShowLedgerPopup: (show: boolean) => void,
+  setShowLedgerPopupText: (text: string) => void,
 ) {
   // If the token is the native token, we don't need to approve
   if (tokenAddress === AddressZero) {
@@ -36,18 +37,10 @@ export async function approveTokenAllowanceIfNeeded(
   try {
     // Check current allowance first
     const currentAllowance = await contract.allowance(owner, routerAddress)
-    const weiAmount = new BigNumber(amount)
-      .multipliedBy(1.2)
-      .multipliedBy(new BigNumber(10).exponentiatedBy(decimals))
-      .toFixed(0)
-
-    const weiAmountBN = EthersBigNumber.from(weiAmount)
+    const weiAmountBN = EthersBigNumber.from(amount)
     if (currentAllowance.lt(weiAmountBN)) {
       // Send approve transaction
-      const data = await contract.interface.encodeFunctionData('approve', [
-        routerAddress,
-        weiAmount,
-      ])
+      const data = await contract.interface.encodeFunctionData('approve', [routerAddress, amount])
 
       const gasUsed = await SeiEvmTx.SimulateTransaction(
         tokenAddress,
@@ -58,13 +51,18 @@ export async function approveTokenAllowanceIfNeeded(
         owner,
       )
 
-      const seiEvmTx = SeiEvmTx.GetSeiEvmClient(
-        wallet,
-        evmJsonRpc ?? '',
-        Number(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
-      )
+      const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', chainId)
+
+      if (isLedgerTypeWallet) {
+        setShowLedgerPopup(true)
+        setShowLedgerPopupText(
+          'You will need to confirm 2 transactions on your hardware wallet. Make sure blind signing is enabled',
+        )
+        await wallet.getAccounts()
+      }
 
       const tx = await seiEvmTx.sendTransaction('', tokenAddress, '0', gasUsed, gasPrice, data)
+
       // Wait for transaction to be mined
       await tx.wait()
       const newAllowance = await contract.allowance(owner, routerAddress)
@@ -76,10 +74,17 @@ export async function approveTokenAllowanceIfNeeded(
       return null
     }
   } catch (error) {
+    if (error instanceof LedgerError) {
+      setShowLedgerPopup(false)
+      setShowLedgerPopupText('')
+      throw error
+    }
     console.error('Approval failed:', error)
     throw new Error(
       'Approval for token failed' +
         ((error as Error)?.message ? `: ${(error as Error).message}` : ''),
     )
+  } finally {
+    // setShowLedgerPopup(false)
   }
 }

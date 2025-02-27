@@ -141,5 +141,9 @@ export function useSnipGetSnip20TokenBalances(sscrtClient?: Sscrt) {
     },
   );
 
-  return { snip20TokensStatus, snip20Tokens: sortTokenBalances((snip20Tokens ?? []) as Token[]), enabled };
+  const sortedSnip20Tokens = useMemo(() => {
+    return sortTokenBalances((snip20Tokens ?? []) as Token[]);
+  }, [snip20Tokens]);
+
+  return { snip20TokensStatus, snip20Tokens: sortedSnip20Tokens, enabled };
 }

@@ -4,6 +4,7 @@ import { SourceChain, SourceToken } from 'types/swap'
 const NO_TRANSACTION_ROUTES_ERROR = 'No transaction routes available'
 // Skip's API responses for which to show NO_TRANSACTION_ROUTES_ERROR
 const noTransactionRoutesErrors = [
+  'no single-tx routes found',
   'no routes found',
   'cannot swap on a chain',
   'cannot transfer across',
@@ -31,6 +32,12 @@ export function useGetErrorMsg(
         noTransactionRoutesErrors?.some((error) => routeError.message.toLowerCase().includes(error))
       ) {
         return NO_TRANSACTION_ROUTES_ERROR
+      }
+      if (routeError.message.toLowerCase().includes('input amount is too low to cover')) {
+        return routeError.message
+      }
+      if (routeError.message.toLowerCase().includes('insufficient allowance')) {
+        return 'Insufficient allowance'
       }
       if (routeError.message.toLowerCase().includes('asset metadata unavailable')) {
         return 'Asset not supported'

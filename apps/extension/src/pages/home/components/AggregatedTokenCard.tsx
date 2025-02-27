@@ -7,10 +7,11 @@ import {
   useGetChains,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Badge from 'components/badge/Badge'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
@@ -53,9 +54,9 @@ const AggregatedTokenCardView = ({
 }: AggregatedTokenCardProps) => {
   const chains = useGetChains()
   const [formatCurrency] = useFormatCurrency()
+  const defaultTokenLogo = useDefaultTokenLogo()
   const activeChain = useActiveChain() as AggregatedSupportedChain
 
-  const defaultTokenLogo = useDefaultTokenLogo()
   const [preferredCurrency] = useUserPreferredCurrency()
   const formattedFiatValue = usdValue ? formatCurrency(new BigNumber(usdValue)) : '-'
 
@@ -116,12 +117,27 @@ const AggregatedTokenCardView = ({
       onClick={onClick}
     >
       <div className='flex items-center justify-start gap-2 w-[150px]'>
-        <img
-          className='w-[36px] h-[36px] rounded-full'
-          src={assetImg ?? defaultTokenLogo}
-          alt={chainName + ' logo'}
-          onError={imgOnError(defaultTokenLogo)}
-        />
+        <div className='relative w-[40px] h-[40px] flex items-center justify-center shrink-0'>
+          <TokenImageWithFallback
+            assetImg={assetImg}
+            text={symbol}
+            altText={chainName + ' logo'}
+            imageClassName='w-[36px] h-[36px] rounded-full'
+            containerClassName='w-[36px] h-[36px] rounded-full'
+            textClassName='text-[10px] !leading-[14px]'
+          />
+          {activeChain === AGGREGATED_CHAIN_KEY && (
+            <img
+              src={
+                chains[tokenBalanceOnChain]?.chainSymbolImageUrl ??
+                ChainInfos[tokenBalanceOnChain]?.chainSymbolImageUrl ??
+                defaultTokenLogo
+              }
+              onError={imgOnError(defaultTokenLogo)}
+              className='w-[15px] h-[15px] absolute bottom-[2px] right-[2px] rounded-full bg-white-100 dark:bg-black-100'
+            />
+          )}
+        </div>
 
         <div className='flex flex-col gap-y-[1px]'>
           <div className='text-black-100 dark:text-white-100 font-[700] flex items-center justify-start gap-2'>

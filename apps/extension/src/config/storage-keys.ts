@@ -33,6 +33,7 @@ export const V125_BETA_NFT_COLLECTIONS_MIGRATION_COMPLETE =
   'v125-beta-nft-collections-migration-complete'
 export const V151_NFT_SEPARATOR_CHANGE_MIGRATION_COMPLETE =
   'v151-nft-separator-change-migration-complete'
+export const V174_UNION_TESTNET_MIGRATION_COMPLETE = 'v174-union-testnet-migration-complete'
 export const PENDING_SWAP_TXS = 'pending-swap-txs'
 export const CURRENT_SWAP_TXS = 'current-swap-txs'
 export const NETWORK_MAP = 'networkMap'

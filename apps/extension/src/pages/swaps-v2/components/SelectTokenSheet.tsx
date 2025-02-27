@@ -5,6 +5,8 @@ import BottomModal from 'components/bottom-modal'
 import { SearchInput } from 'components/search-input'
 import { EventName } from 'config/analytics'
 import Fuse from 'fuse.js'
+import { useDefaultTokenLogo } from 'hooks'
+import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
@@ -12,10 +14,14 @@ import { GroupedVirtuoso } from 'react-virtuoso'
 import { marketDataStore } from 'stores/balance-store'
 import { compassTokenTagsStore } from 'stores/denoms-store-instance'
 import { SourceChain, SourceToken } from 'types/swap'
+import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 import { useSwapContext } from '../context'
+import { useAllChainsPlaceholder } from '../hooks/useAllChainsPlaceholder'
+import { TokenAssociatedChain } from './ChainsList'
+import { SelectChainSheet } from './SelectChainSheet'
 import { SelectDestinationSheet } from './SelectDestinationSheet'
 import { TokenCard, TokenCardSkeleton } from './TokenCard'
 
@@ -73,7 +79,7 @@ const TokenCardWrapper = observer(
           isChainAbstractionView={isChainAbstractionView}
         />
 
-        {!isLast && <div className='border-b w-full border-gray-100 dark:border-gray-850' />}
+        {!isLast && <div className='border-b mx-6 border-gray-100 dark:border-gray-850' />}
       </>
     )
   },
@@ -110,6 +116,11 @@ export function SelectTokenSheet({
   loadingTokens,
 }: SelectTokenSheetProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSelectChainOpen, setIsSelectChainOpen] = useState(false)
+  const allChainsPlaceholder = useAllChainsPlaceholder()
+  const [selectedFilteredChain, setSelectedFilteredChain] = useState<
+    TokenAssociatedChain | undefined
+  >(allChainsPlaceholder)
   const activeNetwork = useSelectedNetwork()
   const { chainsToShow } = useSwapContext()
 
@@ -138,12 +149,19 @@ export function SelectTokenSheet({
         return sourceAssets
 
       case 'destination':
-        return destinationAssets
+        if (selectedFilteredChain && selectedFilteredChain.chain.chainId !== 'all') {
+          return destinationAssets.filter(
+            (asset) => asset.skipAsset.chainId === selectedFilteredChain.chain.chainId,
+          )
+        }
+        return destinationAssets.filter((asset) =>
+          isCompassWallet() ? true : !asset.skipAsset.denom.includes('ibc/'),
+        )
 
       default:
         return []
     }
-  }, [showFor, sourceAssets, destinationAssets])
+  }, [showFor, sourceAssets, selectedFilteredChain, destinationAssets])
 
   const simpleFuse = useMemo(() => {
     const keys = ['symbol', 'name']
@@ -183,6 +201,12 @@ export function SelectTokenSheet({
     return searchResult.map((result) => result.item)
   }, [searchQuery, tokensToShow, simpleFuse, extendedFuse])
 
+  const chainsToShowWithAssociatedTokens = useMemo(() => {
+    return chainsToShow.map((chain) => ({
+      chain,
+    }))
+  }, [chainsToShow])
+
   const tokenGroups = useMemo(() => {
     return [
       {
@@ -192,7 +216,7 @@ export function SelectTokenSheet({
         headerComponent: (
           <div
             key='all-tokens-heading'
-            className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'
+            className='mb-[8px] px-6 flex flex-row justify-start items-center gap-[4px] text-gray-400'
           >
             <span className='font-bold text-xs'>All tokens</span>
           </div>
@@ -200,6 +224,7 @@ export function SelectTokenSheet({
       },
     ]
   }, [filteredTokens])
+  const defaultTokenLogo = useDefaultTokenLogo()
 
   const emitMixpanelDropdownCloseEvent = useCallback(
     (tokenSelected?: string) => {
@@ -224,6 +249,10 @@ export function SelectTokenSheet({
     },
     [chainsToShow, emitMixpanelDropdownCloseEvent, onTokenSelect],
   )
+
+  const onSelectChainFilterClick = useCallback(() => {
+    setIsSelectChainOpen(true)
+  }, [])
 
   if (isCompassWallet() && activeNetwork !== 'testnet' && showFor === 'destination') {
     return (
@@ -253,10 +282,10 @@ export function SelectTokenSheet({
       isOpen={isOpen}
       closeOnBackdropClick={true}
       contentClassName='!bg-white-100 dark:!bg-gray-950 !overflow-hidden'
-      className='p-6'
+      className='p-0'
     >
       <div className='flex flex-col items-center w-full h-full'>
-        <div className='flex flex-col items-center w-full h-full mb-6'>
+        <div className='flex flex-row items-center w-full h-full mb-6 gap-3 px-6 pt-6'>
           <SearchInput
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -266,6 +295,19 @@ export function SelectTokenSheet({
             divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
             inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
           />
+          {showFor === 'destination' ? (
+            <div
+              className='flex items-center cursor-pointer bg-gray-50 dark:bg-gray-900 h-12 rounded-3xl px-3 py-2'
+              onClick={onSelectChainFilterClick}
+            >
+              <img
+                src={selectedFilteredChain?.chain.icon || defaultTokenLogo}
+                className='w-[28px] h-[28px]'
+                onError={imgOnError(defaultTokenLogo)}
+              />
+              <img src={Images.Misc.FilledArrowDown} className='h-1.5 w-4 ml-2' />
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -276,7 +318,7 @@ export function SelectTokenSheet({
             <>
               <div
                 key='all-tokens-heading'
-                className='mb-[8px] flex flex-row justify-start items-center gap-[4px] text-gray-400'
+                className='mb-[8px] px-6 flex flex-row justify-start items-center gap-[4px] text-gray-400'
               >
                 <span className='font-bold text-xs'>All tokens</span>
               </div>
@@ -284,13 +326,13 @@ export function SelectTokenSheet({
                 <React.Fragment key={index}>
                   <TokenCardSkeleton />
                   {index !== 4 && (
-                    <div className='border-b w-full border-gray-100 dark:border-gray-850' />
+                    <div className='border-b mx-6 border-gray-100 dark:border-gray-850' />
                   )}
                 </React.Fragment>
               ))}
             </>
           ) : filteredTokens.length === 0 ? (
-            <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4'>
+            <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4 px-6'>
               <Question size={40} className='!leading-[40px] dark:text-white-100' />
               <div className='flex flex-col justify-start items-center w-full gap-1'>
                 <div className='text-md text-center font-bold !leading-[21.5px] dark:text-white-100'>
@@ -307,6 +349,7 @@ export function SelectTokenSheet({
                 style={{ flexGrow: '1', width: '100%' }}
                 groupContent={() => <div className='w-[1px] h-[1px] bg-transparent'></div>} //This is to avoid virtuoso errors in console logs
                 groupCounts={tokenGroups.map((group) => group.items.length)}
+                className='scrollbar'
                 itemContent={(index, groupIndex) => {
                   const group = tokenGroups[groupIndex]
                   const { Component } = group
@@ -331,6 +374,20 @@ export function SelectTokenSheet({
           )}
         </div>
       </div>
+      <SelectChainSheet
+        isOpen={isSelectChainOpen}
+        onClose={() => {
+          setIsSelectChainOpen(false)
+        }}
+        chainsToShow={chainsToShowWithAssociatedTokens}
+        selectedChain={selectedFilteredChain?.chain}
+        onChainSelect={(chain) => {
+          setSelectedFilteredChain(chain)
+          setIsSelectChainOpen(false)
+        }}
+        selectedToken={null}
+        showAllChainsOption
+      />
     </BottomModal>
   )
 }

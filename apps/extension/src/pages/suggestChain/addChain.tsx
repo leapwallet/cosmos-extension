@@ -30,7 +30,7 @@ import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import SideNav from 'pages/home/side-nav'
-import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import React, { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { rootStore } from 'stores/root-store'
@@ -86,56 +86,62 @@ const AddChainForm = observer(
       decimals,
     } = chainInfo
 
-    const customChainIds = customChains.map((chain) => chain.chainId)
+    const customChainIds = useMemo(() => customChains.map((chain) => chain.chainId), [customChains])
 
-    const fetchChainInfo = async (chainId: string) => {
-      try {
-        if (customChainIds.includes(chainId)) {
-          setErrors((val) => ({ ...val, chainId: `Please add ${chainId} from switch chain list` }))
+    const fetchChainInfo = useCallback(
+      async (chainId: string) => {
+        try {
+          if (customChainIds.includes(chainId)) {
+            setErrors((val) => ({
+              ...val,
+              chainId: `Please add ${chainId} from switch chain list`,
+            }))
+            return
+          }
+          const chain = chainIdToChain[chainId.trim()]
+          if (!chain) {
+            return
+          }
+          const mainnetBaseURL = 'https://chains.cosmos.directory'
+          const { data: mainnetData }: any = await axios
+            .get(`${mainnetBaseURL}/${chain}`)
+            .catch(() => ({}))
+
+          const testnetBaseURL = 'https://chains.testcosmos.directory'
+          const { data: testnetData }: any = mainnetData
+            ? { data: null }
+            : await axios.get(`${testnetBaseURL}/${chain}`).catch(() => ({}))
+
+          const info = mainnetData?.chain || testnetData?.chain
+          if (!info) {
+            return
+          }
+          setEvmChainInfo((val) => ({ ...val, isEvmChain: false }))
+          const mintscanExplorer = info.explorers.find(
+            (explorer: any) => explorer.kind === 'mintscan',
+          )
+
+          setChainInfo({
+            chainId: info.chain_id,
+            chainName: info.pretty_name,
+            denom: info.denom,
+            coinType: String(info.slip44),
+            addressPrefix: info.bech32_prefix,
+            decimals: String(info.decimals),
+            restUrl: info.best_apis.rest[0].address,
+            rpcUrl: info.best_apis.rpc[0].address,
+            explorerUrl: mintscanExplorer
+              ? mintscanExplorer.tx_page.slice(0, -10)
+              : info.explorers[0].tx_page.slice(0, -10),
+          })
+        } catch (_) {
           return
         }
-        const chain = chainIdToChain[chainId.trim()]
-        if (!chain) {
-          return
-        }
-        const mainnetBaseURL = 'https://chains.cosmos.directory'
-        const { data: mainnetData }: any = await axios
-          .get(`${mainnetBaseURL}/${chain}`)
-          .catch(() => ({}))
+      },
+      [customChainIds],
+    )
 
-        const testnetBaseURL = 'https://chains.testcosmos.directory'
-        const { data: testnetData }: any = mainnetData
-          ? { data: null }
-          : await axios.get(`${testnetBaseURL}/${chain}`).catch(() => ({}))
-
-        const info = mainnetData?.chain || testnetData?.chain
-        if (!info) {
-          return
-        }
-        setEvmChainInfo((val) => ({ ...val, isEvmChain: false }))
-        const mintscanExplorer = info.explorers.find(
-          (explorer: any) => explorer.kind === 'mintscan',
-        )
-
-        setChainInfo({
-          chainId: info.chain_id,
-          chainName: info.pretty_name,
-          denom: info.denom,
-          coinType: String(info.slip44),
-          addressPrefix: info.bech32_prefix,
-          decimals: String(info.decimals),
-          restUrl: info.best_apis.rest[0].address,
-          rpcUrl: info.best_apis.rpc[0].address,
-          explorerUrl: mintscanExplorer
-            ? mintscanExplorer.tx_page.slice(0, -10)
-            : info.explorers[0].tx_page.slice(0, -10),
-        })
-      } catch (_) {
-        return
-      }
-    }
-
-    const fetchChainId = async (rpcUrl: string) => {
+    const fetchChainId = useCallback(async (rpcUrl: string) => {
       if (!rpcUrl) {
         setEvmChainInfo((val) => ({ ...val, isEvmChain: true }))
         return
@@ -149,160 +155,202 @@ const AddChainForm = observer(
         isEvmChain: true,
         chainId: chainId.toString(),
       })
-    }
+    }, [])
 
-    const trackCTAEvent = (buttonName: string, redirectURL?: string) => {
-      if (!isCompassWallet()) {
-        try {
-          mixpanel.track(EventName.ButtonClick, {
-            buttonType: ButtonType.CHAIN_MANAGEMENT,
-            buttonName,
-            addedChainName: chainName,
-            redirectURL,
-            time: Date.now() / 1000,
-          })
-        } catch (e) {
-          captureException(e)
+    const trackCTAEvent = useCallback(
+      (buttonName: string, redirectURL?: string) => {
+        if (!isCompassWallet()) {
+          try {
+            mixpanel.track(EventName.ButtonClick, {
+              buttonType: ButtonType.CHAIN_MANAGEMENT,
+              buttonName,
+              addedChainName: chainName,
+              redirectURL,
+              time: Date.now() / 1000,
+            })
+          } catch (e) {
+            captureException(e)
+          }
         }
-      }
-    }
+      },
+      [chainName],
+    )
 
-    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-      const { name, value } = event.currentTarget
-      const chains = Object.values(chainInfos).filter((chain) => chain.enabled)
+    const handleChange = useCallback(
+      (event: ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = event.currentTarget
+        const chains = Object.values(chainInfos).filter((chain) => chain.enabled)
 
-      let error = ''
-      if (value) {
-        if (['coinType', 'decimals'].includes(name) && isNotValidNumber(value)) {
-          error = `Invalid ${name} provided`
-        } else if (
-          ['rpcUrl', 'restUrl', 'explorerUrl'].includes(name) &&
-          isNotValidURL(value.replace(/ /g, '')) &&
-          value.replace(/ /g, '')?.length > 0
-        ) {
-          error = `Invalid ${name} provided`
-        } else if (
-          name === 'chainName' &&
-          chains.some((chain) => chain.chainName.toLowerCase() === value.toLowerCase())
-        ) {
-          error = 'Chain with same name already exists'
-        } else if (name === 'chainId') {
-          if (chains.some((chain) => chain.chainId.toLowerCase() === value.toLowerCase())) {
-            error = 'Chain with same id already exists'
+        let error = ''
+        if (value) {
+          if (['coinType', 'decimals'].includes(name) && isNotValidNumber(value)) {
+            error = `Invalid ${name} provided`
           } else if (
-            chains.some(
-              (chain) => (chain.testnetChainId ?? '').toLowerCase() === value.toLowerCase(),
-            )
+            ['rpcUrl', 'restUrl', 'explorerUrl'].includes(name) &&
+            isNotValidURL(value.replace(/ /g, '')) &&
+            value.replace(/ /g, '')?.length > 0
           ) {
-            error = 'Test chain with same id already exists'
+            error = `Invalid ${name} provided`
+          } else if (
+            name === 'chainName' &&
+            chains.some((chain) => chain.chainName.toLowerCase() === value.toLowerCase())
+          ) {
+            error = 'Chain with same name already exists'
+          } else if (name === 'chainId') {
+            if (chains.some((chain) => chain.chainId.toLowerCase() === value.toLowerCase())) {
+              error = 'Chain with same id already exists'
+            } else if (
+              chains.some(
+                (chain) => (chain.testnetChainId ?? '').toLowerCase() === value.toLowerCase(),
+              )
+            ) {
+              error = 'Test chain with same id already exists'
+            }
           }
         }
-      }
 
-      if (error) {
-        setErrors((s) => ({ ...s, [name]: error }))
-      } else if (errors[name]) {
-        delete errors[name]
-        setErrors(errors)
-      }
-
-      if (['rpcUrl', 'restUrl', 'explorerUrl'].includes(name)) {
-        setChainInfo((s) => ({ ...s, [name]: value.replace(/ /g, '') }))
-      } else {
-        setChainInfo((s) => ({ ...s, [name]: value }))
-      }
-    }
-
-    const handleSubmit = async (event: FormEvent) => {
-      setLoading(true)
-      event.preventDefault()
-      const data: any = {
-        chainId: chainId,
-        chainName: chainName,
-        chainRegistryPath: addressPrefix,
-        key: chainName,
-        chainSymbolImageUrl: Images.Logos.GenericLight,
-        txExplorer: {
-          mainnet: {
-            name: 'Explorer',
-            txUrl: explorerUrl,
-          },
-        },
-        apis: {
-          rest: removeTrailingSlash(restUrl),
-          rpc: removeTrailingSlash(rpcUrl),
-        },
-        denom: denom,
-        bip44: {
-          coinType: evmChainInfo.isEvmChain ? '60' : coinType,
-        },
-        addressPrefix: addressPrefix,
-        gasPriceStep: defaultGasPriceStep,
-        ibcChannelIds: {},
-        nativeDenoms: {
-          [denom]: {
-            coinDenom: denom,
-            coinMinimalDenom: denom,
-            coinDecimals: evmChainInfo.isEvmChain ? 18 : Number(decimals),
-            coinGeckoId: '',
-            icon: Images.Logos.GenericLight,
-            chain: chainName,
-          },
-        },
-        theme: {
-          primaryColor: '#E18881',
-          gradient:
-            'linear-gradient(180deg, rgba(225, 136, 129, 0.32) 0%, rgba(225, 136, 129, 0) 100%)',
-        },
-        enabled: true,
-        beta: true,
-        features: [],
-      }
-
-      if (evmChainInfo.isEvmChain) {
-        data.evmChainId = chainId
-        data.apis.evmJsonRpc = removeTrailingSlash(rpcUrl)
-        data.evmOnlyChain = true
-        data.chainRegistryPath = chainId
-        data.addressPrefix = denom
-      }
-
-      setChainInfos({ ...chainInfos, [chainName]: data })
-      rootStore.setChains({ ...chainInfos, [chainName]: data })
-      await sleep(500)
-
-      browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {
-        try {
-          const updatedKeystore = await updateKeyStore(
-            activeWallet,
-            chainName as unknown as SupportedChain,
-            'UPDATE',
-            data,
-          )
-          let betaChains = resp?.[BETA_CHAINS]
-
-          betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
-          betaChains[chainName] = data
-          await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
-
-          if (data.evmOnlyChain) {
-            chainTagsStore.setBetaChainTags(data.chainId, ['EVM'])
-          } else {
-            chainTagsStore.setBetaChainTags(data.chainId, ['Cosmos'])
-          }
-
-          await setActiveWallet(updatedKeystore[activeWallet.id])
-          await setActiveChain(chainName as unknown as SupportedChain, data)
-          navigate('/')
-        } catch (error) {
-          setErrors((s) => ({ ...s, submit: 'Unable to add chain' }))
-          // do nothing
-        } finally {
-          setLoading(false)
+        if (error) {
+          setErrors((s) => ({ ...s, [name]: error }))
+        } else if (errors[name]) {
+          delete errors[name]
+          setErrors(errors)
         }
-      })
-      trackCTAEvent(ButtonName.ADD_NEW_CHAIN, '/add-chain')
-    }
+
+        if (['rpcUrl', 'restUrl', 'explorerUrl'].includes(name)) {
+          setChainInfo((s) => ({ ...s, [name]: value.replace(/ /g, '') }))
+        } else {
+          setChainInfo((s) => ({ ...s, [name]: value }))
+        }
+      },
+      [chainInfos, errors],
+    )
+
+    const handleSubmit = useCallback(
+      async (event: FormEvent) => {
+        setLoading(true)
+        event.preventDefault()
+        const data: any = {
+          chainId: chainId,
+          chainName: chainName,
+          chainRegistryPath: addressPrefix,
+          key: chainName,
+          chainSymbolImageUrl: Images.Logos.GenericLight,
+          txExplorer: {
+            mainnet: {
+              name: 'Explorer',
+              txUrl: explorerUrl,
+            },
+          },
+          apis: {
+            rest: removeTrailingSlash(restUrl),
+            rpc: removeTrailingSlash(rpcUrl),
+          },
+          denom: denom,
+          bip44: {
+            coinType: evmChainInfo.isEvmChain ? '60' : coinType,
+          },
+          addressPrefix: addressPrefix,
+          gasPriceStep: defaultGasPriceStep,
+          ibcChannelIds: {},
+          nativeDenoms: {
+            [denom]: {
+              coinDenom: denom,
+              coinMinimalDenom: denom,
+              coinDecimals: evmChainInfo.isEvmChain ? 18 : Number(decimals),
+              coinGeckoId: '',
+              icon: Images.Logos.GenericLight,
+              chain: chainName,
+            },
+          },
+          theme: {
+            primaryColor: '#E18881',
+            gradient:
+              'linear-gradient(180deg, rgba(225, 136, 129, 0.32) 0%, rgba(225, 136, 129, 0) 100%)',
+          },
+          enabled: true,
+          beta: true,
+          features: [],
+        }
+
+        if (evmChainInfo.isEvmChain) {
+          data.evmChainId = chainId
+          data.apis.evmJsonRpc = removeTrailingSlash(rpcUrl)
+          data.evmOnlyChain = true
+          data.chainRegistryPath = chainId
+          data.addressPrefix = denom
+        }
+
+        setChainInfos({ ...chainInfos, [chainName]: data })
+        rootStore.setChains({ ...chainInfos, [chainName]: data })
+        await sleep(500)
+
+        browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {
+          try {
+            const updatedKeystore = await updateKeyStore(
+              activeWallet,
+              chainName as unknown as SupportedChain,
+              'UPDATE',
+              data,
+            )
+            let betaChains = resp?.[BETA_CHAINS]
+
+            betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
+            betaChains[chainName] = data
+            await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
+
+            if (data.evmOnlyChain) {
+              chainTagsStore.setBetaChainTags(data.chainId, ['EVM'])
+            } else {
+              chainTagsStore.setBetaChainTags(data.chainId, ['Cosmos'])
+            }
+
+            await setActiveWallet(updatedKeystore[activeWallet.id])
+            await setActiveChain(chainName as unknown as SupportedChain, data)
+            navigate('/')
+          } catch (error) {
+            setErrors((s) => ({ ...s, submit: 'Unable to add chain' }))
+            // do nothing
+          } finally {
+            setLoading(false)
+          }
+        })
+        trackCTAEvent(ButtonName.ADD_NEW_CHAIN, '/add-chain')
+      },
+      [
+        activeWallet,
+        addressPrefix,
+        chainId,
+        chainInfos,
+        chainName,
+        coinType,
+        decimals,
+        denom,
+        evmChainInfo.isEvmChain,
+        explorerUrl,
+        navigate,
+        restUrl,
+        rpcUrl,
+        setActiveChain,
+        setActiveWallet,
+        setChainInfos,
+        trackCTAEvent,
+        updateKeyStore,
+      ],
+    )
+
+    const handleOnBlurChainId = useCallback(
+      (event: React.ChangeEvent<HTMLInputElement>) => {
+        fetchChainInfo(event.currentTarget.value)
+      },
+      [fetchChainInfo],
+    )
+
+    const handleOnBlurRpcUrl = useCallback(
+      (event: React.ChangeEvent<HTMLInputElement>) => {
+        fetchChainId(event.currentTarget.value)
+      },
+      [fetchChainId],
+    )
 
     const disableSubmit =
       !chainId ||
@@ -329,7 +377,7 @@ const AddChainForm = observer(
           name='chainId'
           onChange={handleChange}
           error={errors.chainId}
-          onBlur={(event) => fetchChainInfo(event.currentTarget.value)}
+          onBlur={handleOnBlurChainId}
         />
 
         <InputComponent
@@ -346,7 +394,7 @@ const AddChainForm = observer(
           name='rpcUrl'
           onChange={handleChange}
           error={errors.rpcUrl}
-          onBlur={(event) => fetchChainId(event.currentTarget.value)}
+          onBlur={handleOnBlurRpcUrl}
         />
 
         {!evmChainInfo.isEvmChain && (

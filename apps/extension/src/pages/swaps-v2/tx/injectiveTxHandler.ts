@@ -22,7 +22,7 @@ export async function handleInjectiveTx(
     const encodedMessage = _encodedMessage as { typeUrl: string; value: MsgTransfer }
 
     const channelIdData = await getClientState(
-      messageChain.restUrl,
+      messageChain.restUrl ?? '',
       encodedMessage.value.sourceChannel,
       'transfer',
     )

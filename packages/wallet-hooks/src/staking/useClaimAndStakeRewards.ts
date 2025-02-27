@@ -4,7 +4,6 @@ import {
   ChainInfo,
   DefaultGasEstimates,
   DenomsRecord,
-  feeDenoms,
   fromSmall,
   getSimulationFee,
   LedgerError,
@@ -13,11 +12,11 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking';
+import { CosmosTxType } from '@leapwallet/leap-api-js';
 import BigNumber from 'bignumber.js';
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { useformatCurrency } from '../settings';
 import {
@@ -42,6 +41,7 @@ import {
   getTxnLogAmountValue,
   SelectedNetwork,
   useGasRateQuery,
+  useGetGasPrice,
   useNativeFeeDenom,
 } from '../utils';
 
@@ -113,6 +113,7 @@ export function useClaimAndStakeRewards(
   const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
     return defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE.toString() ?? DefaultGasEstimates?.DEFAULT_GAS_STAKE;
   });
+  const getGasPrice = useGetGasPrice(activeChain, selectedNetWork);
 
   const customFee = useMemo(() => {
     const _gasLimit = userPreferredGasLimit ?? Number(recommendedGasLimit);
@@ -205,9 +206,8 @@ export function useClaimAndStakeRewards(
               throw e.message;
             }
           }
-          const gasPriceStep = gasPriceSteps[activeChain].low.toString();
-          const denom = feeDenoms[selectedNetWork][activeChain]; // fee denom for given chain
-          const gasPrice = GasPrice.fromString(`${gasPriceStep + denom.coinMinimalDenom}`);
+          const denom = getNativeDenom(chainInfos, activeChain, selectedNetWork);
+          const gasPrice = await getGasPrice();
           let fee: StdFee;
           if (customFee !== undefined) {
             fee = customFee;

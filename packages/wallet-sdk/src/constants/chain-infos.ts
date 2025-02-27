@@ -96,6 +96,7 @@ export type SupportedChain =
   | 'ethereum'
   | 'forma'
   | 'civitia'
+  | 'milkywayL1'
   | 'milkyway'
   | 'minimove'
   | 'miniwasm'
@@ -117,7 +118,11 @@ export type SupportedChain =
   | 'movement'
   | 'movementBardock'
   | 'aptos'
-  | 'abstract';
+  | 'abstract'
+  | 'berachain'
+  | 'monad'
+  | 'story'
+  | 'zigchain';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -220,7 +225,12 @@ export type AddressPrefix =
   | 'bbn'
   | 'move'
   | 'aptos'
-  | 'abstract';
+  | 'abstract'
+  | 'berachain'
+  | 'monad'
+  | 'story'
+  | 'milk'
+  | 'zig';
 
 export type Denom =
   | 'JUNO'
@@ -315,7 +325,11 @@ export type Denom =
   | 'ELYS'
   | 'BBN'
   | 'MOVE'
-  | 'APT';
+  | 'APT'
+  | 'BERA'
+  | 'MON'
+  | 'IP'
+  | 'ZIG';
 
 export type CoinType =
   | '0'
@@ -3968,12 +3982,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     chainId: 'glados-2.1',
     testnetChainId: 'glados-2.1',
     key: 'milkyway',
-    chainName: 'Milkyway',
-    chainRegistryPath: 'milkyway',
+    chainName: 'MilkyWay (Minitia)',
+    chainRegistryPath: 'milkINIT',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/milkyway.svg',
     apis: {
-      restTest: 'https://lcd.testnet.milkyway.zone',
-      rpcTest: 'https://rpc.testnet.milkyway.zone',
+      restTest: 'https://lcd.rollup-testnet.milkyway.zone',
+      rpcTest: 'https://rpc.rollup-testnet.milkyway.zone',
     },
     denom: 'MILK',
     bip44: {
@@ -4383,14 +4397,17 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     evmOnlyChain: true,
   },
   unichain: {
-    chainId: '1301',
+    chainId: '130',
+    evmChainId: '130',
     testnetChainId: '1301',
     evmChainIdTestnet: '1301',
     key: 'unichain',
-    chainName: 'Unichain Sepolia',
+    chainName: 'Unichain',
     chainRegistryPath: 'unichain',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/unichain.png',
     apis: {
+      rpc: 'https://mainnet.unichain.org',
+      evmJsonRpc: 'https://mainnet.unichain.org',
       rpcTest: 'https://sepolia.unichain.org',
       evmJsonRpcTest: 'https://sepolia.unichain.org',
     },
@@ -4400,6 +4417,11 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     addressPrefix: 'unichain',
     txExplorer: {
+      mainnet: {
+        name: 'Uniscan',
+        txUrl: 'https://uniscan.xyz/tx',
+        accountUrl: 'https://uniscan.xyz/address',
+      },
       testnet: {
         name: 'Uniscan',
         txUrl: 'https://sepolia.uniscan.xyz/tx',
@@ -4882,5 +4904,184 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
     evmOnlyChain: true,
+  },
+  berachain: {
+    chainId: '80094',
+    evmChainId: '80094',
+    testnetChainId: '80084',
+    evmChainIdTestnet: '80084',
+    key: 'berachain',
+    chainName: 'Berachain',
+    chainRegistryPath: 'berachain',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/berachain.svg',
+    apis: {
+      rpc: 'https://rpc.berachain.com',
+      evmJsonRpc: 'https://rpc.berachain.com',
+      rpcTest: 'https://bartio.drpc.org',
+      evmJsonRpcTest: 'https://bartio.drpc.org',
+    },
+    denom: 'BERA',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'berachain',
+    txExplorer: {
+      mainnet: {
+        name: 'Berachain Explorer',
+        txUrl: 'https://berascan.com/tx',
+        accountUrl: 'https://berascan.com/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'berachain-native': denoms['berachain-native'],
+    },
+    theme: {
+      primaryColor: '#bc3b09',
+      gradient: 'linear-gradient(180deg, rgba(188, 59, 9, 0.32) 0%, rgba(188, 59, 9, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  monad: {
+    chainId: '10143',
+    evmChainId: '10143',
+    testnetChainId: '10143',
+    evmChainIdTestnet: '10143',
+    key: 'monad',
+    chainName: 'Monad Testnet',
+    chainRegistryPath: 'monad',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/monad.svg',
+    apis: {
+      rpcTest: 'https://testnet-rpc.monad.xyz',
+      evmJsonRpcTest: 'https://testnet-rpc.monad.xyz',
+    },
+    denom: 'MON',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'monad',
+    txExplorer: {
+      testnet: {
+        name: 'Monad Explorer',
+        txUrl: 'https://testnet.monadexplorer.com/tx',
+        accountUrl: 'https://testnet.monadexplorer.com/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'monad-native': denoms['monad-native'],
+    },
+    theme: {
+      primaryColor: '#7151D5',
+      gradient: 'linear-gradient(180deg, rgba(113, 81, 213, 0.32) 0%, rgba(113, 81, 213, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  story: {
+    chainId: '1514',
+    evmChainId: '1514',
+    testnetChainId: '1513',
+    evmChainIdTestnet: '1513',
+    key: 'story',
+    chainName: 'Story Protocol',
+    chainRegistryPath: 'story',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/story.svg',
+    apis: {
+      rpc: 'https://mainnet.storyrpc.io',
+      evmJsonRpc: 'https://mainnet.storyrpc.io',
+      rpcTest: 'https://evm-rpc-story.josephtran.xyz',
+      evmJsonRpcTest: 'https://evm-rpc-story.josephtran.xyz',
+    },
+    denom: 'IP',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'story',
+    txExplorer: {},
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'story-native': denoms['story-native'],
+    },
+    theme: {
+      primaryColor: '#ffffff',
+      gradient: 'linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  zigchain: {
+    chainId: 'zig-test-1',
+    testnetChainId: 'zig-test-1',
+    key: 'zigchain',
+    chainName: 'ZIGChain Testnet',
+    chainRegistryPath: 'zigchain',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/zigchain.svg',
+    apis: {
+      restTest: 'https://rest.testcosmos.directory/zigchaintestnet',
+      rpcTest: 'https://rpc.testcosmos.directory/zigchaintestnet',
+    },
+    denom: 'ZIG',
+    bip44: {
+      coinType: '118',
+    },
+    gasPriceStep: {
+      low: 0,
+      high: 0.1,
+      average: 0.15,
+    },
+    addressPrefix: 'zig',
+    txExplorer: {},
+    nativeDenoms: {
+      uzig: denoms.uzig,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    enabled: true,
+  },
+  milkywayL1: {
+    chainId: 'milkyway',
+    chainName: 'MilkyWay',
+    chainRegistryPath: 'milkyway',
+    key: 'milkywayL1',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/milkywayL1.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/milkyway',
+      rpc: 'https://rpc.cosmos.directory/milkyway',
+    },
+    denom: 'MILK',
+    bip44: {
+      coinType: '118',
+    },
+    gasPriceStep: {
+      low: 0.000025,
+      high: 0.00003,
+      average: 0.000035,
+    },
+    addressPrefix: 'milk',
+    txExplorer: {},
+    nativeDenoms: {
+      umilk: denoms.umilk,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    enabled: true,
   },
 };

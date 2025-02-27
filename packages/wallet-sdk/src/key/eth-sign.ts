@@ -69,6 +69,14 @@ export async function ethSignEip712(
   return signEip712Tx(signerAddress, pubKey, wallet, signBytes, signDoc);
 }
 
+function ethSignatureToBytes(signature: { v: number | string; r: string; s: string }): string {
+  const v = typeof signature.v === 'string' ? parseInt(signature.v, 16) : signature.v;
+
+  return Buffer.from(
+    concat([signature.r, signature.s, Buffer.from([v === 0 || (v !== 1 && v % 2 === 1) ? 27 : 28])]),
+  ).toString('base64');
+}
+
 export async function ethSign(
   signerAddress: string,
   wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth,
@@ -105,17 +113,13 @@ export async function ethSign(
 
     const hash = keccak256(Buffer.from(tx));
     if (wallet instanceof LeapLedgerSignerEth) {
-      const signature = await wallet.signPersonalMessage(signerAddress, Buffer.from(tx).toString('hex'));
-      const formattedSignature = concat([
-        signature.r,
-        signature.s,
-        signature.v ? Buffer.from('1c', 'hex') : Buffer.from('1b', 'hex'),
-      ]);
+      const signature = await wallet.signPersonalMessage(signerAddress, Buffer.from(signBytes).toString('hex'));
+      const formattedSignature = ethSignatureToBytes(signature);
       return {
         signed: signDoc,
         signature: {
           pub_key: encodeSecp256k1Pubkey(pubKey),
-          signature: Buffer.from(formattedSignature).toString('base64'),
+          signature: formattedSignature,
         },
       };
     }

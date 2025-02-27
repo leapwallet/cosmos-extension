@@ -7,19 +7,18 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { fromSmall, SupportedChain, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Amount } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
-import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { ArrowsLeftRight } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Text from 'components/text'
-import { GenericLight } from 'images/logos'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { Colors } from 'theme/colors'
 import { Token } from 'types/bank'
 import { hex2rgba } from 'utils/hextorgba'
-import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
@@ -236,12 +235,13 @@ const YouStake = observer(
             autoFocus
           />
           <div className='flex items-center gap-x-2 shrink-0'>
-            <img
-              src={activeStakingDenom?.icon}
-              onError={imgOnError(GenericLight)}
-              className='rounded-full'
-              width={24}
-              height={24}
+            <TokenImageWithFallback
+              assetImg={activeStakingDenom?.icon}
+              text={activeStakingDenom?.coinDenom}
+              altText={activeStakingDenom?.coinDenom}
+              imageClassName='rounded-full'
+              containerClassName='w-[24px] h-[24px] bg-gray-200 dark:bg-gray-800'
+              textClassName='text-[7px] !leading-[9px]'
             />
             <Text className='font-bold' size='sm'>
               {activeStakingDenom?.coinDenom}

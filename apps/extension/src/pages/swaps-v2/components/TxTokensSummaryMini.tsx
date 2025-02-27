@@ -1,12 +1,11 @@
 import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import { ArrowRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { SourceToken } from 'types/swap'
-import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 
 type Props = {
@@ -17,8 +16,6 @@ type Props = {
 }
 
 function TxTokensSummaryMini({ inAmount, sourceToken, amountOut, destinationToken }: Props) {
-  const defaultTokenLogo = useDefaultTokenLogo()
-
   const sourceBalance = useMemo(() => {
     return hideAssetsStore.formatHideBalance(
       formatTokenAmount(inAmount ?? '0', sliceWord(sourceToken?.symbol ?? '', 4, 4), 3),
@@ -44,11 +41,14 @@ function TxTokensSummaryMini({ inAmount, sourceToken, amountOut, destinationToke
           'max-[399px]:!max-w-[calc(min(43%,140px))]': _isSidePanel,
         })}
       >
-        <img
-          className='bg-gray-100 dark:bg-gray-850 h-[24px] w-[24px] rounded-full'
-          src={sourceToken?.img ?? defaultTokenLogo}
-          onError={imgOnError(defaultTokenLogo)}
-          alt={sourceToken?.skipAsset?.denom}
+        <TokenImageWithFallback
+          assetImg={sourceToken?.img}
+          text={sourceToken?.symbol ?? ''}
+          altText={sourceToken?.symbol ?? ''}
+          imageClassName='w-[24px] h-[24px] rounded-full bg-gray-100'
+          containerClassName='w-[24px] h-[24px]'
+          textClassName='text-[7px] !leading-[12px]'
+          key={sourceToken?.img}
         />
         <div className='text-black-100 text-center whitespace-nowrap overflow-hidden max-w-full text-ellipsis font-bold text-sm max-[350px]:!text-xs !leading-[19.6px] max-[350px]:!leading-[16.8px] dark:text-white-100'>
           {sourceBalance}
@@ -78,11 +78,14 @@ function TxTokensSummaryMini({ inAmount, sourceToken, amountOut, destinationToke
           'max-[399px]:!max-w-[calc(min(45%,140px))]': _isSidePanel,
         })}
       >
-        <img
-          className='bg-gray-100 dark:bg-gray-850 h-[24px] w-[24px] rounded-full'
-          src={destinationToken?.img ?? defaultTokenLogo}
-          onError={imgOnError(defaultTokenLogo)}
-          alt={destinationToken?.skipAsset?.denom}
+        <TokenImageWithFallback
+          assetImg={destinationToken?.img}
+          text={destinationToken?.symbol ?? ''}
+          altText={destinationToken?.symbol ?? ''}
+          imageClassName='w-[24px] h-[24px] rounded-full bg-gray-100'
+          containerClassName='w-[24px] h-[24px]'
+          textClassName='text-[7px] !leading-[12px]'
+          key={destinationToken?.img}
         />
         <div className='text-black-100 text-center whitespace-nowrap overflow-hidden max-w-full text-ellipsis font-bold text-sm max-[350px]:!text-xs !leading-[19.6px] dark:text-white-100'>
           {destinationBalance}

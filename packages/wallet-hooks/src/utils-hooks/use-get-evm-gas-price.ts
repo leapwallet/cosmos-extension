@@ -1,4 +1,5 @@
 import {
+  baseEthereumGasPrices,
   defaultGasPriceStep,
   EVM_GAS_PRICES,
   EvmFeeType,
@@ -19,6 +20,19 @@ function fetchEvmGasPrices(storage: storage): Promise<Record<string, { low: numb
   return cachedRemoteDataWithLastModified({
     remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/gas/evm-gas-prices.json',
     storageKey: 'evm-gas-prices',
+    storage,
+  });
+}
+
+type EvmGasConfig = {
+  refetchInterval: Record<string, number>;
+  multiplier: Record<string, Record<EvmFeeType, number>>;
+};
+
+function fetchEvmGasConfig(storage: storage): Promise<EvmGasConfig> {
+  return cachedRemoteDataWithLastModified({
+    remoteUrl: 'https://assets.leapwallet.io/cosmos-registry/v1/config/evm-gas-config.json',
+    storageKey: 'evm-gas-config',
     storage,
   });
 }
@@ -44,8 +58,48 @@ export function useGetEvmGasPrices(forceChain?: SupportedChain, forceNetwork?: S
   const chains = useGetChains();
   const { evmJsonRpc } = useChainApis(activeChain, activeNetwork);
 
+  const { data: evmGasConfig } = useQuery(
+    ['get-evm-gas-config', storage],
+    async function getEvmGasConfig() {
+      return fetchEvmGasConfig(storage);
+    },
+    {
+      staleTime: 3 * 60 * 1000,
+      cacheTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  );
+
+  const { data: allChainsEvmGasPricesS3 } = useQuery(
+    ['get-all-chains-evm-gas-price-query', storage],
+    async function getAllChainsEvmGasPricesS3() {
+      try {
+        const evmGasPrices = await fetchEvmGasPrices(storage);
+        return evmGasPrices;
+      } catch (error) {
+        console.error('Error fetching EVM gas prices', error);
+        return {};
+      }
+    },
+    {
+      staleTime: 3 * 60 * 1000,
+      cacheTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  );
+
   const { data, status } = useQuery(
-    ['get-evm-gas-price-query', activeChain, activeNetwork, storage, activeChainId, isSeiEvmChain, chains],
+    [
+      'get-evm-gas-price-query',
+      activeChain,
+      activeNetwork,
+      storage,
+      activeChainId,
+      isSeiEvmChain,
+      chains,
+      evmGasConfig,
+      allChainsEvmGasPricesS3,
+    ],
     async function getEvmGasPrices() {
       if (activeChain === 'lightlink') {
         return {
@@ -58,30 +112,35 @@ export function useGetEvmGasPrices(forceChain?: SupportedChain, forceNetwork?: S
       }
 
       if (isSeiEvmChain || chains[activeChain]?.evmOnlyChain) {
-        let evmGasPrices: Record<string, { low: number; medium: number; high: number }> = {};
-        try {
-          evmGasPrices = await fetchEvmGasPrices(storage);
-        } catch (error) {
-          console.error('Error fetching EVM gas prices', error);
-        }
-        const activeChainGasPrices = evmGasPrices?.[activeChainId ?? ''] ?? EVM_GAS_PRICES[activeChainId ?? ''];
+        const fallbackGasPrices: { low: number; medium: number; high: number } = {
+          low: chains?.[activeChain]?.gasPriceStep?.low ?? baseEthereumGasPrices.low,
+          medium: chains?.[activeChain]?.gasPriceStep?.average ?? baseEthereumGasPrices.medium,
+          high: chains?.[activeChain]?.gasPriceStep?.high ?? baseEthereumGasPrices.high,
+        };
+        const activeChainGasPrices: { low: number; medium: number; high: number } | undefined =
+          allChainsEvmGasPricesS3?.[activeChainId ?? ''] ?? EVM_GAS_PRICES[activeChainId ?? ''] ?? fallbackGasPrices;
 
-        const { maxFeePerGas, gasPrice, maxPriorityFeePerGas } = await SeiEvmTx.GasPrices(evmJsonRpc);
-
-        const low = Number(maxFeePerGas?.low ?? gasPrice?.low);
-        const medium = Number(maxFeePerGas?.medium ?? gasPrice?.medium);
-        const high = Number(maxFeePerGas?.high ?? gasPrice?.high);
+        const { maxFeePerGas, gasPrice, maxPriorityFeePerGas } = await SeiEvmTx.GasPrices(
+          evmJsonRpc,
+          evmGasConfig?.multiplier?.[activeChainId ?? ''],
+        );
+        const low = Math.ceil(Number(maxFeePerGas?.low || gasPrice?.low || activeChainGasPrices?.low));
+        const medium = Math.ceil(Number(maxFeePerGas?.medium || gasPrice?.medium || activeChainGasPrices?.medium));
+        const high = Math.ceil(Number(maxFeePerGas?.high || gasPrice?.high || activeChainGasPrices?.high));
 
         return {
           maxFeePerGas,
           maxPriorityFeePerGas,
           gasPrice: {
-            low: low || activeChainGasPrices?.low,
-            medium: medium || activeChainGasPrices?.medium,
-            high: high || activeChainGasPrices?.high,
+            low,
+            medium,
+            high,
           },
         };
       }
+    },
+    {
+      refetchInterval: evmGasConfig?.refetchInterval?.[activeChainId ?? ''] ?? 5 * 1000,
     },
   );
 

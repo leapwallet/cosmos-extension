@@ -2,6 +2,7 @@ import { GasOptions, getKeyToUseForDenoms } from '@leapwallet/cosmos-wallet-hook
 import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { RootCW20DenomsStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { TRANSFER_STATE, TXN_STATUS } from '@leapwallet/elements-core'
+import { RouteAggregator } from '@leapwallet/elements-hooks'
 import { Buttons, Header } from '@leapwallet/leap-ui'
 import { CaretDown, CaretUp, House, Receipt, Timer } from '@phosphor-icons/react'
 import classNames from 'classnames'
@@ -16,17 +17,13 @@ import Lottie from 'lottie-react'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { compassTokenTagsStore } from 'stores/denoms-store-instance'
 import { SourceChain, SourceToken, SwapFeeInfo, SwapTxAction } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
-import {
-  RoutingInfo,
-  useExecuteTx,
-  useHandleTxProgressPageBlurEvent,
-  useOnline,
-  useTransactions,
-} from '../hooks'
-import { getNoOfStepsFromRoute } from '../utils'
+import { RoutingInfo, useHandleTxProgressPageBlurEvent, useOnline, useTransactions } from '../hooks'
+import { useExecuteTx } from '../hooks/txExecution/useExecuteTx'
+import { getChainIdsFromRoute, getNoOfStepsFromRoute, getPriceImpactVars } from '../utils'
 import { TxPageSteps } from './index'
 import SwapActionFailedSection from './SwapActionFailedSection'
 import { TxErrorSection } from './TxErrorSection'
@@ -61,8 +58,8 @@ export type TxPageProps = {
   refetchDestinationBalances?: () => void
   ledgerError?: string
   callbackPostTx?: () => void
-  isTrackingPage?: boolean
   rootDenomsStore: RootDenomsStore
+  isTrackingPage?: boolean
   rootCW20DenomsStore: RootCW20DenomsStore
   swapFeeInfo?: SwapFeeInfo
 }
@@ -93,7 +90,17 @@ export const TxPage = observer(
     rootCW20DenomsStore,
     swapFeeInfo,
   }: TxPageProps) => {
+    const cw20Denoms = rootCW20DenomsStore.allCW20Denoms
+    const rootDenoms = rootDenomsStore.allDenoms
+    const compassTokenDenomInfo = compassTokenTagsStore.compassTokenDenomInfo
+
+    const denoms = useMemo(
+      () => Object.assign({}, rootDenoms, compassTokenDenomInfo),
+      [rootDenoms, compassTokenDenomInfo],
+    )
+
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
+    const [showLedgerPopupText, setShowLedgerPopupText] = useState('')
     const [isSigningComplete, setIsSigningComplete] = useState(false)
     const [initialFeeAmount, setFeeAmount] = useState('')
 
@@ -115,7 +122,15 @@ export const TxPage = observer(
       initialUserPreferredGasLimit,
       initialUserPreferredGasPrice,
       initialSwapFeeInfo,
+      initialSourceAssetUSDValue,
+      initialDestinationAssetUSDValue,
     } = useMemo(() => {
+      const { sourceAssetUSDValue, destinationAssetUSDValue } = getPriceImpactVars(
+        routingInfo?.route,
+        sourceToken,
+        destinationToken,
+        denoms,
+      )
       return {
         initialSourceToken: sourceToken,
         initialDestinationToken: destinationToken,
@@ -130,6 +145,8 @@ export const TxPage = observer(
         initialUserPreferredGasLimit: userPreferredGasLimit,
         initialUserPreferredGasPrice: userPreferredGasPrice,
         initialSwapFeeInfo: swapFeeInfo,
+        initialSourceAssetUSDValue: sourceAssetUSDValue,
+        initialDestinationAssetUSDValue: destinationAssetUSDValue,
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -139,13 +156,12 @@ export const TxPage = observer(
     const [isTrackingInSync, setTrackingInSync] = useState(false)
 
     const { groupedTransactions } = useTransactions(initialRoutingInfo)
-    const cw20Denoms = rootCW20DenomsStore.allCW20Denoms
-    const denoms = rootDenomsStore.allDenoms
 
     const { callExecuteTx, txStatus, firstTxnError, timeoutError, isLoading, unableToTrackError } =
       useExecuteTx({
         denoms,
         setShowLedgerPopup,
+        setShowLedgerPopupText,
         setLedgerError,
         routingInfo: initialRoutingInfo,
         sourceChain: initialSourceChain,
@@ -299,19 +315,79 @@ export const TxPage = observer(
       }
     }, [failedActionWasSwap, isLoading, isOnline, isSuccessFull, unableToTrackError])
 
-    const timeApprox = useMemo(() => {
-      const noOfSteps = getNoOfStepsFromRoute(initialRoutingInfo?.route)
+    const estimatedDurationInSeconds = useMemo(() => {
+      if (initialRoutingInfo?.aggregator === RouteAggregator.LIFI) {
+        const lifiResponse = initialRoutingInfo?.route?.response
+        return (
+          lifiResponse?.steps?.reduce((acc, step) => {
+            return acc + (step.estimate?.executionDuration || 0)
+          }, 0) || 0
+        )
+      }
+      if (initialRoutingInfo?.aggregator === RouteAggregator.SKIP) {
+        return initialRoutingInfo?.route?.response?.estimated_route_duration_seconds || 0
+      }
+      return 0
+    }, [initialRoutingInfo?.route, initialRoutingInfo?.aggregator])
 
-      if (!noOfSteps) {
-        return undefined
+    const formattedEstimatedDuration = useMemo(() => {
+      function fallbackRouteDuration() {
+        const chainIds = getChainIdsFromRoute(initialRoutingInfo?.route)
+        if (
+          (initialSourceChain?.chainType === 'evm' ||
+            initialDestinationChain?.chainType === 'evm') &&
+          chainIds &&
+          chainIds?.length > 1
+        ) {
+          const finalityTimeMap: Record<string, string> = {
+            '1': '16 mins',
+            '43114': '3 secs',
+            '137': '5 mins',
+            '56': '46 secs',
+            '10': '30 mins',
+            '42161': '20 mins',
+            '8453': '24 mins',
+          }
+          const sourceChainFinalityTime = finalityTimeMap[initialSourceChain?.chainId ?? '']
+          const destinationChainFinalityTime =
+            finalityTimeMap[initialDestinationChain?.chainId ?? '']
+          if (destinationChainFinalityTime ?? sourceChainFinalityTime) {
+            return destinationChainFinalityTime ?? sourceChainFinalityTime
+          }
+        }
+        if (!chainIds || chainIds?.length <= 1) {
+          return '15 secs'
+        }
+        const noOfSteps = getNoOfStepsFromRoute(initialRoutingInfo?.route)
+        if (!noOfSteps) {
+          return undefined
+        }
+        if (noOfSteps < 4) {
+          return `${noOfSteps * 15} secs`
+        }
+        return `${(noOfSteps / 4).toFixed(0)} mins`
       }
 
-      if (noOfSteps < 4) {
-        return `${noOfSteps * 15} secs`
+      if (estimatedDurationInSeconds === 0) {
+        return fallbackRouteDuration()
       }
 
-      return `${(noOfSteps / 4).toFixed(0)} mins`
-    }, [initialRoutingInfo])
+      if (estimatedDurationInSeconds < 60) {
+        return `${estimatedDurationInSeconds.toFixed(0)} sec${
+          estimatedDurationInSeconds > 1 ? 's' : ''
+        }`
+      }
+
+      const minutes = Math.floor(estimatedDurationInSeconds / 60)
+      return `${minutes} min${minutes > 1 ? 's' : ''}`
+    }, [
+      estimatedDurationInSeconds,
+      initialDestinationChain?.chainId,
+      initialDestinationChain?.chainType,
+      initialRoutingInfo?.route,
+      initialSourceChain?.chainId,
+      initialSourceChain?.chainType,
+    ])
 
     const isHomeButtonDisabled = useMemo(() => {
       return isLoading && !isSigningComplete
@@ -394,13 +470,16 @@ export const TxPage = observer(
       )
     }
 
-    if (showLedgerPopup) {
-      return <LedgerConfirmationPopup showLedgerPopup />
-    }
-
     return (
       <div className='absolute panel-width panel-height enclosing-panel overflow-clip top-0 z-[10]'>
         <div className='relative panel-width panel-height enclosing-panel '>
+          {showLedgerPopup && (
+            <LedgerConfirmationPopup
+              showLedgerPopup={showLedgerPopup}
+              showLedgerPopupText={showLedgerPopupText}
+            />
+          )}
+
           <PopupLayout header={<Header title={headerTitle} />} headerZIndex={11}>
             <div className='p-6 flex-col flex items-start justify-start gap-4 w-full !pb-24 max-[350px]:!px-4'>
               {isLoading ? (
@@ -411,6 +490,8 @@ export const TxPage = observer(
                   sourceToken={initialSourceToken}
                   destinationChain={initialDestinationChain}
                   destinationToken={initialDestinationToken}
+                  sourceAssetUSDValue={initialSourceAssetUSDValue}
+                  destinationAssetUSDValue={initialDestinationAssetUSDValue}
                   className='!bg-white-100 dark:!bg-gray-950'
                 />
               ) : (
@@ -461,7 +542,9 @@ export const TxPage = observer(
                         ) : (
                           <Receipt size={16} className='text-black-100 dark:text-white-100' />
                         )}
-                        <span>{isLoading ? `~ ${timeApprox}` : 'Transaction Summary'}</span>
+                        <span>
+                          {isLoading ? `~ ${formattedEstimatedDuration}` : 'Transaction Summary'}
+                        </span>
                       </div>
                     </div>
                     <button

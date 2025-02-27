@@ -314,6 +314,8 @@ function useSkipRoute(
     allowedBridges,
     swapVenues,
     enableSmartSwap,
+    enableEvmSwap,
+    enableGoFast,
     smartRelay = false,
     isDirectTransfer,
     isSwapFeeEnabled,
@@ -330,6 +332,8 @@ function useSkipRoute(
     allowedBridges?: BRIDGES[]
     swapVenues?: SwapVenue[]
     enableSmartSwap?: boolean
+    enableEvmSwap?: boolean
+    enableGoFast?: boolean
     isDirectTransfer?: boolean
     isSwapFeeEnabled?: boolean
     leapFeeAddresses?: Record<string, string>
@@ -360,6 +364,8 @@ function useSkipRoute(
       smartRelay,
       isDirectTransfer,
       basisPointsFees: leapFeeBps,
+      enableEvmSwap,
+      enableGoFast,
     },
     config,
   )
@@ -381,6 +387,8 @@ function useSkipRoute(
       allowedBridges,
       swapVenues,
       enableSmartSwap,
+      enableEvmSwap,
+      enableGoFast,
       smartRelay,
       isDirectTransfer,
       basisPointsFees: undefined,
@@ -423,7 +431,14 @@ function useSkipRoute(
     }
     if (routeResponseWithFees) {
       if ('does_swap' in routeResponseWithFees.response) {
-        const swapChainId = routeResponseWithFees.response.swap_venue?.chain_id
+        let lastSwapVenue = routeResponseWithFees.response.swap_venue
+        if (!lastSwapVenue) {
+          lastSwapVenue =
+            routeResponseWithFees.response.swap_venues?.[
+              routeResponseWithFees.response.swap_venues.length - 1
+            ]
+        }
+        const swapChainId = lastSwapVenue?.chain_id
         if (leapFeeAddresses && swapChainId && leapFeeAddresses[swapChainId]) {
           return {
             ...finalResponse,
@@ -515,6 +530,8 @@ export const useAggregatedRoute = (
     allowedBridges,
     swapVenues,
     enableSmartSwap,
+    enableEvmSwap,
+    enableGoFast,
     smartRelay = false,
     isDirectTransfer,
     leapFeeAddresses,
@@ -533,6 +550,8 @@ export const useAggregatedRoute = (
     allowedBridges?: BRIDGES[]
     swapVenues?: SwapVenue[]
     enableSmartSwap?: boolean
+    enableEvmSwap?: boolean
+    enableGoFast?: boolean
     isDirectTransfer?: boolean
     isSwapFeeEnabled?: boolean
     leapFeeAddresses?: Record<string, string>
@@ -562,6 +581,8 @@ export const useAggregatedRoute = (
       allowedBridges,
       swapVenues,
       enableSmartSwap,
+      enableEvmSwap,
+      enableGoFast,
       smartRelay,
       isDirectTransfer,
       leapFeeAddresses,

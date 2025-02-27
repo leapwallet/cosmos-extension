@@ -79,7 +79,7 @@ export function useSetActiveChain() {
       } else {
         if (_chainInfo?.evmOnlyChain) {
           setLastEvmActiveChain(chain)
-          await browser.storage.local.set({ [LAST_EVM_ACTIVE_CHAIN]: chain })
+          browser.storage.local.set({ [LAST_EVM_ACTIVE_CHAIN]: chain })
         }
 
         if (forceNetwork) {
@@ -91,7 +91,7 @@ export function useSetActiveChain() {
 
           if (
             _chainInfo &&
-            !_chainInfo?.beta &&
+            (!_chainInfo?.beta || _chainInfo.evmOnlyChain) &&
             _chainInfo?.chainId === _chainInfo?.testnetChainId
           ) {
             hasChainOnlyTestnet = true

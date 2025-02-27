@@ -1,4 +1,4 @@
-import { GasOptions } from '@leapwallet/cosmos-wallet-hooks'
+import { capitalize, GasOptions } from '@leapwallet/cosmos-wallet-hooks'
 import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { RouteAggregator } from '@leapwallet/elements-hooks'
 import { CaretDown, GasPump, Info } from '@phosphor-icons/react'
@@ -7,7 +7,8 @@ import Text from 'components/text'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import { useSwapContext } from 'pages/swaps-v2/context'
-import React, { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react'
+import { useAggregatorBridgeRelayerFee } from 'pages/swaps-v2/hooks/useBridgeFee'
+import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { imgOnError } from 'utils/imgOnError'
 
@@ -66,6 +67,7 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
     loadingMessages,
     routingInfo,
   } = useSwapContext()
+  const { totalBridgeFee } = useAggregatorBridgeRelayerFee(routingInfo?.route)
   const defaultTokenLogo = useDefaultTokenLogo()
   const [showProviderInfo, setShowProviderInfo] = useState(false)
 
@@ -74,6 +76,46 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
   const defaultGasPrice = useDefaultGasPrice(denoms, {
     activeChain: sourceChain?.key ?? 'cosmos',
   })
+
+  const providerInfo = useMemo(() => {
+    if (
+      debouncedInAmount === '' ||
+      Number(debouncedInAmount) === 0 ||
+      routingInfo.aggregator !== RouteAggregator.SKIP
+    ) {
+      return null
+    }
+
+    if (routingInfo.route?.response.swap_venue?.name) {
+      return {
+        name:
+          providerMapping[
+            routingInfo.route?.response.swap_venue.name as keyof typeof providerMapping
+          ] ??
+          routingInfo.route?.response.swap_venue.name
+            ?.split('-')
+            .map((item) => capitalize(item))
+            .join(' '),
+        icon: (routingInfo.route?.response.swap_venue as any)?.logo_uri,
+      }
+    }
+
+    if (routingInfo.route?.response.swap_venues.length > 0) {
+      return {
+        name:
+          providerMapping[
+            routingInfo.route?.response.swap_venues[0].name as keyof typeof providerMapping
+          ] ??
+          (routingInfo.route?.response.swap_venues[0].name as string)
+            ?.split('-')
+            .map((item) => capitalize(item))
+            .join(' '),
+        icon: (routingInfo.route?.response.swap_venues[0] as any)?.logo_uri,
+      }
+    }
+
+    return null
+  }, [debouncedInAmount, routingInfo?.aggregator, routingInfo?.route?.response])
 
   useEffect(() => {
     setGasPriceOption({
@@ -114,59 +156,50 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
             ) : (
               <span className='dark:text-white-100 text-xs font-medium'>
                 {displayFee?.fiatValue}
+                {totalBridgeFee && ` + $${totalBridgeFee}`}
               </span>
             )}
             <CaretDown size={16} className='dark:text-white-100' />
           </button>
         )}
       </div>
-      {debouncedInAmount !== '' &&
-        Number(debouncedInAmount) !== 0 &&
-        routingInfo.aggregator === RouteAggregator.SKIP &&
-        routingInfo.route?.response.swap_venue?.name &&
-        !!providerMapping[
-          routingInfo.route?.response.swap_venue.name as keyof typeof providerMapping
-        ] && (
-          <div className='relative'>
-            <div className='w-full flex justify-between gap-2 pl-2 pr-3 py-1'>
-              <div className='flex items-center gap-x-1'>
-                <Text size='xs' color='text-black-100 dark:text-white-100' className='font-medium'>
-                  Provider
-                </Text>
-                <Info
-                  onMouseEnter={handleTooltipMouseEnter}
-                  onMouseLeave={handleTooltipMouseLeave}
-                  className='text-gray-600 dark:text-gray-400 cursor-pointer pr-1.5 !w-[18px] !h-12px'
-                />
-              </div>
-              <div className='flex gap-x-1 items-center'>
-                <img
-                  src={(routingInfo.route?.response.swap_venue as any)?.logo_uri}
-                  onError={imgOnError(defaultTokenLogo)}
-                  className='w-[14px] h-[14px]'
-                />
-                <Text size='xs' color='text-black-100 dark:text-white-100' className='font-medium'>
-                  {
-                    providerMapping[
-                      routingInfo.route?.response.swap_venue.name as keyof typeof providerMapping
-                    ]
-                  }
-                </Text>
-              </div>
+      {providerInfo && (
+        <div className='relative'>
+          <div className='w-full flex justify-between gap-2 pl-2 pr-3 py-1'>
+            <div className='flex items-center gap-x-1'>
+              <Text size='xs' color='text-black-100 dark:text-white-100' className='font-medium'>
+                Provider
+              </Text>
+              <Info
+                onMouseEnter={handleTooltipMouseEnter}
+                onMouseLeave={handleTooltipMouseLeave}
+                className='text-gray-600 dark:text-gray-400 cursor-pointer pr-1.5 !w-[18px] !h-12px'
+              />
             </div>
-            {showProviderInfo && (
-              <div onMouseEnter={handleTooltipMouseEnter} onMouseLeave={handleTooltipMouseLeave}>
-                <Text
-                  size='sm'
-                  color='text-gray-800 dark:text-gray-200'
-                  className='absolute left-[72px] -top-[18px] w-[200px] p-2 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-100 dark:bg-gray-900'
-                >
-                  The decentralised exchange used to complete your swap
-                </Text>
-              </div>
-            )}
+            <div className='flex gap-x-1 items-center'>
+              <img
+                src={providerInfo.icon}
+                onError={imgOnError(defaultTokenLogo)}
+                className='w-[14px] h-[14px]'
+              />
+              <Text size='xs' color='text-black-100 dark:text-white-100' className='font-medium'>
+                {providerInfo.name}
+              </Text>
+            </div>
           </div>
-        )}
+          {showProviderInfo && (
+            <div onMouseEnter={handleTooltipMouseEnter} onMouseLeave={handleTooltipMouseLeave}>
+              <Text
+                size='sm'
+                color='text-gray-800 dark:text-gray-200'
+                className='absolute left-[72px] -top-[18px] w-[200px] p-2 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-100 dark:bg-gray-900'
+              >
+                The decentralised exchange used to complete your swap
+              </Text>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 })

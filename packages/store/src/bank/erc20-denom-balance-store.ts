@@ -1,3 +1,5 @@
+import { getAddress } from '@ethersproject/address';
+import { AddressZero } from '@ethersproject/constants';
 import {
   DenomsRecord,
   fetchERC20Balances,
@@ -194,6 +196,11 @@ export class ERC20DenomBalanceStore {
       return;
     }
 
+    if (chain === 'monad') {
+      await this.fetchMonadErc20TokenBalances();
+      return;
+    }
+
     if (chain === 'forma') {
       await this.fetchFormaErc20TokenBalances();
       return;
@@ -321,6 +328,8 @@ export class ERC20DenomBalanceStore {
       rawBalances = await fetchERC20Balances(evmJsonRpcUrl, ethWalletAddress, erc20DenomAddresses);
 
       if (rawBalances && rawBalances.length > 0) {
+        await this.waitForPriceStore();
+
         await Promise.allSettled(
           rawBalances.map(async (balance) => {
             try {
@@ -385,6 +394,7 @@ export class ERC20DenomBalanceStore {
       const { data } = await axios.get(url);
       const tokensToAddInDenoms: Record<string, any> = {};
       const denoms = this.denomsStore.denoms;
+      await this.waitForPriceStore();
 
       const formattedBalances = data.items.map((item: any) => {
         const token = {
@@ -425,6 +435,70 @@ export class ERC20DenomBalanceStore {
     }
   }
 
+  async fetchMonadErc20TokenBalances() {
+    const balanceKey = this.getBalanceKey('monad');
+    runInAction(() => {
+      if (!this.chainWiseBalances[balanceKey]) {
+        this.chainWiseStatus[balanceKey] = 'loading';
+      }
+    });
+
+    const pubKey = this.addressStore.pubKeys?.monad;
+    const walletAddress = pubKeyToEvmAddressToShow(pubKey);
+    const url = `https://api.leapwallet.io/proxy/monad-testnet/balances?address=${walletAddress}`;
+
+    try {
+      const { data } = await axios.get(url);
+      const tokensToAddInDenoms: Record<string, any> = {};
+      const denoms = this.denomsStore.denoms;
+
+      await this.waitForPriceStore();
+
+      const formattedBalances = data?.result?.data
+        ?.map((item: any) => {
+          if (item.contractAddress === AddressZero) {
+            return;
+          }
+
+          const token = {
+            address: item.contractAddress,
+            decimals: item.decimal,
+            name: item.name,
+            symbol: item.symbol,
+            icon_url: item.imageURL || '',
+            value: item.balance,
+          };
+
+          return this.formatApiBalance(token, tokensToAddInDenoms, denoms, 'monad');
+        })
+        .filter(Boolean);
+
+      this.denomsStore.setDenoms({ ...denoms, ...tokensToAddInDenoms });
+      this.betaERC20DenomsStore.setTempBetaERC20Denoms(tokensToAddInDenoms, 'monad');
+
+      runInAction(() => {
+        formattedBalances.forEach((balance: any) => {
+          if (!this.chainWiseBalances[balanceKey]) {
+            this.chainWiseBalances[balanceKey] = {};
+          }
+
+          this.chainWiseBalances[balanceKey][balance.coinMinimalDenom] = balance;
+        });
+
+        if (!this.chainWiseBalances[balanceKey]) {
+          this.chainWiseBalances[balanceKey] = {};
+        }
+
+        this.chainWiseStatus[balanceKey] = null;
+      });
+    } catch (e) {
+      console.error('Error while fetching monad erc20 balances', e);
+      runInAction(() => {
+        this.chainWiseStatus[balanceKey] = 'error';
+      });
+    }
+  }
+
   async fetchFormaErc20TokenBalances() {
     const balanceKey = this.getBalanceKey('forma');
     runInAction(() => {
@@ -441,6 +515,8 @@ export class ERC20DenomBalanceStore {
       const { data } = await axios.get(url);
       const tokensToAddInDenoms: Record<string, any> = {};
       const denoms = this.denomsStore.denoms;
+
+      await this.waitForPriceStore();
 
       const formattedBalances = data.items.map((item: any) => {
         const token = {
@@ -502,6 +578,8 @@ export class ERC20DenomBalanceStore {
       const tokensToAddInDenoms: Record<string, any> = {};
       const denoms = this.denomsStore.denoms;
 
+      await this.waitForPriceStore();
+
       const formattedBalances = data.items.map((item: any) => {
         const token = {
           address: item.token.address,
@@ -562,6 +640,8 @@ export class ERC20DenomBalanceStore {
       const tokensToAddInDenoms: Record<string, any> = {};
       const denoms = this.denomsStore.denoms;
 
+      await this.waitForPriceStore();
+
       const formattedBalances = data.items.map((item: any) => {
         const token = {
           address: item.token.address,
@@ -620,22 +700,33 @@ export class ERC20DenomBalanceStore {
         throw new Error(data.error.message);
       }
 
+      await this.waitForPriceStore();
+
       chains.forEach((chain) => {
         const ankrChain = this.ankrChainMapStore.ankrChainMap[chain];
         const tokensToAddInDenoms: Record<string, any> = {};
         const denoms = this.denomsStore.denoms;
+        const ankrContractsToBlock = this.ankrChainMapStore.ankrContractsToBlock;
 
         const dataItems = data.result.assets.filter(
           (item: any) =>
             item.tokenType !== 'NATIVE' &&
             Number(item.balance) > 0 &&
             item.blockchain === ankrChain &&
-            item.contractAddress !== '0xfb18511f1590a494360069f3640c27d55c2b5290', // filter out WGC coin
+            !ankrContractsToBlock.includes(item.contractAddress), // filter out WGC coin
         );
 
         const formattedBalances = dataItems.map((item: any) => {
+          let checksumAddress = item.contractAddress;
+          try {
+            if (checksumAddress?.startsWith('0x')) {
+              checksumAddress = getAddress(checksumAddress);
+            }
+          } catch (e) {
+            console.error('Error while getting checksum address', e);
+          }
           const token = {
-            address: item.contractAddress,
+            address: checksumAddress,
             decimals: item.tokenDecimals,
             name: item.tokenName,
             symbol: item.tokenSymbol,
@@ -738,6 +829,9 @@ export class ERC20DenomBalanceStore {
       if (!allTokens || allTokens?.length === 0) {
         throw new Error('No tokens found from sei-trace');
       }
+
+      await this.waitForPriceStore();
+
       const formattedBalances = allTokens.map((item: any) => {
         const token = {
           address: item.token_contract,
@@ -867,6 +961,7 @@ export class ERC20DenomBalanceStore {
     denoms: DenomsRecord,
     chain: SupportedChain,
     alternateContract?: string,
+    preferExternalFiatCurrencyValue = true,
   ) {
     const contract = token.address;
     let decimals = token.decimals;
@@ -895,7 +990,11 @@ export class ERC20DenomBalanceStore {
       _denomInfo || alternativeDenomInfo
         ? {
             chain: _denomInfo?.chain || alternativeDenomInfo?.chain,
-            name: _denomInfo?.name || alternativeDenomInfo?.name,
+            name:
+              _denomInfo?.name ||
+              alternativeDenomInfo?.name ||
+              _denomInfo?.coinDenom ||
+              alternativeDenomInfo?.coinDenom,
             coinDenom: _denomInfo?.coinDenom || alternativeDenomInfo?.coinDenom,
             coinDecimals: _denomInfo?.coinDecimals || alternativeDenomInfo?.coinDecimals,
             icon: _denomInfo?.icon || alternativeDenomInfo?.icon,
@@ -928,7 +1027,7 @@ export class ERC20DenomBalanceStore {
     const amount = fromSmall(token.value, decimals);
     let usdValue = token.usdValue;
 
-    if (!token.usdValue && coinGeckoPrices && parseFloat(amount) > 0) {
+    if ((preferExternalFiatCurrencyValue === true || !token.usdValue) && coinGeckoPrices && parseFloat(amount) > 0) {
       let tokenPrice;
       const coinGeckoId = denomInfo?.coinGeckoId;
       const alternateCoingeckoKey = `${chainInfo.chainId}-${contract}`;
@@ -958,7 +1057,7 @@ export class ERC20DenomBalanceStore {
       ibcDenom: '',
       usdPrice,
       coinDecimals: decimals,
-      coinGeckoId: '',
+      coinGeckoId: denomInfo?.coinGeckoId || '',
       tokenBalanceOnChain: chain,
     };
   }
@@ -1059,5 +1158,13 @@ export class ERC20DenomBalanceStore {
 
     const balanceKey = this.getBalanceKey(activeChain);
     return this.chainWiseStatus[balanceKey] === 'loading';
+  }
+
+  private async waitForPriceStore() {
+    try {
+      await this.priceStore.readyPromise;
+    } catch (e) {
+      //
+    }
   }
 }

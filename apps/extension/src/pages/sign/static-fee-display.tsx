@@ -2,14 +2,12 @@ import {
   currencyDetail,
   fetchCurrency,
   SelectedNetworkType,
-  useActiveChain,
   useChainId,
   useDefaultGasEstimates,
-  useFeeTokens,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { fromSmallBN, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { FeeTokensStoreData, RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import Tooltip from 'components/better-tooltip'
@@ -39,10 +37,10 @@ type StaticFeeDisplayProps = {
   error: string | null
   setError: React.Dispatch<React.SetStateAction<string | null>>
   disableBalanceCheck?: boolean
-  rootDenomsStore: RootDenomsStore
   rootBalanceStore: RootBalanceStore
   activeChain: SupportedChain
   selectedNetwork: SelectedNetworkType
+  feeTokensList: FeeTokensStoreData | null | undefined
 }
 
 const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
@@ -51,10 +49,10 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
     error,
     setError,
     disableBalanceCheck,
-    rootDenomsStore,
     rootBalanceStore,
     activeChain,
     selectedNetwork,
+    feeTokensList,
   }) => {
     const defaultGasEstimates = useDefaultGasEstimates()
     const [preferredCurrency] = useUserPreferredCurrency()
@@ -66,10 +64,7 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
     }, [allTokensLoading])
 
     const chainId = useChainId()
-    const denoms = rootDenomsStore.allDenoms
     const [formatCurrency] = useFormatCurrency()
-
-    const { data: feeTokensList, isFetching } = useFeeTokens(allAssets, denoms, activeChain)
 
     const feeToken = useMemo(() => {
       const feeBaseDenom = fee?.amount[0]?.denom

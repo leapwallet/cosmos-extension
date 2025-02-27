@@ -26,7 +26,7 @@ export type FundBannerData = {
   hide?: boolean
 }
 
-interface FundBannersProps {
+export interface FundBannersProps {
   handleCopyClick: () => void
 }
 

@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   AccountAuthenticatorEd25519,
-  AnyRawTransaction,
   AptosApiError,
   Ed25519PublicKey,
   generateUserTransactionHash,
   Serializer,
   SimpleTransaction,
 } from '@aptos-labs/ts-sdk'
-import { StdSignDoc } from '@cosmjs/amino'
+import { StdFee } from '@cosmjs/stargate'
 import {
   CosmosTxType,
   GasOptions,
@@ -16,8 +15,8 @@ import {
   useActiveWallet,
   useChainApis,
   useChainInfo,
-  useDappDefaultFeeStore,
   useDefaultGasEstimates,
+  useGasAdjustmentForChain,
   useNativeFeeDenom,
   useTxMetadata,
   WALLETTYPE,
@@ -25,22 +24,20 @@ import {
 import {
   AptosTx,
   chainIdToChain,
+  DefaultGasEstimates,
   GasPrice,
   NativeDenom,
   sleep,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import {
-  EvmBalanceStore,
-  RootBalanceStore,
-  RootDenomsStore,
-  RootStakeStore,
-} from '@leapwallet/cosmos-wallet-store'
-import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
+import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { Avatar, Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { CheckSquare, Square } from '@phosphor-icons/react'
+import { base64 } from '@scure/base'
 import { captureException } from '@sentry/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
+import Tooltip from 'components/better-tooltip'
 import { ErrorCard } from 'components/ErrorCard'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import PopupLayout from 'components/layout/popup-layout'
@@ -52,21 +49,19 @@ import Text from 'components/text'
 import { walletLabels } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
 import { BG_RESPONSE } from 'config/storage-keys'
-import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
-import { GenericLight } from 'images/logos'
+import { GenericDark, GenericLight } from 'images/logos'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
-import { dappDefaultFeeStore } from 'stores/fee-store'
-import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
+import { feeTokensStore } from 'stores/fee-store'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
 import { formatWalletName } from 'utils/formatWalletName'
@@ -77,6 +72,7 @@ import browser from 'webextension-polyfill'
 
 import { EventName } from '../../config/analytics'
 import { isCompassWallet } from '../../utils/isCompassWallet'
+import { NotAllowSignTxGasOptions } from './additional-fee-settings'
 import StaticFeeDisplay from './static-fee-display'
 import { mapWalletTypeToMixpanelWalletType, mixpanelTrackOptions } from './utils/mixpanel-config'
 import { getAptosSignDoc } from './utils/sign-aptos'
@@ -88,8 +84,6 @@ type SignTransactionProps = {
   data: Record<string, any>
   chainId: string
   rootBalanceStore: RootBalanceStore
-  rootStakeStore: RootStakeStore
-  evmBalanceStore: EvmBalanceStore
   rootDenomsStore: RootDenomsStore
   activeChain: SupportedChain
 }
@@ -99,19 +93,34 @@ const SignTransaction = observer(
     data: txnSigningRequest,
     chainId,
     rootBalanceStore,
-    rootStakeStore,
     rootDenomsStore,
     activeChain,
   }: SignTransactionProps) => {
     const isDappTxnInitEventLogged = useRef(false)
     const isRejectedRef = useRef(false)
     const isApprovedRef = useRef(false)
+    const { theme } = useTheme()
 
     const [showWalletSelector, setShowWalletSelector] = useState(false)
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
     const [signingError, setSigningError] = useState<string | null>(null)
     const [ledgerError] = useState<string | null>(null)
     const [gasPriceError, setGasPriceError] = useState<string | null>(null)
+
+    const defaultGasEstimates = useDefaultGasEstimates()
+    const gasAdjustment = useGasAdjustmentForChain(activeChain)
+    const defaultGasLimit = useMemo(
+      () =>
+        parseInt(
+          (
+            (defaultGasEstimates[activeChain]?.DEFAULT_GAS_IBC ??
+              DefaultGasEstimates.DEFAULT_GAS_IBC) * gasAdjustment
+          ).toString(),
+        ),
+      [activeChain, defaultGasEstimates, gasAdjustment],
+    )
+    const [isLoadingGasLimit, setIsLoadingGasLimit] = useState<boolean>(false)
+    const [recommendedGasLimit, setRecommendedGasLimit] = useState<number>(0)
     const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<string>('')
     const [isSigning, setIsSigning] = useState<boolean>(false)
 
@@ -131,13 +140,13 @@ const SignTransaction = observer(
     const defaultGasPrice = useDefaultGasPrice(denoms, { activeChain })
     const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetwork)
     const txPostToDb = LeapWalletApi.useLogCosmosDappTx()
-    const defaultGasEstimates = useDefaultGasEstimates()
     const selectedGasOptionRef = useRef(false)
     const [isFeesValid, setIsFeesValid] = useState<boolean | null>(null)
     const [highFeeAccepted, setHighFeeAccepted] = useState<boolean>(false)
     const globalTxMeta = useTxMetadata()
 
-    const { setDefaultFee: setDappDefaultFee } = useDappDefaultFeeStore()
+    const activeChainfeeTokensStore = feeTokensStore.getStore(activeChain, selectedNetwork, false)
+    const feeTokens = activeChainfeeTokensStore?.data
 
     const errorMessageRef = useRef<any>(null)
 
@@ -182,21 +191,35 @@ const SignTransaction = observer(
 
     const { lcdUrl } = useChainApis(activeChain, selectedNetwork)
 
-    const [allowSetFee, message, signDoc, fee, defaultFee]: [
-      boolean,
-      string,
-      SignDoc | StdSignDoc | AnyRawTransaction,
-      any,
-      any,
-    ] = useMemo(() => {
+    const {
+      allowSetFee,
+      message,
+      signDoc,
+      fee,
+      defaultFee,
+    }: {
+      allowSetFee: boolean
+      message: string
+      signDoc: SimpleTransaction
+      fee: StdFee | undefined
+      defaultFee: StdFee | undefined
+    } = useMemo(() => {
+      // Sign message parsing
       if (isSignMessage) {
         const message = txnSigningRequest.signDoc
           ?.split('\n')
           ?.find((line: string) => line.includes('message: '))
           ?.replace('message: ', '')
-        return [false, message, txnSigningRequest.signDoc, null, null]
+        return {
+          allowSetFee: false,
+          message,
+          signDoc: txnSigningRequest.signDoc,
+          fee: undefined,
+          defaultFee: undefined,
+        }
       }
-      const result = getAptosSignDoc({
+
+      const { allowSetFee, updatedSignDoc, updatedFee, defaultFee } = getAptosSignDoc({
         signRequestData: txnSigningRequest,
         gasPrice: gasPriceOption.gasPrice,
         gasLimit: userPreferredGasLimit,
@@ -204,7 +227,13 @@ const SignTransaction = observer(
         nativeFeeDenom: nativeFeeDenom,
       })
 
-      return [result.allowSetFee, '', result.signDocForSigning, result.fee, result.defaultFee]
+      return {
+        allowSetFee,
+        message: '',
+        signDoc: updatedSignDoc,
+        fee: updatedFee,
+        defaultFee,
+      }
     }, [
       txnSigningRequest,
       gasPriceOption.gasPrice,
@@ -220,9 +249,8 @@ const SignTransaction = observer(
     const refetchData = useCallback(() => {
       setTimeout(() => {
         rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
-        rootStakeStore.updateStake(activeChain, selectedNetwork, true)
       }, 3000)
-    }, [activeChain, rootBalanceStore, rootStakeStore, selectedNetwork])
+    }, [activeChain, rootBalanceStore, selectedNetwork])
 
     const handleCancel = useCallback(async () => {
       if (isRejectedRef.current || isApprovedRef.current) return
@@ -272,15 +300,6 @@ const SignTransaction = observer(
       }
     }, [activeWallet, chainId, siteOrigin])
 
-    const recommendedGasLimit: string = useMemo(() => {
-      if (defaultFee) {
-        return 'gasLimit' in defaultFee ? defaultFee.gasLimit.toString() : defaultFee.gas.toString()
-      }
-      return defaultGasEstimates[activeChain].DEFAULT_GAS_IBC.toString()
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeChain, defaultFee])
-
     const dappFeeDenom = useMemo(() => {
       if (defaultFee && defaultFee?.amount[0]) {
         const { denom } = defaultFee.amount[0]
@@ -325,13 +344,13 @@ const SignTransaction = observer(
           return
         }
 
-        const data = await aptosSigner.signTransaction(signDoc as AnyRawTransaction)
+        const data = await aptosSigner.signTransaction(signDoc)
         const accountAuthenticator = new AccountAuthenticatorEd25519(
           new Ed25519PublicKey(aptosSigner.publicKey.toUint8Array()),
           data,
         )
         const signedTxn = {
-          transaction: signDoc as AnyRawTransaction,
+          transaction: signDoc,
           senderAuthenticator: accountAuthenticator,
         }
         const txHash = generateUserTransactionHash(signedTxn)
@@ -381,9 +400,7 @@ const SignTransaction = observer(
         }
 
         const aptosClient = await AptosTx.getAptosClient(lcdUrl ?? '', aptosSigner)
-        const committedTxn = await aptosClient.signAndBroadcastTransaction(
-          signDoc as SimpleTransaction,
-        )
+        const committedTxn = await aptosClient.signAndBroadcastTransaction(signDoc)
 
         try {
           browser.runtime.sendMessage({
@@ -430,19 +447,49 @@ const SignTransaction = observer(
     ])
 
     useEffect(() => {
-      setDappDefaultFee(defaultFee)
-      dappDefaultFeeStore.setDefaultFee(defaultFee)
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [defaultFee])
-
-    useEffect(() => {
       window.addEventListener('beforeunload', handleCancel)
       browser.storage.local.remove(BG_RESPONSE)
       return () => {
         window.removeEventListener('beforeunload', handleCancel)
       }
     }, [handleCancel])
+
+    useEffect(() => {
+      async function fetchGasEstimate() {
+        if (isSignMessage) {
+          return
+        }
+        if (!allowSetFee) {
+          if (signDoc?.rawTransaction?.max_gas_amount !== undefined) {
+            setRecommendedGasLimit(Number(signDoc?.rawTransaction?.max_gas_amount))
+          }
+          return
+        }
+        try {
+          setIsLoadingGasLimit(true)
+          let gasUsed = defaultGasLimit
+
+          const aptosSigner = await getAptosSigner(activeChain)
+          const publicKey = new Ed25519PublicKey(
+            base64.decode(activeWallet?.pubKeys?.[activeChain] ?? ''),
+          )
+          const aptosClient = await AptosTx.getAptosClient(lcdUrl ?? '', aptosSigner)
+          const { gasEstimate } = await aptosClient.simulateTransaction(signDoc, publicKey)
+          if (gasEstimate) {
+            gasUsed = Number(gasEstimate)
+          }
+
+          setRecommendedGasLimit(gasUsed)
+        } catch (_) {
+          setRecommendedGasLimit(defaultGasLimit)
+        } finally {
+          setIsLoadingGasLimit(false)
+        }
+      }
+
+      fetchGasEstimate()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeChain, activeWallet?.pubKeys, defaultGasLimit, lcdUrl])
 
     useEffect(() => {
       if (!siteOrigin) return
@@ -473,10 +520,10 @@ const SignTransaction = observer(
     }, [activeWallet.walletType, chainInfo.chainId, chainInfo.chainName, siteOrigin])
 
     usePerformanceMonitor({
-      page: 'sign-transaction',
+      page: 'sign-aptos-transaction',
       queryStatus: txnSigningRequest ? 'success' : 'loading',
-      op: 'signTransactionPageLoad',
-      description: 'Load tome for sign transaction page',
+      op: 'signAptosTransactionPageLoad',
+      description: 'Load tome for sign aptos transaction page',
     })
 
     const disableBalanceCheck = useMemo(() => {
@@ -488,6 +535,7 @@ const SignTransaction = observer(
       !!signingError ||
       !!gasPriceError ||
       (isFeesValid === false && !highFeeAccepted) ||
+      isLoadingGasLimit ||
       isSigning
 
     return (
@@ -507,7 +555,11 @@ const SignTransaction = observer(
             header={
               <div className='w-[396px]'>
                 <Header
-                  imgSrc={chainInfo.chainSymbolImageUrl ?? GenericLight}
+                  imgSrc={
+                    chainInfo.chainSymbolImageUrl ??
+                    (theme === ThemeName.DARK ? GenericDark : GenericLight)
+                  }
+                  imgOnError={imgOnError(theme === ThemeName.DARK ? GenericDark : GenericLight)}
                   title={
                     <Buttons.Wallet
                       brandLogo={
@@ -555,11 +607,11 @@ const SignTransaction = observer(
               {!isSignMessage ? (
                 <GasPriceOptions
                   initialFeeDenom={dappFeeDenom}
-                  gasLimit={userPreferredGasLimit || recommendedGasLimit}
+                  gasLimit={userPreferredGasLimit || String(recommendedGasLimit)}
                   setGasLimit={(value: string | BigNumber | number) =>
                     setUserPreferredGasLimit(value.toString())
                   }
-                  recommendedGasLimit={recommendedGasLimit}
+                  recommendedGasLimit={String(recommendedGasLimit)}
                   gasPriceOption={
                     selectedGasOptionRef.current || allowSetFee
                       ? gasPriceOption
@@ -577,7 +629,7 @@ const SignTransaction = observer(
                   chain={activeChain}
                   network={selectedNetwork}
                   validateFee={true}
-                  onInvalidFees={(feeTokenData: NativeDenom, isFeesValid: boolean | null) => {
+                  onInvalidFees={(_: NativeDenom, isFeesValid: boolean | null) => {
                     try {
                       if (isFeesValid === false) {
                         setIsFeesValid(false)
@@ -598,7 +650,43 @@ const SignTransaction = observer(
                       { id: 'data', label: 'Data' },
                     ]}
                     tabsContent={{
-                      fees: (
+                      fees: allowSetFee ? (
+                        <div className='rounded-2xl p-4 mt-3 dark:bg-gray-900 bg-white-100'>
+                          <div className='flex items-center'>
+                            <p className='text-gray-500 dark:text-gray-100 text-sm font-medium tracking-wide'>
+                              Gas Fees <span className='capitalize'>({gasPriceOption.option})</span>
+                            </p>
+                            <Tooltip
+                              content={
+                                <p className='text-gray-500 dark:text-gray-100 text-sm'>
+                                  You can choose higher gas fees for faster transaction processing.
+                                </p>
+                              }
+                            >
+                              <div className='relative ml-2'>
+                                <img src={Images.Misc.InfoCircle} alt='Hint' />
+                              </div>
+                            </Tooltip>
+                          </div>
+
+                          <GasPriceOptions.Selector className='mt-2' />
+                          <div className='flex items-center justify-end'>
+                            <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
+                          </div>
+                          <GasPriceOptions.AdditionalSettings
+                            className='mt-2'
+                            showGasLimitWarning={true}
+                            rootDenomsStore={rootDenomsStore}
+                            rootBalanceStore={rootBalanceStore}
+                          />
+
+                          {gasPriceError ? (
+                            <p className='text-red-300 text-sm font-medium mt-2 px-1'>
+                              {gasPriceError}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
                         <>
                           <div className='rounded-2xl p-4 mt-3 dark:bg-gray-900 bg-white-100'>
                             <StaticFeeDisplay
@@ -606,10 +694,17 @@ const SignTransaction = observer(
                               error={gasPriceError}
                               setError={setGasPriceError}
                               disableBalanceCheck={disableBalanceCheck}
-                              rootDenomsStore={rootDenomsStore}
                               rootBalanceStore={rootBalanceStore}
                               activeChain={activeChain}
                               selectedNetwork={selectedNetwork}
+                              feeTokensList={feeTokens}
+                            />
+                            <div className='flex items-center justify-end'>
+                              <GasPriceOptions.AdditionalSettingsToggle className='p-0 mt-3' />
+                            </div>
+                            <NotAllowSignTxGasOptions
+                              gasPriceOption={gasPriceOption}
+                              gasPriceError={gasPriceError}
                             />
                           </div>
                         </>
@@ -777,8 +872,6 @@ const withTxnSigningRequest = (Component: React.FC<any>) => {
           activeChain={chain}
           rootDenomsStore={rootDenomsStore}
           rootBalanceStore={rootBalanceStore}
-          evmBalanceStore={evmBalanceStore}
-          rootStakeStore={rootStakeStore}
         />
       )
     }

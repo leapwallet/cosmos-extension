@@ -142,7 +142,9 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
       pendingTx.promise
         .then(async (result) => {
           if ('code' in result) {
-            if (result && isDeliverTxSuccess(result)) {
+            if (result && 'txType' in result) {
+              setPendingTx({ ...pendingTx, txStatus: result.code === 0 ? 'success' : 'failed' })
+            } else if (result && isDeliverTxSuccess(result)) {
               setPendingTx({ ...pendingTx, txStatus: 'success' })
             } else {
               setPendingTx({ ...pendingTx, txStatus: 'failed' })

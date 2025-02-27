@@ -18,6 +18,7 @@ import classNames from 'classnames'
 import { LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -39,7 +40,7 @@ type BottomNavProps = {
   disabled?: boolean
 }
 
-export default function BottomNav({ label, disabled: disabledAll }: BottomNavProps) {
+const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) => {
   const [selected, setSelected] = useState(label)
   const navigate = useNavigate()
   const activeChain = useActiveChain()
@@ -200,4 +201,6 @@ export default function BottomNav({ label, disabled: disabledAll }: BottomNavPro
         })}
     </div>
   )
-}
+})
+
+export default BottomNav
