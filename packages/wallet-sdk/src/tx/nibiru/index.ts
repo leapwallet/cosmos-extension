@@ -2,7 +2,7 @@ import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import Long from 'long';
 import _m0 from 'protobufjs/minimal';
 
-/** Copyright (c) 2023-2024 Nibi, Inc. */
+/** Copyright (c) 2023-2025 Nibi, Inc. */
 
 /**
  * EthAccount implements the authtypes.AccountI interface and embeds an
