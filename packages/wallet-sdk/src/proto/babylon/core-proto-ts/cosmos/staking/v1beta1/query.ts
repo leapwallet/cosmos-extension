@@ -108,7 +108,7 @@ export interface QueryValidatorRequestSDKType {
 }
 /** QueryValidatorResponse is response type for the Query/Validator RPC method */
 export interface QueryValidatorResponse {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator: Validator;
 }
 export interface QueryValidatorResponseProtoMsg {
@@ -117,7 +117,7 @@ export interface QueryValidatorResponseProtoMsg {
 }
 /** QueryValidatorResponse is response type for the Query/Validator RPC method */
 export interface QueryValidatorResponseAmino {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator?: ValidatorAmino;
 }
 export interface QueryValidatorResponseAminoMsg {
@@ -647,7 +647,7 @@ export interface QueryDelegatorValidatorsRequestSDKType {
  * Query/DelegatorValidators RPC method.
  */
 export interface QueryDelegatorValidatorsResponse {
-  /** validators defines the the validators' info of a delegator. */
+  /** validators defines the validators' info of a delegator. */
   validators: Validator[];
   /** pagination defines the pagination in the response. */
   pagination?: PageResponse;
@@ -661,7 +661,7 @@ export interface QueryDelegatorValidatorsResponseProtoMsg {
  * Query/DelegatorValidators RPC method.
  */
 export interface QueryDelegatorValidatorsResponseAmino {
-  /** validators defines the the validators' info of a delegator. */
+  /** validators defines the validators' info of a delegator. */
   validators?: ValidatorAmino[];
   /** pagination defines the pagination in the response. */
   pagination?: PageResponseAmino;
@@ -719,7 +719,7 @@ export interface QueryDelegatorValidatorRequestSDKType {
  * Query/DelegatorValidator RPC method.
  */
 export interface QueryDelegatorValidatorResponse {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator: Validator;
 }
 export interface QueryDelegatorValidatorResponseProtoMsg {
@@ -731,7 +731,7 @@ export interface QueryDelegatorValidatorResponseProtoMsg {
  * Query/DelegatorValidator RPC method.
  */
 export interface QueryDelegatorValidatorResponseAmino {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator?: ValidatorAmino;
 }
 export interface QueryDelegatorValidatorResponseAminoMsg {
