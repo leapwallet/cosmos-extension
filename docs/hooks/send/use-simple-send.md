@@ -1,6 +1,6 @@
 # `useSimpleSend`
 
-This is a React hook that returns an object with properties and methods to send perform a send/ibc transaction.
+This is a React hook that returns an object with properties and methods to perform a send/ibc transaction.
 
 ### Definition
 
