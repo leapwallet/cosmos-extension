@@ -23,6 +23,15 @@ export class DenomsStore {
     });
   }
 
+  setTempBaseDenoms(tempDenoms: DenomsRecord) {
+    runInAction(() => {
+      this.denoms = {
+        ...this.denoms,
+        ...tempDenoms,
+      };
+    });
+  }
+
   setDenoms(denoms: DenomsRecord) {
     runInAction(() => {
       this.denoms = denoms;

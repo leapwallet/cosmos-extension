@@ -284,8 +284,24 @@ export class ERC20DenomBalanceStore {
     const address = this.addressStore.addresses[chainInfo.key];
     const pubKey = this.addressStore.pubKeys?.[activeChain];
 
-    const evmJsonRpcUrl =
-      network === 'testnet' ? chainInfo.apis.evmJsonRpcTest ?? chainInfo.apis.evmJsonRpc : chainInfo.apis.evmJsonRpc;
+    const chainId =
+      (network === 'testnet'
+        ? this.chainInfosStore.chainInfos?.[activeChain]?.evmChainIdTestnet
+        : this.chainInfosStore.chainInfos?.[activeChain]?.evmChainId) ?? '';
+
+    await this.nmsStore.readyPromise;
+
+    const hasEntryInNms = this.nmsStore?.rpcEndPoints?.[chainId] && this.nmsStore.rpcEndPoints[chainId].length > 0;
+
+    let evmJsonRpcUrl: string | undefined;
+    if (hasEntryInNms) {
+      evmJsonRpcUrl = this.nmsStore.rpcEndPoints[chainId][0].nodeUrl;
+    }
+
+    if (!evmJsonRpcUrl) {
+      evmJsonRpcUrl =
+        network === 'testnet' ? chainInfo.apis.evmJsonRpcTest ?? chainInfo.apis.evmJsonRpc : chainInfo.apis.evmJsonRpc;
+    }
 
     const isSeiEvm = this.activeChainStore.isSeiEvm(activeChain);
     const isEvmChain = isSeiEvm || chainInfo?.evmOnlyChain;
@@ -294,16 +310,23 @@ export class ERC20DenomBalanceStore {
       return;
     }
 
-    let ethWalletAddress = '';
+    let ethWalletAddress = getEthereumAddress(address);
     const balanceKey = this.getBalanceKey(activeChain, network);
 
     try {
-      ethWalletAddress = isEvmChain ? pubKeyToEvmAddressToShow(pubKey) : getEthereumAddress(address);
+      if (isEvmChain) {
+        ethWalletAddress = pubKeyToEvmAddressToShow(pubKey, true) || getEthereumAddress(address);
+      }
     } catch (_) {
       //
     }
 
-    if (!evmJsonRpcUrl || !ethWalletAddress || !erc20DenomAddresses || erc20DenomAddresses.length === 0) {
+    if (
+      !evmJsonRpcUrl ||
+      !ethWalletAddress?.startsWith('0x') ||
+      !erc20DenomAddresses ||
+      erc20DenomAddresses.length === 0
+    ) {
       runInAction(() => {
         this.chainWiseStatus[balanceKey] = null;
       });
@@ -787,20 +810,29 @@ export class ERC20DenomBalanceStore {
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const data = await this.fetchSeiTraceERC20TokensPage(chainId, address, limit, offset);
-      if (data.items.length === 0) {
+      const [data1, data2] = await Promise.all([
+        this.fetchSeiTraceERC20TokensPage(chainId, address, limit, offset),
+        this.fetchSeiTraceERC20TokensPage(chainId, address, limit, offset + limit),
+      ]);
+
+      if (data1.items.length === 0) {
         break;
       }
 
-      allTokens = allTokens.concat(data.items);
-      offset += limit;
+      allTokens = allTokens.concat(data1.items);
 
-      if (!data.next_page_params) {
+      if (data2.items.length > 0) {
+        allTokens = allTokens.concat(data2.items);
+      }
+
+      offset += limit * 2;
+
+      if (!data1.next_page_params || !data2.next_page_params) {
         break;
       }
     }
 
-    return allTokens.filter((token) => !!token.token_symbol);
+    return allTokens.filter((token) => !!token?.token_symbol);
   }
 
   async fetchSeiEvmERC20TokenBalances(chain: SupportedChain, network: SelectedNetworkType) {
@@ -809,7 +841,7 @@ export class ERC20DenomBalanceStore {
     const chainId = network === 'testnet' ? chainInfo.testnetChainId : chainInfo.chainId;
 
     const pubKey = this.addressStore.pubKeys?.[chain];
-    const ethAddress = pubKeyToEvmAddressToShow(pubKey);
+    const ethAddress = pubKeyToEvmAddressToShow(pubKey, true) || this.addressStore.addresses?.[chain];
 
     if (!chainId || !ethAddress || !pubKey || !ethAddress.startsWith('0x')) {
       runInAction(() => {

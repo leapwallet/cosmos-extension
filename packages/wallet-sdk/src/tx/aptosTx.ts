@@ -1,8 +1,10 @@
 import {
   Account,
+  AccountAddress,
   AccountAuthenticator,
   Aptos,
   APTOS_COIN,
+  APTOS_FA,
   AptosConfig,
   HexInput,
   PublicKey,
@@ -23,9 +25,38 @@ export class AptosTx {
   }
 
   static sanitizeTokenDenom(denom: string) {
-    return ['movement-native', 'aptos-native'].includes(denom)
-      ? APTOS_COIN
-      : denom.replace('0x1::coin::CoinStore<', '').replace('>', '');
+    if (['movement-native', 'aptos-native'].includes(denom)) {
+      return APTOS_COIN;
+    }
+    if (['movement-native-fa', 'aptos-native-fa'].includes(denom)) {
+      return APTOS_FA;
+    }
+    return denom?.replace('0x1::coin::CoinStore<', '')?.replace('>', '');
+  }
+
+  async generateFungibleAssetTx(
+    fromAddress: string,
+    tokenAddress: string,
+    toAddress: string,
+    amount: number,
+    gasPrice?: number,
+    gasLimit?: number,
+  ) {
+    const fungibleAssetMetadataAddress = AptosTx.sanitizeTokenDenom(tokenAddress);
+    const simpleTransaction = await this.aptos.transferFungibleAsset({
+      //@ts-expect-error this function only uses accountAddress from the Account object.
+      sender: {
+        accountAddress: AccountAddress.fromStrict(fromAddress),
+      },
+      fungibleAssetMetadataAddress,
+      recipient: toAddress,
+      amount: amount,
+      options: {
+        gasUnitPrice: gasPrice,
+        maxGasAmount: gasLimit,
+      },
+    });
+    return simpleTransaction;
   }
 
   async generateSendTokensTx(
@@ -75,6 +106,26 @@ export class AptosTx {
     }
   }
 
+  async sendFungibleAsset(
+    fromAddress: string,
+    tokenAddress: string,
+    toAddress: string,
+    amount: number,
+    gasPrice?: number,
+    gasLimit?: number,
+  ) {
+    try {
+      const txn = await this.generateFungibleAssetTx(fromAddress, tokenAddress, toAddress, amount, gasPrice, gasLimit);
+      const committedTxn = await this.signAndBroadcastTransaction(txn);
+
+      const tx = await this.pollForTx(committedTxn.hash);
+
+      return tx.hash;
+    } catch (error) {
+      throw new Error(error.response?.data?.message ?? error);
+    }
+  }
+
   async simulateSendTokens(
     fromAddress: string,
     toAddress: string,
@@ -83,9 +134,15 @@ export class AptosTx {
     publicKey?: PublicKey,
   ) {
     const sendTxn = await this.generateSendTokensTx(fromAddress, toAddress, amount, undefined, undefined, memo);
+
     const simulation = await this.aptos.transaction.simulate.simple({
       transaction: sendTxn,
       signerPublicKey: publicKey,
+      options: {
+        estimateGasUnitPrice: true,
+        estimateMaxGasAmount: true,
+        estimatePrioritizedGasUnitPrice: false,
+      },
     });
     return {
       gasEstimate: simulation[0].gas_used,
@@ -97,6 +154,11 @@ export class AptosTx {
     const simulation = await this.aptos.transaction.simulate.simple({
       transaction: txn,
       signerPublicKey: publicKey,
+      options: {
+        estimateGasUnitPrice: true,
+        estimateMaxGasAmount: true,
+        estimatePrioritizedGasUnitPrice: false,
+      },
     });
     return {
       gasEstimate: simulation[0].gas_used,
@@ -135,7 +197,12 @@ export class AptosTx {
   }
 
   async pollForTx(txHash: string) {
-    const tx = await this.aptos.waitForTransaction({ transactionHash: txHash });
+    const tx = await this.aptos.waitForTransaction({
+      transactionHash: txHash,
+      options: {
+        timeoutSecs: 30,
+      },
+    });
     return tx;
   }
 
@@ -145,6 +212,8 @@ export class AptosTx {
       signer: this.account,
       transaction: txn,
     });
+
+    console.log('logging committed txn', committedTxn);
 
     return committedTxn;
   }
@@ -169,5 +238,40 @@ export class AptosTx {
       accountAddress: address,
     });
     return txs;
+  }
+
+  async generateSwapTxn(
+    tx: {
+      function: `${string}::${string}::${string}`;
+      typeArguments: string[];
+      functionArguments: (string | boolean | string[])[];
+    },
+    gasPrice?: number,
+    gasLimit?: number,
+  ) {
+    if (!this.account) throw new Error('No account found, please generate the tx client with account');
+    const transaction = await this.aptos.transaction.build.simple({
+      sender: this.account.accountAddress,
+      data: tx,
+      options: {
+        gasUnitPrice: gasPrice,
+        maxGasAmount: gasLimit ?? 200000,
+      },
+    });
+    return transaction;
+  }
+
+  async simulateGasFee(txn: SimpleTransaction) {
+    if (!this.account) throw new Error('No account found, please generate the tx client with account');
+
+    const simulation = await this.aptos.transaction.simulate.simple({
+      transaction: txn,
+      signerPublicKey: this.account.publicKey,
+    });
+
+    return {
+      gasEstimate: simulation[0].gas_used,
+      gasUnitPrice: simulation[0].gas_unit_price,
+    };
   }
 }

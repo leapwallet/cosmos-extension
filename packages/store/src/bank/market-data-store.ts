@@ -1,3 +1,5 @@
+import { getIsCompass } from '@leapwallet/cosmos-wallet-sdk';
+import axios from 'axios';
 import { makeObservable, reaction } from 'mobx';
 
 import { BaseQueryStore } from '../base/base-data-store';
@@ -42,10 +44,10 @@ export class MarketDataStore extends BaseQueryStore<Record<string, MarketData>> 
   }
 
   async fetchData() {
+    const ecosystems = getIsCompass() ? 'cosmos-ecosystem' : 'cosmos-ecosystem,ethereum-ecosystem';
     const preferredCurrency = this.currencyStore.preferredCurrency;
-    const marketDataUrl = `https://api.leapwallet.io/v2/market/changes?currency=${preferredCurrency}&ecosystems=cosmos-ecosystem,ethereum-ecosystem`;
-    const response = await fetch(marketDataUrl);
-    const data = await response.json();
-    return data;
+    const marketDataUrl = `https://api.leapwallet.io/v2/market/changes?currency=${preferredCurrency}&ecosystems=${ecosystems}`;
+    const response = await axios.get(marketDataUrl);
+    return response.data;
   }
 }

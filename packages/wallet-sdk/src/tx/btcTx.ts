@@ -117,7 +117,7 @@ export class BtcTx {
   private readonly network: typeof NETWORK;
   private readonly rpcUrl: string;
   private readonly signer: BtcWallet;
-  private readonly broadcastApi: string = 'https://rpc.ankr.com/btc';
+  private readonly broadcastApi: string = 'https://bitcoin-rpc.publicnode.com';
   private readonly networkType: NetworkType;
   private static mainnetFeesUrl = 'https://mempool.space/api/v1/fees/recommended';
   private static signetFeesUrl = 'https://mempool.space/signet/api/v1/fees/recommended';
@@ -127,7 +127,10 @@ export class BtcTx {
     this.network = networkType === 'mainnet' ? NETWORK : TEST_NETWORK;
     this.rpcUrl = rpcUrl ?? 'https://blockstream.info/api';
     this.signer = signer;
-    this.broadcastApi = networkType === 'mainnet' ? 'https://rpc.ankr.com/btc' : 'https://rpc.ankr.com/btc_signet';
+    this.broadcastApi =
+      networkType === 'mainnet'
+        ? 'https://api.leapwallet.io/proxy/ankr/btc'
+        : 'https://api.leapwallet.io/proxy/ankr/btc_signet';
   }
 
   static SignBIP322SimpleMessage(message: string, signer: BtcWallet) {
@@ -489,6 +492,9 @@ export class BtcTx {
     // broadcast transaction
     const testTx = await fetch(this.broadcastApi ?? '', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         id: 'test',
         method: 'testmempoolaccept',
@@ -505,6 +511,9 @@ export class BtcTx {
     if (!testData.result[0].allowed) throw new Error(testData.result[0]['reject-reason']);
     const res = await fetch(this.broadcastApi ?? '', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         id: 'test',
         method: 'sendrawtransaction',

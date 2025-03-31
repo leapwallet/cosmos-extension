@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { makeObservable, observable, runInAction } from 'mobx';
 
 import { ChainsAprData } from '../../types';
@@ -14,8 +15,8 @@ export class ChainsAprStore {
   }
 
   async loadChainsApr() {
-    const response = await fetch('https://api.leapwallet.io/market/apr-changes');
-    const data = await response.json();
+    const response = await axios.get('https://api.leapwallet.io/market/apr-changes');
+    const data = response.data;
 
     runInAction(() => {
       this.chainsApr = data;

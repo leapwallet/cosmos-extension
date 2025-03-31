@@ -40,10 +40,18 @@ export const getChainApis = (
   const rpcNode = getTopNode('rpc', activeChainId);
   const { nodeUrl: rpc } = rpcNode ?? {};
 
-  const evmJsonRpc =
+  const evmChainId =
+    (selectedNetwork === 'testnet' ? chains[activeChain].evmChainIdTestnet : chains[activeChain].evmChainId) ?? '';
+
+  const evmJsonRpcNode = getTopNode('rpc', evmChainId);
+  const { nodeUrl: evmRpc } = evmJsonRpcNode ?? {};
+
+  const fallbackEvmJsonRpc =
     selectedNetwork === 'testnet'
       ? chains[activeChain].apis.evmJsonRpcTest ?? chains[activeChain].apis.evmJsonRpc
       : chains[activeChain].apis.evmJsonRpc;
+
+  const evmJsonRpc = evmRpc && evmRpc.length ? evmRpc : fallbackEvmJsonRpc;
 
   return {
     rpcUrl: rpc && rpc.length ? rpc : fallbackRpcURL,

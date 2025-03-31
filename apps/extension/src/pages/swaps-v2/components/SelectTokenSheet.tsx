@@ -125,6 +125,24 @@ export function SelectTokenSheet({
   const { chainsToShow } = useSwapContext()
 
   useEffect(() => {
+    if (!sourceToken) {
+      setSelectedFilteredChain(allChainsPlaceholder)
+      return
+    }
+    if (!sourceToken?.skipAsset?.chainId?.startsWith('aptos-')) {
+      setSelectedFilteredChain(allChainsPlaceholder)
+      return
+    }
+    const chain = chainsToShow.find((chain) => chain.chainId === sourceToken.skipAsset.chainId)
+    if (!chain) {
+      setSelectedFilteredChain(allChainsPlaceholder)
+      return
+    }
+    setSelectedFilteredChain({ chain })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceToken, chainsToShow])
+
+  useEffect(() => {
     if (isOpen) {
       setSearchQuery('')
     }

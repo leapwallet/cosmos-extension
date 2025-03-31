@@ -120,7 +120,6 @@ const InitMainAppHooks = observer(() => {
 
 export const InitHooks = observer(() => {
   const location = useLocation()
-
   useInitiateCurrencyPreference()
 
   useInitGasPriceSteps()

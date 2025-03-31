@@ -15,7 +15,6 @@ import { generateRandomString } from '../utils/random-string-generator';
 import { ActiveChainStore } from '../wallet';
 import { AddressStore } from '../wallet/address-store';
 import { SelectedNetworkStore } from '../wallet/selected-network-store';
-import { AptosBalanceStore } from './aptos-balance-store';
 import { BabylonBalanceStore } from './babylon-balance-store';
 import { sortTokenBalances } from './balance-calculator';
 import { BalanceLoadingStatus, Token } from './balance-types';
@@ -39,12 +38,8 @@ export class BalanceStore {
   chainWiseStates: Record<string, BalanceLoadingStatus> = {};
 
   rawBalances: any = {};
-  rawBalanceStores: Record<string, RawBalanceStore | BitcoinBalanceStore | AptosBalanceStore | BabylonBalanceStore> =
-    {};
-  rawSpendableBalanceStores: Record<
-    string,
-    RawBalanceStore | BitcoinBalanceStore | AptosBalanceStore | BabylonBalanceStore
-  > = {};
+  rawBalanceStores: Record<string, RawBalanceStore | BitcoinBalanceStore | BabylonBalanceStore> = {};
+  rawSpendableBalanceStores: Record<string, RawBalanceStore | BitcoinBalanceStore | BabylonBalanceStore> = {};
 
   displayedAssets: Array<Token> = [];
   aggregateBalanceVisible: boolean = false;
@@ -188,9 +183,16 @@ export class BalanceStore {
     const nodeUrlKey = network === 'testnet' ? restTestKey : restKey;
     const hasEntryInNms = this.nmsStore.restEndpoints[chainId] && this.nmsStore.restEndpoints[chainId].length > 0;
     const address = _address ?? this.addressStore.addresses[chain];
+    const isSeiEvm = this.activeChainStore.isSeiEvm(chain);
+
+    if (isSeiEvm && address?.startsWith('0x')) {
+      return;
+    }
 
     const balanceKey = this.getBalanceKey(chain, network, _address);
-    if (!address || this.chainInfosStore.chainInfos[chain]?.evmOnlyChain) {
+    const evmOnlyChain = this.chainInfosStore.chainInfos[chain]?.evmOnlyChain;
+    const aptosChain = this.chainInfosStore.chainInfos[chain]?.chainId.startsWith('aptos');
+    if (!address || evmOnlyChain || aptosChain) {
       runInAction(() => {
         this.chainWiseStates[balanceKey] = null;
       });
@@ -249,11 +251,11 @@ export class BalanceStore {
         }
       }
 
-      if (isAptosChain(chain)) {
-        const aptosBalanceStore = new AptosBalanceStore(restUrl, address, chain);
-        this.rawBalanceStores[balanceKey] = aptosBalanceStore;
-        this.rawSpendableBalanceStores[balanceKey] = aptosBalanceStore;
-      }
+      // if (isAptosChain(chain)) {
+      //   const aptosBalanceStore = new AptosBalanceStore(restUrl, address, chain);
+      //   this.rawBalanceStores[balanceKey] = aptosBalanceStore;
+      //   this.rawSpendableBalanceStores[balanceKey] = aptosBalanceStore;
+      // }
 
       if (isBitcoinChain(chain)) {
         const bitcoinBalanceStore = new BitcoinBalanceStore(restUrl, address, chain);
@@ -306,7 +308,7 @@ export class BalanceStore {
     }
   }
 
-  async loadBalances(
+  loadBalances(
     _chain?: AggregatedSupportedChainType,
     network?: SelectedNetworkType,
     address?: string,
@@ -317,10 +319,10 @@ export class BalanceStore {
 
     if (chain === 'aggregated') {
       this.aggregateBalanceVisible = false;
-      this.fetchAggregatedBalances(_network, refetch);
-    } else {
-      this.fetchChainBalance(chain as SupportedChain, network, address, refetch);
+      return this.fetchAggregatedBalances(_network, refetch);
     }
+
+    return this.fetchChainBalance(chain as SupportedChain, network, address, refetch);
   }
 
   async fetchAggregatedBalances(network: SelectedNetworkType, forceRefetch = false) {

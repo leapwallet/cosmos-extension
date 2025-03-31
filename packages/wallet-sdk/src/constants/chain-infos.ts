@@ -31,7 +31,6 @@ export type SupportedChain =
   | 'crescent'
   | 'kujira'
   | 'injective'
-  | 'mars'
   | 'sei'
   | 'stride'
   | 'agoric'
@@ -122,6 +121,10 @@ export type SupportedChain =
   | 'berachain'
   | 'monad'
   | 'story'
+  | 'hyperEVM'
+  | 'nillion'
+  | 'megaeth'
+  | '0G'
   | 'zigchain';
 
 export type AddressPrefix =
@@ -145,7 +148,6 @@ export type AddressPrefix =
   | 'mantle'
   | 'cre'
   | 'inj'
-  | 'mars'
   | 'sei'
   | 'kujira'
   | 'stride'
@@ -230,6 +232,10 @@ export type AddressPrefix =
   | 'monad'
   | 'story'
   | 'milk'
+  | 'hype'
+  | 'nillion'
+  | 'megaeth'
+  | '0g'
   | 'zig';
 
 export type Denom =
@@ -253,7 +259,6 @@ export type Denom =
   | 'CRE'
   | 'KUJI'
   | 'INJ'
-  | 'MARS'
   | 'SEI'
   | 'STRD'
   | 'CHEQ'
@@ -329,6 +334,9 @@ export type Denom =
   | 'BERA'
   | 'MON'
   | 'IP'
+  | 'HYPE'
+  | 'NIL'
+  | 'A0GI'
   | 'ZIG';
 
 export type CoinType =
@@ -393,6 +401,9 @@ export type ChainInfo = {
 
     readonly grpc?: string;
     readonly grpcTest?: string;
+
+    readonly indexer?: string;
+    readonly indexerTest?: string;
   };
   readonly txExplorer?: {
     mainnet?: {
@@ -2185,48 +2196,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(46, 129, 144, 0.32) 0%, rgba(46, 129, 144, 0) 100%)',
     },
     enabled: true,
-  },
-  mars: {
-    chainId: 'mars-1',
-    testnetChainId: 'ares-1',
-    key: 'mars',
-    chainName: 'Mars',
-    chainRegistryPath: 'mars',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/mars_logo_colored.svg',
-    apis: {
-      rest: 'https://rest.marsprotocol.io',
-      rpc: 'https://rpc.marsprotocol.io',
-      rpcTest: 'https://testnet-rpc.marsprotocol.io',
-      restTest: 'https://testnet-rest.marsprotocol.io',
-    },
-    denom: 'MARS',
-    txExplorer: {
-      mainnet: {
-        name: 'Mars Explorer',
-        txUrl: 'https://explorer.marsprotocol.io/transactions/',
-        accountUrl: 'https://explorer.marsprotocol.io/accounts',
-      },
-      testnet: {
-        name: 'Mars Explorer',
-        txUrl: 'https://testnet-explorer.marsprotocol.io/transactions/',
-        accountUrl: 'https://testnet-explorer.marsprotocol.io/accounts',
-      },
-    },
-    bip44: {
-      coinType: '118',
-    },
-    addressPrefix: 'mars',
-    gasPriceStep: defaultGasPriceStep,
-    ibcChannelIds: {},
-    nativeDenoms: {
-      umars: denoms.umars,
-    },
-    theme: {
-      primaryColor: '#1EC7DA',
-      gradient: 'linear-gradient(180deg, rgba(30, 199, 218, 0.32) 0%, rgba(30, 199, 218, 0) 100%)',
-    },
-    enabled: true,
-    cosmosSDK: CosmosSDK.Version_Point_46,
   },
   mayachain: {
     chainId: 'mayachain-mainnet-v1',
@@ -4744,6 +4713,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       rpc: 'https://api.mainnet.aptoslabs.com/v1',
       restTest: 'https://api.testnet.aptoslabs.com/v1',
       rpcTest: 'https://api.testnet.aptoslabs.com/v1',
+      indexer: 'https://api.mainnet.aptoslabs.com/v1/graphql',
+      indexerTest: 'https://api.testnet.aptoslabs.com/v1/graphql',
     },
     denom: 'APT',
     bip44: {
@@ -4769,6 +4740,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     nativeDenoms: {
       'aptos-native': denoms['aptos-native'],
+      'aptos-native-fa': denoms['aptos-native-fa'],
     },
     theme: {
       gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
@@ -4788,6 +4760,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       rpc: 'https://mainnet.movementnetwork.xyz/v1',
       restTest: 'https://aptos.testnet.porto.movementlabs.xyz/v1',
       rpcTest: 'https://aptos.testnet.porto.movementlabs.xyz/v1',
+      indexer: 'https://indexer.mainnet.movementnetwork.xyz/v1/graphql',
+      indexerTest: 'https://indexer.testnet.porto.movementlabs.xyz/v1/graphql',
     },
     denom: 'MOVE',
     bip44: {
@@ -4802,8 +4776,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       },
       testnet: {
         name: 'Blockscout',
-        txUrl: 'https://explorer.movementnetwork.xyz/txn/PLACEHOLDER_FOR_TX_HASH?network=testnet',
-        accountUrl: 'https://explorer.movementnetwork.xyz/account/PLACEHOLDER_FOR_WALLET_ADDRESS?network=testnet',
+        txUrl: 'https://explorer.testnet.porto.movementnetwork.xyz/txn/PLACEHOLDER_FOR_TX_HASH',
+        accountUrl: 'https://explorer.testnet.porto.movementnetwork.xyz/account/PLACEHOLDER_FOR_WALLET_ADDRESS',
       },
     },
     gasPriceStep: {
@@ -4813,6 +4787,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     nativeDenoms: {
       'movement-native': denoms['movement-native'],
+      'movement-native-fa': denoms['movement-native-fa'],
     },
     theme: {
       gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
@@ -4828,8 +4803,9 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     chainRegistryPath: 'movementBardock',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/movement.svg',
     apis: {
-      restTest: 'https://aptos.testnet.bardock.movementlabs.xyz/v1',
-      rpcTest: 'https://aptos.testnet.bardock.movementlabs.xyz/v1',
+      restTest: 'https://testnet.bardock.movementnetwork.xyz/v1',
+      rpcTest: 'https://testnet.bardock.movementnetwork.xyz/v1',
+      indexerTest: 'https://indexer.testnet.movementnetwork.xyz/v1/graphql',
     },
     denom: 'MOVE',
     bip44: {
@@ -4856,6 +4832,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     nativeDenoms: {
       'movement-native': denoms['movement-native'],
+      'movement-native-fa': denoms['movement-native-fa'],
     },
     theme: {
       gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
@@ -5083,5 +5060,163 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#3281fa',
     },
     enabled: true,
+  },
+  hyperEVM: {
+    chainId: '999',
+    evmChainId: '999',
+    testnetChainId: '998',
+    evmChainIdTestnet: '998',
+    key: 'hyperEVM',
+    chainName: 'HyperEVM',
+    chainRegistryPath: 'hyperEVM',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/hyperevm.svg',
+    apis: {
+      rpc: 'https://rpc.hyperliquid.xyz/evm',
+      evmJsonRpc: 'https://rpc.hyperliquid.xyz/evm',
+      rpcTest: 'https://rpc.hyperliquid-testnet.xyz/evm',
+      evmJsonRpcTest: 'https://rpc.hyperliquid-testnet.xyz/evm',
+    },
+    denom: 'HYPE',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'hype',
+    txExplorer: {
+      mainnet: {
+        name: 'Blockscout Explorer',
+        txUrl: 'https://hyperliquid.cloud.blockscout.com/tx',
+        accountUrl: 'https://hyperliquid.cloud.blockscout.com/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'hyperEVM-native': denoms['hyperEVM-native'],
+    },
+    theme: {
+      primaryColor: '#96FCE4',
+      gradient: 'linear-gradient(180deg, rgba(150, 252, 228, 0.32) 0%, rgba(150, 252, 228, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  nillion: {
+    chainId: 'nillion-1',
+    key: 'nillion',
+    chainName: 'Nillion',
+    chainRegistryPath: 'nillion',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/nil.png',
+    apis: {
+      rest: 'https://nillion-api.lavenderfive.com',
+      rpc: 'https://nillion-rpc.lavenderfive.com',
+    },
+    denom: 'NIL',
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'nillion',
+    txExplorer: {
+      mainnet: {
+        name: 'Mintscan',
+        txUrl: 'https://www.mintscan.io/nillion/tx',
+        accountUrl: 'https://www.mintscan.io/nillion/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.0001,
+      average: 0.0001,
+      high: 0.00025,
+    },
+    nativeDenoms: {
+      unil: denoms.unil,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(0, 21, 167, 0.32) 0%, rgba(0, 21, 167, 0) 100%)',
+      primaryColor: '#0015A7',
+    },
+    enabled: true,
+  },
+  megaeth: {
+    chainId: '6342',
+    evmChainId: '6342',
+    testnetChainId: '6342',
+    evmChainIdTestnet: '6342',
+    key: 'megaeth',
+    chainName: 'MEGA Testnet',
+    chainRegistryPath: 'megaeth',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/megaeth.png',
+    apis: {
+      rpcTest: 'https://carrot.megaeth.com/rpc',
+      evmJsonRpcTest: 'https://carrot.megaeth.com/rpc',
+    },
+    denom: 'ETH',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'megaeth',
+    txExplorer: {
+      testnet: {
+        name: 'Megaeth Explorer',
+        txUrl: 'https://www.megaexplorer.xyz/tx',
+        accountUrl: 'https://www.megaexplorer.xyz/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'megaeth-native': denoms['megaeth-native'],
+    },
+    theme: {
+      primaryColor: '#332d2d',
+      gradient: 'linear-gradient(180deg, rgba(51,45,45, 0.32) 0%, rgba(51,45,45, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  '0G': {
+    chainId: '16600',
+    evmChainId: '16600',
+    testnetChainId: '16600',
+    evmChainIdTestnet: '16600',
+    key: '0G',
+    chainName: '0G Newton Testnet',
+    chainRegistryPath: '0G',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/0GAI.png',
+    apis: {
+      rpcTest: 'https://evmrpc-testnet.0g.ai',
+      evmJsonRpcTest: 'https://evmrpc-testnet.0g.ai',
+    },
+    denom: 'A0GI',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: '0g',
+    txExplorer: {
+      testnet: {
+        name: '0G Explorer',
+        txUrl: 'https://chainscan-newton.0g.ai/tx',
+        accountUrl: 'https://chainscan-newton.0g.ai/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      a0gi: denoms.a0gi,
+    },
+    theme: {
+      primaryColor: '#B14EFF',
+      gradient: 'linear-gradient(180deg, rgba(177, 78, 255, 0.32) 0%, rgba(177, 78, 255, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
   },
 };

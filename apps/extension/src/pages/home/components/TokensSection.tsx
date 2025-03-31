@@ -3,7 +3,6 @@ import {
   useChainId,
   useChainInfo,
   useGetChains,
-  useGetEvmBalance,
   useIsSeiEvmChain,
   useSeiLinkedAddressState,
   useSnipGetSnip20TokenBalances,
@@ -11,6 +10,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { EvmBalanceStore, RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
+import { AptosCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/aptos-balance-store'
 import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import { WarningCircle } from '@phosphor-icons/react'
 import { AggregatedLoading } from 'components/aggregated'
@@ -26,6 +26,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { aptosCoinDataStore } from 'stores/balance-store'
 import { HideSmallBalancesStore } from 'stores/hide-small-balances-store'
 import { zeroStateBannerStore } from 'stores/zero-state-banners'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -50,6 +51,7 @@ export const TokensSection = observer(
     setShowSideNav,
     rootBalanceStore,
     evmBalanceStore,
+    aptosBalanceStore,
     isTokenLoading,
     connectEVMLedger,
   }: {
@@ -62,6 +64,7 @@ export const TokensSection = observer(
     setShowSideNav: (show: boolean) => void
     rootBalanceStore: RootBalanceStore
     evmBalanceStore: EvmBalanceStore
+    aptosBalanceStore: AptosCoinDataStore
     isTokenLoading: boolean
     connectEVMLedger: boolean
   }) => {
@@ -70,7 +73,31 @@ export const TokensSection = observer(
     const chain: ChainInfoProp = useChainInfo()
     const { activeWallet } = useActiveWallet()
     const [scrtTokenContractAddress, setScrtTokenContractAddress] = useState<string>('')
-    const isWalletHasFunds = !!rootBalanceStore?.allTokens?.some((token) => tokenHasBalance(token))
+    const isSeiEvmChain = useIsSeiEvmChain(
+      activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : activeChain,
+    )
+    const allFunds = useMemo(() => {
+      const aptosChain = chain?.chainId.startsWith('aptos')
+      if (aptosChain) {
+        return [...(aptosBalanceStore.balances ?? []), ...(rootBalanceStore.allTokens ?? [])]
+      }
+      if (chain?.evmOnlyChain && !isSeiEvmChain) {
+        return [
+          ...(rootBalanceStore?.evmBalanceStore.evmBalance.evmBalance ?? []),
+          ...(rootBalanceStore.allTokens ?? []),
+        ]
+      } else {
+        return rootBalanceStore.allTokens
+      }
+    }, [
+      chain?.evmOnlyChain,
+      isSeiEvmChain,
+      rootBalanceStore.allTokens,
+      rootBalanceStore?.evmBalanceStore.evmBalance.evmBalance,
+      aptosBalanceStore.balances,
+    ])
+
+    const isWalletHasFunds = !!allFunds?.some((token) => tokenHasBalance(token))
     const navigate = useNavigate()
     const selectedNetwork = useSelectedNetwork()
     const getWallet = Wallet.useGetWallet()
@@ -81,14 +108,7 @@ export const TokensSection = observer(
       snip20TokensStatus,
       enabled: snip20Enabled,
     } = useSnipGetSnip20TokenBalances()
-    const { data: evmBalance } = useGetEvmBalance(
-      activeChain as SupportedChain,
-      undefined,
-      selectedNetwork,
-    )
-    const isSeiEvmChain = useIsSeiEvmChain(
-      activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : activeChain,
-    )
+    const evmBalance = evmBalanceStore.evmBalance
     const isEvmOnlyChain = chains?.[activeChain as SupportedChain]?.evmOnlyChain
     const { addressLinkState } = useSeiLinkedAddressState(
       getWallet,
@@ -198,9 +218,11 @@ export const TokensSection = observer(
       activeChain === AGGREGATED_CHAIN_KEY ? undefined : activeChainId,
     )
 
+    const evmOnlyChain = !!chains?.[activeChain as SupportedChain]?.evmOnlyChain
+
     const showFundBanners =
       !isCompassWallet() &&
-      (!chains?.[activeChain as SupportedChain]?.evmOnlyChain || !!zeroStateBanner) &&
+      (!evmOnlyChain || !!zeroStateBanner) &&
       !isWalletHasFunds &&
       !isTokenLoading &&
       !balanceError
@@ -246,7 +268,11 @@ export const TokensSection = observer(
               </div>
             ) : (
               <>
-                <ListTokens balances={rootBalanceStore} evmBalances={evmBalanceStore} />
+                <ListTokens
+                  balances={rootBalanceStore}
+                  evmBalances={evmBalanceStore}
+                  aptosBalances={aptosCoinDataStore}
+                />
 
                 {evmStatus !== 'success' ? <AggregatedLoading className='mb-[12px]' /> : null}
                 {activeChain === 'secret' && snip20TokensStatus !== 'success' && snip20Enabled ? (

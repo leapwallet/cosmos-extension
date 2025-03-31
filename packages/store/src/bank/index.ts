@@ -1,5 +1,6 @@
 export * from './asteroid-balance-store';
 export * from './balance-store';
+export * from './balance-types';
 export * from './bitcoin-balance-store';
 export * from './cw20-denom-balance-store';
 export * from './erc20-denom-balance-store';

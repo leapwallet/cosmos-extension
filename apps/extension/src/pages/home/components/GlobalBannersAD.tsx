@@ -96,7 +96,13 @@ const BannerAdCard = observer(
         handleBtcBannerClick()
       } else if (bannerData.banner_type === 'redirect-interanlly') {
         const bannerId = getMixpanelBannerId(bannerData?.id, bannerData.attributes?.campaign_id)
-        navigate(`${bannerData.redirect_url}&bannerId=${bannerId}`)
+        let redirectUrl = bannerData.redirect_url
+        if (redirectUrl.includes('?')) {
+          redirectUrl = `${redirectUrl}&bannerId=${bannerId}`
+        } else {
+          redirectUrl = `${redirectUrl}?bannerId=${bannerId}`
+        }
+        navigate(redirectUrl)
       } else if (bannerData.banner_type === 'add-chain') {
         handleAddChainClick(bannerData.redirect_url)
       } else if (bannerData.banner_type === 'switch-chain') {

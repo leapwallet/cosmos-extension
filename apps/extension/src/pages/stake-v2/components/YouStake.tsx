@@ -239,8 +239,8 @@ const YouStake = observer(
               assetImg={activeStakingDenom?.icon}
               text={activeStakingDenom?.coinDenom}
               altText={activeStakingDenom?.coinDenom}
-              imageClassName='rounded-full'
-              containerClassName='w-[24px] h-[24px] bg-gray-200 dark:bg-gray-800'
+              imageClassName='rounded-full w-[24px] h-[24px]'
+              containerClassName='bg-gray-200 dark:bg-gray-800'
               textClassName='text-[7px] !leading-[9px]'
             />
             <Text className='font-bold' size='sm'>

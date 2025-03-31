@@ -1,134 +1,86 @@
-const { defineConfig } = require('@rsbuild/core');
-const { pluginReact } = require('@rsbuild/plugin-react');
-const rspack = require('@rspack/core');
-const path = require('path');
-const fs = require('fs');
+const { defineConfig } = require('@rsbuild/core')
+const { pluginReact } = require('@rsbuild/plugin-react')
+const rspack = require('@rspack/core')
+const { sentryWebpackPlugin } = require('@sentry/webpack-plugin')
+const path = require('path')
+const fs = require('fs')
 
 const buildTypes = {
   production: {
     type: 'production',
     defaultEnvFile: '.env.production',
-    compassEnvFile: '.env.production.compass',
-    outDirPath: 'builds/cosmos-build',
+    outDirPath: 'builds/cosmos',
+    publicDir: 'public/leap-cosmos',
     manifestData: {
-      leap: {
-        name: 'Leap Cosmos Wallet',
-        description: 'A crypto wallet for Cosmos blockchains.',
-      },
-      compass: {
-        name: 'Compass Wallet for Sei',
-        description: 'A crypto wallet for Sei Blockchain, brought to you by the Leap Wallet team.',
-      },
+      name: 'Leap Cosmos Wallet',
+      description: 'A crypto wallet for Cosmos blockchains.',
     },
   },
   staging: {
     type: 'staging',
     defaultEnvFile: '.env.production',
-    compassEnvFile: '.env.production.compass',
-    outDirPath: 'staging/cosmos-build',
+    outDirPath: 'builds/staging',
+    publicDir: 'public/leap-cosmos',
     manifestData: {
-      leap: {
-        name: 'Leap Cosmos Wallet',
-        description: 'A crypto wallet for Cosmos blockchains.',
-      },
-      compass: {
-        name: 'Compass Wallet for Sei',
-        description: 'A crypto wallet for Sei Blockchain, brought to you by the Leap Wallet team.',
-      },
+      name: 'Leap Cosmos Wallet',
+      description: 'A crypto wallet for Cosmos blockchains.',
     },
   },
   canary: {
     type: 'canary',
     defaultEnvFile: '.env.canary',
-    compassEnvFile: '.env.canary.compass',
-    outDirPath: 'canary-builds/compass-canary',
+    outDirPath: 'builds/canary',
+    publicDir: 'public/leap-cosmos',
     manifestData: {
-      leap: {
-        name: 'Leap Cosmos Wallet CANARY BUILD',
-        description: 'THIS IS THE CANARY DISTRIBUTION OF THE LEAP COSMOS EXTENSION, INTENDED FOR DEVELOPERS.',
-      },
-      compass: {
-        name: 'Compass CANARY BUILD',
-        description: 'THIS IS THE CANARY DISTRIBUTION OF THE COMPASS EXTENSION, INTENDED FOR DEVELOPERS.',
-      },
+      name: 'Leap Cosmos Wallet CANARY BUILD',
+      description:
+        'THIS IS THE CANARY DISTRIBUTION OF THE LEAP COSMOS EXTENSION, INTENDED FOR DEVELOPERS.',
     },
   },
   development: {
     type: 'development',
     defaultEnvFile: '.env.development',
-    compassEnvFile: '.env.development.compass',
+    publicDir: 'public/leap-cosmos',
+    outDirPath: 'builds/development',
     manifestData: {
-      leap: {
-        name: 'Leap Cosmos Wallet DEVELOPMENT BUILD',
-        description: 'THIS IS THE DEVELOPMENT DISTRIBUTION OF THE LEAP COSMOS EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.',
-      },
-      compass: {
-        name: 'Compass DEVELOPMENT BUILD',
-        description: 'THIS IS THE DEVELOPMENT DISTRIBUTION OF THE COMPASS EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.',
-      },
+      name: 'Leap Cosmos Wallet DEVELOPMENT BUILD',
+      description:
+        'THIS IS THE DEVELOPMENT DISTRIBUTION OF THE LEAP COSMOS EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.',
     },
   },
-};
-
-const buildType = buildTypes[process.env.NODE_ENV];
-const isProdBuild = buildType.type === 'production';
-const isStagingBuild = buildType.type === 'staging';
-const isCanaryBuild = buildType.type === 'canary';
-const isDevelopmentBuild = buildType.type === 'development';
-const isCompassBuild = process.env.APP && process.env.APP.includes('compass');
-
-
-const defaultEnvFileName = buildType.defaultEnvFile;
-const compassEnvFileName = buildType.compassEnvFile;
-let publicDir = isCompassBuild ? 'public/compass' : 'public/leap-cosmos';
-
-if (isCanaryBuild && isCompassBuild) {
-  publicDir = 'public/compass-canary';
 }
 
-const defaultEnvFilePath = path.join(__dirname, defaultEnvFileName);
-const appEnvFilePath = path.join(
-  __dirname,
-  isCompassBuild ? compassEnvFileName : defaultEnvFileName,
-);
+const buildType = buildTypes[process.env.NODE_ENV]
+const isProdBuild = buildType.type === 'production'
+const isDevelopmentBuild = buildType.type === 'development'
 
-let buildDir = isCompassBuild ? 'builds/compass-build' : 'builds/cosmos-build';
-if (isStagingBuild) {
-  buildDir = isCompassBuild ? 'staging-builds/compass-build' : 'staging-builds/cosmos-build';
-}
+const defaultEnvFileName = buildType.defaultEnvFile
+const defaultEnvFilePath = path.join(__dirname, defaultEnvFileName)
+
+const publicDir = buildType.publicDir
+const buildDir = buildType.outDirPath
 
 const { parsed: defaultEnvConfig } = require('dotenv').config({
   path: defaultEnvFilePath,
-});
-
-const { parsed: appEnvConfig } = require('dotenv').config({
-  path: appEnvFilePath,
-});
+})
 
 if (!defaultEnvConfig) {
-  throw new Error(`Missing env file ${defaultEnvFilePath} file`);
+  throw new Error(`Missing env file ${defaultEnvFilePath} file`)
 }
 
-if (isCompassBuild) {
-  defaultEnvConfig['APP'] = 'compass';
-}
-
-const envConfig = Object.assign(defaultEnvConfig, appEnvConfig);
-const envVars = Object.entries(envConfig).reduce((acc, [key, value]) => {
+const envVars = Object.entries(defaultEnvConfig).reduce((acc, [key, value]) => {
   return {
     ...acc,
     [`process.env.${key}`]: JSON.stringify(value),
-    'process.env.buildType': JSON.stringify(buildType.type)
+    'process.env.buildType': JSON.stringify(buildType.type),
   }
 }, {})
 
-const baseManifest = fs.readFileSync(path.join(__dirname, 'public/base_manifest.json'), 'utf-8');
-const { name, description } = isCompassBuild
-  ? buildType.manifestData.compass
-  : buildType.manifestData.leap;
-const manifest = baseManifest.replace('__NAME__', name).replace('__DESCRIPTION__', description);
-const manifestObj = JSON.parse(manifest);
-fs.writeFileSync(path.join(__dirname, `./${publicDir}/manifest.json`), manifest);
+const baseManifest = fs.readFileSync(path.join(__dirname, 'public/base_manifest.json'), 'utf-8')
+const { name, description } = buildType.manifestData
+const manifest = baseManifest.replace('__NAME__', name).replace('__DESCRIPTION__', description)
+const manifestObj = JSON.parse(manifest)
+fs.writeFileSync(path.join(__dirname, `./${publicDir}/manifest.json`), manifest)
 
 module.exports = defineConfig({
   dev: {
@@ -156,11 +108,10 @@ module.exports = defineConfig({
         entry: {
           index: './src/index.tsx',
           sidePanel: './src/index.tsx',
-
         },
         define: {
           ...envVars,
-        }
+        },
       },
       html: {
         template({ entryName }) {
@@ -169,7 +120,7 @@ module.exports = defineConfig({
             sidePanel: `./${publicDir}/sidepanel.html`,
           }
           return templates[entryName] || `./${publicDir}/index.html`
-        }
+        },
       },
       output: {
         target: 'web',
@@ -212,7 +163,7 @@ module.exports = defineConfig({
         },
         define: {
           ...envVars,
-        }
+        },
       },
       output: {
         distPath: {
@@ -258,7 +209,25 @@ module.exports = defineConfig({
           Buffer: ['buffer', 'Buffer'],
           process: 'process/browser',
         }),
+        ...(isProdBuild
+          ? [
+              sentryWebpackPlugin({
+                org: defaultEnvConfig.SENTRY_ORG,
+                project: defaultEnvConfig.SENTRY_PROJECT,
+                sourcemaps: {
+                  assets: path.resolve(__dirname, `./${buildDir}/**`),
+                  filesToDeleteAfterUpload: ['**/*.map'],
+                },
+                authToken: defaultEnvConfig.SENTRY_AUTH_TOKEN,
+                release: {
+                  name: manifestObj.version,
+                },
+                deleteAfterCompile: true,
+                url: defaultEnvConfig.SENTRY_HOST,
+              }),
+            ]
+          : []),
       ],
     },
   },
-});
+})

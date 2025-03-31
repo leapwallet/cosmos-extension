@@ -57,7 +57,6 @@ export const chainIdToChainName: Record<string, string> = {
   'loyal-main-02': 'loyal',
   LumenX: 'lumenx',
   'lum-network-1': 'lumnetwork',
-  'mars-1': 'mars',
   'medasdigital-1': 'medasdigital',
   'meme-1': 'meme',
   'microtick-1': 'microtick',
@@ -192,4 +191,9 @@ export const chainIdToChainName: Record<string, string> = {
   '1514': 'story',
   '1513': 'story',
   'zig-test-1': 'zigchain',
+  '999': 'hyperEVM',
+  '998': 'hyperEVM',
+  'nillion-1': 'nillion',
+  '6342': 'megaeth',
+  '16600': '0G',
 };

@@ -389,7 +389,7 @@ export class LeapAptos implements AptosWallet {
     const txBytes = Buffer.from(serializer.toUint8Array()).toString('hex');
     const msg = new RequestSignAptosMsg(chainId, this.accounts[0].address, txBytes, false, false, {
       asFeePayer,
-      preferNoSetFee: transaction?.rawTransaction?.max_gas_amount !== undefined,
+      preferNoSetFee: false,
     });
     msg.validateBasic();
     const signResponse = await this.requestWrapper(APTOS_METHOD_TYPE.SIGN_TRANSACTION, msg);
@@ -475,7 +475,7 @@ export class LeapAptos implements AptosWallet {
     const txBytes = Buffer.from(serializer.toUint8Array()).toString('hex');
     const msg = new RequestSignAptosMsg(chainId, this.accounts[0].address, txBytes, true, false, {
       asFeePayer: false,
-      preferNoSetFee: transaction.maxGasAmount !== undefined,
+      preferNoSetFee: false,
     });
     msg.validateBasic();
     const txHash = await this.requestWrapper(APTOS_METHOD_TYPE.SIGN_TRANSACTION, msg);

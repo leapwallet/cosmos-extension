@@ -90,7 +90,7 @@ export async function getApr(
   }
 
   if (isNumber(chainData?.params?.calculated_apr)) {
-    return chainData.params?.calculated_apr ?? 0;
+    return chainData?.params?.calculated_apr ?? 0;
   }
 
   /**

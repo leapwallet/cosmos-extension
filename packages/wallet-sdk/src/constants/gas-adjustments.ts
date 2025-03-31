@@ -28,7 +28,6 @@ export const gasAdjustments: GasAdjustments = {
   crescent: 1.5,
   kujira: 1.5,
   injective: 1.5,
-  mars: 1.5,
   sei: 1.5,
   seiTestnet2: 1.5,
   stride: 1.5,
@@ -119,4 +118,8 @@ export const gasAdjustments: GasAdjustments = {
   monad: 1,
   story: 1,
   zigchain: 1.5,
+  hyperEVM: 1,
+  megaeth: 1,
+  '0G': 1,
+  nillion: 1.5,
 };

@@ -5,7 +5,8 @@ import {
   isAptosChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { computed, makeAutoObservable, makeObservable, observable, reaction, runInAction } from 'mobx';
+import axios from 'axios';
+import { computed, makeObservable, observable, reaction, runInAction } from 'mobx';
 import qs from 'qs';
 
 import {
@@ -57,15 +58,6 @@ export class GovStore {
     chainInfosConfigStore: ChainInfosConfigStore,
     addressStore: AddressStore,
   ) {
-    makeObservable({
-      chainWiseProposals: observable.shallow,
-      chainWisePaginations: observable.shallow,
-      chainWiseShouldUseFallback: observable,
-      chainWiseFetchMore: observable,
-      chainWiseStatus: observable,
-      aggregatedGov: computed.struct,
-    });
-
     this.nmsStore = nmsStore;
     this.chainInfosStore = chainInfosStore;
     this.activeChainStore = activeChainStore;
@@ -76,20 +68,15 @@ export class GovStore {
     this.chainInfosConfigStore = chainInfosConfigStore;
     this.addressStore = addressStore;
 
-    reaction(
-      () => this.addressStore.addresses,
-      () => this.initialize(),
-    );
-
-    reaction(
-      () => this.activeChainStore.activeChain,
-      (activeChain) => this.loadProposals(activeChain, this.selectedNetworkStore.selectedNetwork),
-    );
-
-    reaction(
-      () => this.selectedNetworkStore.selectedNetwork,
-      (selectedNetwork) => this.loadProposals(this.activeChainStore.activeChain, selectedNetwork),
-    );
+    makeObservable(this, {
+      chainWiseProposals: observable,
+      chainWisePaginations: observable.shallow,
+      chainWiseShouldUseFallback: observable,
+      chainWiseFetchMore: observable,
+      chainWiseStatus: observable,
+      aggregatedGov: computed,
+      aggregatedGovStatus: computed,
+    });
 
     reaction(
       () => this.spamProposalsStore.spamProposals,
@@ -170,6 +157,10 @@ export class GovStore {
     };
   }
 
+  get aggregatedGovStatus() {
+    return Object.values(this.chainWiseStatus).every((status) => status === 'loading');
+  }
+
   async initialize() {
     await Promise.all([
       this.activeChainStore.readyPromise,
@@ -193,7 +184,7 @@ export class GovStore {
       this.aggregatedChainsStore.aggregatedChainsData.forEach((chain) => {
         const chainKey = this.getChainKey(chain as SupportedChain);
 
-        if (!this.chainWiseProposals[chainKey]) {
+        if (!this.chainWiseProposals[chainKey] && this.chainWiseStatus[chainKey] !== 'loading') {
           runInAction(() => (this.chainWiseStatus[chainKey] = 'loading'));
           this.fetchChainProposals(chain as SupportedChain, network ?? 'mainnet');
         }
@@ -201,8 +192,8 @@ export class GovStore {
     } else {
       const chainKey = this.getChainKey(chain);
 
-      if (!this.chainWiseProposals[chainKey]) {
-        this.chainWiseStatus[chainKey] = 'loading';
+      if (!this.chainWiseProposals[chainKey] && this.chainWiseStatus[chainKey] !== 'loading') {
+        runInAction(() => (this.chainWiseStatus[chainKey] = 'loading'));
         this.fetchChainProposals(chain, network);
       }
     }
@@ -363,10 +354,8 @@ export class GovStore {
       offset: Number(paginationKey ?? 0),
     });
 
-    const response = await fetch(`https://api.leapwallet.io/gov/proposals/${activeChainId}?${query}`, {
-      method: 'POST',
-    });
-    const data = await response.json();
+    const response = await axios.post(`https://api.leapwallet.io/gov/proposals/${activeChainId}?${query}`);
+    const data = response.data;
 
     const proposals = data?.proposals?.sort((a: any, b: any) => Number(b.proposal_id) - Number(a.proposal_id));
     const updatedProposals = [

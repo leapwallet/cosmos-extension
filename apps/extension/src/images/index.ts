@@ -1,5 +1,6 @@
 import * as activity from './activity'
 import * as airdrop from './airdrop'
+import * as alpha from './alpha'
 import * as banners from './banners'
 import * as countries from './countries'
 import * as gov from './gov'
@@ -23,4 +24,5 @@ export namespace Images {
   export const Stake = stake
   export const Swap = swap
   export const Banners = banners
+  export const Alpha = alpha
 }

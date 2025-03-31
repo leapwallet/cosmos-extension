@@ -1,6 +1,12 @@
 import { AddressZero } from '@ethersproject/constants'
 import { getErc20TokenDetails } from '@leapwallet/cosmos-wallet-sdk'
-import { SkipSupportedAsset, useAllSkipAssets, useLifiAssets } from '@leapwallet/elements-hooks'
+import {
+  MosaicSupportedAsset,
+  SkipSupportedAsset,
+  useAllSkipAssets,
+  useLifiAssets,
+  useMosaicAssets,
+} from '@leapwallet/elements-hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { compassSeiEvmConfigStore } from 'stores/balance-store'
@@ -8,10 +14,11 @@ import { compassTokensAssociationsStore } from 'stores/chain-infos-store'
 import { compassTokenTagsStore, rootDenomsStore } from 'stores/denoms-store-instance'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
+import { hasCoinType } from '../utils'
 import useCustomAddedERC20Tokens from './useCustomAddedERC20Tokens'
 import { useProviderFeatureFlags } from './useProviderFeatureFlags'
 
-export type MergedAsset = SkipSupportedAsset & {
+export type MergedAsset = (SkipSupportedAsset | MosaicSupportedAsset) & {
   evmChainId?: string
   evmTokenContract?: string
   evmDecimals?: number
@@ -35,6 +42,7 @@ export default function useAssets() {
   const { data: _allSkipAssets, isLoading: loadingAllSkipAssets } =
     useAllSkipAssets(useAllSkipAssetsParams)
 
+  const { data: _mosaicAssets } = useMosaicAssets()
   const { data: seiLifiAssets } = useLifiAssets(
     isLifiEnabled
       ? String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID)
@@ -44,7 +52,12 @@ export default function useAssets() {
     },
   )
 
-  const allSkipAssets = isSkipEnabled ? _allSkipAssets : undefined
+  const allSkipAssets:
+    | Record<string, SkipSupportedAsset[]>
+    | Record<string, MosaicSupportedAsset[]>
+    | undefined = isSkipEnabled
+    ? Object.assign({}, _allSkipAssets, _mosaicAssets?.assets)
+    : undefined
 
   const customAddedERC20Tokens = useCustomAddedERC20Tokens()
   const allDenoms = rootDenomsStore.allDenoms
@@ -78,7 +91,11 @@ export default function useAssets() {
                 (asset) =>
                   !blacklistedTokens.includes(
                     asset.originDenom?.replace(/(cw20:|erc20\/)/g, '').toLowerCase(),
-                  ),
+                  ) &&
+                  (!hasCoinType(asset) ||
+                    !blacklistedTokens.includes(
+                      asset.coinType?.replace(/(cw20:|erc20\/)/g, '').toLowerCase(),
+                    )),
               )
             }
           })

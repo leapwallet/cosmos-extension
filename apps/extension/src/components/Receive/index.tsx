@@ -54,11 +54,12 @@ export default function ReceiveToken({
   const _activeChain = useActiveChain()
   const activeChain = tokenBalanceOnChain ?? _activeChain
   const { topChainColor } = useChainPageInfo()
-
-  const address = wallet?.addresses[activeChain]
+  const activeChainInfo = useChainInfo(activeChain)
+  const isEvmOnlyChain = activeChainInfo?.evmOnlyChain
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
   const walletAddress = useGetWalletAddresses(activeChain)
+  const address = isEvmOnlyChain ? walletAddress[0] : wallet?.addresses[activeChain]
 
   const QrCodeProps = {
     height: 250,

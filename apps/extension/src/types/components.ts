@@ -14,6 +14,7 @@ export type HeaderAction = {
 
 export type PageHeaderProps = {
   title: ReactNode
+  titleIcon?: ReactNode
   action?: HeaderAction
   imgSrc?: ReactNode
   onImgClick?: (

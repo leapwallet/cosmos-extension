@@ -16,6 +16,7 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainAbstractionView } from 'hooks/settings/useChainAbstractionView'
 import { useAirdropsData } from 'hooks/useAirdropsData'
 import { InitHooks } from 'init-hooks'
+import { FilterProvider } from 'pages/alpha/context/filter-context'
 import Home from 'pages/home/Home'
 import { AddEvmLedger, AddEvmTitle } from 'pages/onboarding/import/AddEvmLedger'
 import OnboardingWatchAddress from 'pages/onboarding/watchAddress'
@@ -67,6 +68,7 @@ const AddChain = React.lazy(() => import('pages/suggestChain/addChain'))
 const SuggestChain = React.lazy(() => import('pages/suggestChain/suggestChain'))
 const Airdrops = React.lazy(() => import('pages/airdrops'))
 const AirdropsDetails = React.lazy(() => import('pages/airdrops/AirdropsDetails'))
+const Alpha = React.lazy(() => import('pages/alpha'))
 const SecretManageTokens = React.lazy(() => import('pages/snip20-manage-tokens'))
 const SuggestErc20 = React.lazy(() => import('pages/suggest/SuggestErc20'))
 const PendingTx = React.lazy(() => import('pages/activity/PendingTx'))
@@ -445,6 +447,16 @@ export default function AppRoutes(): JSX.Element {
               element={
                 <RequireAuth>
                   <SwitchEthereumChain />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path='alpha'
+              element={
+                <RequireAuth>
+                  <FilterProvider>
+                    <Alpha />
+                  </FilterProvider>
                 </RequireAuth>
               }
             />

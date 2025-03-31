@@ -58,7 +58,7 @@ const queryPercentageChanges = async (ids: string, currency: Currency = Currency
 };
 
 export class LeapApi {
-  constructor(private readonly apiBaseUrl: string = '') {}
+  constructor(private readonly apiBaseUrl: string = '', private readonly customHeaders: Record<string, string> = {}) {}
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getMarketDescription({ platform, token }: MarketDescriptionRequest): Promise<string | null> {
     return null;
@@ -225,16 +225,6 @@ export class LeapApi {
 
   async operateSeiTx(request: CosmosTxRequest): Promise<void> {
     console.log('Transaction Logging: ', request);
-    throw new NetworkError(new Error('Dummified response'));
-  }
-
-  async operateV2Tx(logReq: any, operation: any): Promise<void> {
-    console.log('Transaction Logging: ', logReq);
-    throw new NetworkError(new Error('Dummified response'));
-  }
-
-  async logLightNodeStats(logReq: any): Promise<void> {
-    console.log('Logging light node stat', logReq);
     throw new NetworkError(new Error('Dummified response'));
   }
 }

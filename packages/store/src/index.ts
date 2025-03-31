@@ -3,7 +3,7 @@ export * from './bank';
 export * from './banners';
 export * from './chains';
 export * from './fees';
-export { setBaseURL, setIsCompass } from './globals/config';
+export { setAppType, setBaseURL, setIsCompass } from './globals/config';
 export * from './gov';
 export * from './nft';
 export * from './password';

@@ -1,3 +1,4 @@
+import { APTOS_COIN, APTOS_FA } from '@aptos-labs/ts-sdk'
 import {
   CompassDenomInfoParams,
   currencyDetail,
@@ -18,6 +19,8 @@ import {
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
+  aptosChainNativeFATokenMapping,
+  aptosChainNativeTokenMapping,
   ChainInfos,
   NativeDenom,
   SupportedChain,
@@ -67,6 +70,7 @@ import SelectChain from 'pages/home/SelectChain'
 import StakeSelectSheet from 'pages/stake-v2/components/StakeSelectSheet'
 import { StakeInputPageState } from 'pages/stake-v2/StakeInputPage'
 import useAssets from 'pages/swaps-v2/hooks/useAssets'
+import { hasCoinType } from 'pages/swaps-v2/utils'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useLocation, useNavigate } from 'react-router'
@@ -165,6 +169,21 @@ const TokensDetails = observer(
           if (skipAsset.denom === 'ethereum-native') {
             return assetToFind.includes('wei')
           }
+          if (
+            assetToFind.some((asset) => Object.values(aptosChainNativeTokenMapping).includes(asset))
+          ) {
+            return hasCoinType(skipAsset) && skipAsset.coinType === APTOS_COIN
+          }
+          if (
+            assetToFind.some((asset) =>
+              Object.values(aptosChainNativeFATokenMapping).includes(asset),
+            )
+          ) {
+            return (
+              skipAsset.denom === APTOS_FA ||
+              (hasCoinType(skipAsset) && skipAsset.coinType === APTOS_COIN)
+            )
+          }
           return (
             assetToFind.includes(skipAsset.denom.replace(/(cw20:|erc20\/)/g, '')) ||
             assetToFind.includes(skipAsset.denom.replace(/(cw20:|erc20\/)/g, '').toLowerCase()) ||
@@ -172,7 +191,10 @@ const TokensDetails = observer(
               (assetToFind.includes(skipAsset.evmTokenContract.replace(/(cw20:|erc20\/)/g, '')) ||
                 assetToFind.includes(
                   skipAsset.evmTokenContract.replace(/(cw20:|erc20\/)/g, '').toLowerCase(),
-                )))
+                ))) ||
+            (hasCoinType(skipAsset) &&
+              (assetToFind.includes(skipAsset.coinType) ||
+                assetToFind.includes(skipAsset.coinType.toLowerCase())))
           )
         })
       )

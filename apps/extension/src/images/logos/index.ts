@@ -58,7 +58,6 @@ const ChainLogos: Record<string, string | undefined> = {
   starname: ChainInfos.starname.chainSymbolImageUrl,
   umee: ChainInfos.umee.chainSymbolImageUrl,
   injective: ChainInfos.injective.chainSymbolImageUrl,
-  mars: ChainInfos.mars.chainSymbolImageUrl,
   sei: ChainInfos.sei.chainSymbolImageUrl,
   kujira: ChainInfos.kujira.chainSymbolImageUrl,
   stride: ChainInfos.stride.chainSymbolImageUrl,

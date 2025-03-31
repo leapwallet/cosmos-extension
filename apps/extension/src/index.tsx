@@ -1,24 +1,13 @@
+// eslint-disable-next-line simple-import-sort/imports
 import '../styles/globals.css'
+import { fetchIbcTraceData } from './initializeGlobalConfigs'
 
-import {
-  APP_NAME,
-  PLATFORM_TYPE,
-  setAppName,
-  setLeapapiBaseUrl,
-  setNumiaBannerBearer,
-  setPlatformType,
-  setStorageLayer,
-} from '@leapwallet/cosmos-wallet-hooks'
 import { setSpeculosTransport, setUseSpeculosTransport } from '@leapwallet/cosmos-wallet-sdk'
-import { fetchIbcTraceData, setBaseURL, setIsCompass } from '@leapwallet/cosmos-wallet-store'
-import { initCachingLayer, setLeapIntegratorID } from '@leapwallet/elements-hooks'
-import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import { LeapUiTheme, ThemeName } from '@leapwallet/leap-ui'
 import { createSentryConfig } from '@leapwallet/sentry-config/dist/extension'
 import * as Sentry from '@sentry/react'
 import { BrowserTracing } from '@sentry/tracing'
 import { QueryClientProvider } from '@tanstack/react-query'
-import axios from 'axios'
 import ErrorBoundaryFallback from 'components/error-boundary-fallback'
 import mixpanel from 'mixpanel-browser'
 import * as React from 'react'
@@ -29,32 +18,11 @@ import {
   useLocation,
   useNavigationType,
 } from 'react-router-dom'
-import { AsyncIDBStorage } from 'utils/asyncIDBStorage'
 import { beforeCapture } from 'utils/sentry'
 import browser from 'webextension-polyfill'
 
 import App from './App'
 import { queryClient } from './query-client'
-import { isCompassWallet } from './utils/isCompassWallet'
-import { getStorageAdapter } from './utils/storageAdapter'
-
-axios.defaults.headers.common['x-requested-with'] = 'leap-client'
-axios.defaults.timeout = 5000
-
-setLeapapiBaseUrl(process.env.LEAP_WALLET_BACKEND_API_URL as string)
-setBaseURL(process.env.LEAP_WALLET_BACKEND_API_URL as string)
-setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
-setIsCompass(isCompassWallet())
-setPlatformType(PLATFORM_TYPE.Extension)
-initCachingLayer(AsyncIDBStorage)
-// setAppName is for tx logging
-setAppName(isCompassWallet() ? APP_NAME.Compass : APP_NAME.Cosmos)
-setLeapIntegratorID(process.env.ELEMENTS_INTEGRATOR_ID as string)
-const storageAdapter = getStorageAdapter()
-setStorageLayer(storageAdapter)
-
-initStorage(storageAdapter)
-initCrypto()
 
 fetchIbcTraceData()
 

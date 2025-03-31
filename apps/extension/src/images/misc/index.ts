@@ -118,6 +118,7 @@ import OnboardingFrog from './onboarding-frog.svg'
 import OpenLink from './open-link.svg'
 import OutlinedFavStar from './outlined-fav-start.svg'
 import { OutlinRoundGreenCheckSvg } from './OutlineRoundGreenCheckSvg'
+import Parachute from './parachute.svg'
 import Pin from './pin.svg'
 import PinToExtension from './pin-to-extension.svg'
 import PkWallet from './pk-wallet.svg'
@@ -184,7 +185,6 @@ export const ChainChecks: Record<string, string> = {
   starname: CheckCosmos,
   umee: CheckCosmos,
   injective: CheckCosmos,
-  mars: CheckCosmos,
   sei: CheckCosmos,
   likecoin: CheckCosmos,
   agoric: CheckCosmos,
@@ -307,6 +307,7 @@ export {
   OpenLink,
   OutlinedFavStar,
   OutlinRoundGreenCheckSvg,
+  Parachute,
   Pin,
   PinToExtension,
   PkWallet,

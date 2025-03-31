@@ -32,6 +32,7 @@ import classNames from 'classnames'
 import { ActionInputWithPreview } from 'components/action-input-with-preview'
 import Tooltip from 'components/better-tooltip'
 import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import { aptos } from 'content-scripts/inject-leap'
 import { useEnableEvmGasRefetch } from 'hooks/cosm-wasm/use-enable-evm-gas-refetch'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -43,7 +44,7 @@ import { observer } from 'mobx-react-lite'
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { activeChainStore } from 'stores/active-chain-store'
-import { evmBalanceStore } from 'stores/balance-store'
+import { aptosCoinDataStore, evmBalanceStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { chainApisStore } from 'stores/chains-api-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
@@ -202,6 +203,7 @@ const GasPriceOptions = observer(
 
     const chainInfo = chainInfoStore.chainInfos[activeChain]
     const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork)
+    const aptosBalance = aptosCoinDataStore.balances
 
     const isSeiEvmChain = chainGasPriceOptionsStore.isSeiEvmChain
     const feeTokenData = chainGasPriceOptionsStore.feeTokenData
@@ -218,6 +220,10 @@ const GasPriceOptions = observer(
     useEnableEvmGasRefetch(activeChain, selectedNetwork)
 
     const allTokens = useMemo(() => {
+      const isAptosChain = chainInfo.chainId.startsWith('aptos')
+      if (isAptosChain) {
+        return aptosBalance
+      }
       if (
         (isSeiEvmChain && isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) ||
         chainInfo?.evmOnlyChain
@@ -235,6 +241,7 @@ const GasPriceOptions = observer(
       chainInfo?.evmOnlyChain,
       spendableBalancesForChain,
       evmBalance?.evmBalance,
+      aptosBalance,
     ])
 
     const allTokensStatus = useMemo(() => {
@@ -1105,7 +1112,7 @@ GasPriceOptions.AdditionalSettings = observer(
               }}
             >
               <TokenImageWithFallback
-                assetImg={feeTokenData.denom.icon}
+                assetImg={feeTokenData.denom.icon ?? feeTokenAsset?.img}
                 text={feeTokenData.denom.coinDenom}
                 altText={feeTokenData.denom.coinDenom}
                 imageClassName='h-6 w-6 mr-1'

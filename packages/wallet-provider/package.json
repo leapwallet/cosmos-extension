@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-provider",
-  "version": "5.1.1",
+  "version": "6.1.0",
   "description": "Cosmos Wallet Provider for Leap Wallet.",
   "main": "dist/index.js",
   "files": [
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@aptos-labs/wallet-standard": "0.2.0",
-    "@leapwallet/cosmos-wallet-sdk": "5.1.1",
+    "@leapwallet/cosmos-wallet-sdk": "6.1.0",
     "@metamask/post-message-stream": "6.0.0",
     "cosmjs-types": "0.8.0",
     "uuid": "9.0.0"

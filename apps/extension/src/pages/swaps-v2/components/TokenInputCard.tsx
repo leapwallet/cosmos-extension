@@ -1,4 +1,5 @@
 import { formatTokenAmount, sliceWord, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { currencyDetail } from '@leapwallet/cosmos-wallet-store'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
@@ -132,7 +133,12 @@ function TokenInputCardView({
 
   const balanceAmount = useMemo(() => {
     return hideAssetsStore.formatHideBalance(
-      formatTokenAmount(token?.amount ?? '0', sliceWord(token?.symbol ?? '', 4, 4), 3),
+      formatTokenAmount(
+        token?.amount ?? '0',
+        sliceWord(token?.symbol ?? '', 4, 4),
+        3,
+        currencyDetail.US.locale,
+      ),
     )
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

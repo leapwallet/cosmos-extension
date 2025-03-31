@@ -42,7 +42,6 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   umee: DefaultGasEstimates,
   kujira: DefaultGasEstimates,
   injective: DefaultGasEstimates,
-  mars: DefaultGasEstimates,
   sei: DefaultGasEstimates,
   stride: DefaultGasEstimates,
   agoric: DefaultGasEstimates,
@@ -146,4 +145,8 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   monad: DefaultGasEstimates,
   story: DefaultGasEstimates,
   zigchain: DefaultGasEstimates,
+  hyperEVM: DefaultGasEstimates,
+  megaeth: DefaultGasEstimates,
+  '0G': DefaultGasEstimates,
+  nillion: DefaultGasEstimates,
 };

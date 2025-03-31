@@ -9,6 +9,7 @@ import {
   ChainInfos,
   getFetchParams,
   getLedgerTransport,
+  getTopNode,
   isEthAddress,
   LeapLedgerSigner,
   LeapLedgerSignerEth,
@@ -564,11 +565,14 @@ export namespace Wallet {
           const lastIndex = Object.keys(allWallets ?? {}).length
           const walletId = crypto.randomUUID()
           let address = _address
+          const { nodeUrl: seiEvmRpcFromNMS } = getTopNode(
+            'rpc',
+            chainInfos?.seiTestnet2?.evmChainId ?? '',
+          ) ?? { nodeUrl: undefined }
+          const seiEvmRpc = seiEvmRpcFromNMS ?? chainInfos?.seiTestnet2.apis.evmJsonRpc
+
           if (isCompassWallet() && isEthAddress(_address)) {
-            const res = await fetch(
-              chainInfos?.seiTestnet2.apis.evmJsonRpc ?? '',
-              getFetchParams([address], 'sei_getSeiAddress'),
-            )
+            const res = await fetch(seiEvmRpc ?? '', getFetchParams([address], 'sei_getSeiAddress'))
             const response = await res.json()
             address = response.result ?? address
           }
@@ -579,7 +583,7 @@ export namespace Wallet {
             invalidPubkeys[chain as SupportedChain] = 'PLACEHOLDER ' + address
             if (COMPASS_CHAINS.includes(chain)) {
               const res = await fetch(
-                chainInfos?.seiTestnet2.apis.evmJsonRpc ?? '',
+                seiEvmRpc ?? '',
                 getFetchParams([address], 'sei_getEVMAddress'),
               )
               const response = await res.json()
@@ -717,11 +721,11 @@ export namespace Wallet {
       if (walletType === WALLETTYPE.SEED_PHRASE || walletType === WALLETTYPE.SEED_PHRASE_IMPORTED) {
         const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
         const account = await customKeygenfnMove(mnemonic, path, 'seedPhrase')
-        return account.signer
+        return account
       } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
         const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
         const account = await customKeygenfnMove(privateKey, path, 'privateKey')
-        return account.signer
+        return account
       } else {
         throw new Error('Invalid wallet type')
       }
