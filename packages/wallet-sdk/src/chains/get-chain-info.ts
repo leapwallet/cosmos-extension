@@ -4,16 +4,6 @@ import { ChainInfos, SupportedChain } from '../constants';
 import { ChainData, ChainMetaData } from '../types/chains-metadata';
 
 export async function getChainInfo(chain: string, testnet?: boolean): Promise<ChainData | undefined> {
-  if (chain === 'mars') {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //@ts-ignore
-    return {
-      chain_name: 'Mars',
-      decimals: 6,
-      denom: 'umars',
-    };
-  }
-
   if (chain === 'noble') {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     //@ts-ignore

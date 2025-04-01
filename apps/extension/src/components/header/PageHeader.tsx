@@ -15,7 +15,14 @@ import { isSidePanel } from 'utils/isSidePanel'
 import NewChainSupportTooltip from './NewChainSupportTooltip'
 
 const PageHeader = React.memo(
-  ({ title, action, imgSrc, onImgClick, dontShowFilledArrowIcon = false }: PageHeaderProps) => {
+  ({
+    title,
+    titleIcon,
+    action,
+    imgSrc,
+    onImgClick,
+    dontShowFilledArrowIcon = false,
+  }: PageHeaderProps) => {
     const { showToolTip: _showToolTip, toolTipData, handleToolTipClose } = useNewChainTooltip()
     const defaultTokenLogo = useDefaultTokenLogo()
     const showToolTip = _showToolTip && !!toolTipData && !!onImgClick
@@ -36,7 +43,10 @@ const PageHeader = React.memo(
           })}
         >
           <div className='flex w-full absolute left-0 top-0 items-center justify-center h-full'>
-            <div className='text-black-100 font-bold text-xl dark:text-white-100'>{title}</div>
+            <div className='flex gap-2 items-center text-black-100 font-bold text-xl dark:text-white-100'>
+              <span>{title}</span>
+              {titleIcon}
+            </div>
           </div>
 
           {action ? (

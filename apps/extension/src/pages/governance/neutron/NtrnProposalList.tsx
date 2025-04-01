@@ -161,7 +161,9 @@ export const NtrnProposalList = observer(
           <div id='governance-list' className='pb-20 px-7'>
             <div className='rounded-2xl flex flex-col items-center w-full m-auto justify-center dark:bg-gray-900 bg-white-100'>
               {loading ? (
-                <GovCardSkeleton />
+                Array.from({ length: 5 }).map((_, index) => (
+                  <GovCardSkeleton key={index} isLast={index === 4} />
+                ))
               ) : (filteredProposalList?.length ?? 0) === 0 ? (
                 <EmptyCard
                   isRounded

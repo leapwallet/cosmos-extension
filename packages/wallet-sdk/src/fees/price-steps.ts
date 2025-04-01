@@ -11,10 +11,15 @@ export const getGasPricesSteps = async (config: {
   lcdUrl?: string;
 }) => {
   const { activeChain, allChainsGasPriceSteps, chains, lcdUrl, selectedNetwork } = config;
+  let gasPriceStepsFromS3 = allChainsGasPriceSteps[activeChain];
+  const chainId = selectedNetwork === 'testnet' ? chains[activeChain]?.testnetChainId : chains[activeChain]?.chainId;
+  if (chainId && allChainsGasPriceSteps[chainId as SupportedChain]) {
+    gasPriceStepsFromS3 = allChainsGasPriceSteps[chainId as SupportedChain] ?? allChainsGasPriceSteps[activeChain];
+  }
   const defaultValue = {
-    low: allChainsGasPriceSteps[activeChain]?.low ?? defaultGasPriceStep.low,
-    medium: allChainsGasPriceSteps[activeChain]?.average ?? defaultGasPriceStep.average,
-    high: allChainsGasPriceSteps[activeChain]?.high ?? defaultGasPriceStep.high,
+    low: gasPriceStepsFromS3?.low ?? defaultGasPriceStep.low,
+    medium: gasPriceStepsFromS3?.average ?? defaultGasPriceStep.average,
+    high: gasPriceStepsFromS3?.high ?? defaultGasPriceStep.high,
   };
 
   try {

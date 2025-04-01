@@ -44,4 +44,8 @@ export const EVM_GAS_PRICES: Record<string, { low: number; medium: number; high:
   '10143': baseEthereumGasPrices,
   '1514': baseEthereumGasPrices,
   '1513': baseEthereumGasPrices,
+  '999': baseEthereumGasPrices,
+  '998': baseEthereumGasPrices,
+  '6342': baseEthereumGasPrices,
+  '16600': baseEthereumGasPrices,
 };

@@ -23,6 +23,7 @@ import {
   SupportedChain,
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { Token } from '@leapwallet/cosmos-wallet-store';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { base64 } from '@scure/base';
 import { FetchStatus, QueryStatus, useQuery } from '@tanstack/react-query';
@@ -46,7 +47,7 @@ import {
   usePendingTxState,
   useSelectedNetwork,
 } from '../store';
-import { Token, TxCallback, WALLETTYPE } from '../types';
+import { TxCallback, WALLETTYPE } from '../types';
 import {
   fetchCurrency,
   GasOptions,
@@ -593,8 +594,9 @@ export function useSendModule({
                 forceWalletAddress: pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain]),
               });
             } else {
-              const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmJsonRpc ?? '');
-              txPostToDB({ ...result.data, amount: txLogAmountValue, txHash: cosmosTxHash, chainId: activeChainId });
+              // SeiEvmTx.GetCosmosTxHash call fails
+              // const cosmosTxHash = await SeiEvmTx.GetCosmosTxHash(evmTxHash, evmJsonRpc ?? '');
+              txPostToDB({ ...result.data, amount: txLogAmountValue, txHash: evmTxHash, chainId: activeChainId });
             }
           } catch {
             // GetCosmosTxHash is currently failing
@@ -703,14 +705,26 @@ export function useSendModule({
           const aptos = await AptosTx.getAptosClient(lcdUrl ?? '');
           const publicKey = new Ed25519PublicKey(base64.decode(activeWallet?.pubKeys?.[activeChain] ?? ''));
           const normalizedAmount = toSmall(inputAmount.toString(), selectedToken?.coinDecimals ?? 6);
-          const fee = await aptos.simulateSendTokens(
-            fromAddress,
-            selectedAddress.address,
-            [{ amount: normalizedAmount, denom: selectedToken.coinMinimalDenom }],
-            memo,
-            publicKey,
-          );
-          setGasEstimate(Number(fee.gasEstimate));
+
+          if (selectedToken?.aptosTokenType === 'v1') {
+            const fee = await aptos.simulateSendTokens(
+              fromAddress,
+              selectedAddress.address,
+              [{ amount: normalizedAmount, denom: selectedToken.coinMinimalDenom }],
+              memo,
+              publicKey,
+            );
+            setGasEstimate(Number(fee.gasEstimate));
+          } else {
+            const simpleTx = await aptos.generateFungibleAssetTx(
+              fromAddress,
+              selectedToken.coinMinimalDenom,
+              selectedAddress.address,
+              parseInt(normalizedAmount),
+            );
+            const fee = await aptos.simulateTransaction(simpleTx, publicKey);
+            setGasEstimate(Number(fee.gasEstimate));
+          }
           return;
         }
 

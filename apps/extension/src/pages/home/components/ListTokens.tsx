@@ -6,6 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { EvmBalanceStore, RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
+import { AptosCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/aptos-balance-store'
 import { CaretDown, CaretUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
@@ -41,9 +42,11 @@ export const ListTokens = observer(
   ({
     balances: { allTokens },
     evmBalances,
+    aptosBalances,
   }: {
     balances: RootBalanceStore
     evmBalances: EvmBalanceStore
+    aptosBalances: AptosCoinDataStore
   }) => {
     const [showMaxAssets, setShowMaxAssets] = useState<number | 'all'>(10)
     const activeChain = useActiveChain() as AggregatedSupportedChain
@@ -54,6 +57,8 @@ export const ListTokens = observer(
     )
     const chains = useGetChains()
     const evmBalance = evmBalances.evmBalance
+    const aptosBalance = aptosBalances.balances
+    const isAptosChain = chains?.[activeChain as SupportedChain]?.chainId.startsWith('aptos')
     const isEvmOnlyChain = chains?.[activeChain as SupportedChain]?.evmOnlyChain
     const isSeiEvmChain = useIsSeiEvmChain(
       activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : activeChain,
@@ -73,9 +78,19 @@ export const ListTokens = observer(
       if (isEvmOnlyChain) {
         return [...(evmBalance?.evmBalance ?? []), ...(allTokens ?? [])]
       }
+      if (isAptosChain) {
+        return [...(aptosBalance ?? [])]
+      }
 
       return allTokens
-    }, [addressLinkState, allTokens, evmBalance?.evmBalance, isEvmOnlyChain, isSeiEvmChain])
+    }, [
+      addressLinkState,
+      allTokens,
+      evmBalance?.evmBalance,
+      isEvmOnlyChain,
+      isSeiEvmChain,
+      isAptosChain,
+    ])
 
     const assetsToShow = useMemo(() => {
       return showMaxAssets === 'all' || allTokens.length < 10

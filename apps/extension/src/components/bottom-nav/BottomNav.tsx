@@ -9,7 +9,6 @@ import {
   ArrowsLeftRight,
   CurrencyDollar,
   MagnifyingGlass,
-  Parachute,
   Pulse,
   Tag,
   Wallet,
@@ -19,6 +18,7 @@ import { LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
+import BottomNavIcon from 'pages/alpha/components/BottomNavIcon'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -30,7 +30,8 @@ export enum BottomNavLabel {
   Activity = 'Activity',
   Governance = 'Governance',
   Earn = 'Earn',
-  Airdrops = 'Airdrops',
+  Airdrops = 'Airdrops', // temporary deprecated
+  Alpha = 'Alpha', // current successor to airdrops
   Swap = 'Swap',
   Search = 'Search',
 }
@@ -51,8 +52,8 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
   const { theme } = useTheme()
   const isDark = theme === ThemeName.DARK
 
-  const airdropRedirectHandler = useCallback(() => {
-    const redirectUrl = `${LEAPBOARD_URL}/airdrops`
+  const alphaRedirectHandler = useCallback(() => {
+    const redirectUrl = `${LEAPBOARD_URL}/airdrops` // todo: change to alpha once added on leapboard
     window.open(redirectUrl, '_blank')
   }, [])
 
@@ -103,12 +104,12 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
         show: isCompassWallet(),
       },
       {
-        label: BottomNavLabel.Airdrops,
-        icon: <Parachute size={22} weight='fill' />,
-        path: '/airdrops',
+        label: BottomNavLabel.Alpha,
+        icon: <BottomNavIcon />,
+        path: '/alpha',
         show: !isCompassWallet() && featureFlags?.airdrops?.extension !== 'disabled',
         shouldRedirect: featureFlags?.airdrops?.extension === 'redirect',
-        redirectHandler: airdropRedirectHandler,
+        redirectHandler: alphaRedirectHandler,
       },
       {
         label: BottomNavLabel.Activity,
@@ -125,7 +126,7 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
     activeChainInfo?.disableStaking,
     activeChainInfo?.evmOnlyChain,
     stakeRedirectForInitiaHandler,
-    airdropRedirectHandler,
+    alphaRedirectHandler,
   ])
 
   return (

@@ -15,6 +15,7 @@ import SelectChain from 'pages/home/SelectChain'
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { evmBalanceStore } from 'stores/balance-store'
+import { aptosCoinDataStore } from 'stores/balance-store'
 import { chainTagsStore, compassTokensAssociationsStore } from 'stores/chain-infos-store'
 import {
   rootCW20DenomsStore,
@@ -104,6 +105,7 @@ const Send = () => {
               rootCW20DenomsStore={rootCW20DenomsStore}
               rootERC20DenomsStore={rootERC20DenomsStore}
               evmBalanceStore={evmBalanceStore}
+              aptosCoinDataStore={aptosCoinDataStore}
             />
 
             <Memo />

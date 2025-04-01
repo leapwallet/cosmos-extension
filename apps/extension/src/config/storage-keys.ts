@@ -39,6 +39,7 @@ export const CURRENT_SWAP_TXS = 'current-swap-txs'
 export const NETWORK_MAP = 'networkMap'
 export const STARRED_CHAINS = 'starred-chains'
 export const NEW_CHAIN_TOOLTIP_STORAGE_KEY = 'leap-new-chain-tooltip-user-preference'
+export const READ_ITEMS_ALPHA_OPPORTUNITIES = 'read-items-alpha-opportunities'
 
 export const SHOW_LINK_ADDRESS_NUDGE = 'show-link-address-nudge'
 export const ACTIVE_WALLET_ID = 'active-wallet-id'
@@ -48,3 +49,5 @@ export const IS_LIGHT_NODE_RUNNING = 'is-light-node-running'
 export const LIGHT_NODE_LAST_SYNCED_DATA = 'light-node-last-synced-data'
 export const LIGHT_NODE_RUNNING_STATS = 'light-node-running-stats'
 export const CLIENT_ID = 'client-id'
+
+export const BOOKMARKED_ALPHAS = 'bookmarked-alphas'

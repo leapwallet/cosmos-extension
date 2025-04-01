@@ -1,0 +1,573 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    background: none;
+  }
+}
+
+@layer base {
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Medium.woff2') format('woff2');
+    font-weight: 500;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Medium.woff2') format('woff2');
+    font-weight: 600;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Black.woff2') format('woff2');
+    font-weight: 800;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Light.woff2') format('woff2');
+    font-weight: 300;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Black.woff2') format('woff2');
+    font-weight: 900;
+  }
+
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('./fonts/satoshi/Satoshi-Regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+
+  @font-face {
+    font-family: 'DMMono';
+    src: url('./fonts/dm-mono/DMMono-Regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+
+  @font-face {
+    font-family: 'DMMono';
+    src: url('./fonts/dm-mono/DMMono-Medium.woff2') format('woff2');
+    font-weight: 500;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3%;
+
+    --primary: 212 56% 45%;
+    --primary-hover: 212 55% 35%;
+
+    --ghost-hover: 240 3.7% 90%;
+
+    --secondary: 0 0% 98%; /* surface/surface-container-1 */
+    --secondary-50: 0 0% 94%;
+    --secondary-100: 0 0% 100%;
+    --secondary-200: 0 0% 96%; /* surface/surface-container-2 */
+    --secondary-250: 0 0% 84%;
+    --secondary-300: 0 0% 80%; /* gray/200 */
+    --secondary-350: 0 0% 76%;
+    --secondary-400: 0 0% 73%;
+    --secondary-500: 0 0% 69%;
+    --secondary-600: 0 0% 60%; /* surface/on-surface-disabled */
+    --secondary-700: 0 0% 40%;
+    --secondary-800: 0 0% 20%; /* text/text-2 */
+
+    --secondary-foreground: 0 0% 3%;
+
+    --accent-foreground: 210 100% 30%;
+    --accent-success: 155 61% 42%; /* accent/accent-green */
+    --accent-success-200: 164 37% 45%;
+
+    --accent-warning-foreground: 36 100% 15%;
+    --accent-warning: 36 100% 45%;
+    --accent-warning-700: 36 100% 85%;
+    --accent-warning-800: 55 30% 92%;
+
+    --accent-blue: 210 100% 40%; /* accent/accent-blue */
+    --accent-blue-foreground: 210 100% 15%;
+    --accent-blue-200: 210 100% 48%; /* Blue/600 */
+    --accent-blue-600: 210 100% 65%;
+    --accent-blue-700: 210 100% 80%;
+    --accent-blue-800: 210 61% 90%;
+    --accent-blue-900: 210 100% 95%;
+
+    --border-bottom: 240 2% 85%;
+
+    --muted-foreground: 0 0% 45%; /* text/text-3, text/text-disabled */
+
+    --gradient-radial-mono-start: 0 0% 75%;
+    --gradient-radial-mono-end: 180 3% 94%;
+
+    --destructive: 0 62.8% 65%;
+    --destructive-foreground: 354 100% 15%;
+    --destructive-100: 354 100% 35%;
+    --destructive-200: 354 100% 45%;
+    --destructive-700: 354 100% 90%;
+
+    --monochrome: 0 0% 0%;
+    --monochrome-hover: 0 0% 20%;
+    --monochrome-foreground: 0 0% 100%;
+
+    --warning: 35 100% 50%;
+
+    --bg-linear-gradient-start: 213 65% 95%;
+    --bg-linear-gradient-end: 212 66% 98%;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
+
+    --primary: 212 56% 36%;
+    --primary-hover: 212 55% 50%;
+
+    --ghost-hover: 240 3.7% 15.9%;
+
+    --secondary: 0 0% 10%; /* surface/surface-container-1 */
+    --secondary-50: 0 0% 8%;
+    --secondary-100: 0 0% 13%;
+    --secondary-200: 0 0% 16%; /* surface/surface-container-2 */
+    --secondary-250: 0 0% 20%;
+    --secondary-300: 0 0% 22%; /* gray/800 */
+    --secondary-350: 0 0% 25%;
+    --secondary-400: 0 0% 27%;
+    --secondary-500: 0 0% 31%;
+    --secondary-600: 0 0% 41%; /* surface/on-surface-disabled */
+    --secondary-700: 0 0% 71%;
+    --secondary-800: 0 0% 84%; /* text/text-2 */
+
+    --secondary-foreground: 0 0% 98%;
+
+    --accent-foreground: 210 100% 72%;
+    --accent-success: 155 61% 52%; /* accent/accent-green */
+    --accent-success-200: 164 37% 50%;
+
+    --accent-warning-foreground: 36 100% 96%;
+    --accent-warning: 36 100% 52%;
+    --accent-warning-700: 36 100% 22%;
+    --accent-warning-800: 55 30% 15%;
+
+    --accent-blue: 210 100% 72%; /* accent/accent-blue */
+    --accent-blue-foreground: 210 100% 96%;
+    --accent-blue-200: 210 100% 62%; /* Blue/400 */
+    --accent-blue-600: 210 100% 31%;
+    --accent-blue-700: 210 100% 22%;
+    --accent-blue-800: 210 61% 16%;
+    --accent-blue-900: 210 100% 13%;
+
+    --border-bottom: 240 2% 16%;
+
+    --muted-foreground: 0 0% 62%; /* text/text-3, text/text-disabled */
+
+    --gradient-radial-mono-start: 0 0% 0%;
+    --gradient-radial-mono-end: 180 3% 8%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 354 100% 96%;
+    --destructive-100: 354 100% 72%;
+    --destructive-200: 354 100% 62%;
+    --destructive-700: 354 100% 22%;
+
+    --monochrome: 0 0% 100%;
+    --monochrome-hover: 0 0% 80%;
+    --monochrome-foreground: 0 0% 0%;
+
+    --warning: 35 100% 50%;
+
+    --bg-linear-gradient-start: 213 65% 15%;
+    --bg-linear-gradient-end: 212 66% 6%;
+  }
+}
+
+@layer base {
+  html {
+    font-family: 'Satoshi';
+  }
+}
+
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .word-spacing-16 {
+    word-spacing: 16px;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+
+b {
+  font-weight: 400;
+}
+
+ul li {
+  margin-left: 16px;
+  list-style-type: disc;
+}
+
+body {
+  background-color: #e5e5e5;
+  font-family: 'Satoshi';
+  font-size: 16px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  list-style-type: circle;
+  font-weight: 400;
+}
+
+.card-container {
+  @apply flex flex-col justify-center items-start p-4 rounded-2xl dark:bg-gray-900 bg-white-100;
+}
+
+.dark .body {
+  background-color: #000000;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+}
+
+::-webkit-scrollbar-corner {
+  display: none;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.leap-logo {
+  position: absolute;
+  top: 40px;
+  left: 64px;
+  height: 64px;
+}
+
+.dark .container {
+  background-color: black;
+}
+
+.container {
+  position: relative;
+  overflow: hidden;
+}
+
+@media only screen and (max-width: 400px) {
+  .container {
+    border-radius: 0;
+  }
+}
+
+.support {
+  position: absolute;
+  top: 720px;
+  margin: auto;
+  width: 112px;
+}
+
+#pro-tip {
+  position: absolute;
+  top: 50px;
+  right: 50px;
+}
+
+#toggle-switch::after {
+  content: '';
+  @apply h-7 w-7 absolute left-0.5 top-0.5 bg-white-100 rounded-full transform scale-110 transition duration-200;
+}
+
+#toggle-switch:checked:after {
+  content: '';
+  @apply transform scale-110 translate-x-5;
+}
+
+#toggle-switch2::after {
+  content: '';
+  @apply h-4 w-4 absolute left-0.5 top-0.5 bg-white-100 rounded-full transition duration-200;
+}
+
+#toggle-switch2:checked:after {
+  content: '';
+  @apply translate-x-4;
+}
+
+#toggle-switch3::after {
+  content: '';
+  @apply h-[20px] w-[20px] absolute left-1 top-1 bg-white-100 rounded-full transform scale-110 transition duration-200;
+}
+
+#toggle-switch3:checked:after {
+  content: '';
+  @apply transform scale-110 translate-x-[22px];
+}
+
+#toggle-switch4::after {
+  content: '';
+  @apply h-[16px] w-[16px] absolute left-0.5 top-0.5 bg-white-100 rounded-full transform scale-110 transition duration-200;
+}
+
+#toggle-switch4:checked:after {
+  content: '';
+  @apply transform scale-110 translate-x-[16px];
+}
+
+.material-icons-round {
+  font-family: 'Material Icons Round';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+
+.material-icons-outlined {
+  font-family: 'Material Icons Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+
+.font-medium {
+  font-variation-settings: 'wght' 400;
+}
+
+.font-filled {
+  font-variation-settings: 'FILL' 1;
+}
+
+.lds-ring {
+  display: inline-block;
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.lds-ring div {
+  box-sizing: border-box;
+  display: block;
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: 3px;
+  border-width: 3px;
+  border-radius: 9999px;
+  animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  border-color: #3acf92 transparent transparent transparent;
+}
+
+.lds-ring div.white {
+  border-top-color: #fff;
+}
+
+.lds-ring div:nth-child(1) {
+  animation-delay: -0.45s;
+}
+
+.lds-ring div:nth-child(2) {
+  animation-delay: -0.3s;
+}
+
+.lds-ring div:nth-child(3) {
+  animation-delay: -0.15s;
+}
+
+@keyframes lds-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-4.reset {
+  all: unset;
+}
+
+.markdown a {
+  color: #726fdc;
+}
+
+.ripple-loader button {
+  position: absolute;
+  border-radius: 100%;
+  border: none;
+  background-color: #eff2f5;
+  box-shadow: inset 10px 10px 20px #fff;
+  opacity: 0;
+  z-index: 1;
+}
+
+.ripple-loader button:nth-child(1) {
+  animation: ripple 4s infinite ease;
+}
+
+.ripple-loader button:nth-child(2) {
+  animation: ripple 4s infinite ease;
+  animation-delay: 200ms;
+}
+
+@keyframes ripple {
+  0% {
+    width: 0px;
+    height: 0px;
+    opacity: 0.5;
+  }
+  50% {
+    width: 72px;
+    height: 72px;
+    opacity: 0;
+  }
+}
+
+.select-wallets::-webkit-scrollbar {
+  width: 4px;
+}
+
+.select-wallets::-webkit-scrollbar-track {
+  background: #212121;
+  border-radius: 6px;
+}
+
+.select-wallets::-webkit-scrollbar-thumb {
+  background-color: #696969;
+  border-radius: 2px;
+  /* border: 3px solid #212121; */
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: #212121;
+  border-radius: 6px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background-color: #696969;
+  border-radius: 2px;
+  /* border: 3px solid #212121; */
+}
+
+.panel-height {
+  height: 600px;
+}
+
+.side-panel .panel-height {
+  height: 100%;
+}
+
+.max-panel-height {
+  max-height: 600px;
+}
+
+.side-panel .max-panel-height {
+  max-height: 100%;
+}
+
+.panel-width {
+  width: 400px;
+}
+
+.min-panel-height {
+  min-height: 600px;
+}
+
+.side-panel .enclosing-panel,
+.side-panel .enclosing-panel * {
+  max-width: 100%;
+}
+
+.side-panel .panel-width {
+  max-width: 400px;
+  width: 100dvw;
+  width: 100vw;
+}

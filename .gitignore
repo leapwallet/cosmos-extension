@@ -8,10 +8,10 @@ build
 .vscode
 yalc.lock
 lerna-debug.log
-apps/extension/.env.production
-apps/extension/.env.development
-apps/extension/.env.production.compass
-apps/extension/.env.development.compass
+**/.env.production
+**/.env.development
+**/.env.production.compass
+**/.env.development.compass
 .zed
 .zed
-apps/extension/staging-builds
+staging-builds

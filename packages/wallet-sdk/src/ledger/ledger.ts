@@ -231,6 +231,7 @@ export class LeapLedgerSigner {
           algo: 'secp256k1' as Algo,
           address: result.bech32_address,
           pubkey: result.compressed_pk,
+          path: hdPath,
         };
         accounts.push(account);
       }
@@ -357,6 +358,7 @@ export class LeapLedgerSignerEth {
           algo: 'secp256k1' as Algo,
           pubkey: compressedPubKey,
           hexAddress: address,
+          path: hdPath,
         };
 
         accounts.push(account);
@@ -554,6 +556,7 @@ export async function importLedgerAccount(
   primaryChain: SupportedChain,
   chainsToImport: SupportedChain[],
   chainInfos: Record<SupportedChain, ChainInfo>,
+  customDerivationPath?: string[],
 ) {
   let transport;
   try {
@@ -565,14 +568,24 @@ export async function importLedgerAccount(
       return addressIndexes.map((adIdx) => `m/44'/${coinType}'/0'/0/${adIdx}`);
     };
 
+    const getHdCustomPaths = (customDerivationPath: Array<string>, coinType: string) => {
+      return customDerivationPath.map((path) => `m/44'/${coinType}'/${path}`);
+    };
+
     const ledgerSigner = new LeapLedgerSigner(transport, {
-      hdPaths: getHdPaths(addressIndexes, '118'),
       prefix: chainInfos[primaryChain ?? cosmosDefaultChain].addressPrefix,
+      hdPaths:
+        customDerivationPath && customDerivationPath?.length
+          ? getHdCustomPaths(customDerivationPath, '118')
+          : getHdPaths(addressIndexes, '118'),
     });
 
     const ethLedgerSigner = new LeapLedgerSignerEth(transport, {
-      hdPaths: getHdPaths(addressIndexes, '60'),
       prefix: chainInfos[primaryChain ?? ethDefaultChain].addressPrefix,
+      hdPaths:
+        customDerivationPath && customDerivationPath?.length
+          ? getHdCustomPaths(customDerivationPath, '60')
+          : getHdPaths(addressIndexes, '60'),
     });
 
     const primaryChainAccount = useEthApp

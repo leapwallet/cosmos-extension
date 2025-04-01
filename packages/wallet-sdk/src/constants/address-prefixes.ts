@@ -45,7 +45,6 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   logos: 'logos',
   lum: 'lumnetwork',
   mantle: 'assetmantle',
-  mars: 'mars',
   meme: 'meme',
   micro: 'microtick',
   mythos: 'mythos',

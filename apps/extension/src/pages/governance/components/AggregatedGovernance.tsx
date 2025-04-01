@@ -6,6 +6,7 @@ import classNames from 'classnames'
 import { AggregatedSearchComponent } from 'components/aggregated'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
+import GovCardSkeleton from 'components/Skeletons/GovCardSkeleton'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
@@ -33,6 +34,8 @@ export const AggregatedGovernance = observer(
 
     const { votingProposals, nonVotingProposals, perChainShouldUseFallback } =
       governanceStore.aggregatedGov
+
+    const isLoading = governanceStore.aggregatedGovStatus
 
     const chains = useGetChains()
     const [showSearchInput, setShowSearchInput] = useState(false)
@@ -126,7 +129,13 @@ export const AggregatedGovernance = observer(
                 )}
 
                 <div className={classNames({ 'mt-4': !showSearchInput })}>
-                  {allProposals.length > 0 ? (
+                  {isLoading ? (
+                    <div className='w-full flex flex-col gap-3'>
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <GovCardSkeleton key={index} isLast={index === 4} aggregatedView />
+                      ))}
+                    </div>
+                  ) : allProposals.length > 0 ? (
                     <VariableSizeList
                       itemCount={allProposals.length}
                       width={352}

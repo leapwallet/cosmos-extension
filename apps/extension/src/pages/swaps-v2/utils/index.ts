@@ -1,4 +1,5 @@
 export * from './approveTokenAllowanceIfNeeded'
+export * from './assets'
 export * from './getPublicKey'
 export * from './getSortFnBasedOnWhiteListing'
 export * from './lifiTracking'

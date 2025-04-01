@@ -243,10 +243,26 @@ export class NftStore {
       if (isEvmOnlyChain || isSeiEvmChain) {
         const collections = this.betaNftsCollectionsStore.getBetaNftsCollections(chain, activeNetwork);
 
-        const evmJsonRpcUrl =
-          activeNetwork === 'testnet'
-            ? chainInfo.apis.evmJsonRpcTest ?? chainInfo.apis.evmJsonRpc
-            : chainInfo.apis.evmJsonRpc;
+        const chainId =
+          (activeNetwork === 'testnet'
+            ? this.chainInfosStore.chainInfos?.[chain]?.evmChainIdTestnet
+            : this.chainInfosStore.chainInfos?.[chain]?.evmChainId) ?? '';
+
+        await this.nmsStore.readyPromise;
+
+        const hasEntryInNms = this.nmsStore?.rpcEndPoints?.[chainId] && this.nmsStore.rpcEndPoints[chainId].length > 0;
+
+        let evmJsonRpcUrl: string | undefined;
+        if (hasEntryInNms) {
+          evmJsonRpcUrl = this.nmsStore.rpcEndPoints[chainId][0].nodeUrl;
+        }
+
+        if (!evmJsonRpcUrl) {
+          evmJsonRpcUrl =
+            activeNetwork === 'testnet'
+              ? chainInfo.apis.evmJsonRpcTest ?? chainInfo.apis.evmJsonRpc
+              : chainInfo.apis.evmJsonRpc;
+        }
 
         const evmBetaCollections = collections.reduce((_evmBetaCollections, collection: StoredBetaNftCollection) => {
           if (!collection.address.toLowerCase().startsWith('0x')) {

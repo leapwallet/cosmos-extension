@@ -274,7 +274,9 @@ const StakeInputPage = observer(
       () =>
         consensusValidators
           .filter((v) => !v.jailed)
-          .filter((v) => v.address !== fromValidator?.address),
+          .filter((v) => v.address !== fromValidator?.address)
+          // remove interchain validator
+          .filter((v) => v.address !== 'cosmosvaloper1j78gfl4ml9h2xdduhw2cpgheu3hdalkpuvk7m5'),
       [consensusValidators, fromValidator?.address],
     )
 

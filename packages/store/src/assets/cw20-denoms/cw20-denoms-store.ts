@@ -12,8 +12,8 @@ export class CW20DenomsStore {
   readyPromise: Promise<void>;
 
   constructor(activeChainStore: ActiveChainStore, cw20DenomChainsStore: CW20DenomChainsStore) {
-    makeObservable({
-      denoms: observable.shallow,
+    makeObservable(this, {
+      denoms: observable,
       cw20Denoms: computed.struct,
     });
     this.activeChainStore = activeChainStore;

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-namespace */
+import { getIsCompass, getLeapApiGlobalHeaders } from '@leapwallet/cosmos-wallet-sdk';
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -35,8 +36,8 @@ import { TransactionMetadata } from './types/txLoggingTypes';
 
 async function fetchEcosystemPrices(leapApiBaseUrl: string, currency: string, ecosystem: string) {
   const priceUrl = `${leapApiBaseUrl}/market/prices/ecosystem?currency=${currency}&ecosystem=${ecosystem}`;
-  const response = await fetch(priceUrl);
-  return response.json();
+  const response = await axios.get(priceUrl);
+  return response.data;
 }
 
 export namespace LeapWalletApi {
@@ -82,7 +83,8 @@ export namespace LeapWalletApi {
     marketCap: number;
   }> {
     const leapApiBaseUrl = getLeapapiBaseUrl();
-    const leapApi = new LeapApi(leapApiBaseUrl);
+    const customHeaders = getLeapApiGlobalHeaders();
+    const leapApi = new LeapApi(leapApiBaseUrl, customHeaders);
     let platform = platforms[chain];
     if (!platform) {
       platform = 'DEFAULT' as Platform;
@@ -121,7 +123,8 @@ export namespace LeapWalletApi {
 
   export async function getAssetDescription(token: string, chain: SupportedChain) {
     const leapApiBaseUrl = getLeapapiBaseUrl();
-    const leapApi = new LeapApi(leapApiBaseUrl);
+    const customHeaders = getLeapApiGlobalHeaders();
+    const leapApi = new LeapApi(leapApiBaseUrl, customHeaders);
     return await leapApi.getMarketDescription({ platform: platforms[chain], token });
   }
 
@@ -149,7 +152,8 @@ export namespace LeapWalletApi {
     currency: Currency,
   ): Promise<{ data: MarketChartPrice[]; minMax: MarketChartPrice[] }> {
     const leapApiBaseUrl = getLeapapiBaseUrl();
-    const leapApi = new LeapApi(leapApiBaseUrl);
+    const customHeaders = getLeapApiGlobalHeaders();
+    const leapApi = new LeapApi(leapApiBaseUrl, customHeaders);
     let platform = platforms[chain];
     if (!platform) {
       platform = 'DEFAULT' as Platform;
@@ -190,7 +194,8 @@ export namespace LeapWalletApi {
   ): Promise<MarketPricesResponse> {
     try {
       const leapApiBaseUrl = getLeapapiBaseUrl();
-      const leapApi = new LeapApi(leapApiBaseUrl);
+      const customHeaders = getLeapApiGlobalHeaders();
+      const leapApi = new LeapApi(leapApiBaseUrl, customHeaders);
       const coingeckoPrices = await getCoingeckoPricesStoreSnapshot();
       currencySelected = currencySelected ?? Currency.Usd;
 
@@ -215,12 +220,17 @@ export namespace LeapWalletApi {
   export async function getEcosystemMarketPrices(currency = 'USD'): Promise<{ data: { [key: string]: number } }> {
     try {
       const leapApiBaseUrl = getLeapapiBaseUrl();
+      const isCompassWallet = getIsCompass();
 
-      const [cosmosPrices, ethereumPrices, avalanchePrices] = await Promise.all([
-        fetchEcosystemPrices(leapApiBaseUrl, currency, 'cosmos-ecosystem'),
-        fetchEcosystemPrices(leapApiBaseUrl, currency, 'ethereum-ecosystem'),
-        fetchEcosystemPrices(leapApiBaseUrl, currency, 'avalanche-ecosystem'),
-      ]);
+      const promises = [fetchEcosystemPrices(leapApiBaseUrl, currency, 'cosmos-ecosystem')];
+      if (!isCompassWallet) {
+        promises.push(
+          fetchEcosystemPrices(leapApiBaseUrl, currency, 'ethereum-ecosystem'),
+          fetchEcosystemPrices(leapApiBaseUrl, currency, 'avalanche-ecosystem'),
+        );
+      }
+
+      const [cosmosPrices, ethereumPrices, avalanchePrices] = await Promise.all(promises);
       const data = Object.assign({}, avalanchePrices, ethereumPrices, cosmosPrices);
       return { data };
     } catch (_) {
@@ -244,7 +254,8 @@ export namespace LeapWalletApi {
     currencySelected?: Currency,
   ): Promise<{ [supportedChain: string]: { [tokenAddress: string]: string } }> {
     const leapApiBaseUrl = getLeapapiBaseUrl();
-    const leapApi = new LeapApi(leapApiBaseUrl);
+    const customHeaders = getLeapApiGlobalHeaders();
+    const leapApi = new LeapApi(leapApiBaseUrl, customHeaders);
     const platformTokenAddresses = formatPlatforms(tokens);
     if (platformTokenAddresses.length === 0) return Promise.resolve({});
 
@@ -286,7 +297,8 @@ export namespace LeapWalletApi {
   export async function operateMarketPercentChanges(tokens: string[], chain: SupportedChain) {
     try {
       const leapApiBaseUrl = getLeapapiBaseUrl();
-      const leapApi = new LeapApi(leapApiBaseUrl);
+      const customHeaders = getLeapApiGlobalHeaders();
+      const leapApi = new LeapApi(leapApiBaseUrl, customHeaders);
       let platform = platforms[chain];
       if (!platform) {
         platform = 'DEFAULT' as Platform;
@@ -303,7 +315,8 @@ export namespace LeapWalletApi {
     currency?: Currency,
   ): Promise<{ [key: string]: { [tokenAddr: string]: number } }> {
     const leapApiBaseUrl = getLeapapiBaseUrl();
-    const leapApi = new LeapApi(leapApiBaseUrl);
+    const customHeaders = getLeapApiGlobalHeaders();
+    const leapApi = new LeapApi(leapApiBaseUrl, customHeaders);
     const platformTokenAddresses = formatPlatforms(tokens);
     if (platformTokenAddresses.length === 0) return Promise.resolve({});
     const marketPercentages = await leapApi.getV2MarketPercentageChanges({
@@ -357,7 +370,6 @@ export namespace LeapWalletApi {
   }> {
     const leapApiBaseUrl = getLeapapiBaseUrl();
     const { data } = await axios.get(`${leapApiBaseUrl}/address-identity/${address}`);
-
     return { identifications: data.identifications };
   }
 
@@ -392,7 +404,8 @@ export namespace LeapWalletApi {
         isEvmOnly,
       }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
-        const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`);
+        const customHeaders = getLeapApiGlobalHeaders();
+        const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`, customHeaders);
         const walletAddress = forceWalletAddress || address;
         const wallet = forcePrimaryAddress || (primaryAddress ?? address);
         const activeChain = (forceChain || _activeChain) as SupportedChain;
@@ -432,11 +445,11 @@ export namespace LeapWalletApi {
 
         try {
           if (isAptos) {
-            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
             // TODO: replace this with leap-api-js update
             await txnLeapApi.operateV2Tx(logReq, 'move.tx' as V2TxOperation);
           } else if (isEvmOnly) {
-            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
             await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
           } else if (isCompassWallet) {
             await txnLeapApi.operateSeiTx(logReq as unknown as CosmosTxRequest);
@@ -484,7 +497,8 @@ export namespace LeapWalletApi {
         network,
       }: LogInfo & { chain: SupportedChain; address: string; network?: 'mainnet' | 'testnet'; isAptos?: boolean }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
-        const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`);
+        const customHeaders = getLeapApiGlobalHeaders();
+        const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`, customHeaders);
         const _network = network || selectedNetwork;
         let _chainId = chainId || getChainId(chains[chain], _network);
         const isMainnet = _chainId ? !testnetChainIds.includes(_chainId) : _network === 'mainnet';
@@ -514,11 +528,11 @@ export namespace LeapWalletApi {
           }
 
           if (isAptos) {
-            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
             // TODO: replace this with leap-api-js update
             await txnLeapApi.operateV2Tx(logReq, 'move.tx' as V2TxOperation);
           } else if (isEvmOnly) {
-            const txnLeapApi = new LeapApi(leapApiBaseUrl);
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
             await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
           } else if (isCompassWallet) {
             await txnLeapApi.operateSeiTx(logReq as unknown as CosmosTxRequest);
@@ -541,7 +555,8 @@ export namespace LeapWalletApi {
     walletAddress,
   }: LightNodeStatsInfo): Promise<void> {
     const leapApiBaseUrl = getLeapapiBaseUrl();
-    const txnLeapApi = new LeapApi(leapApiBaseUrl);
+    const customHeaders = getLeapApiGlobalHeaders();
+    const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
     const logReq = {
       userUUID,
       walletAddress,

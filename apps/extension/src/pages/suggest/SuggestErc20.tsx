@@ -1,14 +1,15 @@
 import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { LoaderAnimation } from 'components/loader/Loader'
+import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { BG_RESPONSE, SUGGEST_TOKEN } from 'config/storage-keys'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { betaERC20DenomsStore, enabledCW20DenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
-import { imgOnError } from 'utils/imgOnError'
+import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
@@ -24,9 +25,9 @@ import {
 } from './components'
 
 const SuggestErc20 = observer(({ handleRejectBtnClick }: ChildrenParams) => {
-  const defaultTokenLogo = useDefaultTokenLogo()
   const [isLoading, setIsLoading] = useState(false)
-  const activeChain = useActiveChain()
+  const _activeChain = useActiveChain()
+  const [activeChain, setActiveChain] = useState<SupportedChain>(_activeChain)
   const [contractInfo, setContractInfo] = useState({
     address: '',
     symbol: '',
@@ -46,6 +47,9 @@ const SuggestErc20 = observer(({ handleRejectBtnClick }: ChildrenParams) => {
         setContractInfo({
           ...payload.params.options,
         })
+        if (payload?.activeChain) {
+          setActiveChain(payload.activeChain)
+        }
       })
   }, [])
 
@@ -63,7 +67,7 @@ const SuggestErc20 = observer(({ handleRejectBtnClick }: ChildrenParams) => {
     await betaERC20DenomsStore.setBetaERC20Denoms(contractInfo.address, erc20Token, activeChain)
     const _enabledCW20Tokens = [...enabledCW20Tokens, contractInfo.address]
     await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Tokens, activeChain)
-    rootBalanceStore.loadBalances()
+    rootBalanceStore.refetchBalances(activeChain)
 
     window.removeEventListener('beforeunload', handleRejectBtnClick)
     await Browser.storage.local.set({
@@ -87,14 +91,21 @@ const SuggestErc20 = observer(({ handleRejectBtnClick }: ChildrenParams) => {
     <>
       <div className='flex flex-col items-center'>
         <Heading text='Add Token' />
-        <SubHeading text='This will allow this token to be viewed within Compass Wallet' />
+        <SubHeading
+          text={`This will allow this token to be viewed within ${
+            isCompassWallet() ? 'Compass' : 'Leap'
+          } Wallet`}
+        />
         <TokenContractAddress
           address={contractInfo.address}
           img={
-            <img
-              src={contractInfo.image}
-              onError={imgOnError(defaultTokenLogo)}
-              className='rounded-full overflow-hidden mr-2 w-[36px] h-[36px] object-cover'
+            <TokenImageWithFallback
+              assetImg={contractInfo.image}
+              text={contractInfo.symbol}
+              altText={contractInfo.symbol + ' logo'}
+              imageClassName='w-[36px] h-[36px] rounded-full'
+              containerClassName='w-[36px] h-[36px] rounded-full mr-2'
+              textClassName='text-[10px] !leading-[14px]'
             />
           }
         />

@@ -15,6 +15,8 @@ export type Key = {
   avatar?: string;
   avatarIndex?: string;
   watchWallet?: boolean;
+  createdAt?: number;
+  path?: string;
 };
 
 type ActiveWallet = {

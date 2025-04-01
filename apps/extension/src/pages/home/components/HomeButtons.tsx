@@ -1,16 +1,18 @@
 import {
   useActiveChain,
   useChainInfo,
+  useFeatureFlags,
   useGetChains,
   useSelectedNetwork,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import {
   ArrowDown,
   ArrowsLeftRight,
   ArrowUp,
   CurrencyCircleDollar,
+  Parachute,
   Path,
   ShoppingBag,
   Star,
@@ -19,16 +21,13 @@ import classNames from 'classnames'
 import ClickableIcon from 'components/clickable-icons'
 import { useHardCodedActions } from 'components/search-modal'
 import { PageName } from 'config/analytics'
-import { ON_RAMP_SUPPORT_CHAINS } from 'config/config'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import Vote from 'icons/vote'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { Colors } from 'theme/colors'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
-import { isSidePanel } from 'utils/isSidePanel'
 
 type HomeButtonsProps = {
   setShowReceiveSheet: () => void
@@ -39,6 +38,7 @@ export const HomeButtons = observer(({ setShowReceiveSheet }: HomeButtonsProps) 
   const activeChain = useActiveChain()
   const { activeWallet } = useActiveWallet()
   const navigate = useNavigate()
+  const { data: featureFlags } = useFeatureFlags()
 
   const chains = useGetChains()
   const chain = useChainInfo()
@@ -88,6 +88,15 @@ export const HomeButtons = observer(({ setShowReceiveSheet }: HomeButtonsProps) 
           icon={<Vote weight='fill' size={20} />}
           onClick={() => handleVoteClick()}
         />
+
+        {/* Airdrops Icon */}
+        {featureFlags?.airdrops.extension !== 'disabled' ? (
+          <ClickableIcon
+            label='Airdrops'
+            icon={<Parachute size={20} weight='fill' />}
+            onClick={() => navigate('/airdrops')}
+          />
+        ) : null}
       </div>
     )
   }
@@ -166,6 +175,15 @@ export const HomeButtons = observer(({ setShowReceiveSheet }: HomeButtonsProps) 
             onClick={() => handleNftsClick()}
           />
         ) : null}
+
+        {/* Airdrops Icon */}
+        {featureFlags?.airdrops.extension !== 'disabled' ? (
+          <ClickableIcon
+            label='Airdrops'
+            icon={<Parachute size={20} weight='fill' />}
+            onClick={() => navigate('/airdrops')}
+          />
+        ) : null}
       </div>
     )
   }
@@ -189,12 +207,13 @@ export const HomeButtons = observer(({ setShowReceiveSheet }: HomeButtonsProps) 
       />
 
       {/* Bridge Button */}
-      <ClickableIcon
-        label='Bridge'
-        icon={<Path size={20} />}
-        onClick={() => handleBridgeClick(`/swap?pageSource=${PageName.Home}`)}
-        disabled={walletCtaDisabled}
-      />
+      {activeChain === 'mainCoreum' ? (
+        <ClickableIcon
+          label='Bridge'
+          icon={<Path size={20} />}
+          onClick={() => handleBridgeClick(`/swap?pageSource=${PageName.Home}`)}
+        />
+      ) : null}
 
       {/* Vote Button */}
       {!chain?.evmOnlyChain && !['mantra', 'bitcoin', 'bitcoinSignet'].includes(chain?.key) ? (
@@ -215,6 +234,15 @@ export const HomeButtons = observer(({ setShowReceiveSheet }: HomeButtonsProps) 
             </div>
           }
           onClick={() => handleNftsClick()}
+        />
+      ) : null}
+
+      {/* Airdrops Icon */}
+      {featureFlags?.airdrops.extension !== 'disabled' ? (
+        <ClickableIcon
+          label='Airdrops'
+          icon={<Parachute size={20} weight='fill' />}
+          onClick={() => navigate('/airdrops')}
         />
       ) : null}
     </div>

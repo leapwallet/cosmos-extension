@@ -114,7 +114,9 @@ export function useGasPriceStepForChain(chainKey: SupportedChain, forceNetwork?:
   }, [allChainsGasPriceSteps, chainKey, selectedNetwork, lcdUrl]);
 
   useEffect(() => {
-    setGasPriceStep(getGasPriceStep(chain, allChainsGasPriceSteps));
+    if (Object.keys(allChainsGasPriceSteps).length > 0) {
+      setGasPriceStep(getGasPriceStep(chain, allChainsGasPriceSteps));
+    }
   }, [chain, allChainsGasPriceSteps]);
 
   useEffect(() => {

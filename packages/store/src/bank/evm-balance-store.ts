@@ -9,7 +9,7 @@ import BigNumber from 'bignumber.js';
 import { computed, makeAutoObservable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 
-import { AggregatedChainsStore, ChainInfosStore, CompassSeiEvmConfigStore, RootDenomsStore } from '../assets';
+import { AggregatedChainsStore, ChainInfosStore, CompassSeiEvmConfigStore, NmsStore, RootDenomsStore } from '../assets';
 import { AggregatedSupportedChainType, LoadingStatusType, SelectedNetworkType, StorageAdapter } from '../types';
 import { balanceCalculator } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
@@ -26,6 +26,7 @@ export class EvmBalanceStore {
   rootDenomsStore: RootDenomsStore;
   storageAdapter: StorageAdapter;
   priceStore: PriceStore;
+  nmsStore: NmsStore;
   aggregatedChainsStore: AggregatedChainsStore;
 
   aggregatedLoadingStatus: boolean = false;
@@ -43,6 +44,7 @@ export class EvmBalanceStore {
     storageAdapter: StorageAdapter,
     priceStore: PriceStore,
     aggregatedChainsStore: AggregatedChainsStore,
+    nmsStore: NmsStore,
   ) {
     makeAutoObservable(this, {
       evmBalance: computed,
@@ -56,6 +58,7 @@ export class EvmBalanceStore {
     this.storageAdapter = storageAdapter;
     this.priceStore = priceStore;
     this.aggregatedChainsStore = aggregatedChainsStore;
+    this.nmsStore = nmsStore;
   }
 
   get evmBalance() {
@@ -120,13 +123,28 @@ export class EvmBalanceStore {
           chainInfo?.nativeDenoms?.[_nativeTokenKey];
 
         const pubKey = this.addressStore.pubKeys?.[chain];
-        const evmJsonRpcUrl =
-          network === 'testnet'
-            ? chainInfo.apis.evmJsonRpcTest ?? chainInfo.apis.evmJsonRpc
-            : chainInfo.apis.evmJsonRpc;
+        const chainId =
+          (network === 'testnet'
+            ? this.chainInfosStore.chainInfos?.[chain]?.evmChainIdTestnet
+            : this.chainInfosStore.chainInfos?.[chain]?.evmChainId) ?? '';
+
+        await this.nmsStore.readyPromise;
+
+        const hasEntryInNms = this.nmsStore?.rpcEndPoints?.[chainId] && this.nmsStore.rpcEndPoints[chainId].length > 0;
+
+        let evmJsonRpcUrl: string | undefined;
+        if (hasEntryInNms) {
+          evmJsonRpcUrl = this.nmsStore.rpcEndPoints[chainId][0].nodeUrl;
+        }
+        if (!evmJsonRpcUrl) {
+          evmJsonRpcUrl =
+            network === 'testnet'
+              ? chainInfo.apis.evmJsonRpcTest ?? chainInfo.apis.evmJsonRpc
+              : chainInfo.apis.evmJsonRpc;
+        }
 
         const fetchEvmBalance = async () => {
-          const ethWalletAddress = pubKeyToEvmAddressToShow(pubKey);
+          const ethWalletAddress = pubKeyToEvmAddressToShow(pubKey, true) || this.addressStore.addresses?.[chain];
 
           if (ethWalletAddress.startsWith('0x') && evmJsonRpcUrl) {
             const balance = await fetchSeiEvmBalances(evmJsonRpcUrl, ethWalletAddress);
@@ -221,14 +239,14 @@ export class EvmBalanceStore {
     return;
   }
 
-  async loadEvmBalance(_chain?: AggregatedSupportedChainType, _network?: SelectedNetworkType, refetch = false) {
+  loadEvmBalance(_chain?: AggregatedSupportedChainType, _network?: SelectedNetworkType, refetch = false) {
     const chain = _chain || this.activeChainStore.activeChain;
     const network = _network || this.selectedNetworkStore.selectedNetwork;
     if (chain === 'aggregated') {
-      await this.fetchAggregatedBalances(network, refetch);
-    } else {
-      await this.fetchEvmBalance(chain, network, refetch);
+      return this.fetchAggregatedBalances(network, refetch);
     }
+
+    return this.fetchEvmBalance(chain, network, refetch);
   }
 
   getErrorStatusForChain(chain: SupportedChain, network: SelectedNetworkType) {

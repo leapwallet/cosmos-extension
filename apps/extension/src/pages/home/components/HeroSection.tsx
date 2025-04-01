@@ -12,6 +12,7 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo } from 'react'
+import { aptosCoinDataStore } from 'stores/balance-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
@@ -72,7 +73,11 @@ export const HeroSection = observer(
             isTokenLoading ? (
               <AggregatedBalanceLoading />
             ) : (
-              <TotalBalance balances={rootBalanceStore} evmBalances={evmBalanceStore} />
+              <TotalBalance
+                balances={rootBalanceStore}
+                evmBalances={evmBalanceStore}
+                aptosBalances={aptosCoinDataStore}
+              />
             )
           ) : null}
 

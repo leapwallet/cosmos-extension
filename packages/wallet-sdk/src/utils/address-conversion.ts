@@ -41,6 +41,8 @@ export function pubKeyToEvmAddressToShow(pubkey: string | Uint8Array | undefined
       ? getEthereumAddress(address)
       : isEthAddress(address)
       ? address
+      : address === 'undefined' && noPlaceHolder
+      ? ''
       : 'Unable to show EVM address';
   }
 

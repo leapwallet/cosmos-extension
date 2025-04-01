@@ -1,3 +1,5 @@
+import { getIsCompass } from '@leapwallet/cosmos-wallet-sdk';
+import axios from 'axios';
 import { makeObservable, reaction } from 'mobx';
 
 import { BaseQueryStore } from '../base/base-data-store';
@@ -32,17 +34,21 @@ export class PriceStore extends BaseQueryStore<Record<string, number>> {
   async fetchEcosystemPrices(ecosystem: string) {
     const preferredCurrency = this.currencyStore.preferredCurrency;
     const priceUrl = `https://api.leapwallet.io/market/prices/ecosystem?currency=${preferredCurrency}&ecosystem=${ecosystem}`;
-    const response = await fetch(priceUrl);
-    return response.json();
+    const response = await axios.get(priceUrl);
+    return response.data;
   }
 
   async fetchData() {
-    const promises = await Promise.allSettled<Record<string, number>>([
-      this.fetchEcosystemPrices('cosmos-ecosystem'),
-      this.fetchEcosystemPrices('ethereum-ecosystem'),
-      this.fetchEcosystemPrices('avalanche-ecosystem'),
-    ]);
-    const [cosmosPrices, ethereumPrices, avalanchePrices] = promises.map((p) =>
+    const isCompassWallet = getIsCompass();
+
+    const promises = [this.fetchEcosystemPrices('cosmos-ecosystem')];
+    if (!isCompassWallet) {
+      promises.push(this.fetchEcosystemPrices('ethereum-ecosystem'));
+      promises.push(this.fetchEcosystemPrices('avalanche-ecosystem'));
+    }
+
+    const promisesRes = await Promise.allSettled<Record<string, number>>(promises);
+    const [cosmosPrices, ethereumPrices, avalanchePrices] = promisesRes.map((p) =>
       p.status === 'fulfilled' ? p.value : null,
     );
 

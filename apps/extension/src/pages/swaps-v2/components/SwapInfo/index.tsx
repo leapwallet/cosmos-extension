@@ -100,17 +100,17 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
       }
     }
 
-    if (routingInfo.route?.response.swap_venues.length > 0) {
+    if ((routingInfo.route?.response.swap_venues?.length ?? 0) > 0) {
       return {
         name:
           providerMapping[
-            routingInfo.route?.response.swap_venues[0].name as keyof typeof providerMapping
+            routingInfo.route?.response.swap_venues?.[0].name as keyof typeof providerMapping
           ] ??
-          (routingInfo.route?.response.swap_venues[0].name as string)
+          (routingInfo.route?.response.swap_venues?.[0].name as string)
             ?.split('-')
             .map((item) => capitalize(item))
             .join(' '),
-        icon: (routingInfo.route?.response.swap_venues[0] as any)?.logo_uri,
+        icon: (routingInfo.route?.response.swap_venues?.[0] as any)?.logo_uri,
       }
     }
 

@@ -16,6 +16,7 @@ import {
   RootDenomsStore,
   RootERC20DenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
+import { AptosCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/aptos-balance-store'
 import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
 import { calculateFeeAmount } from 'components/gas-price-options'
@@ -41,6 +42,7 @@ type AmountCardProps = {
   rootDenomsStore: RootDenomsStore
   rootERC20DenomsStore: RootERC20DenomsStore
   evmBalanceStore: EvmBalanceStore
+  aptosCoinDataStore: AptosCoinDataStore
 }
 
 export const AmountCard = observer(
@@ -51,6 +53,7 @@ export const AmountCard = observer(
     rootCW20DenomsStore,
     rootERC20DenomsStore,
     evmBalanceStore,
+    aptosCoinDataStore,
   }: AmountCardProps) => {
     const inputRef = useRef<HTMLInputElement | null>(null)
     const locationState = useLocation().state
@@ -108,6 +111,7 @@ export const AmountCard = observer(
     const isSeiEvmChain = useIsSeiEvmChain(sendActiveChain)
     const gasAdjustment = useGasAdjustmentForChain()
     const evmBalance = evmBalanceStore.evmBalance
+    const aptosBalance = aptosCoinDataStore.balances
 
     function getFlooredFixed(v: number, d: number) {
       return (Math.floor(v * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d)
@@ -134,6 +138,11 @@ export const AmountCard = observer(
 
       if (snip20Tokens && isSecretChainTargetAddress) {
         _assets = [..._assets, ...snip20Tokens]
+      }
+
+      const isAptosChain = chainInfos?.[sendActiveChain].chainId.startsWith('aptos')
+      if (isAptosChain) {
+        _assets = aptosBalance
       }
 
       const addEvmDetails =
@@ -164,6 +173,7 @@ export const AmountCard = observer(
       isSeiEvmChain,
       sendActiveChain,
       snip20Tokens,
+      aptosBalance,
     ])
 
     const isTokenStatusSuccess = useMemo(() => {

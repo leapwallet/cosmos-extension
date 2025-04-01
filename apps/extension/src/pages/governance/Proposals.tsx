@@ -8,7 +8,7 @@ import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { observer } from 'mobx-react-lite'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { governanceStore } from 'stores/governance-store'
 import {
@@ -135,6 +135,10 @@ function Proposals() {
     feature: 'governance',
     platform: 'Extension',
   })
+
+  useEffect(() => {
+    governanceStore.initialize()
+  }, [])
 
   if (activeChain === AGGREGATED_CHAIN_KEY) {
     return (

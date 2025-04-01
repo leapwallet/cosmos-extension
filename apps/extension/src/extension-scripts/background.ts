@@ -16,6 +16,7 @@ import {
   formatEtherValue,
   getEvmChainIdMap,
   getRestUrl,
+  getTopNode,
   isAptosChain,
   NetworkType,
   parseStandardTokenTransactionData,
@@ -839,10 +840,18 @@ const connectRemote = (remotePort: any) => {
     const evmChainIdMap = getEvmChainIdMap(supportedChains, isCompassWallet())
     const chainInfo = supportedChains[activeChain]
 
-    const evmRpcUrl =
+    const chainId =
+      (activeNetwork === 'testnet' ? chainInfo?.evmChainIdTestnet : chainInfo?.evmChainId) ?? ''
+
+    const { nodeUrl: evmRpcFromNMS } = getTopNode('rpc', chainId) ?? {
+      nodeUrl: undefined,
+    }
+    const fallbackEvmRpcUrl =
       (activeNetwork === 'testnet'
         ? chainInfo?.apis?.evmJsonRpcTest
         : chainInfo?.apis?.evmJsonRpc) ?? ''
+
+    const evmRpcUrl = evmRpcFromNMS ?? fallbackEvmRpcUrl
 
     const evmChainId = Number(
       (activeNetwork === 'testnet' ? chainInfo?.evmChainIdTestnet : chainInfo?.evmChainId) ?? '',
@@ -1144,7 +1153,7 @@ const connectRemote = (remotePort: any) => {
         }
 
         await browser.storage.local.set({
-          [SUGGEST_TOKEN]: { ...payload },
+          [SUGGEST_TOKEN]: { ...payload, activeChain },
         })
         await evmCustomOpenPopup('suggest-erc-20')
 

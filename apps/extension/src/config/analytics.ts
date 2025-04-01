@@ -18,6 +18,9 @@ export enum EventName {
   ChainUnfavorited = 'Chain Unfavorited',
   DropdownOpened = 'Dropdown Opened',
   DropdownClosed = 'Dropdown Closed',
+  Bookmark = 'Bookmark',
+  SearchDone = 'Search Done',
+  Filters = 'Filters',
 }
 
 export enum ButtonType {
@@ -81,6 +84,9 @@ export enum PageName {
   AssetDetails = 'Asset Details',
   CelestiaLightNode = 'Celestia Light Node',
   ZeroState = 'Zero State',
+  Alpha = 'Alpha',
+  Post = 'Post',
+  Bookmark = 'Bookmark',
 }
 
 export enum OnRampProvider {

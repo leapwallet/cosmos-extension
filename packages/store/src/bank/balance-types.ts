@@ -17,6 +17,8 @@ export type Token = {
   coinGeckoId?: string;
   isEvm?: boolean;
   tokenBalanceOnChain?: SupportedChain; // for aggregated view
+  isAptos?: boolean;
+  aptosTokenType?: 'v1' | 'v2';
 };
 
 export type IbcChainInfo = {

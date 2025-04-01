@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="80"
+   height="80"
+   viewBox="0 0 80 80"
+   fill="none"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="check-green.svg"
+   inkscape:version="1.1.2 (08b2f3d93c, 2022-04-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs12" />
+  <sodipodi:namedview
+     id="namedview10"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     inkscape:zoom="8.875"
+     inkscape:cx="40"
+     inkscape:cy="40"
+     inkscape:window-width="1920"
+     inkscape:window-height="961"
+     inkscape:window-x="0"
+     inkscape:window-y="28"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg8" />
+  <rect
+     x="4"
+     y="4"
+     width="72"
+     height="72"
+     rx="36"
+     fill="#29A874"
+     id="rect2" />
+  <path
+     d="M40 20C28.96 20 20 28.96 20 40C20 51.04 28.96 60 40 60C51.04 60 60 51.04 60 40C60 28.96 51.04 20 40 20ZM34.58 48.58L27.4 41.4C26.62 40.62 26.62 39.36 27.4 38.58C28.18 37.8 29.44 37.8 30.22 38.58L36 44.34L49.76 30.58C50.54 29.8 51.8 29.8 52.58 30.58C53.36 31.36 53.36 32.62 52.58 33.4L37.4 48.58C36.64 49.36 35.36 49.36 34.58 48.58Z"
+     fill="white"
+     id="path4" />
+</svg>

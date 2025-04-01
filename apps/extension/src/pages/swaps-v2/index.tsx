@@ -1,4 +1,4 @@
-import { useActiveWallet, useGetChains, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { useActiveWallet, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons } from '@leapwallet/leap-ui'
@@ -97,7 +97,6 @@ const SwapPage = observer(() => {
     | null
   >(null)
 
-  const chains = useGetChains()
   const customChains = useNonNativeCustomChains()
   const pageViewSource = useQuery().get('pageSource') ?? undefined
   const selectedNetwork = useSelectedNetwork()
@@ -829,7 +828,7 @@ const SwapPage = observer(() => {
                   if (activeWallet?.watchWallet) {
                     importWatchWalletSeedPopupStore.setShowPopup(true)
                   } else {
-                    setCheckForAutoAdjust(true)
+                    setShowTxReviewSheet(true)
                   }
                 }}
               >

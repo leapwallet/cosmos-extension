@@ -30,6 +30,7 @@ import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 
 import { MergedAsset } from '../hooks'
+import { hasCoinType } from '../utils'
 import { TokenCardSkeleton } from './TokenCard'
 
 export enum TabType {
@@ -82,6 +83,13 @@ const TokenCard = observer(
       key = `${token.skipAsset?.chainId}-${token.coinMinimalDenom}`
       if (marketData?.[key]) {
         return marketData[key]
+      }
+      if (hasCoinType(token.skipAsset)) {
+        key = `${token.skipAsset?.chainId}-${token.skipAsset?.coinType}`
+        const movementMarketData = marketData?.[key] ?? marketData?.[key?.toLowerCase()]
+        if (movementMarketData) {
+          return movementMarketData
+        }
       }
       if (!token?.skipAsset?.evmTokenContract) {
         return undefined

@@ -25,7 +25,7 @@ import { RoutingInfo, useHandleTxProgressPageBlurEvent, useOnline, useTransactio
 import { useExecuteTx } from '../hooks/txExecution/useExecuteTx'
 import { getChainIdsFromRoute, getNoOfStepsFromRoute, getPriceImpactVars } from '../utils'
 import { TxPageSteps } from './index'
-import SwapActionFailedSection from './SwapActionFailedSection'
+import { SwapActionFailedSection } from './SwapActionFailedSection'
 import { TxErrorSection } from './TxErrorSection'
 import { TxStatusOverview } from './TxStatusOverview'
 import TxTokensSummary from './TxTokensSummary'
@@ -506,7 +506,10 @@ export const TxPage = observer(
                     timeoutError={timeoutError}
                   />
                   {failedActionWasSwap && transferAssetRelease && (
-                    <SwapActionFailedSection transferAssetRelease={transferAssetRelease} />
+                    <SwapActionFailedSection
+                      transferAssetRelease={transferAssetRelease}
+                      rootDenomsStore={rootDenomsStore}
+                    />
                   )}
                   {isSuccessFull && (
                     <TxTokensSummaryMini
@@ -562,7 +565,11 @@ export const TxPage = observer(
                   </div>
                   <AnimatePresence initial={false}>
                     {isTxStepsVisible && (
-                      <TxPageSteps routingInfo={initialRoutingInfo} txStatus={txStatus} />
+                      <TxPageSteps
+                        routingInfo={initialRoutingInfo}
+                        txStatus={txStatus}
+                        rootDenomsStore={rootDenomsStore}
+                      />
                     )}
                   </AnimatePresence>
                 </div>

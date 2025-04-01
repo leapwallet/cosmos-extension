@@ -86,6 +86,10 @@ export const ReviewTransferSheet = observer(
       [formatCurrency, inputAmount, tokenFiatValue],
     )
 
+    const receiverChainName = useMemo(() => {
+      return chains?.[selectedAddress?.chainName as SupportedChain]?.chainName
+    }, [chains, selectedAddress?.chainName])
+
     const handleClose = useCallback(() => {
       setError('')
       onClose()
@@ -281,9 +285,11 @@ export const ReviewTransferSheet = observer(
                   : selectedAddress?.name}
               </p>
 
-              <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
-                on {chains?.[selectedAddress?.chainName as SupportedChain]?.chainName} <br />
-              </p>
+              {receiverChainName ? (
+                <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
+                  on {receiverChainName} <br />
+                </p>
+              ) : null}
             </div>
           </div>
 

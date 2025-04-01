@@ -149,7 +149,7 @@ export function MessageSignature({
           header={
             <div className='w-[396px]'>
               <Header
-                imgSrc={chainInfo.chainSymbolImageUrl || defaultImage}
+                imgSrc={chainInfo?.chainSymbolImageUrl || defaultImage}
                 title={
                   <Buttons.Wallet
                     brandLogo={

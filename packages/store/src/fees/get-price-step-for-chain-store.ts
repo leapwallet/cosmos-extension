@@ -41,6 +41,14 @@ export class GasPriceStepForChainStore {
       lcdUrl: (await this.chainApisStore.getChainApis(chain, activeNetwork)).lcdUrl,
     });
 
+    if (chainInfo.beta && chainInfo.gasPriceStep) {
+      return {
+        low: chainInfo.gasPriceStep?.low ?? gasData.low,
+        medium: chainInfo.gasPriceStep.average ?? gasData.medium,
+        high: chainInfo.gasPriceStep.high ?? gasData.high,
+      };
+    }
+
     return gasData;
   }
 }

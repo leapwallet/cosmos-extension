@@ -103,7 +103,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
                 return getSscrtWallet()
               }
               if (isAptosChain(sendActiveChain)) {
-                return getAptosSigner(sendActiveChain)
+                return getAptosSigner(sendActiveChain).then((aptos) => aptos.signer)
               }
               return getWallet()
             },

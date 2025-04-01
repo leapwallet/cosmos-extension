@@ -1,4 +1,5 @@
 import { FeeTokenData } from '@leapwallet/cosmos-wallet-hooks'
+import { isAptosChain } from '@leapwallet/cosmos-wallet-sdk'
 import BigNumber from 'bignumber.js'
 import GasPriceOptions from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
@@ -55,6 +56,7 @@ const FeesSheet = ({
       setGasLimit={(value: number | string | BigNumber) =>
         setUserPreferredGasLimit(Number(value.toString()))
       }
+      disableBalanceCheck={isAptosChain(sourceChain?.chainId ?? '')}
       gasPriceOption={gasPriceOption}
       onGasPriceOptionChange={handleGasPriceOptionChange}
       error={gasError}

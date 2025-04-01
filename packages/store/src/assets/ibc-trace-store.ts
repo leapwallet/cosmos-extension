@@ -1,4 +1,5 @@
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk';
+import axios from 'axios';
 import { makeAutoObservable } from 'mobx';
 
 import { getKeyToUseForDenoms } from '../utils/get-denom-key';
@@ -14,8 +15,8 @@ type IbcTraceData = Record<
 let ibcTraceData: IbcTraceData = {};
 
 export async function fetchIbcTraceData(): Promise<IbcTraceData> {
-  const response = await fetch(ibcTraceUrl);
-  const data = await response.json();
+  const response = await axios.get(ibcTraceUrl);
+  const data = response.data;
   ibcTraceData = data;
 
   return data;
@@ -71,15 +72,11 @@ export class IbcTraceFetcher {
 }
 
 export async function getIbcTrace(ibcDenom: string, lcdUrl: string, chainId: string) {
-  const res = await fetch(`https://api.leapwallet.io/denom-trace`, {
-    method: 'POST',
-    body: JSON.stringify({
-      ibcDenom: ibcDenom,
-      lcdUrl: lcdUrl,
-      chainId: chainId,
-    }),
+  const res = await axios.post(`https://api.leapwallet.io/denom-trace`, {
+    ibcDenom: ibcDenom,
+    lcdUrl: lcdUrl,
+    chainId: chainId,
   });
 
-  const data = await res.json();
-  return data.ibcDenomData;
+  return res.data.ibcDenomData;
 }

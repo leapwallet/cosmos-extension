@@ -1,5 +1,10 @@
-import { APTOS_COIN } from '@aptos-labs/ts-sdk';
-import { APTOS_CHAINS, aptosChainNativeTokenMapping, AptosTx } from '@leapwallet/cosmos-wallet-sdk';
+import { APTOS_COIN, APTOS_FA } from '@aptos-labs/ts-sdk';
+import {
+  APTOS_CHAINS,
+  aptosChainNativeFATokenMapping,
+  aptosChainNativeTokenMapping,
+  AptosTx,
+} from '@leapwallet/cosmos-wallet-sdk';
 
 import { isTerraClassic } from './isTerraClassic';
 
@@ -13,6 +18,10 @@ export function getKeyToUseForDenoms(denom: string, originChainId: string) {
 
   if (_denom === APTOS_COIN && (APTOS_CHAINS.includes(originChainId) || originChainId.includes('aptos-'))) {
     return aptosChainNativeTokenMapping[originChainId];
+  }
+
+  if (_denom === APTOS_FA && (APTOS_CHAINS.includes(originChainId) || originChainId.includes('aptos-'))) {
+    return aptosChainNativeFATokenMapping[originChainId];
   }
 
   if (isTerraClassic(originChainId) && _denom === 'uluna') {

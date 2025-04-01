@@ -169,11 +169,6 @@ export const GAS_PRICE_STEPS = {
     average: 10,
     high: 1000,
   },
-  mars: {
-    low: 0.01,
-    average: 0.025,
-    high: 0.04,
-  },
   migaloo: {
     low: 1,
     average: 2,

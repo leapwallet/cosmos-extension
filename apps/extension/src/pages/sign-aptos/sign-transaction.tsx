@@ -316,7 +316,8 @@ const SignTransaction = observer(
       }
       setIsSigning(true)
       try {
-        const aptosSigner = await getAptosSigner(activeChain)
+        const aptos = await getAptosSigner(activeChain)
+        const aptosSigner = aptos.signer
         if (isSignMessage) {
           const signature = await aptosSigner.sign(signDoc as unknown as string)
           const serializer = new Serializer()
@@ -473,7 +474,7 @@ const SignTransaction = observer(
           const publicKey = new Ed25519PublicKey(
             base64.decode(activeWallet?.pubKeys?.[activeChain] ?? ''),
           )
-          const aptosClient = await AptosTx.getAptosClient(lcdUrl ?? '', aptosSigner)
+          const aptosClient = await AptosTx.getAptosClient(lcdUrl ?? '', aptosSigner.signer)
           const { gasEstimate } = await aptosClient.simulateTransaction(signDoc, publicKey)
           if (gasEstimate) {
             gasUsed = Number(gasEstimate)

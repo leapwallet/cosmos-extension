@@ -94,14 +94,14 @@ export class CW20DenomBalanceStore {
     ]);
   }
 
-  async loadBalances(_chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, refetch = false) {
+  loadBalances(_chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, refetch = false) {
     const _network = network ?? this.selectedNetworkStore.selectedNetwork;
     const chain = _chain || this.activeChainStore.activeChain;
     if (chain === 'aggregated') {
-      this.fetchAggregatedBalances(_network, refetch);
-    } else {
-      this.fetchChainBalances(chain, _network, refetch);
+      return this.fetchAggregatedBalances(_network, refetch);
     }
+
+    return this.fetchChainBalances(chain, _network, refetch);
   }
 
   async fetchAggregatedBalances(network: SelectedNetworkType, refetch = false) {

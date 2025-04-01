@@ -1,5 +1,6 @@
-import { Token, useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk'
+import { Token } from '@leapwallet/cosmos-wallet-store'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
 import { SearchInput } from 'components/search-input'
@@ -31,6 +32,7 @@ export const SelectTokenSheet = ({
 
   const _assets = useMemo(() => {
     return assets.filter((token) => {
+      if (token.isAptos) return true
       return (
         String(token.amount) !== '0' &&
         (denoms[token.coinMinimalDenom as keyof typeof denoms] ??

@@ -29,6 +29,7 @@ import {
   Tx,
   txDeclinedErrorUser,
 } from '@leapwallet/cosmos-wallet-sdk';
+import { Token } from '@leapwallet/cosmos-wallet-store';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { BtcWallet, BtcWalletHD, BtcWalletPk } from '@leapwallet/leap-keychain/dist/browser/key/btc-wallet';
 import { bech32 } from 'bech32';
@@ -50,12 +51,12 @@ import {
 import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
-import { Token } from '../types/bank';
 import { convertScientificNotation, getMetaDataForIbcTx, getMetaDataForSendTx, sliceAddress } from '../utils';
 import { useChainId, useChainInfo } from '../utils-hooks';
 
 type _TokenDenom = {
   ibcDenom?: string;
+  aptosTokenType?: 'v1' | 'v2';
 } & NativeDenom;
 
 export type sendTokensParams = {
@@ -352,15 +353,26 @@ export const useSimpleSend = (
       try {
         const aptos = await AptosTx.getAptosClient(lcdUrl ?? '', account);
         const normalizedAmount = toSmall(amount.toString(), selectedDenom?.coinDecimals ?? 6);
-
-        const txHash = await aptos.sendTokens(
-          fromAddress,
-          toAddress,
-          [{ amount: normalizedAmount, denom: selectedDenom.coinMinimalDenom }],
-          gasPrice,
-          gasLimit,
-          memo,
-        );
+        let txHash = '';
+        if (selectedDenom.aptosTokenType === 'v1') {
+          txHash = await aptos.sendTokens(
+            fromAddress,
+            toAddress,
+            [{ amount: normalizedAmount, denom: selectedDenom.coinMinimalDenom }],
+            gasPrice,
+            gasLimit,
+            memo,
+          );
+        } else {
+          txHash = await aptos.sendFungibleAsset(
+            fromAddress,
+            selectedDenom.coinMinimalDenom,
+            toAddress,
+            parseInt(normalizedAmount),
+            gasPrice,
+            gasLimit,
+          );
+        }
         return {
           success: true,
           pendingTx: {
@@ -780,9 +792,11 @@ export const useSimpleSend = (
       const _nativeDenom = Object.values(chainInfo.nativeDenoms).find(
         (denom) => denom.coinMinimalDenom === selectedToken.coinMinimalDenom,
       );
-      const isDenomSupported = denoms[selectedToken.coinMinimalDenom] ?? _nativeDenom;
 
-      if (!isDenomSupported) {
+      const isDenomSupported = denoms[selectedToken.coinMinimalDenom] ?? _nativeDenom;
+      const isFAToken = selectedToken.aptosTokenType === 'v2';
+
+      if (!isDenomSupported && !isFAToken) {
         return {
           success: false,
           errors: ['We do not support transferring this token yet'],
@@ -857,15 +871,18 @@ export const useSimpleSend = (
         result = res;
       } else if (isAptosTx) {
         const gasLimit = Number(fees.gas);
-        const gasPrice = Math.floor(Number(fees.amount[0].amount) / gasLimit);
+        const gasPrice = Math.floor(gasLimit > 0 ? Number(fees.amount[0].amount) / gasLimit : 0);
         const account = (await getWallet()) as Ed25519Account;
         result = await sendAptos({
           account,
           fromAddress: activeWallet.addresses[activeChain],
           amount: amount,
           selectedDenom: {
-            ibcDenom: selectedToken.ibcDenom,
             ...selectedDenomData,
+            ibcDenom: selectedToken.ibcDenom,
+            aptosTokenType: selectedToken.aptosTokenType,
+            coinMinimalDenom: selectedToken.coinMinimalDenom,
+            coinDenom: selectedToken.symbol || selectedDenomData.coinDenom,
           },
           toAddress,
           memo,

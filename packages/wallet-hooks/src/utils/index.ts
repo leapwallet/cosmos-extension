@@ -48,6 +48,8 @@ export * from './transformUrlQueryPath';
 export * from './typeOfAuthzGrant';
 export * from './useActiveStakingDenom';
 export * from './useAdditionalFeeDenoms';
+export * from './useCompassDiscoverAssets';
+export * from './useCompassDiscoverBanners';
 export * from './useCosmWasmClient';
 export * from './useDebounce';
 export * from './useFetchAutoFetchedCW20Tokens';

@@ -27,6 +27,7 @@ import { observer } from 'mobx-react-lite'
 import { TabType } from 'pages/swaps-v2/components/SelectDestinationSheet'
 import { useSwapContext } from 'pages/swaps-v2/context'
 import { MergedAsset } from 'pages/swaps-v2/hooks'
+import { hasCoinType } from 'pages/swaps-v2/utils'
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { compassSeiEvmConfigStore } from 'stores/balance-store'
@@ -101,6 +102,13 @@ const TokenCard = observer(
       key = `${token.skipAsset?.chainId}-${token.coinMinimalDenom}`
       if (marketData?.[key]) {
         return marketData[key]
+      }
+      if (hasCoinType(token.skipAsset)) {
+        key = `${token.skipAsset?.chainId}-${token.skipAsset?.coinType}`
+        const movementMarketData = marketData?.[key] ?? marketData?.[key?.toLowerCase()]
+        if (movementMarketData) {
+          return movementMarketData
+        }
       }
       if (!token?.skipAsset?.evmTokenContract) {
         return undefined

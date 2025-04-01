@@ -1,5 +1,4 @@
 import { ChainInfo, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { Token } from 'bank/balance-types';
 import BigNumber from 'bignumber.js';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
@@ -13,7 +12,9 @@ import {
   MarketDataStore,
   PriceStore,
 } from '../bank';
+import { AptosCoinDataStore } from '../bank/aptos-balance-store';
 import { sortTokenBalances } from '../bank/balance-calculator';
+import { Token } from '../bank/balance-types';
 import { ClaimRewardsStore, DelegationsStore, StakeEpochStore, UndelegationsStore, ValidatorsStore } from '../stake';
 import { AggregatedSupportedChainType, SelectedNetworkType, SupportedCurrencies } from '../types';
 import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
@@ -57,6 +58,7 @@ export class RootBalanceStore {
   activeChainStore: ActiveChainStore;
   chainInfosStore: ChainInfosStore;
   evmBalanceStore: EvmBalanceStore;
+  aptosCoinDataStore: AptosCoinDataStore;
   compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore;
   addressStore: AddressStore;
   selectedNetworkStore: SelectedNetworkStore;
@@ -69,6 +71,7 @@ export class RootBalanceStore {
     activeChainStore: ActiveChainStore,
     chainInfosStore: ChainInfosStore,
     evmBalanceStore: EvmBalanceStore,
+    aptosCoinDataStore: AptosCoinDataStore,
     compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore,
     addressStore: AddressStore,
     selectedNetworkStore: SelectedNetworkStore,
@@ -79,6 +82,7 @@ export class RootBalanceStore {
     this.activeChainStore = activeChainStore;
     this.chainInfosStore = chainInfosStore;
     this.evmBalanceStore = evmBalanceStore;
+    this.aptosCoinDataStore = aptosCoinDataStore;
     this.compassSeiTokensAssociationsStore = compassSeiTokensAssociationsStore;
     this.addressStore = addressStore;
     this.selectedNetworkStore = selectedNetworkStore;
@@ -141,15 +145,26 @@ export class RootBalanceStore {
     if (isSeiEvm && activeChain !== 'seiDevnet') {
       const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
       const filterDuplicateSeiToken = (token: Token) => {
-        const evmContract =
+        let evmContract =
           this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
           this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
+        if (!evmContract && token.ibcDenom) {
+          evmContract =
+            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom] ??
+            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom.toLowerCase()];
+        }
         if (!evmContract) {
           return true;
         }
-        return !erc20Tokens.some(
+        const matchFound = erc20Tokens.find(
           (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
         );
+        if (matchFound && !matchFound.coinGeckoId) {
+          runInAction(() => {
+            matchFound.coinGeckoId = token.coinGeckoId;
+          });
+        }
+        return !matchFound;
       };
       const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter(filterDuplicateSeiToken);
       const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
@@ -189,15 +204,26 @@ export class RootBalanceStore {
     if (isSeiEvm && activeChain !== 'seiDevnet') {
       const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
       const filterDuplicateSeiToken = (token: Token) => {
-        const evmContract =
+        let evmContract =
           this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
           this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
+        if (!evmContract && token.ibcDenom) {
+          evmContract =
+            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom] ??
+            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom.toLowerCase()];
+        }
         if (!evmContract) {
           return true;
         }
-        return !erc20Tokens.some(
+        const matchFound = erc20Tokens.find(
           (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
         );
+        if (matchFound && !matchFound.coinGeckoId) {
+          runInAction(() => {
+            matchFound.coinGeckoId = token.coinGeckoId;
+          });
+        }
+        return !matchFound;
       };
       const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter(filterDuplicateSeiToken);
       const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
@@ -247,8 +273,11 @@ export class RootBalanceStore {
       const erc20Tokens = this.erc20BalanceStore.getAggregatedERC20Tokens(network);
       const cw20Tokens = this.cw20BalanceStore.getAggregatedCW20Tokens(network);
       const evmTokens = this.evmBalanceStore.getAggregatedEvmTokens(network);
+      const aptosTokens = this.aptosCoinDataStore.balances;
 
-      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens, evmTokens)));
+      return nativeTokens.concat(
+        sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens, evmTokens, aptosTokens)),
+      );
     },
   );
 
@@ -267,26 +296,38 @@ export class RootBalanceStore {
       );
       const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain, network);
       const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain, network);
+      const aptosTokens = this.aptosCoinDataStore.balances;
 
       const isSeiEvm = this.activeChainStore.isSeiEvm(chain);
       if (isSeiEvm && chain !== 'seiDevnet') {
         const filterDuplicateSeiToken = (token: Token) => {
-          const evmContract =
+          let evmContract =
             this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
             this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
+          if (!evmContract && token.ibcDenom) {
+            evmContract =
+              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom] ??
+              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom.toLowerCase()];
+          }
           if (!evmContract) {
             return true;
           }
-          return !erc20Tokens.some(
+          const matchFound = erc20Tokens.find(
             (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
           );
+          if (matchFound && !matchFound.coinGeckoId) {
+            runInAction(() => {
+              matchFound.coinGeckoId = token.coinGeckoId;
+            });
+          }
+          return !matchFound;
         };
         const seiCw20Tokens = cw20Tokens.filter(filterDuplicateSeiToken);
         const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
         return nativeTokens.concat(sortTokenBalances(seiCw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
       }
 
-      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens)));
+      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens, aptosTokens)));
     },
   );
 
@@ -324,7 +365,12 @@ export class RootBalanceStore {
 
   get loading() {
     const activeChain = this.activeChainStore?.activeChain;
-    if (this.chainInfosStore.chainInfos[activeChain as SupportedChain]?.evmOnlyChain) {
+    const chainInfo = this.chainInfosStore.chainInfos[activeChain as SupportedChain];
+    const isAptosChain = chainInfo?.chainId.startsWith('aptos');
+    if (isAptosChain) {
+      return this.aptosCoinDataStore.loading;
+    }
+    if (chainInfo?.evmOnlyChain) {
       return (
         this.evmBalanceStore.evmBalance.status === 'loading' ||
         this.erc20BalanceStore.loading ||
@@ -358,20 +404,22 @@ export class RootBalanceStore {
   }
 
   async loadBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType) {
-    await Promise.all([
+    await Promise.allSettled([
       this.nativeBalanceStore.loadBalances(chain, network),
       this.erc20BalanceStore.loadBalances(chain, network),
       this.cw20BalanceStore.loadBalances(chain, network),
       this.evmBalanceStore.loadEvmBalance(chain, network),
+      this.aptosCoinDataStore.getData(),
     ]);
   }
 
   async refetchBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, address?: string) {
-    await Promise.all([
+    await Promise.allSettled([
       this.nativeBalanceStore.loadBalances(chain, network, address, true),
       this.erc20BalanceStore.loadBalances(chain, network, true),
       this.cw20BalanceStore.loadBalances(chain, network, true),
       this.evmBalanceStore.loadEvmBalance(chain, network, true),
+      this.aptosCoinDataStore.getData(),
     ]);
   }
 }
@@ -390,6 +438,7 @@ export class RootStore {
   evmBalanceStore: EvmBalanceStore;
   initializing: 'pending' | 'inprogress' | 'done' = 'pending';
   initPromise: Promise<[void, void]> | undefined = undefined;
+  skipLoadingStake: boolean = false;
 
   constructor(
     nmsStore: NmsStore,
@@ -403,6 +452,7 @@ export class RootStore {
     currencyStore: CurrencyStore,
     chainInfosStore: ChainInfosStore,
     evmBalanceStore: EvmBalanceStore,
+    skipLoadingStake?: boolean,
   ) {
     this.nmsStore = nmsStore;
     this.addressStore = addressStore;
@@ -415,16 +465,32 @@ export class RootStore {
     this.currencyStore = currencyStore;
     this.chainInfosStore = chainInfosStore;
     this.evmBalanceStore = evmBalanceStore;
+    this.skipLoadingStake = skipLoadingStake ?? false;
+
+    makeObservable(this, {
+      initializing: observable,
+    });
   }
 
   async initStores() {
     if (this.initializing !== 'pending') return;
-    this.initializing = 'inprogress';
-    await Promise.allSettled([this.nmsStore.readyPromise, this.priceStore.readyPromise]);
-    await this.addressStore.loadAddresses();
-    this.initPromise = Promise.all([this.rootBalanceStore.loadBalances(), this.rootStakeStore.updateStake()]);
+    runInAction(() => {
+      this.initializing = 'inprogress';
+    });
+    await Promise.allSettled([
+      this.nmsStore.readyPromise,
+      this.priceStore.readyPromise,
+      this.addressStore.loadAddresses(),
+    ]);
+
+    this.initPromise = Promise.all([
+      this.rootBalanceStore.loadBalances(),
+      this.skipLoadingStake ? Promise.resolve() : this.rootStakeStore.updateStake(),
+    ]);
     await this.initPromise;
-    this.initializing = 'done';
+    runInAction(() => {
+      this.initializing = 'done';
+    });
   }
 
   async reloadAddresses(chain?: AggregatedSupportedChainType) {
@@ -433,14 +499,16 @@ export class RootStore {
       this.initPromise && (await this.initPromise);
     }
     if (this.addressStore.addresses) {
-      await Promise.all([this.rootBalanceStore.loadBalances(chain), this.rootStakeStore.updateStake()]);
+      await Promise.all([
+        this.rootBalanceStore.loadBalances(chain),
+        this.skipLoadingStake ? Promise.resolve() : this.rootStakeStore.updateStake(),
+      ]);
     }
   }
 
   async setActiveChain(chain: AggregatedSupportedChainType) {
     if (this.activeChainStore.activeChain === chain) return;
     this.activeChainStore.setActiveChain(chain);
-    console.log(this.initializing, chain, 'setactivechain');
 
     if (this.initializing !== 'done') {
       const key = this.rootBalanceStore.getBalanceKey(chain);
@@ -454,7 +522,9 @@ export class RootStore {
     }
     await Promise.all([
       this.rootBalanceStore.loadBalances(chain, this.selectedNetworkStore.selectedNetwork),
-      this.rootStakeStore.updateStake(chain, this.selectedNetworkStore.selectedNetwork),
+      this.skipLoadingStake
+        ? Promise.resolve()
+        : this.rootStakeStore.updateStake(chain, this.selectedNetworkStore.selectedNetwork),
     ]);
   }
 
@@ -464,7 +534,9 @@ export class RootStore {
     if (this.initializing !== 'done') return;
     await Promise.all([
       this.rootBalanceStore.loadBalances(this.activeChainStore.activeChain, this.selectedNetworkStore.selectedNetwork),
-      this.rootStakeStore.updateStake(this.activeChainStore.activeChain, network),
+      this.skipLoadingStake
+        ? Promise.resolve()
+        : this.rootStakeStore.updateStake(this.activeChainStore.activeChain, network),
     ]);
   }
 
@@ -475,13 +547,16 @@ export class RootStore {
     await this.marketDataStore.getData();
     await Promise.all([
       this.rootBalanceStore.refetchBalances(),
-      this.rootStakeStore.updateStake(undefined, undefined, true),
+      this.skipLoadingStake ? Promise.resolve() : this.rootStakeStore.updateStake(undefined, undefined, true),
     ]);
   }
 
   async setChains(chainInfos: Record<SupportedChain, ChainInfo>) {
     this.chainInfosStore.setChainInfos(chainInfos);
     if (this.initializing !== 'done') return;
-    await Promise.all([this.rootBalanceStore.loadBalances(), this.rootStakeStore.updateStake()]);
+    await Promise.all([
+      this.rootBalanceStore.loadBalances(),
+      this.skipLoadingStake ? Promise.resolve() : this.rootStakeStore.updateStake(),
+    ]);
   }
 }

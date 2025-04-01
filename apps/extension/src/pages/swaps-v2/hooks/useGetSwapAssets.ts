@@ -1,3 +1,4 @@
+import { APTOS_COIN } from '@aptos-labs/ts-sdk'
 import {
   currencyDetail,
   getKeyToUseForDenoms,
@@ -9,12 +10,14 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { DenomsRecord, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQuery } from '@tanstack/react-query'
+import { BigNumber } from 'bignumber.js'
 import { useNonNativeCustomChains } from 'hooks'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
+import { hasCoinType } from '../utils'
 import { MergedAsset } from './useAssets'
 
 export function useGetSwapAssets(
@@ -86,22 +89,61 @@ export function useGetSwapAssets(
         //const needToFetchIbcSourceChainsFor: { denom: string; chain_id: string }[] = []
 
         for (const mergedAsset of mergedAssets) {
-          let formattedMergedAssetDenom = mergedAsset.denom.replace(
-            /(cw20:|erc20\/)/g,
-            '',
-          ) as string
+          let token: Token | undefined
 
-          if (formattedMergedAssetDenom === 'ethereum-native') {
-            formattedMergedAssetDenom = 'wei'
+          let formattedFaDenom = mergedAsset.denom.replace(/(cw20:|erc20\/)/g, '') as string
+          let formattedCoinTypeDenom = hasCoinType(mergedAsset)
+            ? mergedAsset.coinType.toLowerCase()
+            : undefined
+          if (formattedCoinTypeDenom?.toLowerCase() === APTOS_COIN.toLowerCase()) {
+            formattedFaDenom = 'movement-native-fa'
+            formattedCoinTypeDenom = 'movement-native'
           }
-          let token =
-            assetsMap[`${formattedMergedAssetDenom}-${mergedAsset.chainId}`] ||
-            assetsMap[`${formattedMergedAssetDenom.toLowerCase()}-${mergedAsset.chainId}`]
 
-          if (!token && mergedAsset.evmTokenContract) {
+          if (mergedAsset.chainId?.startsWith('aptos-')) {
+            const faToken: Token | undefined =
+              assetsMap[`${formattedFaDenom}-${mergedAsset.chainId}`] ||
+              assetsMap[`${formattedFaDenom.toLowerCase()}-${mergedAsset.chainId}`]
+            let coinTypeToken: Token | undefined
+            if (formattedCoinTypeDenom) {
+              coinTypeToken =
+                assetsMap[`${formattedCoinTypeDenom}-${mergedAsset.chainId}`] ||
+                assetsMap[`${formattedCoinTypeDenom.toLowerCase()}-${mergedAsset.chainId}`]
+            }
+
+            if (coinTypeToken) {
+              token = { ...coinTypeToken }
+            }
+
+            if (faToken) {
+              if (!token) {
+                token = { ...faToken }
+              } else {
+                token.amount = new BigNumber(token?.amount).plus(faToken?.amount).toString()
+                token.usdValue = faToken?.usdPrice
+                  ? new BigNumber(token.amount).multipliedBy(faToken.usdPrice).toString()
+                  : undefined
+              }
+            }
+          } else {
+            let formattedMergedAssetDenom = mergedAsset.denom.replace(
+              /(cw20:|erc20\/)/g,
+              '',
+            ) as string
+
+            if (formattedMergedAssetDenom === 'ethereum-native') {
+              formattedMergedAssetDenom = 'wei'
+            }
+
             token =
-              assetsMap[`${mergedAsset.evmTokenContract}-${mergedAsset.chainId}`] ||
-              assetsMap[`${mergedAsset.evmTokenContract.toLowerCase()}-${mergedAsset.chainId}`]
+              assetsMap[`${formattedMergedAssetDenom}-${mergedAsset.chainId}`] ||
+              assetsMap[`${formattedMergedAssetDenom.toLowerCase()}-${mergedAsset.chainId}`]
+
+            if (!token && mergedAsset.evmTokenContract) {
+              token =
+                assetsMap[`${mergedAsset.evmTokenContract}-${mergedAsset.chainId}`] ||
+                assetsMap[`${mergedAsset.evmTokenContract.toLowerCase()}-${mergedAsset.chainId}`]
+            }
           }
 
           if (token) {
@@ -118,6 +160,12 @@ export function useGetSwapAssets(
             }
             if (!denomInfo) {
               denomInfo = combinedDenoms[mergedAsset.originDenom]
+            }
+            if (!denomInfo && mergedAsset.chainId?.startsWith('aptos-')) {
+              denomInfo = combinedDenoms[formattedFaDenom]
+              if (!denomInfo && formattedCoinTypeDenom) {
+                denomInfo = combinedDenoms[formattedCoinTypeDenom]
+              }
             }
             const updatedMergedAsset: MergedAsset = decimals
               ? {
@@ -146,6 +194,12 @@ export function useGetSwapAssets(
             if (!denomInfo) {
               denomInfo = combinedDenoms[_baseDenom]
             }
+            if (!denomInfo && mergedAsset.chainId?.startsWith('aptos-')) {
+              denomInfo = combinedDenoms[formattedFaDenom]
+              if (!denomInfo && formattedCoinTypeDenom) {
+                denomInfo = combinedDenoms[formattedCoinTypeDenom]
+              }
+            }
 
             if (denomInfo) {
               if (denomInfo?.coinDecimals === undefined) {
@@ -161,6 +215,9 @@ export function useGetSwapAssets(
                     : chainInfos[denomInfo.chain as SupportedChain]?.testnetChainId
                 const alternatePriceKey = `${_chainId}-${denomInfo.coinMinimalDenom}`
                 const alternateEvmPriceKey = `${_chainId}-${mergedAsset.evmTokenContract}`
+                const alternateMosaicPriceKey = hasCoinType(mergedAsset)
+                  ? `${_chainId}-${mergedAsset?.coinType}`
+                  : undefined
 
                 if (coingeckoPrices) {
                   if (coingeckoPrices[denomInfo.coinGeckoId]) {
@@ -175,6 +232,11 @@ export function useGetSwapAssets(
                     usdPrice =
                       coingeckoPrices[alternateEvmPriceKey] ||
                       coingeckoPrices[alternateEvmPriceKey.toLowerCase()]
+                  }
+                  if (!usdPrice && alternateMosaicPriceKey) {
+                    usdPrice =
+                      coingeckoPrices[alternateMosaicPriceKey] ||
+                      coingeckoPrices[alternateMosaicPriceKey.toLowerCase()]
                   }
                 }
                 if (!usdPrice && denomInfo.coinGeckoId) {
@@ -245,6 +307,9 @@ export function useGetSwapAssets(
               const key = getKeyToUseForDenoms(mergedAsset.originDenom, mergedAsset.originChainId)
               const alternatePriceKey = `${mergedAsset.originChainId}-${key}`
               const alternateEvmPriceKey = `${mergedAsset.originChainId}-${mergedAsset.evmTokenContract}`
+              const alternateMosaicPriceKey = hasCoinType(mergedAsset)
+                ? `${mergedAsset.originChainId}-${mergedAsset?.coinType}`
+                : undefined
 
               if (coingeckoPrices) {
                 if (mergedAsset.coingeckoId && coingeckoPrices[mergedAsset.coingeckoId]) {
@@ -259,6 +324,11 @@ export function useGetSwapAssets(
                   usdPrice =
                     coingeckoPrices[alternateEvmPriceKey] ||
                     coingeckoPrices[alternateEvmPriceKey.toLowerCase()]
+                }
+                if (!usdPrice && alternateMosaicPriceKey) {
+                  usdPrice =
+                    coingeckoPrices[alternateMosaicPriceKey] ||
+                    coingeckoPrices[alternateMosaicPriceKey.toLowerCase()]
                 }
               }
               const asset: SourceToken = {

@@ -13,8 +13,10 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { EvmBalanceStore, RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
+import { AptosCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/aptos-balance-store'
 import { Info } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
+import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { AlertStrip, TestnetAlertStrip } from 'components/alert-strip'
 import { ApiStatusWarningStrip } from 'components/alert-strip/ApiStatusWarningStrip'
@@ -46,7 +48,7 @@ import { ActivitySwapTxPage } from 'pages/activity/ActivitySwapTxPage'
 import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { aggregatedChainsStore, evmBalanceStore } from 'stores/balance-store'
+import { aggregatedChainsStore, aptosCoinDataStore, evmBalanceStore } from 'stores/balance-store'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { hideSmallBalancesStore } from 'stores/hide-small-balances-store'
@@ -79,8 +81,14 @@ import {
 } from './index'
 import { TokensSection } from './TokensSection'
 
+type TotalBalanceProp = {
+  balances: RootBalanceStore
+  evmBalances: EvmBalanceStore
+  aptosBalances: AptosCoinDataStore
+}
+
 export const TotalBalance = observer(
-  ({ balances, evmBalances }: { balances: RootBalanceStore; evmBalances: EvmBalanceStore }) => {
+  ({ balances, evmBalances, aptosBalances }: TotalBalanceProp) => {
     const [formatCurrency] = useFormatCurrency()
     const activeChain = useActiveChain() as AggregatedSupportedChain
     const getWallet = Wallet.useGetWallet()
@@ -91,7 +99,9 @@ export const TotalBalance = observer(
 
     const chains = useGetChains()
     const evmBalance = evmBalances.evmBalance
+
     const isEvmOnlyChain = chains?.[activeChain as SupportedChain]?.evmOnlyChain
+    const isAptosChain = chains?.[activeChain as SupportedChain]?.chainId?.startsWith('aptos')
     const isSeiEvmChain = useIsSeiEvmChain(
       activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : activeChain,
     )
@@ -99,7 +109,7 @@ export const TotalBalance = observer(
     const countRef = useRef(0)
     const [timedBalancesFiatValue, setTimedBalancesFiatValue] = useState(balances.totalFiatValue)
 
-    const totalFiatValue = useMemo(() => {
+    const totalFiatValue = (() => {
       const addEvmDetails = hasToAddEvmDetails(
         isSeiEvmChain,
         addressLinkState,
@@ -109,15 +119,11 @@ export const TotalBalance = observer(
       if (addEvmDetails) {
         return balances.totalFiatValue.plus(evmBalance.currencyInFiatValue)
       }
-
+      if (isAptosChain) {
+        return aptosBalances.totalFiatValue
+      }
       return balances.totalFiatValue
-    }, [
-      addressLinkState,
-      balances.totalFiatValue,
-      evmBalance.currencyInFiatValue,
-      isEvmOnlyChain,
-      isSeiEvmChain,
-    ])
+    })()
 
     useEffect(() => {
       if (totalFiatValue.toString() !== timedBalancesFiatValue.toString()) {
@@ -551,6 +557,7 @@ export const GeneralHome = observer(
               setShowSideNav={setShowSideNav}
               rootBalanceStore={rootBalanceStore}
               evmBalanceStore={evmBalanceStore}
+              aptosBalanceStore={aptosCoinDataStore}
               isTokenLoading={isTokenLoading}
               connectEVMLedger={connectEVMLedger}
             />

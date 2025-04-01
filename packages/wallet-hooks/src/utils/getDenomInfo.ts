@@ -3,6 +3,7 @@ import {
   DenomsRecord,
   getChainInfo,
   getErc20TokenDetails,
+  isAptosChain,
   NativeDenom,
   SupportedDenoms,
 } from '@leapwallet/cosmos-wallet-sdk';
@@ -88,7 +89,10 @@ export async function getDenomInfo(
   }
 
   if (!denomInfo) {
-    const chainInfo = await getChainInfo(chain, testnet);
+    let chainInfo;
+    if (!isAptosChain(chain)) {
+      chainInfo = await getChainInfo(chain, testnet);
+    }
     if (!chainInfo) {
       denomInfo = DefaultDenoms[denom as SupportedDenoms];
     } else {
