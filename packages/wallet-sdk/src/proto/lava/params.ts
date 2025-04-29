@@ -24,7 +24,7 @@ export interface ParamsAminoMsg {
 export interface ParamsSDKType {
   min_self_delegation: CoinSDKType;
 }
-/** SlashedValidators defines the a list of slashed validators. */
+/** SlashedValidators defines a list of slashed validators. */
 export interface SlashedValidators {
   validators: string[];
 }
@@ -32,7 +32,7 @@ export interface SlashedValidatorsProtoMsg {
   typeUrl: '/lavanet.lava.dualstaking.SlashedValidators';
   value: Uint8Array;
 }
-/** SlashedValidators defines the a list of slashed validators. */
+/** SlashedValidators defines a list of slashed validators. */
 export interface SlashedValidatorsAmino {
   validators?: string[];
 }
@@ -40,7 +40,7 @@ export interface SlashedValidatorsAminoMsg {
   type: '/lavanet.lava.dualstaking.SlashedValidators';
   value: SlashedValidatorsAmino;
 }
-/** SlashedValidators defines the a list of slashed validators. */
+/** SlashedValidators defines a list of slashed validators. */
 export interface SlashedValidatorsSDKType {
   validators: string[];
 }
