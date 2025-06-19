@@ -1,5 +1,4 @@
 import * as activity from './activity'
-import * as airdrop from './airdrop'
 import * as banners from './banners'
 import * as countries from './countries'
 import * as gov from './gov'
@@ -13,7 +12,6 @@ import * as swap from './swap'
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Images {
   export const Activity = activity
-  export const Airdrop = airdrop
   export const Countries = countries
   export const Misc = misc
   export const Nav = nav

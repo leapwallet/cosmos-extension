@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import {
   EnableAccessMsg,
+  GetChainInfosWithoutEndpointsMsg,
   GetKeyMsg,
   GetKeysMsg,
   GetSupportedChainsMsg,
@@ -26,6 +27,7 @@ export enum SUPPORTED_METHODS {
   GET_KEY = 'get-key',
   GET_KEYS = 'get-keys',
   ENABLE_ACCESS = 'enable-access',
+  GET_CHAIN_INFOS_WITHOUT_ENDPOINTS = 'get-chain-infos-without-endpoints',
   GET_SUPPORTED_CHAINS = 'get-supported-chains',
   GET_CONNECTION_STATUS = 'get-connection-status',
   ADD_SUGGESTED_CHAIN = 'add-suggested-chain',
@@ -40,6 +42,7 @@ export enum SUPPORTED_METHODS {
   REQUEST_DECRYPT_MSG = 'request-decrypt-msg',
   REQUEST_VERIFY_ADR36_AMINO_SIGN_DOC = 'request-verify-adr36-amino-sign-doc',
   REQUEST_SIGN_EIP712 = 'request-sign-eip712',
+  OPEN_SIDE_PANEL = 'open-side-panel',
 }
 
 export class InExtensionMessageRequester implements MessageRequester {
@@ -116,6 +119,10 @@ export class InExtensionMessageRequester implements MessageRequester {
     return new Promise((resolve) => {
       this.inpageStream.on('data', (result) => {
         if (result.id === id) {
+          if (result?.name === 'invokeOpenSidePanel') {
+            this.send(SUPPORTED_METHODS.OPEN_SIDE_PANEL, result);
+            return;
+          }
           resolve(result);
         }
       });
@@ -138,6 +145,11 @@ export class InExtensionMessageRequester implements MessageRequester {
     const txHash = data?.payload?.txHash;
     const retVal = new Uint8Array(Object.values(txHash));
     return retVal;
+  }
+
+  async getChainInfosWithoutEndpoints(message: GetChainInfosWithoutEndpointsMsg) {
+    const data = await this.requestWrapper(SUPPORTED_METHODS.GET_CHAIN_INFOS_WITHOUT_ENDPOINTS, message);
+    return data?.payload?.chainInfos;
   }
 
   async getSupportedChains(message: GetSupportedChainsMsg) {

@@ -11,14 +11,8 @@ import {
 import BigNumber from 'bignumber.js'
 import { useMemo } from 'react'
 
-import { MosaicRouteQueryResponse } from './useMosaicRoute'
-
 export function useAggregatorBridgeRelayerFee(
-  routeResponse:
-    | LifiRouteOverallResponse
-    | SkipRouteResponse
-    | MosaicRouteQueryResponse
-    | undefined,
+  routeResponse: LifiRouteOverallResponse | SkipRouteResponse | undefined,
 ) {
   const skipBridgeFee = useBridgeFee(routeResponse as UseRouteResponse)
   const lifiBridgeFee = useLifiBridgeFee(routeResponse as UseAggregatedRouteResponse)

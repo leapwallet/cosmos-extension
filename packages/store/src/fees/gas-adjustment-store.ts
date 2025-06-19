@@ -3,6 +3,8 @@ import {
   gasAdjustments as defaultGasAdjustments,
   initResourceFromS3,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   StorageLayer,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
@@ -40,6 +42,14 @@ export class GasAdjustmentStore {
   getGasAdjustments(chain: SupportedChain) {
     // !TODO: remove this once we have gas adjustments for aptos
     if (isAptosChain(chain)) {
+      return defaultGasAdjustments[chain];
+    }
+
+    if (isSolanaChain(chain)) {
+      return defaultGasAdjustments[chain];
+    }
+
+    if (isSuiChain(chain)) {
       return defaultGasAdjustments[chain];
     }
 

@@ -90,8 +90,7 @@ export function useCheckAddressError({
   const isBtcTx = BTC_CHAINS.includes(sendActiveChain)
   const isAptosTx = isAptosChain(sendActiveChain)
 
-  const getWallet = Wallet.useGetWallet()
-  const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+  const { addressLinkState } = useSeiLinkedAddressState()
 
   const isErc20token = useMemo(() => {
     return isERC20Token(Object.keys(allERC20Denoms), selectedToken?.coinMinimalDenom ?? '')
@@ -317,7 +316,8 @@ export function useCheckAddressError({
       } else if (isSeiEvmChain && recipientInputValue.length && selectedToken) {
         if (
           recipientInputValue.toLowerCase().startsWith('0x') &&
-          activeWallet?.walletType === WALLETTYPE.LEDGER
+          activeWallet?.walletType === WALLETTYPE.LEDGER &&
+          activeWallet.app === 'cosmos'
         ) {
           setAddressError(SEI_EVM_LEDGER_ERROR_MESSAGE)
           return
@@ -339,7 +339,7 @@ export function useCheckAddressError({
          * If user has pasted a Sei address, then first try doing a Cosmos transaction,
          * and then you can look for an EVM one.
          *
-         * And, if user has pasted a 0x address, then first try doing an EVM transction,
+         * And, if user has pasted a 0x address, then first try doing an EVM transaction,
          * and then you can look for a Cosmos one.
          */
 

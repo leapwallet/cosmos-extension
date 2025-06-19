@@ -10,32 +10,24 @@ import {
   useAuthzTx,
   useGetGivenAuthz,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
-import { CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { CaretRight } from '@phosphor-icons/react'
-import classNames from 'classnames'
 import { ProposalDescription } from 'components/proposal-description'
 import Text from 'components/text'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { useChainInfos } from 'hooks/useChainInfos'
-import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
-import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, { createContext, ReactNode, useContext, useMemo, useState } from 'react'
+import React, { createContext, ReactNode, useContext, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
-import { manageChainsStore } from 'stores/manage-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { assert } from 'utils/assert'
 import { formatAuthzDate } from 'utils/formatAuthzDate'
-import { imgOnError } from 'utils/imgOnError'
 import { useTxCallBack } from 'utils/txCallback'
 
 import { AuthzDetails } from './AuthzDetails'
-import { SelectChainSheet } from './CustomEndpoints'
 
 const AuthZContext = createContext<
   (AuthzTxType & { onReviewRevokeTx: () => Promise<void> }) | null
@@ -72,22 +64,17 @@ export function useAuthZContext() {
 
 const _ManageAuthZ = observer(({ goBack }: { goBack: () => void }) => {
   const activeChain = useActiveChain()
-  const chainInfos = useChainInfos()
-  const defaultTokenLogo = useDefaultTokenLogo()
 
   const {
     selectedChain,
     showAuthzDetailsFor,
     setShowAuthzDetailsFor,
-    setSelectedChain,
     setMsgType,
     setGasError,
     setError,
     selectedChainHasMainnetOnly,
   } = useAuthZContext()
 
-  const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
-  const [showSelectChain, setShowSelectChain] = useState(false)
   const { data, isLoading } = useGetGivenAuthz(
     selectedChain,
     selectedChainHasMainnetOnly ? 'mainnet' : undefined,
@@ -184,26 +171,6 @@ const _ManageAuthZ = observer(({ goBack }: { goBack: () => void }) => {
 
         <div className='overflow-y-auto w-full h-[calc(100%-70px)] p-[28px]'>
           <div className='flex flex-col items-center gap-4 pb-4'>
-            <GenericCard
-              title={chainInfos[selectedChain].chainName ?? ''}
-              img={
-                <img
-                  src={chainInfos[selectedChain].chainSymbolImageUrl ?? defaultTokenLogo}
-                  className='w-[28px] h-[28px] mr-2 border rounded-full dark:border-[#333333] border-[#cccccc]'
-                  onError={imgOnError(defaultTokenLogo)}
-                />
-              }
-              isRounded={true}
-              title2='Chain'
-              icon={
-                dontShowSelectChain ? undefined : (
-                  <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
-                )
-              }
-              className={classNames({ '!cursor-default': dontShowSelectChain })}
-              onClick={dontShowSelectChain ? undefined : () => setShowSelectChain(true)}
-            />
-
             {isLoading && (
               <div className='flex flex-col gap-y-4 w-full'>
                 <Skeleton count={3} />
@@ -296,16 +263,6 @@ const _ManageAuthZ = observer(({ goBack }: { goBack: () => void }) => {
           />
         </div>
       </div>
-
-      <SelectChainSheet
-        isVisible={showSelectChain}
-        onClose={() => setShowSelectChain(false)}
-        selectedChain={selectedChain}
-        onChainSelect={(chaiName: SupportedChain) => {
-          setSelectedChain(chaiName)
-          setShowSelectChain(false)
-        }}
-      />
     </>
   )
 })

@@ -2,6 +2,7 @@ import { OfflineSigner } from '@cosmjs/proto-signing'
 import {
   FeeTokenData,
   GasOptions,
+  TxCallback,
   useActiveChain,
   useNtrnGov,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -10,12 +11,13 @@ import { Buttons } from '@leapwallet/leap-ui'
 import { Prohibit, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import { LoaderAnimation } from 'components/loader/Loader'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
@@ -23,9 +25,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
+import { cn } from 'utils/cn'
 import { useTxCallBack } from 'utils/txCallback'
 
 import { CastVoteProps } from '../components'
+import { VoteTxnSheet } from '../components/VoteTxnSheet'
 import { NtrnReviewVoteCast } from './index'
 import { VoteOptions } from './utils'
 
@@ -112,22 +116,32 @@ function CastVoteSheet({
     <BottomModal
       isOpen={isOpen}
       onClose={onCloseHandler}
-      title='Cast your Vote'
-      closeOnBackdropClick={true}
+      title='Call your Vote'
+      className='!pt-8 p-6'
     >
       <div className='flex flex-col items-center gap-4'>
         {VoteOptionsList.map((option) => (
           <button
             key={option.label}
             onClick={() => setSelectedOption(option.label)}
-            className={classNames('flex items-center w-[344px] p-4 rounded-2xl cursor-pointer', {
-              'dark:text-gray-200 dark:bg-gray-900 text-gray-600 bg-white-100':
-                selectedOption !== option.label,
-              [option.selectedCSS]: selectedOption === option.label,
-            })}
+            className={classNames(
+              'flex items-center w-full px-5 py-4 rounded-xl cursor-pointer border',
+              {
+                'bg-secondary-100 text-foreground hover:bg-secondary-200 border-transparent':
+                  selectedOption !== option.label,
+                'text-green-600 bg-green-500/10 border-green-600': selectedOption === option.label,
+              },
+            )}
           >
             <span className='mr-3'>{option.icon}</span>
-            <span className='text-base font-bold dark:text-white-100'>{option.label}</span>
+            <span
+              className={cn('text-base font-bold', {
+                'text-foreground': selectedOption !== option.label,
+                'text-green-600': selectedOption === option.label,
+              })}
+            >
+              {option.label}
+            </span>
           </button>
         ))}
       </div>
@@ -138,15 +152,13 @@ function CastVoteSheet({
         <p className='text-red-300 text-sm font-medium mt-2 text-center'>{gasError}</p>
       ) : null}
 
-      <Buttons.Generic
-        color={Colors.getChainColor(activeChain)}
-        size='normal'
-        className='w-[344px] py-3 mt-4'
+      <Button
+        className='w-full mt-6'
         disabled={!selectedOption || !!gasError || isSimulating}
         onClick={() => onSubmitVote(selectedOption as VoteOptions)}
       >
-        {isSimulating ? <LoaderAnimation color={Colors.white100} /> : 'Approve'}
-      </Buttons.Generic>
+        Submit
+      </Button>
     </BottomModal>
   )
 }
@@ -162,13 +174,13 @@ export const NtrnCastVote = observer(
     forceChain,
     forceNetwork,
   }: CastVoteProps) => {
+    const [showTxPage, setShowTxPage] = useState(false)
     const getWallet = useGetWallet(forceChain)
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, {
       activeChain: forceChain,
       selectedNetwork: forceNetwork,
     })
-    const txCallback = useTxCallBack()
 
     const {
       setFeeDenom,
@@ -204,6 +216,13 @@ export const NtrnCastVote = observer(
       [setFeeDenom],
     )
 
+    const modifiedCallback: TxCallback = useCallback(
+      (status) => {
+        setShowTxPage(true)
+      },
+      [setShowTxPage],
+    )
+
     // initialize gasPriceOption with correct defaultGasPrice.gasPrice
     useEffect(() => {
       setGasPriceOption({
@@ -232,7 +251,7 @@ export const NtrnCastVote = observer(
         const wallet = await getWallet()
         await handleVote({
           wallet,
-          callback: txCallback,
+          callback: modifiedCallback,
           voteOption: selectedVoteOption as VoteOptions,
           proposalId: Number(proposalId),
         })
@@ -292,6 +311,15 @@ export const NtrnCastVote = observer(
             gasOption={gasPriceOption.option}
             forceChain={forceChain}
           />
+          {showTxPage && (
+            <VoteTxnSheet
+              isOpen={showTxPage}
+              onClose={() => setShowTxPage(false)}
+              forceChain={forceChain}
+              forceNetwork={forceNetwork}
+              refetchVote={refetchVote}
+            />
+          )}
         </GasPriceOptions>
       </div>
     )

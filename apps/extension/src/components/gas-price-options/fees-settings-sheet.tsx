@@ -1,10 +1,11 @@
-import { Buttons } from '@leapwallet/leap-ui'
-import BottomModal from 'components/bottom-modal'
-import { useChainPageInfo } from 'hooks'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import React from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
+import { cn } from 'utils/cn'
 
+import { useGasPriceContext } from './context'
 import GasPriceOptions from './index'
 
 type FeesSettingsSheetProps = {
@@ -20,50 +21,52 @@ export const FeesSettingsSheet: React.FC<FeesSettingsSheetProps> = ({
   gasError,
   hideAdditionalSettings,
 }) => {
-  const { topChainColor } = useChainPageInfo()
+  const { setViewAdditionalOptions, viewAdditionalOptions } = useGasPriceContext()
+
   return (
     <BottomModal
       isOpen={showFeesSettingSheet}
-      closeOnBackdropClick={true}
       title='Transaction Fees'
-      onClose={onClose}
+      onClose={() => {
+        onClose()
+        setViewAdditionalOptions(false)
+      }}
     >
-      <div>
-        <h3 className='text-gray-700 dark:text-gray-400 font-bold text-sm'>
-          About transaction fee
-        </h3>
-        <p className='text-gray-800 dark:text-white-100 dark:text-white mt-2'>
+      <div
+        className={cn('flex flex-col', {
+          'gap-y-8 mb-10': !viewAdditionalOptions,
+          'gap-y-5 mb-6': viewAdditionalOptions,
+        })}
+      >
+        <p className='text-sm font-medium text-secondary-800'>
           Transaction fee is charged by the network. Higher the transaction fee, faster the
           transaction will go through.
         </p>
-        <GasPriceOptions.Selector className='mt-4' />
+
+        <GasPriceOptions.Selector />
+
         {!hideAdditionalSettings && (
-          <div className='flex justify-end w-full mt-4'>
-            <GasPriceOptions.AdditionalSettingsToggle />
+          <div className='w-full flex-col border border-secondary-200 flex items-center justify-between rounded-2xl overflow-hidden'>
+            <div className='w-full'>
+              <GasPriceOptions.AdditionalSettingsToggle />
+            </div>
+            <GasPriceOptions.AdditionalSettings
+              showGasLimitWarning={true}
+              gasError={gasError}
+              rootBalanceStore={rootBalanceStore}
+              rootDenomsStore={rootDenomsStore}
+            />
           </div>
         )}
-        {!hideAdditionalSettings && (
-          <GasPriceOptions.AdditionalSettings
-            className='mt-4'
-            showGasLimitWarning={true}
-            rootDenomsStore={rootDenomsStore}
-            rootBalanceStore={rootBalanceStore}
-          />
-        )}
-
-        {gasError ? (
-          <p className='text-red-300 text-sm font-medium mt-3 px-1 text-center'>{gasError}</p>
-        ) : null}
-        <Buttons.Generic
-          color={topChainColor}
-          onClick={onClose}
-          disabled={gasError !== null}
-          className='!w-full mt-4'
-          data-testing-id='send-tx-fee-proceed-btn'
-        >
-          Proceed
-        </Buttons.Generic>
       </div>
+      <Button
+        onClick={onClose}
+        disabled={gasError !== null}
+        className='w-full'
+        data-testing-id='send-tx-fee-proceed-btn'
+      >
+        Confirm and proceed
+      </Button>
     </BottomModal>
   )
 }

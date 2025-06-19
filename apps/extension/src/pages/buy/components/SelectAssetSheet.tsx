@@ -1,9 +1,8 @@
-import BottomModal from 'components/bottom-modal'
-import { EmptyCard } from 'components/empty-card'
-import { SearchInput } from 'components/search-input'
+import { MagnifyingGlassMinus } from '@phosphor-icons/react'
+import BottomModal from 'components/new-bottom-modal'
 import TokenListSkeleton from 'components/Skeletons/TokenListSkeleton'
-import { AssetProps, useGetSupportedAssets } from 'hooks/kado/useGetSupportedAssets'
-import { Images } from 'images'
+import { SearchInput } from 'components/ui/input/search-input'
+import { AssetProps, useGetSupportedAssets } from 'hooks/swapped/useGetSupportedAssets'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
 
@@ -13,10 +12,11 @@ type SelectAssetSheetProps = {
   isVisible: boolean
   onClose: () => void
   onAssetSelect: (asset: AssetProps) => void
+  selectedAsset?: AssetProps
 }
 
 const SelectAssetSheet = observer(
-  ({ isVisible, onClose, onAssetSelect }: SelectAssetSheetProps) => {
+  ({ isVisible, onClose, onAssetSelect, selectedAsset }: SelectAssetSheetProps) => {
     const [searchTerm, setSearchTerm] = useState('')
     const { isLoading, data: supportedAssets = [] } = useGetSupportedAssets()
 
@@ -34,15 +34,16 @@ const SelectAssetSheet = observer(
       <BottomModal
         isOpen={isVisible}
         onClose={onClose}
-        closeOnBackdropClick={true}
-        title='Select Token'
+        fullScreen
+        title='Select token to buy'
+        className='!p-6'
       >
-        <div className='flex flex-col items-center h-full'>
+        <div className='flex flex-col items-center w-full pb-2'>
           <SearchInput
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             data-testing-id='buy-asset-input-search'
-            placeholder='Search token'
+            placeholder='Search Token'
             onClear={() => setSearchTerm('')}
           />
         </div>
@@ -50,24 +51,37 @@ const SelectAssetSheet = observer(
         {!isLoading && (
           <div>
             {assetList?.length === 0 && (
-              <EmptyCard
-                isRounded
-                subHeading='Try a different search term'
-                src={Images.Misc.Explore}
-                heading={`No results found`}
-                data-testing-id='select-asset-empty-card'
-              />
+              <div className='py-[80px] px-4 w-full flex-col flex  justify-center items-center gap-4'>
+                <MagnifyingGlassMinus
+                  size={64}
+                  className='dark:text-gray-50 text-gray-900 p-5 rounded-full bg-secondary-200'
+                />
+                <div className='flex flex-col justify-start items-center w-full gap-4'>
+                  <div className='text-lg text-center font-bold !leading-[21.5px] dark:text-white-100'>
+                    No tokens found
+                  </div>
+                  <div className='text-sm font-normal !leading-[22.4px] text-gray-400 dark:text-gray-400 text-center'>
+                    We couldn’t find a match. Try searching again or use a different keyword.
+                  </div>
+                </div>
+              </div>
             )}
             {assetList.length !== 0 &&
-              assetList.map((asset) => (
-                <AssetCard
-                  key={asset.id}
-                  symbol={asset.symbol}
-                  chainName={asset.chainName}
-                  assetImg={asset.assetImg}
-                  chainSymbolImageUrl={asset.chainSymbolImageUrl}
-                  onClick={() => onAssetSelect(asset)}
-                />
+              assetList.map((asset, index) => (
+                <>
+                  <AssetCard
+                    key={asset.id}
+                    symbol={asset.symbol}
+                    chainName={asset.chainName}
+                    assetImg={asset.assetImg}
+                    chainSymbolImageUrl={asset.chainSymbolImageUrl}
+                    onClick={() => onAssetSelect(asset)}
+                    isSelected={
+                      asset.symbol === selectedAsset?.symbol &&
+                      asset.chainId === selectedAsset?.chainId
+                    }
+                  />
+                </>
               ))}
           </div>
         )}

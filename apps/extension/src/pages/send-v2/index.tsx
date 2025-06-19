@@ -13,10 +13,9 @@ import useQuery from 'hooks/useQuery'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import React, { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
-import { evmBalanceStore } from 'stores/balance-store'
-import { aptosCoinDataStore } from 'stores/balance-store'
-import { chainTagsStore, compassTokensAssociationsStore } from 'stores/chain-infos-store'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { aptosCoinDataStore, chainFeatureFlagsStore, evmBalanceStore } from 'stores/balance-store'
+import { chainTagsStore } from 'stores/chain-infos-store'
 import {
   rootCW20DenomsStore,
   rootDenomsStore,
@@ -33,7 +32,7 @@ import { ReviewTransfer } from './components/reivew-transfer'
 import { SendContextProvider } from './context'
 
 const Send = () => {
-  usePageView(PageName.Send)
+  // usePageView(PageName.Send)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -95,7 +94,7 @@ const Send = () => {
               rootERC20DenomsStore={rootERC20DenomsStore}
               rootCW20DenomsStore={rootCW20DenomsStore}
               chainTagsStore={chainTagsStore}
-              compassSeiTokensAssociationsStore={compassTokensAssociationsStore}
+              chainFeatureFlagsStore={chainFeatureFlagsStore}
             />
 
             <AmountCard

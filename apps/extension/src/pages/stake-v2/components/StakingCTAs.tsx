@@ -1,14 +1,11 @@
 import { LSProvider, SelectedNetwork } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ThemeName } from '@leapwallet/leap-ui'
-import { Buttons } from '@leapwallet/leap-ui'
-import { useTheme } from '@leapwallet/leap-ui'
+import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import Text from 'components/text'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { StakeInputPageState } from '../StakeInputPage'
 
@@ -45,7 +42,7 @@ const StakingCTAs = observer(
         <Buttons.Generic
           size='normal'
           className='w-full'
-          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+          color={Colors.green600}
           onClick={async () => {
             navigate('/stake/input', {
               state: {

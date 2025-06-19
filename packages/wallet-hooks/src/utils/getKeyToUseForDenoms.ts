@@ -1,4 +1,5 @@
 import { APTOS_COIN, APTOS_FA } from '@aptos-labs/ts-sdk';
+import { getAddress } from '@ethersproject/address';
 import {
   APTOS_CHAINS,
   aptosChainNativeFATokenMapping,
@@ -30,6 +31,14 @@ export function getKeyToUseForDenoms(denom: string, originChainId: string) {
 
   if (['noble-1', 'grand-1', 'noble'].includes(originChainId) && _denom === 'uusdc') {
     return 'usdc';
+  }
+
+  if (['babylon', 'bbn-test-5'].includes(originChainId) && _denom === 'ubbn') {
+    return 'tubbn';
+  }
+
+  if (originChainId === '1' && _denom.startsWith('0x')) {
+    return getAddress(_denom);
   }
 
   return _denom;

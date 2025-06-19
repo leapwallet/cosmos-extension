@@ -22,6 +22,16 @@ export function Value({ children }: KeyProps) {
   )
 }
 
+export function KeyNew({ children }: KeyProps) {
+  return <div className='text-sm font-medium !leading-[22px] text-muted-foreground'>{children}</div>
+}
+
+export function ValueNew({ children }: KeyProps) {
+  return (
+    <div className='text-md font-bold !leading-[22px] text-foreground break-all'>{children}</div>
+  )
+}
+
 export const Divider = (
   <div className='my-0.5 border-[0.05px] border-solid border-white-100 dark:border-gray-800 opacity-50' />
 )

@@ -3,8 +3,6 @@ import {
   AutoFetchedCW20DenomsStore,
   BetaCW20DenomsStore,
   BetaERC20DenomsStore,
-  CompassSeiTokensAssociationStore,
-  CompassTokenTagsStore,
   CW20DenomBalanceStore,
   CW20DenomsStore,
   DisabledCW20DenomsStore,
@@ -36,8 +34,6 @@ export const SwapContextProvider = observer(
     cw20DenomBalanceStore,
     betaERC20DenomsStore,
     erc20DenomsStore,
-    compassTokenTagsStore,
-    compassTokensAssociationsStore,
     priceStore,
   }: {
     children: React.ReactNode
@@ -52,8 +48,6 @@ export const SwapContextProvider = observer(
     cw20DenomBalanceStore: CW20DenomBalanceStore
     betaERC20DenomsStore: BetaERC20DenomsStore
     erc20DenomsStore: ERC20DenomsStore
-    compassTokenTagsStore: CompassTokenTagsStore
-    compassTokensAssociationsStore: CompassSeiTokensAssociationStore
     priceStore: PriceStore
   }) => {
     const value = useSwapsTx({
@@ -68,8 +62,6 @@ export const SwapContextProvider = observer(
       cw20DenomBalanceStore,
       betaERC20DenomsStore,
       erc20DenomsStore,
-      compassTokenTagsStore,
-      compassTokensAssociationsStore,
       priceStore,
     })
 

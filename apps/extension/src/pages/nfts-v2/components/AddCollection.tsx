@@ -2,14 +2,10 @@ import {
   BETA_EVM_NFT_TOKEN_IDS,
   BETA_NFT_CHAINS,
   BETA_NFTS_COLLECTIONS,
-  ENABLED_NFTS_COLLECTIONS,
   NftChain,
   StoredBetaNftCollection,
   useChainApis,
   useDisabledNFTsCollections,
-  useEnabledNftsCollectionsStore,
-  useIsSeiEvmChain,
-  useSelectedNetwork,
   useSetDisabledNFTsInStorage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { CosmWasmClientHandler } from '@leapwallet/cosmos-wallet-hooks/dist/utils/useCosmWasmClient'
@@ -42,11 +38,11 @@ import {
   betaNftChainsStore,
   betaNftsCollectionsStore,
   nftChainsStore,
+  nftStore,
 } from 'stores/nft-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 import Browser from 'webextension-polyfill'
@@ -58,23 +54,20 @@ type AddCollectionProps = Omit<ManageCollectionsProps, 'openAddCollectionSheet'>
 }
 
 export const AddCollection = observer(
-  ({ isVisible, onClose, chainTagsStore, nftStore }: AddCollectionProps) => {
+  ({ isVisible, onClose, chainTagsStore }: AddCollectionProps) => {
     const chainInfos = useChainInfos()
     let activeChain = useActiveChain()
     if ((activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY) {
       activeChain = 'cosmos'
     }
 
-    const activeNetwork = useSelectedNetwork()
     const defaultTokenLogo = useDefaultTokenLogo()
     const timeoutIdRef = useRef<NodeJS.Timeout>()
 
     const [showSelectChain, setShowSelectChain] = useState(false)
     const [enteredCollection, setEnteredCollection] = useState('')
     const [enteredTokenId, setEnteredTokenId] = useState('')
-    const [selectedChain, setSelectedChain] = useState<SupportedChain>(
-      isCompassWallet() ? activeChain : ('' as SupportedChain),
-    )
+    const [selectedChain, setSelectedChain] = useState<SupportedChain>('' as SupportedChain)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [nftInfo, setNftInfo] = useState<{ [key: string]: any }>({})
@@ -84,7 +77,6 @@ export const AddCollection = observer(
     const nftChains = [...nftChainsStore.nftChains, ...betaNftChainsStore.betaNftChains]
     const disabledNFTsCollections = useDisabledNFTsCollections()
     const setDisabledNFTsCollections = useSetDisabledNFTsInStorage()
-    const { enabledNftsCollections, setEnabledNftsCollections } = useEnabledNftsCollectionsStore()
 
     const chain = useMemo(
       () => (selectedChain ? selectedChain : activeChain),
@@ -95,16 +87,11 @@ export const AddCollection = observer(
         return 'mainnet'
       }
 
-      if (isCompassWallet()) {
-        return activeNetwork
-      }
-
       return chainInfos[chain].chainId === chainInfos[chain].testnetChainId ? 'testnet' : 'mainnet'
-    }, [activeChain, activeNetwork, chain, chainInfos])
+    }, [activeChain, chain, chainInfos])
 
     const walletAddresses = useGetWalletAddresses(selectedChain)
     const { rpcUrl, evmJsonRpc } = useChainApis(chain, forceNetwork)
-    const isSeiEvmChain = useIsSeiEvmChain()
 
     const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
     const showTokenIdInput = useMemo(() => {
@@ -112,7 +99,7 @@ export const AddCollection = observer(
     }, [enteredCollection])
 
     useEffect(() => {
-      setSelectedChain(isCompassWallet() ? activeChain : ('' as SupportedChain))
+      setSelectedChain('' as SupportedChain)
     }, [activeChain])
 
     useEffect(() => {
@@ -135,7 +122,7 @@ export const AddCollection = observer(
             let contractInfo = { name: '' }
 
             if (
-              (isSeiEvmChain || chainInfos[selectedChain]?.evmOnlyChain) &&
+              chainInfos[selectedChain]?.evmOnlyChain &&
               enteredCollection.toLowerCase().startsWith('0x') &&
               evmJsonRpc
             ) {
@@ -232,7 +219,6 @@ export const AddCollection = observer(
       walletAddresses,
       rpcUrl,
       selectedChain,
-      isSeiEvmChain,
       evmJsonRpc,
       showTokenIdInput,
       enteredTokenId,
@@ -292,9 +278,7 @@ export const AddCollection = observer(
     const handleToggleClick = async (isEnabled: boolean) => {
       setNftInfo((prevValue) => ({ ...prevValue, enable: isEnabled }))
 
-      const existingEnabledNftsCollections = enabledNftsCollections?.[selectedChain] ?? []
       let _disabledNFTsCollections: string[] = []
-      let _enabledNftsCollections: string[] = []
 
       let hasToSetInfo = true
       let hasToSetEvmTokenIds = true
@@ -309,10 +293,6 @@ export const AddCollection = observer(
         _disabledNFTsCollections = disabledNFTsCollections.filter(
           (collection) => collection !== enteredCollection,
         )
-
-        if (isCompassWallet() && !existingEnabledNftsCollections.includes(enteredCollection)) {
-          _enabledNftsCollections = [...existingEnabledNftsCollections, enteredCollection]
-        }
 
         if (storage[BETA_NFTS_COLLECTIONS]) {
           const parsedData: StoredBetaNftCollection[] =
@@ -338,28 +318,9 @@ export const AddCollection = observer(
         if (!_disabledNFTsCollections.includes(enteredCollection)) {
           _disabledNFTsCollections = [...disabledNFTsCollections, enteredCollection]
         }
-
-        if (isCompassWallet()) {
-          _enabledNftsCollections = existingEnabledNftsCollections.filter(
-            (collection) => collection !== enteredCollection,
-          )
-        }
       }
 
       await setDisabledNFTsCollections(_disabledNFTsCollections)
-
-      if (isCompassWallet()) {
-        setEnabledNftsCollections({
-          ...enabledNftsCollections,
-          [selectedChain]: _enabledNftsCollections,
-        })
-        await Browser.storage.local.set({
-          [ENABLED_NFTS_COLLECTIONS]: JSON.stringify({
-            ...enabledNftsCollections,
-            [selectedChain]: _enabledNftsCollections,
-          }),
-        })
-      }
 
       if (hasToSetInfo) {
         const newCollection = {
@@ -527,7 +488,7 @@ export const AddCollection = observer(
         </BottomModal>
 
         <SelectChainSheet
-          chainsToShow={isCompassWallet() ? [chainInfos[activeChain].chainRegistryPath] : undefined}
+          chainsToShow={undefined}
           onPage='AddCollection'
           isVisible={showSelectChain}
           onClose={() => setShowSelectChain(false)}

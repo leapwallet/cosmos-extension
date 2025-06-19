@@ -73,7 +73,7 @@ import {
 } from '../utils';
 import { fetchCurrency } from '../utils/findUSDValue';
 import { getNativeDenom } from '../utils/getNativeDenom';
-import { capitalize, formatTokenAmount } from '../utils/strings';
+import { capitalize, formatTokenAmount, sliceWord } from '../utils/strings';
 import { useChainId, useGetFeeMarketGasPricesSteps, useHasToCalculateDynamicFee } from '../utils-hooks';
 
 type StakeTxHandler = Tx | InjectiveTx | EthermintTxHandler;
@@ -464,6 +464,32 @@ export function useStakeTx(
       subtitle1 = `Validator ${toValidator?.moniker ?? 'Unkown'}`;
     }
 
+    let subtitle2: string = '';
+    const value = formatTokenAmount(amount, activeStakingDenom.coinDenom, 4);
+
+    switch (mode) {
+      case 'DELEGATE':
+        subtitle2 = `You staked ${value} to ${sliceWord(
+          toValidator.moniker,
+          15,
+        )}. Your rewards will start accumulating shortly`;
+        break;
+      case 'UNDELEGATE':
+        subtitle2 = `You unstaked ${value} from ${sliceWord(
+          toValidator.moniker,
+          15,
+        )}. Funds will be available after the unbonding period`;
+        break;
+      case 'REDELEGATE':
+        subtitle2 = `You redelegated ${value} to ${toValidator.moniker} successfully`;
+        break;
+      case 'CANCEL_UNDELEGATION':
+        subtitle2 = `You cancelled unstake of ${value} successfully`;
+        break;
+      case 'CLAIM_REWARDS':
+        subtitle2 = (delegations ?? []).length > 0 ? `You claimed ${value} from ${delegations?.length} validators` : '';
+    }
+
     setPendingTx({
       img: chainInfos[activeChain].chainSymbolImageUrl,
       [amtKey]: formatTokenAmount(amount, activeStakingDenom.coinDenom, 4),
@@ -471,6 +497,7 @@ export function useStakeTx(
       sentTokenInfo: denom,
       title1: `${capitalize(title)}`,
       subtitle1,
+      subtitle2,
       title2: 'Transaction Successful',
       txStatus: 'loading',
       txType: mode === 'DELEGATE' || mode === 'REDELEGATE' ? 'delegate' : 'undelegate',
@@ -763,7 +790,7 @@ export function useStakeTx(
         setError(undefined);
       }
     } catch (e: any) {
-      if (e instanceof LedgerError) {
+      if (e instanceof LedgerError || e.message.includes('Ledger')) {
         setLedgerError(e.message.toString());
       } else {
         setError(e.message.toString());
@@ -901,7 +928,9 @@ export function useIsCancleUnstakeSupported(
   const { data: isCancleUnstakeSupported } = useQuery(
     [['@cancelUnstakingSupport', activeChain, selectedNetwork, unboundingDelegation?.validator_address]],
     async () => {
-      if (chains[activeChain].bip44.coinType === '60' || activeChain === 'injective') return false;
+      if ((activeChain !== 'initiaEvm' && chains[activeChain].bip44.coinType === '60') || activeChain === 'injective') {
+        return false;
+      }
       return await checkIsCancelUnstakeSupported();
     },
     {

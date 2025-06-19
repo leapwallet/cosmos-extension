@@ -1,19 +1,28 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { PageName } from 'config/analytics'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { usePageView } from 'hooks/analytics/usePageView'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { useAlphaUser } from 'hooks/useAlphaUser'
+import { observer } from 'mobx-react-lite'
 import React from 'react'
-import { AggregatedSupportedChain } from 'types/utility'
+import { homePageViewStore } from 'stores/home-pageview-store'
 
-import { AggregatedHome, ChainHome } from './components'
+import { GeneralHome } from './components'
 
-export default function Home() {
-  usePageView(PageName.Home)
-  const activeChain = useActiveChain() as AggregatedSupportedChain
+const Home = observer(() => {
+  const { activeWallet } = useActiveWallet()
+  const { alphaUser } = useAlphaUser(activeWallet?.addresses?.cosmos ?? '')
+  usePageView(
+    PageName.Home,
+    !homePageViewStore.hasSeen,
+    {
+      isChad: alphaUser?.isChad ?? false,
+    },
+    () => {
+      homePageViewStore.updateSeen(true)
+    },
+  )
 
-  if (activeChain === AGGREGATED_CHAIN_KEY) {
-    return <AggregatedHome />
-  }
+  return <GeneralHome />
+})
 
-  return <ChainHome />
-}
+export default Home

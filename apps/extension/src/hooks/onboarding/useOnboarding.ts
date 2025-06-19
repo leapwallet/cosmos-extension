@@ -1,23 +1,37 @@
 import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
-import { importLedgerAccount } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, importLedgerAccountV2 } from '@leapwallet/cosmos-wallet-sdk'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
-import { KeyChain } from '@leapwallet/leap-keychain'
+import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
+import {
+  BtcWalletHD,
+  EthWallet,
+  generateWalletFromMnemonic,
+  getFullHDPath,
+  KeyChain,
+  NETWORK,
+} from '@leapwallet/leap-keychain'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { LEDGER_NETWORK } from 'pages/onboarding/import/import-wallet-context'
 import { useEffect, useRef, useState } from 'react'
+import { getDerivationPathToShow } from 'utils'
+import {
+  customKeygenfnMove,
+  customKeygenfnSolana,
+  customKeygenfnSui,
+} from 'utils/getChainInfosList'
 import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
-export type Addresses = Record<number, Record<string, { address: string; pubKey: Uint8Array }>>
+import { Address, Addresses, WalletAccount } from './types'
 
 export function useOnboarding() {
-  const [walletAccounts, setWalletAccounts] =
-    useState<{ address: string; index: number; pubkey: Uint8Array | null }[]>()
+  const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>()
+  const [customWalletAccounts, setCustomWalletAccounts] = useState<WalletAccount[]>()
+  const [mnemonic, setMnemonic] = useState('')
 
   const importWalletAccounts = Wallet.useImportMultipleWalletAccounts()
   const { chains } = useChainsStore()
 
-  const [mnemonic, setMnemonic] = useState('')
   const saveLedgerWallet = Wallet.useSaveLedgerWallet()
   const addresses = useRef<Addresses>()
 
@@ -32,6 +46,14 @@ export function useOnboarding() {
     addresses.current = _addresses
   }
 
+  const updateAddresses = (pathWiseAddresses: Record<string, Record<string, Address>>) => {
+    const newAddresses = Object.assign(addresses.current ?? {}, {})
+    Object.entries(pathWiseAddresses).forEach(([path, chainAddresses]) => {
+      newAddresses[path] = { ...newAddresses[path], ...chainAddresses }
+    })
+    setAddresses(newAddresses)
+  }
+
   const onOnboardingComplete = (
     mnemonic: string,
     password: Uint8Array,
@@ -42,210 +64,278 @@ export function useOnboarding() {
       return importWalletAccounts({
         mnemonic,
         password,
+        type,
         selectedAddressIndexes: Object.entries(selectedIds)
           .filter(([, selected]) => selected)
           .map(([addressIndex]) => parseInt(addressIndex)),
-        type,
       })
     }
   }
 
-  const onBoardingCompleteLedger = async (password: Uint8Array, selectedAddresses: string[]) => {
+  const onBoardingCompleteLedger = async (
+    password: Uint8Array,
+    selectedPaths: string[],
+    existingAddresses: string[],
+  ) => {
     if (password) {
-      const accountsToSave = Object.entries(addresses.current ?? {})
-        .filter(([, addressInfo]) => {
-          const primaryChain: SupportedChain = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
-          return selectedAddresses.indexOf(addressInfo[primaryChain].address) > -1
-        })
-        .reduce(
-          (
-            acc: Record<
-              number,
-              { chainAddresses: Record<string, { address: string; pubKey: Uint8Array }> }
-            >,
-            addressEntry,
-          ) => {
-            const [addressIndex, addressInfo] = addressEntry
-            acc[parseInt(addressIndex)] = { chainAddresses: addressInfo }
+      const selectedCurrentAddresses = Object.entries(addresses.current ?? {}).filter(([path]) => {
+        return selectedPaths.includes(path)
+      })
+
+      const accountsToSave = selectedCurrentAddresses.reduce(
+        (
+          acc: Record<
+            string,
+            {
+              chainAddresses: Record<string, Address>
+              isCosmosAddressPresent: boolean
+              isEvmAddressPresent: boolean
+            }
+          >,
+          addressEntry,
+        ) => {
+          const [addressIndex, addressInfo] = addressEntry
+
+          const isCosmosAddressPresent =
+            !!addressInfo?.cosmos?.address && existingAddresses.includes(addressInfo.cosmos.address)
+
+          const isEvmAddressPresent =
+            !!addressInfo?.ethereum?.address &&
+            existingAddresses.includes(addressInfo.ethereum.address)
+
+          if (isCosmosAddressPresent && isEvmAddressPresent) {
             return acc
+          }
+
+          acc[addressIndex] = {
+            chainAddresses: addressInfo,
+            isCosmosAddressPresent,
+            isEvmAddressPresent,
+          }
+          return acc
+        },
+        {},
+      )
+
+      const selectedAccountsPubKeys = Object.keys(accountsToSave).reduce((acc, path) => {
+        const primaryChain: SupportedChain = 'cosmos'
+        const alternateChain: SupportedChain = 'ethereum'
+        const account = accountsToSave[path]
+
+        const pubkey = account?.isCosmosAddressPresent
+          ? account?.chainAddresses?.[primaryChain]?.pubKey
+          : account?.isEvmAddressPresent
+          ? account?.chainAddresses?.[alternateChain]?.pubKey
+          : account?.chainAddresses?.[primaryChain]?.pubKey ??
+            account?.chainAddresses?.[alternateChain]?.pubKey
+
+        return {
+          ...acc,
+          [path]: {
+            pubkey,
+            path: getDerivationPathToShow(path),
           },
-          {},
-        )
+        }
+      }, {})
+
       await saveLedgerWallet({
         addresses: accountsToSave,
         password,
-        pubKeys: (walletAccounts ?? []).map((account) => account.pubkey as Uint8Array),
+        pubKeys: selectedAccountsPubKeys,
       })
     }
   }
 
   const getAccountDetails = async (mnemonic: string) => {
-    const addressPrefix = isCompassWallet() ? 'sei' : 'cosmos'
-    const walletAccounts = await KeyChain.getWalletsFromMnemonic(mnemonic, 5, '118', addressPrefix)
-    setWalletAccounts(walletAccounts)
-  }
-
-  function mergeAddresses(addressesNew: Addresses, addressesOriginal: Addresses) {
-    const addressIndexes = Object.keys(addressesOriginal).map((addressIndex) =>
-      parseInt(addressIndex),
+    const walletAccounts = await KeyChain.getWalletsFromMnemonic(
+      mnemonic,
+      5,
+      '118',
+      ChainInfos.cosmos.addressPrefix,
     )
 
-    const updatedAddresses = { ...addressesOriginal }
+    const walletAccountsWithAdditionalAddresses = await Promise.all(
+      walletAccounts.map(async (account) => {
+        // Generate EVM address
+        const evmHdPath = getHDPath('60', account.index.toString())
+        const evmWallet = generateWalletFromMnemonic(mnemonic, {
+          hdPath: evmHdPath,
+          addressPrefix: ChainInfos.ethereum.addressPrefix,
+          ethWallet: false,
+        })
 
-    for (const addressIndex of addressIndexes) {
-      if (updatedAddresses[addressIndex]) {
-        updatedAddresses[addressIndex] = {
-          ...updatedAddresses[addressIndex],
-          ...addressesNew[addressIndex],
+        // Generate Bitcoin address
+        const btcHdPath = getFullHDPath('84', account.index.toString())
+        const btcWallet = BtcWalletHD.generateWalletFromMnemonic(mnemonic, {
+          addressPrefix: ChainInfos.bitcoin.addressPrefix,
+          paths: [btcHdPath],
+          network: ChainInfos.bitcoin.btcNetwork || NETWORK,
+        })
+
+        // Generate Aptos address
+        const aptosHdPath = getHDPath('637', account.index.toString())
+        const aptosAccount = await customKeygenfnMove(mnemonic, aptosHdPath, 'seedPhrase')
+
+        // Generate Solana address
+        const solanaHdPath = getHDPath('501', account.index.toString())
+        const solanaAccount = await customKeygenfnSolana(mnemonic, solanaHdPath, 'seedPhrase')
+
+        // Generate Sui address
+        const suiHdPath = getHDPath('784', account.index.toString())
+        const suiAccount = await customKeygenfnSui(mnemonic, suiHdPath, 'seedPhrase')
+
+        const evmAddress =
+          evmWallet instanceof EthWallet
+            ? evmWallet.getAccountWithHexAddress()[0]?.address
+            : undefined
+        const bitcoinAddress = btcWallet.getAccounts()[0]?.address
+        const moveAddress = aptosAccount?.address
+        const solanaAddress = solanaAccount?.address
+        const suiAddress = suiAccount?.address
+
+        return {
+          ...account,
+          evmAddress,
+          bitcoinAddress,
+          moveAddress,
+          solanaAddress,
+          suiAddress,
         }
-      } else {
-        updatedAddresses[addressIndex] = addressesNew[addressIndex]
-      }
-    }
-
-    const newAddressIndexes = Object.keys(addressesNew).map((addressIndex) =>
-      parseInt(addressIndex),
+      }),
     )
 
-    for (const addressIndex of newAddressIndexes) {
-      if (!updatedAddresses[addressIndex]) {
-        updatedAddresses[addressIndex] = addressesNew[addressIndex]
-      }
-    }
-
-    return updatedAddresses
+    setWalletAccounts(walletAccountsWithAdditionalAddresses)
   }
 
-  const getEvmLedgerAccountDetails = async () => {
-    const useEvmApp = true
-    const defaultChainCosmos = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
-    const defaultChainEth = 'injective'
+  const getChainDetails = () => {
+    const chainInfos = {} as Record<
+      SupportedChain,
+      { addressPrefix: string; enabled: boolean; coinType: string }
+    >
+
+    for (const chainEntry of Object.entries(chains)) {
+      const [chain, chainInfo] = chainEntry
+      chainInfos[chain as SupportedChain] = {
+        addressPrefix: chainInfo.addressPrefix,
+        enabled: chainInfo.enabled,
+        coinType: chainInfo.bip44.coinType,
+      }
+    }
+    return chainInfos
+  }
+
+  const getLedgerAccountDetails = async (app: LEDGER_NETWORK) => {
+    const primaryChain = app === LEDGER_NETWORK.ETH ? 'ethereum' : 'cosmos'
+    const defaultIndexes = [0, 1, 2, 3, 4]
     const ledgerEnabledEvmChains = getLedgerEnabledEvmChainsKey(Object.values(chains))
-    const { chainWiseAddresses } = await importLedgerAccount(
-      [0, 1, 2, 3, 4],
-      useEvmApp,
-      useEvmApp ? defaultChainEth : defaultChainCosmos,
-      ledgerEnabledEvmChains,
-      chains,
-    )
+    const chainsToImport = app === LEDGER_NETWORK.ETH ? ledgerEnabledEvmChains : []
+    const chainInfos = getChainDetails()
 
-    const newAddresses: Addresses = {}
-    for (const [chain, chainAddresses] of Object.entries(chainWiseAddresses)) {
-      let index = 0
-      for (const address of chainAddresses) {
-        if (newAddresses[index]) {
-          newAddresses[index][chain] = address
-        } else {
-          newAddresses[index] = { [chain]: address }
-        }
-        index += 1
-      }
-    }
-    if (addresses.current) {
-      const updatedAddresses = mergeAddresses(newAddresses, addresses.current)
-      setAddresses(updatedAddresses)
-    } else {
-      setAddresses(newAddresses)
-    }
+    const { pathWiseAddresses } = await importLedgerAccountV2(app, defaultIndexes, undefined, {
+      primaryChain,
+      chainsToImport,
+      chainInfos,
+    })
+
+    updateAddresses(pathWiseAddresses)
   }
 
-  const getLedgerAccountDetails = async (useEvmApp: boolean) => {
-    const defaultChainCosmos = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
-    const defaultChainEth = 'injective'
+  const getLedgerAccountDetailsForIdxs = async (app: LEDGER_NETWORK, idxs: number[]) => {
+    const primaryChain = app === LEDGER_NETWORK.ETH ? 'ethereum' : 'cosmos'
+    const chainInfos = getChainDetails()
+    const ledgerEnabledEvmChains = getLedgerEnabledEvmChainsKey(Object.values(chains))
+    const chainsToImport = app === LEDGER_NETWORK.ETH ? ledgerEnabledEvmChains : []
 
-    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccount(
-      [0, 1, 2, 3, 4],
-      useEvmApp,
-      useEvmApp ? defaultChainEth : defaultChainCosmos,
-      [],
-      chains,
-    )
-
-    setWalletAccounts(
-      primaryChainAccount.map((account, index) => ({
-        address: account.address,
-        pubkey: account.pubkey,
-        index,
-      })),
-    )
-
-    const newAddresses: Addresses = {}
-    for (const [chain, chainAddresses] of Object.entries(chainWiseAddresses)) {
-      let index = 0
-
-      for (const address of chainAddresses) {
-        if (newAddresses[index]) {
-          newAddresses[index][chain] = address
-        } else {
-          newAddresses[index] = { [chain]: address }
-        }
-
-        index += 1
-      }
-    }
-
-    if (addresses.current) {
-      const updatedAddresses = mergeAddresses(newAddresses, addresses.current)
-      setAddresses(updatedAddresses)
-    } else {
-      setAddresses(newAddresses)
-    }
-  }
-
-  const getLedgerAccountDetailsForIdxs = async (useEvmApp: boolean, idxs: number[]) => {
-    const defaultChainCosmos = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
-    const defaultChainEth = 'injective'
-
-    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccount(
+    const { primaryChainAccount, pathWiseAddresses } = await importLedgerAccountV2(
+      app,
       idxs,
-      useEvmApp,
-      useEvmApp ? defaultChainEth : defaultChainCosmos,
-      //Added as a placeholder
-      [],
-      chains,
+      undefined,
+      {
+        primaryChain,
+        chainsToImport,
+        chainInfos,
+      },
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setWalletAccounts((prev: any) => [
       ...(prev ?? []),
       ...primaryChainAccount.map((account, index) => ({
         address: account.address,
         pubkey: account.pubkey,
         index: (prev ?? []).length + index,
+        // @ts-ignore
+        path: account.path,
       })),
     ])
 
-    const newAddresses: Addresses = {}
-    for (const [chain, chainAddresses] of Object.entries(chainWiseAddresses)) {
-      let index = idxs[0]
+    updateAddresses(pathWiseAddresses)
+  }
 
-      for (const address of chainAddresses) {
-        if (newAddresses[index]) {
-          newAddresses[index][chain] = address
-        } else {
-          newAddresses[index] = { [chain]: address }
-        }
+  const getCustomLedgerAccountDetails = async (
+    app: LEDGER_NETWORK,
+    customDerivationPath: string,
+    name: string,
+    existingAddresses: string[] | undefined,
+  ) => {
+    const allAccounts = [...(walletAccounts ?? []), ...(customWalletAccounts ?? [])]
+    const primaryChain = app === LEDGER_NETWORK.ETH ? 'ethereum' : 'cosmos'
 
-        index += 1
-      }
+    const chainInfos = getChainDetails()
+
+    const { primaryChainAccount, pathWiseAddresses } = await importLedgerAccountV2(
+      app,
+      [],
+      [customDerivationPath],
+      {
+        primaryChain,
+        chainsToImport: [],
+        chainInfos,
+      },
+    )
+
+    const isCustomAccountPresentAlready = allAccounts.some((account) => {
+      return (
+        !!account.path &&
+        customDerivationPath.includes(account.path) &&
+        account.address === primaryChainAccount[0].address
+      )
+    })
+
+    const isAddressPresentAlready =
+      !!primaryChainAccount?.[0]?.address &&
+      existingAddresses?.includes(primaryChainAccount[0].address)
+
+    if (isCustomAccountPresentAlready || isAddressPresentAlready) {
+      throw new Error('This account is already present. Kindly enter a different derivation path.')
     }
 
-    if (addresses.current) {
-      const updatedAddresses = mergeAddresses(newAddresses, addresses.current)
-      setAddresses(updatedAddresses)
-    } else {
-      setAddresses(newAddresses)
-    }
+    setCustomWalletAccounts((prev: any) => [
+      ...(prev ?? []),
+      ...primaryChainAccount.map((account, index) => ({
+        address: account.address,
+        pubkey: account.pubkey,
+        index: (prev ?? []).length + index,
+        // @ts-ignore
+        path: account.path,
+        name,
+      })),
+    ])
+
+    updateAddresses(pathWiseAddresses)
   }
 
   return {
+    addresses: addresses.current,
     mnemonic,
     walletAccounts,
+    setWalletAccounts,
+    customWalletAccounts,
+    setAddresses,
     getAccountDetails,
     getLedgerAccountDetails,
     onOnboardingComplete,
     onBoardingCompleteLedger,
-    getEvmLedgerAccountDetails,
     getLedgerAccountDetailsForIdxs,
+    getCustomLedgerAccountDetails,
   }
 }

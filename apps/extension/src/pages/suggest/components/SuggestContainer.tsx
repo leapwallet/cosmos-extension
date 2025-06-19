@@ -1,7 +1,7 @@
 import classNames from 'classnames'
 import { BG_RESPONSE, SUGGEST_TOKEN } from 'config/storage-keys'
 import React, { ReactNode, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'

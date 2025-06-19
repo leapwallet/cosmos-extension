@@ -48,8 +48,12 @@ export class FeeDenomsStore {
 
   getNativeFeeDenom(denoms: DenomsRecord, activeChain: SupportedChain, selectedNetwork: NetworkType) {
     const feeDenom = this.feeDenoms?.[selectedNetwork][activeChain];
-
     if (feeDenom && denoms[feeDenom]) {
+      // TODO: Remove this check and merge https://github.com/leapwallet/cosmos-chain-registry/pull/1283 after few months
+      if (activeChain === 'babylon' && feeDenom === 'ubbn') {
+        return denoms.tubbn;
+      }
+
       return denoms[feeDenom];
     }
 
@@ -63,7 +67,12 @@ export class FeeDenomsStore {
 
     const fallbackFeeDenom = fallbackFeeDenoms[selectedNetwork][activeChain];
     if (fallbackFeeDenom?.coinMinimalDenom) {
-      return denoms[fallbackFeeDenom.coinMinimalDenom] ?? fallbackFeeDenom;
+      let denomKey = fallbackFeeDenom.coinMinimalDenom;
+      if (activeChain === 'babylon' && denomKey === 'ubbn') {
+        denomKey = 'tubbn';
+      }
+
+      return denoms[denomKey] ?? fallbackFeeDenom;
     }
 
     return fallbackFeeDenom;

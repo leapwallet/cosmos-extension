@@ -8,6 +8,7 @@ import { CreatingWalletLoader } from '../create/creating-wallet-loader'
 import { ImportWalletProvider, useImportWalletContext } from './import-wallet-context'
 import ImportLedgerView from './ImportLedgerView'
 import { ImportWalletLayout } from './layout'
+import { LedgerFlow } from './ledger-flow/LedgerFlow'
 import SelectImportType from './select-import-type'
 import SelectLedgerWalletView from './SelectLedgerWalletView'
 import { SelectWalletView } from './SelectWalletView'
@@ -15,7 +16,6 @@ import { SelectWalletView } from './SelectWalletView'
 const OnboardingImportWalletView = observer(() => {
   const {
     currentStep,
-    importLedger,
     setSelectedIds,
     onOnboardingCompleted,
     moveToNextStep,
@@ -24,9 +24,7 @@ const OnboardingImportWalletView = observer(() => {
     importWalletFromSeedPhrase,
     privateKeyError,
     setPrivateKeyError,
-    ledgerConnectionStatus,
     selectedIds,
-    getLedgerAccountDetails,
     getLedgerAccountDetailsForIdxs,
     walletAccounts,
     prevStep,
@@ -36,7 +34,7 @@ const OnboardingImportWalletView = observer(() => {
   } = useImportWalletContext()
 
   return (
-    <AnimatePresence exitBeforeEnter presenceAffectsLayout>
+    <AnimatePresence mode='wait' presenceAffectsLayout>
       {currentStepName === 'loading' && <CreatingWalletLoader key='creating-wallet-loader' />}
 
       {currentStepName === 'select-import-type' && <SelectImportType key={'select-import-type'} />}
@@ -72,16 +70,23 @@ const OnboardingImportWalletView = observer(() => {
           onProceed={moveToNextStep}
         />
       )}
+      {/*currentStepName === 'select-ledger-app' && (
+        <SelectLedgerAppView
+          setSelectedApp={setSelectedApp}
+          onNext={() => moveToNextStep()}
+        />
+      )*/}
 
-      {currentStepName === 'import-ledger' && (
+      {/*currentStepName === 'import-ledger' && (
         <ImportLedgerView
           key={'import-ledger-view'}
-          retry={() => importLedger(getLedgerAccountDetails)}
-          onNext={() => importLedger(getLedgerAccountDetails)}
+          retry={() => importLedger(getLedgerAccountDetailsForIdxs)}
+          onNext={() => importLedger(getLedgerAccountDetailsForIdxs)}
           onSkip={moveToNextStep}
           status={ledgerConnectionStatus}
         />
-      )}
+      )*/}
+      {['select-ledger-app'].includes(currentStepName) && <LedgerFlow />}
 
       {currentStepName === 'select-ledger-wallet' && (
         <SelectLedgerWalletView

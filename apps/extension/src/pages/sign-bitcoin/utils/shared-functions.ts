@@ -1,5 +1,5 @@
 import { MessageTypes } from 'config/message-types'
-import { NavigateFunction } from 'react-router'
+import { NavigateFunction } from 'react-router-dom'
 import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 

@@ -7,6 +7,7 @@ import Bidds from './bidds.png'
 import CompassCircle from './compass-circle.svg'
 import CompassFullLogo from './compass-full-logo.svg'
 import CosmoStation from './cosmo-station.svg'
+import CosmosHubLogo from './cosmos.svg'
 import Dashboard from './dashboard.svg'
 import DegeNS from './degens.svg'
 import GenericDark from './generic-dark.svg'
@@ -29,6 +30,7 @@ import NomicFullnameLogo from './nomic-fullname-logo.svg'
 import Osmosis from './osmosis.svg'
 import Pallet from './pallet.svg'
 import Playstore from './playstore.svg'
+import SeiLogo from './sei.svg'
 import SNS from './sns.svg'
 import SpaceId from './space-id.svg'
 import StargazeNames from './stargaze-names.svg'
@@ -79,7 +81,6 @@ const ChainLogos: Record<string, string | undefined> = {
   passage: ChainInfos.passage.chainSymbolImageUrl,
   archway: ChainInfos.archway.chainSymbolImageUrl,
   terra: ChainInfos.terra.chainSymbolImageUrl,
-  quasar: ChainInfos.quasar.chainSymbolImageUrl,
   neutron: ChainInfos.neutron.chainSymbolImageUrl,
   mainCoreum: ChainInfos.mainCoreum.chainSymbolImageUrl,
   coreum: ChainInfos.coreum.chainSymbolImageUrl,
@@ -166,6 +167,7 @@ export {
   ChainLogos,
   CompassCircle,
   CompassFullLogo,
+  CosmosHubLogo,
   CosmoStation,
   Dashboard,
   DegeNS,
@@ -188,6 +190,7 @@ export {
   NomicFullnameLogo,
   Pallet,
   Playstore,
+  SeiLogo,
   SNS,
   StargazeNames,
   XLogo,

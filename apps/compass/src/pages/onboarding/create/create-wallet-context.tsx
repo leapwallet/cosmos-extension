@@ -2,7 +2,7 @@ import { sleep } from '@leapwallet/cosmos-wallet-sdk'
 import { useOnboarding } from 'hooks/onboarding/useOnboarding'
 import { usePrevious } from 'hooks/utility/usePrevious'
 import React, { useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { passwordStore } from 'stores/password-store'
 import browser from 'webextension-polyfill'
 

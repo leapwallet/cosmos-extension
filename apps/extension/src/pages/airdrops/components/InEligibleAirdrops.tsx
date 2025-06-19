@@ -1,8 +1,8 @@
 import { useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
 import { CaretDown, CaretUp } from '@phosphor-icons/react'
-import classNames from 'classnames'
 import Text from 'components/text'
 import React, { useState } from 'react'
+import { cn } from 'utils/cn'
 import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 
@@ -34,16 +34,13 @@ export default function InEligibleAirdrops() {
         </div>
       </div>
       {showMore && (
-        <div className='rounded-xl bg-white-100 dark:bg-gray-950 px-3 mt-3'>
+        <div className='mt-3'>
           {inEligibleAirdrops.map((d, index) => (
             <div
               key={index}
-              className={classNames(
-                'flex gap-2 items-center border-gray-100 dark:border-[#2C2C2C] py-3',
-                {
-                  'border-b': index !== inEligibleAirdrops.length - 1,
-                  'border-b-0': index == inEligibleAirdrops.length - 1,
-                },
+              className={cn(
+                'flex gap-2 items-center bg-secondary-100 hover:bg-secondary-200 py-3 cursor-pointer px-3 rounded-xl',
+                index !== inEligibleAirdrops.length - 1 && 'mb-4',
               )}
             >
               <img src={d.airdropIcon} alt='airdrop-icon' className='w-8 h-8 rounded-full' />

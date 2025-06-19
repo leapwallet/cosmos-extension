@@ -1,11 +1,9 @@
 // eslint-disable-next-line simple-import-sort/imports
 import { originalFetch } from './fetch-preserver'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { SupportedChain, getTopNode } from '@leapwallet/cosmos-wallet-sdk'
 import { BroadcastMode } from 'cosmjs-types/cosmos/tx/v1beta1/service'
 
 import { decodeChainIdToChain, getExperimentalChains } from './utils'
-const restUrlsApi =
-  'https://assets.leapwallet.io/cosmos-registry/v1/node-management-service/nms-REST.json'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function handleSendTx(data: any) {
@@ -44,9 +42,10 @@ export async function handleSendTx(data: any) {
     baseURL = experimentalChains?.[chain].apis.rest
   } else {
     try {
-      const res = await originalFetch(restUrlsApi)
-      const response = await res.json()
-      baseURL = response[data.chainId]?.[0]?.nodeUrl
+      const { nodeUrl } = getTopNode('rest', data.chainId) ?? {
+        nodeUrl: undefined,
+      }
+      baseURL = nodeUrl
     } catch (e) {
       //
     }

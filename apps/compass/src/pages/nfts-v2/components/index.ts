@@ -1,4 +1,3 @@
-export * from './AddCollection'
 export * from './All'
 export * from './AllNftsHidden'
 export * from './CantSeeNfts'

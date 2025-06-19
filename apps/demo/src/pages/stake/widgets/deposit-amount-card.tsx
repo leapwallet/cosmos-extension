@@ -2,7 +2,7 @@ import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import { Buttons } from '@leapwallet/leap-ui'
 import React from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import Text from '~/components/text'
 import { Colors } from '~/theme/colors'

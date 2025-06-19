@@ -1,5 +1,5 @@
 import { Info } from '@phosphor-icons/react'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
 import React from 'react'
 
@@ -12,12 +12,7 @@ type AboutAirdropsSheetProps = {
 
 export const AboutAirdropsSheet: React.FC<AboutAirdropsSheetProps> = ({ isOpen, onClose }) => {
   return (
-    <BottomModal
-      isOpen={isOpen}
-      closeOnBackdropClick={true}
-      onClose={onClose}
-      title='About Airdrops'
-    >
+    <BottomModal isOpen={isOpen} onClose={onClose} title='About Airdrops'>
       <Text size='sm' color='text-gray-800 dark:text-gray-200' className='font-medium mb-3'>
         Only active airdrops that Leap has partnered with for eligibility tracking are displayed
         here. For information on other airdrops, visit our Leap Dashboard.

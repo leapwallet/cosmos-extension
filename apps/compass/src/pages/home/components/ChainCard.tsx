@@ -53,26 +53,13 @@ const ChainCardView = ({
   const isWatchWalletNotAvailableChain =
     chainName !== 'aggregated' && activeWallet?.watchWallet && !activeWallet?.addresses[chainName]
 
-  const trackCTAEvent = (eventName: EventName) => {
-    try {
-      mixpanel.track(eventName, {
-        chainSelected: formattedChainName,
-        time: Date.now() / 1000,
-      })
-    } catch (e) {
-      captureException(e)
-    }
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onStarToggle = (e: any) => {
     e.stopPropagation()
     if (isStarred) {
       starredChainsStore.removeStarredChain(chainName)
-      trackCTAEvent(EventName.ChainUnfavorited)
     } else {
       starredChainsStore.addStarredChain(chainName)
-      trackCTAEvent(EventName.ChainFavorited)
     }
   }
 

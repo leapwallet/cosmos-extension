@@ -3,7 +3,6 @@ import {
   useActiveWallet,
   useAddress,
   useAddressPrefixes,
-  useChainApis,
   useChainsStore,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -11,7 +10,6 @@ import {
   getBlockChainFromAddress,
   isValidAddress,
   pubKeyToEvmAddressToShow,
-  SeiEvmTx,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { bech32 } from 'bech32'
@@ -24,11 +22,9 @@ import { useContactsSearch } from 'hooks/useContacts'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { manageChainsStore } from 'stores/manage-chains-store'
 import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
 
 import { IBCSettings } from '../ibc-banner'
@@ -95,7 +91,6 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
   const contactsToShow = useContactsSearch(recipientInputValue)
   const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
   const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
-  const { evmJsonRpc } = useChainApis(activeChain, activeNetwork)
 
   const handleOnChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,6 +173,7 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
       'sol', // for injective .sol domains by SNS
       ...['sei', 'pp'], // for degeNS
       'core', // for bdd
+      'i', //for celestials.id
     ]
     // ex: leap.arch --> name = leap, domain = arch
     const [, domain] = recipientInputValue.split('.')
@@ -240,7 +236,6 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
     !showNameServiceResults &&
     activeNetwork === 'mainnet' &&
     false
-  !isCompassWallet()
 
   const showSecondaryActions = showContactsButton || showMyWalletButton || showAddToContacts
 
@@ -303,24 +298,6 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
           recipientInputValue.length >= 42
         ) {
           await fetchAccountDetails(recipientInputValue)
-        }
-      } else if (
-        !collectionAddress.toLowerCase().startsWith('0x') &&
-        recipientInputValue &&
-        recipientInputValue.toLowerCase().startsWith('0x')
-      ) {
-        try {
-          const recipientSeiAddress = await SeiEvmTx.GetSeiAddressFromHex(
-            recipientInputValue,
-            evmJsonRpc,
-          )
-
-          setAssociatedSeiAddress(recipientSeiAddress)
-          setAddressWarning(
-            `Recipient will receive the NFT on associated Sei address: ${recipientSeiAddress}`,
-          )
-        } catch {
-          setAddressError('You can only send this NFT to a Sei address and not an EVM address.')
         }
       } else if (
         recipientInputValue &&
@@ -475,20 +452,8 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
       return
     }
 
-    if (isIBC && destinationChain && isCompassWallet()) {
-      const compassChains = manageChainsStore.chains.filter((chain) => chain.chainName !== 'cosmos')
-
-      if (!compassChains.find((chain) => chain.chainName === destinationChain)) {
-        const destinationChainName = chains[destinationChain as SupportedChain].chainName
-        const sourceChainName = chains[activeChain].chainName
-
-        setAddressError(`IBC not supported between ${destinationChainName} and ${sourceChainName}`)
-        return
-      }
-    }
-
     // check if destination chain is supported
-    if (destinationChain && ibcSupportData !== undefined && !isCompassWallet()) {
+    if (destinationChain && ibcSupportData !== undefined) {
       if (customIbcChannelId) {
         setAddressError('')
       } else {
@@ -511,7 +476,6 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
     chains,
     addressPrefixes,
     collectionAddress,
-    manageChainsStore.chains,
     associatedSeiAddress,
   ])
 
@@ -527,9 +491,7 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
 
   return (
     <div>
-      <motion.div
-        className={`card-container ${isIBCTransfer && !isCompassWallet() ? '!rounded-b-none' : ''}`}
-      >
+      <motion.div className={`card-container ${isIBCTransfer ? '!rounded-b-none' : ''}`}>
         <Text
           size='sm'
           className='text-gray-600 dark:text-gray-200 font-bold mb-3'
@@ -647,7 +609,7 @@ const RecipientCardView: React.FC<RecipientCardProps> = ({
         />
       </motion.div>
 
-      {isIBCTransfer && !isCompassWallet() && activeNetwork === 'mainnet' && destChainInfo ? (
+      {isIBCTransfer && activeNetwork === 'mainnet' && destChainInfo ? (
         <IBCSettings
           className='rounded-b-2xl'
           targetChain={destChainInfo.key}

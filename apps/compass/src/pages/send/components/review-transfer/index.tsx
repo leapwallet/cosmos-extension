@@ -76,7 +76,7 @@ export const ReviewTransfer = observer(
       feeDenom,
       gasError,
     } = useSendContext()
-    const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState(getWallet)
+    const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState()
     const { status: gasPriceStatus } = useGetEvmGasPrices(sendActiveChain, sendSelectedNetwork)
     const { status: aptosGasPriceStatus } = useGetAptosGasPrices(
       sendActiveChain,
@@ -285,15 +285,6 @@ export const ReviewTransfer = observer(
     ])
 
     const handleLinkAddressClick = async () => {
-      try {
-        mixpanel.track(EventName.ButtonClick, {
-          buttonName: ButtonName.LINK_ADDRESS,
-          walletAddresses,
-        })
-      } catch (_) {
-        //
-      }
-
       if (featureFlags?.link_evm_address?.extension === 'redirect') {
         const dAppLink = (await getSeiEvmInfo({
           activeNetwork: sendSelectedNetwork,
@@ -315,6 +306,7 @@ export const ReviewTransfer = observer(
           }
 
           await updateAddressLinkState({
+            wallet: getWallet,
             setError: setGasError,
             ethAddress: walletAddresses[0],
             token: result.response,
@@ -327,7 +319,11 @@ export const ReviewTransfer = observer(
         return
       }
 
-      await updateAddressLinkState({ setError: setGasError, ethAddress: walletAddresses[0] })
+      await updateAddressLinkState({
+        wallet: getWallet,
+        setError: setGasError,
+        ethAddress: walletAddresses[0],
+      })
       setAddressWarning(INITIAL_ADDRESS_WARNING)
     }
 

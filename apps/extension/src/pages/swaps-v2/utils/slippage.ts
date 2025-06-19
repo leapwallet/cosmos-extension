@@ -21,11 +21,11 @@ function getSlippageRemarks(slippage: string | undefined): SlippageRemarks {
     return { type: 'error', color: 'red', message: 'Slippage must be between 0 and 99.' }
   }
 
-  if (parsedSlippage > 10) {
+  if (parsedSlippage > 30) {
     return {
-      type: 'warn',
+      type: 'error',
       color: 'red',
-      message: 'Extremely high slippage: The recommended slippage is between 0.1% to 3%',
+      message: 'Please enter a value less than 30%.',
     }
   }
 
@@ -34,7 +34,7 @@ function getSlippageRemarks(slippage: string | undefined): SlippageRemarks {
       type: 'warn',
       color: 'orange',
       message:
-        'High slippage can result in an unfavourable trade if the price shifts significantly when the transaction is executed.',
+        'High slippage can result in an unfavorable trade if the price shifts significantly when the transaction is executed.',
     }
   }
 
@@ -42,7 +42,7 @@ function getSlippageRemarks(slippage: string | undefined): SlippageRemarks {
     return {
       type: 'warn',
       color: 'orange',
-      message: 'Very low slippage. Your transaction may fail!',
+      message: 'Very low slippage. Your transaction may fail.',
     }
   }
 }

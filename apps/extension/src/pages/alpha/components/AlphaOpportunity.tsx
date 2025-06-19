@@ -1,15 +1,23 @@
-import { ArrowSquareOut, BookmarkSimple, CaretRight } from '@phosphor-icons/react'
-import classNames from 'classnames'
-import Text from 'components/text'
+import { BookmarkSimple, CheckCircle, EyeSlash } from '@phosphor-icons/react'
 import { EventName, PageName } from 'config/analytics'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { AlphaOpportunity as AlphaOpportunityType } from 'hooks/useAlphaOpportunities'
-import mixpanel from 'mixpanel-browser'
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { cn } from 'utils/cn'
+import { opacityFadeInOut } from 'utils/motion-variants'
+import { mixpanelTrack } from 'utils/tracking'
 
+import {
+  alphaCardTransition,
+  alphaCardVariants,
+  animateBookMark,
+  getBookMarkCloneId,
+} from '../chad-components/RaffleListing'
 import { useBookmarks } from '../context/bookmark-context'
 import { useFilters } from '../context/filter-context'
 import { getHostname } from '../utils'
+import { ALPHA_BOOKMARK_ID } from '../utils/constants'
+import { RaffleVisibilityStatus } from './alpha-timeline/use-raffle-status-map'
 import ListingFooter from './ListingFooter'
 import ListingImage from './ListingImage'
 import Tags from './Tags'
@@ -18,52 +26,26 @@ export type AlphaOpportunityProps = AlphaOpportunityType & {
   isBookmarked: boolean
   pageName: PageName
   isSearched?: boolean
+  onMarkRaffle?: (id: string, status: RaffleVisibilityStatus) => void
+  visibilityStatus?: RaffleVisibilityStatus
 }
 
-const getBookMarkCloneId = (id: string) => `cloned-bookmark-icon-${id}`
-
-const animateBookMark = (id: string, headerBookMarkIcon: HTMLElement, bookMarkIcon: SVGElement) => {
-  // first clone the bookmark icon
-  const clonedBookMarkIcon = headerBookMarkIcon.cloneNode(true) as HTMLElement
-  clonedBookMarkIcon.id = getBookMarkCloneId(id)
-  clonedBookMarkIcon.style.zIndex = '999'
-
-  // add the cloned bookmark icon to body
-  document.body.appendChild(clonedBookMarkIcon)
-
-  const clickedIconClientRect = bookMarkIcon.getBoundingClientRect()
-
-  // place the cloned bookmark icon at the original position of current bookmark icon
-  clonedBookMarkIcon.style.position = 'fixed'
-  clonedBookMarkIcon.style.left = `${clickedIconClientRect.left}px`
-  clonedBookMarkIcon.style.top = `${clickedIconClientRect.top}px`
-
-  // find the destination (headerBookMarkIcon) element position
-  const destinationElementClientRect = headerBookMarkIcon.getBoundingClientRect()
-
-  // animate the cloned bookmark icon to the destination element
-  const animation = clonedBookMarkIcon.animate(
-    [
-      {
-        top: `${clickedIconClientRect.top}px`,
-        left: `${clickedIconClientRect.left}px`,
-      },
-      {
-        top: `${destinationElementClientRect.top}px`,
-        left: `${destinationElementClientRect.left}px`,
-      },
-    ],
-    {
-      duration: 750,
-      easing: 'ease-in-out',
+const exitDurationInSec = 0.4
+const exitVariants = {
+  exitLeft: {
+    x: '-100%',
+    transition: {
+      duration: exitDurationInSec,
+      ease: 'easeInOut',
     },
-  )
-
-  animation.finished.then(() => {
-    clonedBookMarkIcon.remove()
-  })
-
-  return animation
+  },
+  exitRight: {
+    x: '100%',
+    transition: {
+      duration: exitDurationInSec,
+      ease: 'easeInOut',
+    },
+  },
 }
 
 export default function AlphaOpportunity(props: AlphaOpportunityProps) {
@@ -79,6 +61,8 @@ export default function AlphaOpportunity(props: AlphaOpportunityProps) {
     id,
     isSearched,
     pageName,
+    onMarkRaffle,
+    visibilityStatus,
   } = props
   const { toggleBookmark, isBookmarked } = useBookmarks()
   const {
@@ -89,14 +73,18 @@ export default function AlphaOpportunity(props: AlphaOpportunityProps) {
     openDetails,
   } = useFilters()
 
+  const isDragging = useRef(false)
+  const dragStartX = useRef<number | null>(null)
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null)
   const bookMarkIconRef = useRef<SVGSVGElement>(null)
   const bookMarkAnimationRef = useRef<Animation | null>(null)
+  const [isExiting, setIsExiting] = useState(false)
 
   const handleBookmarkClick = (e: React.MouseEvent) => {
     e.stopPropagation()
 
     const prevBookMarked = isBookmarked(id)
-    const headerBookMarkIcon = document.getElementById('alpha-bookmark-icon')
+    const headerBookMarkIcon = document.getElementById(ALPHA_BOOKMARK_ID)
 
     if (!prevBookMarked && headerBookMarkIcon && bookMarkIconRef.current) {
       bookMarkAnimationRef.current = animateBookMark(
@@ -106,72 +94,108 @@ export default function AlphaOpportunity(props: AlphaOpportunityProps) {
       )
     }
 
-    try {
-      toggleBookmark(id)
-      mixpanel.track(EventName.Bookmark, {
-        [!prevBookMarked ? 'bookmarkAdded' : 'bookmarkRemoved']: id,
-      })
-    } catch (err) {
-      // ignore
-    }
+    toggleBookmark(id)
+    mixpanelTrack(EventName.Bookmark, {
+      [!prevBookMarked ? 'bookmarkAdded' : 'bookmarkRemoved']: id,
+      name: homepageDescription,
+      page: PageName.Alpha,
+    })
   }
 
   const handleClick = () => {
-    try {
-      // if the opportunity is a post, open the details page:
-      if (descriptionActions && descriptionActions !== 'NA') {
-        openDetails(props)
+    if (isDragging.current) return
 
-        mixpanel.track(EventName.PageView, {
-          pageName: PageName.Post,
-          name: homepageDescription,
-          alphaSelectSource: isSearched ? 'Search Results' : 'Default List',
-          id: id,
-          alphaTag: [...(ecosystemFilter || []), ...(categoryFilter || [])],
-        })
-      }
-      // if the opportunity only has an external link, open the link:
-      else if (relevantLinks?.[0]) {
-        mixpanel.track(EventName.PageView, {
-          pageName: pageName,
-          name: homepageDescription,
-          alphaSelectSource: isSearched ? 'Search Results' : 'Default List',
-          id: id,
-          alphaExternalURL: getHostname(relevantLinks[0]),
-          alphaTag: [...(ecosystemFilter || []), ...(categoryFilter || [])],
-        })
-        window.open(relevantLinks[0], '_blank', 'noopener,noreferrer')
-      }
-      // else just register the click for the opportunity:
-      else {
-        mixpanel.track(EventName.PageView, {
-          pageName: pageName,
-          name: homepageDescription,
-          alphaSelectSource: isSearched ? 'Search Results' : 'Default List',
-          id: id,
-          alphaTag: [...(ecosystemFilter || []), ...(categoryFilter || [])],
-        })
-      }
-    } catch (err) {
-      // ignore
+    // if the opportunity is a post, open the details page:
+    if (descriptionActions && descriptionActions !== 'NA') {
+      openDetails(props)
+
+      // mixpanelTrack(EventName.PageView, {
+      //   pageName: PageName.Post,
+      //   name: homepageDescription,
+      //   alphaSelectSource: isSearched ? 'Search Results' : 'Default List',
+      //   id: id,
+      //   ecosystem: [...(ecosystemFilter || [])],
+      //   categories: [...(categoryFilter || [])],
+      // })
+
+      return
     }
+    // if the opportunity only has an external link, open the link:
+    if (relevantLinks?.[0]) {
+      mixpanelTrack(EventName.PageView, {
+        pageName: pageName,
+        name: homepageDescription,
+        alphaSelectSource: isSearched ? 'Search Results' : 'Default List',
+        id: id,
+        alphaExternalURL: getHostname(relevantLinks[0]),
+        ecosystem: [...(ecosystemFilter || [])],
+        categories: [...(categoryFilter || [])],
+      })
+      window.open(relevantLinks[0], '_blank', 'noopener,noreferrer')
+
+      return
+    }
+
+    // else just register the click for the opportunity:
+    mixpanelTrack(EventName.PageView, {
+      pageName: pageName,
+      name: homepageDescription,
+      alphaSelectSource: isSearched ? 'Search Results' : 'Default List',
+      id: id,
+      ecosystem: [...(ecosystemFilter || [])],
+      categories: [...(categoryFilter || [])],
+    })
   }
 
   const handleEcosystemClick = useCallback(
-    (e: React.MouseEvent, ecosystem: string) => {
-      e.stopPropagation()
+    (ecosystem: string) => {
       setEcosystems([...(selectedEcosystems || []), ecosystem])
     },
     [selectedEcosystems, setEcosystems],
   )
 
   const handleCategoryClick = useCallback(
-    (e: React.MouseEvent, category: string) => {
-      e.stopPropagation()
+    (category: string) => {
       setOpportunities([...(selectedOpportunities || []), category])
     },
     [selectedOpportunities, setOpportunities],
   )
+
+  // Swipe gesture logic
+  const handleDragStart = (_: any, info: { point: { x: number } }) => {
+    isDragging.current = true
+    dragStartX.current = info.point.x
+    setSwipeDirection(null)
+  }
+
+  const handleDrag = (_: any, info: { point: { x: number } }) => {
+    if (dragStartX.current !== null) {
+      const deltaX = info.point.x - dragStartX.current
+      if (Math.abs(deltaX) > 10) {
+        setSwipeDirection(deltaX > 0 ? 'right' : 'left')
+      }
+    }
+  }
+
+  const handleDragEnd = (_: any, info: { offset: { x: number } }) => {
+    isDragging.current = false
+    dragStartX.current = null
+
+    let status: RaffleVisibilityStatus | null = null
+    if (info.offset.x < -100) {
+      // Swiped right: completed
+      status = 'completed'
+    } else if (info.offset.x > 100) {
+      // Swiped left: hide
+      status = 'hidden'
+    }
+
+    setIsExiting(!!status)
+    setTimeout(() => {
+      status && onMarkRaffle?.(id, status)
+      setSwipeDirection(null)
+    }, (exitDurationInSec - 0.05) * 1000) // exit bit faster than the animation
+  }
 
   useEffect(() => {
     return () => {
@@ -182,65 +206,94 @@ export default function AlphaOpportunity(props: AlphaOpportunityProps) {
     }
   }, [id])
 
+  const enableDrag = !!onMarkRaffle && !visibilityStatus
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
+      initial='initial'
+      animate={'animate'}
+      variants={alphaCardVariants}
+      transition={alphaCardTransition}
       onClick={handleClick}
-      className={classNames(
-        'flex items-start cursor-pointer gap-3 rounded-xl bg-white-100 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] px-4 border-gray-100 dark:border-[#2C2C2C] py-4 mb-4 transition-colors duration-200 ease-in-out',
-      )}
+      className='relative isolate'
     >
-      <div className='w-10 h-10 rounded-xl bg-gray-200 dark:bg-gray-800 overflow-hidden shrink-0'>
-        <ListingImage
-          ecosystemFilter={ecosystemFilter?.[0]}
-          categoryFilter={categoryFilter?.[0]}
-          image={image}
-        />
-      </div>
-      <div className='flex-1'>
-        <div className='flex items-start justify-between gap-2'>
-          <Text size='sm' className='font-medium mb-2 flex-1'>
-            {homepageDescription}
-          </Text>
-
-          {descriptionActions && descriptionActions !== 'NA' ? (
-            <button className='pt-1 flex-shrink-0'>
-              <CaretRight className='w-3 h-3 text-gray-600 dark:text-gray-400' />
-            </button>
-          ) : relevantLinks?.[0] ? (
-            <button className='flex-shrink-0'>
-              <ArrowSquareOut className='w-4 h-4 text-gray-600 dark:text-gray-400' />
-            </button>
-          ) : null}
-        </div>
-        <div>
+      <motion.div
+        variants={exitVariants}
+        animate={isExiting ? (swipeDirection === 'left' ? 'exitLeft' : 'exitRight') : undefined}
+        drag={enableDrag ? 'x' : undefined}
+        dragConstraints={{ left: 0, right: 0 }}
+        onDragStart={handleDragStart}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
+        className={cn(
+          'cursor-pointer flex items-start p-5 transition-colors duration-200 ease-in-out gap-4 flex-col rounded-2xl border mb-4 border-secondary-300',
+          visibilityStatus ? '' : 'gradient-linear-mono',
+        )}
+      >
+        <div className='flex items-center gap-2 justify-between w-full'>
           <Tags
+            visibilityStatus={visibilityStatus}
             ecosystemFilter={ecosystemFilter}
             categoryFilter={categoryFilter}
             handleEcosystemClick={handleEcosystemClick}
             handleCategoryClick={handleCategoryClick}
           />
-        </div>
-        <div className='w-full flex items-center justify-between gap-2 text-xs mt-3 pt-3 border-t border-gray-100 dark:border-[#2C2C2C]'>
-          <ListingFooter
-            endDate={endDate}
-            additionDate={additionDate}
-            relevantLinks={relevantLinks}
-          />
+
           <button onClick={handleBookmarkClick}>
             <BookmarkSimple
               ref={bookMarkIconRef}
               weight={isBookmarked(id) ? 'fill' : 'regular'}
-              className={classNames(
-                'w-4 h-4',
-                isBookmarked(id) ? 'text-green-600' : 'text-gray-600 dark:text-gray-400',
-              )}
+              className={cn('size-5', isBookmarked(id) ? 'text-primary' : 'text-foreground')}
             />
           </button>
         </div>
-      </div>
+
+        <div className='flex items-start gap-2 justify-between w-full'>
+          <div className='flex flex-col gap-1'>
+            <span className='font-bold text-sm leading-snug'>{homepageDescription}</span>
+
+            <ListingFooter
+              endDate={endDate}
+              additionDate={additionDate}
+              relevantLinks={relevantLinks}
+            />
+          </div>
+
+          <div className='size-12 rounded-lg bg-secondary overflow-hidden shrink-0'>
+            <ListingImage
+              ecosystemFilter={ecosystemFilter?.[0]}
+              categoryFilter={categoryFilter?.[0]}
+              image={image}
+            />
+          </div>
+        </div>
+      </motion.div>
+
+      <AnimatePresence>
+        {swipeDirection === 'right' ? (
+          <motion.div
+            key='right'
+            variants={opacityFadeInOut}
+            initial='hidden'
+            animate='visible'
+            exit='hidden'
+            className='absolute inset-0 rounded-2xl bg-destructive-100 -z-10 select-none pointer-events-none flex items-center justify-start px-10'
+          >
+            <EyeSlash size={40} className='text-white' />
+          </motion.div>
+        ) : swipeDirection === 'left' ? (
+          <motion.div
+            key='left'
+            variants={opacityFadeInOut}
+            initial='hidden'
+            animate='visible'
+            exit='hidden'
+            className='absolute inset-0 rounded-2xl bg-primary -z-10 select-none pointer-events-none flex items-center justify-end px-10'
+          >
+            <CheckCircle size={40} className='text-white' />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </motion.div>
   )
 }

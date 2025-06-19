@@ -9,4 +9,6 @@ export * from './gas-adjustment-store';
 export * from './gas-price-options-store';
 export * from './gas-price-step-store';
 export * from './get-price-step-for-chain-store';
+export * from './solana-gas-price-store';
+export * from './sui-gas-price-store';
 export * from './types';

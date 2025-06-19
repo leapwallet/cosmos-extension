@@ -7,6 +7,8 @@ import {
 import {
   getBlockChainFromAddress,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   isValidAddressWithPrefix,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -26,6 +28,8 @@ import { useTxCallBack } from 'utils/txCallback'
 
 const useGetWallet = Wallet.useGetWallet
 const useAptosSigner = Wallet.useAptosSigner
+const useSolanaSigner = Wallet.useSolanaSigner
+const useSuiSigner = Wallet.useSuiSigner
 
 export type SendContextType = ReturnType<typeof useSendModule> &
   Readonly<{
@@ -82,6 +86,8 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
     const txCallback = useTxCallBack()
     const getWallet = useGetWallet(sendActiveChain)
     const getAptosSigner = useAptosSigner()
+    const getSolanaSigner = useSolanaSigner()
+    const getSuiSigner = useSuiSigner()
     const currentWalletAddress = useAddress()
     const getSscrtWallet = useSecretWallet()
     const [transferData, setTransferData] = useState<useTransferReturnType | null>(null)
@@ -105,6 +111,12 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
               if (isAptosChain(sendActiveChain)) {
                 return getAptosSigner(sendActiveChain).then((aptos) => aptos.signer)
               }
+              if (isSolanaChain(sendActiveChain)) {
+                return getSolanaSigner(sendActiveChain).then((solana) => solana)
+              }
+              if (isSuiChain(sendActiveChain)) {
+                return getSuiSigner(sendActiveChain).then((sui) => sui)
+              }
               return getWallet()
             },
           },
@@ -114,6 +126,8 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
       [
         confirmSend,
         getAptosSigner,
+        getSolanaSigner,
+        getSuiSigner,
         getSscrtWallet,
         getWallet,
         selectedToken?.coinMinimalDenom,
@@ -130,7 +144,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
         gasPrice?: number,
         options?: SendTokenEthParamOptions,
       ) => {
-        confirmSendEth(toAddress, value, gas, wallet, txCallback, gasPrice, options)
+        await confirmSendEth(toAddress, value, gas, wallet, txCallback, gasPrice, options)
       },
       [confirmSendEth, txCallback],
     )
@@ -141,7 +155,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
     }, [selectedToken, rest?.selectedAddress])
 
     const value = useMemo(() => {
-      const fromChain = getBlockChainFromAddress(currentWalletAddress)
+      const fromChain = getBlockChainFromAddress(currentWalletAddress) || sendActiveChain
       const { selectedAddress } = rest
       const toChain = getBlockChainFromAddress(selectedAddress ? selectedAddress.address ?? '' : '')
 

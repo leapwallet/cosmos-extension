@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import { useSwapContext } from 'pages/swaps-v2/context'
 import React, { useMemo } from 'react'
 import { formatTokenAmount } from 'utils/strings'
@@ -23,14 +23,7 @@ export function SlippageInfoSheet({ isOpen, onClose }: SlippageInfoSheetProps) {
   }, [percentageChangeAmount, amountOut])
 
   return (
-    <BottomModal
-      title='Max. Slippage'
-      onClose={onClose}
-      isOpen={isOpen}
-      closeOnBackdropClick={true}
-      contentClassName='!bg-white-100 dark:!bg-gray-950'
-      className='p-6'
-    >
+    <BottomModal title='Max. Slippage' onClose={onClose} isOpen={isOpen} className='p-6'>
       <div className='text-md !leading-[25.6px] font-medium text-gray-800 dark:text-gray-200 text-left'>
         You will receive a minimum of{' '}
         <span className='text-black-100 dark:text-white-100 font-bold'>

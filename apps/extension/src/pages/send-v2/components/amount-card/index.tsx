@@ -1,14 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
   hasToAddEvmDetails,
-  isERC20Token,
   Token,
   useGasAdjustmentForChain,
-  useIsSeiEvmChain,
   useSeiLinkedAddressState,
   useSnipGetSnip20TokenBalances,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { isValidAddressWithPrefix, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { isValidAddressWithPrefix, SolanaTx, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   EvmBalanceStore,
   RootBalanceStore,
@@ -17,6 +15,7 @@ import {
   RootERC20DenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
 import { AptosCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/aptos-balance-store'
+import { useQuery as useRouterQuery } from '@tanstack/react-query'
 import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
 import { calculateFeeAmount } from 'components/gas-price-options'
@@ -25,11 +24,11 @@ import { motion } from 'framer-motion'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router'
+import { useLocation } from 'react-router-dom'
+import { selectedNetworkStore } from 'stores/selected-network-store'
 import { AggregatedSupportedChain } from 'types/utility'
 
 import { SelectTokenSheet } from './select-token-sheet'
@@ -64,8 +63,7 @@ export const AmountCard = observer(
     const [amount, setAmount] = useState('')
     const [isInputInUSDC, setIsInputInUSDC] = useState<boolean>(false)
 
-    const getWallet = Wallet.useGetWallet()
-    const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+    const { addressLinkState } = useSeiLinkedAddressState()
     const { snip20Tokens } = useSnipGetSnip20TokenBalances()
     const allCW20Denoms = rootCW20DenomsStore.allCW20Denoms
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
@@ -103,12 +101,8 @@ export const AmountCard = observer(
       setFeeDenom,
       addressWarning,
       setGasError,
-      associatedSeiAddress,
-      isSeiEvmTransaction,
-      hasToUsePointerLogic,
     } = useSendContext()
 
-    const isSeiEvmChain = useIsSeiEvmChain(sendActiveChain)
     const gasAdjustment = useGasAdjustmentForChain()
     const evmBalance = evmBalanceStore.evmBalance
     const aptosBalance = aptosCoinDataStore.balances
@@ -116,6 +110,22 @@ export const AmountCard = observer(
     function getFlooredFixed(v: number, d: number) {
       return (Math.floor(v * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d)
     }
+
+    const { data: minimumRentAmount } = useRouterQuery(
+      ['minimum-rent-amount', selectedAddress?.address, sendActiveChain, selectedToken?.chain],
+      async () => {
+        if (selectedToken?.chain === 'solana' && sendActiveChain === 'solana') {
+          const solanaTx = await SolanaTx.getSolanaClient(
+            chainInfos?.[sendActiveChain]?.apis?.rpc ?? '',
+            undefined,
+            selectedNetworkStore.selectedNetwork,
+            sendActiveChain,
+          )
+          return await solanaTx.getMinimumRentAmount(selectedAddress?.address ?? '')
+        }
+        return 0
+      },
+    )
 
     useEffect(() => {
       const amountDecimals = amount.split('.')?.[1]?.length
@@ -140,16 +150,11 @@ export const AmountCard = observer(
         _assets = [..._assets, ...snip20Tokens]
       }
 
-      const isAptosChain = chainInfos?.[sendActiveChain].chainId.startsWith('aptos')
-      if (isAptosChain) {
-        _assets = aptosBalance
-      }
-
       const addEvmDetails =
         (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY
           ? false
           : hasToAddEvmDetails(
-              isSeiEvmChain,
+              false,
               addressLinkState,
               chainInfos?.[sendActiveChain]?.evmOnlyChain ?? false,
             )
@@ -170,16 +175,14 @@ export const AmountCard = observer(
       chainInfos,
       evmBalance.evmBalance,
       isSecretChainTargetAddress,
-      isSeiEvmChain,
       sendActiveChain,
       snip20Tokens,
-      aptosBalance,
     ])
 
     const isTokenStatusSuccess = useMemo(() => {
       let status = isAllAssetsLoading === false
       const addEvmDetails = hasToAddEvmDetails(
-        isSeiEvmChain,
+        false,
         addressLinkState,
         chainInfos?.[sendActiveChain]?.evmOnlyChain ?? false,
       )
@@ -188,21 +191,14 @@ export const AmountCard = observer(
         status = status && evmBalance.status === 'success'
       }
       return status
-    }, [
-      addressLinkState,
-      chainInfos,
-      evmBalance.status,
-      isAllAssetsLoading,
-      isSeiEvmChain,
-      sendActiveChain,
-    ])
+    }, [addressLinkState, chainInfos, evmBalance.status, isAllAssetsLoading, sendActiveChain])
 
     const updateSelectedToken = useCallback(
-      (token) => {
+      (token: Token | null) => {
         setSelectedToken(token)
 
         if ((activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY) {
-          setSelectedChain(token?.tokenBalanceOnChain)
+          setSelectedChain(token?.tokenBalanceOnChain || null)
         } else {
           setSelectedChain(null)
         }
@@ -234,7 +230,7 @@ export const AmountCard = observer(
           })
         }
       },
-      [setFeeDenom, setSelectedToken, activeChain],
+      [setSelectedToken, activeChain, setSelectedChain, setFeeDenom, chainInfos],
     )
 
     useEffect(() => {
@@ -290,22 +286,6 @@ export const AmountCard = observer(
 
     useEffect(() => {
       const check = () => {
-        if (
-          isSeiEvmChain &&
-          selectedToken &&
-          selectedAddress?.address?.toLowerCase()?.startsWith('0x') &&
-          !isERC20Token(Object.keys(allERC20Denoms), selectedToken.coinMinimalDenom) &&
-          selectedToken.coinMinimalDenom !== 'usei'
-        ) {
-          if (associatedSeiAddress || hasToUsePointerLogic) {
-            return ''
-          }
-
-          if (!associatedSeiAddress) {
-            return 'You can only send this token to a SEI address and not an EVM address.'
-          }
-        }
-
         if (selectedAddress?.address && !sameChain && selectedToken && isCW20Token(selectedToken)) {
           return 'IBC transfers are not supported for cw20 tokens.'
         }
@@ -324,6 +304,16 @@ export const AmountCard = observer(
         // check if user has balance
         if (new BigNumber(inputAmount).gt(new BigNumber(selectedToken?.amount ?? ''))) {
           return 'Insufficient balance'
+        }
+
+        if (
+          selectedToken?.chain === 'solana' &&
+          selectedToken?.coinMinimalDenom === 'lamports' &&
+          sendActiveChain === 'solana'
+        ) {
+          if (minimumRentAmount > Number(inputAmount)) {
+            return `A minimum of ${minimumRentAmount} SOL is required`
+          }
         }
 
         const feeDenomValue = assets.find((asset) => {
@@ -346,7 +336,7 @@ export const AmountCard = observer(
           gasLimit: userPreferredGasLimit ?? gasEstimate,
           feeDenom: feeDenom,
           gasAdjustment,
-          isSeiEvmTransaction: isSeiEvmTransaction || chainInfos?.[sendActiveChain]?.evmOnlyChain,
+          isSeiEvmTransaction: chainInfos?.[sendActiveChain]?.evmOnlyChain,
         })
 
         if (amount.gt(feeDenomValue.amount)) {
@@ -365,13 +355,10 @@ export const AmountCard = observer(
       selectedToken,
       selectedAddress,
       gasAdjustment,
-      isSeiEvmChain,
-      associatedSeiAddress,
-      isSeiEvmTransaction,
       sendActiveChain,
       chainInfos,
       allERC20Denoms,
-      hasToUsePointerLogic,
+      minimumRentAmount,
     ])
 
     return (

@@ -8,7 +8,7 @@ import { LockRotateIcon } from 'icons/lock-rotate-icon'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -48,9 +48,6 @@ const CreateImportActions = observer(
 
     const handleWatchWalletClick = useCallback(() => {
       setSelectedAction('watch-wallet')
-      mixpanel.track(EventName.ButtonClick, {
-        buttonName: ButtonName.WATCH_WALLET,
-      })
     }, [])
 
     const handleConnectLedgerClick = useCallback(() => {

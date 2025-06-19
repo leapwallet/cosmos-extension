@@ -202,6 +202,10 @@ export class LeapAptos implements AptosWallet {
     return new Promise((resolve) => {
       this.inpageStream.on('data', (result) => {
         if (result.id === id) {
+          if (result?.name === 'invokeOpenSidePanel') {
+            this.send(APTOS_METHOD_TYPE.OPEN_SIDE_PANEL, data);
+            return;
+          }
           resolve(result);
         }
       });

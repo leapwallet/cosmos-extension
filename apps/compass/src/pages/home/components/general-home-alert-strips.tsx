@@ -4,7 +4,6 @@ import { AlertStripV2 } from 'components/alert-strip/alert-strip-v2'
 import { ApiStatusWarningStrip } from 'components/alert-strip/ApiStatusWarningStrip'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { SHOW_LINK_ADDRESS_NUDGE } from 'config/storage-keys'
-import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useEffect } from 'react'
 import { globalSheetsStore } from 'stores/ui/global-sheets-store'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -17,9 +16,7 @@ export const GeneralHomeAlertStirps = ({
   balanceError: boolean
 }) => {
   const activeChain = useActiveChain() as AggregatedSupportedChain
-  const getWallet = Wallet.useGetWallet()
   const { addressLinkState } = useSeiLinkedAddressState(
-    getWallet,
     activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : undefined,
   )
 

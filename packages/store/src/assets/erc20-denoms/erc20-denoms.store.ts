@@ -21,8 +21,12 @@ export class ERC20DenomsStore {
   }
 
   async initialize() {
-    await Promise.all([this.activeChainStore.readyPromise, this.erc20DenomChainsStore.readyPromise]);
-    await this.loadAllERC20Denoms();
+    try {
+      await Promise.all([this.activeChainStore.readyPromise, this.erc20DenomChainsStore.readyPromise]);
+      await this.loadAllERC20Denoms();
+    } catch (e) {
+      console.error('[ERC20DenomsStore]', `error initializing erc20 denoms`, e);
+    }
   }
 
   async loadAllERC20Denoms() {

@@ -17,7 +17,16 @@ export class NftChainsStore {
   async loadNftChains() {
     const response = await fetch(NFT_CHAINS_URL);
     const data = await response.json();
-
+    data.push({
+      forceChain: 'sui',
+      forceContractsListChain: 'sui',
+      forceNetwork: 'mainnet',
+    });
+    data.push({
+      forceChain: 'sui',
+      forceContractsListChain: 'sui',
+      forceNetwork: 'testnet',
+    });
     runInAction(() => {
       this.nftChains = data;
     });

@@ -1,20 +1,41 @@
-import { SelectedNetwork, useActiveStakingDenom } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  SelectedNetwork,
+  useActiveChain,
+  useActiveStakingDenom,
+  useSelectedNetwork,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
-import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { useNavigate } from 'react-router-dom'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
 
-type NotStakedCardProps = {
-  rootDenomsStore: RootDenomsStore
-  activeChain?: SupportedChain
-  activeNetwork?: SelectedNetwork
-}
+import { StakeInputPageState } from '../StakeInputPage'
 
 const NotStakedCard = observer(
-  ({ rootDenomsStore, activeChain, activeNetwork }: NotStakedCardProps) => {
+  ({
+    forceChain,
+    forceNetwork,
+    onClick,
+    title,
+    subtitle,
+    buttonText,
+  }: {
+    forceChain?: SupportedChain
+    forceNetwork?: SelectedNetwork
+    title: string
+    subtitle: string
+    onClick?: () => void
+    buttonText: string
+  }) => {
+    const _activeChain = useActiveChain()
+    const _activeNetwork = useSelectedNetwork()
+    const activeChain = forceChain ?? _activeChain
+    const activeNetwork = forceNetwork ?? _activeNetwork
+    const navigate = useNavigate()
+
     const [activeStakingDenom] = useActiveStakingDenom(
       rootDenomsStore.allDenoms,
       activeChain,
@@ -22,20 +43,33 @@ const NotStakedCard = observer(
     )
 
     return (
-      <div className='flex flex-col items-center w-full px-4 pt-6 bg-white-100 dark:bg-gray-950 rounded-2xl'>
-        <Text size='xs' color='text-gray-600 dark:text-gray-400'>
-          You haven&apos;t staked any {activeStakingDenom.coinDenom}
-        </Text>
+      <div className='flex flex-col gap-7 py-[90px] px-4 border border-secondary-100 rounded-2xl'>
+        <div className='flex flex-col w-full items-center'>
+          <img className='w-[88px] mb-1' src={Images.Logos.LeapLogo} />
+          <span className='text-foreground text-[18px] mb-2 font-bold'>{title}</span>
+          <span className='text-secondary-800 text-xs text-center'>{subtitle}</span>
+        </div>
 
-        <Text className='text-[18px] font-bold' color='text-black-100 dark:text-white-100'>
-          Stake tokens to earn rewards
-        </Text>
-
-        {isCompassWallet() ? (
-          <img className='w-full h-[120px] object-cover mt-2' src={Images.Misc.CompassNoStake} />
-        ) : (
-          <img className='w-[200px] h-[106px] object-cover mt-8' src={Images.Logos.LeapLogo} />
-        )}
+        <Button
+          className='w-full'
+          onClick={() => {
+            if (onClick) {
+              onClick()
+            } else {
+              const state: StakeInputPageState = {
+                mode: 'DELEGATE',
+                forceChain: activeChain,
+                forceNetwork: activeNetwork,
+              }
+              sessionStorage.setItem('navigate-stake-input-state', JSON.stringify(state))
+              navigate('/stake/input', {
+                state,
+              })
+            }
+          }}
+        >
+          {buttonText}
+        </Button>
       </div>
     )
   },

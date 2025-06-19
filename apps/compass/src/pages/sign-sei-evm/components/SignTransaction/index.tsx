@@ -21,10 +21,13 @@ import {
 import {
   DefaultGasEstimates,
   GasPrice,
+  LedgerError,
   NetworkType,
   pubKeyToEvmAddressToShow,
   SeiEvmTx,
   SupportedChain,
+  transactionDeclinedError,
+  txDeclinedErrorUser,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { EvmBalanceStore, RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { EthWallet } from '@leapwallet/leap-keychain'
@@ -40,7 +43,7 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { TransactionStatus } from 'types/utility'
 import { assert } from 'utils/assert'
 import { isCompassWallet } from 'utils/isCompassWallet'
@@ -79,7 +82,7 @@ export const SignTransaction = observer(
   }: SignTransactionProps) => {
     const getWallet = useGetWallet(activeChain)
 
-    const { addressLinkState } = useSeiLinkedAddressState(getWallet, activeChain)
+    const { addressLinkState } = useSeiLinkedAddressState(activeChain)
     const evmBalance = evmBalanceStore.evmBalance
     const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
@@ -292,12 +295,8 @@ export const SignTransaction = observer(
 
     const handleApproveClick = async () => {
       try {
-        if (activeWallet.walletType === WALLETTYPE.LEDGER) {
-          if (chainInfo?.evmOnlyChain) {
-            setShowLedgerPopup(true)
-          } else {
-            throw new Error(SEI_EVM_LEDGER_ERROR_MESSAGE)
-          }
+        if (activeWallet.walletType === WALLETTYPE.LEDGER && activeWallet.app !== 'sei') {
+          throw new Error(SEI_EVM_LEDGER_ERROR_MESSAGE)
         }
 
         setSigningError(null)
@@ -306,6 +305,10 @@ export const SignTransaction = observer(
         const wallet = (await getWallet(activeChain, true)) as unknown as EthWallet
 
         const seiEvmTx = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', Number(evmChainId))
+        if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+          setShowLedgerPopup(true)
+        }
+
         const result = await seiEvmTx.sendTransaction(
           '',
           txnData.signTxnData.to,
@@ -356,7 +359,7 @@ export const SignTransaction = observer(
 
         setTxStatus('success')
         try {
-          Browser.runtime.sendMessage({
+          await Browser.runtime.sendMessage({
             type: MessageTypes.signSeiEvmResponse,
             payloadId: txnData?.payloadId,
             payload: { status: 'success', data: result.hash },
@@ -375,7 +378,14 @@ export const SignTransaction = observer(
         } else {
           handleTxnListUpdate()
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error instanceof LedgerError) {
+          setSigningError(error.message)
+          error.message === txDeclinedErrorUser.message &&
+            handleRejectClick(navigate, txnData?.payloadId, donotClose)
+          return
+        }
+
         setTxStatus('error')
         const errorMessage = error instanceof Error ? error.message : 'Something went wrong.'
         if (errorMessage.includes('intrinsic gas too low')) {

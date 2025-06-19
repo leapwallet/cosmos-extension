@@ -6,6 +6,7 @@ import { Address, OutScript, p2wpkh, Script } from '@scure/btc-signer';
 import axios from 'axios';
 import { encode } from 'varuint-bitcoin';
 
+import { getAppType } from '../globals';
 import { sleep } from '../utils';
 import { magicHash } from './btc/get-magic-hash';
 
@@ -494,6 +495,8 @@ export class BtcTx {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-requested-with': 'leap-client',
+        'x-app-type': `leap-${getAppType()}`,
       },
       body: JSON.stringify({
         id: 'test',
@@ -513,6 +516,8 @@ export class BtcTx {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-requested-with': 'leap-client',
+        'x-app-type': `leap-${getAppType()}`,
       },
       body: JSON.stringify({
         id: 'test',

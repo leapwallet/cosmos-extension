@@ -5,6 +5,9 @@ import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 import dayjs from 'dayjs';
 import Long from 'long';
 
+import { createExecuteMessage } from '../../swap/utils/messages';
+import { convertScientificNotation } from '../../utils';
+
 export function getIbcTransferMsg(
   timeoutTimestamp: number,
   sourcePort: string,
@@ -44,6 +47,19 @@ export function getSendTokensMsg(fromAddress: string, toAddress: string, amount:
     },
   };
   return sendMsg;
+}
+
+export function getCW20SendMsg(senderAddress: string, toAddress: string, amount: Coin[]) {
+  const contractAddress = amount[0].denom;
+  const tokenAmount = amount[0].amount;
+  console.log(senderAddress, contractAddress, tokenAmount);
+  const message = {
+    transfer: {
+      recipient: toAddress,
+      amount: convertScientificNotation(parseInt(tokenAmount)),
+    },
+  };
+  return createExecuteMessage({ senderAddress, contractAddress, message });
 }
 
 export function getVoteMsg(option: VoteOption, proposalId: string, fromAddress: string, typeUrl?: string) {

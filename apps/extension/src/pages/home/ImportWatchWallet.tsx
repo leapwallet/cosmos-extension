@@ -1,24 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  getBlockChainFromAddress,
-  isEthAddress,
-  isValidWalletAddress,
-} from '@leapwallet/cosmos-wallet-sdk'
+import { getBlockChainFromAddress, isValidWalletAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
-import { Buttons, Header, HeaderActionType, Input } from '@leapwallet/leap-ui'
-import classNames from 'classnames'
-import { LoaderAnimation } from 'components/loader/Loader'
-import Text from 'components/text'
+import SelectWalletColors from 'components/create-wallet-form/SelectWalletColors'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
+import { Input } from 'components/ui/input'
+import { Textarea } from 'components/ui/input/textarea'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { Images } from 'images'
-import React, { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useEffect, useRef, useState } from 'react'
 import { passwordStore } from 'stores/password-store'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { Wallet } from '../../hooks/wallet/useWallet'
+import { getWalletName } from './utils/wallet-names'
+import { WatchWalletAvatar } from './WalletCardWrapper'
 
 type ImportWatchAddressProps = {
   isVisible: boolean
@@ -27,6 +21,7 @@ type ImportWatchAddressProps = {
 }
 
 export default function ImportWatchWallet({ isVisible, onClose }: ImportWatchAddressProps) {
+  const wallets = Wallet.useWallets()
   const [watchAddress, setWatchAddress] = useState('')
   const [walletName, setWalletName] = useState('')
   const [error, setError] = useState<string>('')
@@ -34,6 +29,8 @@ export default function ImportWatchWallet({ isVisible, onClose }: ImportWatchAdd
   const password = passwordStore.password
   const saveWatchWallet = Wallet.useSaveWatchWallet()
   const chainInfos = useChainInfos()
+  const shouldAutoFillName = useRef(true)
+  const [colorIndex, setColorIndex] = useState(0)
 
   const onChangeHandler = (value: string) => {
     setError('')
@@ -48,6 +45,7 @@ export default function ImportWatchWallet({ isVisible, onClose }: ImportWatchAdd
         await saveWatchWallet(watchAddress, walletName)
         setWatchAddress('')
         setWalletName('')
+        shouldAutoFillName.current = true
         onClose(true)
       } catch (error: any) {
         setError(error.message)
@@ -55,6 +53,14 @@ export default function ImportWatchWallet({ isVisible, onClose }: ImportWatchAdd
     }
 
     setIsLoading(false)
+  }
+
+  const handleClose = () => {
+    onClose(false)
+    setError('')
+    setWatchAddress('')
+    setWalletName('')
+    shouldAutoFillName.current = true
   }
 
   useEffect(() => {
@@ -67,10 +73,7 @@ export default function ImportWatchWallet({ isVisible, onClose }: ImportWatchAdd
         setError('Invalid public address, please enter a valid address')
         return
       }
-      if (isCompassWallet() && !watchAddress.startsWith('sei') && !isEthAddress(watchAddress)) {
-        setError('Invalid public address, please enter a valid address')
-        return
-      }
+
       const prefix = getBlockChainFromAddress(watchAddress)
       const chain = Object.values(chainInfos).find((chain) => chain.addressPrefix === prefix)
       const wallets = await KeyChain.getAllWallets()
@@ -92,84 +95,73 @@ export default function ImportWatchWallet({ isVisible, onClose }: ImportWatchAdd
     validate()
   }, [chainInfos, watchAddress])
 
-  if (!isVisible) return null
+  useEffect(() => {
+    if (isVisible && shouldAutoFillName.current) {
+      setWalletName(
+        getWalletName(
+          Object.values(wallets || {}).filter((wallet) => wallet.watchWallet),
+          'Watch Wallet',
+        ),
+      )
+      shouldAutoFillName.current = false
+    }
+  }, [wallets, isVisible])
 
-  return createPortal(
-    <div className='panel-height panel-width bg-white-100 dark:bg-black-100 absolute top-0 z-[10000000]'>
-      <Header
-        title=''
-        action={{
-          type: HeaderActionType.BACK,
-          onClick: () => {
-            onClose(false)
-            setError('')
-            setWatchAddress('')
-            setWalletName('')
-          },
-        }}
-      />
-      <div className='flex flex-col p-6 justify-between items-center'>
-        <div className='flex flex-col items-center gap-y-4'>
-          <img src={Images.Misc.GreenEye} className='!w-10 !h-10' />
-          <div className='flex flex-col items-center gap-y-1.5'>
-            <Text color='text-black-100 dark:text-white-100' className='text-[28px] font-bold'>
-              Watch wallet
-            </Text>
-            <Text
-              size='sm'
-              color='text-gray-600 dark:text-gray-400'
-              className='font-medium text-center'
-            >
-              Add a wallet address you’d like to watch. You’ll have view-only access to assets &
-              balances.
-            </Text>
-          </div>
-          <Input
-            placeholder='Public address'
-            spellCheck={false}
-            autoFocus={true}
-            onChange={(e: any) => onChangeHandler(e.target.value)}
-            className={classNames(
-              'border bg-gray-100 dark:bg-gray-850 text-black-100 dark:text-gray-100 p-4 rounded-2xl w-full text-sm font-medium focus:outline-none',
-              {
-                '!border-red-300': !!error,
-                'dark:!border-gray-850 !border-gray-100 focus:!border-gray-400 dark:focus:!border-gray-400':
-                  !error,
-              },
-            )}
-          />
-          {error && (
-            <Text size='sm' color='text-red-300' className='mx-auto'>
-              {error}
-            </Text>
-          )}
-          <div className='flex relative justify-center shrink w-full'>
-            <Input
-              placeholder='Name your wallet (optional)'
-              maxLength={24}
-              value={walletName.replace(LEDGER_NAME_EDITED_SUFFIX_REGEX, '')}
-              spellCheck={false}
-              onChange={(e: any) => setWalletName(e.target.value)}
-              className={classNames(
-                'border bg-gray-100 dark:bg-gray-850 text-black-100 dark:text-gray-100 p-4 rounded-2xl w-full text-sm font-medium focus:outline-none dark:!border-gray-850 !border-gray-100 focus:!border-gray-400 dark:focus:!border-gray-400 placeholder:text-gray-400 placeholder:dark:text-gray-700',
-              )}
-            />
-            {walletName.length > 0 ? (
-              <div className='absolute right-[16px] top-[14px] text-gray-400 text-sm font-medium'>{`${walletName.length}/24`}</div>
-            ) : null}
-          </div>
-        </div>
-        <Buttons.Generic
-          size='normal'
-          disabled={!watchAddress || !!error || isLoading}
-          onClick={handleImportWallet}
-          color={Colors.green600}
-          className='w-[344px] absolute bottom-6'
-        >
-          {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Start watching'}
-        </Buttons.Generic>
+  return (
+    <BottomModal
+      fullScreen
+      isOpen={isVisible}
+      title='Watch wallet'
+      onClose={handleClose}
+      footerComponent={
+        <>
+          <Button variant='secondary' size='md' className='flex-1' onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            size='md'
+            className='flex-1'
+            disabled={!watchAddress || !!error || isLoading}
+            onClick={handleImportWallet}
+          >
+            Watch Wallet
+          </Button>
+        </>
+      }
+    >
+      <div className='flex flex-col p-6 justify-between items-center gap-4 bg-secondary-50 rounded-xl'>
+        <WatchWalletAvatar
+          colorIndex={colorIndex}
+          className='size-20 rounded-full transition-colors duration-300'
+          iconClassName='size-10'
+        />
+
+        <Textarea
+          className='w-full h-[7.5rem] resize-none'
+          placeholder='Public address'
+          spellCheck={false}
+          autoFocus={isVisible}
+          onChange={(e) => onChangeHandler(e.target.value)}
+          status={error ? 'error' : undefined}
+        />
+
+        <Input
+          maxLength={24}
+          spellCheck={false}
+          placeholder='Enter wallet name'
+          value={walletName.replace(LEDGER_NAME_EDITED_SUFFIX_REGEX, '')}
+          onChange={(e) => setWalletName(e.target.value)}
+          trailingElement={
+            walletName.length > 0 ? (
+              <div className='text-muted-foreground text-sm font-medium'>{`${walletName.length}/24`}</div>
+            ) : null
+          }
+        />
+
+        {error && <span className='font-medium text-destructive-200 text-sm mx-auto'>{error}</span>}
+
+        <SelectWalletColors selectColorIndex={setColorIndex} colorIndex={colorIndex} />
       </div>
-    </div>,
-    document.getElementById('popup-layout')?.parentNode as HTMLElement,
+    </BottomModal>
   )
 }

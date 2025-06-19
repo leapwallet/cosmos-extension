@@ -42,6 +42,10 @@ export async function getDenomInfo(
     denom = 'lunc';
   }
 
+  if (chain === 'babylon' && denom === 'ubbn') {
+    denom = 'tubbn';
+  }
+
   let denomInfo = denoms[denom];
 
   if (!denomInfo && compassParams.isCompassWallet) {

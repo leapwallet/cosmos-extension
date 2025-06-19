@@ -10,26 +10,21 @@ import {
   UndelegationsStore,
   ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { CaretDown, CaretUp } from '@phosphor-icons/react'
+import { CaretDown, CaretUp, X } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
-import classNames from 'classnames'
-import { AggregatedLoading, AggregatedSearchComponent } from 'components/aggregated'
-import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
+import { AggregatedLoadingList } from 'components/aggregated'
 import { EmptyCard } from 'components/empty-card'
-import { PageHeader } from 'components/header'
-import PopupLayout from 'components/layout/popup-layout'
+import { SearchInput } from 'components/ui/input/search-input'
 import currency from 'currency.js'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
-import { useChainPageInfo } from 'hooks'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import SelectChain from 'pages/home/SelectChain'
-import SideNav from 'pages/home/side-nav'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { HeaderActionType } from 'types/components'
 
+import { StakeHeader } from '../stake-header'
 import StakePage from '../StakePage'
 import { AggregatedValues } from './AggregatedValues'
 import { StakeTokenCard } from './StakeTokenCard'
@@ -59,9 +54,6 @@ export const AggregatedStake = observer(
     claimRewardsStore,
     rootBalanceStore,
   }: AggregatedStakeProps) => {
-    const [showSideNav, setShowSideNav] = useState(false)
-    const [showChainSelector, setShowChainSelector] = useState(false)
-    const [defaultFilter, setDefaultFilter] = useState('All')
     const {
       perChainDelegations,
       totalCurrencyAmountDelegation,
@@ -78,45 +70,28 @@ export const AggregatedStake = observer(
     const [showAprInDescending, setShowAprInDescending] = useState(true)
     const [showAmountInDescending, setShowAmountInDescending] = useState(true)
     const [sortBy, setSortBy] = useState<'apr' | 'amount'>('amount')
+    const selectedNetwork = useSelectedNetwork()
 
     const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null)
-    const { headerChainImgSrc } = useChainPageInfo()
 
     const query = useQuery()
     const paramChainId = query.get('chainId') ?? undefined
 
-    useEffect(() => {
-      async function updateChain() {
-        if (paramChainId) {
-          const chainIdToChain = await decodeChainIdToChain()
-          const chain = chainIdToChain[paramChainId] as SupportedChain
-          setSelectedChain(chain)
-          query.delete('chainId')
-        }
-      }
-      updateChain()
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paramChainId])
-
-    useEffect(() => {
-      if (!showChainSelector) {
-        setDefaultFilter('All')
-      }
-    }, [showChainSelector])
-
     const averageAprValue = useMemo(() => {
       if (averageApr) {
-        return `${currency((averageApr * 100).toString(), { precision: 2, symbol: '' }).format()} %`
+        return `${currency((averageApr * 100).toString(), { precision: 2, symbol: '' }).format()}%`
       }
 
       return '-'
     }, [averageApr])
 
+    const stakingDenomsPriority = ['ATOM', 'TIA', 'CORE', 'OSMO', 'INJ', 'BABY', 'NIBI', 'OM']
+
     const delegationsToConsider = useMemo(() => {
       const formattedSearchText = searchedText.trim().toLowerCase()
 
-      const formattedDelegations = Object.keys(perChainDelegations).reduce(
-        (acc: DelegationsToConsider[], chain) => {
+      const formattedDelegations = Object.keys(perChainDelegations)
+        .reduce((acc: DelegationsToConsider[], chain) => {
           if (
             chain.toLowerCase().includes(formattedSearchText) ||
             perChainDelegations[chain].stakingDenom.toLowerCase().includes(formattedSearchText)
@@ -131,9 +106,12 @@ export const AggregatedStake = observer(
           }
 
           return acc
-        },
-        [],
-      )
+        }, [])
+        .sort((a, b) => {
+          const aIndex = stakingDenomsPriority.indexOf(a.stakingDenom)
+          const bIndex = stakingDenomsPriority.indexOf(b.stakingDenom)
+          return aIndex === -1 ? 1 : bIndex === -1 ? -1 : aIndex - bIndex
+        })
 
       switch (sortBy) {
         case 'apr': {
@@ -194,94 +172,89 @@ export const AggregatedStake = observer(
       }
     }, [perChainDelegations, searchedText, showAmountInDescending, showAprInDescending, sortBy])
 
-    const onImgClick = useCallback(
-      (event?: React.MouseEvent<HTMLDivElement>, props?: { defaultFilter?: string }) => {
-        setShowChainSelector(true)
-        if (props?.defaultFilter) {
-          setDefaultFilter(props.defaultFilter)
+    const handleTokenCardClick = useCallback(
+      (chain: SupportedChain) => {
+        setSelectedChain(chain)
+        if (
+          (validatorsStore.validatorsForChain(chain).validatorData?.validators ?? []).length === 0
+        ) {
+          validatorsStore.loadValidators(chain, selectedNetwork)
         }
       },
-      [],
+      [selectedNetwork, validatorsStore],
     )
-    const handleOpenSideNavSheet = useCallback(() => setShowSideNav(true), [])
-    const handleTokenCardClick = useCallback((chain: SupportedChain) => setSelectedChain(chain), [])
+
     const handleBackClick = useCallback(() => setSelectedChain(null), [])
 
-    return selectedChain ? (
-      <StakePage
-        forceChain={selectedChain}
-        forceNetwork={NETWORK}
-        showBackAction={true}
-        onBackClick={handleBackClick}
-        rootDenomsStore={rootDenomsStore}
-        delegationsStore={delegationsStore}
-        validatorsStore={validatorsStore}
-        unDelegationsStore={unDelegationsStore}
-        claimRewardsStore={claimRewardsStore}
-        rootBalanceStore={rootBalanceStore}
-        chainTagsStore={chainTagsStore}
-      />
-    ) : (
-      <div className='relative w-full overflow-clip panel-height'>
-        <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
+    useEffect(() => {
+      async function updateChain() {
+        if (paramChainId) {
+          const chainIdToChain = await decodeChainIdToChain()
+          const chain = chainIdToChain[paramChainId] as SupportedChain
+          setSelectedChain(chain)
+          query.delete('chainId')
+        }
+      }
+      updateChain()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paramChainId])
 
-        <PopupLayout
-          header={
-            <PageHeader
-              title='Staking'
-              imgSrc={headerChainImgSrc}
-              onImgClick={onImgClick}
-              action={{
-                onClick: handleOpenSideNavSheet,
-                type: HeaderActionType.NAVIGATION,
-                className: 'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
-              }}
-            />
-          }
-        >
-          <div className='flex flex-col pt-[16px] px-[24px] max-h-[calc(100%-156px)]'>
-            {showSearchInput ? (
-              <AggregatedSearchComponent
-                handleClose={() => {
+    if (selectedChain) {
+      return (
+        <StakePage
+          forceChain={selectedChain}
+          forceNetwork={NETWORK}
+          showBackAction={true}
+          onBackClick={handleBackClick}
+          rootDenomsStore={rootDenomsStore}
+          delegationsStore={delegationsStore}
+          validatorsStore={validatorsStore}
+          unDelegationsStore={unDelegationsStore}
+          claimRewardsStore={claimRewardsStore}
+          rootBalanceStore={rootBalanceStore}
+          chainTagsStore={chainTagsStore}
+        />
+      )
+    }
+
+    return (
+      <>
+        <StakeHeader setShowSearchInput={setShowSearchInput} />
+        <div className='flex flex-col pt-6 px-6 w-full h-full overflow-y-scroll bg-secondary-50'>
+          {showSearchInput ? (
+            <div className='flex gap-4 items-center mb-6'>
+              <SearchInput
+                value={searchedText}
+                placeholder='Search staked tokens'
+                onChange={(e) => setSearchedText(e.target.value)}
+                onClear={() => setSearchedText('')}
+              />
+              <X
+                size={24}
+                className='text-muted-foreground  cursor-pointer p-3.5 h-auto w-12 rounded-full bg-secondary-100 hover:bg-secondary-200'
+                onClick={() => {
                   setShowSearchInput(false)
                   setSearchedText('')
                 }}
-                handleChange={(value) => setSearchedText(value)}
-                value={searchedText}
-                placeholder='Search staked tokens'
               />
-            ) : (
-              <>
-                <h1 className='flex items-center justify-between text-black-100 dark:text-white-100'>
-                  <span className='text-[24px] font-[700]'>Stake</span>
+            </div>
+          ) : (
+            <div className='bg-white-100 dark:bg-gray-950 border-[1px] border-solid border-gray-200 dark:border-gray-850 rounded-xl flex p-3 mb-6'>
+              <AggregatedValues
+                label='Staked'
+                value={formatCurrency(totalCurrencyAmountDelegation)}
+                className='border-r-[1px] border-solid border-gray-200 dark:border-gray-850'
+              />
+              <AggregatedValues
+                label='Claimable'
+                value={formatCurrency(totalClaimRewardsAmount)}
+                className='border-r-[1px] border-solid border-gray-200 dark:border-gray-850'
+              />
+              <AggregatedValues label='Avg APR' value={averageAprValue} />
+            </div>
+          )}
 
-                  <button
-                    className='bg-white-100 dark:bg-gray-950 w-[40px] h-[40px] rounded-full flex items-center justify-center'
-                    onClick={() => setShowSearchInput(true)}
-                  >
-                    <img
-                      src={Images.Misc.SearchWhiteIcon}
-                      className='w-[24px] h-[24px] invert dark:invert-0'
-                    />
-                  </button>
-                </h1>
-
-                <div className='bg-white-100 dark:bg-gray-950 border-[1px] border-solid border-gray-200 dark:border-gray-850 rounded-xl flex p-3 mb-4 mt-5'>
-                  <AggregatedValues
-                    label='Staked'
-                    value={formatCurrency(totalCurrencyAmountDelegation)}
-                    className='border-r-[1px] border-solid border-gray-200 dark:border-gray-850'
-                  />
-                  <AggregatedValues
-                    label='Claimable'
-                    value={formatCurrency(totalClaimRewardsAmount)}
-                    className='border-r-[1px] border-solid border-gray-200 dark:border-gray-850'
-                  />
-                  <AggregatedValues label='Avg APR' value={averageAprValue} />
-                </div>
-              </>
-            )}
-
+          {delegationsToConsider.length > 0 && (
             <p className='text-gray-800 dark:text-gray-200 text-[12px] text-[500] flex items-center justify-between mb-2 px-[12px]'>
               <span className='block w-[150px]'>Tokens</span>
 
@@ -323,84 +296,61 @@ export const AggregatedStake = observer(
                 )}
               </button>
             </p>
+          )}
 
-            <div
-              className={classNames('overflow-y-auto', {
-                'max-h-[calc(100%-240px)]': showSearchInput,
-                'max-h-[calc(100%-332px)]': !showSearchInput,
-              })}
-            >
-              <div className='flex flex-col gap-3'>
-                {isEveryChainLoading ? (
+          <div className='h-full w-full overflow-y-scroll'>
+            <div className='flex flex-col gap-3 pb-6'>
+              {isEveryChainLoading ? <AggregatedLoadingList /> : null}
+
+              {!isEveryChainLoading ? (
+                delegationsToConsider.length > 0 ? (
                   <>
-                    <AggregatedLoading />
-                    <AggregatedLoading />
+                    {delegationsToConsider.map((delegation) => {
+                      const {
+                        totalDelegationAmount,
+                        currencyAmountDelegation,
+                        stakingDenom,
+                        apr,
+                        chain,
+                      } = delegation
+
+                      const aprValue = apr
+                        ? `${currency((apr * 100).toString(), {
+                            precision: 2,
+                            symbol: '',
+                          }).format()} %`
+                        : '-'
+
+                      return (
+                        <StakeTokenCard
+                          key={chain}
+                          tokenName={stakingDenom}
+                          chainName={chains[chain as SupportedChain].chainName}
+                          chainLogo={chains[chain as SupportedChain].chainSymbolImageUrl ?? ''}
+                          apr={aprValue}
+                          dollarAmount={formatCurrency(new BigNumber(currencyAmountDelegation))}
+                          amount={totalDelegationAmount}
+                          onClick={() => handleTokenCardClick(chain)}
+                        />
+                      )
+                    })}
                   </>
-                ) : null}
-
-                {!isEveryChainLoading ? (
-                  delegationsToConsider.length > 0 ? (
-                    <>
-                      {delegationsToConsider.map((delegation) => {
-                        const {
-                          totalDelegationAmount,
-                          currencyAmountDelegation,
-                          stakingDenom,
-                          apr,
-                          chain,
-                        } = delegation
-
-                        const aprValue = apr
-                          ? `${currency((apr * 100).toString(), {
-                              precision: 2,
-                              symbol: '',
-                            }).format()} %`
-                          : '-'
-
-                        return (
-                          <StakeTokenCard
-                            key={chain}
-                            tokenName={stakingDenom}
-                            chainName={chains[chain as SupportedChain].chainName}
-                            chainLogo={chains[chain as SupportedChain].chainSymbolImageUrl ?? ''}
-                            apr={aprValue}
-                            dollarAmount={formatCurrency(new BigNumber(currencyAmountDelegation))}
-                            amount={totalDelegationAmount}
-                            onClick={() => handleTokenCardClick(chain)}
-                          />
-                        )
-                      })}
-                    </>
-                  ) : (
-                    <EmptyCard
-                      isRounded
-                      subHeading='Please try again with something else'
-                      heading={'No results for “' + sliceSearchWord(searchedText) + '”'}
-                      src={Images.Misc.Explore}
-                      classname='dark:!bg-gray-950'
-                      imgContainerClassname='dark:!bg-gray-900'
-                    />
-                  )
-                ) : null}
-
-                {isSomeChainLoading && !showSearchInput ? (
-                  <div className='rounded-xl dark:bg-gray-950 bg-white-100'>
-                    <AggregatedLoading />
-                  </div>
-                ) : null}
-              </div>
+                ) : (
+                  <EmptyCard
+                    isRounded
+                    subHeading='Please try again with something else'
+                    heading={'No results for “' + sliceSearchWord(searchedText) + '”'}
+                    src={Images.Misc.Explore}
+                    classname='dark:!bg-gray-950'
+                    imgContainerClassname='dark:!bg-gray-900'
+                  />
+                )
+              ) : null}
+              {isSomeChainLoading && !showSearchInput ? <AggregatedLoadingList /> : null}
             </div>
           </div>
-        </PopupLayout>
-
-        <SelectChain
-          chainTagsStore={chainTagsStore}
-          isVisible={showChainSelector}
-          onClose={() => setShowChainSelector(false)}
-          defaultFilter={defaultFilter}
-        />
-        <BottomNav label={BottomNavLabel.Stake} />
-      </div>
+        </div>
+      </>
     )
   },
 )

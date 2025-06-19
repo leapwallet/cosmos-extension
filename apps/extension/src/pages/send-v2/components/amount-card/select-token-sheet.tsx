@@ -3,7 +3,7 @@ import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk'
 import { Token } from '@leapwallet/cosmos-wallet-store'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
-import { SearchInput } from 'components/search-input'
+import { SearchInput } from 'components/ui/input/search-input'
 import { useSendContext } from 'pages/send-v2/context'
 import { TokenCard } from 'pages/swaps-v2/components/TokenCard'
 import React, { useMemo, useState } from 'react'
@@ -33,6 +33,8 @@ export const SelectTokenSheet = ({
   const _assets = useMemo(() => {
     return assets.filter((token) => {
       if (token.isAptos) return true
+      if (token.isSolana) return true
+      if (token.isSui) return true
       return (
         String(token.amount) !== '0' &&
         (denoms[token.coinMinimalDenom as keyof typeof denoms] ??
@@ -46,7 +48,7 @@ export const SelectTokenSheet = ({
   const transferableTokens = useMemo(
     () =>
       _assets.filter((asset) =>
-        asset.symbol.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+        asset.symbol?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
       ),
     [_assets, searchQuery],
   )
@@ -72,8 +74,6 @@ export const SelectTokenSheet = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             onClear={() => setSearchQuery('')}
             placeholder='Search tokens...'
-            divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
-            inputClassName='flex flex-grow text-base outline-none bg-white-0 font-bold text-black-100 dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400 !leading-[21px]'
           />
         </div>
 
@@ -98,7 +98,6 @@ export const SelectTokenSheet = ({
                   <TokenCard
                     onTokenSelect={handleSelectToken}
                     token={asset as SourceToken}
-                    hideAmount={asset.amount === '0'}
                     isSelected={isSelected}
                     selectedChain={undefined}
                     showRedirection={false}

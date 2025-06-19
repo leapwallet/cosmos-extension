@@ -10,4 +10,5 @@ export * from './password';
 export * from './root';
 export * from './stake';
 export * from './types';
+export * from './utils';
 export * from './wallet';

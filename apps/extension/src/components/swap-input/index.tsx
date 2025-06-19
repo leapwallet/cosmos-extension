@@ -133,9 +133,8 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
             <CardDivider />
           </div>
           <ClickableIcon
-            darker={true}
             label='Swap'
-            icon={<CaretDoubleDown size={20} />}
+            icon={CaretDoubleDown}
             onClick={onSwapClick}
             style={{ zIndex: 1 }}
           />

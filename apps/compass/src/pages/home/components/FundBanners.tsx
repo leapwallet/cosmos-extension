@@ -69,24 +69,6 @@ const FundBanners = React.memo(() => {
     [chain?.chainId, isAggregatedView],
   )
 
-  const trackCTAEvent = useCallback(
-    (buttonName: string, redirectURL?: string) => {
-      try {
-        mixpanel.track(EventName.ButtonClick, {
-          buttonType: ButtonType.ADD_FUNDS,
-          buttonName,
-          redirectURL,
-          time: Date.now() / 1000,
-          chainId,
-          chainName,
-        })
-      } catch (e) {
-        captureException(e)
-      }
-    },
-    [chainId, chainName],
-  )
-
   const bannerData: FundBannerData[] = useMemo(
     () =>
       [
@@ -107,7 +89,6 @@ const FundBanners = React.memo(() => {
             UserClipboard.copyText(address)
 
             setShowCopyAddress(true)
-            trackCTAEvent(ButtonName.RECEIVE_ASSETS)
           },
         },
         {
@@ -117,10 +98,6 @@ const FundBanners = React.memo(() => {
           textColor: '#70B7FF',
           onClick: () => {
             handleSwapClick(transactUrl('swap'), swapPath)
-            trackCTAEvent(
-              ButtonName.IBC_SWAP,
-              featureFlags?.all_chains?.swap === 'redirect' ? transactUrl('swap') : swapPath,
-            )
           },
           hide: isAggregatedView,
         },
@@ -131,7 +108,6 @@ const FundBanners = React.memo(() => {
           textColor: '#F47CCE',
           onClick: () => {
             handleBuyClick()
-            trackCTAEvent(ButtonName.BUY, '/buy')
           },
         },
         {
@@ -141,7 +117,6 @@ const FundBanners = React.memo(() => {
           textColor: '#3ACF92',
           onClick: () => {
             window.open(transactUrl('bridge'), '_blank')
-            trackCTAEvent(ButtonName.BRIDGE, transactUrl('bridge'))
           },
         },
       ].filter((d) => !d?.hide),
@@ -151,7 +126,6 @@ const FundBanners = React.memo(() => {
       address,
       chain?.bip44?.coinType,
       chain?.key,
-      trackCTAEvent,
       transactUrl,
       isAggregatedView,
       token,

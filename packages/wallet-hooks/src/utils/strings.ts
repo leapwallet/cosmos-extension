@@ -18,7 +18,7 @@ export const sliceWord = (word?: string, visibleFrontLetters = 5, visibleLastLet
 };
 
 export const capitalize = (words: string) => {
-  if (!words) return words;
+  if (!words || !words?.trim()) return words;
   return words
     .split(' ')
     .map((word) => word[0].toUpperCase() + word.slice(1))

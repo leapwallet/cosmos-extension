@@ -1,14 +1,11 @@
-import { AirdropEligibilityInfo, sliceAddress, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { AirdropEligibilityInfo, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { CheckCircle, CopySimple, Wallet, WarningCircle } from '@phosphor-icons/react'
 import Text from 'components/text'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { walletLabels } from 'config/constants'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import React, { useEffect, useMemo, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
 import { formatWalletName } from 'utils/formatWalletName'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { trim } from 'utils/strings'
 
 interface EligibleWalletsProps {
@@ -20,20 +17,11 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
   const [copied, setCopied] = useState(false)
 
   const { activeWallet } = useActiveWallet()
-
-  const walletName =
-    activeWallet?.walletType === WALLETTYPE.LEDGER &&
-    !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(activeWallet.name)
-      ? `${walletLabels[activeWallet.walletType]} Wallet ${activeWallet.addressIndex + 1}`
-      : formatWalletName(activeWallet?.name || '')
+  const walletName = formatWalletName(activeWallet?.name || '')
 
   const walletAvatar = useMemo(() => {
     if (activeWallet?.avatar) {
       return activeWallet.avatar
-    }
-
-    if (isCompassWallet()) {
-      return Images.Logos.CompassCircle
     }
 
     return
@@ -61,12 +49,12 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
   }
 
   return (
-    <div className='flex flex-col gap-2'>
+    <div className='flex flex-col gap-2 bg-secondary-100 rounded-xl p-4'>
       <Text size='md' className='font-bold gap-2'>
         <Wallet size={20} className='text-black-100 dark:text-white-100' />
         Eligible wallets
       </Text>
-      <div className='bg-white-100 dark:bg-gray-950 p-4 rounded-2xl mt-1'>
+      <div className='bg-secondary-200 p-4 rounded-2xl mt-1'>
         <div className='flex items-center gap-2 mb-3'>
           {walletAvatar ? (
             <img className='w-5 h-5 rounded-full' src={walletAvatar} alt='wallet-avatar' />
@@ -81,10 +69,7 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
           {selectedAirdrop?.tokenInfo?.map((token, index) => {
             if (token?.address) {
               return (
-                <div
-                  key={index}
-                  className='flex gap-2 py-2 px-3 rounded-3xl bg-gray-100 dark:bg-gray-900'
-                >
+                <div key={index} className='flex gap-2 py-2 px-3 rounded-3xl bg-secondary-300'>
                   <Text size='sm' color='text-gray-800 dark:text-gray-200' className='font-medium'>
                     {sliceAddress(token?.address)}
                   </Text>
@@ -107,9 +92,9 @@ export default function EligibleWallets({ selectedAirdrop }: EligibleWalletsProp
             }
           })}
           {showAddreessError && (
-            <div className='flex items-center bg-gray-100 dark:bg-gray-900 rounded-2xl border border-red-300 p-4 gap-3'>
-              <WarningCircle size={20} className='text-red-300' />
-              <p className='text-sm font-medium text-gray-800 dark:text-gray-200'>
+            <div className='flex items-start bg-destructive/75 rounded-2xl p-4 gap-3'>
+              <WarningCircle size={16} className='text-destructive-100 shrink-0 mt-1' />
+              <p className='text-sm font-medium text-foreground !leading-[19px]'>
                 We are unable to fetch airdrops for some addresses. Please try again later.
               </p>
             </div>

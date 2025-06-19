@@ -4,7 +4,7 @@ import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import { Buttons, GenericCard, StakeInput } from '@leapwallet/leap-ui'
 import React, { useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import Text from '~/components/text'
 import { useStakeTx } from '~/hooks/staking/use-stake-tx'

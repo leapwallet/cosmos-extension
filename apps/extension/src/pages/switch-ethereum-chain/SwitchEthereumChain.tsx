@@ -20,12 +20,11 @@ import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { rootStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { formatWalletName } from 'utils/formatWalletName'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 import Browser from 'webextension-polyfill'
@@ -151,15 +150,7 @@ export default function SwitchEthereumChain() {
               <Header
                 imgSrc={chainInfo?.chainSymbolImageUrl ?? GenericLight}
                 title={
-                  <Buttons.Wallet
-                    brandLogo={
-                      isCompassWallet() ? (
-                        <img className='w-[24px] h-[24px] mr-1' src={Images.Logos.CompassCircle} />
-                      ) : undefined
-                    }
-                    title={trim(walletName, 10)}
-                    className='pr-4 cursor-default'
-                  />
+                  <Buttons.Wallet title={trim(walletName, 10)} className='pr-4 cursor-default' />
                 }
               />
             </div>
@@ -171,8 +162,7 @@ export default function SwitchEthereumChain() {
             </h2>
 
             <p className='text-center text-sm dark:text-gray-300 text-gray-500 w-full'>
-              This will switch the selected chain within {isCompassWallet() ? 'Compass' : 'Leap'} to
-              a previously added chain:
+              This will switch the selected chain within Leap to a previously added chain:
             </p>
 
             <div className='flex w-full p-8 items-center justify-between'>

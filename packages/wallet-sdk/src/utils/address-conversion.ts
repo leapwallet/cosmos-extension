@@ -32,26 +32,30 @@ export function pubKeyToEvmAddress(decompressedPubKey: Uint8Array): string {
 }
 
 export function pubKeyToEvmAddressToShow(pubkey: string | Uint8Array | undefined, noPlaceHolder?: boolean): string {
-  if (pubkey === undefined) {
+  try {
+    if (pubkey === undefined) {
+      return noPlaceHolder ? '' : UNABLE_TO_SHOW_EVM_ADDRESS;
+    }
+    if (typeof pubkey === 'string' && pubkey.startsWith('PLACEHOLDER')) {
+      const address = pubkey.split(' ')[1];
+      return isValidAddress(address)
+        ? getEthereumAddress(address)
+        : isEthAddress(address)
+        ? address
+        : address === 'undefined' && noPlaceHolder
+        ? ''
+        : 'Unable to show EVM address';
+    }
+
+    const pubKeyBytes = typeof pubkey === 'string' ? fromBase64(pubkey) : pubkey;
+    const seiEvmAddress = pubKeyBytes
+      ? pubKeyToEvmAddress(Secp256k1.publicKeyConvert(pubKeyBytes, false))
+      : noPlaceHolder
+      ? ''
+      : UNABLE_TO_SHOW_EVM_ADDRESS;
+
+    return seiEvmAddress;
+  } catch (error) {
     return noPlaceHolder ? '' : UNABLE_TO_SHOW_EVM_ADDRESS;
   }
-  if (typeof pubkey === 'string' && pubkey.startsWith('PLACEHOLDER')) {
-    const address = pubkey.split(' ')[1];
-    return isValidAddress(address)
-      ? getEthereumAddress(address)
-      : isEthAddress(address)
-      ? address
-      : address === 'undefined' && noPlaceHolder
-      ? ''
-      : 'Unable to show EVM address';
-  }
-
-  const pubKeyBytes = typeof pubkey === 'string' ? fromBase64(pubkey) : pubkey;
-  const seiEvmAddress = pubKeyBytes
-    ? pubKeyToEvmAddress(Secp256k1.publicKeyConvert(pubKeyBytes, false))
-    : noPlaceHolder
-    ? ''
-    : UNABLE_TO_SHOW_EVM_ADDRESS;
-
-  return seiEvmAddress;
 }

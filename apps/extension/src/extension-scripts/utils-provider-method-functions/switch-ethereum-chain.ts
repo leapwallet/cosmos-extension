@@ -6,7 +6,6 @@ import {
 import { ACTIVE_WALLET, BG_RESPONSE } from 'config/storage-keys'
 import { getSupportedChains } from 'extension-scripts/utils'
 import { addToConnections } from 'pages/ApproveConnection/utils'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
 export async function switchEthereumChain(
@@ -19,7 +18,7 @@ export async function switchEthereumChain(
       throw new Error(`Invalid chain id: ${chainId}`)
     }
     const updatedSupportedChains = await getSupportedChains()
-    const updatedEvmChainIdMap = await getEvmChainIdMap(updatedSupportedChains, isCompassWallet())
+    const updatedEvmChainIdMap = await getEvmChainIdMap(updatedSupportedChains, false)
     const requestedActiveChain = updatedEvmChainIdMap[Number(chainId).toString()]
     if (!requestedActiveChain) {
       throw new Error('Unrecognized chain id')

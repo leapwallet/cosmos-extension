@@ -1,4 +1,10 @@
-import { Key, SelectedAddress, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  Key,
+  SelectedAddress,
+  useChainInfo,
+  useGetChains,
+  WALLETTYPE,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Question } from '@phosphor-icons/react'
 import classNames from 'classnames'
@@ -11,7 +17,7 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useEffect, useMemo, useState } from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import { capitalize, sliceAddress } from 'utils/strings'
 
@@ -31,6 +37,16 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
   const chainInfos = useChainInfos()
   const activeWallet = useActiveWallet()
   const defaultTokenLogo = useDefaultTokenLogo()
+  const chains = useGetChains()
+  const activeChainInfo = useChainInfo(sendActiveChain)
+
+  const ledgerEnabledEvmChainsKeys = useMemo(() => {
+    return getLedgerEnabledEvmChainsKey(Object.values(chains))
+  }, [chains])
+
+  const ledgerApp = useMemo(() => {
+    return ledgerEnabledEvmChainsKeys.includes(activeChainInfo?.key) ? 'EVM' : 'Cosmos'
+  }, [activeChainInfo?.key, ledgerEnabledEvmChainsKeys])
 
   const [selectedWallet, setSelectedWallet] = useState<Key | null>(activeWallet?.activeWallet)
   const [searchQuery, setSearchQuery] = useState('')
@@ -52,10 +68,6 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
   const displayAccounts = useMemo(
     () =>
       _displayAccounts.filter(([chain]) => {
-        if (isCompassWallet() && chain !== 'seiTestnet2') {
-          return null
-        }
-
         const chainName = chainInfos[chain as SupportedChain]?.chainName ?? chain
         return chainName.toLowerCase().includes(trimmedQuery.toLowerCase())
       }),
@@ -128,7 +140,7 @@ function MyWallets({ skipSupportedDestinationChainsIDs, setSelectedAddress }: My
               isLedgerEnabled(chainInfo.key, chainInfo.bip44.coinType, Object.values(chainInfos)) &&
               !address
             ) {
-              addressText = `Please import EVM wallet`
+              addressText = `Please import ${ledgerApp} wallet`
             }
 
             return (

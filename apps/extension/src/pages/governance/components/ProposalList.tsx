@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Proposal, useChainInfo, useStaking } from '@leapwallet/cosmos-wallet-hooks'
+import { Proposal, useStaking } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainTagsStore,
   ClaimRewardsStore,
@@ -16,8 +16,8 @@ import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { SearchInput } from 'components/search-input'
 import GovCardSkeleton from 'components/Skeletons/GovCardSkeleton'
+import { SearchInput } from 'components/ui/input/search-input'
 import { useChainPageInfo } from 'hooks'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -197,11 +197,6 @@ export const ProposalList = observer(
                   onChange={handleFilterChange}
                   value={propFilter}
                   onClear={() => setPropFilter('')}
-                  inputClassName={classNames(
-                    'flex flex-grow text-base text-gray-600 dark:text-gray-200 outline-none bg-white-0',
-                    { 'w-[50px]': isSidePanel() },
-                  )}
-                  divClassName='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'
                 />
 
                 <button

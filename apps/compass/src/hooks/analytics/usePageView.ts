@@ -11,15 +11,18 @@ import { AggregatedSupportedChain } from 'types/utility'
  * Track page view on mixpanel
  */
 export const usePageView = (
-  pageName: PageName | null,
-  additionalProperties?: Record<string, unknown>,
+  pageName: PageName,
+  enable = true,
+  additionalProperties?: any,
+  callback?: () => void,
 ) => {
   const chain = useChainInfo() as ChainInfo | undefined
   const activeChain = useActiveChain() as AggregatedSupportedChain
 
   useEffect(() => {
-    if (!pageName) return
-
+    if (!enable) {
+      return
+    }
     const isAggregatedView = activeChain === AGGREGATED_CHAIN_KEY
     const chainId = isAggregatedView ? 'all' : chain?.chainId ?? ''
     const chainName = isAggregatedView ? 'All Chains' : chain?.chainName ?? ''
@@ -39,6 +42,7 @@ export const usePageView = (
             transport: 'sendBeacon',
           },
         )
+        callback?.()
       } catch (_) {
         //
       }
@@ -47,5 +51,5 @@ export const usePageView = (
     return () => {
       clearTimeout(timeoutId)
     }
-  }, [activeChain, additionalProperties, chain, pageName])
+  }, [activeChain, additionalProperties, chain, enable, pageName])
 }

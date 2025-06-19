@@ -1,7 +1,5 @@
 import Text from 'components/text'
-import { Images } from 'images'
 import React from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type Props = {
   heading?: string

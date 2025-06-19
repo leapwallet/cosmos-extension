@@ -3,6 +3,7 @@ import {
   formatTokenAmount,
   SelectedNetwork,
   sliceWord,
+  STAKE_MODE,
   useActiveChain,
   useActiveStakingDenom,
   useSelectedNetwork,
@@ -11,57 +12,73 @@ import {
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
-import {
-  ClaimRewardsStore,
-  DelegationsStore,
-  RootBalanceStore,
-  RootDenomsStore,
-  UndelegationsStore,
-  ValidatorsStore,
-} from '@leapwallet/cosmos-wallet-store'
-import { Buttons, Card } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
-import Text from 'components/text'
-import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import BottomModal from 'components/new-bottom-modal'
 import { EventName } from 'config/analytics'
-import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
+import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
-import Lottie from 'lottie-react'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { hideAssetsStore } from 'stores/hide-assets-store'
-import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
-import { isSidePanel } from 'utils/isSidePanel'
-
-import { StakeTxnPageState } from '../StakeTxnPage'
-
+import { sidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
+
+import { Button } from 'components/ui/button'
+import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
+import Lottie from 'lottie-react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { hideAssetsStore } from 'stores/hide-assets-store'
+import { rootBalanceStore } from 'stores/root-store'
+import {
+  claimRewardsStore,
+  delegationsStore,
+  unDelegationsStore,
+  validatorsStore,
+} from 'stores/stake-store'
+
+import { transitionTitleMap } from '../utils/stake-text'
+
+export const ClaimCard = (props: {
+  title?: string
+  subText?: string
+  imgSrc: string
+  fallbackImgSrc?: string
+}) => {
+  const defaultTokenLogo = useDefaultTokenLogo()
+
+  return (
+    <div className='flex gap-2 items-center justify-between bg-secondary-100 p-6 rounded-xl w-full'>
+      <div className='flex flex-col'>
+        <span className='text-lg font-bold'>{props.title}</span>
+        <span className='text-sm text-muted-foreground'>{props.subText}</span>
+      </div>
+
+      <img
+        src={props.imgSrc}
+        alt='validator'
+        className='size-12 rounded-full'
+        onError={imgOnError(props.fallbackImgSrc ?? defaultTokenLogo)}
+      />
+    </div>
+  )
+}
 
 interface ReviewClaimTxProps {
   isOpen: boolean
   onClose: () => void
   validator?: Validator
   validators?: Record<string, Validator>
-  rootDenomsStore: RootDenomsStore
-  rootBalanceStore: RootBalanceStore
-  delegationsStore: DelegationsStore
-  validatorsStore: ValidatorsStore
-  unDelegationsStore: UndelegationsStore
-  claimRewardsStore: ClaimRewardsStore
+  setClaimTxMode: (mode: STAKE_MODE | 'CLAIM_AND_DELEGATE' | null) => void
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
 }
@@ -72,23 +89,14 @@ const ReviewClaimTx = observer(
     onClose,
     validator,
     validators,
-    rootDenomsStore,
-    delegationsStore,
-    validatorsStore,
-    unDelegationsStore,
-    claimRewardsStore,
+    setClaimTxMode,
     forceChain,
     forceNetwork,
-    rootBalanceStore,
   }: ReviewClaimTxProps) => {
     const _activeChain = useActiveChain()
-    const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
-
+    const activeChain = forceChain ?? _activeChain
     const _activeNetwork = useSelectedNetwork()
-    const activeNetwork = useMemo(
-      () => forceNetwork || _activeNetwork,
-      [_activeNetwork, forceNetwork],
-    )
+    const activeNetwork = forceNetwork ?? _activeNetwork
 
     const getWallet = useGetWallet(activeChain)
     const denoms = rootDenomsStore.allDenoms
@@ -149,14 +157,17 @@ const ReviewClaimTx = observer(
       option: gasOption,
       gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
     })
-    const navigate = useNavigate()
 
     const rewardValidators = useMemo(() => {
       if (rewards && validators) {
         return rewards.rewards.map((reward) => validators[reward.validator_address])
       }
     }, [rewards, validators])
-    const { data: imageUrl } = useValidatorImage(rewardValidators && rewardValidators[0])
+
+    const { data: validatorImage } = useValidatorImage(
+      rewardValidators?.[0]?.image ? undefined : rewardValidators?.[0],
+    )
+    const imageUrl = rewardValidators?.[0]?.image || validatorImage || Images.Misc.Validator
 
     const nativeTokenReward = useMemo(() => {
       if (rewards) {
@@ -218,22 +229,12 @@ const ReviewClaimTx = observer(
     }, [formattedTokenAmount, totalRewardsDollarAmt])
 
     const txCallback = useCallback(() => {
-      const state = {
-        validator: rewardValidators && rewardValidators[0],
-        mode: 'CLAIM_REWARDS',
-        forceChain: activeChain,
-        forceNetwork: activeNetwork,
-      } as StakeTxnPageState
-
-      sessionStorage.setItem('navigate-stake-pending-txn-state', JSON.stringify(state))
-      navigate('/stake/pending-txn', {
-        state,
-      })
-
-      mixpanel.track(EventName.TransactionSigned, {
-        transactionType: 'stake_claim',
-      })
-    }, [activeChain, activeNetwork, navigate, rewardValidators])
+      setClaimTxMode('CLAIM_REWARDS')
+      onClose()
+      // mixpanel.track(EventName.TransactionSigned, {
+      //   transactionType: 'stake_claim',
+      // })
+    }, [onClose, setClaimTxMode])
 
     const onClaimRewardsClick = useCallback(async () => {
       try {
@@ -260,6 +261,28 @@ const ReviewClaimTx = observer(
       txCallback,
     ])
 
+    const validatorDetails = useMemo(() => {
+      const title =
+        rewardValidators &&
+        sliceWord(
+          rewardValidators[0]?.moniker,
+          sidePanel ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10,
+          3,
+        )
+
+      const subText =
+        rewardValidators &&
+        (rewardValidators.length > 1 ? `+${rewardValidators.length - 1} more validators` : '')
+
+      const imgSrc = imageUrl
+
+      return {
+        title,
+        subText,
+        imgSrc,
+      }
+    }, [imageUrl, rewardValidators])
+
     useCaptureUIException(ledgerError || error, {
       activeChain,
       activeNetwork,
@@ -278,124 +301,58 @@ const ReviewClaimTx = observer(
         setError={setGasError}
         chain={activeChain}
         network={activeNetwork}
-        rootDenomsStore={rootDenomsStore}
         rootBalanceStore={rootBalanceStore}
+        rootDenomsStore={rootDenomsStore}
       >
         <BottomModal
           isOpen={isOpen}
           onClose={onClose}
-          title='Review Transaction'
-          closeOnBackdropClick={true}
-          className='p-6'
+          title={transitionTitleMap.CLAIM_REWARDS}
+          className='p-6 mt-4'
         >
-          <div className='flex flex-col gap-y-6'>
-            <div className='flex flex-col items-center w-full gap-y-4'>
-              <Card
-                className='bg-white-100 dark:bg-gray-950'
-                avatar={
-                  <TokenImageWithFallback
-                    assetImg={activeStakingDenom.icon}
-                    text={activeStakingDenom.coinDenom}
-                    altText={activeStakingDenom.coinDenom}
-                    imageClassName='w-9 h-9 rounded-full'
-                    containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
-                    textClassName='text-[10px] !leading-[14px]'
-                  />
-                }
-                isRounded
-                size='md'
-                title={
-                  <Text
-                    size='sm'
-                    color='text-black-100 dark:text-white-100'
-                    className='font-bold mb-0.5'
-                  >
-                    {titleText}
-                  </Text>
-                }
-                subtitle={
-                  <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                    {subTitleText}
-                  </Text>
-                }
-              />
-              <Card
-                className='bg-white-100 dark:bg-gray-950'
-                avatar={
-                  <img
-                    src={
-                      imageUrl ??
-                      (rewardValidators && rewardValidators[0]?.image) ??
-                      Images.Misc.Validator
-                    }
-                    onError={imgOnError(Images.Misc.Validator)}
-                    width={36}
-                    height={36}
-                    className='rounded-full'
-                  />
-                }
-                isRounded
-                size='md'
-                title={
-                  <Text
-                    size='sm'
-                    color='text-black-100 dark:text-white-100'
-                    className='font-bold mb-0.5'
-                  >
-                    {rewardValidators &&
-                      sliceWord(
-                        rewardValidators[0]?.moniker,
-                        isSidePanel()
-                          ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
-                          : 10,
-                        3,
-                      )}
-                  </Text>
-                }
-                subtitle={
-                  <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                    {rewardValidators &&
-                      (rewardValidators.length > 1
-                        ? `+${rewardValidators.length - 1} more validators`
-                        : '')}
-                  </Text>
-                }
-              />
-            </div>
-            <div className='flex flex-col items-center w-full gap-y-2'>
-              <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
+          <div className='flex flex-col items-center w-full gap-y-4'>
+            <ClaimCard title={titleText} subText={subTitleText} imgSrc={activeStakingDenom.icon} />
+            <ClaimCard {...validatorDetails} />
+          </div>
 
-              {ledgerError && <p className='text-sm font-bold text-red-300 px-2'>{ledgerError}</p>}
-              {error && <p className='text-sm font-bold text-red-300 px-2'>{error}</p>}
-              {gasError && !showFeesSettingSheet && (
-                <p className='text-sm font-bold text-red-300 px-2'>{gasError}</p>
+          <div className='flex items-center w-full justify-between mt-5 mb-7'>
+            <span className='text-sm text-muted-foreground font-medium'>Fees</span>
+            <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
+          </div>
+
+          <div className='flex flex-col items-center w-full gap-y-2'>
+            {ledgerError && (
+              <p className='text-sm font-bold text-destructive-100 px-2'>{ledgerError}</p>
+            )}
+            {error && <p className='text-sm font-bold text-destructive-100 px-2'>{error}</p>}
+            {gasError && !showFeesSettingSheet && (
+              <p className='text-sm font-bold text-destructive-100 px-2'>{gasError}</p>
+            )}
+
+            <Button
+              className='w-full'
+              disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
+              onClick={onClaimRewardsClick}
+            >
+              {isLoading ? (
+                <Lottie
+                  loop={true}
+                  autoplay={true}
+                  animationData={loadingImage}
+                  rendererSettings={{
+                    preserveAspectRatio: 'xMidYMid slice',
+                  }}
+                  className={'h-[24px] w-[24px]'}
+                />
+              ) : (
+                'Confirm Claim'
               )}
-
-              <Buttons.Generic
-                color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-                size='normal'
-                disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
-                className='w-full'
-                onClick={onClaimRewardsClick}
-              >
-                {isLoading ? (
-                  <Lottie
-                    loop={true}
-                    autoplay={true}
-                    animationData={loadingImage}
-                    rendererSettings={{
-                      preserveAspectRatio: 'xMidYMid slice',
-                    }}
-                    className={'h-[28px] w-[28px]'}
-                  />
-                ) : (
-                  'Confirm Claim'
-                )}
-              </Buttons.Generic>
-            </div>
+            </Button>
           </div>
         </BottomModal>
-        {showLedgerPopup && <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />}
+
+        <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />
+
         <FeesSettingsSheet
           showFeesSettingSheet={showFeesSettingSheet}
           onClose={handleCloseFeeSettingSheet}

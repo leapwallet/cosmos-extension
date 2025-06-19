@@ -1,19 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useActiveChain, useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, TextArea } from '@leapwallet/leap-ui'
+import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { captureException } from '@sentry/react'
-import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
-import InfoSheet from 'components/Infosheet'
-import { LoaderAnimation } from 'components/loader/Loader'
-import Text from 'components/text'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
+import { PrivateKeyInput } from 'components/ui/input/private-key-input'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
-import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useState } from 'react'
 import { passwordStore } from 'stores/password-store'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { validateSeedPhrase } from 'utils/validateSeedPhrase'
 
 import { Wallet } from '../../hooks/wallet/useWallet'
@@ -32,8 +26,6 @@ export const ImportPrivateKey = observer(({ isVisible, onClose }: ImportPrivateK
   const importWallet = Wallet.useImportWallet()
   const updateWatchWalletSeed = Wallet.useUpdateWatchWalletSeed()
 
-  const [viewInfoSheet, setViewInfoSheet] = useState(false)
-  const isSeiEvmChain = useIsSeiEvmChain()
   const onChangeHandler = (value: string) => {
     setError('')
     setPrivateKey(value)
@@ -78,83 +70,33 @@ export const ImportPrivateKey = observer(({ isVisible, onClose }: ImportPrivateK
 
   return (
     <BottomModal
+      fullScreen
       isOpen={isVisible}
       onClose={() => {
         onClose(false)
         setError('')
       }}
       title={'Import Wallet'}
-      closeOnBackdropClick={true}
-    >
-      <>
-        {isSeiEvmChain ? (
-          <button
-            className='absolute top-5 left-5 w-[32px] cursor-pointer z-10'
-            onClick={() => setViewInfoSheet(true)}
-          >
-            <img className='w-full' src={Images.Misc.HelpOutline} alt='help' />
-          </button>
-        ) : null}
+      footerComponent={
+        <>
+          <Button variant='secondary' size='md' className='flex-1' onClick={() => onClose(false)}>
+            Cancel
+          </Button>
 
-        <div className='flex flex-col gap-y-4 items-cente justify-center'>
-          <Text size='sm' color='text-center text-gray-600 dark:text-gray-600'>
-            {isCompassWallet()
-              ? `Use private key to import your MetaMask wallet to generate the same EVM address as on
-            MetaMask.`
-              : `To import an existing wallet, please enter the private key here.`}
-          </Text>
-          <TextArea
-            onChange={(e) => onChangeHandler(e.target.value)}
-            className={classNames(
-              'border-solid border-2 bg-white-100 dark:bg-gray-900 text text-black-100 dark:text-white-100 p-4 text-center items-center justify-center rounded-lg w-[344px] h-[176px] resize-none focus:outline-none',
-              {
-                'border-red-300': !!error,
-                'dark:border-gray-400 border-gray-200 focus:border-gray-400': !error,
-              },
-            )}
-            placeholder='Enter private key'
-            isErrorHighlighted={!!error}
-          />
-
-          {error && (
-            <Text size='sm' color='text-red-300 mx-5'>
-              {error}
-            </Text>
-          )}
-
-          <div className='w-full h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center p-[16px] pr-[21px]'>
-            <img className='mr-[16px]' src={Images.Misc.Warning} />
-            <div className='flex flex-col gap-y-[2px]'>
-              <Text size='sm' className='tex font-bold'>
-                Recommended security practice:
-              </Text>
-              <Text size='xs' color='text-gray-400'>
-                It is always safer to type the private key rather than pasting it.
-              </Text>
-            </div>
-          </div>
-
-          <Buttons.Generic
-            size='normal'
+          <Button
+            size='md'
             disabled={!privateKey || !!error || isLoading}
             onClick={handleImportWallet}
-            color={Colors.getChainColor(activeChain)}
-            className='w-[344px]'
+            className='flex-1'
           >
-            {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Import Wallet'}
-          </Buttons.Generic>
-        </div>
-
-        {isSeiEvmChain ? (
-          <InfoSheet
-            isVisible={viewInfoSheet}
-            setVisible={setViewInfoSheet}
-            title='FAQ'
-            heading='Use private key for importing via MetaMask'
-            desc='Using private key to import your MetaMask wallet will generate the same 0x address as on MetaMask.'
-          />
-        ) : null}
-      </>
+            Import Wallet
+          </Button>
+        </>
+      }
+    >
+      <div className='flex flex-col gap-y-4 items-center justify-center'>
+        <PrivateKeyInput value={privateKey} onChange={onChangeHandler} error={error} />
+      </div>
     </BottomModal>
   )
 })

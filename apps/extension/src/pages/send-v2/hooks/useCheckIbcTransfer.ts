@@ -4,17 +4,17 @@ import {
   Token,
   useAddressPrefixes,
   useChainsStore,
-  useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   BTC_CHAINS,
   getBlockChainFromAddress,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { useEffect } from 'react'
 import { ManageChainsStore } from 'stores/manage-chains-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 export type UseCheckIbcTransferParams = {
   sendActiveChain: SupportedChain
@@ -43,23 +43,24 @@ export function useCheckIbcTransfer({
   setAddressError,
   manageChainsStore,
 }: UseCheckIbcTransferParams) {
-  const isSeiEvmChain = useIsSeiEvmChain()
   const { chains } = useChainsStore()
   const addressPrefixes = useAddressPrefixes()
 
   const isBtcTx = BTC_CHAINS.includes(sendActiveChain)
   const isAptosTx = isAptosChain(sendActiveChain)
+  const isSolanaTx = isSolanaChain(sendActiveChain)
+  const isSuiTx = isSuiChain(sendActiveChain)
   const activeChainInfo = chains[sendActiveChain]
 
   useEffect(() => {
     let destinationChain: string | undefined
     let destChainAddrPrefix: string | undefined
-    if (isBtcTx || isAptosTx) {
+    if (isBtcTx || isAptosTx || isSolanaTx || isSuiTx) {
       return
     }
 
     if (
-      (isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) &&
+      chains[sendActiveChain]?.evmOnlyChain &&
       (selectedAddress?.address?.startsWith('0x') || associatedSeiAddress === 'loading')
     ) {
       return
@@ -88,20 +89,6 @@ export function useCheckIbcTransfer({
     if (isIBC && sendSelectedNetwork === 'testnet') {
       setAddressError(`IBC transfers are not supported on testnet.`)
       return
-    }
-
-    if (isIBC && destinationChain && isCompassWallet()) {
-      const compassChains = manageChainsStore.chains.filter((chain) => chain.chainName !== 'cosmos')
-
-      if (!compassChains.find((chain) => chain.chainName === destinationChain)) {
-        const destinationChainName = chains[destinationChain as SupportedChain].chainName
-        const sourceChainName = activeChainInfo.chainName
-
-        setAddressError(
-          `IBC transfers are not supported between ${destinationChainName} and ${sourceChainName}`,
-        )
-        return
-      }
     }
 
     // check if destination chain is supported
@@ -145,7 +132,6 @@ export function useCheckIbcTransfer({
     manageChainsStore.chains,
     isIbcUnwindingDisabled,
     selectedToken?.symbol,
-    isSeiEvmChain,
     sendActiveChain,
     sendSelectedNetwork,
     associatedSeiAddress,

@@ -1,8 +1,6 @@
-import { useIsSeiEvmChain } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import CanvasTextBox from 'components/canvas-box/CanvasTextBox'
-import InfoSheet from 'components/Infosheet'
 import Text from 'components/text'
 import { useChainPageInfo } from 'hooks'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
@@ -21,24 +19,9 @@ function SeedPhraseView({
 }): ReactElement {
   const mnemonic = SeedPhrase.useMnemonic(password)
   const { topChainColor } = useChainPageInfo()
-  const [viewInfoSheet, setViewInfoSheet] = useState(false)
-  const isSeiEvmChain = useIsSeiEvmChain()
 
   return (
-    <div
-      className={classNames('panel-height enclosing-panel overflow-scroll', {
-        relative: isSeiEvmChain,
-      })}
-    >
-      {isSeiEvmChain ? (
-        <button
-          className='absolute top-5 right-5 w-[32px] cursor-pointer z-10'
-          onClick={() => setViewInfoSheet(true)}
-        >
-          <img className='w-full' src={Images.Misc.HelpOutline} alt='help' />
-        </button>
-      ) : null}
-
+    <div className={classNames('panel-height enclosing-panel overflow-scroll')}>
       <Header
         title='Recovery Phrase'
         action={{
@@ -79,16 +62,6 @@ function SeedPhraseView({
           </div>
         </div>
       </div>
-
-      {isSeiEvmChain ? (
-        <InfoSheet
-          isVisible={viewInfoSheet}
-          setVisible={setViewInfoSheet}
-          title='FAQ'
-          heading='Can I export my recovery phrase to MetaMask?'
-          desc='Yes, you can but importing a recovery phrase to MetaMask might give a different address. Instead, import your private key.'
-        />
-      ) : null}
     </div>
   )
 }

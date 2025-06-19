@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Compass Wallet for Sei",
-  "description": "A crypto wallet for Sei Blockchain, brought to you by the Leap Wallet team.",
-  "version": "0.18.0",
+  "name": "Compass DEVELOPMENT BUILD",
+  "description": "THIS IS THE DEVELOPMENT DISTRIBUTION OF THE COMPASS EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.",
+  "version": "0.18.1",
   "options_page": "index.html#/home",
   "web_accessible_resources": [
     {

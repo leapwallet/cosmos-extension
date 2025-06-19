@@ -2,9 +2,9 @@ import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { createProtobufRpcClient, QueryClient, StargateClient } from '@cosmjs/stargate';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 import { Contract } from '@ethersproject/contracts';
-import { JsonRpcProvider } from '@ethersproject/providers';
 import BigNumber from 'bignumber.js';
 import { QueryClientImpl, QueryDenomTraceResponse } from 'cosmjs-types/ibc/applications/transfer/v1/query';
+import { v4 as uuidv4 } from 'uuid';
 
 import { ChainInfo, ChainInfos, SupportedChain } from '../constants';
 import { axiosWrapper } from '../healthy-nodes';
@@ -50,8 +50,23 @@ export async function fetchAllBalances(rpcUrl: string, address: string) {
 }
 
 export async function fetchSeiEvmBalances(evmJsonRpc: string, ethWalletAddress: string) {
-  const provider = new JsonRpcProvider(evmJsonRpc);
-  const balance = await provider.getBalance(ethWalletAddress);
+  const id = uuidv4();
+  const res = await axiosWrapper(
+    {
+      baseURL: evmJsonRpc,
+      method: 'POST',
+      url: ``,
+      data: {
+        jsonrpc: '2.0',
+        method: 'eth_getBalance',
+        params: [ethWalletAddress, 'latest'],
+        id,
+      },
+    },
+    1,
+    'evm-rpc-call',
+  );
+  const balance = new BigNumber(res.data.result, 16);
   return { denom: 'usei', amount: formatEtherValue(balance.toString()) };
 }
 
@@ -78,17 +93,28 @@ export async function fetchCW20Balances(rpcUrl: string, address: string, cw20Tok
 }
 
 export async function fetchERC20Balances(evmJsonRpc: string, ethWalletAddress: string, erc20Tokens: Array<string>) {
-  const provider = new JsonRpcProvider({
-    url: evmJsonRpc,
-    timeout: 10000,
-    throttleLimit: 3,
-  });
   const contractAbi = ['function balanceOf(address account) view returns (uint256)'];
-
   const promises = erc20Tokens.map(async (tokenAddress) => {
-    const contract = new Contract(tokenAddress, contractAbi, provider);
-    const balance = await contract.balanceOf(ethWalletAddress);
-    return { denom: tokenAddress, amount: new BigNumber(balance._hex, 16) };
+    const contract = new Contract(tokenAddress, contractAbi);
+    const data = contract.interface.encodeFunctionData('balanceOf', [ethWalletAddress]);
+    const id = uuidv4();
+    const res = await axiosWrapper(
+      {
+        baseURL: evmJsonRpc,
+        method: 'POST',
+        url: ``,
+        data: {
+          jsonrpc: '2.0',
+          method: 'eth_call',
+          params: [{ to: tokenAddress, data }, 'latest'],
+          id,
+        },
+      },
+      1,
+      'evm-rpc-call',
+    );
+    const balance = new BigNumber(res.data.result, 16);
+    return { denom: tokenAddress, amount: balance };
   });
 
   const balances = await Promise.allSettled(promises);

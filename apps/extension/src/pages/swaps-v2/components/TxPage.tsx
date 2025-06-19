@@ -1,35 +1,34 @@
-import { GasOptions, getKeyToUseForDenoms } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  GasOptions,
+  getKeyToUseForDenoms,
+  useGetExplorerTxnUrl,
+  useSelectedNetwork,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { RootCW20DenomsStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { TRANSFER_STATE, TXN_STATUS } from '@leapwallet/elements-core'
-import { RouteAggregator } from '@leapwallet/elements-hooks'
-import { Buttons, Header } from '@leapwallet/leap-ui'
-import { CaretDown, CaretUp, House, Receipt, Timer } from '@phosphor-icons/react'
-import classNames from 'classnames'
-import PopupLayout from 'components/layout/popup-layout'
+import { CaretRight } from '@phosphor-icons/react'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import Loader from 'components/loader/Loader'
+import BottomModal from 'components/new-bottom-modal'
+import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { PageName } from 'config/analytics'
-import { AnimatePresence } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
-import loadingImage from 'lottie-files/swaps-btn-loading.json'
-import Lottie from 'lottie-react'
+import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { compassTokenTagsStore } from 'stores/denoms-store-instance'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SourceChain, SourceToken, SwapFeeInfo, SwapTxAction } from 'types/swap'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { formatTokenAmount } from 'utils/strings'
 
-import { RoutingInfo, useHandleTxProgressPageBlurEvent, useOnline, useTransactions } from '../hooks'
-import { useExecuteTx } from '../hooks/txExecution/useExecuteTx'
-import { getChainIdsFromRoute, getNoOfStepsFromRoute, getPriceImpactVars } from '../utils'
-import { TxPageSteps } from './index'
-import { SwapActionFailedSection } from './SwapActionFailedSection'
-import { TxErrorSection } from './TxErrorSection'
-import { TxStatusOverview } from './TxStatusOverview'
-import TxTokensSummary from './TxTokensSummary'
-import TxTokensSummaryMini from './TxTokensSummaryMini'
+import {
+  RoutingInfo,
+  useExecuteTx,
+  useHandleTxProgressPageBlurEvent,
+  useOnline,
+  useTransactions,
+} from '../hooks'
 
 export type TxPageProps = {
   onClose: (
@@ -92,12 +91,6 @@ export const TxPage = observer(
   }: TxPageProps) => {
     const cw20Denoms = rootCW20DenomsStore.allCW20Denoms
     const rootDenoms = rootDenomsStore.allDenoms
-    const compassTokenDenomInfo = compassTokenTagsStore.compassTokenDenomInfo
-
-    const denoms = useMemo(
-      () => Object.assign({}, rootDenoms, compassTokenDenomInfo),
-      [rootDenoms, compassTokenDenomInfo],
-    )
 
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
     const [showLedgerPopupText, setShowLedgerPopupText] = useState('')
@@ -105,8 +98,10 @@ export const TxPage = observer(
     const [initialFeeAmount, setFeeAmount] = useState('')
 
     const isOnline = useOnline()
+    const prevIsOnline = useRef<boolean | null>(null)
 
     const navigate = useNavigate()
+    const selectedNetwork = useSelectedNetwork()
 
     const {
       initialSourceToken,
@@ -122,15 +117,7 @@ export const TxPage = observer(
       initialUserPreferredGasLimit,
       initialUserPreferredGasPrice,
       initialSwapFeeInfo,
-      initialSourceAssetUSDValue,
-      initialDestinationAssetUSDValue,
     } = useMemo(() => {
-      const { sourceAssetUSDValue, destinationAssetUSDValue } = getPriceImpactVars(
-        routingInfo?.route,
-        sourceToken,
-        destinationToken,
-        denoms,
-      )
       return {
         initialSourceToken: sourceToken,
         initialDestinationToken: destinationToken,
@@ -145,13 +132,10 @@ export const TxPage = observer(
         initialUserPreferredGasLimit: userPreferredGasLimit,
         initialUserPreferredGasPrice: userPreferredGasPrice,
         initialSwapFeeInfo: swapFeeInfo,
-        initialSourceAssetUSDValue: sourceAssetUSDValue,
-        initialDestinationAssetUSDValue: destinationAssetUSDValue,
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    const [isTxStepsVisible, setIsTxStepsVisible] = useState(true)
     const [isSuccessFull, setIsSuccessFull] = useState(false)
     const [isTrackingInSync, setTrackingInSync] = useState(false)
 
@@ -159,7 +143,7 @@ export const TxPage = observer(
 
     const { callExecuteTx, txStatus, firstTxnError, timeoutError, isLoading, unableToTrackError } =
       useExecuteTx({
-        denoms,
+        denoms: rootDenoms,
         setShowLedgerPopup,
         setShowLedgerPopupText,
         setLedgerError,
@@ -293,109 +277,16 @@ export const TxPage = observer(
       return _failedActionWasSwap
     }, [groupedTransactions, txStatus])
 
-    const transferAssetRelease = txStatus?.[0]?.transferAssetRelease
-
-    const headerTitle = useMemo(() => {
-      if (!isOnline || unableToTrackError) {
-        return 'Tracking Unavailable'
-      }
-
-      if (isLoading) {
-        return 'Transaction In Progress...'
-      }
-
-      if (failedActionWasSwap) {
-        return 'Transaction Stuck'
-      }
-
-      if (!isLoading && isSuccessFull) {
-        return 'Transaction Success'
-      } else {
-        return 'Transaction Complete'
-      }
-    }, [failedActionWasSwap, isLoading, isOnline, isSuccessFull, unableToTrackError])
-
-    const estimatedDurationInSeconds = useMemo(() => {
-      if (initialRoutingInfo?.aggregator === RouteAggregator.LIFI) {
-        const lifiResponse = initialRoutingInfo?.route?.response
-        return (
-          lifiResponse?.steps?.reduce((acc, step) => {
-            return acc + (step.estimate?.executionDuration || 0)
-          }, 0) || 0
-        )
-      }
-      if (initialRoutingInfo?.aggregator === RouteAggregator.SKIP) {
-        return initialRoutingInfo?.route?.response?.estimated_route_duration_seconds || 0
-      }
-      return 0
-    }, [initialRoutingInfo?.route, initialRoutingInfo?.aggregator])
-
-    const formattedEstimatedDuration = useMemo(() => {
-      function fallbackRouteDuration() {
-        const chainIds = getChainIdsFromRoute(initialRoutingInfo?.route)
-        if (
-          (initialSourceChain?.chainType === 'evm' ||
-            initialDestinationChain?.chainType === 'evm') &&
-          chainIds &&
-          chainIds?.length > 1
-        ) {
-          const finalityTimeMap: Record<string, string> = {
-            '1': '16 mins',
-            '43114': '3 secs',
-            '137': '5 mins',
-            '56': '46 secs',
-            '10': '30 mins',
-            '42161': '20 mins',
-            '8453': '24 mins',
-          }
-          const sourceChainFinalityTime = finalityTimeMap[initialSourceChain?.chainId ?? '']
-          const destinationChainFinalityTime =
-            finalityTimeMap[initialDestinationChain?.chainId ?? '']
-          if (destinationChainFinalityTime ?? sourceChainFinalityTime) {
-            return destinationChainFinalityTime ?? sourceChainFinalityTime
-          }
-        }
-        if (!chainIds || chainIds?.length <= 1) {
-          return '15 secs'
-        }
-        const noOfSteps = getNoOfStepsFromRoute(initialRoutingInfo?.route)
-        if (!noOfSteps) {
-          return undefined
-        }
-        if (noOfSteps < 4) {
-          return `${noOfSteps * 15} secs`
-        }
-        return `${(noOfSteps / 4).toFixed(0)} mins`
-      }
-
-      if (estimatedDurationInSeconds === 0) {
-        return fallbackRouteDuration()
-      }
-
-      if (estimatedDurationInSeconds < 60) {
-        return `${estimatedDurationInSeconds.toFixed(0)} sec${
-          estimatedDurationInSeconds > 1 ? 's' : ''
-        }`
-      }
-
-      const minutes = Math.floor(estimatedDurationInSeconds / 60)
-      return `${minutes} min${minutes > 1 ? 's' : ''}`
-    }, [
-      estimatedDurationInSeconds,
-      initialDestinationChain?.chainId,
-      initialDestinationChain?.chainType,
-      initialRoutingInfo?.route,
-      initialSourceChain?.chainId,
-      initialSourceChain?.chainType,
-    ])
-
     const isHomeButtonDisabled = useMemo(() => {
       return isLoading && !isSigningComplete
     }, [isLoading, isSigningComplete])
 
     useEffect(() => {
-      setIsSuccessFull(false)
-      callExecuteTx()
+      if (prevIsOnline.current !== isOnline) {
+        prevIsOnline.current = isOnline
+        setIsSuccessFull(false)
+        callExecuteTx()
+      }
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOnline])
@@ -456,181 +347,132 @@ export const TxPage = observer(
       onClose,
     ])
 
+    const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({
+      forceTxHash: txStatus?.[0].responses?.[0]?.packetTxs?.sendTx?.txHash,
+      forceChain: sourceChain?.key,
+      forceNetwork: selectedNetwork,
+    })
+
     if (isTrackingPage && !isTrackingInSync) {
       return (
-        <div className='absolute w-[400px] overflow-clip top-0 z-[10]'>
-          <div className='relative'>
-            <PopupLayout>
-              <div className='flex flex-col items-center justify-center h-full'>
-                <Loader />
-              </div>
-            </PopupLayout>
+        <BottomModal
+          title={''}
+          fullScreen={true}
+          onClose={() => {
+            onClose()
+          }}
+          isOpen={true}
+          containerClassName='h-full'
+          headerClassName='dark:bg-gray-950 bg-white-100'
+          className='dark:bg-gray-950 bg-white-100 !p-0 min-h-[calc(100%-65px)]'
+        >
+          <div className='flex flex-col items-center justify-center h-full'>
+            <Loader />
           </div>
-        </div>
+        </BottomModal>
+      )
+    }
+
+    if (showLedgerPopup) {
+      return (
+        <BottomModal
+          title={''}
+          fullScreen={true}
+          onClose={() => {
+            onClose()
+          }}
+          isOpen={true}
+          containerClassName='h-full'
+          headerClassName='dark:bg-gray-950 bg-white-100'
+          className='dark:bg-gray-950 bg-white-100 !p-0 min-h-[calc(100%-65px)]'
+        >
+          <LedgerConfirmationPopup showLedgerPopup showLedgerPopupText={showLedgerPopupText} />
+        </BottomModal>
       )
     }
 
     return (
-      <div className='absolute panel-width panel-height enclosing-panel overflow-clip top-0 z-[10]'>
-        <div className='relative panel-width panel-height enclosing-panel '>
-          {showLedgerPopup && (
-            <LedgerConfirmationPopup
-              showLedgerPopup={showLedgerPopup}
-              showLedgerPopupText={showLedgerPopupText}
-            />
-          )}
-
-          <PopupLayout header={<Header title={headerTitle} />} headerZIndex={11}>
-            <div className='p-6 flex-col flex items-start justify-start gap-4 w-full !pb-24 max-[350px]:!px-4'>
-              {isLoading ? (
-                <TxTokensSummary
-                  inAmount={initialInAmount}
-                  amountOut={initialAmountOut}
-                  sourceChain={initialSourceChain}
-                  sourceToken={initialSourceToken}
-                  destinationChain={initialDestinationChain}
-                  destinationToken={initialDestinationToken}
-                  sourceAssetUSDValue={initialSourceAssetUSDValue}
-                  destinationAssetUSDValue={initialDestinationAssetUSDValue}
-                  className='!bg-white-100 dark:!bg-gray-950'
-                />
-              ) : (
-                <>
-                  <TxStatusOverview
-                    isSuccessFull={isSuccessFull}
-                    failedActionWasSwap={failedActionWasSwap}
-                    amountOut={initialAmountOut}
-                    destinationChain={initialDestinationChain}
-                    destinationToken={initialDestinationToken}
-                    unableToTrackError={unableToTrackError}
-                    timeoutError={timeoutError}
-                  />
-                  {failedActionWasSwap && transferAssetRelease && (
-                    <SwapActionFailedSection
-                      transferAssetRelease={transferAssetRelease}
-                      rootDenomsStore={rootDenomsStore}
-                    />
-                  )}
-                  {isSuccessFull && (
-                    <TxTokensSummaryMini
-                      inAmount={initialInAmount}
-                      amountOut={initialAmountOut}
-                      sourceToken={initialSourceToken}
-                      destinationToken={initialDestinationToken}
-                    />
-                  )}
-                  {(!isOnline ||
-                    !!firstTxnError ||
-                    !!ledgerError ||
-                    !!unableToTrackError ||
-                    !!timeoutError) && (
-                    <TxErrorSection
-                      ledgerError={ledgerError}
-                      firstTxnError={firstTxnError}
-                      unableToTrackError={unableToTrackError}
-                      timeoutError={timeoutError}
-                      routingInfo={initialRoutingInfo}
-                    />
-                  )}
-                </>
-              )}
-
-              {isOnline && (
-                <div className='w-full bg-white-100 dark:bg-gray-950 rounded-2xl flex flex-col p-4 gap-3'>
-                  <div className='justify-between items-center flex flex-row gap-2'>
-                    <div>
-                      <div className='flex items-center justify-start gap-1 font-bold text-black-100 dark:text-white-100 text-sm !leading-[20px]'>
-                        {isLoading ? (
-                          <Timer size={16} className='text-black-100 dark:text-white-100' />
-                        ) : (
-                          <Receipt size={16} className='text-black-100 dark:text-white-100' />
-                        )}
-                        <span>
-                          {isLoading ? `~ ${formattedEstimatedDuration}` : 'Transaction Summary'}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      className='w-[24px] h-[24px] justify-center items-center gap-[8px] flex flex-row text-gray-400 dark:text-gray-600'
-                      onClick={() => {
-                        setIsTxStepsVisible(!isTxStepsVisible)
-                      }}
-                    >
-                      {isTxStepsVisible ? (
-                        <CaretUp size={24} className='text-gray-400 dark:text-gray-600' />
-                      ) : (
-                        <CaretDown size={24} className='text-gray-400 dark:text-gray-600' />
-                      )}
-                    </button>
-                  </div>
-                  <AnimatePresence initial={false}>
-                    {isTxStepsVisible && (
-                      <TxPageSteps
-                        routingInfo={initialRoutingInfo}
-                        txStatus={txStatus}
-                        rootDenomsStore={rootDenomsStore}
-                      />
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
+      <BottomModal
+        title={''}
+        fullScreen={true}
+        onClose={() => {
+          onClose()
+        }}
+        isOpen={true}
+        containerClassName='h-full'
+        headerClassName='dark:bg-gray-950 bg-white-100'
+        contentClassName='dark:bg-gray-950 bg-white-100'
+        className='dark:bg-gray-950 bg-white-100'
+      >
+        <div className='flex flex-col gap-y-8 justify-center items-center px-10 mt-[75px]'>
+          <div className='h-[100px] w-[100px]'>
+            {isLoading ? (
+              <div className='h-[100px] w-[100px] p-8 rounded-full bg-secondary-200 animate-spin'>
+                <img src={Images.Swap.Rotate} />
+              </div>
+            ) : isSuccessFull ? (
+              <div className='h-[100px] w-[100px] p-8 rounded-full bg-green-400'>
+                <img src={Images.Swap.CheckGreen} />
+              </div>
+            ) : (
+              <div className='h-[100px] w-[100px] p-8 rounded-full bg-red-600 dark:bg-red-400'>
+                <img src={Images.Swap.FailedRed} />
+              </div>
+            )}
+          </div>
+          <div className='flex flex-col items-center gap-y-6'>
+            <div className='flex flex-col items-center gap-y-3'>
+              <Text size='xl' color='text-monochrome' className='font-bold'>
+                {isLoading
+                  ? 'Swap in progress'
+                  : isSuccessFull
+                  ? 'Swap successful!'
+                  : 'Swap failed'}
+              </Text>
+              <Text size='sm' color='text-secondary-800' className='font-normal text-center'>
+                {isLoading
+                  ? `${
+                      destinationToken?.symbol ?? 'Token'
+                    } will be deposited in your account once the transaction is complete`
+                  : isSuccessFull
+                  ? `You swapped ${formatTokenAmount(
+                      inAmount,
+                      sourceToken?.symbol,
+                    )} for ${formatTokenAmount(amountOut, destinationToken?.symbol)}`
+                  : failedActionWasSwap
+                  ? `The price changed too much during the swap. Adjust your slippage tolerance and try again.`
+                  : `There was an issue with this transaction. Please try again.`}
+              </Text>
             </div>
-          </PopupLayout>
 
-          <div className='dark:bg-black-100 bg-gray-50 flex flex-row items-center justify-between gap-4 absolute bottom-0 left-0 right-0 p-6 max-[350px]:!px-4 z-10'>
-            <button
-              className={classNames(
-                'rounded-full dark:bg-gray-800 h-[46px] flex flex-row justify-center items-center text-black-100 dark:text-white-100 bg-gray-200',
-                {
-                  'w-[46px] shrink-0': isLoading,
-                  'font-bold text-md !leading-[21.6px] w-full': !isLoading,
-                  'cursor-no-drop': isHomeButtonDisabled,
-                },
-              )}
-              onClick={handleHomeBtnClick}
-              disabled={isHomeButtonDisabled}
-            >
-              {isLoading ? (
-                <House
-                  size={24}
-                  className={classNames({
-                    'text-gray-800 dark:text-gray-200 opacity-50': isHomeButtonDisabled,
-                    'text-black-100 dark:text-white-100': !isHomeButtonDisabled,
-                  })}
-                />
-              ) : (
-                'Home'
-              )}
-            </button>
-            <Buttons.Generic
-              className={classNames(
-                `${isCompassWallet() ? '!bg-compassChainTheme-400' : '!bg-green-600'} dark:${
-                  isCompassWallet() ? '!bg-compassChainTheme-400' : '!bg-green-600'
-                } text-white-100 w-full`,
-                {
-                  'cursor-no-drop': isLoading,
-                },
-              )}
-              style={{ boxShadow: 'none' }}
-              onClick={handleSwapAgainClick}
-            >
-              {isLoading ? (
-                <Lottie
-                  loop={true}
-                  autoplay={true}
-                  animationData={loadingImage}
-                  rendererSettings={{
-                    preserveAspectRatio: 'xMidYMid slice',
-                  }}
-                  className={'h-[24px] w-[24px]'}
-                />
-              ) : (
-                'Swap Again'
-              )}
-            </Buttons.Generic>
+            {txnUrl && (
+              <a
+                target='_blank'
+                rel='noreferrer'
+                href={txnUrl}
+                className='flex font-medium items-center gap-1 text-sm text-accent-green hover:text-accent-green-200 transition-colors'
+              >
+                View transaction
+                <CaretRight size={12} />
+              </a>
+            )}
           </div>
         </div>
-      </div>
+        <div className=' flex flex-row items-center justify-between gap-4 absolute bottom-0 left-0 right-0 p-6 max-[350px]:!px-4 !z-[1000]'>
+          <Button
+            className={'flex-1'}
+            variant={'mono'}
+            onClick={handleHomeBtnClick}
+            disabled={isHomeButtonDisabled}
+          >
+            Home
+          </Button>
+          <Button className={'flex-1'} onClick={handleSwapAgainClick} disabled={isLoading}>
+            Swap Again
+          </Button>
+        </div>
+        {/* </div> */}
+      </BottomModal>
     )
   },
 )

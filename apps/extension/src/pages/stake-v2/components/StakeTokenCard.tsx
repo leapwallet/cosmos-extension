@@ -22,7 +22,7 @@ export function StakeTokenCard({
 }: StakeTokenCardProps) {
   return (
     <div
-      className='bg-white-100 dark:bg-gray-950 rounded-xl flex items-center justify-between p-[12px] cursor-pointer'
+      className='bg-secondary-100 hover:bg-secondary-200 rounded-xl flex items-center justify-between px-4 py-3 cursor-pointer'
       onClick={onClick}
     >
       <div className='flex items-center justify-start gap-2 w-[150px]'>

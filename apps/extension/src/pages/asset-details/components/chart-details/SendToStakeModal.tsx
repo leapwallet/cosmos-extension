@@ -2,7 +2,7 @@ import { Token } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
 import { CaretDoubleRight } from '@phosphor-icons/react'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
@@ -11,7 +11,6 @@ import { useNavigate } from 'react-router-dom'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type SendToStakeModalProps = {
   isVisible: boolean
@@ -40,7 +39,6 @@ const SendToStakeModal = observer(
       <BottomModal
         isOpen={isVisible}
         onClose={onClose}
-        closeOnBackdropClick={true}
         title={`Stake on ${nativeChainName.chainName}`}
         className='p-6'
       >
@@ -55,8 +53,10 @@ const SendToStakeModal = observer(
               <img
                 src={
                   ibcDenom.tokenBalanceOnChain
-                    ? ChainInfos[ibcDenom.tokenBalanceOnChain as SupportedChain]
-                        ?.chainSymbolImageUrl
+                    ? (
+                        chainInfos[ibcDenom.tokenBalanceOnChain as SupportedChain] ??
+                        ChainInfos[ibcDenom.tokenBalanceOnChain as SupportedChain]
+                      )?.chainSymbolImageUrl
                     : defaultIconLogo
                 }
                 className='w-6 h-6 absolute bottom-[3px] right-[3px] rounded-full bg-black-100 dark:bg-black-100'
@@ -90,7 +90,7 @@ const SendToStakeModal = observer(
           <Buttons.Generic
             className='w-full'
             size='normal'
-            color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+            color={Colors.green600}
             onClick={handleSendToStake}
           >
             Send to&nbsp;{nativeChainName.chainName}

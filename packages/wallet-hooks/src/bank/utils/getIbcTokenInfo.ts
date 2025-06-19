@@ -25,7 +25,7 @@ export async function getIbcTokenInfo(ibcHash: string, amount: string, lcdUrl: s
     channelId: trace.channelId,
   };
 
-  const _baseDenom = getKeyToUseForDenoms(baseDenom, trace?.originChainId);
+  const _baseDenom = getKeyToUseForDenoms(baseDenom, String(trace?.sourceChainId || trace?.originChainId || ''));
   const denomInfo = denoms?.[_baseDenom];
   const qty = fromSmall(new BigNumber(amount).toString(), denomInfo?.coinDecimals);
 

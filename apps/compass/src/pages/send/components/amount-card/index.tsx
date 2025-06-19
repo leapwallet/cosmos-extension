@@ -27,7 +27,7 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send/context'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router'
+import { useLocation } from 'react-router-dom'
 import { AggregatedSupportedChain } from 'types/utility'
 
 import { SelectTokenSheet } from './select-token-sheet'
@@ -63,7 +63,7 @@ export const AmountCard = observer(
     const [isInputInUSDC, setIsInputInUSDC] = useState<boolean>(false)
 
     const getWallet = Wallet.useGetWallet()
-    const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+    const { addressLinkState } = useSeiLinkedAddressState()
     const allCW20Denoms = rootCW20DenomsStore.allCW20Denoms
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
 
@@ -177,11 +177,11 @@ export const AmountCard = observer(
     ])
 
     const updateSelectedToken = useCallback(
-      (token) => {
+      (token: Token | null) => {
         setSelectedToken(token)
 
         if ((activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY) {
-          setSelectedChain(token?.tokenBalanceOnChain)
+          setSelectedChain(token?.tokenBalanceOnChain || null)
         } else {
           setSelectedChain(null)
         }

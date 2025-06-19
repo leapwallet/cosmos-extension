@@ -17,13 +17,12 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { favNftStore, hiddenNftStore } from 'stores/manage-nft-store'
 import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { normalizeImageSrc } from 'utils/normalizeImageSrc'
 import { sessionGetItem, sessionRemoveItem } from 'utils/sessionStorage'
@@ -54,7 +53,7 @@ export const NftDetails = observer(() => {
   const [showSendNFT, setShowSendNFT] = useState(false)
 
   const giveSendOption = useMemo(() => {
-    return isCompassWallet() || ['mainCoreum', 'coreum'].includes(nftDetails?.chain ?? '')
+    return ['mainCoreum', 'coreum'].includes(nftDetails?.chain ?? '')
   }, [nftDetails?.chain])
 
   const isFractionalizedNft = useMemo(() => {
@@ -249,7 +248,7 @@ export const NftDetails = observer(() => {
               rootDenomsStore={rootDenomsStore}
               nftDetails={nftDetails}
               rootBalanceStore={rootBalanceStore}
-              forceNetwork={isCompassWallet() ? undefined : 'mainnet'}
+              forceNetwork='mainnet'
             />
           )}
           {!showSendNFT && (

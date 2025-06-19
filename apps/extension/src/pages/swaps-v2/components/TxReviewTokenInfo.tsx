@@ -2,13 +2,16 @@ import { formatTokenAmount, sliceWord } from '@leapwallet/cosmos-wallet-hooks'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import Skeleton from 'react-loading-skeleton'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { SourceChain, SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
+import { opacityVariants, transition } from 'utils/motion-variants/global-layout-motions'
 
 export type TxReviewTokenInfoProps = {
   amount: string
@@ -17,6 +20,7 @@ export type TxReviewTokenInfoProps = {
   tokenImgClassName?: string
   chainImgClassName?: string
   assetUsdValue?: BigNumber
+  amountLoading?: boolean
 }
 
 function TxReviewTokenInfoView({
@@ -26,6 +30,7 @@ function TxReviewTokenInfoView({
   tokenImgClassName,
   chainImgClassName,
   assetUsdValue,
+  amountLoading,
 }: TxReviewTokenInfoProps) {
   const [formatCurrency] = useFormatCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -60,44 +65,85 @@ function TxReviewTokenInfoView({
 
   return (
     <div className='flex flex-col items-center w-full max-w-[140px] max-[399px]:!max-w-[calc(min(140px,45%))] gap-4 max-[399px]:overflow-visible'>
-      <div className='relative'>
+      <div className='relative flex justify-center items-center !w-12 !h-12'>
         <TokenImageWithFallback
           assetImg={token?.img}
           text={token?.symbol ?? token?.name ?? ''}
           altText={token?.symbol ?? token?.name ?? ''}
-          imageClassName={classNames(
-            'border-[8px] border-gray-100 bg-gray-100 dark:bg-gray-850 dark:border-gray-850 rounded-full',
-            {
-              'w-[44px] h-[44px]': !tokenImgClassName,
-              [tokenImgClassName ?? '']: tokenImgClassName,
-            },
-          )}
-          containerClassName='w-[44px] h-[44px] !bg-gray-200 dark:!bg-gray-800 border-[8px] border-gray-100 dark:border-gray-850'
-          textClassName='text-[8px] !leading-[12px]'
+          imageClassName={classNames('rounded-full', {
+            'w-10 h-10': !tokenImgClassName,
+            [tokenImgClassName ?? '']: tokenImgClassName,
+          })}
+          containerClassName='w-10 h-10'
+          textClassName='text-sm'
           key={token?.img ?? ''}
         />
 
         <img
-          className={classNames(
-            'absolute -bottom-[6px] border-[4px] border-gray-100 bg-gray-100 dark:border-gray-850 dark:bg-gray-850 z-10 rounded-full',
-            {
-              'w-[24px] h-[24px] -right-[4px]': !chainImgClassName,
-              [chainImgClassName ?? '']: chainImgClassName,
-            },
-          )}
+          className={classNames('absolute -bottom-0 z-10 rounded-full', {
+            'w-[18.462px] h-[18.462px] -right-0': !chainImgClassName,
+            [chainImgClassName ?? '']: chainImgClassName,
+          })}
           src={chain?.icon ?? defaultTokenLogo}
           onError={imgOnError(defaultTokenLogo)}
         />
       </div>
 
-      <div className='flex flex-col justify-start items-center w-full text-center max-[399px]:shrink-0 max-[399px]:overflow-visible'>
-        <p className='text-black-100 dark:text-white-100 text-sm max-[350px]:!text-[13px] !leading-[19.2px] font-bold w-full overflow-hidden max-[399px]:!overflow-visible max-[399px]:flex max-[399px]:justify-center text-ellipsis text-center whitespace-nowrap'>
-          {balanceAmount}
-        </p>
-        <p className='text-gray-800 dark:text-gray-200 text-xs max-[350px]:!text-[11px] !leading-[19.2px] font-medium w-full overflow-hidden max-[399px]:!overflow-visible max-[399px]:flex max-[399px]:justify-center text-ellipsis text-center whitespace-nowrap'>
-          {dollarAmount}
-          {chain ? ` • on ${chain?.chainName}` : null}
-        </p>
+      <div className='flex flex-col justify-start items-center w-full text-center max-[399px]:shrink-0 max-[399px]:overflow-visible gap-y-1'>
+        <AnimatePresence mode='wait' initial={false}>
+          {amountLoading ? (
+            <motion.div
+              variants={opacityVariants}
+              initial='enter'
+              animate='animate'
+              exit='exit'
+              transition={transition}
+              key='skeleton-amount'
+              className='items-center flex h-[27px] max-[350px]:!w-[80px] w-[120px]'
+            >
+              <Skeleton containerClassName='block !leading-none w-full flex items-center max-[350px]:!h-[16px] h-[24px]' />
+            </motion.div>
+          ) : (
+            <motion.p
+              variants={opacityVariants}
+              initial='enter'
+              animate='animate'
+              exit='exit'
+              transition={transition}
+              key='balance-amount'
+              className='text-black-100 dark:text-white-100 text-lg max-[350px]:!text-[13px] !leading-[27px] font-bold w-full overflow-hidden max-[399px]:!overflow-visible max-[399px]:flex max-[399px]:justify-center text-ellipsis text-center whitespace-nowrap'
+            >
+              {balanceAmount}
+            </motion.p>
+          )}
+        </AnimatePresence>
+        <AnimatePresence mode='popLayout' initial={false}>
+          {amountLoading ? (
+            <motion.div
+              variants={opacityVariants}
+              initial='enter'
+              animate='animate'
+              exit='exit'
+              transition={transition}
+              key='skeleton-amount-fiat'
+              className='items-center flex h-[18.9px] max-[350px]:!w-[40px] w-[60px]'
+            >
+              <Skeleton containerClassName='block !leading-none w-full flex items-center max-[350px]:!h-[12px] h-[16px]' />
+            </motion.div>
+          ) : (
+            <motion.p
+              variants={opacityVariants}
+              initial='enter'
+              animate='animate'
+              exit='exit'
+              transition={transition}
+              key='balance-amount-fiat'
+              className='text-muted-foreground text-sm max-[350px]:!text-[11px] !leading-[18.9px] font-normal w-full overflow-hidden max-[399px]:!overflow-visible max-[399px]:flex max-[399px]:justify-center text-ellipsis text-center whitespace-nowrap'
+            >
+              {dollarAmount}
+            </motion.p>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

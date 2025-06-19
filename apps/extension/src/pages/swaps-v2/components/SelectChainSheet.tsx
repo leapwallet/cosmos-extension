@@ -1,4 +1,4 @@
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import { EventName } from 'config/analytics'
 import { PriorityChains } from 'config/constants'
 import mixpanel from 'mixpanel-browser'
@@ -15,10 +15,12 @@ type SelectChainSheetProps = {
   chainsToShow: TokenAssociatedChain[]
   selectedChain: SourceChain | undefined
   selectedToken: SourceToken | null
+  loadingChains: boolean
   // eslint-disable-next-line no-unused-vars
   onChainSelect: (chain: TokenAssociatedChain) => void
   destinationAssets?: SourceToken[]
   showAllChainsOption?: boolean
+  priorityChainsIds?: string[]
 }
 
 export function SelectChainSheet({
@@ -26,18 +28,20 @@ export function SelectChainSheet({
   isOpen,
   onClose,
   chainsToShow,
+  loadingChains,
   onChainSelect,
   selectedChain,
   selectedToken,
   destinationAssets,
   showAllChainsOption = false,
+  priorityChainsIds,
 }: SelectChainSheetProps) {
   const [searchedChain, setSearchedChain] = useState('')
   const allChainsPlaceholder = useAllChainsPlaceholder()
 
   const sortedChainsToShow = useMemo(() => {
     const priorityChains: TokenAssociatedChain[] = []
-    PriorityChains.forEach((chain) => {
+    ;(priorityChainsIds ?? PriorityChains).forEach((chain) => {
       const chainToShow = chainsToShow.find((chainToShow) => chainToShow.chain.key === chain)
       if (chainToShow) {
         priorityChains.push(chainToShow)
@@ -45,7 +49,7 @@ export function SelectChainSheet({
     })
 
     const otherChains = chainsToShow
-      .filter((chain) => !PriorityChains.includes(chain.chain.key))
+      .filter((chain) => !(priorityChainsIds ?? PriorityChains).includes(chain.chain.key))
       .sort((chainA, chainB) => chainA.chain.chainName.localeCompare(chainB.chain.chainName))
 
     const sortedChains = [...priorityChains, ...otherChains]
@@ -53,7 +57,7 @@ export function SelectChainSheet({
       sortedChains.unshift(allChainsPlaceholder)
     }
     return sortedChains
-  }, [allChainsPlaceholder, chainsToShow, showAllChainsOption])
+  }, [allChainsPlaceholder, chainsToShow, priorityChainsIds, showAllChainsOption])
 
   const emitMixpanelDropdownCloseEvent = useCallback(
     (tokenSelected?: string) => {
@@ -90,9 +94,9 @@ export function SelectChainSheet({
         emitMixpanelDropdownCloseEvent()
         onClose()
       }}
+      fullScreen={true}
       isOpen={isOpen}
-      closeOnBackdropClick={true}
-      contentClassName='!bg-white-100 dark:!bg-gray-950 !overflow-hidden'
+      contentClassName='!overflow-hidden'
       className='p-0'
     >
       <ChainsList
@@ -102,6 +106,7 @@ export function SelectChainSheet({
         chainsToShow={sortedChainsToShow}
         searchedChain={searchedChain}
         setSearchedChain={setSearchedChain}
+        loadingChains={loadingChains}
       />
     </BottomModal>
   )

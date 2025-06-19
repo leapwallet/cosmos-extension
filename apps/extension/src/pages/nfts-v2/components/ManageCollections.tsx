@@ -1,63 +1,32 @@
 import {
-  ENABLED_NFTS_COLLECTIONS,
-  normalizeImageSrc,
   sliceSearchWord,
-  useActiveChain,
   useDisabledNFTsCollections,
-  useEnabledNftsCollectionsStore,
-  useFetchCompassManageNftCollections,
   useSetDisabledNFTsInStorage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { NftStore } from '@leapwallet/cosmos-wallet-store'
-import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
-import { CustomCardDivider } from 'components/custom-card-divider'
-import { EmptyCard } from 'components/empty-card'
-import { useChainPageInfo } from 'hooks'
+import { MagnifyingGlassMinus } from '@phosphor-icons/react'
+import BottomModal from 'components/new-bottom-modal'
+import Text from 'components/text'
+import { SearchInput } from 'components/ui/input/search-input'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
 import { nftStore } from 'stores/nft-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
-import { isSidePanel } from 'utils/isSidePanel'
-import Browser from 'webextension-polyfill'
-
-import { NftAvatar, NftToggleCard, NoCollectionCard, Text } from './index'
+import { imgOnError } from 'utils/imgOnError'
+import { sliceWord } from 'utils/strings'
 
 export type ManageCollectionsProps = {
   isVisible: boolean
   onClose: VoidFunction
-  openAddCollectionSheet: () => void
-  nftStore: NftStore
 }
 
-export function ManageCollections({
-  isVisible,
-  onClose,
-  openAddCollectionSheet,
-}: ManageCollectionsProps) {
+export function ManageCollections({ isVisible, onClose }: ManageCollectionsProps) {
   const collectionData = nftStore.nftDetails.collectionData
-  const showAddCollectionSheet = nftStore.compassSeiApiIsDown
-  const { topChainColor } = useChainPageInfo()
-  const activeChain = useActiveChain()
-  const { data } = useFetchCompassManageNftCollections({})
-
   const collections = useMemo(() => {
-    if (isCompassWallet() && showAddCollectionSheet) {
-      return (data ?? []).map((collection) => ({
-        name: collection.name || 'Unknown',
-        address: collection.address ?? '',
-        image: collection.image || '',
-        chain: activeChain,
-      }))
-    }
-
     return collectionData?.collections ?? []
-  }, [activeChain, collectionData?.collections, data, showAddCollectionSheet])
+  }, [collectionData?.collections])
 
   const [searchedText, setSearchedText] = useState('')
   const disabledNFTsCollections = useDisabledNFTsCollections()
-  const { enabledNftsCollections, setEnabledNftsCollections } = useEnabledNftsCollectionsStore()
   const setDisabledNFTsCollections = useSetDisabledNFTsInStorage()
 
   const filteredCollections = useMemo(() => {
@@ -99,130 +68,97 @@ export function ManageCollections({
     chain: SupportedChain,
   ) => {
     let _disabledNFTsCollections: string[] = []
-    let _enabledNftsCollections: string[] = []
-    const existingEnabledNftsCollections = enabledNftsCollections?.[chain] ?? []
+    const _enabledNftsCollections: string[] = []
 
     if (isEnabled) {
       _disabledNFTsCollections = disabledNFTsCollections.filter(
         (collection) => collection !== collectionAddress,
       )
-
-      if (isCompassWallet() && !existingEnabledNftsCollections.includes(collectionAddress)) {
-        _enabledNftsCollections = [...existingEnabledNftsCollections, collectionAddress]
-      }
     } else {
       if (!_disabledNFTsCollections.includes(collectionAddress)) {
         _disabledNFTsCollections = [...disabledNFTsCollections, collectionAddress]
       }
-
-      if (isCompassWallet()) {
-        _enabledNftsCollections = existingEnabledNftsCollections.filter(
-          (collection) => collection !== collectionAddress,
-        )
-      }
     }
 
     await setDisabledNFTsCollections(_disabledNFTsCollections)
-
-    if (isCompassWallet()) {
-      setEnabledNftsCollections({
-        ...enabledNftsCollections,
-        [chain]: _enabledNftsCollections,
-      })
-      await Browser.storage.local.set({
-        [ENABLED_NFTS_COLLECTIONS]: JSON.stringify({
-          ...enabledNftsCollections,
-          [chain]: _enabledNftsCollections,
-        }),
-      })
-    }
   }
 
   return (
     <BottomModal
+      className='!p-6 !pb-0 h-full'
       isOpen={isVisible}
       onClose={handleBottomSheetClose}
       title={'Manage Collections'}
-      closeOnBackdropClick={true}
     >
-      <div className='w-full h-[calc(100%-180px)] flex flex-col sticky top-[72px] bg-gray-50 dark:bg-black-100'>
-        <div className='flex items-center justify-between'>
-          <div className='w-[344px] flex h-10 bg-white-100 dark:bg-gray-950 rounded-[30px] mb-4 py-2 pl-5 pr-[10px]'>
-            <input
-              placeholder='search collections'
-              className='flex flex-grow text-base text-gray-600 dark:text-gray-200  outline-none bg-white-0'
-              onChange={(event) => setSearchedText(event.target.value)}
-            />
-            <img src={Images.Misc.Search} />
-          </div>
-
-          {isCompassWallet() && !showAddCollectionSheet ? null : (
-            <button className='mb-4 ml-2' onClick={openAddCollectionSheet}>
-              <img src={Images.Misc.PlusIcon} alt='add token' />
-            </button>
-          )}
+      <div className='flex flex-col h-full items-center w-full gap-y-7'>
+        <div className='flex flex-col items-center w-full'>
+          <SearchInput
+            value={searchedText}
+            onChange={(e) => setSearchedText(e.target.value)}
+            placeholder='Search by collection or name'
+            onClear={() => setSearchedText('')}
+          />
         </div>
 
-        <div className='overflow-y-auto'>
-          {filteredCollections.length === 0 ? (
-            <>
-              {searchedText ? (
-                <EmptyCard
-                  isRounded
-                  subHeading='Please try again with something else'
-                  heading={`No results for “${sliceSearchWord(searchedText)}”`}
-                  src={Images.Misc.Explore}
-                />
-              ) : (
-                <NoCollectionCard
-                  title='No collections detected'
-                  subTitle={
-                    isCompassWallet() && !showAddCollectionSheet ? null : (
-                      <p>
-                        You can manually add a new collection{' '}
-                        <button
-                          className='border-none bg-transparent hover:underline cursor-pointer font-bold text-sm'
-                          style={{ color: topChainColor }}
-                          onClick={openAddCollectionSheet}
-                        >
-                          here
-                        </button>
-                      </p>
-                    )
-                  }
-                />
-              )}
-            </>
-          ) : null}
-
-          <div className='rounded-2xl flex flex-col items-center justify-center dark:bg-gray-950 bg-white-100 overflow-hidden'>
+        {filteredCollections.length === 0 ? (
+          <div className='h-[calc(100%-140px)] w-full flex-col flex  justify-center items-center gap-4'>
+            <MagnifyingGlassMinus
+              size={64}
+              className='dark:text-gray-50 text-gray-900 p-5 rounded-full bg-secondary-200'
+            />
+            <div className='flex flex-col justify-start items-center w-full gap-3'>
+              <div className='text-lg text-center font-bold !leading-[21.5px] text-monochrome'>
+                {`No results for “${sliceSearchWord(searchedText)}”`}
+              </div>
+              <div className='text-sm font-normal !leading-[22.4px] text-secondary-800 text-center'>
+                Please try again with something else
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              overflowY: 'scroll',
+            }}
+            className='w-full h-full'
+          >
             {filteredCollections.map((filteredCollection, index, array) => {
               const isLast = index === array.length - 1
               const { name, address, image, chain } = filteredCollection
 
               return (
-                <React.Fragment key={`${address}-${index}`}>
-                  <NftToggleCard
-                    title={
-                      <Text className={classNames({ '!max-w-[95px]': isSidePanel() })}>{name}</Text>
-                    }
-                    isRounded={isLast}
-                    size='md'
-                    avatar={<NftAvatar image={normalizeImageSrc(image ?? '', address)} />}
-                    isEnabled={
-                      isCompassWallet() && showAddCollectionSheet
-                        ? enabledNftsCollections?.[chain]?.includes(address) ?? false
-                        : !disabledNFTsCollections.includes(address)
-                    }
-                    onClick={(isEnabled) => handleToggleClick(isEnabled, address, chain)}
-                  />
+                <>
+                  <div
+                    key={`${address}-${index}`}
+                    className='py-5 flex justify-between items-center'
+                  >
+                    <div className='flex items-center gap-3'>
+                      <img
+                        src={image ?? Images.Logos.GenericNFT}
+                        className='w-10 h-10 rounded-lg'
+                        onError={imgOnError(Images.Logos.GenericNFT)}
+                      />
+                      <Text size='md' className='font-bold' color='text-monochrome'>
+                        {name ? sliceWord(name, 26, 0) : '-'}
+                      </Text>
+                    </div>
 
-                  {!isLast ? <CustomCardDivider /> : null}
-                </React.Fragment>
+                    <input
+                      type='checkbox'
+                      id='toggle-switch4'
+                      checked={!disabledNFTsCollections.includes(address)}
+                      onChange={({ target }) => handleToggleClick(target.checked, address, chain)}
+                      className='h-5 w-9 appearance-none rounded-full cursor-pointer bg-gray-600/30 transition duration-200 checked:bg-accent-green-200 relative'
+                    />
+                  </div>
+                  {!isLast && (
+                    <div className='border-b w-full border-gray-100 dark:border-gray-850' />
+                  )}
+                </>
               )
             })}
           </div>
-        </div>
+        )}
       </div>
     </BottomModal>
   )

@@ -22,6 +22,7 @@ const PageHeader = React.memo(
     imgSrc,
     onImgClick,
     dontShowFilledArrowIcon = false,
+    dontShowBottomDivider = false,
   }: PageHeaderProps) => {
     const { showToolTip: _showToolTip, toolTipData, handleToolTipClose } = useNewChainTooltip()
     const defaultTokenLogo = useDefaultTokenLogo()
@@ -88,21 +89,15 @@ const PageHeader = React.memo(
                 {onImgClick !== undefined && !dontShowFilledArrowIcon && (
                   <img src={Images.Misc.FilledArrowDown} className='h-1.5 w-4 ml-1' />
                 )}
-
-                {showToolTip && (
-                  <NewChainSupportTooltip
-                    toolTipData={toolTipData}
-                    handleToolTipClose={handleToolTipClose}
-                    setNewChain={setNewChain}
-                  />
-                )}
               </div>
             </div>
           ) : null}
 
-          <div className='flex absolute bottom-0'>
-            <LineDivider />
-          </div>
+          {!dontShowBottomDivider ? (
+            <div className='flex absolute bottom-0'>
+              <LineDivider />
+            </div>
+          ) : null}
         </div>
 
         <AddFromChainStore

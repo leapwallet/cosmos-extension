@@ -12,8 +12,9 @@ const buildTypes = {
     outDirPath: 'builds/cosmos',
     publicDir: 'public/leap-cosmos',
     manifestData: {
-      name: 'Leap Cosmos Wallet',
-      description: 'A crypto wallet for Cosmos blockchains.',
+      name: 'Leap Wallet',
+      description:
+        'Multichain crypto wallet for Cosmos, EVM, Solana, Move, Bitcoin & more. Leap everywhere!',
     },
   },
   staging: {
@@ -22,8 +23,9 @@ const buildTypes = {
     outDirPath: 'builds/staging',
     publicDir: 'public/leap-cosmos',
     manifestData: {
-      name: 'Leap Cosmos Wallet',
-      description: 'A crypto wallet for Cosmos blockchains.',
+      name: 'Leap Wallet',
+      description:
+        'Multichain crypto wallet for Cosmos, EVM, Solana, Move, Bitcoin & more. Leap everywhere!',
     },
   },
   canary: {
@@ -32,7 +34,7 @@ const buildTypes = {
     outDirPath: 'builds/canary',
     publicDir: 'public/leap-cosmos',
     manifestData: {
-      name: 'Leap Cosmos Wallet CANARY BUILD',
+      name: 'Leap Wallet CANARY BUILD',
       description:
         'THIS IS THE CANARY DISTRIBUTION OF THE LEAP COSMOS EXTENSION, INTENDED FOR DEVELOPERS.',
     },
@@ -43,7 +45,7 @@ const buildTypes = {
     publicDir: 'public/leap-cosmos',
     outDirPath: 'builds/development',
     manifestData: {
-      name: 'Leap Cosmos Wallet DEVELOPMENT BUILD',
+      name: 'Leap Wallet DEVELOPMENT BUILD',
       description:
         'THIS IS THE DEVELOPMENT DISTRIBUTION OF THE LEAP COSMOS EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.',
     },
@@ -85,14 +87,14 @@ fs.writeFileSync(path.join(__dirname, `./${publicDir}/manifest.json`), manifest)
 module.exports = defineConfig({
   dev: {
     client: {
-      port: 3000,
+      port: 3001,
       host: '0.0.0.0',
       protocol: 'ws',
     },
     writeToDisk: true,
   },
   server: {
-    port: 3000,
+    port: 3001,
     strictPort: true,
     publicDir: {
       copyOnBuild: false,

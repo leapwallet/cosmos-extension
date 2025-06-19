@@ -18,6 +18,7 @@ type SelectDestinationSheetProps = {
   setSelectedAddress: (address: SelectedAddress) => void
   handleContactSelect: (contact: SelectedAddress) => void
   skipSupportedDestinationChainsIDs: string[]
+  showOnlyMyWallets?: boolean
 }
 
 export const SelectDestinationSheet: React.FC<SelectDestinationSheetProps> = ({
@@ -26,6 +27,7 @@ export const SelectDestinationSheet: React.FC<SelectDestinationSheetProps> = ({
   setSelectedAddress,
   handleContactSelect,
   skipSupportedDestinationChainsIDs,
+  showOnlyMyWallets,
 }) => {
   const [destinationType, setDestinationType] = useState<DestinationType>(
     isOpenType as DestinationType,
@@ -73,7 +75,8 @@ export const SelectDestinationSheet: React.FC<SelectDestinationSheetProps> = ({
           <MyContacts handleContactSelect={handleContactSelect} />
         ) : chainData.evmOnlyChain ||
           isAptosChain(chainData.key) ||
-          isBitcoinChain(chainData.key) ? (
+          isBitcoinChain(chainData.key) ||
+          showOnlyMyWallets ? (
           <MyEvmWalletAddresses chainInfo={chainData} setSelectedAddress={setSelectedAddress} />
         ) : (
           <MyWallets

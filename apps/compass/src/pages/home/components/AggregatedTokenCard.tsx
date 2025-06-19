@@ -94,7 +94,7 @@ const AggregatedTokenCardView = ({
       <div className='flex flex-col justify-start mr-auto'>
         <span className='font-bold text-md truncate max-w-32'>{sliceWord(title, 7, 4)}</span>
 
-        <AnimatePresence exitBeforeEnter>
+        <AnimatePresence mode='wait'>
           <motion.span
             key={hideAssetsStore.isHidden ? 'hidden' : 'visible'}
             className='text-muted-foreground text-xs font-medium truncate max-w-44'
@@ -122,7 +122,7 @@ const AggregatedTokenCardView = ({
         {isPlaceholder ? (
           <p className='font-bold text-sm text-end'>-</p>
         ) : (
-          <AnimatePresence exitBeforeEnter>
+          <AnimatePresence mode='wait'>
             <motion.span
               key={hideAssetsStore.isHidden ? 'hidden-fiat' : 'visible-fiat'}
               className={
@@ -140,7 +140,7 @@ const AggregatedTokenCardView = ({
           </AnimatePresence>
         )}
 
-        <AnimatePresence exitBeforeEnter>
+        <AnimatePresence mode='wait'>
           {!hidePercentChangeStore.isHidden && (
             <motion.span
               key={hideAssetsStore.isHidden ? 'hidden-percent' : 'visible-percent'}

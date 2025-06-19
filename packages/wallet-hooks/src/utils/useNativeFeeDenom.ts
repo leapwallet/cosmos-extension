@@ -28,7 +28,12 @@ export const useNativeFeeDenom = (
     const feeDenom = feeDenoms[selectedNetwork][activeChain];
 
     if (feeDenom && denoms[feeDenom]) {
-      return denoms[feeDenom];
+      let denomKey = feeDenom;
+      if (activeChain === 'babylon' && denomKey === 'ubbn') {
+        denomKey = 'tubbn';
+      }
+
+      return denoms[denomKey];
     }
 
     if (chains[activeChain].beta && chains[activeChain].nativeDenoms) {
@@ -38,7 +43,12 @@ export const useNativeFeeDenom = (
 
     const fallbackFeeDenom = fallbackFeeDenoms[selectedNetwork][activeChain];
     if (fallbackFeeDenom?.coinMinimalDenom) {
-      return denoms[fallbackFeeDenom.coinMinimalDenom] ?? fallbackFeeDenom;
+      let denomKey = fallbackFeeDenom.coinMinimalDenom;
+      if (activeChain === 'babylon' && denomKey === 'ubbn') {
+        denomKey = 'tubbn';
+      }
+
+      return denoms[denomKey] ?? fallbackFeeDenom;
     }
 
     return fallbackFeeDenom;

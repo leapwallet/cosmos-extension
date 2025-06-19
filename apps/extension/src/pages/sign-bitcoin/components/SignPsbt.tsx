@@ -25,7 +25,7 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { TransactionStatus } from 'types/utility'
 import { formatWalletName } from 'utils/formatWalletName'
@@ -82,6 +82,9 @@ export const SignPsbt = observer(
         if (activeWallet.walletType === WALLETTYPE.LEDGER) {
           throw new Error('Ledger transactions are not supported yet')
         }
+        const options = txnData.signTxnData.options
+
+        const autoFinalized = options && options.autoFinalized == false ? false : true
 
         setSigningError(null)
         setTxStatus('loading')
@@ -102,10 +105,12 @@ export const SignPsbt = observer(
           wallet.signIdx(address, details.tx, index)
         })
 
-        for (let i = 0; i < details.inputs.length; i++) {
-          details.tx.finalizeIdx(i)
+        if (autoFinalized) {
+          for (let i = 0; i < details.inputs.length; i++) {
+            details.tx.finalizeIdx(i)
+          }
+          details.tx.extract()
         }
-        details.tx.extract()
 
         const signedTxHex = hex.encode(details.tx.toPSBT())
 

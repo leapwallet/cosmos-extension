@@ -1,4 +1,4 @@
-import { Buttons, LineDivider } from '@leapwallet/leap-ui'
+import { Buttons } from '@leapwallet/leap-ui'
 import { GearSix } from '@phosphor-icons/react'
 import { BetaTag } from 'components/BetaTag/BetaTag'
 import Text from 'components/text'
@@ -30,7 +30,6 @@ function LightNodeHeader({ onBack, onSettings, showSettings }: LightNodeHeaderPr
           </div>
         )}
       </div>
-      <LineDivider />
     </div>
   )
 }

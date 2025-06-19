@@ -2,7 +2,7 @@ import { SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar } from '@leapwallet/leap-ui'
 import { UserList } from '@phosphor-icons/react'
-import { SearchInput } from 'components/search-input'
+import { SearchInput } from 'components/ui/input/search-input'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useContactsSearch } from 'hooks/useContacts'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -25,7 +25,7 @@ function MyContacts({ handleContactSelect }: MyContactsProps) {
 
   const handleAvatarClick = (contact: AddressBook.SavedAddress, chainImage: string | undefined) => {
     handleContactSelect({
-      avatarIcon: undefined ?? '',
+      avatarIcon: undefined,
       chainIcon: chainImage ?? '',
       chainName: chainInfos[contact.blockchain as SupportedChain].chainName,
       name: contact.name,
@@ -43,8 +43,6 @@ function MyContacts({ handleContactSelect }: MyContactsProps) {
         onChange={(e) => setSearchQuery(e.target.value)}
         onClear={() => setSearchQuery('')}
         placeholder='Search your contacts...'
-        divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
-        inputClassName='flex flex-grow text-base outline-none bg-white-0 font-bold text-black-100 dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400 !leading-[21px]'
       />
 
       <div className='mt-4 w-full h-[calc(100%-300px)]] overflow-auto'>

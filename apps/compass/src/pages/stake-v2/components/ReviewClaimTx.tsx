@@ -211,9 +211,6 @@ const ReviewClaimTx = observer(
     const txCallback = useCallback(() => {
       setClaimTxMode('CLAIM_REWARDS')
       onClose()
-      mixpanel.track(EventName.TransactionSigned, {
-        transactionType: 'stake_claim',
-      })
     }, [onClose, setClaimTxMode])
 
     const onClaimRewardsClick = useCallback(async () => {

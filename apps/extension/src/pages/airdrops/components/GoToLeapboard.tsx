@@ -6,7 +6,6 @@ import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { LEAPBOARD_URL } from 'config/constants'
 import mixpanel from 'mixpanel-browser'
 import React from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 interface GoToLeapboardProps {
   className?: string
@@ -15,17 +14,15 @@ const redirectURL = `${LEAPBOARD_URL}/airdrops`
 
 export default function GoToLeapboard({ className = '' }: GoToLeapboardProps) {
   const trackCTAEvent = () => {
-    if (!isCompassWallet()) {
-      try {
-        mixpanel.track(EventName.ButtonClick, {
-          buttonType: ButtonType.AIRDROPS,
-          buttonName: ButtonName.GO_TO_LEAPBOARD,
-          redirectURL,
-          time: Date.now() / 1000,
-        })
-      } catch (e) {
-        captureException(e)
-      }
+    try {
+      mixpanel.track(EventName.ButtonClick, {
+        buttonType: ButtonType.AIRDROPS,
+        buttonName: ButtonName.GO_TO_LEAPBOARD,
+        redirectURL,
+        time: Date.now() / 1000,
+      })
+    } catch (e) {
+      captureException(e)
     }
   }
 

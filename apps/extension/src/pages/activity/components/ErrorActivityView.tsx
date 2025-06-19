@@ -1,4 +1,3 @@
-import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { EmptyCard } from 'components/empty-card'
 import { Images } from 'images'
@@ -10,9 +9,7 @@ type ErrorActivityViewProps = {
   chain: SupportedChain
 }
 
-export function ErrorActivityView({ accountExplorerLink, chain }: ErrorActivityViewProps) {
-  const chains = useGetChains()
-
+export function ErrorActivityView({ accountExplorerLink }: ErrorActivityViewProps) {
   return (
     <div className='flex flex-col h-[350px]'>
       <EmptyCard src={Images.Activity.ActivityIcon} heading='Unable to fetch activity' />
@@ -22,7 +19,7 @@ export function ErrorActivityView({ accountExplorerLink, chain }: ErrorActivityV
           href={accountExplorerLink}
           target='_blank'
           className='font-semibold text-base mt-4 text-center'
-          style={{ color: Colors.getChainColor(chain, chains[chain]) }}
+          style={{ color: Colors.green600 }}
           rel='noreferrer'
         >
           Check on Explorer

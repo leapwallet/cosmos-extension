@@ -12,6 +12,7 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { useMemo } from 'react'
+import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 type WalletCardProps = {
@@ -27,6 +28,14 @@ const WalletCard = ({ wallet, onClick, chainInfo }: WalletCardProps) => {
     ? pubKeyToEvmAddressToShow(wallet.pubKeys?.[chainInfo?.key], true)
     : wallet.addresses[chainInfo?.key]
 
+  const ledgerEnabledEvmChainsKeys = useMemo(() => {
+    return getLedgerEnabledEvmChainsKey(Object.values(chains))
+  }, [chains])
+
+  const ledgerApp = useMemo(() => {
+    return ledgerEnabledEvmChainsKeys.includes(chainInfo?.key) ? 'EVM' : 'Cosmos'
+  }, [chainInfo?.key, ledgerEnabledEvmChainsKeys])
+
   const addressText = useMemo(() => {
     if (
       wallet.walletType === WALLETTYPE.LEDGER &&
@@ -40,7 +49,7 @@ const WalletCard = ({ wallet, onClick, chainInfo }: WalletCardProps) => {
       isLedgerEnabled(chainInfo.key, chainInfo.bip44.coinType, Object.values(chains)) &&
       !wallet.addresses[chainInfo.key]
     ) {
-      return `Please import EVM wallet`
+      return `Please import ${ledgerApp} wallet`
     }
 
     const walletLabel =
@@ -61,6 +70,7 @@ const WalletCard = ({ wallet, onClick, chainInfo }: WalletCardProps) => {
     chainInfo.chainName,
     chains,
     walletAddress,
+    ledgerApp,
   ])
 
   return (

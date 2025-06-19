@@ -282,6 +282,7 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
             const password = Buffer.from(passwordBase64, 'base64')
             await signin(password)
           } catch (_) {
+            signout()
             setLoading(false)
           }
         } else {

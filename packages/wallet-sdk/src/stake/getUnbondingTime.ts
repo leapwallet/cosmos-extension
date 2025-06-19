@@ -29,7 +29,7 @@ export const getUnbondingTime = async (
   const { data } = await axiosWrapper({
     baseURL: lcd,
     method: 'get',
-    url: chain === 'initia' ? '/initia/mstaking/v1/params' : '/cosmos/staking/v1beta1/params',
+    url: ['initia', 'initiaEvm'].includes(chain) ? '/initia/mstaking/v1/params' : '/cosmos/staking/v1beta1/params',
   });
 
   const unbonding_time = parseInt(data.params.unbonding_time, 10);

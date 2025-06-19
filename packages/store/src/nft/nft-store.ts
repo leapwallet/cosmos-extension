@@ -15,6 +15,7 @@ import {
   NftChainsStore,
   NmsStore,
 } from '../assets';
+import { getBaseURL } from '../globals/config';
 import {
   AggregatedSupportedChainType,
   BatchRequestData,
@@ -179,8 +180,7 @@ export class NftStore {
       const isTestnet = network === 'testnet';
       const chainInfo = this.chainInfosStore.chainInfos[chain];
       const chainId = isTestnet ? chainInfo?.testnetChainId : chainInfo?.chainId;
-
-      if ((activeNetwork === network || chainInfo.evmOnlyChain) && chainId) {
+      if ((activeNetwork === network || chainInfo?.evmOnlyChain) && chainId) {
         const nodeUrlKey = isTestnet ? 'rpcTest' : 'rpc';
         const hasEntryInNms = this.nmsStore.rpcEndPoints[chainId] && this.nmsStore.rpcEndPoints[chainId].length > 0;
 
@@ -293,7 +293,7 @@ export class NftStore {
     batchedChains: [SupportedChain, string][],
   ) {
     const response = await axios.post(
-      'https://api.leapwallet.io/nft/cosmos/batch',
+      `${getBaseURL()}/nft/cosmos/batch`,
       {
         'pagination-limit': '50',
         'pagination-offset': '0',
@@ -375,6 +375,9 @@ export class NftStore {
           ...nfts,
         },
       };
+      if (Object.keys(nfts).length > 0) {
+        this.loading = false;
+      }
     });
   }
 
@@ -499,13 +502,17 @@ export class NftStore {
   }
 
   private getChainKey(network?: SelectedNetworkType) {
-    const cosmosAddress = this.addressStore.addresses?.cosmos;
+    const evmPubKey = this.addressStore?.pubKeys?.ethereum;
+    const cosmosAddress = this.addressStore?.addresses?.cosmos;
+    const evmAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : '';
+    const address = cosmosAddress || evmAddress;
+
     network = network || this.selectedNetworkStore.selectedNetwork;
 
     const chain = process.env.APP?.includes('compass') ? this.activeChainStore.activeChain : undefined;
     const chainInfo = this.chainInfosStore.chainInfos[chain as SupportedChain];
     const chainId = network === 'testnet' ? chainInfo?.testnetChainId : chainInfo?.chainId;
 
-    return `${cosmosAddress}-${chainId}-${network}`;
+    return `${address}-${chainId}-${network}`;
   }
 }

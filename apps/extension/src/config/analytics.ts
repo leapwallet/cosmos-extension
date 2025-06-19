@@ -59,6 +59,11 @@ export enum ButtonName {
   SYNC_START = 'sync start',
   SYNC_STOP = 'sync stop',
   WATCH_WALLET = 'watch wallet',
+  JOIN_CHAD = 'Join the Chads',
+  CLAIM_NOW = 'Claim Now',
+  RECHECK_CHAD_STATUS = 'Recheck',
+  VIEW_EXCLUSIVES = 'View Exclusives',
+  ENTER_RAFFLE = 'Enter Raffle',
 }
 
 export enum PageName {
@@ -82,13 +87,17 @@ export enum PageName {
   Buy = 'Buy',
   OnRampQuotePreview = 'On-ramp quote preview',
   AssetDetails = 'Asset Details',
-  CelestiaLightNode = 'Celestia Light Node',
   ZeroState = 'Zero State',
   Alpha = 'Alpha',
   Post = 'Post',
   Bookmark = 'Bookmark',
+  USDN_REWARDS = 'USDN Rewards',
+  ChadExclusives = 'Chad Exclusives',
+  ChadExclusivesDetail = 'Chad Exclusives Detail',
+  ChadExclusivesBookmark = 'Chad Exclusives Bookmark',
+  InitiaVip = 'Initia Vip',
 }
 
 export enum OnRampProvider {
-  KADO = 'Kado',
+  SWAPPED = 'Swapped',
 }

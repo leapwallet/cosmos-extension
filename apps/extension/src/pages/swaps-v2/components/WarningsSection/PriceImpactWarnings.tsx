@@ -1,4 +1,4 @@
-import { CompassTokenTagsStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { observer } from 'mobx-react-lite'
 import { useSwapContext } from 'pages/swaps-v2/context'
 import { getPriceImpactVars } from 'pages/swaps-v2/utils/priceImpact'
@@ -11,7 +11,6 @@ type PriceImpactWarningsProps = {
   isPriceImpactChecked: boolean
   setIsPriceImpactChecked: Dispatch<SetStateAction<boolean>>
   rootDenomsStore: RootDenomsStore
-  compassTokenTagsStore: CompassTokenTagsStore
 }
 
 const PriceImpactWarnings = observer(
@@ -19,7 +18,6 @@ const PriceImpactWarnings = observer(
     isPriceImpactChecked,
     setIsPriceImpactChecked,
     rootDenomsStore,
-    compassTokenTagsStore,
   }: PriceImpactWarningsProps) => {
     const { routingInfo, sourceToken, destinationToken } = useSwapContext()
     const formatter = Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
@@ -36,15 +34,9 @@ const PriceImpactWarnings = observer(
           routingInfo?.route,
           sourceToken,
           destinationToken,
-          Object.assign({}, rootDenomsStore.allDenoms, compassTokenTagsStore.compassTokenDenomInfo),
+          rootDenomsStore.allDenoms,
         ),
-      [
-        compassTokenTagsStore.compassTokenDenomInfo,
-        destinationToken,
-        rootDenomsStore.allDenoms,
-        routingInfo?.route,
-        sourceToken,
-      ],
+      [destinationToken, rootDenomsStore.allDenoms, routingInfo?.route, sourceToken],
     )
 
     if (!shouldCheckPriceImpact) {

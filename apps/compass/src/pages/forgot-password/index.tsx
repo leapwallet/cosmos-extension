@@ -31,7 +31,7 @@ const ForgotPasswordView = observer(() => {
         </Button>
       </header>
 
-      <AnimatePresence exitBeforeEnter presenceAffectsLayout>
+      <AnimatePresence mode='wait' presenceAffectsLayout>
         {processStep === 1 && <Disclaimer key={'Disclaimer'} incrementStep={incrementStep} />}
 
         {processStep === 2 && (

@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-async function queryCollection(addresses: string[], airdropIds: number[]) {
+async function queryCollection(addresses: string[], airdropIds: number[], url?: string) {
   try {
     const res = await axios.post(
-      'https://us-central1-leap-393508.cloudfunctions.net/airdropsV2',
+      url || 'https://us-central1-leap-393508.cloudfunctions.net/airdropsV2',
       {
         addresses,
         airdropIds,
@@ -52,8 +52,8 @@ function formatQueryResults(queryResults: unknown[], airdropIds: number[]) {
   return formattedResults;
 }
 
-async function queryAddresses(addresses: string[], airdropIds: number[]) {
-  const queryResults = await queryCollection(addresses, airdropIds);
+async function queryAddresses(addresses: string[], airdropIds: number[], url?: string) {
+  const queryResults = await queryCollection(addresses, airdropIds, url);
   if (!queryResults || queryResults?.length === 0) {
     return {};
   }

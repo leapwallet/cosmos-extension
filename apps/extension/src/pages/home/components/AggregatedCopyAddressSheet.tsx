@@ -1,16 +1,16 @@
-import { sliceAddress, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { AggregatedChainsStore } from '@leapwallet/cosmos-wallet-store'
+import { MagnifyingGlassMinus } from '@phosphor-icons/react'
 import { AggregatedNullComponents } from 'components/aggregated'
-import BottomModal from 'components/bottom-modal'
 import { CopyAddressCard } from 'components/card'
-import NoSearchResults from 'components/no-search-results'
-import { SearchInput } from 'components/search-input'
+import BottomModal from 'components/new-bottom-modal'
+import { SearchInput } from 'components/ui/input/search-input'
 import { PriorityChains } from 'config/constants'
 import { useWalletInfo } from 'hooks'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
-import { RightArrowSvg } from 'images/misc'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { cn } from 'utils/cn'
 
 import { CopyAddressSheet } from './index'
 
@@ -61,6 +61,7 @@ type AggregatedCopyAddressSheetProps = {
 
 const AggregatedCopyAddressSheet = React.memo(
   ({ isVisible, onClose, aggregatedChainsStore }: AggregatedCopyAddressSheetProps) => {
+    const searchInputRef = useRef<HTMLInputElement>(null)
     const [walletAddresses, setWalletAddresses] = useState<AggregatedWalletAddresses>({})
     const { walletAvatar, walletName } = useWalletInfo()
     const chains = useGetChains()
@@ -70,11 +71,11 @@ const AggregatedCopyAddressSheet = React.memo(
 
     const Title = useMemo(() => {
       return (
-        <h3 className='flex items-center justify-center gap-2'>
-          <img className='w-[20px] h-[20px]' src={walletAvatar} alt='wallet avatar' />
+        <h3 className='flex items-center justify-center gap-2 h-10 bg-secondary-200 rounded-full px-5 py-2'>
+          <img className='w-[24px] h-[24px]' src={walletAvatar} alt='wallet avatar' />
 
           <span
-            className='dark:text-white-100 text-black-100 truncate text-[18px] font-bold max-w-[196px]'
+            className='text-foreground truncate text-md !leading-[22px] font-bold max-w-[196px]'
             title={walletName}
           >
             {walletName}
@@ -130,6 +131,14 @@ const AggregatedCopyAddressSheet = React.memo(
         }
       }, [chains, searchQuery, sortedWalletAddresses])
 
+    useEffect(() => {
+      if (isVisible) {
+        setTimeout(() => {
+          searchInputRef.current?.focus()
+        }, 200)
+      }
+    }, [isVisible])
+
     return (
       <>
         <AggregatedNullComponents
@@ -154,19 +163,22 @@ const AggregatedCopyAddressSheet = React.memo(
         <BottomModal
           isOpen={isVisible}
           onClose={onClose}
-          closeOnBackdropClick={true}
-          titleComponent={Title}
-          title=''
+          title={Title}
+          fullScreen
+          headerClassName='h-[72px] shrink-0'
           contentClassName='[&>div:first-child>div:last-child]:-mt-[2px]'
+          className='h-full p-6'
         >
           <SearchInput
-            placeholder='Search for a chain'
+            ref={searchInputRef}
+            placeholder='Search by chain name'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onClear={() => setSearchQuery('')}
+            className='mb-7'
           />
           <div
-            className='flex flex-col items-center justif-center gap-4 h-[375px] w-full'
+            className='flex flex-col items-center justify-start h-[calc(100%-75px)] w-full gap-4'
             style={{ overflowY: 'scroll' }}
           >
             {filteredWalletAddresses?.length > 0 ? (
@@ -174,36 +186,56 @@ const AggregatedCopyAddressSheet = React.memo(
                 const chainInfo = chains[chain]
 
                 if (addresses.length > 1) {
-                  const address =
-                    sliceAddress(addresses[0], 5) + ', ' + sliceAddress(addresses[1], 5)
-
+                  const sortedAddresses = addresses.sort((a, b) => {
+                    const isEVM = a?.startsWith('0x')
+                    const isEVM2 = b?.startsWith('0x')
+                    if (isEVM && !isEVM2) return 1
+                    if (!isEVM && isEVM2) return -1
+                    return 0
+                  })
                   return (
-                    <CopyAddressCard
-                      key={`${addresses[0]}-${index}`}
-                      address={address}
-                      forceChain={chain}
-                      showDifferentIconForButton={true}
-                      DifferentIconToShow={
-                        <RightArrowSvg className='w-[16px] h-[16px] fill-white-100' />
-                      }
-                      differentIconButtonClassName='cursor-pointer'
-                      forceName={chainInfo.chainName}
-                      differentIconButtonOnClick={() => handleDifferentIconClick(chain)}
-                    />
+                    <React.Fragment key={`${addresses[0]}-${index}`}>
+                      {sortedAddresses.map((address, index) => {
+                        const isEVM = address?.startsWith('0x')
+                        return (
+                          <CopyAddressCard
+                            address={address}
+                            key={`${address}-${index}`}
+                            forceChain={chain}
+                            forceName={`${chainInfo.chainName}${isEVM ? ` (EVM)` : ''}`}
+                          />
+                        )
+                      })}
+                    </React.Fragment>
                   )
                 }
 
                 return (
-                  <CopyAddressCard
-                    address={addresses[0]}
-                    key={`${addresses[0]}-${index}`}
-                    forceChain={chain}
-                    forceName={chainInfo.chainName}
-                  />
+                  <React.Fragment key={`${addresses[0]}-${index}`}>
+                    <CopyAddressCard
+                      address={addresses[0]}
+                      key={`${addresses[0]}-${index}`}
+                      forceChain={chain}
+                      forceName={chainInfo.chainName}
+                    />
+                  </React.Fragment>
                 )
               })
             ) : (
-              <NoSearchResults searchQuery={searchQuery} />
+              <div
+                className={cn(
+                  'w-full flex items-center justify-center rounded-2xl border border-secondary-200 h-full',
+                )}
+              >
+                <div className='flex items-center justify-center flex-col gap-4'>
+                  <div className='p-5 bg-secondary-200 rounded-full flex items-center justify-center'>
+                    <MagnifyingGlassMinus size={24} className='text-foreground' />
+                  </div>
+                  <p className='text-[18px] !leading-[24px] font-bold text-foreground text-center'>
+                    No results found
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </BottomModal>

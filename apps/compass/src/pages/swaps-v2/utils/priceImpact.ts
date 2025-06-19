@@ -11,7 +11,6 @@ import { RouteAggregator } from '@leapwallet/elements-hooks'
 import BigNumber from 'bignumber.js'
 import { SourceToken } from 'types/swap'
 
-import { MosaicRouteQueryResponse } from '../hooks/useMosaicRoute'
 import { LifiRouteOverallResponse, SkipRouteResponse } from '../hooks/useRoute'
 
 type PriceImpactRemarks =
@@ -69,32 +68,29 @@ type PriceImpactReturnType = Readonly<
 >
 
 export const routeDoesSwap = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
 ): boolean => {
   if (!route) {
     return false
   }
 
-  return route.aggregator === RouteAggregator.MOSAIC || !!route.response.does_swap
+  return !!route.response.does_swap
 }
 
 export const getPriceImpactPercent = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
 ): BigNumber => {
-  if (route?.aggregator === RouteAggregator.MOSAIC) return new BigNumber(NaN)
   return new BigNumber(route?.response.swap_price_impact_percent ?? NaN)
 }
 
 export const getSourceAssetUSDValue = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
   sourceToken: SourceToken | null,
   denoms: DenomsRecord,
 ): BigNumber => {
   let sourceAssetUSDValue =
     route?.aggregator === RouteAggregator.LIFI
       ? new BigNumber(route?.response.fromAmountUSD ?? NaN)
-      : route?.aggregator === RouteAggregator.MOSAIC
-      ? new BigNumber(NaN)
       : new BigNumber(route?.response.usd_amount_in ?? NaN)
 
   const sourceTokenUsdPrice =
@@ -124,15 +120,13 @@ export const getSourceAssetUSDValue = (
 }
 
 export const getDestinationAssetUSDValue = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
   destinationToken: SourceToken | null,
   denoms: DenomsRecord,
 ): BigNumber => {
   let destinationAssetUSDValue =
     route?.aggregator === RouteAggregator.LIFI
       ? new BigNumber(route?.response.toAmountUSD ?? NaN)
-      : route?.aggregator === RouteAggregator.MOSAIC
-      ? new BigNumber(NaN)
       : new BigNumber(route?.response.usd_amount_out ?? NaN)
 
   const destinationTokenUsdPrice =
@@ -162,7 +156,7 @@ export const getDestinationAssetUSDValue = (
 }
 
 const getPriceImpactVars = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
   sourceToken: SourceToken | null,
   destinationToken: SourceToken | null,
   denoms: DenomsRecord,
@@ -205,7 +199,7 @@ const getPriceImpactVars = (
 type ConversionRateRemark = 'ok' | 'warn' | 'request-confirmation'
 
 const getConversionRateRemark = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: LifiRouteOverallResponse | SkipRouteResponse | undefined,
   sourceToken: SourceToken | null,
   destinationToken: SourceToken | null,
   denoms: DenomsRecord,

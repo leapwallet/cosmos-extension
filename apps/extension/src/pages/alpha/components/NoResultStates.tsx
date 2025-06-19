@@ -1,28 +1,44 @@
-import { motion } from 'framer-motion'
 import React from 'react'
 
 import EmptyBookmarks from './EmptyBookmarks'
 
-export const NoFilterResult = () => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-    >
-      <EmptyBookmarks title='No Results Found' subTitle='Try using different filters' />
-    </motion.div>
-  )
+type FilterType = 'upcoming' | 'live' | 'ended' | 'search' | 'no-results'
+
+const filterTypeMap: Record<FilterType, { title: string; subTitle: string }> = {
+  upcoming: {
+    title: 'No upcoming rewards yet',
+    subTitle: "You're early! New Chad-exclusive rewards are coming soon. Check back again.",
+  },
+  live: {
+    title: 'No live rewards yet',
+    subTitle: 'Check back again soon for new rewards',
+  },
+  ended: {
+    title: 'No ended rewards yet',
+    subTitle: 'Check back again soon for new rewards',
+  },
+  search: {
+    title: 'No Results Found',
+    subTitle: 'Try searching with different keywords',
+  },
+  'no-results': {
+    title: 'No Results Found',
+    subTitle: 'Try clearing filters',
+  },
 }
 
-export const NoSearchResult = () => {
+export const NoFilterResult = ({
+  filterType = 'no-results',
+  className,
+}: {
+  filterType?: FilterType
+  className?: string
+}) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-    >
-      <EmptyBookmarks title='No Results Found' subTitle='Try searching with different keywords' />
-    </motion.div>
+    <EmptyBookmarks
+      className={className}
+      title={filterTypeMap[filterType].title}
+      subTitle={filterTypeMap[filterType].subTitle}
+    />
   )
 }

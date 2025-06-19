@@ -4,9 +4,9 @@ import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { Info } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
-import { SearchInput } from 'components/search-input'
 import ValidatorListSkeleton from 'components/Skeletons/ValidatorListSkeleton'
 import Text from 'components/text'
+import { SearchInput } from 'components/ui/input/search-input'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
@@ -193,7 +193,6 @@ export default function SelectProviderSheet({
     >
       <div className='flex flex-col gap-y-6 h-full'>
         <SearchInput
-          divClassName='flex w-full bg-white-100 dark:bg-gray-950 rounded-full py-2 pl-5 pr-[10px] focus-within:border-green-600'
           value={searchedTerm}
           onChange={(e) => setSearchedTerm(e.target.value)}
           data-testing-id='provider-input-search'

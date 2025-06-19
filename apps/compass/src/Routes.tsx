@@ -33,19 +33,16 @@ import { AuthProvider, RequireAuth, RequireAuthOnboarding } from './context/auth
 
 const Activity = lazy(() => import('pages/activity/Activity'))
 const Swap = lazy(() => import('pages/swaps-v2'))
-const Search = lazy(() => import('pages/search'))
 const ApproveConnection = React.lazy(() => import('pages/ApproveConnection/ApproveConnection'))
 const TokensDetails = React.lazy(() => import('pages/asset-details'))
 const Earn = React.lazy(() => import('pages/earn'))
 const ForgotPassword = React.lazy(() => import('pages/forgot-password'))
 
-const ManageChain = React.lazy(() => import('pages/manageChain'))
 const Onboarding = React.lazy(async () => import('pages/onboarding'))
 
 const OnboardingCreateWallet = React.lazy(() => import('pages/onboarding/create'))
 const OnboardingImportWallet = React.lazy(() => import('pages/onboarding/import'))
 const OnboardingSuccess = React.lazy(() => import('pages/onboarding/success'))
-const AddSecretToken = React.lazy(() => import('pages/suggest/SuggestSecret'))
 const Send = React.lazy(() => import('pages/send'))
 const Buy = React.lazy(() => import('pages/buy'))
 const Sign = React.lazy(() => import('pages/sign/sign-transaction'))
@@ -55,16 +52,12 @@ const StakeInputPage = React.lazy(() => import('pages/stake-v2/StakeInputPage'))
 const StakeTxnPage = React.lazy(() => import('pages/stake-v2/StakeTxnPage'))
 
 const Discover = React.lazy(() => import('pages/discover'))
-const SecretManageTokens = React.lazy(() => import('pages/snip20-manage-tokens'))
 const SuggestErc20 = React.lazy(() => import('pages/suggest/SuggestErc20'))
 const PendingTx = React.lazy(() => import('pages/activity/PendingTx'))
 const NFTs = React.lazy(() => import('pages/nfts-v2/NFTPage'))
 const AddToken = React.lazy(() => import('pages/add-token/AddToken'))
 const ManageTokens = React.lazy(() => import('pages/manage-tokens'))
-const Proposals = React.lazy(() => import('pages/governance/Proposals'))
 
-const SwitchEthereumChain = React.lazy(() => import('pages/switch-ethereum-chain'))
-const SwitchChain = React.lazy(() => import('pages/switch-chain'))
 const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
 export default function AppRoutes(): JSX.Element {
@@ -179,16 +172,7 @@ const AnimatedRoutes = () => {
             </RequireAuth>
           }
         />
-        <Route
-          path='manageChain'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <ManageChain />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
+
         <Route
           path='assetDetails'
           element={
@@ -226,16 +210,7 @@ const AnimatedRoutes = () => {
             </RequireAuth>
           }
         />
-        <Route
-          path='search'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <Search />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
+
         <Route
           path='buy'
           element={
@@ -246,16 +221,7 @@ const AnimatedRoutes = () => {
             </RequireAuth>
           }
         />
-        <Route
-          path='ibc'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <Send />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
+
         <Route
           path='home'
           element={
@@ -306,16 +272,7 @@ const AnimatedRoutes = () => {
             </RequireAuth>
           }
         />
-        <Route
-          path='gov'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <Proposals />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
+
         <Route
           path='discover'
           element={
@@ -368,16 +325,7 @@ const AnimatedRoutes = () => {
             </RequireAuth>
           }
         />
-        <Route
-          path='add-secret-token'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <AddSecretToken />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
+
         <Route
           path='suggest-erc-20'
           element={
@@ -398,16 +346,7 @@ const AnimatedRoutes = () => {
             </RequireAuth>
           }
         />
-        <Route
-          path='switch-chain'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <SwitchChain />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
+
         <Route
           path='stake/input'
           element={
@@ -434,27 +373,6 @@ const AnimatedRoutes = () => {
             <RequireAuth>
               <Suspense fallback={<AppInitLoader />}>
                 <ManageTokens />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path='snip20-manage-tokens'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <SecretManageTokens />
-              </Suspense>
-            </RequireAuth>
-          }
-        />
-
-        <Route
-          path='switch-ethereum-chain'
-          element={
-            <RequireAuth>
-              <Suspense fallback={<AppInitLoader />}>
-                <SwitchEthereumChain />
               </Suspense>
             </RequireAuth>
           }

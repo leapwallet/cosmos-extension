@@ -1,10 +1,7 @@
 import {
-  LifiRouteOverallResponse,
-  RouteAggregator,
   SkipRouteResponse,
   UseAggregatedRouteResponse,
   useBridgeFee,
-  useLifiBridgeFee,
   useRelayerFee,
   UseRouteResponse,
 } from '@leapwallet/elements-hooks'
@@ -14,23 +11,13 @@ import { useMemo } from 'react'
 import { MosaicRouteQueryResponse } from './useMosaicRoute'
 
 export function useAggregatorBridgeRelayerFee(
-  routeResponse:
-    | LifiRouteOverallResponse
-    | SkipRouteResponse
-    | MosaicRouteQueryResponse
-    | undefined,
+  routeResponse: SkipRouteResponse | MosaicRouteQueryResponse | undefined,
 ) {
   const skipBridgeFee = useBridgeFee(routeResponse as UseRouteResponse)
-  const lifiBridgeFee = useLifiBridgeFee(routeResponse as UseAggregatedRouteResponse)
 
   const relayerFee = useRelayerFee(routeResponse as UseAggregatedRouteResponse)
 
-  const bridgeFee = useMemo(() => {
-    if (routeResponse?.aggregator === RouteAggregator.LIFI) {
-      return lifiBridgeFee
-    }
-    return skipBridgeFee
-  }, [routeResponse, skipBridgeFee, lifiBridgeFee])
+  const bridgeFee = skipBridgeFee
 
   const totalBridgeFee = useMemo(() => {
     let _totalBridgeFee = new BigNumber(0)

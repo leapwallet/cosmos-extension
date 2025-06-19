@@ -6,26 +6,21 @@ import {
   useAddress,
   useBannerConfig,
   useChainInfo,
-  useCustomChains,
   useGetBannerData,
   useGetNumiaBanner,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { captureException } from '@sentry/react'
 import { EventName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { DISABLE_BANNER_ADS } from 'config/storage-keys'
 import { AnimatePresence } from 'framer-motion'
-import { useActiveChain, useSetActiveChain } from 'hooks/settings/useActiveChain'
-import { useChainInfos } from 'hooks/useChainInfos'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AggregatedSupportedChain } from 'types/utility'
-import { uiErrorTags } from 'utils/sentry'
 import Browser from 'webextension-polyfill'
 
-import AddFromChainStore from '../../AddFromChainStore'
 import { BannerAdCard } from './ad-card'
 import { BannerControls } from './controls'
 import { useCarousel } from './use-carousel'
@@ -45,11 +40,6 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
   const cosmosWalletAddress = activeWallet?.addresses.cosmos
   const seiWalletAddress = activeWallet?.addresses.seiTestnet2
 
-  const customChains = useCustomChains()
-  const setActiveChain = useSetActiveChain()
-  const chainInfos = useChainInfos()
-  const [newChain, setNewChain] = useState<string | null>(null)
-
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const isAggregatedView = activeChain === AGGREGATED_CHAIN_KEY
   const chainId = isAggregatedView ? 'all' : chain?.chainId ?? ''
@@ -59,7 +49,7 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
   const { leapBanners, isLeapBannersLoading } = useGetBannerData(chain?.chainId)
 
   const { data: numiaBanners, status: numiaStatus } = useGetNumiaBanner(
-    osmoWalletAddress ?? '',
+    [osmoWalletAddress ?? ''],
     bannerConfig?.extension['position-ids'] ?? [],
     bannerConfigStatus,
   )
@@ -100,16 +90,6 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
 
     if (!mixpanelBannerViewsInfo[walletAddress]?.includes(activeBannerId)) {
       try {
-        mixpanel.track(EventName.BannerView, {
-          bannerId: getMixpanelBannerId(activeBannerId, activeBannerData.attributes?.campaign_id),
-          bannerIndex: activeBannerIndex,
-          chainId,
-          chainName,
-          positionId: getMixpanelPositionId(activeBannerId, activeBannerData),
-          time: Date.now() / 1000,
-          walletAddress,
-        })
-
         sessionStorage.setItem(
           MIXPANEL_BANNER_VIEWS_INFO,
           JSON.stringify({
@@ -154,25 +134,9 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
         }),
       })
 
-      try {
-        const banner = bannerAds.find((_banner) => _banner.id === bannerId)
-
-        mixpanel.track(EventName.BannerClose, {
-          bannerId: getMixpanelBannerId(bannerId, banner?.attributes?.campaign_id),
-          bannerIndex,
-          chainId,
-          chainName,
-          positionId: getMixpanelPositionId(bannerId, banner),
-          time: Date.now() / 1000,
-          walletAddress,
-        })
-      } catch (_) {
-        //
-      }
-
       setDisableBannerAds(newDisabledBannerAds)
     },
-    [disabledBannerAds, seiWalletAddress, bannerAds, chainId, chainName, walletAddress],
+    [disabledBannerAds, seiWalletAddress],
   )
 
   const handleBannerClick = useCallback(
@@ -194,22 +158,8 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
           //
         }
       }
-
-      try {
-        mixpanel.track(EventName.BannerClick, {
-          bannerId: getMixpanelBannerId(bannerId, banner?.attributes?.campaign_id),
-          bannerIndex,
-          chainId,
-          chainName,
-          positionId: getMixpanelPositionId(bannerId, banner),
-          time: Date.now() / 1000,
-          walletAddress,
-        })
-      } catch (e) {
-        captureException(e)
-      }
     },
-    [bannerAds, chainId, chainName, osmoWalletAddress, walletAddress],
+    [bannerAds, osmoWalletAddress],
   )
 
   useEffect(() => {
@@ -225,58 +175,9 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
     fn().catch(console.error)
   }, [cosmosWalletAddress, seiWalletAddress])
 
-  const handleAddChainClick = useCallback(
-    (chain: string) => {
-      const item = customChains.find((customChain) => customChain.chainRegistryPath === chain)
-      let chainKey
-      for (const [key, chainInfo] of Object.entries(chainInfos)) {
-        if (
-          chainInfo.chainRegistryPath === item?.chainRegistryPath ||
-          chainInfo.key === item?.chainRegistryPath
-        ) {
-          chainKey = key
-          break
-        }
-      }
-      if (chainKey) {
-        setActiveChain(chainKey as AggregatedSupportedChain, item)
-      } else if (item) {
-        setNewChain(item.chainName)
-      } else {
-        captureException(`${chain} chain not found when clicked on banners`, {
-          tags: uiErrorTags,
-        })
-      }
-    },
-    [chainInfos, customChains, setActiveChain],
-  )
-
-  const handleSwitchChainClick = useCallback(
-    (chainRegistryPath: string) => {
-      let chainKey
-      for (const [key, chainInfo] of Object.entries(chainInfos)) {
-        if (
-          chainInfo.chainRegistryPath === chainRegistryPath ||
-          chainInfo.key === chainRegistryPath
-        ) {
-          chainKey = key
-          break
-        }
-      }
-      if (chainKey) {
-        setActiveChain(chainKey as AggregatedSupportedChain)
-      } else {
-        captureException(`${chainRegistryPath} chain not found when clicked on banners`, {
-          tags: uiErrorTags,
-        })
-      }
-    },
-    [chainInfos, setActiveChain],
-  )
-
   return (
     <GlobalBannersWrapper items={displayADs.length} show={show}>
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         {displayADs.length > 0 ? (
           <div
             className={
@@ -299,8 +200,6 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
                     chain={chain}
                     onClick={handleBannerClick}
                     onClose={handleBannerClose}
-                    handleAddChainClick={handleAddChainClick}
-                    handleSwitchChainClick={handleSwitchChainClick}
                     activeIndex={activeBannerIndex}
                   />
                 )
@@ -319,12 +218,6 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
           </div>
         ) : null}
       </AnimatePresence>
-
-      <AddFromChainStore
-        isVisible={!!newChain}
-        onClose={() => setNewChain(null)}
-        newAddChain={customChains.find((d) => d.chainName === newChain) as ChainInfo}
-      />
     </GlobalBannersWrapper>
   )
 })

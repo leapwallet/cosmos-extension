@@ -1,5 +1,5 @@
 import { OfflineSigner } from '@cosmjs/proto-signing';
-import { SeiEvmTx, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { CompassSeiLedgerSigner, getAssociation, SeiEvmTx, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -20,7 +20,7 @@ import { getPlatformType, storage, useGetStorageLayer } from '../utils/global-va
 /**
  * Please use `SeiLinkedAddressState` from `@leapwallet/cosmos-wallet-store` instead.
  */
-export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams, forceChain?: SupportedChain) {
+export function useSeiLinkedAddressState(forceChain?: SupportedChain) {
   const [addressLinkState, setAddressLinkState] = useState<AddressLinkState>('loading');
   const storage = useGetStorageLayer();
   const invalidateSeiEvmBalance = useInvalidateSeiEvmBalance();
@@ -56,7 +56,8 @@ export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams
   useEffect(() => {
     (async function getLinkedAddressState() {
       // We might need to change this condition when sei evm launches on mainnet
-      if (!isCompassWallet || activeWallet?.walletType === WALLETTYPE.LEDGER) {
+      const notSeiLedger = activeWallet?.walletType === WALLETTYPE.LEDGER && activeWallet?.app !== 'sei';
+      if (!isCompassWallet || notSeiLedger) {
         setAddressLinkState('unknown');
         return;
       }
@@ -71,12 +72,9 @@ export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams
       }
 
       try {
-        if (!(wallet instanceof EthWallet)) {
-          wallet = (await wallet(activeChainKey, true)) as unknown as EthWallet;
-        }
-
-        const seiEvm = SeiEvmTx.GetSeiEvmClient(wallet as EthWallet, evmJsonRpc ?? '', activeEvmChainId);
-        const response = await seiEvm.getAssociation();
+        const pubkey = activeWallet?.pubKeys?.[activeChainKey];
+        if (!pubkey) return;
+        const response = await getAssociation(pubkey, evmJsonRpc ?? '');
 
         if (response.error) {
           setAddressLinkState('pending');
@@ -90,30 +88,22 @@ export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams
         setAddressLinkState('unknown');
       }
     })();
-  }, [
-    wallet,
-    storage,
-    address,
-    activeChainKey,
-    activeEvmChainId,
-    selectedNetwork,
-    evmJsonRpc,
-    isCompassWallet,
-    activeWallet,
-  ]);
+  }, [storage, address, activeChainKey, activeEvmChainId, selectedNetwork, evmJsonRpc, isCompassWallet, activeWallet]);
 
   const updateAddressLinkState = useCallback(
     async function handleLinkAddressClick({
+      wallet,
       setError,
       onClose,
       ethAddress,
       token,
       setShowLoadingMessage,
     }: HandleLinkAddressClickParams) {
-      if (!isCompassWallet || activeWallet?.walletType === WALLETTYPE.LEDGER) return;
+      const notSeiLedger = activeWallet?.walletType !== WALLETTYPE.LEDGER && activeWallet?.app !== 'sei';
+      if (!isCompassWallet || notSeiLedger) return;
       try {
-        if (!(wallet instanceof EthWallet)) {
-          wallet = (await wallet(activeChainKey, true)) as unknown as EthWallet;
+        if (!(wallet instanceof EthWallet || wallet instanceof CompassSeiLedgerSigner)) {
+          wallet = (await wallet(activeChainKey, true)) as unknown as EthWallet | CompassSeiLedgerSigner;
         }
 
         const seiEvmTxHandler = SeiEvmTx.GetSeiEvmClient(wallet, evmJsonRpc ?? '', activeEvmChainId);
@@ -191,7 +181,6 @@ export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams
       }
     },
     [
-      wallet,
       setAddressLinkState,
       address,
       storage,
@@ -213,6 +202,7 @@ export function useSeiLinkedAddressState(wallet: SeiLinkedAddressStateHookParams
 export type AddressLinkState = 'unknown' | 'pending' | 'loading' | 'success' | 'error' | 'done';
 export type SeiLinkedAddressStateHookParams =
   | EthWallet
+  | CompassSeiLedgerSigner
   | ((chain?: SupportedChain | undefined, ethWallet?: boolean | undefined) => Promise<OfflineSigner>);
 
 export const SEI_EVM_LINKED_ADDRESS_STATE_KEY = 'sei-evm-linked-address-state';
@@ -220,6 +210,7 @@ export const INSUFFICIENT_FUNDS_ERROR_MESSAGE =
   "Ensure there's at least 1 SEI in your 0x wallet to link addresses or enough balance to cover gas fees in both Sei and 0x address.";
 
 export type HandleLinkAddressClickParams = {
+  wallet: SeiLinkedAddressStateHookParams;
   setError?: Dispatch<SetStateAction<string | any>>;
   onClose?: (refetch?: boolean | undefined) => void;
   ethAddress?: string;

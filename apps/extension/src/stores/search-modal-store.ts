@@ -10,7 +10,6 @@ export class SearchModalStore {
   showModal = false
   activeOption: ActiveOption = { active: 0, lowLimit: 0, highLimit: 0 }
   enteredOption: number | null = null
-  showSideNavFromSearchModal = false
 
   constructor() {
     makeAutoObservable(this)
@@ -29,10 +28,6 @@ export class SearchModalStore {
 
   setEnteredOption(enteredOption: number | null) {
     this.enteredOption = enteredOption
-  }
-
-  setShowSideNavFromSearchModal(showSideNavFromSearchModal: boolean) {
-    this.showSideNavFromSearchModal = showSideNavFromSearchModal
   }
 }
 

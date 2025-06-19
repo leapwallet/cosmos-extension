@@ -7,7 +7,6 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getBlockChainFromAddress,
-  isAptosChain,
   isValidAddressWithPrefix,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -23,10 +22,8 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { assert } from 'utils/assert'
-import { useTxCallBack } from 'utils/txCallback'
 
 const useGetWallet = Wallet.useGetWallet
-const useAptosSigner = Wallet.useAptosSigner
 
 export type SendContextType = ReturnType<typeof useSendModule> &
   Readonly<{
@@ -81,9 +78,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
       cw20Denoms: allCW20Denoms,
       erc20Denoms: allERC20Denoms,
     })
-    const txCallback = useTxCallBack()
     const getWallet = useGetWallet(sendActiveChain)
-    const getAptosSigner = useAptosSigner()
     const currentWalletAddress = useAddress()
     const getSscrtWallet = useSecretWallet()
     const [transferData, setTransferData] = useState<useTransferReturnType | null>(null)
@@ -107,23 +102,14 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
               if (isSnip20) {
                 return getSscrtWallet()
               }
-              if (isAptosChain(sendActiveChain)) {
-                return getAptosSigner(sendActiveChain).then((aptos) => aptos.signer)
-              }
+
               return getWallet()
             },
           },
           modifiedCallback,
         )
       },
-      [
-        confirmSend,
-        getAptosSigner,
-        getSscrtWallet,
-        getWallet,
-        selectedToken?.coinMinimalDenom,
-        sendActiveChain,
-      ],
+      [confirmSend, getSscrtWallet, getWallet, selectedToken?.coinMinimalDenom],
     )
     const confirmSendTxEth = useCallback(
       async (
@@ -135,7 +121,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
         gasPrice?: number,
         options?: SendTokenEthParamOptions,
       ) => {
-        confirmSendEth(toAddress, value, gas, wallet, callback, gasPrice, options)
+        await confirmSendEth(toAddress, value, gas, wallet, callback, gasPrice, options)
       },
       [confirmSendEth],
     )

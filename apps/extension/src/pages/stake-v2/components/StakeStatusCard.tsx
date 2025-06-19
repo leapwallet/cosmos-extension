@@ -1,6 +1,7 @@
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { Info } from '@phosphor-icons/react'
 import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { Images } from 'images'
 import React from 'react'
 import { Colors } from 'theme/colors'
@@ -42,14 +43,9 @@ export default function StakeStatusCard({
           />
         </div>
       </div>
-      <Buttons.Generic
-        onClick={onAction}
-        color={theme === ThemeName.DARK ? Colors.white100 : Colors.black100}
-        className='w-full'
-        size='normal'
-      >
+      <Button onClick={onAction} className='w-full' variant='mono'>
         <Text color='text-white-100 dark:text-black-100'>Stake on a different chain</Text>
-      </Buttons.Generic>
+      </Button>
     </>
   )
 }

@@ -1,7 +1,7 @@
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import React, { ReactElement, useState } from 'react'
 import { DropResult } from 'react-beautiful-dnd'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import DraggableContainer from '~/components/draggable'
 import NoSearchResults from '~/components/no-search-results'

@@ -35,15 +35,6 @@ export const handleSidePanelClick = async () => {
       await chrome.sidePanel.setPanelBehavior({
         openPanelOnActionClick: false,
       })
-      try {
-        mixpanel.track(EventName.ButtonClick, {
-          buttonType: ButtonType.SIDE_PANEL,
-          buttonName: ButtonName.SIDE_PANEL_CLOSED,
-          time: Date.now() / 1000,
-        })
-      } catch (e) {
-        captureException(e)
-      }
     }
     window.close()
     return
@@ -64,14 +55,5 @@ export const handleSidePanelClick = async () => {
   await chrome.sidePanel.setPanelBehavior({
     openPanelOnActionClick: true,
   })
-  try {
-    mixpanel.track(EventName.ButtonClick, {
-      buttonType: ButtonType.SIDE_PANEL,
-      buttonName: ButtonName.SIDE_PANEL_OPENED,
-      time: Date.now() / 1000,
-    })
-  } catch (e) {
-    captureException(e)
-  }
   window.close()
 }

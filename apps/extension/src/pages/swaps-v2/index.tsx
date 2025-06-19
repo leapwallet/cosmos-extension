@@ -6,7 +6,6 @@ import { ArrowSquareOut } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
-import PopupLayout from 'components/layout/popup-layout'
 import Text from 'components/text'
 import { EventName, PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
@@ -20,15 +19,13 @@ import { observer } from 'mobx-react-lite'
 import AddFromChainStore from 'pages/home/AddFromChainStore'
 import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { activeChainStore } from 'stores/active-chain-store'
 import { cw20TokenBalanceStore, priceStore } from 'stores/balance-store'
-import { compassTokensAssociationsStore } from 'stores/chain-infos-store'
 import {
   autoFetchedCW20DenomsStore,
   betaCW20DenomsStore,
   betaERC20DenomsStore,
-  compassTokenTagsStore,
   cw20DenomsStore,
   disabledCW20DenomsStore,
   enabledCW20DenomsStore,
@@ -38,7 +35,7 @@ import {
 } from 'stores/denoms-store-instance'
 import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { SourceChain, SourceToken } from 'types/swap'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { cn } from 'utils/cn'
 
 import {
   InterchangeButton,
@@ -54,10 +51,11 @@ import {
 } from './components'
 import { TokenAssociatedChain } from './components/ChainsList'
 import FeesSheet from './components/FeesSheet'
-import InputPageHeader from './components/InputPageHeader'
+import { SwapHeader } from './components/swap-header'
 import { WarningsSection } from './components/WarningsSection'
 import { SwapContextProvider, useSwapContext } from './context'
 import { isNoRoutesAvailableError } from './hooks'
+import { SwapsLoader } from './SwapsLoader'
 import { getConversionRateRemark, getPriceImpactVars } from './utils/priceImpact'
 
 const SwapPage = observer(() => {
@@ -146,6 +144,7 @@ const SwapPage = observer(() => {
     routingInfo,
     isChainAbstractionView,
     loadingRoutes,
+    slippagePercent,
   } = useSwapContext()
   const {
     priceImpactPercent,
@@ -156,7 +155,7 @@ const SwapPage = observer(() => {
     routingInfo?.route,
     sourceToken,
     destinationToken,
-    Object.assign({}, rootDenomsStore.allDenoms, compassTokenTagsStore.compassTokenDenomInfo),
+    rootDenomsStore.allDenoms,
   )
 
   const checkNeeded = useMemo(() => {
@@ -165,7 +164,7 @@ const SwapPage = observer(() => {
         routingInfo.route,
         sourceToken,
         destinationToken,
-        Object.assign({}, rootDenomsStore.allDenoms, compassTokenTagsStore.compassTokenDenomInfo),
+        rootDenomsStore.allDenoms,
       ) === 'request-confirmation'
     )
   }, [routingInfo.route, sourceToken, destinationToken])
@@ -367,8 +366,12 @@ const SwapPage = observer(() => {
     ) {
       return 'Not supported using Ledger wallet'
     }
-    return 'Review Swap'
-  }, [activeWallet?.walletType, amountExceedsBalance, errorMsg, invalidAmount])
+    if (!inAmount || parseFloat(inAmount) === 0) {
+      return 'Enter amount'
+    }
+
+    return 'Review Transfer'
+  }, [activeWallet?.walletType, amountExceedsBalance, inAmount, errorMsg, invalidAmount])
 
   const reviewDisabled = useMemo(() => {
     if (
@@ -442,7 +445,7 @@ const SwapPage = observer(() => {
   }, [setShowSlippageSheet])
 
   const handleInputAmountChange = useCallback(
-    (value) => {
+    (value: string) => {
       handleInAmountChange(value)
       uncheckWarnings()
     },
@@ -694,11 +697,13 @@ const SwapPage = observer(() => {
           pageSource: 'swapAgain',
         })}`
         navigate(`/swap${queryStr}`)
+      } else {
+        setInAmount('')
       }
       setShowTxPage(false)
-      setInAmount('')
+      refresh()
     },
-    [navigate, setInAmount, setShowTxPage],
+    [navigate, setInAmount, setShowTxPage, refresh],
   )
 
   const swapTxPageSetLedgerError = useCallback(
@@ -717,90 +722,85 @@ const SwapPage = observer(() => {
   })
 
   return (
-    <div className='panel-width panel-height enclosing-panel overflow-clip'>
-      <PopupLayout
-        header={
-          <InputPageHeader
-            onBack={handleOnBackClick}
-            onRefresh={handleOnRefreshClick}
-            onSettings={handleOnSettingsClick}
-            topColor='transparent'
-          />
-        }
-        className='flex flex-col'
-      >
+    <div className={classNames('panel-width panel-height enclosing-panel')}>
+      <SwapHeader onSettings={handleOnSettingsClick} currentSlippage={slippagePercent} />
+      <div className='relative flex flex-1 flex-col justify-between w-full gap-3 relative h-[calc(100%-128px)] overflow-y-scroll'>
         {!!showMainnetAlert && (
-          <div className='flex flex-col items-center justify-center px-4 py-2 bg-[#0D9488]'>
-            <Text size='xs' color='dark:text-white-100 text-white-100' className='font-bold'>
+          <div className='flex flex-col items-center justify-center px-4 py-2 bg-primary'>
+            <Text size='xs' color='text-foreground' className='font-bold'>
               Switched to mainnet for swaps
             </Text>
           </div>
         )}
-        <div className='flex flex-1 flex-col justify-between p-4 w-full gap-3 relative'>
-          <div className='flex flex-col w-full gap-2 relative'>
-            <div className='w-full flex flex-col items-center'>
-              <TokenInputCard
-                value={inAmount}
-                isInputInUSDC={isInputInUSDC}
-                setIsInputInUSDC={setIsInputInUSDC}
-                token={sourceToken}
-                balanceStatus={sourceTokenBalanceStatus}
-                loadingAssets={sourceTokenLoading}
-                loadingChains={loadingChains}
-                chainName={sourceChain?.chainName}
-                chainLogo={sourceChain?.icon ?? defaultTokenLogo}
-                onChange={handleInputAmountChange}
-                selectTokenDisabled={sourceAssets.length === 0 || !sourceChain}
-                selectChainDisabled={_chainsToShow.length === 0}
-                onTokenSelectSheet={handleInputTokenSelectSheetOpen}
-                onChainSelectSheet={handleInputChainSelectSheetOpen}
-                amountError={amountExceedsBalance || invalidAmount}
-                showFor='source'
-                selectedChain={isChainAbstractionView ? sourceChain : undefined}
-                isChainAbstractionView={isChainAbstractionView}
-              />
-
-              <InterchangeButton
-                isSwitchOrderPossible={isSwitchOrderPossible}
-                handleSwitchOrder={handleSwitchOrder}
-              />
-
-              <TokenInputCard
-                readOnly
-                isInputInUSDC={isInputInUSDC}
-                setIsInputInUSDC={setIsInputInUSDC}
-                value={amountOut ? Number(amountOut).toFixed(6) : amountOut}
-                token={destinationToken}
-                balanceStatus={destinationTokenBalancesStatus}
-                loadingChains={loadingChains}
-                loadingAssets={loadingChains || loadingDestinationAssets}
-                chainName={destinationChain?.chainName}
-                chainLogo={destinationChain?.icon ?? defaultTokenLogo}
-                selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}
-                selectChainDisabled={_chainsToShow.length === 0}
-                onTokenSelectSheet={handleOutputTokenSelectSheetOpen}
-                onChainSelectSheet={handleOutputChainSelectSheetOpen}
-                isChainAbstractionView={isChainAbstractionView}
-                showFor='destination'
-                assetUsdValue={destinationAssetUSDValue}
-              />
-            </div>
-
-            <WarningsSection
-              isPriceImpactChecked={isPriceImpactChecked}
-              setIsPriceImpactChecked={setIsPriceImpactChecked}
-              ledgerError={ledgerError}
+        <div
+          className={cn(
+            'flex flex-col w-full gap-3 relative px-6',
+            showMainnetAlert ? 'pt-3' : 'pt-6',
+          )}
+        >
+          <div className='w-full flex flex-col items-center gap-y-1'>
+            <TokenInputCard
+              value={inAmount}
+              isInputInUSDC={isInputInUSDC}
+              setIsInputInUSDC={setIsInputInUSDC}
+              token={sourceToken}
+              balanceStatus={sourceTokenBalanceStatus}
+              loadingAssets={sourceTokenLoading}
+              loadingChains={loadingChains}
+              chainName={sourceChain?.chainName}
+              chainLogo={sourceChain?.icon ?? defaultTokenLogo}
+              onChange={handleInputAmountChange}
+              selectTokenDisabled={sourceAssets.length === 0 || !sourceChain}
+              selectChainDisabled={_chainsToShow.length === 0}
+              onTokenSelectSheet={handleInputTokenSelectSheetOpen}
+              onChainSelectSheet={handleInputChainSelectSheetOpen}
+              amountError={amountExceedsBalance || invalidAmount}
+              showFor='source'
+              selectedChain={isChainAbstractionView ? sourceChain : undefined}
+              isChainAbstractionView={isChainAbstractionView}
             />
 
-            <SwapInfo
-              setShowMoreDetailsSheet={setShowMoreDetailsSheet}
-              rootDenomsStore={rootDenomsStore}
+            <InterchangeButton
+              isSwitchOrderPossible={isSwitchOrderPossible}
+              handleSwitchOrder={handleSwitchOrder}
+            />
+
+            <TokenInputCard
+              readOnly
+              isInputInUSDC={isInputInUSDC}
+              setIsInputInUSDC={setIsInputInUSDC}
+              value={amountOut ? Number(amountOut).toFixed(6) : amountOut}
+              token={destinationToken}
+              balanceStatus={destinationTokenBalancesStatus}
+              loadingChains={loadingChains}
+              loadingAssets={loadingChains || loadingDestinationAssets}
+              chainName={destinationChain?.chainName}
+              chainLogo={destinationChain?.icon ?? defaultTokenLogo}
+              selectTokenDisabled={destinationAssets.length === 0 || !destinationChain}
+              selectChainDisabled={_chainsToShow.length === 0}
+              onTokenSelectSheet={handleOutputTokenSelectSheetOpen}
+              onChainSelectSheet={handleOutputChainSelectSheetOpen}
+              isChainAbstractionView={isChainAbstractionView}
+              showFor='destination'
+              assetUsdValue={destinationAssetUSDValue}
             />
           </div>
 
+          <WarningsSection
+            isPriceImpactChecked={isPriceImpactChecked}
+            setIsPriceImpactChecked={setIsPriceImpactChecked}
+            ledgerError={ledgerError}
+          />
+
+          <SwapInfo
+            setShowMoreDetailsSheet={setShowMoreDetailsSheet}
+            rootDenomsStore={rootDenomsStore}
+          />
+        </div>
+        <div className='sticky bottom-0 left-0 z-[2] right-0 bg-secondary-100 px-5 py-4'>
           {isMoreThanOneStepTransaction ? (
             <Buttons.Generic
-              className='w-full dark:!bg-white-100 !bg-black-100 text-white-100 dark:text-black-100'
+              className='w-full dark:!bg-white-100 !bg-black-100 text-white-100 dark:text-black-100 h-[52px]'
               onClick={() => window.open(redirectUrl, '_blank')}
               style={{ boxShadow: 'none' }}
             >
@@ -811,15 +811,13 @@ const SwapPage = observer(() => {
           ) : (
             <>
               <Buttons.Generic
-                className={classNames('w-full', {
-                  [`${
-                    isCompassWallet() ? '!bg-compassChainTheme-400' : '!bg-green-600'
-                  } text-white-100`]: !(
+                className={classNames('w-full  h-[52px] text-white-100', {
+                  [`!bg-primary`]: !(
                     invalidAmount ||
                     amountExceedsBalance ||
                     isNoRoutesAvailableError(errorMsg)
                   ),
-                  '!bg-red-300 text-white-100':
+                  '!bg-destructive-100/40':
                     invalidAmount || amountExceedsBalance || isNoRoutesAvailableError(errorMsg),
                 })}
                 disabled={reviewDisabled}
@@ -828,7 +826,7 @@ const SwapPage = observer(() => {
                   if (activeWallet?.watchWallet) {
                     importWatchWalletSeedPopupStore.setShowPopup(true)
                   } else {
-                    setShowTxReviewSheet(true)
+                    setCheckForAutoAdjust(true)
                   }
                 }}
               >
@@ -837,8 +835,7 @@ const SwapPage = observer(() => {
             </>
           )}
         </div>
-      </PopupLayout>
-
+      </div>
       <SelectTokenSheet
         isOpen={showTokenSelectSheet}
         sourceAssets={sourceAssets}
@@ -855,13 +852,14 @@ const SwapPage = observer(() => {
         loadingTokens={
           showSelectSheetFor === 'source' ? loadingSourceAssets : loadingDestinationAssets
         }
+        loadingChains={loadingChains}
       />
-
       {isChainAbstractionView ? (
         <SelectChainSheet
           title='Select Destination Chain'
           isOpen={showChainSelectSheet}
           chainsToShow={_destinationChainsToShow}
+          loadingChains={loadingChains}
           onClose={() => {
             setShowChainSelectSheet(false)
             setShowSelectSheetFor('')
@@ -875,28 +873,25 @@ const SwapPage = observer(() => {
         <SelectChainSheet
           isOpen={showChainSelectSheet}
           chainsToShow={_chainsToShow.map((chain) => ({ chain }))}
+          loadingChains={loadingChains}
           onClose={handleOnChainSelectSheetClose}
           selectedChain={showSelectSheetFor === 'source' ? sourceChain : destinationChain}
           selectedToken={showSelectSheetFor === 'source' ? sourceToken : destinationToken}
           onChainSelect={handleOnChainSelect}
         />
       )}
-
       <MoreDetailsSheet
         isOpen={showMoreDetailsSheet}
         onClose={handleOnMoreDetailsSheetClose}
         onSlippageInfoClick={handleOnSlippageInfoClick}
         setShowFeesSettingSheet={setShowFeesSettingSheet}
       />
-
       <SlippageSheet
         isOpen={showSlippageSheet}
         onClose={handleOnSlippageSheetClose}
         onSlippageInfoClick={handleOnSlippageInfoClick}
       />
-
       <SlippageInfoSheet isOpen={showSlippageInfo} onClose={handleOnSlippageInfoSheetClose} />
-
       {checkForAutoAdjust &&
         autoAdjustAmountFee &&
         autoAdjustAmountToken &&
@@ -913,8 +908,8 @@ const SwapPage = observer(() => {
             closeAdjustmentSheet={handleOnAutoAdjustmentSheetClose}
           />
         )}
-
       <TxReviewSheet
+        onSlippageInfoClick={handleOnSlippageInfoClick}
         isOpen={showTxReviewSheet}
         onClose={handleOnTxReviewSheetClose}
         onProceed={handleOnTxReviewSheetProceed}
@@ -922,14 +917,12 @@ const SwapPage = observer(() => {
         destinationAssetUSDValue={destinationAssetUSDValue}
         sourceAssetUSDValue={sourceAssetUSDValue}
       />
-
       {routingInfo?.route?.response && sourceChain && (
         <FeesSheet
           showFeesSettingSheet={showFeesSettingSheet}
           setShowFeesSettingSheet={setShowFeesSettingSheet}
         />
       )}
-
       {newChain && (
         <AddFromChainStore
           isVisible={!!newChain}
@@ -943,7 +936,6 @@ const SwapPage = observer(() => {
           successCallback={handlePostAddChainCallback}
         />
       )}
-
       {showTxPage ? (
         <SwapTxPage
           onClose={handleOnTxPageClose}
@@ -1040,8 +1032,6 @@ const Swap = observer(({ rootBalanceStore }: { rootBalanceStore: RootBalanceStor
       enabledCW20DenomsStore={enabledCW20DenomsStore}
       betaERC20DenomsStore={betaERC20DenomsStore}
       erc20DenomsStore={erc20DenomsStore}
-      compassTokenTagsStore={compassTokenTagsStore}
-      compassTokensAssociationsStore={compassTokensAssociationsStore}
       priceStore={priceStore}
     >
       <SwapPage />
@@ -1049,4 +1039,36 @@ const Swap = observer(({ rootBalanceStore }: { rootBalanceStore: RootBalanceStor
   )
 })
 
-export default Swap
+const SwapsPageWithLoader = observer(
+  ({ rootBalanceStore }: { rootBalanceStore: RootBalanceStore }) => {
+    const [showLoader, setShowLoader] = useState<boolean>(true)
+    const [firstLoadingComplete, setFirstLoadingComplete] = useState<boolean>(false)
+
+    useEffect(() => {
+      setTimeout(() => {
+        setShowLoader(false)
+      }, 150)
+    }, [])
+
+    useEffect(() => {
+      if (!rootBalanceStore.allAggregatedTokensLoading) {
+        setFirstLoadingComplete(true)
+      }
+    }, [rootBalanceStore.allAggregatedTokensLoading])
+
+    if (showLoader) {
+      return (
+        <div className='h-full'>
+          <SwapsLoader />
+        </div>
+      )
+    }
+
+    if ((rootBalanceStore.allAggregatedTokensLoading && !firstLoadingComplete) || showLoader) {
+      return <SwapsLoader />
+    }
+    return <Swap rootBalanceStore={rootBalanceStore} />
+  },
+)
+
+export default SwapsPageWithLoader

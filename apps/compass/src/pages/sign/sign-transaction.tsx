@@ -70,7 +70,7 @@ import Long from 'long'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { dappDefaultFeeStore } from 'stores/fee-store'
@@ -385,25 +385,6 @@ const SignTransaction = observer(
       if (isRejectedRef.current || isApprovedRef.current) return
       isRejectedRef.current = true
 
-      try {
-        mixpanel.track(
-          EventName.DappTxnRejected,
-          {
-            dAppURL: siteOrigin,
-            transactionTypes,
-            signMode: isAmino ? 'sign-amino' : 'sign-direct',
-            walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-            chainId: chainInfo.chainId,
-            chainName: chainInfo.chainName,
-            productVersion: browser.runtime.getManifest().version,
-            time: Date.now() / 1000,
-          },
-          mixpanelTrackOptions,
-        )
-      } catch (e) {
-        captureException(e)
-      }
-
       browser.runtime.sendMessage({
         type: MessageTypes.signResponse,
         payload: { status: 'error', data: 'Transaction cancelled by the user.' },
@@ -417,15 +398,7 @@ const SignTransaction = observer(
           window.close()
         }, 10)
       }
-    }, [
-      siteOrigin,
-      transactionTypes,
-      isAmino,
-      activeWallet.walletType,
-      chainInfo.chainId,
-      chainInfo.chainName,
-      navigate,
-    ])
+    }, [navigate])
 
     const currentWalletInfo = useMemo(() => {
       if (!activeWallet || !chainId || !siteOrigin) return undefined
@@ -525,30 +498,6 @@ const SignTransaction = observer(
           ).catch((e) => {
             captureException(e)
           })
-
-          try {
-            const txHash = getTxHashFromDirectSignResponse(data)
-
-            mixpanel.track(
-              EventName.DappTxnApproved,
-              {
-                dAppURL: siteOrigin,
-                transactionTypes: Array.isArray(messages)
-                  ? messages?.map((msg) => msg.raw['@type'] ?? msg.raw['type']).filter(Boolean)
-                  : [],
-                signMode: 'sign-direct',
-                walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-                txHash,
-                chainId: chainInfo.chainId,
-                chainName: chainInfo.chainName,
-                productVersion: browser.runtime.getManifest().version,
-                time: Date.now() / 1000,
-              },
-              mixpanelTrackOptions,
-            )
-          } catch (e) {
-            captureException(e)
-          }
 
           await sleep(100)
 
@@ -711,8 +660,6 @@ const SignTransaction = observer(
             } catch (_) {
               //
             }
-
-            mixpanel.track(EventName.DappTxnApproved, trackingData, mixpanelTrackOptions)
           } catch (e) {
             captureException(e)
           }
@@ -789,21 +736,6 @@ const SignTransaction = observer(
       if (isDappTxnInitEventLogged.current) return
 
       try {
-        mixpanel.track(
-          EventName.DappTxnInit,
-          {
-            dAppURL: siteOrigin,
-            transactionTypes,
-            signMode: isAmino ? 'sign-amino' : 'sign-direct',
-            walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-            chainId: chainInfo.chainId,
-            chainName: chainInfo.chainName,
-            productVersion: browser.runtime.getManifest().version,
-            time: Date.now() / 1000,
-          },
-          mixpanelTrackOptions,
-        )
-
         isDappTxnInitEventLogged.current = true
       } catch (e) {
         captureException(e)

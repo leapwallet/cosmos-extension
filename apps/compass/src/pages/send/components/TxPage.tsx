@@ -20,7 +20,7 @@ import { Button } from 'components/ui/button'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { rootBalanceStore, rootStakeStore } from 'stores/root-store'
 
 const TxPage = observer(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {

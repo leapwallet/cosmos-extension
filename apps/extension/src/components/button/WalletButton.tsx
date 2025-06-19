@@ -14,7 +14,6 @@ type WalletButtonProps = {
   handleDropdownClick?: () => void
   walletAvatar?: string
   isAddressCopied?: boolean
-  isToAddLinkAddressNudgeText?: boolean
 }
 
 const WalletButton = React.memo(
@@ -27,16 +26,11 @@ const WalletButton = React.memo(
     handleDropdownClick,
     walletAvatar,
     isAddressCopied,
-    isToAddLinkAddressNudgeText,
   }: WalletButtonProps) => {
     return (
       <div
         className={classNames(
-          'relative bg-white-100 dark:bg-gray-950 border-[1px] border-solid flex rounded-3xl h-[36px]',
-          {
-            'border-yellow-600': isToAddLinkAddressNudgeText,
-            'border-gray-100 dark:border-gray-850': !isToAddLinkAddressNudgeText,
-          },
+          'relative bg-white-100 dark:bg-gray-950 border-[1px] border-solid flex rounded-3xl h-[36px] border-gray-100 dark:border-gray-850',
         )}
       >
         <button

@@ -1,12 +1,6 @@
 import { AddressZero } from '@ethersproject/constants'
 import { getErc20TokenDetails } from '@leapwallet/cosmos-wallet-sdk'
-import {
-  MosaicSupportedAsset,
-  SkipSupportedAsset,
-  useAllSkipAssets,
-  useLifiAssets,
-  useMosaicAssets,
-} from '@leapwallet/elements-hooks'
+import { SkipSupportedAsset, useAllSkipAssets, useLifiAssets } from '@leapwallet/elements-hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { compassSeiEvmConfigStore } from 'stores/balance-store'
@@ -41,7 +35,6 @@ export default function useAssets() {
   const { data: _allSkipAssets, isLoading: loadingAllSkipAssets } =
     useAllSkipAssets(useAllSkipAssetsParams)
 
-  const { data: _mosaicAssets } = useMosaicAssets()
   const { data: seiLifiAssets } = useLifiAssets(
     isLifiEnabled
       ? String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID)
@@ -51,11 +44,8 @@ export default function useAssets() {
     },
   )
 
-  const allSkipAssets:
-    | Record<string, SkipSupportedAsset[]>
-    | Record<string, MosaicSupportedAsset[]>
-    | undefined = isSkipEnabled
-    ? Object.assign({}, _allSkipAssets, _mosaicAssets?.assets)
+  const allSkipAssets: Record<string, SkipSupportedAsset[]> | undefined = isSkipEnabled
+    ? Object.assign({}, _allSkipAssets)
     : undefined
 
   const customAddedERC20Tokens = useCustomAddedERC20Tokens()

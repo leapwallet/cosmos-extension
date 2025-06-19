@@ -21,7 +21,10 @@ export type SwapTxAction = Extract<Action, { type: 'SWAP' }>
 export type TransferTxAction = Extract<Action, { type: 'TRANSFER' }>
 export type SendTxAction = Extract<Action, { type: 'SEND' }>
 
-export type SourceChain = Extract<SkipSupportedChainData, { chainType: 'cosmos' | 'evm' }> & {
+export type SourceChain = Extract<
+  SkipSupportedChainData,
+  { chainType: 'cosmos' | 'evm' | 'aptos' }
+> & {
   key: SupportedChain
   coinType: string
   baseDenom: string
@@ -132,6 +135,15 @@ export interface GoFastTransferPacketTxnSeq extends TransferSequenceBase {
   originalState: GoFastTransferState
 }
 
+export interface EurekaTransferPacketTxnSeq extends TransferSequenceBase {
+  type: 'eurekaTransfer'
+  packetTxs: {
+    sendTx: ChainTransaction | null
+    receiveTx: ChainTransaction | null
+  }
+  originalState: TransferState
+}
+
 export interface MosaicTxnSeq extends TransferSequenceBase {
   originalState: TXN_STATUS
   packetTxs: {
@@ -148,6 +160,7 @@ export type TransferSequence =
   | OPInitPacketTxnSeq
   | LifiPacketTxnSeq
   | GoFastTransferPacketTxnSeq
+  | EurekaTransferPacketTxnSeq
   | MosaicTxnSeq
 
 export type SwapTxnStatus = {

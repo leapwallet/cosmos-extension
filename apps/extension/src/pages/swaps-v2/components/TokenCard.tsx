@@ -6,7 +6,6 @@ import {
   useGetChains,
   useGetExplorerAccountUrl,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ArrowSquareOut, CopySimple } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
@@ -15,7 +14,6 @@ import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useNonNativeCustomChains } from 'hooks'
 import { useFormatCurrency, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
-import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
@@ -23,30 +21,31 @@ import { hideAssetsStore } from 'stores/hide-assets-store'
 import { SourceChain, SourceToken } from 'types/swap'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
-import { isSidePanel } from 'utils/isSidePanel'
+import { cn } from 'utils/cn'
 import { sliceWord } from 'utils/strings'
 
 import { useGetChainsToShow } from '../hooks'
 
 export const TokenCardSkeleton = () => {
   return (
-    <div className='flex py-3 mx-6 z-0'>
-      <div className='w-10'>
+    <div className='flex items-center py-3 mx-6 z-0 !h-[72px]'>
+      <div className='w-9 h-9'>
         <Skeleton
           circle
-          className='w-10 h-10'
+          className='w-9 h-9'
+          containerClassName='block !leading-none'
           style={{
             zIndex: 0,
           }}
         />
       </div>
       <div className='max-w-[80px] z-0 ml-2'>
-        <Skeleton width={80} className='z-0' />
-        <Skeleton width={60} className='z-0' />
+        <Skeleton width={80} className='z-0 h-[17px]' />
+        <Skeleton width={60} className='z-0 h-[14px]' />
       </div>
       <div className='max-w-[70px] ml-auto z-0 flex flex-col items-end'>
-        <Skeleton width={50} className='z-0' />
-        <Skeleton width={70} className='z-0' />
+        <Skeleton width={50} className='z-0 h-[17px]' />
+        <Skeleton width={70} className='z-0 h-[14px]' />
       </div>
     </div>
   )
@@ -61,6 +60,9 @@ function TokenCardView({
   showRedirection = false,
   selectedChain,
   isChainAbstractionView,
+  showChainNames = false,
+  isFirst = false,
+  isLast = false,
 }: {
   onTokenSelect: (token: SourceToken) => void
   token: SourceToken
@@ -70,14 +72,16 @@ function TokenCardView({
   selectedChain: SourceChain | undefined
   showRedirection?: boolean
   isChainAbstractionView?: boolean
+  showChainNames?: boolean
+  isFirst?: boolean
+  isLast?: boolean
 }) {
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const [formatCurrency] = useFormatCurrency()
   const [preferredCurrency] = useUserPreferredCurrency()
-  const { theme } = useTheme()
   const formattedTokenAmount = hideAssetsStore.formatHideBalance(
     formatTokenAmount(
-      token?.amount,
+      token?.amount || '0',
       sliceWord(token?.symbol, 4, 4),
       3,
       currencyDetail[preferredCurrency].locale,
@@ -202,28 +206,54 @@ function TokenCardView({
     [token.coinMinimalDenom],
   )
 
+  const handleTokenSelect = useCallback(() => {
+    if (isSelected) return
+    onTokenSelect(token)
+  }, [isSelected, onTokenSelect, token])
+
   const tokenName = token.symbol ?? token?.name
+  const chainIcon =
+    (tokenChain
+      ? 'icon' in tokenChain
+        ? tokenChain?.icon
+        : tokenChain?.chainSymbolImageUrl
+      : '') ?? ''
 
   return (
     <div
-      onClick={() => onTokenSelect(token)}
-      className={classNames('flex flex-1 items-center py-3 cursor-pointer w-full px-6', {
-        'opacity-20': isSelected,
-      })}
+      onClick={handleTokenSelect}
+      className={classNames(
+        'flex flex-1 items-center w-full px-6',
+        isFirst ? 'mt-4' : 'mt-3',
+        isLast ? 'mb-4' : '',
+      )}
     >
-      <div className='flex items-center flex-1 flex-row justify-between w-full gap-2'>
+      <div
+        className={cn(
+          'flex items-center flex-1 flex-row justify-between w-full gap-2 rounded-xl pl-3 py-3 pr-4 border border-transparent',
+          isSelected
+            ? 'bg-secondary-200 hover:bg-secondary-200 cursor-not-allowed border-secondary-600'
+            : 'cursor-pointer bg-secondary-100 hover:bg-secondary-200',
+        )}
+      >
         <div className='flex items-center flex-1'>
-          <div className='relative mr-3'>
+          <div className='relative mr-3 h-10 w-10 flex items-center justify-center'>
             <TokenImageWithFallback
               assetImg={token?.img}
               text={tokenName}
               altText={tokenName}
-              imageClassName='h-10 w-10'
-              containerClassName='h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-850'
+              imageClassName='h-8 w-8 rounded-full'
+              containerClassName='h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-850'
               textClassName='text-[11px] !leading-[15px]'
             />
 
-            {verified && (
+            <img
+              src={chainIcon}
+              alt=''
+              className='absolute bottom-0 right-0 h-[14px] w-[14px] rounded-full'
+            />
+
+            {/* {verified && (
               <div className='absolute group -bottom-[3px] -right-[6px]'>
                 <img
                   src={
@@ -246,14 +276,14 @@ function TokenCardView({
                   Whitelisted
                 </div>
               </div>
-            )}
+            )} */}
           </div>
 
-          <div className='flex flex-col justify-center items-start gap-[2px]'>
+          <div className='flex flex-col justify-center items-start'>
             <div className='flex items-center gap-[4px]'>
               <Text
                 size='md'
-                className={classNames('font-bold', {
+                className={classNames('font-bold !leading-[22px] text-foreground', {
                   'items-center justify-center gap-1':
                     (activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
                     token?.ibcChainInfo,
@@ -265,7 +295,7 @@ function TokenCardView({
                 {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
                 token?.ibcChainInfo ? (
                   <span
-                    className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] dark:text-white-100 text-black-100 bg-gray-50 dark:bg-gray-900'
+                    className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] text-foreground bg-secondary-200'
                     title={ibcInfo}
                   >
                     IBC
@@ -292,8 +322,10 @@ function TokenCardView({
               ) : null}
             </div>
 
-            {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) && tokenChain ? (
-              <p className='font-medium text-[10px] dark:text-white-100 text-black-100'>
+            {(activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
+            tokenChain &&
+            showChainNames ? (
+              <p className='text-xs !leading-[19px] font-medium text-muted-foreground'>
                 {tokenChain?.chainName ?? 'Unknown Chain'}
               </p>
             ) : (
@@ -309,13 +341,13 @@ function TokenCardView({
         </div>
 
         {hideAmount === false && (
-          <div className='flex flex-col justify-center items-end gap-[4px]'>
+          <div className='flex flex-col justify-center items-end gap-[2px]'>
             {formattedFiatValue !== '-' && (
-              <Text size='md' className='font-bold'>
+              <Text size='md' className='font-bold !leading-[20px] text-foreground text-sm'>
                 {formattedFiatValue}
               </Text>
             )}
-            <div className='text-xs !leading-[16.2px] font-medium text-gray-600 dark:text-gray-400'>
+            <div className='text-xs !leading-[19px] font-medium text-muted-foreground'>
               {formattedTokenAmount}
             </div>
           </div>

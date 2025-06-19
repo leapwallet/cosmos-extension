@@ -23,7 +23,8 @@ const EpochPendingValidatorCardView = ({
   currencyBalance,
   formattedBalance,
 }: EpochPendingValidatorCardProps) => {
-  const { data: imageUrl } = useValidatorImage(validator)
+  const { data: validatorImage } = useValidatorImage(validator?.image ? undefined : validator)
+  const imageUrl = validator?.image || validatorImage || Images.Misc.Validator
   const [formatCurrency] = useFormatCurrency()
 
   const amountTitleText = useMemo(() => {
@@ -48,7 +49,7 @@ const EpochPendingValidatorCardView = ({
     >
       <div className='flex items-center w-full'>
         <img
-          src={imageUrl ?? validator?.image ?? Images.Misc.Validator}
+          src={imageUrl}
           onError={imgOnError(Images.Misc.Validator)}
           width={28}
           height={28}

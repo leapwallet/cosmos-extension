@@ -27,7 +27,7 @@ export function useGetWalletAddresses(forceChain?: SupportedChain) {
       activeWallet?.addresses?.[activeChain] &&
       (SHOW_ETH_ADDRESS_CHAINS.includes(activeChain) || activeChainInfo?.evmOnlyChain)
     ) {
-      if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+      if (activeWallet.walletType === WALLETTYPE.LEDGER && activeWallet.app !== 'sei') {
         return [address]
       }
 

@@ -7,6 +7,7 @@ import { SourceChain, SwapTxnStatus, TransferSequence } from 'types/swap'
 import { RoutingInfo } from '../../useSwapsTx'
 import { getAxelarTransactionSequence } from './transactionSequence/axelar'
 import { getCCTPTransactionSequence } from './transactionSequence/cctp'
+import { getEurekaTransactionSequence } from './transactionSequence/eureka'
 import { getGoFastTransactionSequence } from './transactionSequence/goFast'
 import { getHyperlaneTransactionSequence } from './transactionSequence/hyperlane'
 import { getIBCTransactionSequence } from './transactionSequence/ibc'
@@ -29,6 +30,7 @@ export function usePollSkipTx(
   const isMounted = useRef(true)
 
   useEffect(() => {
+    isMounted.current = true
     return () => {
       isMounted.current = false
     }
@@ -82,6 +84,9 @@ export function usePollSkipTx(
                 }
                 if ('go_fast_transfer' in transfer) {
                   return getGoFastTransactionSequence(transfer.go_fast_transfer)
+                }
+                if ('eureka_transfer' in transfer) {
+                  return getEurekaTransactionSequence(transfer.eureka_transfer)
                 }
                 throw new Error('Unknown transfer type')
               }) ?? []

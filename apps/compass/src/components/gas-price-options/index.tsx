@@ -30,7 +30,6 @@ import classNames from 'classnames'
 import Text from 'components/text'
 import { useEnableEvmGasRefetch } from 'hooks/cosm-wasm/use-enable-evm-gas-refetch'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { Wallet } from 'hooks/wallet/useWallet'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import Long from 'long'
@@ -204,8 +203,7 @@ const GasPriceOptions = observer(
     const chainNativeFeeTokenData = feeTokens?.data?.[0]
     const isPayingFeeInNonNativeToken = feeTokenData?.ibcDenom !== chainNativeFeeTokenData?.ibcDenom
 
-    const getWallet = Wallet.useGetWallet()
-    const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+    const { addressLinkState } = useSeiLinkedAddressState()
 
     useEnableEvmGasRefetch(activeChain, selectedNetwork)
 

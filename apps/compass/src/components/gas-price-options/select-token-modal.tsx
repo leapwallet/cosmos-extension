@@ -2,8 +2,8 @@ import { sortTokens, Token, useActiveChain } from '@leapwallet/cosmos-wallet-hoo
 import { CardDivider } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import NoSearchResults from 'components/no-search-results'
-import { SearchInput } from 'components/search-input'
 import { TokenCard } from 'components/token-card/TokenCard'
+import { SearchInput } from 'components/ui/input/search-input'
 import { Images } from 'images'
 import React, { useCallback, useMemo, useState } from 'react'
 

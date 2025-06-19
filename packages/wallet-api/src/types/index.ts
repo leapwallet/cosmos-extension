@@ -1124,10 +1124,6 @@ export enum CosmosTxType {
   AuthZGrant = 'AUTHZ_GRANT',
   LSStake = 'LS_STAKE',
   LSUnstake = 'LS_UNSTAKE',
-  StakeClaimAndDelegate = 'STAKE_CLAIM_AND_DELEGATE',
-  IBCSwap = 'IBC_SWAP',
-  BridgeSend = 'BRIDGE_SEND',
-  BridgeSwap = 'BRIDGE_SWAP',
 }
 
 export enum App {
@@ -1284,6 +1280,7 @@ export enum V2TxOperation {
   Cosmos = 'cosmos.tx',
   Evm = 'evm.tx',
   Solana = 'svm.tx',
+  Sui = 'sui.tx',
 }
 
 export type LightNodeStatsRequest = {

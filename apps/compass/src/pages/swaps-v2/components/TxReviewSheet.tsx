@@ -2,13 +2,10 @@ import { CaretDown, CaretUp, GasPump } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import { Button } from 'components/ui/button'
-import { PageName } from 'config/analytics'
 import { AnimatePresence, motion } from 'framer-motion'
-import { usePageView } from 'hooks/analytics/usePageView'
-import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
+import React, { Dispatch, SetStateAction, useCallback, useState } from 'react'
 
 import { useSwapContext } from '../context'
-import { useAggregatorBridgeRelayerFee } from '../hooks/useBridgeFee'
 import { MoreDetails } from './MoreDetails'
 import { ConversionRateDisplay } from './SwapInfo/ConversionRateDisplay'
 import TxTokensSummary from './TxTokensSummary'
@@ -38,47 +35,6 @@ export function TxReviewSheet({
     destinationChain,
     routingInfo,
   } = useSwapContext()
-
-  const reviewPageProperties = useMemo(() => {
-    let inAmountDollarValue, outAmountDollarValue
-    if (
-      sourceToken?.usdPrice &&
-      !isNaN(parseFloat(sourceToken?.usdPrice)) &&
-      inAmount &&
-      !isNaN(parseFloat(inAmount))
-    ) {
-      inAmountDollarValue = parseFloat(sourceToken?.usdPrice) * parseFloat(inAmount)
-    }
-    if (
-      destinationToken?.usdPrice &&
-      !isNaN(parseFloat(destinationToken?.usdPrice)) &&
-      amountOut &&
-      !isNaN(parseFloat(amountOut))
-    ) {
-      outAmountDollarValue = parseFloat(destinationToken.usdPrice) * parseFloat(amountOut)
-    }
-    return {
-      fromToken: sourceToken?.symbol,
-      fromTokenAmount: inAmountDollarValue,
-      fromChain: sourceChain?.chainName ?? '',
-      toToken: destinationToken?.symbol,
-      toChain: destinationChain?.chainName,
-      toTokenAmount: outAmountDollarValue,
-      transactionCount: routingInfo?.route?.transactionCount,
-    }
-  }, [
-    sourceToken?.usdPrice,
-    sourceToken?.symbol,
-    inAmount,
-    destinationToken?.usdPrice,
-    destinationToken?.symbol,
-    amountOut,
-    sourceChain?.chainName,
-    destinationChain?.chainName,
-    routingInfo?.route?.transactionCount,
-  ])
-
-  usePageView(isOpen ? PageName.SwapsReview : null, reviewPageProperties)
 
   const [showMoreDetails, setShowMoreDetails] = useState<boolean>(false)
 

@@ -1,10 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import {
-  useAddress,
-  useAddressPrefixes,
-  useChainsStore,
-  useIsSeiEvmChain,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useAddress, useAddressPrefixes, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { getBlockChainFromAddress, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   CosmosChainData,
@@ -17,7 +12,6 @@ import BigNumber from 'bignumber.js'
 import Text from 'components/text'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -43,7 +37,6 @@ function ErrorWarning() {
   } = useSendContext()
 
   const currentWalletAddress = useAddress(sendActiveChain)
-  const walletAddresses = useGetWalletAddresses()
   const { chains } = useChainsStore()
   const addressPrefixes = useAddressPrefixes()
 
@@ -81,7 +74,6 @@ function ErrorWarning() {
     })
   }
 
-  const isSeiEvmChain = useIsSeiEvmChain()
   const { data: skipSupportedChains } = useSkipSupportedChains()
 
   // checking if the token selected is pfmEnbled
@@ -120,13 +112,7 @@ function ErrorWarning() {
     transferData?.messages,
   ])
 
-  const isSendingToSameWallet = useMemo(() => {
-    if (isSeiEvmChain && selectedAddress?.address?.toLowerCase().startsWith('0x')) {
-      return walletAddresses[0].toLowerCase() === selectedAddress?.address?.toLowerCase()
-    }
-
-    return currentWalletAddress === selectedAddress?.address
-  }, [currentWalletAddress, isSeiEvmChain, selectedAddress?.address, walletAddresses])
+  const isSendingToSameWallet = currentWalletAddress === selectedAddress?.address
 
   const cw20Error = (amountError || '').includes('IBC transfers are not supported')
   const isAddressNotSupported = (amountError || '').includes(

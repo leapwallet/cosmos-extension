@@ -22,4 +22,5 @@ export type PageHeaderProps = {
     props?: { defaultFilter?: string },
   ) => void
   dontShowFilledArrowIcon?: boolean
+  dontShowBottomDivider?: boolean
 }

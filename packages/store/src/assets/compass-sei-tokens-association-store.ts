@@ -20,7 +20,8 @@ export class CompassSeiTokensAssociationStore {
 
   async loadCompassTokenTagsFromS3() {
     try {
-      const { data } = await axiosWrapper({ baseURL: COMPASS_TOKENS_ASSOCIATIONS_S3_URL, method: 'get' });
+      const res = await fetch(COMPASS_TOKENS_ASSOCIATIONS_S3_URL);
+      const data = await res.json();
       runInAction(() => {
         this.compassEvmToSeiMapping = data;
         this.compassSeiToEvmMapping = Object.entries((data ?? {}) as Record<string, string>).reduce<

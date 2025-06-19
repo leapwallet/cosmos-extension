@@ -12,7 +12,6 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { SWAP_NETWORK } from './useSwapsTx'
 
@@ -143,11 +142,10 @@ export function useTokenWithBalances(
               }
             }
           }
-          if (!isCompassWallet()) {
-            await rootBalanceStore.loadBalances(chain.key, SWAP_NETWORK)
-            // sleep for 5 secs
-            await new Promise((resolve) => setTimeout(resolve, 5000))
-          }
+
+          await rootBalanceStore.loadBalances(chain.key, SWAP_NETWORK)
+          // sleep for 5 secs
+          await new Promise((resolve) => setTimeout(resolve, 5000))
         }
         if (!updatedToken?.skipAsset?.isCw20) {
           return updatedToken

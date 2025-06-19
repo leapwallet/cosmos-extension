@@ -6,13 +6,17 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
 import { useEffect } from 'react'
 import { AggregatedSupportedChain } from 'types/utility'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 /**
  * Track page view on mixpanel
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const usePageView = (pageName: PageName, enable = true, additionalProperties?: any) => {
+export const usePageView = (
+  pageName: PageName,
+  enable = true,
+  additionalProperties?: any,
+  callback?: () => void,
+) => {
   const chain = useChainInfo() as ChainInfo | undefined
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const isAggregatedView = activeChain === AGGREGATED_CHAIN_KEY
@@ -20,19 +24,7 @@ export const usePageView = (pageName: PageName, enable = true, additionalPropert
   const chainName = isAggregatedView ? 'All Chains' : chain?.chainName ?? ''
 
   useEffect(() => {
-    if (
-      !enable ||
-      (isCompassWallet() &&
-        ![
-          PageName.Home,
-          PageName.Search,
-          PageName.SwapsStart,
-          PageName.SwapsReview,
-          PageName.SwapsTracking,
-          PageName.SwapsQuoteReady,
-          PageName.SwapsCompletion,
-        ].includes(pageName))
-    ) {
+    if (!enable) {
       return
     }
 
@@ -51,6 +43,7 @@ export const usePageView = (pageName: PageName, enable = true, additionalPropert
             transport: 'sendBeacon',
           },
         )
+        callback?.()
       } catch (_) {
         //
       }

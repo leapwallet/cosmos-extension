@@ -1,7 +1,6 @@
 export * from './balanceCalculator';
 export * from './cached-remote-data';
 export * from './check-to-use-pointer-logic';
-export * from './convertScientificNotation';
 export * from './convertScrtToDenom';
 export * from './cw20TokensQueryParams';
 export * from './daysLeft';

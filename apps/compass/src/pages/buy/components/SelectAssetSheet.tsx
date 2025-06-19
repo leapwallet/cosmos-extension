@@ -1,7 +1,7 @@
-import { Compass, MagnifyingGlassMinus } from '@phosphor-icons/react'
+import { MagnifyingGlassMinus } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
-import { SearchInput } from 'components/search-input'
 import TokenListSkeleton from 'components/Skeletons/TokenListSkeleton'
+import { SearchInput } from 'components/ui/input/search-input'
 import { AssetProps, useGetSupportedAssets } from 'hooks/kado/useGetSupportedAssets'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
@@ -42,8 +42,6 @@ const SelectAssetSheet = observer(
             data-testing-id='buy-asset-input-search'
             placeholder='Select Token'
             onClear={() => setSearchTerm('')}
-            divClassName='rounded-2xl w-full flex items-center gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 dark:focus-within:border-white-100 hover:border-secondary-400 focus-within:border-black-100 border border-transparent'
-            inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
           />
         </div>
         {isLoading && <TokenListSkeleton />}

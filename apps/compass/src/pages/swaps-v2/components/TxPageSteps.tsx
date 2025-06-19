@@ -57,13 +57,7 @@ export function TxPageSteps({ routingInfo, txStatus }: TxPageStepsProps) {
                   isFirst={actionIndex === 0}
                   isLast={actionIndex === value.length - 1}
                   prevAction={prevAction}
-                  response={
-                    txStatus?.[txIndex]?.responses?.[
-                      routingInfo.aggregator === RouteAggregator.MOSAIC
-                        ? actionIndex
-                        : transferSequenceIndex
-                    ]
-                  }
+                  response={txStatus?.[txIndex]?.responses?.[transferSequenceIndex]}
                   prevTransferSequenceIndex={previousActionTransferSequenceIndex}
                   transferSequenceIndex={transferSequenceIndex}
                   actionIndex={actionIndex}

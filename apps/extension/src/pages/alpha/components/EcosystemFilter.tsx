@@ -47,11 +47,10 @@ export default function EcosystemFilter({
   )
 
   return (
-    <div>
-      <Text size='sm' className='text-gray-600 dark:text-gray-400 mb-3'>
-        Ecosystem
-      </Text>
-      <div className='flex flex-col gap-2 bg-gray-100 dark:bg-gray-950 rounded-xl px-2 py-2'>
+    <div className='flex flex-col gap-5'>
+      <span className='text-muted-foreground text-sm uppercase font-bold'>Ecosystem</span>
+
+      <div className='flex flex-col'>
         {ecosystemFilters
           ?.sort((a, b) => a.localeCompare(b))
           ?.map((ecosystem, index) => {

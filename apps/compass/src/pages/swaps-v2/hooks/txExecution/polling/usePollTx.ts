@@ -5,7 +5,6 @@ import { SourceChain, SwapTxnStatus, TransferSequence } from 'types/swap'
 
 import { RoutingInfo } from '../../useSwapsTx'
 import { usePollLifiTx } from './usePollLifiTx'
-import { usePollMosaicTx } from './usePollMosaicTx'
 import { usePollSkipTx } from './usePollSkipTx'
 
 export function usePollTx(
@@ -40,15 +39,6 @@ export function usePollTx(
     refetchDestinationBalances,
   )
 
-  const pollMosaicTx = usePollMosaicTx(
-    setTrackingInSync,
-    setUnableToTrackError,
-    updateTxStatus,
-    handleTxError,
-    refetchSourceBalances,
-    refetchDestinationBalances,
-  )
-
   const pollTx = useCallback(
     async ({
       txHash,
@@ -67,13 +57,10 @@ export function usePollTx(
         await pollLifiTx({ txHash, messageIndex, messageChain })
         return
       }
-      if (routingInfo.aggregator === RouteAggregator.MOSAIC) {
-        await pollMosaicTx({ txHash, messageIndex, messageChain, routingInfo })
-        return
-      }
+
       await pollSkipTx({ txHash, messageIndex, messageChain, messageChainId, routingInfo })
     },
-    [pollLifiTx, pollMosaicTx, pollSkipTx],
+    [pollLifiTx, pollSkipTx],
   )
 
   return pollTx

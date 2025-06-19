@@ -42,7 +42,7 @@ export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'seiDevnet', 'seiTestnet2',
 
 export const AGGREGATED_CHAIN_KEY = 'aggregated'
 export const SEI_EVM_LEDGER_ERROR_MESSAGE =
-  'Transactions for EVM addresses are not supported on Ledger yet'
+  'Transactions for EVM addresses are not supported on Cosmos Ledger app use Sei app instead.'
 
 export const LIGHT_NODE_SYNC_WINDOW_SECS = 60 * 60 * 24 * 2 // 2 days
 export const LIGHT_NODE_TIME_CAPTURE_INTERVAL = 60_000 * 2 // 2 minute

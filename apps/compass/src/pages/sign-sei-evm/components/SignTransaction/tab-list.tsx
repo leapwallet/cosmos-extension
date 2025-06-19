@@ -43,7 +43,7 @@ export const TabList = (props: { gasPriceError?: string | null; txData: unknown 
       </div>
 
       <div className='flex flex-col gap-6 mx-6'>
-        <AnimatePresence exitBeforeEnter initial={false}>
+        <AnimatePresence mode='wait' initial={false}>
           {selectedTab.id === Tab.FEES && (
             <motion.div
               key={Tab.DETAILS}

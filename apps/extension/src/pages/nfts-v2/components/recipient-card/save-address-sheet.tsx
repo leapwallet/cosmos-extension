@@ -13,7 +13,6 @@ import { Images } from 'images'
 import React, { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type SaveAddressSheetProps = {
   title?: string
@@ -61,7 +60,7 @@ export default function SaveAddressSheet({
       }
       return _chain as SupportedChain
     } catch (e) {
-      return isCompassWallet() ? 'seiTestnet2' : 'cosmos'
+      return 'cosmos'
     }
   }, [address, addressPrefixes])
 
@@ -172,7 +171,7 @@ export default function SaveAddressSheet({
           <LoaderAnimation color={Colors.white100} />
         ) : (
           <Buttons.Generic
-            color={isCompassWallet() ? Colors.compassPrimary : Colors.juno}
+            color={Colors.juno}
             size='normal'
             className='w-full'
             disabled={!name || !!error}

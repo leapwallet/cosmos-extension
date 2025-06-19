@@ -1,37 +1,42 @@
-import React from 'react'
-import Skeleton from 'react-loading-skeleton'
+import { Checkbox } from 'components/ui/check-box'
+import { Skeleton } from 'components/ui/skeleton'
+import React, { HTMLAttributes } from 'react'
+import { cn } from 'utils/cn'
 
-export function WalletInfoCardSkeleton() {
+export function WalletInfoCardSkeleton(props: { className?: string }) {
   return (
-    <div className='flex flex-col items-center bg-white-100 dark:bg-gray-900 w-[360px] rounded-xl my-2'>
-      <div className='flex px-6 py-3 w-full'>
-        <Skeleton circle={true} width={40} height={40} className='z-0' />
-
-        <div className='flex flex-col'>
-          <div className='w-[120px] ml-2'>
-            <Skeleton count={1} className='z-0' />
-          </div>
-
-          <div className='w-[80px] ml-2'>
-            <Skeleton count={1} className='z-0' />
-          </div>
-        </div>
+    <div
+      className={cn(
+        'flex flex-row gap-3 items-center p-5 w-full cursor-pointer select-none',
+        props.className,
+      )}
+    >
+      <Skeleton className='size-10 rounded-full shrink-0' />
+      <div className='flex flex-col w-full justify-center gap-2 h-11'>
+        <Skeleton className={'bg-secondary-400 w-20 h-3 mt-1'} />
+        <Skeleton className={'bg-secondary-400 w-20 h-2 mt-1'} />
       </div>
 
-      <div className='h-[1px] bg-gray-100 dark:bg-gray-600 w-full' />
-
-      <div className='w-[360px] px-6 py-2 rounded-b-lg'>
-        <Skeleton className='light:bg-gray-200 bg-gray-800 z-0' />
-      </div>
+      <Checkbox disabled />
     </div>
   )
 }
 
-export function WalletInfoCardSkeletons() {
+type WalletInfoCardSkeletonsProps = HTMLAttributes<HTMLDivElement> & {
+  cardClassName?: string
+  count: number
+}
+
+export function WalletInfoCardSkeletons({
+  cardClassName,
+  count,
+  ...props
+}: WalletInfoCardSkeletonsProps) {
   return (
-    <div className='flex flex-col space-y-3'>
-      <WalletInfoCardSkeleton />
-      <WalletInfoCardSkeleton />
+    <div {...props}>
+      {Array.from({ length: count }).map((_, index) => (
+        <WalletInfoCardSkeleton key={index} className={cardClassName} />
+      ))}
     </div>
   )
 }

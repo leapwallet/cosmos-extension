@@ -22,8 +22,8 @@ export const useDefaultGasEstimatesStore = create<DefaultGasEstimates>((set) => 
         defaultGasEstimates: {
           ...defaultGasEstimates,
           movement: { DEFAULT_GAS_TRANSFER: 100, DEFAULT_GAS_STAKE: 100, DEFAULT_GAS_IBC: 100 },
-          movementBardock: { DEFAULT_GAS_TRANSFER: 100, DEFAULT_GAS_STAKE: 100, DEFAULT_GAS_IBC: 100 },
           aptos: { DEFAULT_GAS_TRANSFER: 100, DEFAULT_GAS_STAKE: 100, DEFAULT_GAS_IBC: 100 },
+          solana: { DEFAULT_GAS_TRANSFER: 500, DEFAULT_GAS_STAKE: 500, DEFAULT_GAS_IBC: 500 },
         },
       };
     }),

@@ -1,9 +1,8 @@
-import { Buttons } from '@leapwallet/leap-ui'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import React from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
-import { Colors } from 'theme/colors'
 
 import { SelectProviderCard } from './SelectProviderCard'
 
@@ -24,7 +23,6 @@ export default function SuggestSelectProviderSheet({
     <BottomModal
       isOpen={isVisible}
       onClose={onClose}
-      closeOnBackdropClick={true}
       title='Restake with a Provider'
       className='p-6'
     >
@@ -39,14 +37,9 @@ export default function SuggestSelectProviderSheet({
           setShowSelectProviderSheet={setShowSelectProviderSheet}
           rootDenomsStore={rootDenomsStore}
         />
-        <Buttons.Generic
-          onClick={onReviewStake}
-          size='normal'
-          className='w-full'
-          color={Colors.green600}
-        >
+        <Button onClick={onReviewStake} className='w-full'>
           Review Stake
-        </Buttons.Generic>
+        </Button>
       </div>
     </BottomModal>
   )

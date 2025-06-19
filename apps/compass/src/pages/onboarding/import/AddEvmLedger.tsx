@@ -9,7 +9,7 @@ import { Buttons } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import { KEYSTORE } from 'config/storage-keys'
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 import Browser from 'webextension-polyfill'
 

@@ -15,11 +15,16 @@ import {
   getSimulationFee,
   isAptosChain,
   isEthAddress,
+  isSolanaChain,
+  isSuiChain,
+  LedgerError,
   NativeDenom,
   pubKeyToEvmAddressToShow,
   SeiEvmTx,
   simulateIbcTransfer,
   simulateSend,
+  SolanaTx,
+  SuiTx,
   SupportedChain,
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
@@ -121,6 +126,7 @@ export type SendModuleType = Readonly<{
   amountError: string | undefined;
   gasError: string | null;
   txError: string | undefined;
+  setTxError: React.Dispatch<React.SetStateAction<string | undefined>>;
   setAddressError: React.Dispatch<React.SetStateAction<string | undefined>>;
   setAddressWarning: React.Dispatch<React.SetStateAction<AddressWarning>>;
   setGasError: React.Dispatch<React.SetStateAction<string | null>>;
@@ -129,6 +135,7 @@ export type SendModuleType = Readonly<{
   sendDisabled: boolean;
   isSending: boolean;
   showLedgerPopup: boolean;
+  setShowLedgerPopup: React.Dispatch<React.SetStateAction<boolean>>;
   customIbcChannelId: string | undefined;
   setCustomIbcChannelId: React.Dispatch<React.SetStateAction<string | undefined>>;
   confirmSend: (
@@ -168,6 +175,8 @@ export type SendModuleType = Readonly<{
   setPointerAddress: React.Dispatch<React.SetStateAction<string>>;
   hasToUseCw20PointerLogic: boolean;
   setHasToUseCw20PointerLogic: React.Dispatch<React.SetStateAction<boolean>>;
+  computedGas?: number;
+  setComputedGas?: React.Dispatch<React.SetStateAction<number>>;
 }>;
 
 export function useSendModule({
@@ -235,6 +244,8 @@ export function useSendModule({
   }, [_selectedNetwork, _activeChain]);
 
   const isAptosTx = isAptosChain(activeChain);
+  const isSolanaTx = isSolanaChain(activeChain);
+  const isSuiTx = isSuiChain(activeChain);
   const isSeiEvmChain = useIsSeiEvmChain(activeChain);
   const { lcdUrl, evmJsonRpc, rpcUrl } = useChainApis(activeChain, selectedNetwork);
   const fromAddress = useAddress(activeChain);
@@ -255,6 +266,7 @@ export function useSendModule({
     defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
   );
   const [gasError, setGasError] = useState<string | null>(null);
+  const [computedGas, setComputedGas] = useState<number>(0);
 
   const [addressError, setAddressError] = useState<string | undefined>(undefined);
   const [addressWarning, setAddressWarning] = useState<AddressWarning>(INITIAL_ADDRESS_WARNING);
@@ -272,7 +284,7 @@ export function useSendModule({
   const { setPendingTx } = usePendingTxState();
   const getIbcChannelId = useGetIbcChannelId(activeChain);
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
-  const { isSending, sendTokens, showLedgerPopup, sendTokenEth, setIsSending } = useSimpleSend(
+  const { isSending, sendTokens, showLedgerPopup, sendTokenEth, setIsSending, setShowLedgerPopup } = useSimpleSend(
     denoms,
     isCW20Token,
     activeChain,
@@ -500,6 +512,7 @@ export function useSendModule({
       const result = await sendTokens({
         ...args,
         ibcChannelId: args.ibcChannelId ?? customIbcChannelId ?? ibcChannelId ?? '',
+        computedGas: computedGas,
       });
 
       if (result.success === true) {
@@ -522,6 +535,8 @@ export function useSendModule({
             forceWalletAddress: fromAddress,
             chainId: activeChainId,
             isAptos: isAptosTx,
+            isSolana: isSolanaTx,
+            isSui: isSuiTx,
           };
           txPostToDB(txLog);
         }
@@ -612,7 +627,12 @@ export function useSendModule({
           });
         callback('success');
       } else {
-        result.errors && setTxError(result.errors.join(',\n'));
+        if (result.errors) {
+          if (result.errors instanceof LedgerError) {
+            setTxError(result.errors.message);
+          }
+        }
+        result.errors && setTxError((result.errors as Array<string>).join(',\n'));
       }
     },
     [
@@ -728,6 +748,101 @@ export function useSendModule({
           return;
         }
 
+        if (isSolanaTx) {
+          try {
+            const solana = await SolanaTx.getSolanaClient(rpcUrl ?? '', undefined, selectedNetwork, activeChain);
+
+            if (selectedToken.coinMinimalDenom === 'lamports' || selectedToken.coinMinimalDenom === 'fogo-native') {
+              if (!fromAddress || !selectedAddress.address) {
+                console.warn('Missing addresses for Solana simulation');
+                setGasEstimate(1000); // Use default
+                return;
+              }
+
+              const tx = await solana.simulateSendSolTransaction(
+                fromAddress,
+                selectedAddress.address,
+                Number(normalizedAmount),
+              );
+              const gasEstimate = Number(tx.unitsConsumed);
+              setGasEstimate(gasEstimate);
+            } else {
+              // Same for SPL tokens
+              if (!fromAddress || !selectedAddress.address) {
+                console.warn('Missing addresses for SPL token simulation');
+                setGasEstimate(1000); // Use default
+                return;
+              }
+
+              const tx = await solana.simulateSendSplTokenTransaction(
+                fromAddress,
+                selectedAddress.address,
+                Number(normalizedAmount),
+                selectedToken.coinMinimalDenom,
+                selectedToken.coinDecimals ?? 6,
+              );
+              const gasEstimate = Number(tx.unitsConsumed);
+              setGasEstimate(gasEstimate);
+            }
+          } catch (err) {
+            console.error('Solana simulation error:', err);
+          }
+          return;
+        }
+
+        if (isSuiTx) {
+          try {
+            const sui = await SuiTx.getSuiClient(undefined, selectedNetwork);
+            if (selectedToken.coinMinimalDenom === 'mist') {
+              if (!fromAddress || !selectedAddress.address) {
+                console.warn('Missing addresses for Sui simulation', {
+                  fromAddress,
+                  toAddress: selectedAddress?.address,
+                });
+                setGasEstimate(1000); // Use default
+                setComputedGas(0); // Reset computed gas when simulation can't run
+                return;
+              }
+
+              const tx = await sui.simulateSendSuiTransaction(
+                fromAddress,
+                selectedAddress.address,
+                Number(normalizedAmount),
+              );
+              const computedGas =
+                Number(tx.gasUsed.storageCost ?? 0) -
+                Number(tx.gasUsed.storageRebate ?? 0) +
+                Number(tx.gasUsed.nonRefundableStorageFee ?? 0);
+              setComputedGas(computedGas);
+              setGasEstimate(tx.gasUsed.gasUnits);
+            } else {
+              // Same for SPL tokens
+              if (!fromAddress || !selectedAddress.address) {
+                console.warn('Missing addresses for Non native token simulation');
+                setGasEstimate(1000); // Use default
+                return;
+              }
+              const tx = await sui.simulateSendNonNativeTokenTransaction(
+                fromAddress,
+                selectedAddress.address,
+                Number(normalizedAmount),
+                selectedToken.coinMinimalDenom,
+                selectedToken.coinDecimals ?? 9,
+              );
+              const computedGas =
+                Number(tx.gasUsed.storageCost ?? 0) -
+                Number(tx.gasUsed.storageRebate ?? 0) +
+                Number(tx.gasUsed.nonRefundableStorageFee ?? 0);
+              setComputedGas(computedGas);
+              setGasEstimate(tx.gasUsed.gasUnits);
+            }
+          } catch (err) {
+            console.error('Sui simulation error:', err);
+            setComputedGas(0);
+          }
+          return;
+        }
+
         const channelId = customIbcChannelId ?? ibcChannelId ?? '';
         let token = selectedToken.ibcDenom || selectedToken.coinMinimalDenom;
 
@@ -749,7 +864,7 @@ export function useSendModule({
               undefined,
               fee,
             )
-          : await simulateSend(lcdUrl ?? '', fromAddress, toAddress, [amountOfCoins], fee);
+          : await simulateSend(lcdUrl ?? '', fromAddress, toAddress, [amountOfCoins], fee, isCW20Token(selectedToken));
 
         // Fees is high for evmos non-ibc send txn using ledger
         if (!isIBCTransfer && activeChain === 'evmos' && activeWallet?.walletType === WALLETTYPE.LEDGER) {
@@ -784,6 +899,7 @@ export function useSendModule({
     isSeiEvmTransaction,
     hasToUsePointerLogic,
     isAptosTx,
+    isSuiTx,
     pointerAddress,
     fetchAccountDetailsData?.pubKey?.key,
   ]);
@@ -826,8 +942,10 @@ export function useSendModule({
     isSending,
     confirmSend,
     showLedgerPopup,
+    setShowLedgerPopup,
     txError,
     clearTxError,
+    setTxError,
     customIbcChannelId,
     setCustomIbcChannelId,
     confirmSendEth,
@@ -854,5 +972,7 @@ export function useSendModule({
     setPointerAddress,
     hasToUseCw20PointerLogic,
     setHasToUseCw20PointerLogic,
+    computedGas,
+    setComputedGas,
   } as const;
 }

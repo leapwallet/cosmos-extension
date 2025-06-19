@@ -55,7 +55,7 @@ export const LinkAddressSheet = observer(() => {
   const { data: featureFlags } = useFeatureFlags()
 
   const getWallet = Wallet.useGetWallet()
-  const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState(getWallet)
+  const { addressLinkState, updateAddressLinkState } = useSeiLinkedAddressState()
 
   const [showRefreshText, setShowRefreshText] = useState(false)
 
@@ -72,15 +72,6 @@ export const LinkAddressSheet = observer(() => {
       window.location.reload()
 
       return
-    }
-
-    try {
-      mixpanel.track(EventName.ButtonClick, {
-        buttonName: ButtonName.LINK_ADDRESS,
-        walletAddresses,
-      })
-    } catch (_) {
-      //
     }
 
     if (featureFlags?.link_evm_address?.extension === 'redirect') {
@@ -107,6 +98,7 @@ export const LinkAddressSheet = observer(() => {
         }
 
         await updateAddressLinkState({
+          wallet: getWallet,
           setError,
           onClose: () => {
             globalSheetsStore.setCopyAddressSheetOpen(false)
@@ -124,6 +116,7 @@ export const LinkAddressSheet = observer(() => {
     }
 
     await updateAddressLinkState({
+      wallet: getWallet,
       setError,
       onClose: () => {
         globalSheetsStore.setCopyAddressSheetOpen(false)
@@ -224,8 +217,7 @@ export const LinkAddressSheet = observer(() => {
 })
 
 export const CopyAddressSheet = () => {
-  const getWallet = Wallet.useGetWallet()
-  const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+  const { addressLinkState } = useSeiLinkedAddressState()
 
   if (addressLinkState === 'pending') {
     return <LinkAddressSheet />

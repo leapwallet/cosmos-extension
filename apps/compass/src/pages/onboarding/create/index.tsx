@@ -16,7 +16,7 @@ const OnboardingCreateWalletView = () => {
     useCreateWalletContext()
 
   return (
-    <AnimatePresence exitBeforeEnter presenceAffectsLayout>
+    <AnimatePresence mode='wait' presenceAffectsLayout>
       {loading && <CreatingWalletLoader key='creating-wallet-loader' />}
 
       {currentStep === 0 && !loading && <SelectCreateWalletType />}

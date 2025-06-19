@@ -6,11 +6,17 @@ import { PubKey } from 'cosmjs-types/cosmos/crypto/secp256k1/keys';
 import { MsgWithdrawDelegatorReward } from 'cosmjs-types/cosmos/distribution/v1beta1/tx';
 import { MsgVote } from 'cosmjs-types/cosmos/gov/v1beta1/tx';
 import { StakeAuthorization } from 'cosmjs-types/cosmos/staking/v1beta1/authz';
-import { MsgBeginRedelegate, MsgDelegate, MsgUndelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
+import {
+  MsgBeginRedelegate,
+  MsgCancelUnbondingDelegation,
+  MsgDelegate,
+  MsgUndelegate,
+} from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
 import { AuthInfo, Fee, SignDoc, TxBody, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
 import { keccak256 } from 'ethereumjs-util';
+import Long from 'long';
 
 export const MSG_SEND_TYPES = {
   MsgValue: [
@@ -74,6 +80,19 @@ export const MSG_UNDELEGATE_TYPES = {
     { name: 'delegator_address', type: 'string' },
     { name: 'validator_address', type: 'string' },
     { name: 'amount', type: 'TypeAmount' },
+  ],
+  TypeAmount: [
+    { name: 'denom', type: 'string' },
+    { name: 'amount', type: 'string' },
+  ],
+};
+
+export const MSG_CANCEL_UNBONDING_DELEGATION_TYPES = {
+  MsgValue: [
+    { name: 'delegator_address', type: 'string' },
+    { name: 'validator_address', type: 'string' },
+    { name: 'amount', type: 'TypeAmount' },
+    { name: 'creation_height', type: 'string' },
   ],
   TypeAmount: [
     { name: 'denom', type: 'string' },
@@ -270,7 +289,13 @@ export function createFee(fee: string, denom: string, gasLimit: number) {
   });
 }
 
-export function createSignerInfo(algo: string, publicKey: Uint8Array, sequence: number, mode: number) {
+export function createSignerInfo(
+  algo: string,
+  publicKey: Uint8Array,
+  sequence: number,
+  mode: number,
+  isMinitiaEvm: boolean,
+) {
   let pubkey: any;
 
   if (algo === 'secp256k1') {
@@ -285,7 +310,7 @@ export function createSignerInfo(algo: string, publicKey: Uint8Array, sequence: 
       value: PubKey.encode({
         key: publicKey,
       }).finish(),
-      typeUrl: '/ethermint.crypto.v1.ethsecp256k1.PubKey',
+      typeUrl: isMinitiaEvm ? '/initia.crypto.v1beta1.ethsecp256k1.PubKey' : '/ethermint.crypto.v1.ethsecp256k1.PubKey',
     };
   }
 
@@ -351,6 +376,7 @@ export function createTransactionWithMultipleMessages(
   sequence: number,
   accountNumber: number,
   chainId: string,
+  isMinitiaEvm = false,
 ) {
   const body = {
     messages: messages,
@@ -366,12 +392,18 @@ export function createTransactionWithMultipleMessages(
   const pubKeyDecoded = Buffer.from(pubKey, 'base64');
 
   // AMINO
-  const signInfoAmino = createSignerInfo(algo, pubKeyDecoded, sequence, SignMode.SIGN_MODE_LEGACY_AMINO_JSON);
+  const signInfoAmino = createSignerInfo(
+    algo,
+    pubKeyDecoded,
+    sequence,
+    SignMode.SIGN_MODE_LEGACY_AMINO_JSON,
+    isMinitiaEvm,
+  );
 
   const authInfoAmino = createAuthInfo(signInfoAmino, feeMessage);
 
   // SignDirect
-  const signInfoDirect = createSignerInfo(algo, pubKeyDecoded, sequence, SignMode.SIGN_MODE_DIRECT);
+  const signInfoDirect = createSignerInfo(algo, pubKeyDecoded, sequence, SignMode.SIGN_MODE_DIRECT, isMinitiaEvm);
 
   const authInfoDirect = createAuthInfo(signInfoDirect, feeMessage);
 
@@ -460,6 +492,7 @@ export function createTxIBCMsgTransfer(
     timeoutTimestamp: string;
     memo: string;
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
@@ -512,6 +545,7 @@ export function createTxIBCMsgTransfer(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
 
   const signDirectDoc = SignDoc.encode(
@@ -596,6 +630,7 @@ export function createMessageSend(
     amount: string;
     denom: string;
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
@@ -622,6 +657,7 @@ export function createMessageSend(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -683,6 +719,7 @@ export function createTxMsgVote(
     proposalId: number;
     option: number;
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
@@ -709,6 +746,7 @@ export function createTxMsgVote(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -737,9 +775,15 @@ export function createTxMsgVote(
   };
 }
 
-export function createMsgDelegate(delegatorAddress: string, validatorAddress: string, amount: string, denom: string) {
+export function createMsgDelegate(
+  delegatorAddress: string,
+  validatorAddress: string,
+  amount: string,
+  denom: string,
+  isMinitiaEvm = false,
+) {
   return {
-    type: 'cosmos-sdk/MsgDelegate',
+    type: isMinitiaEvm ? 'mstaking/MsgDelegate' : 'cosmos-sdk/MsgDelegate',
     value: {
       amount: {
         amount,
@@ -756,6 +800,7 @@ export function createProtoMsgDelegate(
   validatorAddress: string,
   amount: string,
   denom: string,
+  isMinitiaEvm = false,
 ) {
   const value = Coin.fromPartial({
     denom,
@@ -770,7 +815,7 @@ export function createProtoMsgDelegate(
 
   return {
     value: MsgDelegate.encode(MsgDelegate.fromPartial(message)).finish(),
-    typeUrl: '/cosmos.staking.v1beta1.MsgDelegate',
+    typeUrl: isMinitiaEvm ? '/initia.mstaking.v1.MsgDelegate' : '/cosmos.staking.v1beta1.MsgDelegate',
   };
 }
 
@@ -780,10 +825,17 @@ export function createTxMsgDelegate(
   fee: Fee,
   memo: string,
   params: { validatorAddress: string; amount: string; denom: string },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
-  const msg = createMsgDelegate(sender.accountAddress, params.validatorAddress, params.amount, params.denom);
+  const msg = createMsgDelegate(
+    sender.accountAddress,
+    params.validatorAddress,
+    params.amount,
+    params.denom,
+    isMinitiaEvm,
+  );
 
   const eip712Types = generateTypes(MSG_DELEGATE_TYPES);
   const messages = generateTx(
@@ -795,7 +847,13 @@ export function createTxMsgDelegate(
     [msg],
   );
   const eipToSign = createEIP712Tx(eip712Types, chain.chainId, messages);
-  const msgCosmos = createProtoMsgDelegate(sender.accountAddress, params.validatorAddress, params.amount, params.denom);
+  const msgCosmos = createProtoMsgDelegate(
+    sender.accountAddress,
+    params.validatorAddress,
+    params.amount,
+    params.denom,
+    isMinitiaEvm,
+  );
   const tx = createTransactionWithMultipleMessages(
     [msgCosmos],
     memo,
@@ -806,6 +864,7 @@ export function createTxMsgDelegate(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -888,6 +947,7 @@ export function createTxMsgStakeAuthorization(
     maxTokens: string | undefined;
     duration_in_seconds: number;
   },
+  isMinitiaEvm = false,
 ) {
   const msgStakeGrant = createStakeAuthorization(
     params.validator_address,
@@ -913,6 +973,7 @@ export function createTxMsgStakeAuthorization(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -961,6 +1022,7 @@ export function createTxMsgStakeRevokeAuthorization(
   params: {
     bot_address: string;
   },
+  isMinitiaEvm = false,
 ) {
   const msgCosmos = createMsgRevoke(sender.accountAddress, params.bot_address, RevokeMessages.REVOKE_MSG_DELEGATE);
 
@@ -974,6 +1036,7 @@ export function createTxMsgStakeRevokeAuthorization(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -1021,6 +1084,7 @@ export function createTxMsgGenericRevoke(
     botAddress: string;
     typeUrl: string;
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
@@ -1047,6 +1111,7 @@ export function createTxMsgGenericRevoke(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -1075,9 +1140,15 @@ export function createTxMsgGenericRevoke(
   };
 }
 
-export function createMsgUndelegate(delegatorAddress: string, validatorAddress: string, amount: string, denom: string) {
+export function createMsgUndelegate(
+  delegatorAddress: string,
+  validatorAddress: string,
+  amount: string,
+  denom: string,
+  isMinitiaEvm = false,
+) {
   return {
-    type: 'cosmos-sdk/MsgUndelegate',
+    type: isMinitiaEvm ? 'mstaking/MsgUndelegate' : 'cosmos-sdk/MsgUndelegate',
     value: {
       amount: {
         amount,
@@ -1094,6 +1165,7 @@ export function createProtoMsgUndelegate(
   validatorAddress: string,
   amount: string,
   denom: string,
+  isMinitiaEvm = false,
 ) {
   const message: MsgUndelegate = {
     delegatorAddress,
@@ -1106,7 +1178,7 @@ export function createProtoMsgUndelegate(
 
   return {
     value: MsgUndelegate.encode(MsgUndelegate.fromPartial(message)).finish(),
-    typeUrl: '/cosmos.staking.v1beta1.MsgUndelegate',
+    typeUrl: isMinitiaEvm ? '/initia.mstaking.v1.MsgUndelegate' : '/cosmos.staking.v1beta1.MsgUndelegate',
   };
 }
 
@@ -1120,10 +1192,17 @@ export function createTxMsgUndelegate(
     amount: string;
     denom: string;
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
-  const msg = createMsgUndelegate(sender.accountAddress, params.validatorAddress, params.amount, params.denom);
+  const msg = createMsgUndelegate(
+    sender.accountAddress,
+    params.validatorAddress,
+    params.amount,
+    params.denom,
+    isMinitiaEvm,
+  );
 
   const eip712Types = generateTypes(MSG_UNDELEGATE_TYPES);
   const messages = generateTx(
@@ -1140,6 +1219,7 @@ export function createTxMsgUndelegate(
     params.validatorAddress,
     params.amount,
     params.denom,
+    isMinitiaEvm,
   );
   const tx = createTransactionWithMultipleMessages(
     [msgCosmos],
@@ -1151,6 +1231,137 @@ export function createTxMsgUndelegate(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
+  );
+  const signDirectDoc = SignDoc.encode(
+    SignDoc.fromPartial({
+      bodyBytes: TxBody.encode(TxBody.fromPartial(tx.signDirect.body)).finish(),
+      authInfoBytes: AuthInfo.encode(tx.signDirect.authInfo).finish(),
+      accountNumber: sender.accountNumber,
+      chainId: chain.cosmosChainId,
+    }),
+  ).finish();
+
+  const signBytes = keccak256(Buffer.from(signDirectDoc));
+  return {
+    signDirect: {
+      authInfo: {
+        ...tx.signDirect.authInfo,
+        serializeBinary: () => AuthInfo.encode(tx.signDirect.authInfo).finish(),
+      },
+      body: {
+        ...tx.signDirect.body,
+        serializeBinary: () => TxBody.encode(TxBody.fromPartial(tx.signDirect.body)).finish(),
+      },
+      signBytes,
+    },
+    legacyAmino: tx.legacyAmino,
+    eipToSign,
+  };
+}
+
+export function createMsgCancelUnbondingDelegation(
+  delegatorAddress: string,
+  validatorAddress: string,
+  amount: string,
+  denom: string,
+  creationHeight: string,
+  isMinitiaEvm = false,
+) {
+  return {
+    type: isMinitiaEvm ? 'mstaking/MsgCancelUnbondingDelegation' : 'cosmos-sdk/MsgCancelUnbondingDelegation',
+    value: {
+      amount: {
+        amount,
+        denom,
+      },
+      delegator_address: delegatorAddress,
+      validator_address: validatorAddress,
+      creation_height: Long.fromString(creationHeight),
+    },
+  };
+}
+
+export function createProtoMsgCancelUnbondingDelegation(
+  delegatorAddress: string,
+  validatorAddress: string,
+  amount: string,
+  denom: string,
+  creationHeight: string,
+  isMinitiaEvm = false,
+) {
+  const message: MsgCancelUnbondingDelegation = {
+    delegatorAddress,
+    validatorAddress,
+    amount: Coin.fromPartial({
+      amount,
+      denom,
+    }),
+    creationHeight: Long.fromString(creationHeight),
+  };
+
+  return {
+    // @ts-expect-error - LONG type mismatch
+    value: MsgCancelUnbondingDelegation.encode(MsgCancelUnbondingDelegation.fromPartial(message)).finish(),
+    typeUrl: isMinitiaEvm
+      ? '/initia.mstaking.v1.MsgCancelUnbondingDelegation'
+      : '/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation',
+  };
+}
+
+export function createTxMsgCancelUnbondingDelegation(
+  chain: Chain,
+  sender: Sender,
+  fee: Fee,
+  memo: string,
+  params: {
+    validatorAddress: string;
+    amount: string;
+    denom: string;
+    creationHeight: string;
+  },
+  isMinitiaEvm = false,
+) {
+  const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
+
+  const msg = createMsgCancelUnbondingDelegation(
+    sender.accountAddress,
+    params.validatorAddress,
+    params.amount,
+    params.denom,
+    params.creationHeight,
+    isMinitiaEvm,
+  );
+
+  const eip712Types = generateTypes(MSG_CANCEL_UNBONDING_DELEGATION_TYPES);
+  const messages = generateTx(
+    sender.accountNumber.toString(),
+    sender.sequence.toString(),
+    chain.cosmosChainId,
+    memo,
+    feeObject,
+    [msg],
+  );
+  const eipToSign = createEIP712Tx(eip712Types, chain.chainId, messages);
+  const msgCosmos = createProtoMsgCancelUnbondingDelegation(
+    sender.accountAddress,
+    params.validatorAddress,
+    params.amount,
+    params.denom,
+    params.creationHeight,
+    isMinitiaEvm,
+  );
+  const tx = createTransactionWithMultipleMessages(
+    [msgCosmos],
+    memo,
+    fee,
+    fee.gasLimit.toString(),
+    'ethsecp256',
+    sender.pubkey,
+    sender.sequence,
+    sender.accountNumber,
+    chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -1209,6 +1420,7 @@ export function createTxMsgMultipleWithdrawDelegatorReward(
   params: {
     validatorAddresses: string[];
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
@@ -1240,6 +1452,7 @@ export function createTxMsgMultipleWithdrawDelegatorReward(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -1274,9 +1487,10 @@ export function createMsgBeginRedelegate(
   validatorDstAddress: string,
   amount: string,
   denom: string,
+  isMinitiaEvm = false,
 ) {
   return {
-    type: 'cosmos-sdk/MsgBeginRedelegate',
+    type: isMinitiaEvm ? 'mstaking/MsgBeginRedelegate' : 'cosmos-sdk/MsgBeginRedelegate',
     value: {
       amount: {
         amount,
@@ -1295,6 +1509,7 @@ export function createProtoMsgBeginRedelegate(
   validatorDstAddress: string,
   amount: string,
   denom: string,
+  isMinitiaEvm = false,
 ) {
   const message: MsgBeginRedelegate = {
     delegatorAddress,
@@ -1307,7 +1522,7 @@ export function createProtoMsgBeginRedelegate(
   };
   return {
     value: MsgBeginRedelegate.encode(MsgBeginRedelegate.fromPartial(message)).finish(),
-    typeUrl: '/cosmos.staking.v1beta1.MsgBeginRedelegate',
+    typeUrl: isMinitiaEvm ? '/initia.mstaking.v1.MsgBeginRedelegate' : '/cosmos.staking.v1beta1.MsgBeginRedelegate',
   };
 }
 
@@ -1322,6 +1537,7 @@ export function createTxMsgBeginRedelegate(
     amount: string;
     denom: string;
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
@@ -1331,6 +1547,7 @@ export function createTxMsgBeginRedelegate(
     params.validatorDstAddress,
     params.amount,
     params.denom,
+    isMinitiaEvm,
   );
 
   const eip712Types = generateTypes(MSG_BEGIN_REDELEGATE_TYPES);
@@ -1349,6 +1566,7 @@ export function createTxMsgBeginRedelegate(
     params.validatorDstAddress,
     params.amount,
     params.denom,
+    isMinitiaEvm,
   );
   const tx = createTransactionWithMultipleMessages(
     [msgCosmos],
@@ -1360,6 +1578,7 @@ export function createTxMsgBeginRedelegate(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({
@@ -1402,6 +1621,7 @@ export function createTxMsgMultipleDelegate(
   params: {
     values: MsgDelegateParams[];
   },
+  isMinitiaEvm = false,
 ) {
   const feeObject = generateFee(fee.amount, fee.gasLimit.toString(), sender.accountAddress);
 
@@ -1409,7 +1629,13 @@ export function createTxMsgMultipleDelegate(
   const msgsCosmos: object[] = [];
   params.values.forEach((msgDelegate) => {
     msgs.push(
-      createMsgDelegate(sender.accountAddress, msgDelegate.validatorAddress, msgDelegate.amount, msgDelegate.denom),
+      createMsgDelegate(
+        sender.accountAddress,
+        msgDelegate.validatorAddress,
+        msgDelegate.amount,
+        msgDelegate.denom,
+        isMinitiaEvm,
+      ),
     );
     msgsCosmos.push(
       createProtoMsgDelegate(
@@ -1417,6 +1643,7 @@ export function createTxMsgMultipleDelegate(
         msgDelegate.validatorAddress,
         msgDelegate.amount,
         msgDelegate.denom,
+        isMinitiaEvm,
       ),
     );
   });
@@ -1441,6 +1668,7 @@ export function createTxMsgMultipleDelegate(
     sender.sequence,
     sender.accountNumber,
     chain.cosmosChainId,
+    isMinitiaEvm,
   );
   const signDirectDoc = SignDoc.encode(
     SignDoc.fromPartial({

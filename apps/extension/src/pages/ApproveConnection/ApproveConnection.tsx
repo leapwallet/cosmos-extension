@@ -16,10 +16,9 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { useWindowSize } from 'hooks/utility/useWindowSize'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { formatWalletName } from 'utils/formatWalletName'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
@@ -114,15 +113,8 @@ const ApproveConnection = () => {
   const addressGenerationDone = useRef<boolean>(false)
 
   const displayedRequestedChains: DisplayRequestChains = useMemo(() => {
-    if (isCompassWallet()) {
-      return {
-        type: 'chains',
-        chains: [{ chain: 'seiTestnet2' as SupportedChain, payloadId: '123' }],
-      }
-    }
-
     const isMoveConnection = requestedChains.every((chain) =>
-      ['movement', 'movementBardock', 'aptos'].includes(chain.chain),
+      ['movement', 'aptos'].includes(chain.chain),
     )
     if (isMoveConnection) {
       return {
@@ -142,6 +134,24 @@ const ApproveConnection = () => {
         type: 'address',
         chains: requestedChains,
         address,
+      }
+    }
+
+    const isSolanaConnection = requestedChains.every((chain) => ['solana'].includes(chain.chain))
+    if (isSolanaConnection) {
+      return {
+        type: 'address',
+        chains: requestedChains,
+        address: selectedWallets?.[0]?.addresses?.[requestedChains[0]?.chain] || '',
+      }
+    }
+
+    const isSuiConnection = requestedChains.every((chain) => ['sui'].includes(chain.chain))
+    if (isSuiConnection) {
+      return {
+        type: 'address',
+        chains: requestedChains,
+        address: selectedWallets?.[0]?.addresses?.[requestedChains[0]?.chain] || '',
       }
     }
 
@@ -375,7 +385,7 @@ const ApproveConnection = () => {
 
   if (!showApprovalUi) {
     return (
-      <div className='panel-height enclosing-panel relative w-screen max-w-3xl h-full self-center p-5 pt-0'>
+      <div className='panel-height enclosing-panel relative max-w-3xl h-full self-center p-5 pt-0'>
         <div className='flex justify-center items-center panel-height'>
           <Loader />
         </div>
@@ -384,14 +394,13 @@ const ApproveConnection = () => {
   }
 
   return (
-    <div className='relative w-screen max-w-3xl h-full self-center px-5 enclosing-panel'>
-      <div className='flex flex-col mx-auto max-w-2xl box-border h-full overflow-scroll pt-5 pb-[72px]'>
-        <Header
-          HeadingComponent={() => (
-            <Heading name={approvalRequests?.[0]?.origin || 'Connect Leap'} />
-          )}
-          SubTitleComponent={() => <Website name={approvalRequests?.[0]?.origin} />}
-        />
+    <div className='flex flex-col mx-auto max-w-2xl box-border h-full overflow-scroll p-5 relative w-full'>
+      <Header
+        HeadingComponent={() => <Heading name={approvalRequests?.[0]?.origin || 'Connect Leap'} />}
+        SubTitleComponent={() => <Website name={approvalRequests?.[0]?.origin} />}
+      />
+
+      <div className='flex flex-col flex-1 max-h-[calc(100%-150px)] overflow-auto'>
         <div
           className={classNames('bg-white-100 dark:bg-gray-900 rounded-2xl py-4', {
             'h-[405px]': readMoreEnabled,
@@ -514,7 +523,7 @@ const ApproveConnection = () => {
         </div>
 
         {!readMoreEnabled ? (
-          <div className='flex flex-col gap-y-[10px] bg-white-100 dark:bg-gray-900 rounded-2xl px-4 py-5 mt-4'>
+          <div className='flex flex-col gap-y-[10px] bg-white-100 dark:bg-gray-900 rounded-2xl px-4 py-5 mt-4  pb-8'>
             <Text size='xs' color='text-gray-300 mb-1'>
               This app will be able to
             </Text>
@@ -538,27 +547,27 @@ const ApproveConnection = () => {
             </Text>
           </div>
         ) : null}
+      </div>
 
-        <div
-          className={`fixed bottom-0 left-0 px-5 py-3 flex bg-white-0 dark:bg-black-100 flex-row w-full ${
-            isFullScreen ? 'justify-center gap-4' : 'justify-between gap-2'
-          }`}
+      <div
+        className={`absolute bottom-0 left-0 px-3 pt-3 flex bg-white-0 dark:bg-black-100 flex-row w-full ${
+          isFullScreen ? 'justify-center gap-4' : 'justify-between gap-2'
+        }`}
+      >
+        <Buttons.Generic
+          style={{ height: '48px', background: Colors.gray900, color: Colors.white100 }}
+          onClick={handleCancel}
         >
-          <Buttons.Generic
-            style={{ height: '48px', background: Colors.gray900, color: Colors.white100 }}
-            onClick={handleCancel}
-          >
-            Cancel
-          </Buttons.Generic>
-          <Buttons.Generic
-            style={{ height: '48px', background: Colors.cosmosPrimary, color: Colors.white100 }}
-            className='bg-gray-800'
-            onClick={handleApproveConnection}
-            disabled={selectedWallets.length <= 0}
-          >
-            Connect
-          </Buttons.Generic>
-        </div>
+          Cancel
+        </Buttons.Generic>
+        <Buttons.Generic
+          style={{ height: '48px', background: Colors.cosmosPrimary, color: Colors.white100 }}
+          className='bg-gray-800'
+          onClick={handleApproveConnection}
+          disabled={selectedWallets.length <= 0}
+        >
+          Connect
+        </Buttons.Generic>
       </div>
     </div>
   )

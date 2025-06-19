@@ -20,7 +20,7 @@ export const CopyAddress = observer(() => {
       return ''
     }
 
-    if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+    if (activeWallet.walletType === WALLETTYPE.LEDGER && activeWallet.app !== 'sei') {
       return activeWallet?.addresses?.[activeChain]
     }
 

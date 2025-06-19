@@ -1,12 +1,9 @@
-import { Label, ThemeName } from '@leapwallet/leap-ui'
-import { useTheme } from '@leapwallet/leap-ui'
+import { Label, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import IconButton from 'components/icon-button'
 import { Images } from 'images'
-import { CompassCircle, LeapLogo } from 'images/logos'
+import { LeapLogo } from 'images/logos'
 import React, { PropsWithChildren, ReactNode } from 'react'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 // Page layout for full screen pages
@@ -25,19 +22,11 @@ export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProp
 
   return (
     <div
-      className={classNames('relative flex flex-col w-screen h-screen z-0 dark:bg-black-100', {
+      className={classNames('relative flex flex-col w-screen h-screen z-0', {
         'p-[20px]': !isSidePanel(),
       })}
     >
-      {!isCompassWallet() && (
-        <div className='w-screen absolute z-1 top-0 left-0 h-40 bg-gradient-to-b from-mainChainTheme-100 to-transparent' />
-      )}
-      {isCompassWallet() && (
-        <div
-          className='w-screen absolute z-1 top-0 left-0 h-40'
-          style={{ backgroundImage: Colors.compassGradient }}
-        />
-      )}
+      <div className='w-screen absolute z-1 top-0 left-0 h-40' />
 
       <div
         className={classNames('flex z-10 overflow-scroll items-start justify-center', {
@@ -52,10 +41,7 @@ export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProp
         <>
           {/* Header */}
           <div className='absolute top-5 left-5 right-5 flex flex-row justify-between'>
-            <img
-              src={isCompassWallet() ? CompassCircle : LeapLogo}
-              className='h-[36px] w-[36px] z-10'
-            />
+            <img src={LeapLogo} className='h-[36px] w-[36px] z-10' />
             {!!headerRightComponent && headerRightComponent}
             {!headerRightComponent && (
               <div className='absolute right-0 flex flex-row gap-x-[8px] z-20'>
@@ -70,7 +56,7 @@ export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProp
                   }}
                 />
 
-                {!isCompassWallet() && (
+                {
                   <Label
                     imgSrc={Images.Misc.HelpIcon}
                     title={'Visit Help Center'}
@@ -82,7 +68,7 @@ export default function ExtensionPage(props: PropsWithChildren<ExtensionPageProp
                     }
                     isRounded={true}
                   />
-                )}
+                }
               </div>
             )}
           </div>

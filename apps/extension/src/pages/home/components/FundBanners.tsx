@@ -12,7 +12,6 @@ import mixpanel from 'mixpanel-browser'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { trim } from 'utils/strings'
 
 import FundsSheet from './FundSheet'
@@ -30,7 +29,7 @@ export interface FundBannersProps {
   handleCopyClick: () => void
 }
 
-const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
+const FundBanners = React.memo(() => {
   const address = useAddress()
   const activeWallet = useActiveWallet()
   const activeChain = useActiveChain() as AggregatedSupportedChain
@@ -75,19 +74,17 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
 
   const trackCTAEvent = useCallback(
     (buttonName: string, redirectURL?: string) => {
-      if (!isCompassWallet()) {
-        try {
-          mixpanel.track(EventName.ButtonClick, {
-            buttonType: ButtonType.ADD_FUNDS,
-            buttonName,
-            redirectURL,
-            time: Date.now() / 1000,
-            chainId,
-            chainName,
-          })
-        } catch (e) {
-          captureException(e)
-        }
+      try {
+        mixpanel.track(EventName.ButtonClick, {
+          buttonType: ButtonType.ADD_FUNDS,
+          buttonName,
+          redirectURL,
+          time: Date.now() / 1000,
+          chainId,
+          chainName,
+        })
+      } catch (e) {
+        captureException(e)
       }
     },
     [chainId, chainName],
@@ -105,7 +102,6 @@ const FundBanners = React.memo(({ handleCopyClick }: FundBannersProps) => {
           textColor: '#FFC770',
           onClick: () => {
             if (isAggregatedView) {
-              handleCopyClick()
               return
             }
 

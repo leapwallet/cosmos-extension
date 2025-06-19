@@ -1,12 +1,8 @@
-import { Buttons } from '@leapwallet/leap-ui'
-import { Info, Warning } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useSwapContext } from '../context'
 import { getSlippageRemarks, SlippageRemarks } from '../utils/slippage'
@@ -47,8 +43,8 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
     }
   }, [showCustomInput])
 
-  const handleClickOutside = useCallback((event) => {
-    if (event.target.id !== 'customBtn') {
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (event.target && 'id' in event.target && event.target.id !== 'customBtn') {
       setShowCustomInput(false)
     }
   }, [])

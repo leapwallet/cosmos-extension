@@ -17,7 +17,12 @@ export const PriorityChains: Array<SupportedChain> = [
   'dydx',
   'injective',
   'stargaze',
+  'initiaEvm',
+  'solana',
+  'sui',
 ]
+
+export const DeprioritizedChains: Array<SupportedChain> = ['initia']
 
 export const REMOVED_CHAINS_FROM_ONBOARDING = [
   'iov-mainnet-ibc',
@@ -38,7 +43,7 @@ export const LEAPBOARD_URL = 'https://app.leapwallet.io'
 export const LEAPBOARD_URL_OLD = 'https://cosmos.leapwallet.io'
 
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']
-export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'seiDevnet', 'seiTestnet2', 'humans']
+export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'humans', 'initia', 'initiaEvm']
 
 export const AGGREGATED_CHAIN_KEY = 'aggregated'
 export const SEI_EVM_LEDGER_ERROR_MESSAGE =
@@ -46,3 +51,5 @@ export const SEI_EVM_LEDGER_ERROR_MESSAGE =
 
 export const LIGHT_NODE_SYNC_WINDOW_SECS = 60 * 60 * 24 * 2 // 2 days
 export const LIGHT_NODE_TIME_CAPTURE_INTERVAL = 60_000 * 2 // 2 minute
+
+export const WALLET_NAME_SLICE_LENGTH = 19

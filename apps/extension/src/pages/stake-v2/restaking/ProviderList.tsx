@@ -6,25 +6,25 @@ import {
   useDualStaking,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import { ValidatorItemSkeleton } from 'components/Skeletons/StakeSkeleton'
-import Text from 'components/text'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { Colors } from 'theme/colors'
+import { useNavigate } from 'react-router-dom'
 import { imgOnError } from 'utils/imgOnError'
 
-import { StakeInputPageState } from '../StakeInputPage'
-import { ProviderDelegation, Provider, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Provider, ProviderDelegation, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { Button } from 'components/ui/button'
 import { observer } from 'mobx-react-lite'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
-import { isSidePanel } from 'utils/isSidePanel'
 import { hideAssetsStore } from 'stores/hide-assets-store'
+import { isSidePanel } from 'utils/isSidePanel'
+import { ValidatorCardView } from '../components/ValidatorCardView'
+import { StakeInputPageState } from '../StakeInputPage'
 
 interface StakedProviderDetailsProps {
   isOpen: boolean
@@ -94,83 +94,62 @@ const StakedProviderDetails = observer(
 
     return (
       <BottomModal
+        fullScreen
         isOpen={isOpen}
         onClose={onClose}
         title='Provider Details'
-        closeOnBackdropClick={true}
-        className='p-6'
+        className='!p-0 relative h-full'
+        headerClassName='border-secondary-200 border-b'
       >
-        <div className='flex flex-col w-full gap-y-4'>
-          <div className='flex w-full gap-x-2 items-center'>
+        <div className='p-6 pt-8 px-6 flex flex-col gap-4 h-[calc(100%-84px)] overflow-y-scroll'>
+          <div className='flex w-full gap-4 items-center'>
             <img
-              width={24}
-              height={24}
+              width={40}
+              height={40}
               className='rounded-full'
-              src={Images.Misc.Validator}
+              src={provider?.image || Images.Misc.Validator}
               onError={imgOnError(Images.Misc.Validator)}
             />
-            <Text size='lg' color='text-black-100 dark:text-white-100' className='font-bold'>
+
+            <span className='font-bold text-lg'>
               {sliceWord(
-                provider?.moniker,
+                provider?.moniker ?? '',
                 isSidePanel()
-                  ? 8 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
-                  : 15,
+                  ? 18 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                  : 10,
                 3,
               )}
-            </Text>
+            </span>
           </div>
-          <div className='flex w-full rounded-lg p-3 bg-white-100 dark:bg-gray-950 border  border-gray-100 dark:border-gray-850'>
-            <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
-              <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                Total Staked
-              </Text>
-              <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
-                N/A
-              </Text>
+
+          <div className='flex flex-col gap-4 p-6 bg-secondary-100 rounded-xl'>
+            <div className='flex items-center justify-between'>
+              <span className='text-sm text-muted-foreground'>Total Staked</span>
+              <span className='font-bold text-sm'>N/A</span>
             </div>
-            <div className='w-px h-10 bg-gray-100 dark:bg-gray-850' />
-            <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
-              <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                Commission
-              </Text>
-              <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
-                N/A
-              </Text>
+
+            <div className='flex items-center justify-between'>
+              <span className='text-sm text-muted-foreground'>Commission</span>
+              <span className='font-bold text-sm'>N/A</span>
             </div>
-            <div className='w-px h-10 bg-gray-100 dark:bg-gray-850' />
-            <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
-              <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                APY
-              </Text>
-              <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
-                N/A
-              </Text>
+
+            <div className='flex items-center justify-between'>
+              <span className='text-sm text-muted-foreground'>APR</span>
+              <span className='font-bold text-sm text-accent-success'>N/A</span>
             </div>
           </div>
-          <div className='w-full p-4 bg-white-100 dark:bg-gray-950 rounded-lg'>
-            <Text size='xs' color='text-gray-800 dark:text-gray-200' className='font-medium'>
-              Your deposited amount
-            </Text>
-            <div className='flex gap-x-4 mt-4'>
-              <img className='w-9 h-9' src={activeStakingDenom.icon} />
-              <div className='flex flex-col justify-center'>
-                <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
-                  {amountTitleText}
-                </Text>
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  {amountSubtitleText}
-                </Text>
-              </div>
-            </div>
+
+          <span className='text-sm text-muted-foreground mt-4'>Your deposited amount</span>
+          <div className='p-6 bg-secondary-100 rounded-xl'>
+            <span className='font-bold text-lg'>{amountTitleText} </span>
+            {amountSubtitleText && (
+              <span className='text-muted-foreground'>({amountSubtitleText})</span>
+            )}
           </div>
-          <Buttons.Generic
-            onClick={onSwitchValidator}
-            color={theme === ThemeName.DARK ? Colors.white100 : Colors.black100}
-            className='w-full'
-            size='normal'
-          >
-            <Text color='text-white-100 dark:text-black-100'>Switch provider</Text>
-          </Buttons.Generic>
+        </div>
+
+        <div className='flex gap-x-3 bg-secondary-200 w-full [&>*]:flex-1 mt-auto absolute bottom-0 py-4 px-5'>
+          <Button onClick={onSwitchValidator}>Switch provider</Button>
         </div>
       </BottomModal>
     )
@@ -217,50 +196,14 @@ const ProviderCard = observer(({ provider, delegation, onClick }: ProviderCardPr
   ])
 
   return (
-    <div
+    <ValidatorCardView
       onClick={onClick}
-      className='flex justify-between items-center px-4 py-3 bg-white-100 dark:bg-gray-950 cursor-pointer rounded-xl'
-    >
-      <div className='flex items-center w-full'>
-        <img
-          src={Images.Misc.Validator}
-          onError={imgOnError(Images.Misc.Validator)}
-          width={28}
-          height={28}
-          className='mr-4 rounded-full'
-        />
-        <div className='flex justify-between items-center w-full'>
-          <div className='flex flex-col justify-center items-start'>
-            <Text
-              size='sm'
-              color='text-black-100 dark:text-white-100'
-              className='font-bold  overflow-hidden'
-            >
-              {sliceWord(
-                provider?.moniker,
-                isSidePanel()
-                  ? 5 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
-                  : 10,
-                3,
-              )}
-            </Text>
-            {provider.specs.length > 0 && (
-              <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
-                {`${provider.specs.length} Services`}
-              </Text>
-            )}
-          </div>
-          <div className='flex flex-col items-end gap-y-0.5'>
-            <Text size='sm' color='text-black-100 dark:text-white-100' className='font-bold'>
-              {amountTitleText}
-            </Text>
-            <Text size='xs' color='dark:text-gray-400 text-gray-700' className='font-medium'>
-              {amountSubtitleText}
-            </Text>
-          </div>
-        </div>
-      </div>
-    </div>
+      imgSrc={Images.Misc.Validator}
+      moniker={provider.moniker ?? ''}
+      titleAmount={amountTitleText}
+      subAmount={amountSubtitleText}
+      jailed={false}
+    />
   )
 })
 
@@ -305,12 +248,8 @@ export default function ProviderList({
             {emptyProviderDelegation && (
               <>
                 <div className='flex justify-between'>
-                  <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-                    Empty Provider
-                  </Text>
-                  <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-                    Amount Staked
-                  </Text>
+                  <span className='text-xs text-muted-foreground'>Empty Provider</span>
+                  <span className='text-xs text-muted-foreground'>Amount Staked</span>
                 </div>
                 <ProviderCard
                   delegation={emptyProviderDelegation}
@@ -324,12 +263,8 @@ export default function ProviderList({
             )}
             {sortedDelegations.length > 1 && (
               <div className='flex justify-between'>
-                <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-                  Provider
-                </Text>
-                <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-                  Amount Staked
-                </Text>
+                <span className='text-xs text-muted-foreground'>Provider</span>
+                <span className='text-xs text-muted-foreground'>Amount Staked</span>
               </div>
             )}
             {sortedDelegations.map((d) => {
@@ -363,15 +298,18 @@ export default function ProviderList({
           }
           delegation={selectedDelegation}
           onSwitchValidator={() => {
+            const state: StakeInputPageState = {
+              mode: 'REDELEGATE',
+              fromProvider:
+                selectedDelegation.provider === emptyProviderDelegation?.provider
+                  ? emptyProvider
+                  : providers.find((p) => p.address === selectedDelegation.provider),
+              providerDelegation: selectedDelegation,
+              forceChain: 'lava',
+            }
+            sessionStorage.setItem('navigate-stake-input-state', JSON.stringify(state))
             navigate('/stake/input', {
-              state: {
-                mode: 'REDELEGATE',
-                fromProvider:
-                  selectedDelegation.provider === emptyProviderDelegation?.provider
-                    ? emptyProvider
-                    : providers.find((p) => p.address === selectedDelegation.provider),
-                providerDelegation: selectedDelegation,
-              } as StakeInputPageState,
+              state,
             })
           }}
           forceChain={forceChain}

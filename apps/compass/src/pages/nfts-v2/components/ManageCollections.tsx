@@ -10,16 +10,13 @@ import {
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { MagnifyingGlassMinus } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
-import { EmptyCard } from 'components/empty-card'
-import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
-import { useChainPageInfo } from 'hooks'
+import { SearchInput } from 'components/ui/input/search-input'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
 import { nftStore } from 'stores/nft-store'
 import { imgOnError } from 'utils/imgOnError'
 import { isCompassWallet } from 'utils/isCompassWallet'
-import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
 export type ManageCollectionsProps = {
@@ -144,8 +141,6 @@ export function ManageCollections({ isVisible, onClose }: ManageCollectionsProps
             onChange={(e) => setSearchedText(e.target.value)}
             placeholder='Search by collection or name'
             onClear={() => setSearchedText('')}
-            divClassName='rounded-2xl w-full flex items-center gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 dark:focus-within:border-white-100 hover:border-secondary-400 focus-within:border-black-100 border border-transparent'
-            inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
           />
         </div>
 

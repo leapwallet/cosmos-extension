@@ -44,5 +44,6 @@ export type IbcDenomData = {
   path: string;
   baseDenom: string;
   originChainId: string;
+  sourceChainId?: string;
   channelId: string;
 };

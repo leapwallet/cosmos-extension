@@ -3,10 +3,13 @@ import {
   generateBitcoinPrivateKey,
   generatePrivateKeyFromHdPath,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { decrypt, getFullHDPath } from '@leapwallet/leap-keychain'
 import { Buttons, Header, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { base58 } from '@scure/base'
 import CanvasTextBox from 'components/canvas-box/CanvasTextBox'
 import Text from 'components/text'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
@@ -22,11 +25,14 @@ import { chainTagsStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
-import { customKeygenfnMove } from 'utils/getChainInfosList'
+import {
+  customKeygenfnMove,
+  customKeygenfnSolana,
+  customKeygenfnSui,
+} from 'utils/getChainInfosList'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
-import { SelectChainSheet } from './CustomEndpoints'
+import SelectChain from '../SelectChain'
 import { EnterPasswordView } from './EnterPasswordView'
 
 type PrivateKeyViewProps = {
@@ -64,6 +70,27 @@ function PrivateKeyView({ password, goBack, activeChain }: PrivateKeyViewProps):
             )
             const privKey = account.privateKey
             setPrivateKey(privKey)
+          } else if (isSolanaChain(activeChain)) {
+            const privKey = await customKeygenfnSolana(cipher, hdPath, 'seedPhrase')
+            const privateKeyBytes = privKey.privateKey as Uint8Array
+
+            let publicKeyBytes: Uint8Array
+
+            publicKeyBytes = base58.decode(privKey.pubkey)
+
+            if (publicKeyBytes.length === 33) {
+              publicKeyBytes = publicKeyBytes.slice(1)
+            }
+
+            const combinedBytes = new Uint8Array(64)
+            combinedBytes.set(privateKeyBytes)
+            combinedBytes.set(publicKeyBytes, 32)
+
+            const privateKeyBase58 = base58.encode(combinedBytes)
+            setPrivateKey(privateKeyBase58)
+          } else if (isSuiChain(activeChain)) {
+            const privKey = await customKeygenfnSui(cipher, hdPath, 'seedPhrase')
+            setPrivateKey(privKey.privateKey)
           } else {
             const privKey = await generatePrivateKeyFromHdPath(cipher, hdPath)
             setPrivateKey('0x' + privKey)
@@ -131,7 +158,7 @@ const SelectChainView = observer(
     const chainsInfo = useChainInfos()
 
     const allChainsImg = theme === ThemeName.DARK ? GenericDark : GenericLight
-    const defaultColor = isCompassWallet() ? Colors.compassPrimary : Colors.cosmosPrimary
+    const defaultColor = Colors.cosmosPrimary
     const chainDetails =
       targetChain === AGGREGATED_CHAIN_KEY
         ? {
@@ -193,7 +220,7 @@ const SelectChainView = observer(
           </Buttons.Generic>
         </div>
 
-        <SelectChainSheet
+        <SelectChain
           chainTagsStore={chainTagsStore}
           isVisible={showSheet}
           onChainSelect={(chain) => {
@@ -202,6 +229,7 @@ const SelectChainView = observer(
           }}
           onClose={() => setShowSheet(false)}
           selectedChain={targetChain as SupportedChain}
+          showAggregatedOption={false}
         />
       </div>
     )

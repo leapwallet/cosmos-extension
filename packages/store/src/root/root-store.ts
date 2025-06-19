@@ -1,4 +1,11 @@
-import { ChainInfo, NativeDenom, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  ChainInfo,
+  isAptosChain,
+  isSolanaChain,
+  isSuiChain,
+  NativeDenom,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
@@ -9,14 +16,18 @@ import {
   CW20DenomBalanceStore,
   ERC20DenomBalanceStore,
   EvmBalanceStore,
-  MarketDataStore,
+  PercentageChangeDataStore,
   PriceStore,
 } from '../bank';
 import { AptosCoinDataStore } from '../bank/aptos-balance-store';
 import { sortTokenBalances } from '../bank/balance-calculator';
 import { Token } from '../bank/balance-types';
+import { BitcoinDataStore } from '../bank/bitcoin-balance-store';
+import { SolanaCoinDataStore } from '../bank/solana-balance-store';
+import { SuiCoinDataStore } from '../bank/sui-balance-store';
 import { ClaimRewardsStore, DelegationsStore, StakeEpochStore, UndelegationsStore, ValidatorsStore } from '../stake';
 import { AggregatedSupportedChainType, SelectedNetworkType, SupportedCurrencies } from '../types';
+import { isBitcoinChain } from '../utils/is-bitcoin-chain';
 import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
 
 export class RootStakeStore {
@@ -59,10 +70,14 @@ export class RootBalanceStore {
   chainInfosStore: ChainInfosStore;
   evmBalanceStore: EvmBalanceStore;
   aptosCoinDataStore: AptosCoinDataStore;
+  solanaCoinDataStore: SolanaCoinDataStore;
+  bitcoinBalanceStore: BitcoinDataStore;
+  suiCoinDataStore: SuiCoinDataStore;
   compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore;
   addressStore: AddressStore;
   selectedNetworkStore: SelectedNetworkStore;
   forcedLoading: Record<string, boolean> = {};
+  currencyStore: CurrencyStore;
 
   constructor(
     balanceStore: BalanceStore,
@@ -71,10 +86,14 @@ export class RootBalanceStore {
     activeChainStore: ActiveChainStore,
     chainInfosStore: ChainInfosStore,
     evmBalanceStore: EvmBalanceStore,
+    solanaCoinDataStore: SolanaCoinDataStore,
     aptosCoinDataStore: AptosCoinDataStore,
+    bitcoinBalanceStore: BitcoinDataStore,
+    suiCoinDataStore: SuiCoinDataStore,
     compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore,
     addressStore: AddressStore,
     selectedNetworkStore: SelectedNetworkStore,
+    currencyStore: CurrencyStore,
   ) {
     this.nativeBalanceStore = balanceStore;
     this.erc20BalanceStore = erc20BalanceStore;
@@ -82,10 +101,14 @@ export class RootBalanceStore {
     this.activeChainStore = activeChainStore;
     this.chainInfosStore = chainInfosStore;
     this.evmBalanceStore = evmBalanceStore;
+    this.solanaCoinDataStore = solanaCoinDataStore;
+    this.suiCoinDataStore = suiCoinDataStore;
     this.aptosCoinDataStore = aptosCoinDataStore;
+    this.bitcoinBalanceStore = bitcoinBalanceStore;
     this.compassSeiTokensAssociationsStore = compassSeiTokensAssociationsStore;
     this.addressStore = addressStore;
     this.selectedNetworkStore = selectedNetworkStore;
+    this.currencyStore = currencyStore;
 
     makeObservable(this, {
       allTokens: computed,
@@ -103,8 +126,9 @@ export class RootBalanceStore {
   ): string {
     const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
     const address = _address ?? this.addressStore.addresses[chain as SupportedChain];
+    const userPreferredCurrency = this.currencyStore.preferredCurrency;
 
-    return `${chainKey}-${address}`;
+    return `${chainKey}-${address}-${userPreferredCurrency}`;
   }
 
   public getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
@@ -113,8 +137,8 @@ export class RootBalanceStore {
 
     const chainId =
       network === 'testnet'
-        ? this.chainInfosStore.chainInfos[chain].testnetChainId
-        : this.chainInfosStore.chainInfos[chain].chainId;
+        ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
+        : this.chainInfosStore.chainInfos[chain]?.chainId;
 
     return `${chain}-${chainId}`;
   }
@@ -129,6 +153,10 @@ export class RootBalanceStore {
           (this.evmBalanceStore.evmBalance?.evmBalance ?? [])?.filter(
             (token) => !isNaN(Number(token.amount)) && new BigNumber(token.amount).gt(0),
           ),
+          this.bitcoinBalanceStore.balances,
+          this.aptosCoinDataStore.balances,
+          this.solanaCoinDataStore.balances,
+          this.suiCoinDataStore.balances,
         ),
       );
     }
@@ -140,9 +168,10 @@ export class RootBalanceStore {
     const nonNativeBankTokens = this.nativeBalanceStore.balances.filter(
       (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
     );
+    const bitcoinTokens = this.bitcoinBalanceStore.balances;
+    const solanaTokens = this.solanaCoinDataStore.balances;
 
-    const isSeiEvm = this.activeChainStore.isSeiEvm(activeChain);
-    if (isSeiEvm && activeChain !== 'seiDevnet') {
+    if (activeChain === 'seiTestnet2') {
       const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
       const filterDuplicateSeiToken = (token: Token) => {
         let evmContract =
@@ -173,7 +202,12 @@ export class RootBalanceStore {
 
     return nativeTokens.concat(
       sortTokenBalances(
-        this.erc20BalanceStore.erc20Tokens.concat(this.cw20BalanceStore.cw20Tokens, nonNativeBankTokens),
+        this.erc20BalanceStore.erc20Tokens.concat(
+          this.cw20BalanceStore.cw20Tokens,
+          nonNativeBankTokens,
+          bitcoinTokens,
+          solanaTokens,
+        ),
       ),
     );
   }
@@ -188,6 +222,10 @@ export class RootBalanceStore {
           (this.evmBalanceStore.evmBalance?.evmBalance ?? [])?.filter(
             (token) => !isNaN(Number(token.amount)) && new BigNumber(token.amount).gt(0),
           ),
+          this.bitcoinBalanceStore.balances,
+          this.aptosCoinDataStore.balances,
+          this.solanaCoinDataStore.balances,
+          this.suiCoinDataStore.balances,
         ),
       );
     }
@@ -199,9 +237,12 @@ export class RootBalanceStore {
     const nonNativeBankTokens = this.nativeBalanceStore.spendableBalances.filter(
       (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
     );
+    const aptosTokens = this.aptosCoinDataStore.balances;
+    const solanaTokens = this.solanaCoinDataStore.balances;
+    const bitcoinTokens = this.bitcoinBalanceStore.balances;
 
-    const isSeiEvm = this.activeChainStore.isSeiEvm(activeChain);
-    if (isSeiEvm && activeChain !== 'seiDevnet') {
+    const suiTokens = this.suiCoinDataStore.balances;
+    if (activeChain === 'seiTestnet2') {
       const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
       const filterDuplicateSeiToken = (token: Token) => {
         let evmContract =
@@ -227,12 +268,21 @@ export class RootBalanceStore {
       };
       const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter(filterDuplicateSeiToken);
       const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
-      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
+      return nativeTokens.concat(
+        sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens, solanaTokens, suiTokens)),
+      );
     }
 
     return nativeTokens.concat(
       sortTokenBalances(
-        this.erc20BalanceStore.erc20Tokens.concat(this.cw20BalanceStore.cw20Tokens, nonNativeBankTokens),
+        this.erc20BalanceStore.erc20Tokens.concat(
+          this.cw20BalanceStore.cw20Tokens,
+          nonNativeBankTokens,
+          aptosTokens,
+          solanaTokens,
+          suiTokens,
+          bitcoinTokens,
+        ),
       ),
     );
   }
@@ -242,6 +292,10 @@ export class RootBalanceStore {
       this.nativeBalanceStore.aggregatedSpendableBalances.concat(
         this.erc20BalanceStore.allERC20Tokens,
         this.cw20BalanceStore.allCW20Tokens,
+        this.bitcoinBalanceStore.balances,
+        this.aptosCoinDataStore.balances,
+        this.solanaCoinDataStore.balances,
+        this.suiCoinDataStore.balances,
       ),
     );
   }
@@ -250,7 +304,8 @@ export class RootBalanceStore {
     return (
       this.nativeBalanceStore.loading ||
       this.erc20BalanceStore.aggregatedLoadingStatus ||
-      this.cw20BalanceStore.aggregatedLoadingStatus
+      this.cw20BalanceStore.aggregatedLoadingStatus ||
+      this.aptosCoinDataStore.loading
     );
   }
 
@@ -273,10 +328,23 @@ export class RootBalanceStore {
       const erc20Tokens = this.erc20BalanceStore.getAggregatedERC20Tokens(network);
       const cw20Tokens = this.cw20BalanceStore.getAggregatedCW20Tokens(network);
       const evmTokens = this.evmBalanceStore.getAggregatedEvmTokens(network);
-      const aptosTokens = this.aptosCoinDataStore.balances;
+      const bitcoinTokens = this.bitcoinBalanceStore.getAggregatedBalances(network);
+      const aptosTokens = this.aptosCoinDataStore.getAggregatedBalances(network);
+      const solanaTokens = this.solanaCoinDataStore.getAggregatedBalances(network);
 
+      const suiTokens = this.suiCoinDataStore.balances;
       return nativeTokens.concat(
-        sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens, evmTokens, aptosTokens)),
+        sortTokenBalances(
+          cw20Tokens.concat(
+            erc20Tokens,
+            nonNativeBankTokens,
+            evmTokens,
+            bitcoinTokens,
+            aptosTokens,
+            solanaTokens,
+            suiTokens,
+          ),
+        ),
       );
     },
   );
@@ -296,10 +364,12 @@ export class RootBalanceStore {
       );
       const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain, network);
       const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain, network);
+      const bitcoinTokens = this.bitcoinBalanceStore.balances;
       const aptosTokens = this.aptosCoinDataStore.balances;
+      const solanaTokens = this.solanaCoinDataStore.getSolanaBalances(chain, network);
+      const suiTokens = this.suiCoinDataStore.getSuiBalances(chain, network);
 
-      const isSeiEvm = this.activeChainStore.isSeiEvm(chain);
-      if (isSeiEvm && chain !== 'seiDevnet') {
+      if (chain === 'seiTestnet2') {
         const filterDuplicateSeiToken = (token: Token) => {
           let evmContract =
             this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
@@ -327,7 +397,11 @@ export class RootBalanceStore {
         return nativeTokens.concat(sortTokenBalances(seiCw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
       }
 
-      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeBankTokens, aptosTokens)));
+      return nativeTokens.concat(
+        sortTokenBalances(
+          cw20Tokens.concat(erc20Tokens, nonNativeBankTokens, bitcoinTokens, aptosTokens, solanaTokens, suiTokens),
+        ),
+      );
     },
   );
 
@@ -360,15 +434,40 @@ export class RootBalanceStore {
       return this.evmBalanceStore.getErrorStatusForChain(chain, network);
     }
 
+    if (isAptosChain(chain)) {
+      return this.aptosCoinDataStore.getErrorStatusForChain(chain, network);
+    }
+
+    if (isSolanaChain(chain)) {
+      return this.solanaCoinDataStore.getErrorStatusForChain(chain, network);
+    }
+
+    if (isBitcoinChain(chain)) {
+      return this.bitcoinBalanceStore.getErrorStatusForChain(chain, network);
+    }
+
     return this.nativeBalanceStore.getErrorStatusForChain(chain, network);
   };
 
   get loading() {
     const activeChain = this.activeChainStore?.activeChain;
     const chainInfo = this.chainInfosStore.chainInfos[activeChain as SupportedChain];
-    const isAptosChain = chainInfo?.chainId.startsWith('aptos');
-    if (isAptosChain) {
+    const _isAptosChain = isAptosChain(activeChain);
+    const _isSolanaChain = isSolanaChain(activeChain);
+    const _isSuiChain = isSuiChain(activeChain);
+    const bitcoinChain = isBitcoinChain(activeChain as SupportedChain);
+
+    if (_isAptosChain) {
       return this.aptosCoinDataStore.loading;
+    }
+    if (_isSolanaChain) {
+      return this.solanaCoinDataStore.loading;
+    }
+    if (_isSuiChain) {
+      return this.suiCoinDataStore.loading;
+    }
+    if (bitcoinChain) {
+      return this.bitcoinBalanceStore.loading;
     }
     if (chainInfo?.evmOnlyChain) {
       return (
@@ -409,7 +508,10 @@ export class RootBalanceStore {
       this.erc20BalanceStore.loadBalances(chain, network),
       this.cw20BalanceStore.loadBalances(chain, network),
       this.evmBalanceStore.loadEvmBalance(chain, network),
-      this.aptosCoinDataStore.getData(),
+      this.bitcoinBalanceStore.getData(chain, network),
+      this.aptosCoinDataStore.getData(chain, network),
+      this.solanaCoinDataStore.getData(chain as SupportedChain, network),
+      this.suiCoinDataStore.getData(chain as SupportedChain, network),
     ]);
   }
 
@@ -419,7 +521,10 @@ export class RootBalanceStore {
       this.erc20BalanceStore.loadBalances(chain, network, true),
       this.cw20BalanceStore.loadBalances(chain, network, true),
       this.evmBalanceStore.loadEvmBalance(chain, network, true),
-      this.aptosCoinDataStore.getData(),
+      this.bitcoinBalanceStore.getData(chain, network, true),
+      this.aptosCoinDataStore.getData(chain, network, true),
+      this.solanaCoinDataStore.getData(chain as SupportedChain, network, true),
+      this.suiCoinDataStore.getData(chain as SupportedChain, network, true),
     ]);
   }
 }
@@ -432,7 +537,7 @@ export class RootStore {
   rootStakeStore: RootStakeStore;
   rootBalanceStore: RootBalanceStore;
   priceStore: PriceStore;
-  marketDataStore: MarketDataStore;
+  percentageChangeDataStore: PercentageChangeDataStore;
   currencyStore: CurrencyStore;
   chainInfosStore: ChainInfosStore;
   evmBalanceStore: EvmBalanceStore;
@@ -448,7 +553,7 @@ export class RootStore {
     rootBalanceStore: RootBalanceStore,
     rootStakeStore: RootStakeStore,
     priceStore: PriceStore,
-    marketDataStore: MarketDataStore,
+    percentageChangeDataStore: PercentageChangeDataStore,
     currencyStore: CurrencyStore,
     chainInfosStore: ChainInfosStore,
     evmBalanceStore: EvmBalanceStore,
@@ -461,7 +566,7 @@ export class RootStore {
     this.rootStakeStore = rootStakeStore;
     this.rootBalanceStore = rootBalanceStore;
     this.priceStore = priceStore;
-    this.marketDataStore = marketDataStore;
+    this.percentageChangeDataStore = percentageChangeDataStore;
     this.currencyStore = currencyStore;
     this.chainInfosStore = chainInfosStore;
     this.evmBalanceStore = evmBalanceStore;
@@ -481,6 +586,8 @@ export class RootStore {
       this.nmsStore.readyPromise,
       this.priceStore.readyPromise,
       this.addressStore.loadAddresses(),
+      this.percentageChangeDataStore.readyPromise,
+      // this.marketDataStore.readyPromise,
     ]);
 
     this.initPromise = Promise.all([
@@ -544,7 +651,7 @@ export class RootStore {
     this.currencyStore.updatePreferredCurrency(currency);
     if (this.initializing !== 'done') return;
     await this.priceStore.getData();
-    await this.marketDataStore.getData();
+    await this.percentageChangeDataStore.getData();
     await Promise.all([
       this.rootBalanceStore.refetchBalances(),
       this.skipLoadingStake ? Promise.resolve() : this.rootStakeStore.updateStake(undefined, undefined, true),

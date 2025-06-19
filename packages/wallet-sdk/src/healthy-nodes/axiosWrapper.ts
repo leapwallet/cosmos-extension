@@ -28,6 +28,11 @@ export async function axiosWrapper<T = any>(
 
   try {
     const response = await axios({ ..._options, timeout: options.timeout ?? TIMEOUT_MILLI_SECONDS });
+    if (callFor === 'evm-rpc-call') {
+      if (response?.data?.error) {
+        throw new Error(response.data.error?.message ?? 'Unknown error');
+      }
+    }
     return response;
   } catch (error: any) {
     if (
@@ -50,7 +55,8 @@ export async function axiosWrapper<T = any>(
       (error.response?.status >= 500 ||
         error.response?.status === 429 ||
         error.response?.status === 403 ||
-        error.message?.includes('timeout of'))
+        error.message?.includes('timeout of') ||
+        callFor === 'evm-rpc-call')
     ) {
       let isRestURL = false;
       let prevTopNodeChainId = '';

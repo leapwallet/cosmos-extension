@@ -1,147 +1,58 @@
-import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
-import { KeyChain } from '@leapwallet/leap-keychain'
-import { Buttons, ProgressBar } from '@leapwallet/leap-ui'
-import ExtensionPage from 'components/extension-page'
+import { ArrowLeft, Lock } from '@phosphor-icons/react'
+import { Button } from 'components/ui/button'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
-import React, { useCallback, useEffect, useState } from 'react'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { passwordStore } from 'stores/password-store'
-import { Colors } from 'theme/colors'
-import correctMnemonic from 'utils/correct-mnemonic'
-import { DEBUG } from 'utils/debug'
-import { isCompassWallet } from 'utils/isCompassWallet'
-
-import Disclaimer from './screens/disclaimer'
-import RequireSeedPhrase from './screens/requireSeedPhrase'
-import SelectWallets from './screens/select-wallets'
-import SetPassword from './screens/setPassword'
-
-const maxSteps = 4
 
 const ForgotPassword = () => {
   const navigate = useNavigate()
-
-  const [mnemonic, setMnemonic] = useState('')
-  const [processStep, setProcessStep] = useState(1)
-  const [walletAccounts, setWalletAccounts] = useState<{ address: string; index: number }[]>([])
-  const [selectedIds, setSelectedIds] = useState<{ [k: number]: boolean }>({})
-  const [loading, setLoading] = useState(false)
-
-  const importWalletAccounts = Wallet.useImportMultipleWalletAccounts()
   const { removeAll } = Wallet.useRemoveWallet()
 
-  const fetchWalletAccounts = useCallback(async (mnemonic: string) => {
-    const correctedMnemonic = correctMnemonic(mnemonic)
-    const fetchChainInfosOf = isCompassWallet() ? 'seiTestnet2' : 'cosmos'
-
-    const walletAccounts = await KeyChain.getWalletsFromMnemonic(
-      correctedMnemonic,
-      5,
-      ChainInfos[fetchChainInfosOf].bip44.coinType,
-      ChainInfos[fetchChainInfosOf].addressPrefix,
-    )
-
-    setWalletAccounts(walletAccounts)
-  }, [])
-
-  /**
-   * @description Increment the process step
-   * @returns null
-   */
-  const incrementStep = useCallback(() => {
-    if (processStep + 1 <= maxSteps) {
-      setProcessStep(processStep + 1)
-    } else {
-      navigate('/onboardingSuccess')
-    }
-  }, [navigate, processStep])
-
-  /**
-   * @description Increment the process step
-   * @returns null
-   */
-  const decrementStep = useCallback(() => {
-    if (processStep <= maxSteps && processStep - 1 > 0) {
-      setProcessStep(processStep - 1)
-    } else {
-      navigate('/')
-    }
-  }, [navigate, processStep])
-
-  /**
-   * @description Final step that resets the password of the wallet
-   * @returns null
-   */
-  const onSubmit = useCallback(
-    async (password: Uint8Array) => {
-      setLoading(true)
-      passwordStore.setPassword(password)
-      await removeAll()
-      if (mnemonic && password) {
-        await importWalletAccounts({
-          mnemonic,
-          password,
-          selectedAddressIndexes: Object.entries(selectedIds)
-            .filter(([, selected]) => selected)
-            .map(([addressIndex]) => parseInt(addressIndex)),
-          type: 'import',
-        })
-        incrementStep()
-      }
-      setLoading(false)
-    },
-    [importWalletAccounts, incrementStep, mnemonic, removeAll, selectedIds],
-  )
-
-  useEffect(() => {
-    if (processStep === 3) {
-      fetchWalletAccounts(mnemonic).catch((e) => DEBUG('Fetching Wallet Accounts', e.message))
-    }
-  }, [fetchWalletAccounts, mnemonic, processStep])
+  const handleClearDataAndRestore = () => {
+    removeAll(true)
+    navigate('/onboardingImport')
+  }
 
   return (
-    <ExtensionPage
-      titleComponent={
-        <div className='flex flex-row w-[836px] items-center justify-between align-'>
-          <Buttons.Back isFilled={true} onClick={decrementStep} />
-          <ProgressBar
-            color={Colors.cosmosPrimary}
-            currentStep={processStep}
-            totalSteps={maxSteps}
-          />
-          <div />
+    <div className='p-5 flex flex-col h-full justify-center'>
+      <nav>
+        <button
+          type='button'
+          onClick={() => navigate('/')}
+          className='p-2 rounded-full text-muted-foreground hover:text-foreground'
+        >
+          <ArrowLeft className='size-5' />
+          <span className='sr-only'>Go back</span>
+        </button>
+      </nav>
+
+      <header className='flex flex-col gap-5 mb-5'>
+        <div className='bg-secondary-200 rounded-full size-20 mx-auto flex items-center justify-center'>
+          <Lock size={32} className='text-secondary-800' />
         </div>
-      }
-    >
-      <div className='absolute top-0 flex h-full w-1/2 z-5 justify-center'>
-        {processStep === 1 && (
-          <div className='self-center'>
-            <Disclaimer incrementStep={incrementStep} />
-          </div>
-        )}
-        {processStep === 2 && (
-          <div className='self-center'>
-            <RequireSeedPhrase incrementStep={incrementStep} setMnemonicAtRoot={setMnemonic} />
-          </div>
-        )}
-        {processStep === 3 && (
-          <div className='mt-32'>
-            <SelectWallets
-              accountsData={walletAccounts}
-              onProceed={incrementStep}
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-            />
-          </div>
-        )}
-        {processStep === 4 && (
-          <div className='self-center'>
-            <SetPassword resetPassword={onSubmit} loading={loading} />
-          </div>
-        )}
+
+        <span className='font-bold text-xl text-center'>Forgot your password?</span>
+      </header>
+
+      <div className='flex flex-col gap-4 mt-2'>
+        <span className='text-secondary-foreground text-md'>
+          Clear your data and restore your wallet using your recovery phrase
+        </span>
+        <span className='text-secondary-foreground text-md'>
+          We won&apos;t be able to recover your password as it&apos;s stored securely only on your
+          computer.
+        </span>
+        <span className='text-secondary-foreground text-md'>
+          To recover the wallet you will have to clear you data which will delete your current
+          wallet and recovery phrase from this device, along with the list of accounts you&apos;ve
+          curated. After that you can restore you wallet using your recovery phrase
+        </span>
       </div>
-    </ExtensionPage>
+      <Button className='w-full mt-auto' onClick={handleClearDataAndRestore}>
+        Clear data and restore
+      </Button>
+    </div>
   )
 }
 

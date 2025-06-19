@@ -2,11 +2,13 @@ import { formatPercentAmount, sliceWord, useProviderApr } from '@leapwallet/cosm
 import { Provider } from '@leapwallet/cosmos-wallet-sdk'
 import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { Info } from '@phosphor-icons/react'
-import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
-import { SearchInput } from 'components/search-input'
+import BottomModal from 'components/new-bottom-modal'
 import ValidatorListSkeleton from 'components/Skeletons/ValidatorListSkeleton'
 import Text from 'components/text'
+import { SearchInput } from 'components/ui/input/search-input'
+import { Tooltip, TooltipContent, TooltipTrigger } from 'components/ui/tooltip'
+import { TooltipProvider } from 'components/ui/tooltip'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
@@ -14,6 +16,7 @@ import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo, useState } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
+import { cn } from 'utils/cn'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 
@@ -48,66 +51,55 @@ export const ProviderCard = observer(
     }, [])
 
     return (
-      <div
+      <button
         onClick={onClick}
-        className='relative flex justify-between items-center p-4 mb-4 bg-white-100 dark:bg-gray-950 cursor-pointer rounded-xl'
+        className={cn(
+          `relative flex items-center flex-grow gap-4 px-5 py-4 mb-4 cursor-pointer rounded-xl w-full bg-secondary-100 hover:bg-secondary-200 transition-colors`,
+        )}
       >
-        <div className='flex items-center flex-grow'>
-          <img
-            src={Images.Misc.Validator}
-            onError={imgOnError(GenericLight)}
-            width={30}
-            height={30}
-            className='mr-3 border rounded-full dark:border-[#333333] border-[#cccccc]'
-          />
-          <div className='flex flex-col justify-center items-start w-full'>
-            <div className='flex justify-between w-full'>
-              <Text
-                size='sm'
-                color='text-black-100 dark:text-white-100'
-                className='font-bold mb-0.5'
-              >
-                {sliceWord(
-                  provider.moniker,
-                  isSidePanel()
-                    ? 22 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
-                    : 30,
-                  0,
-                )}
-              </Text>
-              <div className='relative'>
-                <Info
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  size={18}
-                  className='text-gray-400 dark:text-gray-600'
-                />
-                {showTooltip && (
-                  <ProviderTooltip
-                    provider={provider}
-                    handleMouseEnter={handleMouseEnter}
-                    handleMouseLeave={handleMouseLeave}
-                    positionClassName='-top-2 right-4 px-3'
-                  />
-                )}
-              </div>
-            </div>
-            <div className='flex justify-between w-full'>
-              {provider.specs.length > 0 && (
-                <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
-                  {`${provider.specs.length} Services`}
-                </Text>
+        <img
+          src={Images.Misc.Validator}
+          onError={imgOnError(GenericLight)}
+          width={36}
+          height={36}
+          className='border rounded-full border-secondary-100'
+        />
+        <div className='flex flex-col flex-grow gap-0.5 justify-center items-start w-full'>
+          <div className='flex flex-col items-start justify-between w-full'>
+            <span className='font-bold text-sm text-start'>
+              {sliceWord(
+                provider.moniker,
+                isSidePanel()
+                  ? 22 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                  : 25,
+                0,
               )}
-              {parseFloat(apr ?? '0') > 0 && (
-                <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
-                  Estimated APR&nbsp;
-                  <span className='font-bold'>{formatPercentAmount(apr ?? '', 1)}</span>%
-                </Text>
-              )}
-            </div>
+            </span>
+            {provider.specs.length > 0 && (
+              <span className='font-medium text-muted-foreground text-xs'>{`${provider.specs.length} Services`}</span>
+            )}
           </div>
         </div>
-      </div>
+
+        <div className='flex flex-col gap-0.5 items-end w-full'>
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info size={18} className='text-gray-400 dark:text-gray-600' />
+              </TooltipTrigger>
+              <TooltipContent side='left' className='bg-transparent border-none'>
+                <ProviderTooltip provider={provider} />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {parseFloat(apr ?? '0') > 0 && (
+            <span className='font-medium text-xs text-muted-foreground'>
+              Estimated APR&nbsp;
+              <span className='font-bold'>{formatPercentAmount(apr ?? '', 1)}</span>%
+            </span>
+          )}
+        </div>
+      </button>
     )
   },
 )
@@ -119,9 +111,6 @@ export default function SelectProviderSheet({
   providers,
 }: SelectProviderSheetProps) {
   const [searchedTerm, setSearchedTerm] = useState('')
-  const [showSortBy, setShowSortBy] = useState(false)
-  const [sortBy, setSortBy] = useState<STAKE_SORT_BY>('Random')
-  const activeChain = useActiveChain()
   const [isLoading, setIsLoading] = useState(false)
   const [activeProviders, inactiveProviders] = useMemo(() => {
     setIsLoading(true)
@@ -132,14 +121,7 @@ export default function SelectProviderSheet({
       )
       .slice(0, 100)
     _filteredProviders.sort(() => {
-      switch (sortBy) {
-        case 'Amount staked':
-          return 0
-        case 'APR':
-          return 0
-        case 'Random':
-          return Math.random() - 0.5
-      }
+      return Math.random() - 0.5
     })
     const _activeProviders = _filteredProviders.filter(
       (provider) => provider.stakestatus === 'Active',
@@ -149,7 +131,7 @@ export default function SelectProviderSheet({
     )
     setIsLoading(false)
     return [_activeProviders, searchedTerm ? _inactiveProviders : []]
-  }, [providers, searchedTerm, sortBy])
+  }, [providers, searchedTerm])
 
   const listItems = useMemo(() => {
     const items: (Provider | { itemType: 'inactiveHeader' })[] = [...activeProviders]
@@ -182,54 +164,42 @@ export default function SelectProviderSheet({
 
   return (
     <BottomModal
+      fullScreen
       isOpen={isVisible}
       onClose={() => {
         setSearchedTerm('')
         onClose()
       }}
-      closeOnBackdropClick={true}
       title='Select Provider'
-      containerClassName='h-[calc(100%-34px)]'
-      className='p-6 !overflow-hidden max-h-[calc(100%-69px)] h-full'
+      className='p-6 overflow-auto flex flex-col gap-7 h-full !pb-0'
     >
-      <div className='flex flex-col gap-y-6 h-full'>
-        <SearchInput
-          divClassName='flex w-full bg-white-100 dark:bg-gray-950 rounded-full py-2 pl-5 pr-[10px] focus-within:border-green-600'
-          value={searchedTerm}
-          onChange={(e) => setSearchedTerm(e.target.value)}
-          data-testing-id='provider-input-search'
-          placeholder='Search providers'
-          onClear={() => setSearchedTerm('')}
-        />
-
-        <div className='w-full h-full' style={{ overflowY: 'scroll' }}>
-          {isLoading && <ValidatorListSkeleton />}
-          {!isLoading && listItems.length === 0 && (
-            <EmptyCard
-              isRounded
-              subHeading='Try a different search term'
-              src={Images.Misc.Explore}
-              heading={`No providers found for '${searchedTerm}'`}
-              data-testing-id='select-provider-empty-card'
-            />
-          )}
-          {!isLoading && listItems.length > 0 && (
-            <Virtuoso
-              data={listItems}
-              itemContent={renderItem}
-              style={{ flexGrow: '1', width: '100%' }}
-            />
-          )}
-        </div>
-      </div>
-      <SelectSortBySheet
-        onClose={() => setShowSortBy(false)}
-        isVisible={showSortBy}
-        setVisible={setShowSortBy}
-        setSortBy={setSortBy}
-        sortBy={sortBy}
-        activeChain={activeChain}
+      <SearchInput
+        value={searchedTerm}
+        onChange={(e) => setSearchedTerm(e.target.value)}
+        data-testing-id='validator-input-search'
+        placeholder='Enter provider name'
+        onClear={() => setSearchedTerm('')}
       />
+
+      {isLoading && <ValidatorListSkeleton />}
+
+      {!isLoading && listItems.length === 0 && (
+        <EmptyCard
+          isRounded
+          subHeading='Try a different search term'
+          src={Images.Misc.Explore}
+          heading={`No providers found for '${searchedTerm}'`}
+          data-testing-id='select-provider-empty-card'
+        />
+      )}
+
+      {!isLoading && listItems.length > 0 && (
+        <Virtuoso
+          data={listItems}
+          itemContent={renderItem}
+          className='flex-1 w-full overflow-auto pb-4'
+        />
+      )}
     </BottomModal>
   )
 }

@@ -7,50 +7,49 @@ import {
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import {
-  ClaimRewardsStore,
-  DelegationsStore,
-  RootDenomsStore,
-  UndelegationsStore,
-  ValidatorsStore,
-} from '@leapwallet/cosmos-wallet-store'
-import { GenericCard } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
-import Text from 'components/text'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { hideAssetsStore } from 'stores/hide-assets-store'
+import {
+  claimRewardsStore,
+  delegationsStore,
+  unDelegationsStore,
+  validatorsStore,
+} from 'stores/stake-store'
 
 interface ClaimInfoProps {
   isOpen: boolean
   onClose: () => void
   onClaim: () => void
   onClaimAndStake: () => void
-  rootDenomsStore: RootDenomsStore
-  delegationsStore: DelegationsStore
-  validatorsStore: ValidatorsStore
-  unDelegationsStore: UndelegationsStore
-  claimRewardsStore: ClaimRewardsStore
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
 }
 
+export const ClaimCard = (props: {
+  titleAmount: string
+  secondaryAmount: string
+  button: React.ReactNode
+}) => {
+  return (
+    <div className='flex gap-2 items-center justify-between bg-secondary-100 p-6 rounded-xl'>
+      <div className='flex flex-col gap-1'>
+        <span className='text-lg font-bold'>{props.titleAmount}</span>
+        <span className='text-sm text-muted-foreground'>{props.secondaryAmount}</span>
+      </div>
+
+      {props.button}
+    </div>
+  )
+}
+
 const ClaimInfo = observer(
-  ({
-    isOpen,
-    onClose,
-    onClaim,
-    onClaimAndStake,
-    rootDenomsStore,
-    delegationsStore,
-    validatorsStore,
-    unDelegationsStore,
-    claimRewardsStore,
-    forceChain,
-    forceNetwork,
-  }: ClaimInfoProps) => {
+  ({ isOpen, onClose, onClaim, onClaimAndStake, forceChain, forceNetwork }: ClaimInfoProps) => {
     const _activeChain = useActiveChain()
     const activeChain = useMemo(() => forceChain || _activeChain, [forceChain, _activeChain])
 
@@ -143,79 +142,42 @@ const ClaimInfo = observer(
       <BottomModal
         isOpen={isOpen}
         onClose={onClose}
-        title='Claim Rewards'
-        closeOnBackdropClick={true}
-        className='p-6'
+        title='Claim rewards'
+        className='flex flex-col gap-8 mt-4'
       >
-        <div className='flex flex-col items-center w-full gap-y-4'>
-          <div className='flex flex-col gap-y-2'>
-            <Text
-              size='xs'
-              color='text-gray-700 dark:text-gray-400'
-            >{`Claim rewards on ${activeStakingDenom.coinDenom}`}</Text>
-            <GenericCard
-              title={
-                <Text
-                  size='sm'
-                  color='text-gray-800 dark:text-white-100'
-                  className='font-bold mb-0.5'
-                >
-                  {totalRewardTitle}
-                </Text>
-              }
-              subtitle={
-                <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                  {totalRewardSubtitle}
-                </Text>
-              }
-              size='md'
-              isRounded
-              className='bg-white-100 dark:bg-gray-950'
-              title2={
-                <button
-                  onClick={onClaim}
-                  className='rounded-full text-xs font-bold text-white-100 dark:text-gray-900 dark:bg-white-100 bg-gray-900 px-4 py-2'
-                >
-                  Claim
-                </button>
-              }
-            />
-          </div>
-          <div className='flex flex-col gap-y-2'>
-            <Text size='xs' color='text-gray-700 dark:text-gray-400'>
-              Auto stake the rewards earned
-            </Text>
-            <GenericCard
-              title={
-                <Text
-                  size='sm'
-                  color='text-black-100 dark:text-white-100'
-                  className='font-bold mb-0.5'
-                >
-                  {nativeRewardTitle}
-                </Text>
-              }
-              subtitle={
-                <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                  {nativeRewardSubtitle}
-                </Text>
-              }
-              size='md'
-              isRounded
-              className='bg-white-100 dark:bg-gray-950'
-              title2={
-                <button
-                  onClick={onClaimAndStake}
-                  disabled={isClaimAndStakeDisabled}
-                  className={`rounded-full text-xs font-bold px-4 py-2 bg-gray-100 dark:bg-gray-800 dark:text-white-100 text-gray-900 ${
-                    isClaimAndStakeDisabled && 'opacity-70 !cursor-not-allowed'
-                  } `}
-                >
-                  Claim and Stake
-                </button>
-              }
-            />
-          </div>
+        <div className='flex flex-col gap-4 w-full'>
+          <span className='text-muted-foreground text-sm'>{`Claim rewards on ${activeStakingDenom.coinDenom}`}</span>
+          <ClaimCard
+            titleAmount={totalRewardTitle}
+            secondaryAmount={totalRewardSubtitle}
+            button={
+              <Button
+                onClick={onClaim}
+                variant='secondary'
+                size='md'
+                className='w-[7.5rem] bg-secondary-350 disabled:bg-secondary-300 hover:bg-secondary-300'
+              >
+                Claim
+              </Button>
+            }
+          />
+        </div>
+        <div className='flex flex-col gap-4 w-full'>
+          <span className='text-muted-foreground text-sm'>Auto stake the rewards earned</span>
+          <ClaimCard
+            titleAmount={nativeRewardTitle}
+            secondaryAmount={nativeRewardSubtitle}
+            button={
+              <Button
+                size='md'
+                className='w-[7.5rem] whitespace-nowrap'
+                onClick={onClaimAndStake}
+                disabled={isClaimAndStakeDisabled}
+              >
+                Claim & stake
+              </Button>
+            }
+          />
         </div>
       </BottomModal>
     )

@@ -1,5 +1,5 @@
 import { DenomsRecord, isValidAddressWithPrefix, SupportedChain, SupportedDenoms } from '@leapwallet/cosmos-wallet-sdk';
-import { MarketData } from '@leapwallet/cosmos-wallet-store';
+import { CoingeckoIdsStore, MarketData, PercentageChangeDataStore, PriceStore } from '@leapwallet/cosmos-wallet-store';
 import { useQuery } from '@tanstack/react-query';
 import { differenceInDays } from 'date-fns';
 import { useMemo, useState } from 'react';
@@ -22,10 +22,20 @@ type UseAssetDetailsProps = {
   denom: SupportedDenoms;
   tokenChain: SupportedChain;
   compassParams: CompassDenomInfoParams;
-  marketData: Record<string, MarketData> | null;
+  coingeckoIdsStore: CoingeckoIdsStore;
+  percentageChangeDataStore: PercentageChangeDataStore;
+  priceStore: PriceStore;
 };
 
-export function useAssetDetails({ denoms, denom, tokenChain, compassParams, marketData }: UseAssetDetailsProps) {
+export function useAssetDetails({
+  denoms,
+  denom,
+  tokenChain,
+  compassParams,
+  coingeckoIdsStore,
+  percentageChangeDataStore,
+  priceStore,
+}: UseAssetDetailsProps) {
   const activeChain = useActiveChain();
   const [selectedDays, setSelectedDays] = useState<string>('1D');
   const [preferredCurrency] = useUserPreferredCurrency();
@@ -35,6 +45,8 @@ export function useAssetDetails({ denoms, denom, tokenChain, compassParams, mark
   const chainId = selectedNetwork === 'mainnet' ? chainInfo?.chainId : chainInfo?.testnetChainId;
   const isCompassWallet = useIsCompassWallet();
   const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens();
+  const percentageChangeData = percentageChangeDataStore.data;
+  const coingeckoIds = coingeckoIdsStore.coingeckoIdsFromS3;
 
   const combinedDenoms = useMemo(() => {
     if (isCompassWallet) {
@@ -52,12 +64,30 @@ export function useAssetDetails({ denoms, denom, tokenChain, compassParams, mark
     All: 2000,
   };
 
-  const { data: denomInfo } = useQuery(['denom-info', denom, tokenChain, compassParams], async () => {
+  const denomInfoKey = useMemo(() => {
+    return ['denom-info', denom, tokenChain, Object.keys(combinedDenoms ?? {}).length, compassParams];
+  }, [Object.keys(combinedDenoms ?? {}).length]);
+
+  const { data: denomInfo } = useQuery(denomInfoKey, async () => {
     if (isValidAddressWithPrefix(denom, 'secret') && secretTokens[denom]) {
-      return convertSecretDenom(secretTokens[denom], denom);
+      const denomInfo = convertSecretDenom(secretTokens[denom], denom);
+      if (!denomInfo) {
+        return undefined;
+      }
+      return {
+        ...denomInfo,
+        coinGeckoId: denomInfo?.coinGeckoId || coingeckoIds[denomInfo?.coinMinimalDenom ?? ''] || '',
+      };
     }
 
-    return getDenomInfo(denom, tokenChain, combinedDenoms, compassParams);
+    const denomInfo = await getDenomInfo(denom, tokenChain, combinedDenoms, compassParams);
+    if (!denomInfo) {
+      return undefined;
+    }
+    return {
+      ...denomInfo,
+      coinGeckoId: denomInfo?.coinGeckoId || coingeckoIds[denomInfo?.coinMinimalDenom ?? ''] || '',
+    };
   });
 
   const {
@@ -95,34 +125,50 @@ export function useAssetDetails({ denoms, denom, tokenChain, compassParams, mark
     { enabled: !!denomInfo, retry: 2 },
   );
 
-  const marketDataForToken = useMemo(() => {
+  const priceForToken = useMemo(() => {
     if (!denomInfo) {
       return undefined;
     }
     let key = denomInfo.coinGeckoId ?? denomInfo.coinMinimalDenom;
-    if (marketData?.[key]) {
-      return marketData[key];
+    if (priceStore.data?.[key]) {
+      return priceStore.data[key];
     }
     key = denomInfo.coinMinimalDenom;
-    if (marketData?.[key]) {
-      return marketData[key];
+    if (priceStore.data?.[key]) {
+      return priceStore.data[key];
+    }
+    key = `${chainId}-${denomInfo.coinMinimalDenom}-${priceStore.currencyStore.preferredCurrency}`;
+    return priceStore.data?.[key] ?? priceStore.data?.[key?.toLowerCase()];
+  }, [priceStore.data, denomInfo]);
+
+  const percentageChangeDataForToken = useMemo(() => {
+    if (!denomInfo) {
+      return undefined;
+    }
+    let key = denomInfo.coinGeckoId ?? denomInfo.coinMinimalDenom;
+    if (percentageChangeData?.[key]) {
+      return percentageChangeData[key];
+    }
+    key = denomInfo.coinMinimalDenom;
+    if (percentageChangeData?.[key]) {
+      return percentageChangeData[key];
     }
     key = `${chainId}-${denomInfo.coinMinimalDenom}`;
-    return marketData?.[key] ?? marketData?.[key?.toLowerCase()];
-  }, [marketData, denomInfo]);
+    return percentageChangeData?.[key] ?? percentageChangeData?.[key?.toLowerCase()];
+  }, [percentageChangeData, denomInfo]);
 
   const {
     data: info,
     isLoading: loadingPrice,
     error: errorInfo,
   } = useQuery(
-    ['assetData', denom, chainId, marketDataForToken],
+    ['assetData', denom, chainId, percentageChangeDataForToken],
     async () => {
       if (!denom) {
         return;
       }
 
-      if (marketDataForToken) {
+      if (percentageChangeDataForToken) {
         let details;
         if (denomInfo?.coinGeckoId) {
           const response = await LeapWalletApi.getAssetDescription(
@@ -133,9 +179,8 @@ export function useAssetDetails({ denoms, denom, tokenChain, compassParams, mark
         }
         return {
           details,
-          price: marketDataForToken.current_price,
-          priceChange: marketDataForToken.price_change_percentage_24h,
-          marketCap: marketDataForToken.market_cap,
+          price: priceForToken,
+          priceChange: percentageChangeDataForToken.price_change_percentage_24h,
         };
       }
 
@@ -148,12 +193,12 @@ export function useAssetDetails({ denoms, denom, tokenChain, compassParams, mark
           );
 
           if (response) {
-            const { price, details, priceChange, marketCap } = response;
+            const { price, details, priceChange } = response;
+            percentageChangeDataStore.addPercentChange(denomInfo.coinGeckoId, priceChange);
             return {
               price,
               details,
               priceChange,
-              marketCap,
             };
           }
         } catch (_) {

@@ -4,6 +4,7 @@ type Currency = {
   coinDenom: string;
   coinMinimalDenom: string;
   coinDecimals: number;
+  coinImageUrl?: string;
   coinGeckoId?: string | undefined;
 };
 
@@ -73,6 +74,32 @@ export type CosmosCustomChainType = {
   cosmosSDK?: string;
 };
 
+type BaseChainInfoWithoutEndpoints = {
+  chainId: string;
+  chainName: string;
+  chainSymbolImageUrl?: string;
+  bip44: {
+    coinType: number;
+  };
+  currencies: Currency[];
+  walletUrl?: string;
+};
+
+export type CosmosChainInfoWithoutEndpoints = BaseChainInfoWithoutEndpoints & {
+  bech32Config: Bech32Config;
+  feeCurrencies?: FeeCurrency[];
+  stakeCurrency?: Currency;
+  features?: string[];
+  walletUrlForStaking?: string;
+  chainType: 'cosmos';
+};
+
+export type EVMChainInfoWithoutEndpoints = BaseChainInfoWithoutEndpoints & {
+  chainType: 'evm';
+};
+
+export type ChainInfosWithoutEndpoints = CosmosChainInfoWithoutEndpoints | EVMChainInfoWithoutEndpoints;
+
 function removeTrailingSlash(url: string) {
   if (!url) return '';
   return url.replace(/\/$/, '');
@@ -121,13 +148,14 @@ export function formatNewChainInfo(chainInfo: CustomChainsType) {
     nativeDenoms: {
       [rest.coinMinimalDenom as string]: {
         ...rest,
+        icon: rest?.coinImageUrl || '',
         chain: chainInfo.chainRegistryPath,
       } as NativeDenom,
     },
     feeCurrencies: chainInfo.feeCurrencies?.map((c) => ({
       ...c,
       coinGeckoId: c.coinGeckoId || '',
-      icon: '',
+      icon: c?.coinImageUrl || '',
       chain: chainInfo.chainRegistryPath,
     })),
     theme: chainInfo.theme || {

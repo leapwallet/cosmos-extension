@@ -3,19 +3,15 @@ import PopupLayout from 'components/layout/popup-layout'
 import { ACTIVE_CHAIN, SELECTED_NETWORK } from 'config/storage-keys'
 import { Images } from 'images'
 import React, { useCallback } from 'react'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
 const ErrorBoundaryFallback = () => {
   const reload = useCallback(() => {
     //reset the active chain to cosmos or sei
-    if (isCompassWallet()) {
-      browser.storage.local.set({ [ACTIVE_CHAIN]: 'seiTestnet2', [SELECTED_NETWORK]: 'mainnet' })
-    } else {
-      browser.storage.local.set({ [ACTIVE_CHAIN]: 'cosmos', [SELECTED_NETWORK]: 'mainnet' })
-    }
+
+    browser.storage.local.set({ [ACTIVE_CHAIN]: 'cosmos', [SELECTED_NETWORK]: 'mainnet' })
+
     const url = isSidePanel() ? `/sidepanel.html#/home` : `/index.html#/home`
     window.location.href = browser.runtime.getURL(url)
     window.location.reload()
@@ -23,24 +19,17 @@ const ErrorBoundaryFallback = () => {
 
   return (
     <div className='relative w-full overflow-clip enclosing-panel panel-height'>
-      <PopupLayout
-        header={<Header title={isCompassWallet() ? 'Compass Wallet' : 'Leap Wallet'} />}
-        skipWatchingWalletHeader
-      >
+      <PopupLayout header={<Header title='Leap Wallet' />} skipWatchingWalletHeader>
         <div
           className='flex flex-col items-center justify-center w-full'
           style={{
             height: 'calc(100% - 72px)',
-            background: isCompassWallet()
-              ? Colors.compassGradient
-              : 'linear-gradient(180deg, rgba(209, 80, 98, 0.32) 0%, rgba(209, 80, 98, 0) 100%)',
+            background:
+              'linear-gradient(180deg, rgba(209, 80, 98, 0.32) 0%, rgba(209, 80, 98, 0) 100%)',
           }}
         >
           <div className='flex justify-center space-x-2'>
-            <img
-              src={isCompassWallet() ? Images.Logos.CompassCircle : Images.Logos.LeapLogo}
-              height='150px'
-            />
+            <img src={Images.Logos.LeapLogo} height='150px' />
             <h1 className='text-xxl font-bold' style={{ color: '#E54f47' }}>
               Oops!
             </h1>

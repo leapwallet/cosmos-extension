@@ -24,7 +24,6 @@ import useSWR, { SWRConfiguration, unstable_serialize, useSWRConfig } from 'swr'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { MergedAsset } from './useAssets'
-import { MosaicRouteQueryResponse, useMosaicRoute } from './useMosaicRoute'
 import { useProviderFeatureFlags } from './useProviderFeatureFlags'
 
 function onErrorRetry(err: unknown) {
@@ -517,11 +516,7 @@ type BasicRouteResponse = {
 }
 
 export type AggregatedRouteResponse = BasicRouteResponse & {
-  routeResponse:
-    | undefined
-    | SkipRouteResponse
-    | ReturnType<typeof useLifiRoute>['routeResponse']
-    | MosaicRouteQueryResponse
+  routeResponse: undefined | SkipRouteResponse | ReturnType<typeof useLifiRoute>['routeResponse']
 }
 
 export const useAggregatedRoute = (
@@ -601,33 +596,6 @@ export const useAggregatedRoute = (
     },
     config,
   )
-
-  const {
-    routeResponse: mosaicRouteResponse,
-    routeError: mosaicRouteError,
-    isLoadingRoute: isMosaicLoadingRoute,
-    refresh: refreshMosaicRoute,
-  } = useMosaicRoute({
-    amountIn,
-    sourceAsset,
-    sourceAssetChain,
-    destinationAsset,
-    destinationAssetChain,
-    smartRelay,
-    slippage,
-    leapFeeBps,
-    affiliateFeesByChainId:
-      sourceAsset && leapFeeAddresses
-        ? {
-            [sourceAsset.chainId]: {
-              affiliates: [
-                { basis_points_fee: leapFeeBps, address: leapFeeAddresses[sourceAsset.chainId] },
-              ],
-              totalBasisPoints: Number(leapFeeBps),
-            },
-          }
-        : undefined,
-  })
 
   const { activeWallet } = useActiveWallet()
   const sei0xAddress =
@@ -718,18 +686,7 @@ export const useAggregatedRoute = (
       refresh: skipRefresh,
     }
 
-    if (isAptos && mosaicRouteResponse) {
-      return {
-        routeError: mosaicRouteError,
-        amountOut: mosaicRouteResponse.amountOut,
-        isLoadingRoute: isMosaicLoadingRoute,
-        refresh: refreshMosaicRoute,
-        appliedLeapFeeBps: leapFeeBps,
-        routeResponse: mosaicRouteResponse,
-      }
-    }
-
-    if (isCompassWallet() && !!lifiRouteResponse) {
+    if (lifiRouteResponse) {
       // lifi route is available and either skip route is not available or has lower amountOut
       return {
         routeResponse: lifiRouteResponse,
@@ -764,12 +721,7 @@ export const useAggregatedRoute = (
     skipAmountOut,
     skipIsLoadingRoute,
     skipRefresh,
-    isAptos,
-    mosaicRouteResponse,
     lifiRouteResponse,
-    mosaicRouteError,
-    isMosaicLoadingRoute,
-    refreshMosaicRoute,
     leapFeeBps,
     lifiRouteError,
     lifiAmountOut,
