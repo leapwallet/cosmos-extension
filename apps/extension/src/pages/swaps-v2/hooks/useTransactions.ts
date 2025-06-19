@@ -2,7 +2,6 @@ import {
   RouteAggregator,
   SkipMsg,
   SkipMsgV2,
-  useLifiTransactions,
   useMosaicTransactions,
   useTransactions as useSkipTransactions,
 } from '@leapwallet/elements-hooks'
@@ -20,24 +19,11 @@ export function useTransactions(routingInfo: RoutingInfo) {
         : null,
     )
 
-  const { groupedTransactions: lifiGroupedTransactions, actions: lifiActions } =
-    useLifiTransactions(
-      //@ts-expect-error relay is not supported?
-      routingInfo?.route?.aggregator === RouteAggregator.LIFI ? routingInfo.route : null,
-    )
-
   const { groupedTransactions: mosaicGroupedTransactions, actions: mosaicActions } =
     useMosaicTransactions(
       //@ts-expect-error relay is not supported?
       routingInfo?.route?.aggregator === RouteAggregator.MOSAIC ? routingInfo.route : null,
     )
-
-  if (routingInfo?.route?.aggregator === RouteAggregator.LIFI) {
-    return {
-      groupedTransactions: lifiGroupedTransactions,
-      actions: lifiActions,
-    }
-  }
 
   if (routingInfo?.route?.aggregator === RouteAggregator.MOSAIC) {
     return {

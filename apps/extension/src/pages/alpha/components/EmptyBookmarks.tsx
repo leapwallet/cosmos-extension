@@ -1,7 +1,7 @@
-import classNames from 'classnames'
-import Text from 'components/text'
-import { Images } from 'images'
+import { motion } from 'framer-motion'
+import { HappyFrog } from 'icons/frog'
 import React from 'react'
+import { cn } from 'utils/cn'
 
 interface EmptyBookmarksProps {
   title: string
@@ -10,25 +10,34 @@ interface EmptyBookmarksProps {
   showRetryButton?: boolean
 }
 
-export default function EmptyBookmarks({ title, subTitle, className = '' }: EmptyBookmarksProps) {
+const variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+}
+
+const transition = {
+  duration: 0.3,
+  ease: 'easeOut',
+}
+
+export default function EmptyBookmarks({ title, subTitle, className }: EmptyBookmarksProps) {
   return (
-    <div
-      className={classNames(
-        'bg-white-100 dark:bg-gray-950 rounded-xl pt-8 p-4 flex flex-col items-center',
+    <motion.div
+      initial='hidden'
+      animate='visible'
+      variants={variants}
+      transition={transition}
+      className={cn(
+        'bg-secondary-100 flex flex-col gap-2 items-center justify-center pt-[3.375rem] pb-[3.75rem] px-5 text-center rounded-2xl',
         className,
       )}
     >
-      <img src={Images.Misc.FrogSad} alt='FrogSad' className='mb-6' />
-      <Text size='sm' className='font-bold mb-1'>
-        {title}
-      </Text>
-      <Text
-        size='xs'
-        color='text-gray-800 dark:text-gray-200'
-        className='font-medium text-center !leading-5'
-      >
+      <HappyFrog className='size-20 ' />
+
+      <span className='font-bold text-mdl mb-1'>{title}</span>
+      <span className='text-sm font-medium text-center text-muted-foreground !leading-5 px-11'>
         {subTitle}
-      </Text>
-    </div>
+      </span>
+    </motion.div>
   )
 }

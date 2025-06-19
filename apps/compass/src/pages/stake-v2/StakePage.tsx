@@ -22,7 +22,7 @@ import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
 import SelectWallet from 'pages/home/SelectWallet'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import {
@@ -206,7 +206,11 @@ const StakePage = observer(() => {
   if (!activeWallet) {
     return (
       <div className='relative w-full overflow-clip panel-height flex items-center justify-center'>
-        <EmptyCard src={Images.Logos.LeapCosmos} heading='No wallet found' />
+        <EmptyCard
+          src={Images.Logos.CompassCircle}
+          heading='No wallet found'
+          logoClassName='size-14'
+        />
       </div>
     )
   }

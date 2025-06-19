@@ -2,12 +2,14 @@ import {
   axiosWrapper,
   DenomsRecord,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   NativeDenom,
   NetworkType,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
-import { makeObservable, runInAction } from 'mobx';
+import { makeObservable, reaction, runInAction } from 'mobx';
 
 import { ChainInfosStore, fetchIbcTraceData, getIbcTrace, RootDenomsStore } from '../assets';
 import { Token } from '../bank/balance-types';
@@ -20,6 +22,8 @@ import { DappDefaultFeeStore } from './dapp-default-fee-store';
 import { EvmGasPricesStore } from './evm-gas-prices-store';
 import { FeeDenomsStore } from './fee-denoms-store';
 import { GasPriceStepForChainStore } from './get-price-step-for-chain-store';
+import { SolanaGasPricesStore } from './solana-gas-price-store';
+import { SuiGasPricesStore } from './sui-gas-price-store';
 import { FeeTokenData, GasPriceStep, IbcDenomData, RemoteFeeTokenData } from './types';
 
 export type FeeTokensStoreData = FeeTokenData[];
@@ -40,6 +44,8 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
   private chainInfosStore: ChainInfosStore;
   private evmGasPricesStore: EvmGasPricesStore;
   private aptosGasPricesStore: AptosGasPricesStore;
+  private solanaGasPricesStore?: SolanaGasPricesStore;
+  private suiGasPricesStore?: SuiGasPricesStore;
   private gasPriceStepForChainStore: GasPriceStepForChainStore;
   private feeDenomsStore: FeeDenomsStore;
   private rootDenomsStore: RootDenomsStore;
@@ -56,6 +62,8 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
     chainInfosStore: ChainInfosStore;
     evmGasPricesStore: EvmGasPricesStore;
     aptosGasPricesStore: AptosGasPricesStore;
+    solanaGasPricesStore?: SolanaGasPricesStore;
+    suiGasPricesStore?: SuiGasPricesStore;
     gasPriceStepForChainStore: GasPriceStepForChainStore;
     feeDenomsStore: FeeDenomsStore;
     rootDenomsStore: RootDenomsStore;
@@ -73,6 +81,8 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
     this.chainInfosStore = params.chainInfosStore;
     this.evmGasPricesStore = params.evmGasPricesStore;
     this.aptosGasPricesStore = params.aptosGasPricesStore;
+    this.solanaGasPricesStore = params.solanaGasPricesStore ?? undefined;
+    this.suiGasPricesStore = params.suiGasPricesStore ?? undefined;
     this.gasPriceStepForChainStore = params.gasPriceStepForChainStore;
     this.feeDenomsStore = params.feeDenomsStore;
     this.rootDenomsStore = params.rootDenomsStore;
@@ -81,6 +91,18 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
     this.feeTokenChains = params.feeTokenChains;
 
     makeObservable(this);
+
+    reaction(
+      () => this.dappDefaultFeeStore.defaultFee,
+      async () => {
+        try {
+          const newData = await this.fetchData();
+          this.setData(newData);
+        } catch (error) {
+          console.error('Failed to fetch fee tokens data:', error);
+        }
+      },
+    );
   }
 
   async getDappSuggestedTokens(denoms: DenomsRecord): Promise<{ denom: NativeDenom; ibcDenom?: string } | undefined> {
@@ -126,7 +148,7 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
       }
 
       const baseDenom = trace.baseDenom;
-      const _baseDenom = getKeyToUseForDenoms(baseDenom, trace.originChainId);
+      const _baseDenom = getKeyToUseForDenoms(baseDenom, String(trace.sourceChainId || trace.originChainId || ''));
       const denomInfo = denoms[_baseDenom];
       Object.keys(ibcTraceDataToAdd).length && this.addIbcTraceData(ibcTraceDataToAdd);
 
@@ -162,6 +184,16 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
 
     if (isAptosChain(chain)) {
       const data = await this.aptosGasPricesStore.getStore(chain, network)?.getData();
+      return data?.gasPrice;
+    }
+
+    if (isSolanaChain(chain) && this.solanaGasPricesStore) {
+      const data = await this.solanaGasPricesStore.getStore(chain, network)?.getData();
+      return data?.gasPrice;
+    }
+
+    if (isSuiChain(chain) && this.suiGasPricesStore) {
+      const data = await this.suiGasPricesStore.getStore(chain, network)?.getData();
       return data?.gasPrice;
     }
 
@@ -354,6 +386,8 @@ export class FeeTokensStore {
   private chainInfosStore: ChainInfosStore;
   private evmGasPricesStore: EvmGasPricesStore;
   private aptosGasPricesStore: AptosGasPricesStore;
+  private solanaGasPricesStore?: SolanaGasPricesStore;
+  private suiGasPricesStore?: SuiGasPricesStore;
   private gasPriceStepForChainStore: GasPriceStepForChainStore;
   private feeDenomsStore: FeeDenomsStore;
   private rootDenomsStore: RootDenomsStore;
@@ -368,6 +402,8 @@ export class FeeTokensStore {
     chainInfosStore: ChainInfosStore;
     evmGasPricesStore: EvmGasPricesStore;
     aptosGasPricesStore: AptosGasPricesStore;
+    solanaGasPricesStore?: SolanaGasPricesStore;
+    suiGasPricesStore?: SuiGasPricesStore;
     gasPriceStepForChainStore: GasPriceStepForChainStore;
     feeDenomsStore: FeeDenomsStore;
     rootDenomsStore: RootDenomsStore;
@@ -379,6 +415,8 @@ export class FeeTokensStore {
     this.chainInfosStore = params.chainInfosStore;
     this.evmGasPricesStore = params.evmGasPricesStore;
     this.aptosGasPricesStore = params.aptosGasPricesStore;
+    this.solanaGasPricesStore = params.solanaGasPricesStore ?? undefined;
+    this.suiGasPricesStore = params.suiGasPricesStore ?? undefined;
     this.gasPriceStepForChainStore = params.gasPriceStepForChainStore;
     this.feeDenomsStore = params.feeDenomsStore;
     this.rootDenomsStore = params.rootDenomsStore;
@@ -421,6 +459,8 @@ export class FeeTokensStore {
         chainInfosStore: this.chainInfosStore,
         evmGasPricesStore: this.evmGasPricesStore,
         aptosGasPricesStore: this.aptosGasPricesStore,
+        solanaGasPricesStore: this.solanaGasPricesStore ?? undefined,
+        suiGasPricesStore: this.suiGasPricesStore ?? undefined,
         gasPriceStepForChainStore: this.gasPriceStepForChainStore,
         feeDenomsStore: this.feeDenomsStore,
         rootDenomsStore: this.rootDenomsStore,

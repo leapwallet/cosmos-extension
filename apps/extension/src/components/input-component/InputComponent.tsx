@@ -1,5 +1,5 @@
 import classNames from 'classnames'
-import Text from 'components/text'
+import { Input } from 'components/ui/input'
 import React, { ChangeEvent, forwardRef } from 'react'
 
 type InputProps = {
@@ -19,41 +19,34 @@ const InputComponent = forwardRef<HTMLInputElement, InputProps>(
   ({ placeholder, value, onChange, name, error, warning, onBlur }, ref) => {
     return (
       <>
-        <div
+        <Input
           className={classNames({
             '!border-red-300': error,
             '!border-yellow-600': warning,
-            'w-full border border-gray-500 rounded-xl flex h-12 bg-white-100 dark:bg-gray-900 py-2 pl-5 pr-[10px] mb-4':
+            'w-full border border-secondary-200 rounded-xl flex h-12 bg-transparent py-2 pl-5 pr-[10px] mb-4 focus-within:border-foreground focus-within:hover:border-foreground focus-within:ring-0 hover:ring-0 focus-within:bg-secondary-100':
               true,
+            'bg-secondary-100': value !== '',
           })}
-        >
-          <input
-            placeholder={placeholder}
-            className={classNames({
-              'flex flex-grow text-base dark:text-white-100 text-gray-400 outline-none bg-white-0 placeholder-gray-400::placeholder':
-                true,
-              'border-red-300': error,
-              'border-yellow-600': warning,
-            })}
-            value={value}
-            name={name}
-            onChange={onChange}
-            autoComplete='off'
-            onBlur={onBlur}
-            ref={ref}
-          />
-        </div>
+          key={`${name}-input`}
+          placeholder={placeholder}
+          value={value}
+          name={name}
+          onChange={onChange}
+          autoComplete='off'
+          onBlur={onBlur}
+          ref={ref}
+        />
 
         {error && (
-          <Text size='sm' color='text-red-300 mb-4'>
+          <div className='text-red-300 mb-4' key={`${name}-error`}>
             {error}
-          </Text>
+          </div>
         )}
 
         {warning && (
-          <Text size='sm' color='text-yellow-600 mb-4'>
+          <div className='text-yellow-600 mb-4' key={`${name}-warning`}>
             {warning}
-          </Text>
+          </div>
         )}
       </>
     )

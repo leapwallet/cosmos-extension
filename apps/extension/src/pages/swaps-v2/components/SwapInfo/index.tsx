@@ -13,6 +13,7 @@ import Skeleton from 'react-loading-skeleton'
 import { imgOnError } from 'utils/imgOnError'
 
 import { ConversionRateDisplay } from './ConversionRateDisplay'
+import { MOSAIC_DEXES } from './mosaicDexes'
 
 type SwapInfoProps = {
   setShowMoreDetailsSheet: Dispatch<SetStateAction<boolean>>
@@ -81,9 +82,24 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
     if (
       debouncedInAmount === '' ||
       Number(debouncedInAmount) === 0 ||
-      routingInfo.aggregator !== RouteAggregator.SKIP
+      ![RouteAggregator.SKIP, RouteAggregator.MOSAIC].includes(routingInfo.aggregator)
     ) {
       return null
+    }
+
+    if (routingInfo.aggregator === RouteAggregator.MOSAIC) {
+      const dexes = routingInfo.route?.paths?.[0]?.map(
+        (path) => MOSAIC_DEXES[path?.source as string],
+      )
+      const dex = dexes?.find((dex) => dex !== undefined)
+      if (!dex) {
+        return null
+      }
+
+      return {
+        name: dex?.name,
+        icon: dex?.logoUrl,
+      }
     }
 
     if (routingInfo.route?.response.swap_venue?.name) {
@@ -115,7 +131,7 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
     }
 
     return null
-  }, [debouncedInAmount, routingInfo?.aggregator, routingInfo?.route?.response])
+  }, [debouncedInAmount, routingInfo?.aggregator, routingInfo?.route?.response, routingInfo?.route])
 
   useEffect(() => {
     setGasPriceOption({
@@ -140,26 +156,30 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
     setShowProviderInfo(false)
   }, [])
 
+  if (debouncedInAmount === '' || Number(debouncedInAmount) === 0) {
+    return null
+  }
+
   return (
     <div className='flex flex-col gap-y-1'>
       <div className='w-full flex justify-between items-start gap-2 px-2 py-1'>
         <ConversionRateDisplay />
         {debouncedInAmount !== '' && Number(debouncedInAmount) !== 0 && (
-          <button onClick={handleGasClick} className='flex items-center justify-end gap-1'>
-            <GasPump size={16} className='dark:text-white-100' />
+          <button onClick={handleGasClick} className='flex items-center justify-end'>
+            <GasPump size={16} className='text-monochrome' />
             {loadingRoutes || loadingMessages || isSkipGasFeeLoading ? (
               <Skeleton
-                containerClassName='block !leading-none rounded-xl'
+                containerClassName='block !leading-none rounded-xl ml-1'
                 width={35}
                 height={16}
               />
             ) : (
-              <span className='dark:text-white-100 text-xs font-medium'>
+              <span className='text-secondary-800 text-xs font-medium ml-1'>
                 {displayFee?.fiatValue}
                 {totalBridgeFee && ` + $${totalBridgeFee}`}
               </span>
             )}
-            <CaretDown size={16} className='dark:text-white-100' />
+            <CaretDown size={20} className='text-secondary-800 p-1' />
           </button>
         )}
       </div>
@@ -167,13 +187,13 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
         <div className='relative'>
           <div className='w-full flex justify-between gap-2 pl-2 pr-3 py-1'>
             <div className='flex items-center gap-x-1'>
-              <Text size='xs' color='text-black-100 dark:text-white-100' className='font-medium'>
+              <Text size='xs' color='text-secondary-800' className='font-medium'>
                 Provider
               </Text>
               <Info
                 onMouseEnter={handleTooltipMouseEnter}
                 onMouseLeave={handleTooltipMouseLeave}
-                className='text-gray-600 dark:text-gray-400 cursor-pointer pr-1.5 !w-[18px] !h-12px'
+                className='text-secondary-600 cursor-pointer pr-1.5 !w-[18px] !h-12px'
               />
             </div>
             <div className='flex gap-x-1 items-center'>
@@ -182,7 +202,7 @@ export const SwapInfo = observer(({ setShowMoreDetailsSheet, rootDenomsStore }: 
                 onError={imgOnError(defaultTokenLogo)}
                 className='w-[14px] h-[14px]'
               />
-              <Text size='xs' color='text-black-100 dark:text-white-100' className='font-medium'>
+              <Text size='xs' color='text-secondary-800' className='font-medium'>
                 {providerInfo.name}
               </Text>
             </div>

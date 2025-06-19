@@ -3,7 +3,7 @@ import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/types/staking'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/types/validators'
 import { Card, CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import React, { useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import BottomNav, { BottomNavLabel } from '~/components/bottom-nav'
 import BottomSheet from '~/components/bottom-sheet'

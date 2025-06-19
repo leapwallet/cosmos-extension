@@ -27,12 +27,11 @@ import { Images } from 'images'
 import { Cross } from 'images/misc'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { TxResponse } from 'secretjs'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 const PENDING_TX_MOBILE_QR_CODE_BANNER = 'pending-tx-mobile-qr-code-banner'
 
@@ -341,7 +340,7 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
             <Buttons.CopyWalletAddress
               copyIcon={Images.Activity.Copy}
               ref={copyTxHashRef}
-              color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+              color={Colors.green600}
               className={!isCopiedClick ? 'hidden' : ''}
             />
 
@@ -373,7 +372,7 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
           </div>
         )}
 
-        {!isCompassWallet() && showMobileQrCode && status === 'success' && data && data.visible ? (
+        {showMobileQrCode && status === 'success' && data && data.visible ? (
           <MobileQrCode setShowMobileQrCode={setShowMobileQrCode} data={data} />
         ) : null}
 

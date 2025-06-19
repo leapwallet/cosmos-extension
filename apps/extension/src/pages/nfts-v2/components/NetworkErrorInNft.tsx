@@ -5,7 +5,6 @@ import classNames from 'classnames'
 import Text from 'components/text'
 import { Images } from 'images'
 import React from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { CantSeeNfts } from './index'
 
@@ -38,15 +37,8 @@ export default function NetworkErrorInNft({
           className,
         )}
       >
-        {isCompassWallet() ? (
-          <img
-            src={Images.Logos.CompassCircle}
-            alt='CompassLogo'
-            className='mb-6 w-[80px] h-[80px]'
-          />
-        ) : (
-          <img src={Images.Misc.FrogSad} alt='FrogSad' className='mb-6' />
-        )}
+        <img src={Images.Misc.FrogSad} alt='FrogSad' className='mb-6' />
+
         <Text size='sm' className='font-bold mb-1'>
           {title}
         </Text>

@@ -1,7 +1,10 @@
+import { AccountAddress } from '@aptos-labs/ts-sdk';
 import { BtcAddress, NETWORK, TEST_NETWORK } from '@leapwallet/leap-keychain';
 import { bech32 } from 'bech32';
 import { isValidAddress as isValidEthAddress } from 'ethereumjs-util';
+import * as sol from 'micro-sol-signer';
 import { NetworkType } from 'tx';
+
 export function getBlockChainFromAddress(address: string): string | undefined {
   if (address.startsWith('tb1q')) {
     return 'tb1q';
@@ -64,4 +67,17 @@ export function isEthAddress(address: string): boolean {
 
 export function isValidWalletAddress(address: string): boolean {
   return isValidAddress(address) || isValidEthAddress(address);
+}
+
+export function isAptosAddress(address: string): boolean {
+  return AccountAddress.isValid({ input: address, strict: true }).valid;
+}
+
+export function isSolanaAddress(address: string): boolean {
+  try {
+    sol.validateAddress(address);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }

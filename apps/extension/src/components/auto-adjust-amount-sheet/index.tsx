@@ -16,7 +16,6 @@ import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type AutoAdjustAmountSheetProps = {
   onCancel: () => void
@@ -85,6 +84,8 @@ const OptionalAutoAdjustAmountSheet: React.FC<
     return null
   }, [decimalsToUse, nativeDenom?.coinDenom, updatedAmount])
 
+  return null
+
   return (
     <BottomModal
       isOpen={isOpen}
@@ -126,7 +127,7 @@ const OptionalAutoAdjustAmountSheet: React.FC<
         </Buttons.Generic>
 
         <Buttons.Generic
-          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+          color={Colors.green600}
           size='normal'
           className='w-full'
           title='Proceed'
@@ -195,6 +196,8 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
     return null
   }, [decimalsToUse, nativeDenom?.coinDenom, updatedAmount])
 
+  return null
+
   return (
     <BottomModal
       isOpen={isOpen}
@@ -235,7 +238,7 @@ const CompulsoryAutoAdjustAmountSheet: React.FC<
         </Buttons.Generic>
 
         <Buttons.Generic
-          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+          color={Colors.green600}
           size='normal'
           className='w-full'
           title='Proceed'
@@ -262,7 +265,6 @@ type ObserverAutoAdjustAmountSheetProps = {
   rootDenomsStore: RootDenomsStore
   forceChain?: SupportedChain
   forceNetwork?: 'mainnet' | 'testnet'
-  isSeiEvmTransaction?: boolean
 }
 
 export const AutoAdjustAmountSheet = observer(
@@ -276,7 +278,6 @@ export const AutoAdjustAmountSheet = observer(
     rootDenomsStore,
     forceChain,
     forceNetwork,
-    isSeiEvmTransaction,
   }: ObserverAutoAdjustAmountSheetProps) => {
     const chainInfo = useChainInfo(forceChain)
     const denoms = rootDenomsStore.allDenoms
@@ -309,12 +310,8 @@ export const AutoAdjustAmountSheet = observer(
     }, [closeAdjustmentSheet, navigate])
 
     const decimalsToUse = useMemo(() => {
-      if (isSeiEvmTransaction) {
-        return 18
-      }
-
       return nativeDenom?.coinDecimals ?? 6
-    }, [isSeiEvmTransaction, nativeDenom?.coinDecimals])
+    }, [nativeDenom?.coinDecimals])
 
     const tokenBalance = useMemo(
       () => toSmall(selectedToken?.amount ?? '0', decimalsToUse),
@@ -341,10 +338,36 @@ export const AutoAdjustAmountSheet = observer(
     ])
 
     useEffect(() => {
-      if (adjustmentType === AdjustmentType.NONE) {
-        allowReview()
+      let updatedAmount
+      if (adjustmentType === AdjustmentType.OPTIONAL) {
+        updatedAmount = getAutoAdjustAmount({
+          tokenAmount,
+          feeAmount: fee.amount,
+          nativeDenom,
+          decimalsToUse,
+        })
+      } else if (adjustmentType === AdjustmentType.COMPULSORY) {
+        updatedAmount = getAutoAdjustAmount({
+          tokenAmount: tokenBalance,
+          feeAmount: fee.amount,
+          nativeDenom,
+          decimalsToUse,
+        })
       }
-    }, [adjustmentType, allowReview])
+      if (updatedAmount) {
+        setAmount(updatedAmount)
+      }
+      allowReview()
+    }, [
+      adjustmentType,
+      allowReview,
+      decimalsToUse,
+      fee.amount,
+      nativeDenom,
+      setAmount,
+      tokenAmount,
+      tokenBalance,
+    ])
 
     return (
       <>

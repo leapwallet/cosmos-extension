@@ -3,7 +3,7 @@ import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import SelectWallet from 'pages/home/SelectWallet'
+import SelectWallet from 'pages/home/SelectWallet/v2'
 import React, { useState } from 'react'
 import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { Colors } from 'theme/colors'
@@ -17,7 +17,7 @@ const ImportWatchWalletSeedPopup = observer(() => {
       <SelectWallet
         isVisible={showImportWalletSheet}
         onClose={() => setShowImportWalletSheet(false)}
-        title='Wallets'
+        title='Your Wallets'
       />
     )
   }

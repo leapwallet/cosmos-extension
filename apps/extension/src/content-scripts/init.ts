@@ -1,11 +1,12 @@
 import { Leap } from '@leapwallet/cosmos-wallet-provider/dist/provider/core'
 import { LeapAptos } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-aptos'
 import { LeapBitcoin } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-bitcoin'
+import { LeapSolana } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-solana'
+import { LeapSui } from '@leapwallet/cosmos-wallet-provider/dist/provider/core-sui'
 import { Ethereum } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import { registerWallet } from '@wallet-standard/core'
 import { v4 as uuidv4 } from 'uuid'
 
-import { isCompassWallet } from '../utils/isCompassWallet'
 import { LeapFaviconDataURI } from './leap-favicon-data-uri'
 
 export interface CustomWindow extends Window {
@@ -41,28 +42,36 @@ export function init(
   leapEvm?: Ethereum,
   leapAptos?: LeapAptos,
   leapBitcoin?: LeapBitcoin,
+  leapSolana?: LeapSolana,
+  leapSui?: LeapSui,
 ) {
   if (leapEvm) {
     // eslint-disable-next-line no-use-before-define
-    initEvm(leapEvm, isCompassWallet())
+    initEvm(leapEvm, false)
   }
 
-  if (isCompassWallet()) {
-    setUnwritableProperty<Window, Leap>(window, 'compass', leap)
-  } else {
-    setUnwritableProperty<Window, Leap>(window, 'leap', leap)
-    if (!window.keplr) {
-      window.keplr = window.leap
-    }
+  setUnwritableProperty<Window, Leap>(window, 'leap', leap)
+  if (!window.keplr) {
+    window.keplr = window.leap
+  }
 
-    if (leapAptos) {
-      // eslint-disable-next-line no-use-before-define
-      initAptos(leapAptos)
-    }
+  if (leapAptos) {
+    // eslint-disable-next-line no-use-before-define
+    initAptos(leapAptos)
+  }
 
-    if (leapBitcoin) {
-      setUnwritableProperty<Window, LeapBitcoin>(window, 'leapBitcoin', leapBitcoin)
-    }
+  if (leapBitcoin) {
+    setUnwritableProperty<Window, LeapBitcoin>(window, 'leapBitcoin', leapBitcoin)
+  }
+
+  if (leapSolana) {
+    // eslint-disable-next-line no-use-before-define
+    initSolana(leapSolana)
+  }
+
+  if (leapSui) {
+    // eslint-disable-next-line no-use-before-define
+    initSui(leapSui)
   }
 }
 
@@ -102,4 +111,12 @@ function initEvm(leapEvm: Ethereum, isCompass: boolean) {
 
 function initAptos(leapAptos: LeapAptos) {
   registerWallet(leapAptos)
+}
+
+function initSolana(leapSolana: LeapSolana) {
+  registerWallet(leapSolana)
+}
+
+function initSui(leapSui: LeapSui) {
+  registerWallet(leapSui)
 }

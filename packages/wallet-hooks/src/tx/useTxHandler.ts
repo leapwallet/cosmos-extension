@@ -8,7 +8,9 @@ import {
   GovGenTx,
   InitiaTx,
   InjectiveTx,
+  isBabylon,
   LavaTx,
+  NobleTx,
   // SeiTxHandler,
   StrideTx,
   SupportedChain,
@@ -19,7 +21,7 @@ import { useCallback, useMemo } from 'react';
 import { Wallet } from 'secretjs';
 
 import { useActiveChain, useChainApis, useGetChains, useSelectedNetwork } from '../store';
-import { useChainId, useChainInfo } from '../utils-hooks';
+import { useChainId, useChainInfo, useIsMinitia } from '../utils-hooks';
 
 export function useTxHandler({
   forceChain,
@@ -34,6 +36,8 @@ export function useTxHandler({
   const chainInfo = useChainInfo(chain);
   const chainInfos = useGetChains();
 
+  const isMinitiaEvmChain = useIsMinitia(chain, network);
+
   return useCallback(
     async (wallet: OfflineSigner) => {
       if (chain === 'injective') {
@@ -44,7 +48,7 @@ export function useTxHandler({
           wallet,
           network === 'testnet' ? chainInfos.injective.apis.restTest : chainInfos.injective.apis.rest,
         );
-      } else if (chainInfo.bip44.coinType === '60') {
+      } else if (chainInfo.bip44.coinType === '60' && !isMinitiaEvmChain) {
         const chainId = selectedNetwork === 'mainnet' ? chainInfo.chainId : chainInfo.testnetChainId;
         let evmChainId = selectedNetwork === 'mainnet' ? chainInfo.evmChainId : chainInfo.evmChainIdTestnet;
         if (!evmChainId) {
@@ -52,11 +56,18 @@ export function useTxHandler({
           const matches = chainId?.match(regex);
           evmChainId = matches?.[1];
         }
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        return new EthermintTxHandler(lcdUrl, wallet, chainId, evmChainId);
-      } else if (chain === 'initia') {
-        const _tx = new InitiaTx(`${rpcUrl}/`, wallet);
+        return new EthermintTxHandler(
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          lcdUrl,
+          wallet,
+          chainId,
+          evmChainId,
+          isMinitiaEvmChain,
+        );
+      } else if (activeChain === 'initia' || isMinitiaEvmChain) {
+        const chainInfo = chainInfos[activeChain];
+        const _tx = new InitiaTx(`${rpcUrl}/`, wallet, chainInfo.chainId);
         await _tx.initClient();
         _tx.setLcdEndPoint(lcdUrl ?? '');
         await _tx.addInitiaRegistry();
@@ -83,6 +94,12 @@ export function useTxHandler({
         _tx.setLcdEndPoint(lcdUrl ?? '');
         _tx.addLavaRegistry();
         return _tx;
+      } else if (chain === 'noble') {
+        const _tx = new NobleTx(`${rpcUrl}/`, wallet);
+        await _tx.initClient();
+        _tx.setLcdEndPoint(lcdUrl ?? '');
+        _tx.addNobleRegistry();
+        return _tx;
       } else if (chainInfo.chainId === 'govgen-1') {
         const _tx = new GovGenTx(`${rpcUrl}/`, wallet);
         await _tx.initClient();
@@ -95,7 +112,7 @@ export function useTxHandler({
         _tx.setLcdEndPoint(lcdUrl ?? '');
         _tx.addAtomOneRegistry();
         return _tx;
-      } else if (chain === 'babylon') {
+      } else if (isBabylon(chain)) {
         const _tx = new BabylonTx(`${rpcUrl}/`, wallet);
         await _tx.initClient();
         _tx.setLcdEndPoint(lcdUrl ?? '');

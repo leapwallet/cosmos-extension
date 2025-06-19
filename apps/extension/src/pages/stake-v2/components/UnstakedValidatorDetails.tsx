@@ -2,6 +2,7 @@ import {
   daysLeft,
   SelectedNetwork,
   sliceWord,
+  STAKE_MODE,
   useActiveChain,
   useActiveStakingDenom,
   useSelectedNetwork,
@@ -22,11 +23,10 @@ import {
   UndelegationsStore,
   ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
-import Text from 'components/text'
-import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import currency from 'currency.js'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { Images } from 'images'
@@ -34,11 +34,11 @@ import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
 import { stakeEpochStore } from 'stores/epoch-store'
 import { hideAssetsStore } from 'stores/hide-assets-store'
-import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import { timeLeft } from 'utils/timeLeft'
 
+import { StakeTxnSheet } from '../StakeTxnSheet'
 import ReviewCancelUnstakeTx from './ReviewCancelUnstakeTx'
 
 interface UnstakedValidatorDetailsProps {
@@ -55,6 +55,7 @@ interface UnstakedValidatorDetailsProps {
   claimRewardsStore: ClaimRewardsStore
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
+  setClaimTxMode: (mode: STAKE_MODE | 'CLAIM_AND_DELEGATE' | null) => void
 }
 
 const UnstakedValidatorDetails = observer(
@@ -72,6 +73,7 @@ const UnstakedValidatorDetails = observer(
     rootBalanceStore,
     forceChain,
     forceNetwork,
+    setClaimTxMode,
   }: UnstakedValidatorDetailsProps) => {
     const _activeChain = useActiveChain()
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
@@ -102,7 +104,8 @@ const UnstakedValidatorDetails = observer(
       activeNetwork,
     )
     const aprs = network?.validatorAprs
-    const { data: imageUrl } = useValidatorImage(validator)
+    const { data: validatorImage } = useValidatorImage(validator?.image ? undefined : validator)
+    const imageUrl = validator?.image || validatorImage || Images.Misc.Validator
 
     const amountTitleText = useMemo(() => {
       if (new BigNumber(unbondingDelegationEntry?.currencyBalance ?? '').gt(0)) {
@@ -137,138 +140,106 @@ const UnstakedValidatorDetails = observer(
         <BottomModal
           isOpen={isOpen}
           onClose={onClose}
+          fullScreen
           title='Validator Details'
-          closeOnBackdropClick={true}
-          className='p-6'
+          className='!p-0 relative h-full'
+          headerClassName='border-secondary-200 border-b'
         >
-          <div className='flex flex-col w-full gap-y-4'>
-            <div className='flex w-full gap-x-2 items-center'>
+          <div className='p-6 pt-8 px-6 flex flex-col gap-4 h-[calc(100%-84px)] overflow-y-scroll'>
+            <div className='flex w-full gap-4 items-center'>
               <img
-                width={24}
-                height={24}
+                width={40}
+                height={40}
                 className='rounded-full'
-                src={imageUrl ?? validator?.image ?? Images.Misc.Validator}
+                src={imageUrl}
                 onError={imgOnError(Images.Misc.Validator)}
               />
 
-              <Text size='lg' color='text-black-100 dark:text-white-100' className='font-bold'>
+              <span className='font-bold text-lg'>
                 {sliceWord(
-                  validator.moniker,
+                  validator?.moniker ?? '',
                   isSidePanel()
-                    ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                    ? 18 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
                     : 10,
                   3,
                 )}
-              </Text>
+              </span>
             </div>
 
-            <div className='flex w-full rounded-lg p-3 bg-white-100 dark:bg-gray-950 border  border-gray-100 dark:border-gray-850'>
-              <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  Total Staked
-                </Text>
+            <div className='flex flex-col gap-4 p-6 bg-secondary-100 rounded-xl'>
+              <div className='flex items-center justify-between'>
+                <span className='text-sm text-muted-foreground'>Total Staked</span>
 
-                <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
+                <span className='font-bold text-sm'>
                   {currency(
-                    validator?.delegations?.total_tokens_display ?? validator.tokens ?? '',
+                    validator?.delegations?.total_tokens_display ?? validator?.tokens ?? '',
                     {
                       symbol: '',
                       precision: 0,
                     },
                   ).format()}
-                </Text>
+                </span>
               </div>
 
-              <div className='w-px h-10 bg-gray-200 dark:bg-gray-850' />
-              <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  Commission
-                </Text>
+              <div className='flex items-center justify-between'>
+                <span className='text-sm text-muted-foreground'>Commission</span>
 
-                <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
-                  {validator.commission?.commission_rates.rate
-                    ? `${new BigNumber(validator.commission.commission_rates.rate)
+                <span className='font-bold text-sm'>
+                  {validator?.commission?.commission_rates?.rate
+                    ? `${new BigNumber(validator?.commission?.commission_rates?.rate ?? '')
                         .multipliedBy(100)
                         .toFixed(0)}%`
                     : 'N/A'}
-                </Text>
+                </span>
               </div>
 
-              <div className='w-px h-10 bg-gray-200 dark:bg-gray-850' />
-              <div className='flex flex-col items-center gap-y-0.5 w-1/3'>
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  APR
-                </Text>
+              <div className='flex items-center justify-between'>
+                <span className='text-sm text-muted-foreground'>APR</span>
 
-                <Text color='text-black-100 dark:text-white-100' size='sm' className='font-bold'>
+                <span className='font-bold text-sm text-accent-success'>
                   {aprs &&
-                    (aprs[validator?.address]
-                      ? `${currency(aprs[validator?.address] * 100, {
+                    (aprs[validator?.address ?? '']
+                      ? `${currency(aprs[validator?.address ?? ''] * 100, {
                           precision: 2,
                           symbol: '',
                         }).format()}%`
                       : 'N/A')}
-                </Text>
+                </span>
               </div>
             </div>
 
-            <Text size='xs' color='text-gray-800 dark:text-gray-200' className='font-medium'>
-              Pending Unstake
-            </Text>
-
-            <div className='flex gap-x-4 w-full p-4 bg-white-100 dark:bg-gray-950 rounded-lg'>
-              <TokenImageWithFallback
-                assetImg={activeStakingDenom.icon}
-                text={activeStakingDenom.coinDenom}
-                altText={activeStakingDenom.coinDenom}
-                imageClassName='w-9 h-9 rounded-full'
-                containerClassName='w-9 h-9 bg-gray-100 dark:bg-gray-850'
-                textClassName='text-[10px] !leading-[14px]'
-              />
-              <div className='flex flex-col justify-center'>
-                <Text
-                  color='text-black-100 dark:text-white-100'
-                  size='sm'
-                  className='font-bold mt-0.5'
-                >
-                  {amountTitleText}
-                </Text>
-
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
-                  {amountSubtitleText}
-                </Text>
+            <span className='text-sm text-muted-foreground mt-4'>Pending Unstake</span>
+            <div className='p-6 bg-secondary-100 rounded-xl flex justify-between items-center'>
+              <div className='flex flex-col items-start gap-y-0.5'>
+                <span className='font-bold text-[18px] text-foreground'>{amountTitleText} </span>
+                <span className='text-muted-foreground text-sm'>{amountSubtitleText}</span>
               </div>
-
-              <div className='ml-auto flex flex-col items-end'>
-                <Text
-                  color='text-black-100 dark:text-white-100'
-                  size='sm'
-                  className='font-bold mt-0.5'
-                >
+              <div className='flex flex-col items-end gap-y-0.5'>
+                <span className='font-bold text-[18px] text-foreground'>
                   {timeLeft(unbondingDelegationEntry?.completion_time ?? '')}
-                </Text>
-
-                <Text color='text-gray-700 dark:text-gray-400' size='xs' className='font-medium'>
+                </span>
+                <span className='text-muted-foreground text-sm'>
                   {unbondingDelegationEntry?.completion_time &&
                     daysLeft(unbondingDelegationEntry?.completion_time)}
-                </Text>
+                </span>
               </div>
             </div>
+          </div>
 
-            {!isCancelledScheduled && (
-              <Buttons.Generic
+          {!isCancelledScheduled && (
+            <div className='py-4 px-5 bg-secondary-200'>
+              <Button
                 onClick={() => {
                   setShowReviewCancelUnstakeTx(true)
                   onClose()
                 }}
                 className='w-full'
-                size='normal'
-                color={theme === ThemeName.DARK ? Colors.white100 : Colors.black100}
+                variant='mono'
               >
-                <Text color='text-white-100 dark:text-black-100'>Cancel Unstake</Text>
-              </Buttons.Generic>
-            )}
-          </div>
+                Cancel Unstake
+              </Button>
+            </div>
+          )}
         </BottomModal>
 
         <ReviewCancelUnstakeTx
@@ -276,10 +247,9 @@ const UnstakedValidatorDetails = observer(
           onClose={() => setShowReviewCancelUnstakeTx(false)}
           unbondingDelegationEntry={unbondingDelegationEntry}
           validator={validator}
-          rootDenomsStore={rootDenomsStore}
-          rootBalanceStore={rootBalanceStore}
           forceChain={activeChain}
           forceNetwork={activeNetwork}
+          setClaimTxMode={setClaimTxMode}
         />
       </>
     )

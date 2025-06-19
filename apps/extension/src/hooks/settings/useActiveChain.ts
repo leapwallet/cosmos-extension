@@ -10,7 +10,6 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQueryClient } from '@tanstack/react-query'
-import { COMPASS_CHAINS } from 'config/config'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { ACTIVE_CHAIN, KEYSTORE, LAST_EVM_ACTIVE_CHAIN } from 'config/storage-keys'
 import { useSetNetwork } from 'hooks/settings/useNetwork'
@@ -21,7 +20,6 @@ import { AggregatedSupportedChain } from 'types/utility'
 import { sendMessageToTab } from 'utils'
 import browser from 'webextension-polyfill'
 
-import { isCompassWallet } from '../../utils/isCompassWallet'
 import useActiveWallet, { useUpdateKeyStore } from './useActiveWallet'
 import { useHandleWatchWalletChainSwitch } from './useHandleWWChainSwitch'
 import { useIsAllChainsEnabled } from './useIsAllChainsEnabled'
@@ -138,13 +136,12 @@ export function useInitActiveChain(enabled: boolean) {
       let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
       const leapFallbackChain = AGGREGATED_CHAIN_KEY as SupportedChain
 
-      const defaultActiveChain = isCompassWallet() ? chainInfos.seiTestnet2.key : leapFallbackChain
+      const defaultActiveChain = leapFallbackChain
       setLastEvmActiveChain(storage[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum')
 
       if (
         (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY &&
-        isAllChainsEnabled &&
-        !isCompassWallet()
+        isAllChainsEnabled
       ) {
         setActiveChain(activeChain)
         rootStore.setActiveChain(activeChain)
@@ -153,10 +150,6 @@ export function useInitActiveChain(enabled: boolean) {
       }
 
       if (!activeChain || chains[activeChain] === undefined) {
-        activeChain = defaultActiveChain
-      }
-
-      if (isCompassWallet() && !COMPASS_CHAINS.includes(activeChain)) {
         activeChain = defaultActiveChain
       }
 

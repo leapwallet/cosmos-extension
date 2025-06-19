@@ -22,7 +22,7 @@ import mixpanel from 'mixpanel-browser'
 import { StakeInputPageState } from 'pages/stake-v2/StakeInputPage'
 import useAssets from 'pages/swaps-v2/hooks/useAssets'
 import React, { useMemo } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 
 export const AssetCtas = ({
@@ -93,13 +93,6 @@ export const AssetCtas = ({
         forceChain: activeChain,
         forceNetwork: activeNetwork,
       } as StakeInputPageState,
-    })
-    mixpanel.track(EventName.PageView, {
-      pageName: PageName.Stake,
-      pageViewSource: PageName.AssetDetails,
-      chainName: chain.chainName,
-      chainId: chain.chainId,
-      time: Date.now() / 1000,
     })
   }
 

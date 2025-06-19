@@ -1,6 +1,9 @@
 import classNames from 'classnames'
-import { Images } from 'images'
+import { inputStatusOutlineClassMap } from 'components/ui/input'
+import { TabSelectors } from 'components/ui/tab-list-selectors'
+import { AnimatePresence, motion, Variants } from 'framer-motion'
 import React, { useState } from 'react'
+import { cn } from 'utils/cn'
 
 type SeedPhraseWordInputProps = {
   // eslint-disable-next-line no-unused-vars
@@ -16,7 +19,7 @@ type SeedPhraseWordInputProps = {
   handleWordBlur: () => void
 }
 
-function SeedPhraseWordInput({
+const SeedPhraseWordInput = ({
   wordIndex,
   word,
   handlePaste,
@@ -25,16 +28,12 @@ function SeedPhraseWordInput({
   isFocused,
   handleWordFocused,
   handleWordBlur,
-}: SeedPhraseWordInputProps) {
+}: SeedPhraseWordInputProps) => {
   return (
     <div
       className={classNames(
-        'relative rounded-lg bg-white-100 dark:bg-gray-900 flex h-[40px] p-3 items-center',
-        {
-          'border-2': isFocused || isError,
-          'border-gray-600': isFocused,
-          'border-red-300': isError,
-        },
+        'flex items-center gap-2 rounded-lg bg-secondary-200 h-9 w-28 py-2 px-3 text-xs font-medium overflow-hidden',
+        inputStatusOutlineClassMap[isError ? 'error' : 'default'],
       )}
       onFocus={() => handleWordFocused(wordIndex)}
       onBlur={() => handleWordBlur()}
@@ -44,44 +43,42 @@ function SeedPhraseWordInput({
         handlePaste(wordIndex, event.clipboardData.getData('text'))
       }}
     >
-      {isFocused || word.length !== 0 ? (
-        <input
-          ref={(node) => node && isFocused && node.focus()}
-          className='absolute flex-1 w-[80%] bg-white-100 dark:bg-gray-900 outline-none text-gray-800 dark:text-white-100'
-          type={isFocused ? 'text' : 'password'}
-          value={word}
-          onChange={(event) => handleWordChange(wordIndex, event.target.value)}
-        />
-      ) : (
-        <span className='text-gray-600'>{wordIndex}</span>
-      )}
+      <span className='text-muted-foreground shrink-0'>{wordIndex}</span>
+
+      <input
+        ref={(node) => node && isFocused && node.focus()}
+        type={isFocused || isError ? 'text' : 'password'}
+        value={word}
+        onChange={(event) => handleWordChange(wordIndex, event.target.value)}
+        className='flex-1 outline-none bg-transparent w-0 text-foreground font-bold'
+      />
     </div>
   )
 }
 
 type SeedPhraseInputProps = {
-  // eslint-disable-next-line no-unused-vars
   onChangeHandler: (value: string) => void
   isError: boolean
-  heading: string
   onPage?: string
+  className?: string
 }
 
-export function SeedPhraseInput({
-  onChangeHandler,
-  isError,
-  heading,
-  onPage,
-}: SeedPhraseInputProps) {
+const transition = { duration: 0.2, ease: 'easeInOut' }
+
+const variants: Variants = {
+  left: { opacity: 0, x: 10, transition },
+  right: { opacity: 0, x: -10, transition },
+  visible: { opacity: 1, x: 0, transition },
+}
+
+export const SeedPhraseInput = ({ onChangeHandler, isError, className }: SeedPhraseInputProps) => {
   const [focusedWordIndex, setFocusedWordIndex] = useState(1)
   const [seedPhraseWordCount, setSeedPhraseWordCount] = useState(12)
-  const [seedPhraseWords, setSeedPhraseWords] = useState(new Array(12).fill(''))
-  const [showDropdown, setShowDropdown] = useState(false)
+  const [seedPhraseWords, setSeedPhraseWords] = useState(new Array(12).fill('') as string[])
 
   const handleSeedPhraseWordIndexChange = (newCount: number) => {
     setSeedPhraseWordCount(newCount)
     setSeedPhraseWords(new Array(newCount).fill(''))
-    setShowDropdown(false)
   }
 
   const handlePaste = (wordIndex: number, clipboardText: string) => {
@@ -129,52 +126,53 @@ export function SeedPhraseInput({
   }
 
   return (
-    <div className='w-full'>
-      <div
-        className={classNames('flex justify-between items-center mb-4 w-full', {
-          'flex-col gap-y-4': onPage === 'SelectWallet',
-        })}
-      >
-        <p className='text-gray-400 dark:text-gray-200'>{heading}</p>
-        <button
-          className='bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white-100 flex items-center rounded-full gap-2 py-2 px-4 relative'
-          onClick={() => setShowDropdown(!showDropdown)}
-        >
-          <span>{seedPhraseWordCount} words</span>
-          <img src={Images.Misc.ArrowDown} alt='arrow down' />
-          {showDropdown && (
-            <div className='shadow-md shadow-gray-100 dark:shadow-gray-800 w-[110%] absolute flex flex-col rounded-xl z-10 top-[48px] left-0 bg-gray-50 dark:bg-gray-900 items-start p-2 dark:text-white-100 text-gray-900'>
-              <button className='pb-2 w-full' onClick={() => handleSeedPhraseWordIndexChange(12)}>
-                12 words
-              </button>
-              <button
-                className='pt-2 w-full border-t-[0.5px] border-gray-100 dark:border-gray-800'
-                onClick={() => handleSeedPhraseWordIndexChange(24)}
-              >
-                24 words
-              </button>
-            </div>
-          )}{' '}
-        </button>
-      </div>
+    <div
+      className={cn(
+        'flex flex-col items-center w-full gap-7',
+        isError ? 'h-[17.15rem]' : 'h-[19.375rem]',
+        className,
+      )}
+    >
+      <TabSelectors
+        selectedIndex={seedPhraseWordCount === 12 ? 0 : 1}
+        buttons={[
+          {
+            label: '12 words',
+            onClick: () => handleSeedPhraseWordIndexChange(12),
+          },
+          {
+            label: '24 words',
+            onClick: () => handleSeedPhraseWordIndexChange(24),
+          },
+        ]}
+      />
 
-      <div className='w-full bg-gray-50 dark:bg-gray-950 rounded-2xl p-4 grid grid-cols-3 gap-2'>
-        {seedPhraseWords.map((value, index) => {
-          return (
-            <SeedPhraseWordInput
-              wordIndex={index + 1}
-              key={`${value}-${index}`}
-              word={value}
-              handlePaste={handlePaste}
-              handleWordChange={handleWordChange}
-              isError={isError}
-              isFocused={index + 1 === focusedWordIndex}
-              handleWordFocused={handleWordFocused}
-              handleWordBlur={handleWordBlur}
-            />
-          )
-        })}
-      </div>
+      <AnimatePresence mode='wait'>
+        <motion.div
+          key={seedPhraseWordCount}
+          className={cn('w-full grid grid-cols-3 gap-4 content-baseline overflow-auto p-1 flex-1')}
+          variants={variants}
+          initial={seedPhraseWords.length === 12 ? 'left' : 'right'}
+          animate={'visible'}
+          exit={seedPhraseWords.length === 12 ? 'right' : 'left'}
+        >
+          {seedPhraseWords.map((value, index) => {
+            return (
+              <SeedPhraseWordInput
+                wordIndex={index + 1}
+                key={`${value}-${index}`}
+                word={value}
+                handlePaste={handlePaste}
+                handleWordChange={handleWordChange}
+                isError={isError}
+                isFocused={index + 1 === focusedWordIndex}
+                handleWordFocused={handleWordFocused}
+                handleWordBlur={handleWordBlur}
+              />
+            )
+          })}
+        </motion.div>
+      </AnimatePresence>
     </div>
   )
 }

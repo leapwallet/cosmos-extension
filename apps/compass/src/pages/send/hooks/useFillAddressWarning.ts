@@ -56,10 +56,7 @@ export function useFillAddressWarning({
               })
             }
           } else {
-            setAddressWarning({
-              type: 'erc20',
-              message: 'You can only transfer EVM tokens to an EVM address.',
-            })
+            setAddressWarning(INITIAL_ADDRESS_WARNING)
           }
 
           break

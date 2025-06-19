@@ -18,7 +18,9 @@ export type Token = {
   isEvm?: boolean;
   tokenBalanceOnChain?: SupportedChain; // for aggregated view
   isAptos?: boolean;
+  isSolana?: boolean;
   aptosTokenType?: 'v1' | 'v2';
+  isSui?: boolean;
 };
 
 export type IbcChainInfo = {

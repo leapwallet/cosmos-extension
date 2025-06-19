@@ -2,7 +2,7 @@ import { useActiveStakingDenom, useChainInfo } from '@leapwallet/cosmos-wallet-h
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { isSidePanel } from 'utils/isSidePanel'
 

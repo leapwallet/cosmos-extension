@@ -19,9 +19,6 @@ import {
 } from '@cosmjs/stargate';
 import { MsgGrant, MsgRevoke } from 'cosmjs-types/cosmos/authz/v1beta1/tx.js';
 import { MsgCancelUnbondingDelegation } from 'cosmjs-types/cosmos/staking/v1beta1/tx.js';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import Long from 'long';
 
 import { babylonProtoRegistry } from '../proto/babylon/client';
 import { AminoConverter } from '../proto/babylon/epoching/v1/tx.amino';

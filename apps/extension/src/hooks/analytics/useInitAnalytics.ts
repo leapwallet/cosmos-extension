@@ -1,14 +1,17 @@
 import { useAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { bech32ToEthAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { sha256 } from '@noble/hashes/sha256'
 import { utils } from '@noble/secp256k1'
 import { setUser as setSentryUser } from '@sentry/react'
 import mixpanel from 'mixpanel-browser'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { getPrimaryWalletAddress } from 'utils/getPrimaryWalletAddress'
 import * as browser from 'webextension-polyfill'
 
 export const useInitAnalytics = () => {
   const activeWalletCosmosAddress = useAddress('cosmos')
+  const activeWalletEvmBech32Address = useAddress('ethereum')
+  const activeWalletEvmAddress = bech32ToEthAddress(activeWalletEvmBech32Address)
 
   useEffect(() => {
     ;(async function () {
@@ -53,9 +56,14 @@ export const useInitAnalytics = () => {
     }
   }, [])
 
+  const activeWalletAddress = useMemo(
+    () => activeWalletCosmosAddress || activeWalletEvmAddress,
+    [activeWalletCosmosAddress, activeWalletEvmAddress],
+  )
+
   useEffect(() => {
-    if (activeWalletCosmosAddress) {
-      const hashedAddress = utils.bytesToHex(sha256(activeWalletCosmosAddress))
+    if (activeWalletAddress) {
+      const hashedAddress = utils.bytesToHex(sha256(activeWalletAddress))
       try {
         mixpanel.register({
           wallet: hashedAddress,
@@ -64,5 +72,5 @@ export const useInitAnalytics = () => {
         // ignore
       }
     }
-  }, [activeWalletCosmosAddress])
+  }, [activeWalletAddress])
 }

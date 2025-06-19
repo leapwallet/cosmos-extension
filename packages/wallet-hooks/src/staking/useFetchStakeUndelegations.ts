@@ -97,7 +97,9 @@ export function useFetchStakeUndelegations(
             baseURL: lcdUrl,
             method: 'get',
             url:
-              (activeChain === 'initia' ? '/initia/mstaking/v1/delegators/' : '/cosmos/staking/v1beta1/delegators/') +
+              (['initia', 'initiaEvm'].includes(activeChain)
+                ? '/initia/mstaking/v1/delegators/'
+                : '/cosmos/staking/v1beta1/delegators/') +
               address +
               '/unbonding_delegations',
           });
@@ -116,7 +118,7 @@ export function useFetchStakeUndelegations(
           if (isCancelled) return;
           let { unbonding_responses } = res.data as UnbondingDelegationResponse;
 
-          if (activeChain === 'initia') {
+          if (['initia', 'initiaEvm'].includes(activeChain)) {
             unbonding_responses = unbonding_responses.map((unDelegation: UnbondingDelegation) => {
               const entries = unDelegation.entries.reduce(
                 (acc: UnbondingDelegationEntry[], entry: UnbondingDelegationEntry) => {

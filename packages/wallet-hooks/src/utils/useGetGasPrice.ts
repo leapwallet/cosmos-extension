@@ -7,6 +7,8 @@ import {
   GasPriceStepsRecord,
   getGasPricesSteps,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
@@ -14,7 +16,7 @@ import BigNumber from 'bignumber.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChainApis, useChainsStore, useGasPriceSteps, useGetChains, useSelectedNetwork } from '../store';
-import { useGetAptosGasPrices, useGetEvmGasPrices } from '../utils-hooks';
+import { useGetAptosGasPrices, useGetEvmGasPrices, useGetSolanaGasPrices, useGetSuiGasPrices } from '../utils-hooks';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
 
 export async function getFeeMarketGasPrices(lcdUrl: string) {
@@ -145,6 +147,8 @@ export function useGasRateQuery(
   const gasPriceStep = useGasPriceStepForChain(chainKey);
   const { gasPrice: evmGasPrice } = useGetEvmGasPrices(chainKey, selectedNetwork);
   const { gasPrice: aptosGasPrice } = useGetAptosGasPrices(chainKey, selectedNetwork);
+  const { gasPrice: solanaGasPrice } = useGetSolanaGasPrices(chainKey, selectedNetwork);
+  const { gasPrice: suiGasPrice } = useGetSuiGasPrices(chainKey, selectedNetwork);
   const chains = useGetChains();
   if (!gasPriceStep && !isSeiEvmTransaction && !chains[chainKey]?.evmOnlyChain) return undefined;
   return useMemo(() => {
@@ -152,6 +156,34 @@ export function useGasRateQuery(
       const lowAmount = new BigNumber(aptosGasPrice.low);
       const mediumAmount = new BigNumber(aptosGasPrice.medium);
       const highAmount = new BigNumber(aptosGasPrice.high);
+
+      return {
+        [nativeFeeDenom.coinMinimalDenom]: {
+          low: GasPrice.fromUserInput(lowAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          medium: GasPrice.fromUserInput(mediumAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          high: GasPrice.fromUserInput(highAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+        },
+      } as const;
+    }
+
+    if (isSolanaChain(chainKey)) {
+      const lowAmount = new BigNumber(solanaGasPrice.low);
+      const mediumAmount = new BigNumber(solanaGasPrice.medium);
+      const highAmount = new BigNumber(solanaGasPrice.high);
+
+      return {
+        [nativeFeeDenom.coinMinimalDenom]: {
+          low: GasPrice.fromUserInput(lowAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          medium: GasPrice.fromUserInput(mediumAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+          high: GasPrice.fromUserInput(highAmount.toString(), nativeFeeDenom.coinMinimalDenom),
+        },
+      } as const;
+    }
+
+    if (isSuiChain(chainKey)) {
+      const lowAmount = new BigNumber(suiGasPrice.low);
+      const mediumAmount = new BigNumber(suiGasPrice.medium);
+      const highAmount = new BigNumber(suiGasPrice.high);
 
       return {
         [nativeFeeDenom.coinMinimalDenom]: {
@@ -193,6 +225,12 @@ export function useGasRateQuery(
     aptosGasPrice.low,
     aptosGasPrice.medium,
     aptosGasPrice.high,
+    solanaGasPrice.low,
+    solanaGasPrice.medium,
+    solanaGasPrice.high,
+    suiGasPrice.low,
+    suiGasPrice.medium,
+    suiGasPrice.high,
     chainKey,
     chains,
   ]);

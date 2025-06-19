@@ -12,15 +12,15 @@ import Sort from 'icons/sort'
 import { LeapCosmos } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
-import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 
 import { DisplaySettingsModal } from './display-settings-modal'
 import InvestViewContainer from './invest-view'
 import type { DisplaySettings } from './types'
 
 const EarnPage = observer(({ chainTagsStore }: { chainTagsStore: ChainTagsStore }) => {
-  usePageView(PageName.Earn)
+  // usePageView(PageName.Earn)
 
   const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
@@ -46,14 +46,11 @@ const EarnPage = observer(({ chainTagsStore }: { chainTagsStore: ChainTagsStore 
 
   return (
     <div className='relative w-full overflow-clip panel-height'>
-      <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
       <PopupLayout
         header={
           <Header
             action={{
-              onClick: function noRefCheck() {
-                setShowSideNav(true)
-              },
+              onClick: () => globalSheetsStore.toggleSideNav(),
               type: HeaderActionType.NAVIGATION,
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
@@ -101,7 +98,6 @@ const EarnPage = observer(({ chainTagsStore }: { chainTagsStore: ChainTagsStore 
         onClose={() => setShowChainSelector(false)}
         chainTagsStore={chainTagsStore}
       />
-      <BottomNav label={BottomNavLabel.Earn} />
     </div>
   )
 })

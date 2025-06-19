@@ -9,7 +9,7 @@ import {
   useStakeTx,
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { isBabylon, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { Delegation } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/staking'
 import { CaretDown, GasPump } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
@@ -17,14 +17,12 @@ import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-option
 import { DisplayFeeValue, GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
-import { EventName, PageName } from 'config/analytics'
 import { addSeconds } from 'date-fns'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { timeLeft } from 'utils/timeLeft'
 
 import InsufficientBalanceCard from './components/InsufficientBalanceCard'
@@ -35,7 +33,6 @@ import YouStake from './components/YouStake'
 import useGetWallet = Wallet.useGetWallet
 
 import { Button } from 'components/ui/button'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { nmsStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
@@ -88,16 +85,6 @@ const StakeInputPage = observer(() => {
   const [showAdjustAmountSheet, setShowAdjustAmountSheet] = useState(false)
   const [adjustAmount, setAdjustAmount] = useState(false)
   const [claimTxMode, setClaimTxMode] = useState<STAKE_MODE | 'CLAIM_AND_DELEGATE' | null>(null)
-
-  usePageView(
-    selectedValidator ? PageName.StakeInput : null,
-    useMemo(
-      () => ({
-        selectedValidator: selectedValidator?.address,
-      }),
-      [selectedValidator],
-    ),
-  )
 
   const location = useLocation()
   const {
@@ -274,10 +261,6 @@ const StakeInputPage = observer(() => {
   const txCallback = useCallback(() => {
     setClaimTxMode(mode)
     setShowReviewStakeTx(false)
-
-    mixpanel.track(EventName.TransactionSigned, {
-      transactionType: getTransactionType(mode),
-    })
   }, [mode])
 
   const onSubmit = useCallback(async () => {
@@ -383,7 +366,7 @@ const StakeInputPage = observer(() => {
             <div className='mt-auto space-y-4'>
               {new BigNumber(amount).isGreaterThan(0) && (
                 <div className='flex items-center justify-between pt-2 px-2'>
-                  {activeChain !== 'babylon' && (
+                  {!isBabylon(activeChain) && (
                     <div className='text-xs font-medium'>
                       <span className='text-muted-foreground'>Unstaking period: </span>
                       <span>{unstakingPeriod}</span>

@@ -15,14 +15,17 @@ import {
 } from '@leapwallet/cosmos-wallet-store'
 import { GenericCard } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { SelectedNetwork, useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
+
+import { ClaimCard } from '../components/ClaimInfo'
 
 interface LavaClaimInfoProps {
   isOpen: boolean
@@ -104,14 +107,14 @@ const LavaClaimInfo = observer(
     const formattedTokenProviderReward = useMemo(() => {
       if (providerRewards) {
         const rewardItems = providerRewards.rewards
-          .flatMap((reward) => reward.amount)
+          ?.flatMap((reward) => reward.amount)
           .reduce((acc, curr) => {
             acc[curr.denom] = acc[curr.denom]
               ? new BigNumber(acc[curr.denom]).plus(new BigNumber(curr.amount))
               : new BigNumber(curr.amount)
             return acc
           }, {} as Record<string, BigNumber>)
-        const rewardsLength = Object.keys(rewardItems).length
+        const rewardsLength = Object.keys(rewardItems ?? {}).length
         return hideAssetsStore.formatHideBalance(
           `${providerRewards.formattedTotalRewards} ${
             rewardsLength > 1 ? `+${rewardsLength - 1} more` : ''
@@ -166,11 +169,10 @@ const LavaClaimInfo = observer(
       <BottomModal
         isOpen={isOpen}
         onClose={onClose}
-        title='Claim Rewards'
-        closeOnBackdropClick={true}
-        className='p-6'
+        title='Claim rewards'
+        className='flex flex-col gap-8 mt-4'
       >
-        <div className='flex flex-col items-center w-full gap-y-4'>
+        {/* <div className='flex flex-col items-center w-full gap-y-4'>
           <div className='flex flex-col gap-y-2'>
             <Text size='xs' color='text-gray-700 dark:text-gray-400'>
               Validator Rewards
@@ -242,6 +244,42 @@ const LavaClaimInfo = observer(
               }
             />
           </div>
+        </div> */}
+        <div className='flex flex-col gap-4 w-full'>
+          <span className='text-muted-foreground text-sm'>Validator Rewards</span>
+          <ClaimCard
+            titleAmount={validatorRewardTitle}
+            secondaryAmount={validatorRewardSubtitle}
+            button={
+              <Button
+                onClick={onClaimValidatorRewards}
+                disabled={isClaimDisabled}
+                size='md'
+                variant={'secondary'}
+                className='w-[7.5rem] bg-secondary-350 disabled:bg-secondary-300 hover:bg-secondary-300'
+              >
+                Claim
+              </Button>
+            }
+          />
+        </div>
+        <div className='flex flex-col gap-4 w-full'>
+          <span className='text-muted-foreground text-sm'>Provider Rewards</span>
+          <ClaimCard
+            titleAmount={providerRewardTitle ?? ''}
+            secondaryAmount={providerRewardSubtitle ?? ''}
+            button={
+              <Button
+                size='md'
+                variant={'secondary'}
+                className='w-[7.5rem] bg-secondary-350 disabled:bg-secondary-300 hover:bg-secondary-300'
+                onClick={onClaimProviderRewards}
+                disabled={isProviderClaimDisabled}
+              >
+                Claim
+              </Button>
+            }
+          />
         </div>
       </BottomModal>
     )

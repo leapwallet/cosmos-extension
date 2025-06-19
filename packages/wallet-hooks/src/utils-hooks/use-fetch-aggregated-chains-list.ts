@@ -1,36 +1,35 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import { StorageAdapter } from '@leapwallet/cosmos-wallet-store';
+import { ChainInfos, ChainWiseFeatureFlags, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { useQuery } from '@tanstack/react-query';
 import semver from 'semver';
 
 import { useAggregatedChainsListStore } from '../store';
-import { cachedRemoteDataWithLastModified, useGetStorageLayer } from '../utils';
+import { useChainFeatureFlags, useFetchChainFeatureFlags } from '../store/useChainFeatureFlags';
 
-type AggregatedChainsFeatureFlagV2 = {
-  chains: Partial<Record<SupportedChain, { extVersion: string; appVersion: string }>>;
-};
-
-const aggregatedChainsUrl = 'https://assets.leapwallet.io/cosmos-registry/v1/config/aggregated-chains-v2.json';
-
-async function fetchAggregatedChainsList(
-  storage: StorageAdapter,
+async function getAggregatedChainsList(
+  chainFeatureFlags: ChainWiseFeatureFlags,
   app: 'extension' | 'mobile',
   version: string,
 ): Promise<SupportedChain[]> {
   try {
-    const response = await cachedRemoteDataWithLastModified<AggregatedChainsFeatureFlagV2>({
-      remoteUrl: aggregatedChainsUrl,
-      storageKey: `aggregated-chains-${app}`,
-      storage,
-    });
-    const chains = response.chains;
     const chainsArray: SupportedChain[] = [];
 
-    Object.keys(chains).forEach((chain) => {
+    Object.keys(chainFeatureFlags).forEach((chain) => {
       const chainEnabledOnVersion =
-        app === 'extension' ? chains[chain as SupportedChain]?.extVersion : chains[chain as SupportedChain]?.appVersion;
+        app === 'extension'
+          ? chainFeatureFlags[chain]?.aggregated_chains?.extVersion
+          : chainFeatureFlags[chain]?.aggregated_chains?.appVersion;
       if (!!chainEnabledOnVersion && semver.satisfies(version, chainEnabledOnVersion)) {
-        chainsArray.push(chain as SupportedChain);
+        const chainKeys = Object.keys(ChainInfos) as SupportedChain[];
+        if (chainKeys.includes(chain as SupportedChain)) {
+          chainsArray.push(chain as SupportedChain);
+          return;
+        }
+        const chainKey = chainKeys.find(
+          (key) => ChainInfos[key].chainId === chain || ChainInfos[key].testnetChainId === chain,
+        );
+        if (chainKey) {
+          chainsArray.push(chainKey as SupportedChain);
+        }
       }
     });
 
@@ -42,11 +41,15 @@ async function fetchAggregatedChainsList(
 }
 
 export async function useFetchAggregatedChainsList(app: 'extension' | 'mobile', version: string) {
-  const storage = useGetStorageLayer();
   const { setAggregatedChains } = useAggregatedChainsListStore();
+  useFetchChainFeatureFlags();
+  const chainFeatureFlags = useChainFeatureFlags();
 
-  useQuery(['fetch-aggregated-chains-list', app, version], async () => {
-    const aggregatedChains = await fetchAggregatedChainsList(storage, app, version);
+  useQuery(['fetch-aggregated-chains-list', app, version, chainFeatureFlags], async () => {
+    if (!chainFeatureFlags || Object.keys(chainFeatureFlags).length === 0) {
+      return;
+    }
+    const aggregatedChains = await getAggregatedChainsList(chainFeatureFlags, app, version);
     setAggregatedChains(aggregatedChains);
   });
 }

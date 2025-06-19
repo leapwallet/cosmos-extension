@@ -2,15 +2,13 @@ import { useDisabledNFTsCollections } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore, NftStore } from '@leapwallet/cosmos-wallet-store'
 import { LineDivider } from '@leapwallet/leap-ui'
-import { AlertStrip } from 'components/alert-strip'
 import PopupLayout from 'components/layout/popup-layout'
 import { useChainPageInfo } from 'hooks'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import React, { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { hiddenNftStore } from 'stores/manage-nft-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import {
   AddCollection,
@@ -44,7 +42,6 @@ export const ShowNfts = observer(({ nftStore, chainTagsStore }: ShowNftsProps) =
   const { topChainColor } = useChainPageInfo()
   const [showManageCollections, setShowManageCollections] = useState(false)
   const [selectedSortsBy, setSelectedSortsBy] = useState<SupportedChain[]>([])
-  const [loadingMessage, setLoadingMessage] = useState('')
   const [showAddCollectionSheet, setShowAddCollectionSheet] = useState(false)
 
   const disabledNfts = useDisabledNFTsCollections()
@@ -64,30 +61,6 @@ export const ShowNfts = observer(({ nftStore, chainTagsStore }: ShowNftsProps) =
       nftStore.nftDetails.networkError
     )
   }, [_isLoading, collectionData?.nfts, nftStore.nftDetails.networkError])
-
-  useEffect(() => {
-    let timeout1: NodeJS.Timeout
-    let timeout2: NodeJS.Timeout
-
-    if (isCompassWallet()) {
-      timeout1 = setTimeout(() => {
-        if (_isLoading && Object.values(collectionData?.nfts ?? {}).length === 0) {
-          setLoadingMessage('It seems like you have a lot of NFTs 🚀')
-        }
-      }, 10000)
-
-      timeout2 = setTimeout(() => {
-        if (_isLoading && Object.values(collectionData?.nfts ?? {}).length === 0) {
-          setLoadingMessage('You really have a lot of NFTs 🚀🚀🚀. Fetching them all ⏱️')
-        }
-      }, 40000)
-    }
-
-    return () => {
-      clearTimeout(timeout1)
-      clearTimeout(timeout2)
-    }
-  }, [_isLoading, collectionData?.nfts])
 
   return (
     <div className='relative w-full overflow-clip panel-height'>
@@ -115,17 +88,6 @@ export const ShowNfts = observer(({ nftStore, chainTagsStore }: ShowNftsProps) =
           </div>
         }
       >
-        {_isLoading && loadingMessage && isCompassWallet() ? (
-          <AlertStrip
-            message={loadingMessage}
-            className='bg-white-100 dark:bg-gray-900'
-            textClassName='text-gray-800 dark:text-white-100'
-            alwaysShow={false}
-            onHide={() => setLoadingMessage('')}
-            timeOut={4000}
-          />
-        ) : null}
-
         {hasToShowNetworkErrorView ? (
           <NetworkErrorInNft
             title='NFTs can’t be loaded'
@@ -207,17 +169,17 @@ export const ShowNfts = observer(({ nftStore, chainTagsStore }: ShowNftsProps) =
         setSelectedSortsBy={setSelectedSortsBy}
         nftStore={nftStore}
       />
-      <ManageCollections
+      {/* <ManageCollections
         isVisible={showManageCollections}
         onClose={() => setShowManageCollections(false)}
         openAddCollectionSheet={() => setShowAddCollectionSheet(true)}
         nftStore={nftStore}
-      />
+      /> */}
       <AddCollection
         chainTagsStore={chainTagsStore}
         isVisible={showAddCollectionSheet}
         onClose={() => setShowAddCollectionSheet(false)}
-        nftStore={nftStore}
+        // nftStore={nftStore}
       />
     </div>
   )

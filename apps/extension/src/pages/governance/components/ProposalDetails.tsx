@@ -8,7 +8,7 @@ import {
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { axiosWrapper, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { GovStore } from '@leapwallet/cosmos-wallet-store'
+import { GovStore, Proposal, ProposalApi } from '@leapwallet/cosmos-wallet-store'
 import { Header, HeaderActionType, LineDivider } from '@leapwallet/leap-ui'
 import { ArrowSquareOut } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
@@ -17,19 +17,23 @@ import axios from 'axios'
 import PopupLayout from 'components/layout/popup-layout'
 import { ProposalDescription } from 'components/proposal-description'
 import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { useChainPageInfo } from 'hooks'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import Vote from 'icons/vote'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { PieChart } from 'react-minimal-pie-chart'
 import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { delegationsStore } from 'stores/stake-store'
+import { cn } from 'utils/cn'
 import { imgOnError } from 'utils/imgOnError'
 import { uiErrorTags } from 'utils/sentry'
 
 import { getPercentage } from '../utils'
+import GovHeader from './GovHeader'
 import { CastVote, RequireMinStaking, ShowVotes, Turnout, VoteDetails } from './index'
 import { ProposalStatus, ProposalStatusEnum } from './ProposalStatus'
 
@@ -195,7 +199,7 @@ export const ProposalDetails = observer(
     const tallying = useMemo(() => {
       let votingPower = (_proposalVotes as any)?.bonded_tokens
       if (
-        activeChain === 'initia' &&
+        ['initia', 'initiaEvm'].includes(activeChain) &&
         Array.isArray(votingPower) &&
         Array.isArray((_proposalVotes as any)?.voting_power_weights)
       ) {
@@ -211,7 +215,7 @@ export const ProposalDetails = observer(
             if (!individualVotingPowerWeight) {
               return acc
             }
-            acc += BigInt(val.amount) * BigInt(individualVotingPowerWeight)
+            acc += BigInt(parseInt(val.amount)) * BigInt(parseInt(individualVotingPowerWeight))
             return acc
           }, BigInt(0))
           ?.toString()
@@ -263,143 +267,151 @@ export const ProposalDetails = observer(
     ])
 
     return (
-      <div className='relative w-full overflow-clip panel-height enclosing-panel'>
-        <PopupLayout>
-          <Header
-            action={{
-              onClick: onBack,
-              type: HeaderActionType.BACK,
+      <>
+        <GovHeader onBack={onBack} title='Proposal' />
+        <div className='flex flex-col p-6 overflow-y-scroll'>
+          <div className='text-muted-foreground text-sm mb-2 font-medium'>
+            #{proposal.proposal_id} ·{' '}
+            <ProposalStatus status={proposal.status as ProposalStatusEnum} />
+          </div>
+          <div className='text-foreground font-bold text-lg break-words'>
+            {proposal?.title ?? proposal?.content?.title}
+          </div>
+
+          {proposal.status === ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD &&
+            !hasMinAmountStaked && (
+              <RequireMinStaking forceChain={activeChain} forceNetwork={selectedNetwork} />
+            )}
+
+          <VoteDetails
+            proposal={proposal}
+            activeChain={activeChain}
+            onVote={() => {
+              if (activeWallet?.watchWallet) {
+                importWatchWalletSeedPopupStore.setShowPopup(true)
+              } else {
+                setShowCastVoteSheet(true)
+              }
             }}
-            title='Proposal'
+            currVote={currVote ?? ''}
+            isLoading={isLoading}
+            hasMinStaked={hasMinAmountStaked}
           />
-          <div className='flex flex-col py-6 px-7 max-h-[calc(100%-80px)] overflow-y-scroll'>
-            <div className='text-gray-600 dark:text-gray-200 text-sm mb-1'>
-              #{proposal.proposal_id} ·{' '}
-              <ProposalStatus status={proposal.status as ProposalStatusEnum} />
-            </div>
-            <div className='text-black-100 dark:text-white-100 font-bold text-xl break-words'>
-              {proposal?.title ?? proposal?.content?.title}
-            </div>
 
-            {proposal.status === ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD &&
-              !hasMinAmountStaked && (
-                <RequireMinStaking forceChain={activeChain} forceNetwork={selectedNetwork} />
+          <div className='my-5'></div>
+
+          {proposal.status !== ProposalStatusEnum.PROPOSAL_STATUS_DEPOSIT_PERIOD && totalVotes && (
+            <>
+              <div className='w-full h-full flex items-center justify-center mb-8'>
+                <div className='w-[180px] h-[180px] flex items-center justify-center relative'>
+                  {status !== 'success' ? (
+                    <Skeleton circle={true} count={1} width='180px' height='180px' />
+                  ) : (
+                    <PieChart data={dataMock} lineWidth={20} />
+                  )}
+
+                  <p className='text-md dark:text-white-100 text-dark-gray font-bold absolute'>
+                    Current Status
+                  </p>
+                </div>
+              </div>
+
+              <ShowVotes dataMock={dataMock} chain={activeChainInfo} />
+              <Turnout tallying={tallying} />
+            </>
+          )}
+
+          {activeProposalStatusTypes.includes(proposal.status) && proposer?.address && (
+            <div
+              className={`rounded-2xl ${
+                ProposalStatusEnum.PROPOSAL_STATUS_DEPOSIT_PERIOD === proposal.status ? '' : 'mt-7'
+              } h-20 w-full p-5 flex items-center justify-between roundex-xxl bg-secondary-100`}
+            >
+              <div className='flex items-center'>
+                <div
+                  style={{ backgroundColor: '#FFECA8', lineHeight: 28 }}
+                  className='relative h-10 w-10 rounded-full flex items-center justify-center text-lg'
+                >
+                  <span className='leading-none'>👤</span>
+                  <img
+                    src={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
+                    onError={imgOnError(defaultTokenLogo)}
+                    alt='chain logo'
+                    width='16'
+                    height='16'
+                    className='rounded-full absolute bottom-0 right-0'
+                  />
+                </div>
+
+                <div className='flex flex-col ml-3'>
+                  <Text size='sm' color='text-foreground' className='font-bold'>
+                    Proposer
+                  </Text>
+                  {proposer ? (
+                    <Text size='xs' color='text-muted-foreground'>
+                      {`${proposer.address.slice(0, 5)}...${proposer.address.slice(-6)}`}
+                    </Text>
+                  ) : (
+                    <Skeleton count={1} height='16px' width='150px' className='z-0' />
+                  )}
+                </div>
+              </div>
+
+              {proposer?.url && (
+                <button
+                  className='flex items-center justify-center px-1'
+                  onClick={() => window.open(proposer?.url, '_blank')}
+                >
+                  <ArrowSquareOut size={18} className='text-muted-foreground' />
+                </button>
               )}
+            </div>
+          )}
 
-            <VoteDetails
-              proposal={proposal}
-              activeChain={activeChain}
-              onVote={() => {
+          <div className='mt-7'></div>
+
+          {(proposal?.description || proposal?.content?.description) && (
+            <ProposalDescription
+              description={proposal?.description || proposal?.content?.description}
+              title='Description'
+              btnColor={topChainColor}
+              forceChain={activeChain}
+            />
+          )}
+        </div>
+
+        {(proposal as Proposal | ProposalApi).status ===
+          ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD && (
+          <div className='w-full p-4 mt-auto sticky bottom-0 bg-secondary-100 '>
+            <Button
+              className={cn('w-full')}
+              onClick={() => {
                 if (activeWallet?.watchWallet) {
                   importWatchWalletSeedPopupStore.setShowPopup(true)
                 } else {
                   setShowCastVoteSheet(true)
                 }
               }}
-              currVote={currVote ?? ''}
-              isLoading={isLoading}
-              hasMinStaked={hasMinAmountStaked}
-            />
-
-            <div className='my-8'>
-              <LineDivider size='sm' />
-            </div>
-
-            {proposal.status !== ProposalStatusEnum.PROPOSAL_STATUS_DEPOSIT_PERIOD && totalVotes && (
-              <>
-                <div className='w-full h-full flex items-center justify-center mb-8'>
-                  <div className='w-[180px] h-[180px] flex items-center justify-center relative'>
-                    {status !== 'success' ? (
-                      <Skeleton circle={true} count={1} width='180px' height='180px' />
-                    ) : (
-                      <PieChart data={dataMock} lineWidth={20} />
-                    )}
-
-                    <p className='text-md dark:text-white-100 text-dark-gray font-bold absolute'>
-                      Current Status
-                    </p>
-                  </div>
-                </div>
-
-                <ShowVotes dataMock={dataMock} chain={activeChainInfo} />
-                <Turnout tallying={tallying} />
-              </>
-            )}
-
-            {activeProposalStatusTypes.includes(proposal.status) && proposer?.address && (
-              <div
-                className={`rounded-2xl ${
-                  ProposalStatusEnum.PROPOSAL_STATUS_DEPOSIT_PERIOD === proposal.status
-                    ? ''
-                    : 'mt-6'
-                } h-18 w-full p-4 flex items-center justify-between roundex-xxl bg-white-100 dark:bg-gray-900`}
-              >
-                <div className='flex items-center'>
-                  <div
-                    style={{ backgroundColor: '#FFECA8', lineHeight: 28 }}
-                    className='relative h-10 w-10 rounded-full flex items-center justify-center text-lg'
-                  >
-                    <span className='leading-none'>👤</span>
-                    <img
-                      src={activeChainInfo.chainSymbolImageUrl ?? defaultTokenLogo}
-                      onError={imgOnError(defaultTokenLogo)}
-                      alt='chain logo'
-                      width='16'
-                      height='16'
-                      className='rounded-full absolute bottom-0 right-0'
-                    />
-                  </div>
-
-                  <div className='flex flex-col ml-3'>
-                    <Text size='md' color='font-bold dark:text-white-100 text-gray-800'>
-                      Proposer
-                    </Text>
-                    {proposer ? (
-                      <Text size='xs' color='font-medium text-gray-400'>
-                        {`${proposer.address.slice(0, 5)}...${proposer.address.slice(-6)}`}
-                      </Text>
-                    ) : (
-                      <Skeleton count={1} height='16px' width='150px' className='z-0' />
-                    )}
-                  </div>
-                </div>
-
-                {proposer?.url && (
-                  <button
-                    className='flex items-center justify-center px-1'
-                    onClick={() => window.open(proposer?.url, '_blank')}
-                  >
-                    <ArrowSquareOut size={18} className='text-gray-400' />
-                  </button>
-                )}
+              disabled={!hasMinAmountStaked}
+            >
+              <div className={'flex justify-center text-white-100 items-center'}>
+                <Vote size={20} className='mr-2' />
+                <span>Vote</span>
               </div>
-            )}
-
-            <div className='my-8'>
-              <LineDivider size='sm' />
-            </div>
-
-            {(proposal?.description || proposal?.content?.description) && (
-              <ProposalDescription
-                description={proposal?.description || proposal?.content?.description}
-                title='Description'
-                btnColor={topChainColor}
-                forceChain={activeChain}
-              />
-            )}
+            </Button>
           </div>
+        )}
 
-          <CastVote
-            refetchVote={refetch}
-            proposalId={proposal.proposal_id}
-            isProposalInVotingPeriod={isProposalInVotingPeriod}
-            showCastVoteSheet={showCastVoteSheet}
-            setShowCastVoteSheet={setShowCastVoteSheet}
-            forceChain={activeChain}
-            forceNetwork={selectedNetwork}
-          />
-        </PopupLayout>
-      </div>
+        <CastVote
+          refetchVote={refetch}
+          proposalId={proposal.proposal_id}
+          isProposalInVotingPeriod={isProposalInVotingPeriod}
+          showCastVoteSheet={showCastVoteSheet}
+          setShowCastVoteSheet={setShowCastVoteSheet}
+          forceChain={activeChain}
+          forceNetwork={selectedNetwork}
+        />
+      </>
     )
   },
 )

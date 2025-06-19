@@ -1,3 +1,4 @@
+import classNames from 'classnames'
 import { ErrorCard } from 'components/ErrorCard'
 import { LoaderAnimation } from 'components/loader/Loader'
 import React, { ReactNode } from 'react'
@@ -10,7 +11,12 @@ type FooterProps = {
 
 export function Footer({ children, error, isFetching }: FooterProps) {
   return (
-    <div className='w-full flex flex-col flex-1 justify-end items-center box-border'>
+    <div
+      className={classNames(
+        'w-full flex flex-col flex-1 items-center box-border',
+        isFetching ? 'h-full justify-center' : 'justify-end',
+      )}
+    >
       {error ? (
         <div className='my-2'>
           <ErrorCard text={error} />

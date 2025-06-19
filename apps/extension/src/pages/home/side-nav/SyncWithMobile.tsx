@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { usePrimaryWalletAddress } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Key, WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Buttons, Header, HeaderActionType, Input, QrCode } from '@leapwallet/leap-ui'
 import { Lock } from '@phosphor-icons/react'
@@ -32,7 +32,22 @@ type EnterPasswordViewProps = {
 
 const getExportWallet = (wallets: Key<SupportedChain>[], primaryWalletAddress: string) => {
   // find and return primary wallet
-  const primaryWallet = wallets.find((wallet) => wallet.addresses.cosmos === primaryWalletAddress)
+  const primaryWallet = wallets.find((wallet) => {
+    if (wallet?.addresses?.cosmos) {
+      return wallet?.addresses?.cosmos === primaryWalletAddress
+    }
+    if (wallet?.pubKeys?.ethereum) {
+      const evmAddress = pubKeyToEvmAddressToShow(wallet?.pubKeys?.ethereum, true)
+      return evmAddress === primaryWalletAddress
+    }
+    if (wallet?.pubKeys?.solana) {
+      return wallet?.pubKeys?.solana === primaryWalletAddress
+    }
+    if (wallet?.addresses?.sui) {
+      return wallet?.addresses?.sui === primaryWalletAddress
+    }
+    return false
+  })
   if (primaryWallet) return primaryWallet
 
   const seedPhraseWallet = wallets.find((wallet) => wallet.walletType === WALLETTYPE.SEED_PHRASE)
@@ -143,7 +158,7 @@ function EnterPasswordView({
             <Input
               autoFocus
               type='password'
-              placeholder='enter password'
+              placeholder='Enter password'
               {...register('rawPassword')}
               isErrorHighlighted={!!errors.rawPassword}
             />

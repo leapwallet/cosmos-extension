@@ -1,320 +1,190 @@
 import { useAddress } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, LineDivider, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { bech32ToEthAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { sha256 } from '@noble/hashes/sha256'
 import { utils } from '@noble/secp256k1'
-import {
-  ArrowDown,
-  ArrowRight,
-  Coins,
-  CurrencyDollar,
-  Image,
-  Path,
-  TrendUp,
-} from '@phosphor-icons/react'
+import { ArrowUp } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
-import ExtensionPage from 'components/extension-page'
-import Text from 'components/text'
-import { ButtonName, EventName } from 'config/analytics'
-import { LEAPBOARD_URL } from 'config/constants'
+import { Button } from 'components/ui/button'
+import { EventName } from 'config/analytics'
 import dayjs from 'dayjs'
+import { AnimatePresence, motion, Variants } from 'framer-motion'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
-import React, { useEffect, useState } from 'react'
-import Confetti from 'react-confetti'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import React, { useEffect, useMemo, useState } from 'react'
+import CanvasConfetti from 'react-canvas-confetti/dist/presets/fireworks'
+import { createPortal } from 'react-dom'
+import { handleSidePanelClick } from 'utils/isSidePanel'
 
-import { QrModal } from './QrModal'
-import SuccessExtensionPage from './success-extension-page'
-import SuccessCard from './SuccessCard'
+import { OnboardingLayout } from '../layout'
+
+const ctrlKey =
+  typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac') ? 'Cmd' : 'Ctrl'
 
 export default function OnboardingSuccess() {
-  const [showQrModal, setShowQrModal] = useState<boolean>(false)
-  const [isPinned, setIsPinned] = useState<boolean>(true)
-
-  const { theme } = useTheme()
-  const isDark = theme === ThemeName.DARK
-
-  const trackCTAEvent = (buttonName: string) => {
-    if (!isCompassWallet()) {
-      try {
-        mixpanel.track(EventName.OnboardingClicked, { buttonName, time: Date.now() / 1000 })
-      } catch (e) {
-        captureException(e)
-      }
-    }
-  }
-
-  const onboardingContent = [
-    {
-      title: 'Onboard seamlessly',
-      cardColor: '#64D1E9',
-      cards: [
-        {
-          cardIcons: [{ icon: ArrowDown }],
-          cardTitle: 'Receive Assets',
-          cardContent: 'Transfer from your existing Cosmos wallet',
-          onCardClick: () => {
-            window.open(`${LEAPBOARD_URL}/explore/tokens/uatom?chain=cosmos&receive=true`)
-            trackCTAEvent(ButtonName.RECEIVE)
-          },
-        },
-        {
-          cardIcons: [{ icon: Path }],
-          cardTitle: 'Bridge',
-          cardContent: 'Move assets from other ecosystems',
-          onCardClick: () => {
-            window.open('https://swapfast.app/bridge')
-            trackCTAEvent(ButtonName.BRIDGE)
-          },
-        },
-        {
-          cardIcons: [{ icon: CurrencyDollar }],
-          cardTitle: 'Fiat on-ramp',
-          cardContent: 'Buy assets using any currency',
-          onCardClick: () => {
-            window.open(`${LEAPBOARD_URL}/transact/buy`)
-            trackCTAEvent(ButtonName.BUY)
-          },
-        },
-      ],
-    },
-    {
-      title: 'Explore Cosmos your way, with the Leap suite',
-      cardColor: '#3ACF92',
-      cards: [
-        {
-          cardIcons: [{ image: 'Appstore' as const }, { image: 'Playstore' as const }],
-          cardTitle: 'Mobile app',
-          cardContent: 'Explore dApps & manage funds, from your phone',
-          onCardClick: () => {
-            setShowQrModal(true)
-            trackCTAEvent(ButtonName.MOBILE_APP)
-          },
-        },
-        {
-          cardIcons: [{ image: 'Dashboard' as const }],
-          cardTitle: 'Leapboard',
-          cardContent: 'The dashboard for comprehensive portfolio management',
-          onCardClick: () => {
-            window.open(LEAPBOARD_URL)
-            trackCTAEvent(ButtonName.LEAPBOARD)
-          },
-        },
-      ],
-    },
-    {
-      title: 'The interchain has something for everyone',
-      cardColor: '#B558E4',
-      cards: [
-        {
-          cardIcons: [{ icon: TrendUp }],
-          cardTitle: 'Dive into DeFi',
-          cardContent: 'Low fees, high volumes!',
-          onCardClick: () => {
-            window.open(`${LEAPBOARD_URL}/explore/defi`)
-            trackCTAEvent(ButtonName.EXPLORE_DEFI)
-          },
-        },
-        {
-          cardIcons: [{ icon: Image }],
-          cardTitle: 'Explore NFTs',
-          cardContent: 'Trade & showoff the best JPEGs ever',
-          onCardClick: () => {
-            window.open(`${LEAPBOARD_URL}/explore/nfts`)
-            trackCTAEvent(ButtonName.EXPLORE_NFTS)
-          },
-        },
-        {
-          cardIcons: [{ icon: Coins }],
-          cardTitle: 'Explore Tokens',
-          cardContent: 'Fill up your bags',
-          onCardClick: () => {
-            window.open(`${LEAPBOARD_URL}/explore/tokens`)
-            trackCTAEvent(ButtonName.EXPLORE_TOKENS)
-          },
-        },
-      ],
-    },
-  ]
-
-  const checkIsPinned = async () => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const userSettings = await chrome.action.getUserSettings()
-    setIsPinned(userSettings?.isOnToolbar)
-  }
-
-  useEffect(() => {
-    const checkPinned = setInterval(checkIsPinned, 2000)
-    return () => clearInterval(checkPinned)
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chrome])
-
   const activeWalletCosmosAddress = useAddress('cosmos')
+  const activeWalletEvmBech32Address = useAddress('ethereum')
+  const activeWalletSolanaAddress = useAddress('solana')
+  const activeWalletSuiAddress = useAddress('sui')
+  const activeWalletEvmAddress = bech32ToEthAddress(activeWalletEvmBech32Address)
+
+  const activeWalletAddress = useMemo(
+    () =>
+      activeWalletCosmosAddress ||
+      activeWalletEvmAddress ||
+      activeWalletSolanaAddress ||
+      activeWalletSuiAddress,
+    [
+      activeWalletCosmosAddress,
+      activeWalletEvmAddress,
+      activeWalletSolanaAddress,
+      activeWalletSuiAddress,
+    ],
+  )
+
   useEffect(() => {
     const currentTime = new Date().getTime()
     const timeStarted1 = Number(localStorage.getItem('timeStarted1'))
     const timeStarted2 = Number(localStorage.getItem('timeStarted2'))
     const methodChosen = localStorage.getItem('onboardingMethodChosen')
 
-    if (timeStarted1 && timeStarted2 && activeWalletCosmosAddress) {
-      const hashedAddress = utils.bytesToHex(sha256(activeWalletCosmosAddress))
+    if (timeStarted1 && timeStarted2 && activeWalletAddress) {
+      const hashedAddress = utils.bytesToHex(sha256(activeWalletAddress))
 
-      if (!isCompassWallet()) {
-        try {
-          mixpanel.track(EventName.OnboardingCompleted, {
-            methodChosen,
-            timeTaken1: dayjs(currentTime).diff(timeStarted1, 'seconds'),
-            timeTaken2: dayjs(currentTime).diff(timeStarted2, 'seconds'),
-            wallet: hashedAddress,
-            time: Date.now() / 1000,
-          })
-        } catch (e) {
-          captureException(e)
-        }
+      try {
+        mixpanel.track(EventName.OnboardingCompleted, {
+          methodChosen,
+          timeTaken1: dayjs(currentTime).diff(timeStarted1, 'seconds'),
+          timeTaken2: dayjs(currentTime).diff(timeStarted2, 'seconds'),
+          wallet: hashedAddress,
+          time: Date.now() / 1000,
+        })
+      } catch (e) {
+        captureException(e)
       }
 
       localStorage.removeItem('timeStarted1')
       localStorage.removeItem('timeStarted2')
       localStorage.removeItem('onboardingMethodChosen')
     }
-  }, [activeWalletCosmosAddress])
-
-  if (isCompassWallet()) {
-    return (
-      <ExtensionPage
-        headerRightComponent={
-          <div className='absolute top-0 right-0'>
-            {' '}
-            <img src={Images.Misc.CompassPinExtension} className='w-[320px] h-[210px]' />
-          </div>
-        }
-        titleComponent={
-          <div className='w-screen absolute opacity-50 top-0 z-1'>
-            <Confetti numberOfPieces={1000} recycle={false} />
-          </div>
-        }
-      >
-        <div className='flex flex-col justify-center items-center'>
-          <img src={Images.Misc.CheckGreen} className='h-[72px]' />
-          <Text
-            size='jumbo'
-            className='font-medium mt-[24px] mb-[30px]'
-            data-testing-id='ready-wallet-ele'
-          >
-            Your Compass wallet is ready!
-          </Text>
-          <LineDivider />
-          <Text size='xl' className='font-medium mt-[30px]'>
-            Access your wallet
-          </Text>
-          <Text size='sm' color='text-gray-400'>
-            using this keyboard shortcut
-          </Text>
-          <img src={Images.Misc.CMDShiftL} className='h-[32px] m-[20px]' />
-          <Text size='xs' color='text-gray-400'>
-            Mac: Command + Shift + L
-          </Text>
-          <Text size='xs' color='text-gray-400'>
-            Windows / others: Control + Shift + L
-          </Text>
-        </div>
-      </ExtensionPage>
-    )
-  }
+  }, [activeWalletAddress])
 
   return (
-    <SuccessExtensionPage
-      headerRightComponent={
-        isPinned ? null : (
-          <div className='absolute top-0 right-0'>
-            <img src={Images.Misc.PinToExtension} className='mr-[90px]' />
-          </div>
-        )
-      }
-      titleComponent={
-        <div className='w-screen absolute opacity-50 top-0 z-1'>
-          <Confetti numberOfPieces={1000} recycle={false} />
-        </div>
-      }
-    >
-      <div className='flex w-full pt-[180px] px-[90px] gap-[100px] relative'>
-        <div className='w-[270px]'>
-          <Text
-            className='font-extrabold leading-[45px] mb-[25px] text-[40px]'
-            data-testing-id='ready-wallet-ele'
-          >
-            Leap into <br /> the Cosmos!
-          </Text>
-          <Text
-            size='xl'
-            color='dark:text-gray-300 text-gray-600'
-            className='font-medium mb-[25px] !block'
-          >
-            Your <span className='dark:text-white-100 text-black-100'>Leap Wallet</span>
-            <br />
-            is ready to use.
-          </Text>
-          <Buttons.Generic
-            color={Colors.green600}
-            onClick={() => {
-              window.open('/index.html', '_self')
-              trackCTAEvent(ButtonName.LAUNCH_EXTENSION)
-            }}
-            className='!w-[240px]'
-          >
-            <p className='flex items-center'>
-              Launch Extension
-              <ArrowRight size={20} className='w-5 h-5 ml-5' />
-            </p>
-          </Buttons.Generic>
-        </div>
-        <div className='flex flex-col flex-1 gap-7 mb-9'>
-          {onboardingContent.map((data, index) => (
-            <div key={index}>
-              <Text size='md' className='font-medium mb-3'>
-                {data.title}
-              </Text>
-              <div className='flex gap-4'>
-                {data.cards.map((cardData) => (
-                  <SuccessCard
-                    key={cardData.cardTitle}
-                    icons={cardData.cardIcons}
-                    color={data.cardColor}
-                    title={cardData.cardTitle}
-                    content={cardData.cardContent}
-                    onCardClick={cardData.onCardClick}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+    <>
+      {createPortal(
+        <>
+          <Confetti />
+          <PinButton />
+        </>,
+        document.body,
+      )}
 
-          <Text
-            size='lg'
-            className='flex items-center font-medium mt-2 cursor-pointer'
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            onClick={() => {
-              window.open('https://twitter.com/leap_wallet')
-              trackCTAEvent(ButtonName.FOLLOW_LEAP)
-            }}
-          >
-            <img
-              src={isDark ? Images.Logos.XLogo : Images.Logos.XLogoDark}
-              className='w-5 h-5 mr-2'
-            />{' '}
-            Follow Leap on X
-          </Text>
+      <OnboardingLayout
+        hideRightActions
+        className='flex flex-col items-center gap-7 p-7 overflow-auto z-20 bg-background'
+        style={{
+          backgroundImage:
+            'linear-gradient(180deg, hsl(var(--bg-linear-gradient-start) / 0.4) 19.35%, hsl(var(--bg-linear-gradient-end)/ 0.4) 80.65%)',
+        }}
+      >
+        <div className='flex flex-col gap-y-8 my-auto'>
+          <div className='w-32 h-auto mx-auto'>
+            <img src={Images.Misc.OnboardingFrog} className='w-full h-full' />
+          </div>
+
+          <header className='flex flex-col gap-y-5 items-center text-center'>
+            <h1 className='font-bold text-xxl'>You are all set!</h1>
+
+            <span className='flex flex-col gap-y-1 text-muted-foreground text-md'>
+              <span>Discover Cosmos, Ethereum & more with Leap.</span>
+              <span>
+                Open Leap with
+                <span className='text-accent-foreground font-bold'> {ctrlKey}</span> +
+                <span className='text-accent-foreground font-bold'> Shift</span> +
+                <span className='text-accent-foreground font-bold'> L</span>
+              </span>
+            </span>
+          </header>
         </div>
-        <img
-          src={Images.Misc.OnboardingFrog}
-          className='absolute left-[-240px] bottom-0 w-[510px]'
-        />
-      </div>
-      {showQrModal && <QrModal setShowQrModal={setShowQrModal} />}
-    </SuccessExtensionPage>
+
+        <Button
+          className='w-full'
+          onClick={() => {
+            handleSidePanelClick('https://app.leapwallet.io')
+          }}
+        >
+          Get started
+        </Button>
+      </OnboardingLayout>
+    </>
+  )
+}
+
+const Confetti = () => {
+  return (
+    <CanvasConfetti
+      className='w-full h-full absolute opacity-50 top-0 left-0 right-0 z-10 isolate'
+      onInit={({ conductor }) => {
+        conductor.run({
+          speed: 1,
+        })
+        setTimeout(() => {
+          conductor.stop()
+        }, 5_000)
+      }}
+      globalOptions={{
+        useWorker: true,
+        resize: true,
+      }}
+    />
+  )
+}
+
+const transition = {
+  duration: 0.3,
+  ease: 'easeInOut',
+}
+
+const pinVariants: Variants = {
+  show: {
+    opacity: 1,
+    y: 0,
+  },
+  hide: {
+    opacity: 0,
+    y: -10,
+  },
+}
+
+const PinButton = () => {
+  const [isPinned, setIsPinned] = useState(true)
+
+  useEffect(() => {
+    const checkPinned = setInterval(async () => {
+      const userSettings = await chrome.action.getUserSettings()
+      setIsPinned(userSettings?.isOnToolbar)
+    }, 2000)
+
+    return () => clearInterval(checkPinned)
+  }, [])
+
+  return (
+    <AnimatePresence>
+      {!isPinned && (
+        <motion.div
+          transition={transition}
+          variants={pinVariants}
+          initial='hide'
+          animate='show'
+          exit='hide'
+          className='absolute top-0 right-10 z-10 rounded-b-xl px-9 flex items-center gap-3 bg-[hsl(var(--gradient-radial-mono-end))]'
+        >
+          <div className='text-white-100 bg-primary rounded-b-xl px-4 py-2 flex items-center gap-3'>
+            <span className='text-sm font-bold w-32'>Pin Leap to your toolbar</span>
+
+            <ArrowUp size={24} weight='bold' />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

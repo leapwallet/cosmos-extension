@@ -6,6 +6,7 @@ import {
   chainIdToChain,
   ChainInfo,
   isAptosChain,
+  sleep,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
@@ -179,42 +180,94 @@ export type Page =
   | 'add-secret-token'
   | 'login'
   | 'suggest-erc-20'
-  | 'switch-ethereum-chain'
-  | 'switch-chain'
   | 'suggest-ethereum-chain'
 
-export async function openPopup(page: Page, queryString?: string, isEvm?: boolean) {
+async function getSidePanelStatus() {
   let response
+  let sidePanelOptions
+  let isSidePanelMounted
+  let isSidePanelEnabled
   try {
+    sidePanelOptions = await chrome.sidePanel.getOptions({})
+    isSidePanelEnabled = sidePanelOptions?.enabled
     response = (await chrome.runtime.sendMessage({ type: 'side-panel-status' })) as any
+    isSidePanelMounted =
+      response?.type === 'side-panel-status' && response?.message?.enabled === true
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(e)
   }
 
-  const isSidePanelEnabled =
-    response?.type === 'side-panel-status' && response?.message?.enabled === true
-  if (isSidePanelEnabled) {
-    try {
-      let url = '/'
-      if (page !== 'login') {
-        url = url + page
-      }
+  return { isSidePanelMounted, isSidePanelEnabled }
+}
 
-      if (queryString) {
-        url = url + queryString
-      }
-      await chrome.runtime.sendMessage({
-        type: 'side-panel-update',
-        message: {
-          url,
-        },
-      })
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e)
+async function openPageInSidePanel(page: Page, queryString?: string) {
+  try {
+    let url = '/'
+    if (page !== 'login') {
+      url = url + page
     }
-  } else {
+
+    if (queryString) {
+      url = url + queryString
+    }
+    await chrome.runtime.sendMessage({
+      type: 'side-panel-update',
+      message: {
+        url,
+      },
+    })
+    return true
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
+    return false
+  }
+}
+
+export async function openPopup(
+  page: Page,
+  queryString?: string,
+  isEvm?: boolean,
+  sendMessageToInvoker?: (eventName: string, payload: any) => void,
+) {
+  const { isSidePanelMounted, isSidePanelEnabled } = await getSidePanelStatus()
+  let pageOpened = false
+  try {
+    if (isSidePanelMounted) {
+      pageOpened = await openPageInSidePanel(page, queryString)
+    } else if (isSidePanelEnabled && sendMessageToInvoker) {
+      // open side panel
+      const currentWindow = await chrome.windows.getCurrent()
+      if (!currentWindow?.id) {
+        throw new Error('Unable to fetch current window id')
+      }
+      await sendMessageToInvoker('invokeOpenSidePanel', {
+        windowId: currentWindow?.id,
+      })
+      let { isSidePanelMounted: updatedIsSidePanelMounted } = await getSidePanelStatus()
+      let retryCount = 0
+      let sleepDuration = 100
+      while (!updatedIsSidePanelMounted) {
+        await sleep(sleepDuration)
+        const { isSidePanelMounted } = await getSidePanelStatus()
+        updatedIsSidePanelMounted = isSidePanelMounted
+        retryCount += 1
+        if (retryCount > 5) {
+          sleepDuration = 200
+        }
+        if (retryCount > 10) {
+          throw new Error('Side panel not mounted')
+        }
+      }
+      pageOpened = await openPageInSidePanel(page, queryString)
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
+    pageOpened = false
+  }
+  if (!pageOpened) {
     let url = `index.html#/`
     if (page !== 'login') {
       url = url + page
@@ -590,7 +643,15 @@ export const customOpenPopup = async (
   isEvm?: boolean,
 ) => {
   try {
-    await openPopup(page, queryString, isEvm)
+    const payloadId = response?.[2]
+    if (payloadId !== undefined) {
+      const sendMessageToInvoker = (eventName: string, payload: any) => {
+        sendResponse(eventName, payload, payloadId)
+      }
+      await openPopup(page, queryString, isEvm, sendMessageToInvoker)
+    } else {
+      await openPopup(page, queryString, isEvm)
+    }
   } catch (e: any) {
     if (response && e.message.includes('Requests exceeded')) {
       return sendResponse(...response)

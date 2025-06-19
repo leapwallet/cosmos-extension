@@ -18,7 +18,6 @@ import useSWR, { SWRConfiguration, unstable_serialize } from 'swr'
 import { SourceChain } from 'types/swap'
 import { isCompassWallet } from 'utils/isCompassWallet'
 
-import { MosaicRouteQueryResponse } from './useMosaicRoute'
 import { SWAP_NETWORK } from './useSwapsTx'
 
 const tenMillion = new BigNumber(10).pow(6 + 1)
@@ -58,11 +57,7 @@ export const formatAmount = (
  * React hook to get gas fee data for supported Aggregators:
  */
 export function useAggregatorGasFeeSWR(
-  routeResponse:
-    | SkipRouteResponse
-    | LifiRouteOverallResponse
-    | MosaicRouteQueryResponse
-    | undefined,
+  routeResponse: SkipRouteResponse | LifiRouteOverallResponse | undefined,
   skipMessages: SkipMsgV2[] | SkipMsg[] | TransactionRequestType[] | undefined,
   userAddressesMap: Record<string, string> | string[] | null,
   sourceChain: SourceChain | undefined,
@@ -70,10 +65,6 @@ export function useAggregatorGasFeeSWR(
   config?: SWRConfiguration,
   enabled = true,
 ): UseSkipGasFeeReturnType {
-  const [aptosGasDetails, setAptosGasDetails] = useState<
-    { gasEstimate: string; gasUnitPrice: string } | undefined
-  >()
-  const getAptosSigner = Wallet.useAptosSigner()
   const skipGasFeeSWRResponse = useAggregatorGasFeeSWRBase(
     routeResponse?.response,
     routeResponse?.aggregator,
@@ -84,13 +75,9 @@ export function useAggregatorGasFeeSWR(
     enabled && routeResponse?.aggregator !== RouteAggregator.LIFI,
     undefined,
     undefined,
-    aptosGasDetails,
   )
 
-  const { evmJsonRpc, lcdUrl } = useChainApis(
-    (sourceChain?.key ?? '') as SupportedChain,
-    SWAP_NETWORK,
-  )
+  const { evmJsonRpc } = useChainApis((sourceChain?.key ?? '') as SupportedChain, SWAP_NETWORK)
 
   const isEvmTx = !!skipMessages?.[0] && 'evm_tx' in skipMessages[0]
 
@@ -160,8 +147,7 @@ export function useAggregatorGasFeeSWR(
 
   const defaultSeiGasPrice = defaultSeiGasPriceSteps.low
   const lifiGasFeeSWRResponse = useSWR<SkipGasFeeData>(
-    isCompassWallet() &&
-      !!routeResponse &&
+    !!routeResponse &&
       routeResponse?.aggregator === RouteAggregator.LIFI &&
       enabled &&
       !!defaultSeiGasPrice
@@ -175,7 +161,6 @@ export function useAggregatorGasFeeSWR(
       : null,
     async function calculateGasFee() {
       if (
-        !isCompassWallet() ||
         !routeResponse ||
         (routeResponse && routeResponse?.aggregator !== RouteAggregator.LIFI) ||
         !defaultSeiGasPrice
@@ -256,33 +241,6 @@ export function useAggregatorGasFeeSWR(
     config,
   )
 
-  useSWR(
-    enabled && !!routeResponse?.response && routeResponse.aggregator === RouteAggregator.MOSAIC
-      ? unstable_serialize([userAddressesMap, routeResponse?.aggregator, routeResponse, isMainnet])
-      : null,
-    async function calculateGasFee() {
-      if (
-        !routeResponse ||
-        (routeResponse && routeResponse?.aggregator !== RouteAggregator.MOSAIC)
-      ) {
-        throw new Error('missing data')
-      }
-
-      const response = routeResponse.response
-
-      if (!response) {
-        throw new Error('missing data')
-      }
-
-      const aptosSigner = await getAptosSigner('movement')
-      const aptosClient = await AptosTx.getAptosClient(lcdUrl ?? '', aptosSigner.signer)
-      const simpleTransaction = await aptosClient.generateSwapTxn(response.tx)
-      const data = await aptosClient.simulateGasFee(simpleTransaction)
-      setAptosGasDetails(data)
-    },
-    config,
-  )
-
   if (routeResponse?.aggregator === RouteAggregator.LIFI) {
     return lifiGasFeeSWRResponse
   }
@@ -293,9 +251,6 @@ export function useAggregatorGasFeeSWR(
 
   return {
     ...skipGasFeeSWRResponse,
-    isLoading:
-      routeResponse?.aggregator === RouteAggregator.MOSAIC && !aptosGasDetails
-        ? true
-        : skipGasFeeSWRResponse.isLoading,
+    isLoading: skipGasFeeSWRResponse.isLoading,
   }
 }

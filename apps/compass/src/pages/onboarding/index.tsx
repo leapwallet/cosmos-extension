@@ -66,12 +66,6 @@ export default observer(function Onboarding() {
   const { loading, noAccount } = useAuth() as AuthContextType
 
   const trackCTAEvent = (methodChosen: string) => {
-    try {
-      mixpanel.track(EventName.OnboardingMethod, { methodChosen, time: Date.now() / 1000 })
-    } catch (e) {
-      captureException(e)
-    }
-
     localStorage.setItem('onboardingMethodChosen', methodChosen)
     localStorage.setItem('timeStarted2', new Date().getTime().toString())
   }
@@ -96,15 +90,6 @@ export default observer(function Onboarding() {
     const timeStarted1 = localStorage.getItem('timeStarted1')
     if (!timeStarted1) {
       localStorage.setItem('timeStarted1', new Date().getTime().toString())
-    }
-
-    try {
-      mixpanel.track(EventName.OnboardingStarted, {
-        firstWallet: true,
-        time: Date.now() / 1000,
-      })
-    } catch (e) {
-      captureException(e)
     }
   }, [])
 

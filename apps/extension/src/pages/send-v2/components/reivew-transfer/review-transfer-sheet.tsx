@@ -4,10 +4,10 @@ import {
   sliceAddress,
   useformatCurrency,
   useGetChains,
-  useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   LeapLedgerSignerEth,
+  LedgerError,
   pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
@@ -29,7 +29,6 @@ import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useExecuteSkipTx } from './executeSkipTx'
 
@@ -47,7 +46,6 @@ export const ReviewTransferSheet = observer(
     const chains = useGetChains()
     const getWallet = Wallet.useGetWallet()
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
-    const isSeiEvmChain = useIsSeiEvmChain()
 
     const {
       memo,
@@ -62,8 +60,10 @@ export const ReviewTransferSheet = observer(
       isIBCTransfer,
       sendDisabled,
       confirmSend,
+      setTxError,
       confirmSendEth,
       clearTxError,
+      setShowLedgerPopup,
       userPreferredGasPrice,
       userPreferredGasLimit,
       gasEstimate,
@@ -74,13 +74,16 @@ export const ReviewTransferSheet = observer(
       sendActiveChain,
       associated0xAddress,
       setIsSending,
-      isSeiEvmTransaction,
-      hasToUsePointerLogic,
-      pointerAddress,
     } = useSendContext()
 
-    const { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError } =
-      useExecuteSkipTx()
+    const {
+      confirmSkipTx,
+      txnProcessing,
+      error,
+      showLedgerPopupSkipTx,
+      setShowLedgerPopupSkipTx,
+      setError,
+    } = useExecuteSkipTx()
     const fiatValue = useMemo(
       () => formatCurrency(new BigNumber(inputAmount).multipliedBy(tokenFiatValue ?? 0)),
       [formatCurrency, inputAmount, tokenFiatValue],
@@ -111,7 +114,7 @@ export const ReviewTransferSheet = observer(
         )
 
         if (
-          (isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) &&
+          chains[sendActiveChain]?.evmOnlyChain &&
           _isERC20Token &&
           toAddress.toLowerCase().startsWith(chains[sendActiveChain].addressPrefix) &&
           fetchAccountDetailsData?.pubKey.key
@@ -127,7 +130,7 @@ export const ReviewTransferSheet = observer(
           toAddress = associated0xAddress
         }
 
-        if (isSeiEvmTransaction || chains[sendActiveChain]?.evmOnlyChain) {
+        if (chains[sendActiveChain]?.evmOnlyChain) {
           const wallet = await getWallet(sendActiveChain, true)
           const nativeTokenKey = Object.keys(chains[sendActiveChain]?.nativeDenoms ?? {})?.[0]
 
@@ -138,10 +141,8 @@ export const ReviewTransferSheet = observer(
             wallet as unknown as EthWallet,
             parseInt(userPreferredGasPrice?.amount?.toString() ?? ''),
             {
-              isERC20Token: _isERC20Token || hasToUsePointerLogic,
-              contractAddress: hasToUsePointerLogic
-                ? pointerAddress
-                : selectedToken.coinMinimalDenom,
+              isERC20Token: _isERC20Token,
+              contractAddress: selectedToken.coinMinimalDenom,
               decimals: selectedToken.coinDecimals,
               nativeTokenKey,
             },
@@ -177,22 +178,28 @@ export const ReviewTransferSheet = observer(
           })
         }
       } catch (err: unknown) {
+        if (err instanceof LedgerError) {
+          setTxError(err.message)
+          setShowLedgerPopup(false)
+          setShowLedgerPopupSkipTx(false)
+        }
         setIsSending(false)
         captureException(err)
       }
     }, [
       clearTxError,
+      setShowLedgerPopup,
+      setTxError,
+      setShowLedgerPopupSkipTx,
       fee,
       selectedAddress?.address,
       selectedToken,
       allERC20Denoms,
-      isSeiEvmChain,
       chains,
       sendActiveChain,
       fetchAccountDetailsData?.pubKey?.key,
       associatedSeiAddress,
       associated0xAddress,
-      isSeiEvmTransaction,
       transferData?.isSkipTransfer,
       isIbcUnwindingDisabled,
       isIBCTransfer,
@@ -202,8 +209,6 @@ export const ReviewTransferSheet = observer(
       userPreferredGasLimit,
       gasEstimate,
       userPreferredGasPrice?.amount,
-      hasToUsePointerLogic,
-      pointerAddress,
       confirmSend,
       memo,
       confirmSkipTx,
@@ -211,109 +216,117 @@ export const ReviewTransferSheet = observer(
     ])
 
     useCaptureTxError(txError)
-    if ((showLedgerPopup || showLedgerPopupSkipTx) && !txError) {
-      return <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup || showLedgerPopupSkipTx} />
-    }
+
+    const onCloseLedgerPopup = useCallback(() => {
+      setShowLedgerPopup(false)
+      setShowLedgerPopupSkipTx(false)
+    }, [setShowLedgerPopup, setShowLedgerPopupSkipTx])
 
     return (
-      <BottomModal
-        isOpen={isOpen}
-        closeOnBackdropClick={true}
-        onClose={handleClose}
-        title='Review Transaction'
-        contentClassName='!bg-white-100 dark:!bg-gray-950'
-        className='p-6'
-      >
-        <div className='flex flex-col items-center w-full gap-y-4'>
-          <div className='w-full flex items-center gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
-            <div className='flex flex-col flex-1 items-center'>
-              <div className='w-11 h-11 rounded-full relative bg-gray-100 p-2 mb-4 dark:bg-gray-850 shrink-0 flex items-center justify-center'>
-                <TokenImageWithFallback
-                  assetImg={selectedToken?.img}
-                  text={selectedToken?.symbol ?? ''}
-                  altText={selectedToken?.symbol ?? ''}
-                  imageClassName='w-full h-full rounded-full bg-gray-200 dark:bg-gray-800'
-                  containerClassName='w-full h-full rounded-full bg-gray-200 dark:bg-gray-800'
-                  textClassName='text-[8px] !leading-[11px]'
-                />
-                {chains?.[sendActiveChain]?.chainSymbolImageUrl && !useChainImgFallback ? (
-                  <img
-                    src={chains?.[sendActiveChain]?.chainSymbolImageUrl}
-                    alt={chains?.[sendActiveChain]?.chainName ?? ''}
-                    onError={() => {
-                      setUseChainImgFallback(true)
-                    }}
-                    className='absolute bottom-0 right-0 h-4 w-4'
+      <>
+        <BottomModal
+          isOpen={isOpen}
+          closeOnBackdropClick={true}
+          onClose={handleClose}
+          title='Review Transaction'
+          contentClassName='!bg-white-100 dark:!bg-gray-950'
+          className='p-6'
+        >
+          <div className='flex flex-col items-center w-full gap-y-4'>
+            <div className='w-full flex items-center gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
+              <div className='flex flex-col flex-1 items-center'>
+                <div className='w-11 h-11 rounded-full relative bg-gray-100 p-2 mb-4 dark:bg-gray-850 shrink-0 flex items-center justify-center'>
+                  <TokenImageWithFallback
+                    assetImg={selectedToken?.img}
+                    text={selectedToken?.symbol ?? ''}
+                    altText={selectedToken?.symbol ?? ''}
+                    imageClassName='w-full h-full rounded-full bg-gray-200 dark:bg-gray-800'
+                    containerClassName='w-full h-full rounded-full bg-gray-200 dark:bg-gray-800'
+                    textClassName='text-[8px] !leading-[11px]'
                   />
-                ) : null}
+                  {chains?.[sendActiveChain]?.chainSymbolImageUrl && !useChainImgFallback ? (
+                    <img
+                      src={chains?.[sendActiveChain]?.chainSymbolImageUrl}
+                      alt={chains?.[sendActiveChain]?.chainName ?? ''}
+                      onError={() => {
+                        setUseChainImgFallback(true)
+                      }}
+                      className='absolute bottom-0 right-0 h-4 w-4'
+                    />
+                  ) : null}
+                </div>
+
+                <p
+                  className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
+                  data-testing-id='send-review-sheet-inputAmount-ele'
+                >
+                  {formatTokenAmount(inputAmount, selectedToken?.symbol ?? '')}
+                </p>
+
+                <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
+                  {fiatValue} &middot; on {chains?.[sendActiveChain]?.chainName}
+                </p>
               </div>
 
-              <p
-                className='text-sm text-black-100 dark:text-white-100 font-bold mb-1'
-                data-testing-id='send-review-sheet-inputAmount-ele'
-              >
-                {formatTokenAmount(inputAmount, selectedToken?.symbol ?? '')}
-              </p>
-
-              <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
-                {fiatValue} &middot; on {chains?.[sendActiveChain]?.chainName}
-              </p>
-            </div>
-
-            <ArrowRight
-              size={24}
-              className='text-black-100 shrink-0 dark:text-white-100 bg-gray-100 dark:bg-gray-850 rounded-full p-1.5'
-            />
-            <div className='flex flex-col flex-1 items-center'>
-              <Avatar
-                avatarImage={selectedAddress?.avatarIcon}
-                emoji={selectedAddress?.emoji}
-                chainIcon={selectedAddress?.chainIcon}
-                size='sm'
-                avatarOnError={imgOnError(defaultTokenLogo)}
-                className='mb-4 bg-gray-100 dark:bg-gray-850 rounded-full p-2 !h-11 !w-11'
+              <ArrowRight
+                size={24}
+                className='text-black-100 shrink-0 dark:text-white-100 bg-gray-100 dark:bg-gray-850 rounded-full p-1.5'
               />
+              <div className='flex flex-col flex-1 items-center'>
+                <Avatar
+                  avatarImage={selectedAddress?.avatarIcon}
+                  emoji={selectedAddress?.emoji}
+                  chainIcon={selectedAddress?.chainIcon}
+                  size='sm'
+                  avatarOnError={imgOnError(defaultTokenLogo)}
+                  className='mb-4 bg-gray-100 dark:bg-gray-850 rounded-full p-2 !h-11 !w-11'
+                />
 
-              <p
-                className='text-sm text-black-100 dark:text-white-100 font-bold mb-1 text-center'
-                data-testing-id='send-review-sheet-to-ele'
-              >
-                {selectedAddress?.ethAddress && selectedAddress?.chainName !== 'injective'
-                  ? sliceAddress(selectedAddress.ethAddress)
-                  : selectedAddress?.selectionType === 'currentWallet'
-                  ? selectedAddress?.name?.split('-')[0]
-                  : selectedAddress?.name}
-              </p>
-
-              {receiverChainName ? (
-                <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
-                  on {receiverChainName} <br />
+                <p
+                  className='text-sm text-black-100 dark:text-white-100 font-bold mb-1 text-center'
+                  data-testing-id='send-review-sheet-to-ele'
+                >
+                  {selectedAddress?.ethAddress && selectedAddress?.chainName !== 'injective'
+                    ? sliceAddress(selectedAddress.ethAddress)
+                    : selectedAddress?.selectionType === 'currentWallet'
+                    ? selectedAddress?.name?.split('-')[0]
+                    : selectedAddress?.name}
                 </p>
-              ) : null}
+
+                {receiverChainName ? (
+                  <p className='text-xs text-gray-800 dark:text-gray-200 font-medium'>
+                    on {receiverChainName} <br />
+                  </p>
+                ) : null}
+              </div>
             </div>
+
+            {memo ? (
+              <div className='w-full flex items-baseline gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
+                <p className='text-sm text-gray-800 dark:text-gray-200 font-bold'>Memo</p>
+                <p className='font-medium text-md text-black-100 dark:text-white-100'>{memo}</p>
+              </div>
+            ) : null}
+
+            <Buttons.Generic
+              color={Colors.green600}
+              size='normal'
+              title='Send'
+              className='w-full mt-2'
+              onClick={handleSend}
+              disabled={showLedgerPopup || isSending || sendDisabled || txnProcessing}
+              data-testing-id='send-review-sheet-send-btn'
+            >
+              {isSending || txnProcessing ? 'Sending...' : 'Confirm Send'}
+            </Buttons.Generic>
+            {txError || error ? <ErrorCard text={txError || error} /> : null}
           </div>
-
-          {memo ? (
-            <div className='w-full flex items-baseline gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900'>
-              <p className='text-sm text-gray-800 dark:text-gray-200 font-bold'>Memo</p>
-              <p className='font-medium text-md text-black-100 dark:text-white-100'>{memo}</p>
-            </div>
-          ) : null}
-
-          <Buttons.Generic
-            color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-            size='normal'
-            title='Send'
-            className='w-full mt-2'
-            onClick={handleSend}
-            disabled={showLedgerPopup || isSending || sendDisabled || txnProcessing}
-            data-testing-id='send-review-sheet-send-btn'
-          >
-            {isSending || txnProcessing ? 'Sending...' : 'Confirm Send'}
-          </Buttons.Generic>
-          {txError || error ? <ErrorCard text={txError || error} /> : null}
-        </div>
-      </BottomModal>
+        </BottomModal>
+        <LedgerConfirmationPopup
+          showLedgerPopup={(showLedgerPopup || showLedgerPopupSkipTx) && !txError}
+          onCloseLedgerPopup={onCloseLedgerPopup}
+        />
+      </>
     )
   },
 )

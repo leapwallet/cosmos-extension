@@ -5,6 +5,8 @@ import {
   DelegationResponse,
   fromSmall,
   isAptosChain,
+  NativeDenom,
+  pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
@@ -18,12 +20,12 @@ import {
   ChainDelegations,
   ChainInfosConfigType,
   DelegationInfo,
-  GetDelegationsForChainParams,
   GetDelegationsForChainReturn,
   SelectedNetworkType,
 } from '../types';
 import { formatTokenAmount, isFeatureExistForChain } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
+import { DelegationsAPIRequest, StakingApiStore } from './staking-api-store';
 import { ActiveStakingDenomStore } from './utils-store';
 
 export class DelegationsStore {
@@ -36,6 +38,7 @@ export class DelegationsStore {
   aggregatedChainsStore: AggregatedChainsStore;
   activeStakingDenomStore: ActiveStakingDenomStore;
   priceStore: PriceStore;
+  stakingApiStore: StakingApiStore;
 
   chainWiseDelegations: Record<string, DelegationInfo | Record<string, never>> = {};
   chainWiseLoading: Record<string, boolean> = {};
@@ -51,6 +54,7 @@ export class DelegationsStore {
     aggregatedChainsStore: AggregatedChainsStore,
     activeStakingDenomStore: ActiveStakingDenomStore,
     priceStore: PriceStore,
+    stakingApiStore: StakingApiStore,
   ) {
     makeAutoObservable(this, {
       chainDelegations: computed,
@@ -65,6 +69,7 @@ export class DelegationsStore {
     this.aggregatedChainsStore = aggregatedChainsStore;
     this.activeStakingDenomStore = activeStakingDenomStore;
     this.priceStore = priceStore;
+    this.stakingApiStore = stakingApiStore;
   }
 
   get chainDelegations(): ChainDelegations {
@@ -104,89 +109,110 @@ export class DelegationsStore {
     network = network || this.selectedNetworkStore.selectedNetwork;
 
     if (chain === 'aggregated') {
-      this.aggregatedChainsStore.aggregatedChainsData.forEach((chain) => {
-        const chainKey = this.getChainKey(chain as SupportedChain);
-
-        if (!this.chainWiseDelegations[chainKey] || forceRefetch) {
-          this.fetchChainDelegations(chain as SupportedChain, network ?? 'mainnet');
-        }
-      });
+      this.fetchDelegations(
+        this.aggregatedChainsStore.aggregatedChainsData as SupportedChain[],
+        network ?? 'mainnet',
+        forceRefetch,
+      );
     } else {
       const chainKey = this.getChainKey(chain);
 
       if (!this.chainWiseDelegations[chainKey] || forceRefetch) {
-        this.fetchChainDelegations(chain, network);
+        this.fetchDelegations([chain], network, forceRefetch);
       }
     }
   }
 
-  async fetchChainDelegations(chain: SupportedChain, network: SelectedNetworkType) {
+  async fetchDelegations(chainsList: SupportedChain[], network: SelectedNetworkType, forceRefetch = false) {
     const isTestnet = network === 'testnet';
-    const address = this.addressStore.addresses?.[chain];
+    const request: DelegationsAPIRequest = {
+      chains: {},
+      forceRefetch,
+    };
 
-    const activeChainInfo = this.chainInfosStore.chainInfos[chain];
-    const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
-
-    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
-
-    const chainKey = this.getChainKey(chain);
-    runInAction(() => {
-      this.chainWiseLoading[chainKey] = true;
-    });
-
-    const isFeatureComingSoon = isFeatureExistForChain(
-      'comingSoon',
-      'stake',
-      'Extension',
-      activeChainId,
-      this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
-    );
-
-    const isFeatureNotSupported = isFeatureExistForChain(
-      'notSupported',
-      'stake',
-      'Extension',
-      activeChainId,
-      this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
-    );
-
-    if (isFeatureComingSoon || isFeatureNotSupported) {
+    chainsList.forEach((chain) => {
+      const address = this.addressStore.addresses?.[chain];
+      const activeChainInfo = this.chainInfosStore.chainInfos[chain as SupportedChain];
+      const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
+      if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
+      const chainKey = this.getChainKey(chain as SupportedChain);
       runInAction(() => {
-        this.chainWiseLoading[chainKey] = false;
-        this.chainWiseDelegations[chainKey] = {};
-      });
-      return;
-    }
-
-    runInAction(() => {
-      this.chainWiseRefetch[chainKey] = async () => {
-        await this.fetchChainDelegations(chain, this.selectedNetworkStore.selectedNetwork);
-      };
-    });
-
-    try {
-      const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
-      const hasEntryInNms =
-        this.nmsStore.restEndpoints[activeChainId] && this.nmsStore.restEndpoints[activeChainId].length > 0;
-
-      const lcdUrl = hasEntryInNms
-        ? this.nmsStore.restEndpoints[activeChainId][0].nodeUrl
-        : activeChainInfo?.apis[nodeUrlKey];
-
-      const response = await this.getDelegationsForChain({
-        lcdUrl: lcdUrl ?? '',
-        address,
-        activeStakingDenom: this.activeStakingDenomStore.stakingDenomForChain(chain)?.[0],
-        chainId: activeChainId,
-        activeChain: chain as SupportedChain,
+        this.chainWiseLoading[chainKey] = true;
       });
 
-      if (response === undefined) {
+      const isFeatureComingSoon = isFeatureExistForChain(
+        'comingSoon',
+        'stake',
+        'Extension',
+        activeChainId,
+        this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
+      );
+
+      const isFeatureNotSupported = isFeatureExistForChain(
+        'notSupported',
+        'stake',
+        'Extension',
+        activeChainId,
+        this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
+      );
+
+      if (isFeatureComingSoon || isFeatureNotSupported) {
         runInAction(() => {
           this.chainWiseLoading[chainKey] = false;
           this.chainWiseDelegations[chainKey] = {};
         });
-      } else {
+        return;
+      }
+
+      runInAction(() => {
+        this.chainWiseRefetch[chainKey] = async () => {
+          await this.fetchDelegations([chain], this.selectedNetworkStore.selectedNetwork, true);
+        };
+      });
+
+      request.chains[activeChainId] = {
+        address,
+        denom: this.activeStakingDenomStore.stakingDenomForChain(chain)?.[0].coinMinimalDenom,
+      };
+    });
+
+    const { chains, errors } = await this.stakingApiStore.getDelegations(request);
+    chainsList.forEach(async (chain) => {
+      const address = this.addressStore.addresses?.[chain];
+      const activeChainInfo = this.chainInfosStore.chainInfos[chain as SupportedChain];
+      const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
+      const chainKey = this.getChainKey(chain);
+      const activeStakingDenom = this.activeStakingDenomStore.stakingDenomForChain(chain as SupportedChain)?.[0];
+
+      try {
+        if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) {
+          throw new Error('Missing details or stake is not supported');
+        }
+        let delegation_responses: Delegation[] = [];
+        const hasError = errors && errors.some((item) => item.chainId === activeChainInfo.chainId);
+        if (hasError) {
+          const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
+          const hasEntryInNms =
+            this.nmsStore.restEndpoints[activeChainId] && this.nmsStore.restEndpoints[activeChainId].length > 0;
+
+          const lcdUrl = hasEntryInNms
+            ? this.nmsStore.restEndpoints[activeChainId][0].nodeUrl
+            : activeChainInfo?.apis[nodeUrlKey];
+          const res = await axiosWrapper({
+            baseURL: lcdUrl,
+            method: 'get',
+            url:
+              (['initia', 'initiaEvm'].includes(chain)
+                ? '/initia/mstaking/v1/delegations/'
+                : '/cosmos/staking/v1beta1/delegations/') + address,
+          });
+          delegation_responses = (res.data as DelegationResponse).delegation_responses;
+        } else {
+          delegation_responses = Object.values(chains[activeChainInfo.chainId].delegations);
+        }
+
+        const response = await this.formatDelegations(delegation_responses, chain, activeStakingDenom, !hasError);
+
         const { delegations, totalDelegationAmount, currencyAmountDelegation, totalDelegation, stakingDenom } =
           response;
 
@@ -200,56 +226,27 @@ export class DelegationsStore {
             stakingDenom,
           };
         });
+      } catch (error) {
+        runInAction(() => {
+          this.chainWiseLoading[chainKey] = false;
+          this.chainWiseDelegations[chainKey] = {};
+        });
       }
-    } catch (_) {
-      runInAction(() => {
-        this.chainWiseLoading[chainKey] = false;
-        this.chainWiseDelegations[chainKey] = {};
-      });
-    }
+    });
   }
 
-  async getDelegationsForChain({
-    lcdUrl,
-    address,
-    activeStakingDenom,
-    chainId,
-    activeChain,
-  }: GetDelegationsForChainParams): Promise<GetDelegationsForChainReturn | undefined> {
-    const res = await axiosWrapper({
-      baseURL: lcdUrl,
-      method: 'get',
-      url:
-        (activeChain === 'initia' ? '/initia/mstaking/v1/delegations/' : '/cosmos/staking/v1beta1/delegations/') +
-        address,
-    });
-
+  async formatDelegations(
+    delegation_responses: Delegation[],
+    activeChain: SupportedChain,
+    activeStakingDenom: NativeDenom,
+    isFormatted: boolean,
+  ): Promise<GetDelegationsForChainReturn> {
     await this.waitForPriceStore();
     const coingeckoPrices = this.priceStore.data;
-    let { delegation_responses } = res.data as DelegationResponse;
     let denomFiatValue: string | undefined = undefined;
+    const activeChainInfo = this.chainInfosStore.chainInfos[activeChain];
 
-    if (activeStakingDenom?.coinGeckoId) {
-      if (coingeckoPrices) {
-        let tokenPrice;
-        const coinGeckoId = activeStakingDenom?.coinGeckoId;
-        const alternateCoingeckoKey = `${chainId}-${activeStakingDenom?.coinMinimalDenom}`;
-
-        if (coinGeckoId) {
-          tokenPrice = coingeckoPrices[coinGeckoId];
-        }
-
-        if (!tokenPrice) {
-          tokenPrice = coingeckoPrices[alternateCoingeckoKey];
-        }
-
-        if (tokenPrice) {
-          denomFiatValue = new BigNumber('1').times(tokenPrice).toString();
-        }
-      }
-    }
-
-    if (activeChain === 'initia') {
+    if (['initia', 'initiaEvm'].includes(activeChain)) {
       delegation_responses = delegation_responses.reduce((acc: Delegation[], delegation: Delegation) => {
         const uinitDelegation = (delegation.balance as unknown as Amount[]).find(
           (balance) => balance.denom === activeStakingDenom?.coinMinimalDenom,
@@ -268,9 +265,31 @@ export class DelegationsStore {
       }, []);
     }
 
-    delegation_responses.forEach((delegation) => {
-      delegation.balance.amount = fromSmall(delegation.balance.amount, activeStakingDenom?.coinDecimals);
-    });
+    if (!isFormatted) {
+      delegation_responses.forEach((delegation) => {
+        delegation.balance.amount = fromSmall(delegation.balance.amount, activeStakingDenom?.coinDecimals);
+      });
+    }
+
+    if (activeStakingDenom?.coinGeckoId) {
+      if (coingeckoPrices) {
+        let tokenPrice;
+        const coinGeckoId = activeStakingDenom?.coinGeckoId;
+        const alternateCoingeckoKey = `${activeChainInfo.chainId}-${activeStakingDenom?.coinMinimalDenom}`;
+
+        if (coinGeckoId) {
+          tokenPrice = coingeckoPrices[coinGeckoId];
+        }
+
+        if (!tokenPrice) {
+          tokenPrice = coingeckoPrices[alternateCoingeckoKey];
+        }
+
+        if (tokenPrice) {
+          denomFiatValue = new BigNumber('1').times(tokenPrice).toString();
+        }
+      }
+    }
 
     const rawDelegations: Record<string, Delegation> = delegation_responses.reduce(
       (a, v) => ({ ...a, [v.delegation.validator_address]: v }),
@@ -301,13 +320,16 @@ export class DelegationsStore {
   }
 
   private getChainKey(chain: SupportedChain) {
-    const cosmosAddress = this.addressStore.addresses?.cosmos;
+    const evmPubKey = this.addressStore?.pubKeys?.ethereum;
+    const cosmosAddress = this.addressStore?.addresses?.cosmos;
+    const evmAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : '';
+    const address = cosmosAddress || evmAddress;
     const chainId =
       this.selectedNetworkStore.selectedNetwork == 'testnet'
         ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
-    return `${cosmosAddress}-${chain}-${chainId}`;
+    return `${address}-${chain}-${chainId}`;
   }
 
   private async waitForPriceStore() {

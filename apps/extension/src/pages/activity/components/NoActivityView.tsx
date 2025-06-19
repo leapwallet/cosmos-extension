@@ -10,9 +10,7 @@ type NoActivityViewProps = {
   chain: SupportedChain
 }
 
-export function NoActivityView({ accountExplorerLink, chain }: NoActivityViewProps) {
-  const chains = useGetChains()
-
+export function NoActivityView({ accountExplorerLink }: NoActivityViewProps) {
   return (
     <div className='flex flex-col h-[350px]'>
       <EmptyCard
@@ -26,7 +24,7 @@ export function NoActivityView({ accountExplorerLink, chain }: NoActivityViewPro
           href={accountExplorerLink}
           target='_blank'
           className='font-semibold text-base mt-4 text-center'
-          style={{ color: Colors.getChainColor(chain, chains[chain]) }}
+          style={{ color: Colors.green600 }}
           rel='noreferrer'
         >
           Check on Explorer

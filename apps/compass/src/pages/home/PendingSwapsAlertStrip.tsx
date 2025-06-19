@@ -8,7 +8,7 @@ import { ActivitySwapTxPage } from 'pages/activity/ActivitySwapTxPage'
 import { useGetChainsToShow } from 'pages/swaps-v2/hooks'
 import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { moveTxsFromCurrentToPending, TxStoreObject } from 'utils/pendingSwapsTxsStore'
 import Browser from 'webextension-polyfill'
 

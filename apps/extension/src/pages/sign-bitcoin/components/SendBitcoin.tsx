@@ -41,7 +41,7 @@ import { Images } from 'images'
 import { GenericDark, GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { TransactionStatus } from 'types/utility'
 import { formatWalletName } from 'utils/formatWalletName'
@@ -226,6 +226,7 @@ export const SendBitcoin = observer(
           )}
         >
           <PopupLayout
+            className='flex flex-col'
             header={
               <div className='w-[396px]'>
                 <Header
@@ -241,7 +242,7 @@ export const SendBitcoin = observer(
               </div>
             }
           >
-            <div className='px-7 py-3 overflow-y-auto relative h-[calc(100%-150px)]'>
+            <div className='px-7 py-3 overflow-y-auto relative max-h-[calc(100%-150px)]'>
               <h2 className='text-center text-lg font-bold dark:text-white-100 text-gray-900 w-full'>
                 Approve Transaction
               </h2>
@@ -339,7 +340,7 @@ export const SendBitcoin = observer(
               ) : null}
             </div>
 
-            <div className='absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full'>
+            <div className='py-3 px-7 dark:bg-black-100 bg-gray-50 w-full mt-auto'>
               <div className='flex items-center justify-center w-full space-x-3'>
                 <Buttons.Generic
                   title='Reject Button'

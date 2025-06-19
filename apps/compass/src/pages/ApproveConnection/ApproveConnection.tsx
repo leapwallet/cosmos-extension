@@ -11,7 +11,7 @@ import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonit
 import { useUpdateKeyStore } from 'hooks/settings/useActiveWallet'
 import { getWalletIconAtIndex } from 'images/misc'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 

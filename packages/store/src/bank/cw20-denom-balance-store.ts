@@ -10,6 +10,7 @@ import {
   AutoFetchedCW20DenomsStore,
   BetaCW20DenomsStore,
   ChainInfosStore,
+  CoingeckoIdsStore,
   CompassTokenTagsStore,
   CW20DenomsStore,
   DenomsStore,
@@ -17,7 +18,7 @@ import {
   EnabledCW20DenomsStore,
   NmsStore,
 } from '../assets';
-import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
+import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
 import { sortTokenBalances } from './balance-calculator';
 import { BalanceLoadingStatus, Token } from './balance-types';
 import { PriceStore } from './price-store';
@@ -42,6 +43,8 @@ export class CW20DenomBalanceStore {
   activeChainStore: ActiveChainStore;
   aggregatedChainsStore: AggregatedChainsStore;
   compassTokenTagsStore: CompassTokenTagsStore;
+  currencyStore: CurrencyStore;
+  coingeckoIdsStore: CoingeckoIdsStore;
 
   constructor(
     chainInfosStore: ChainInfosStore,
@@ -58,6 +61,8 @@ export class CW20DenomBalanceStore {
     priceStore: PriceStore,
     aggregatedChainsStore: AggregatedChainsStore,
     compassTokenTagsStore: CompassTokenTagsStore,
+    currencyStore: CurrencyStore,
+    coingeckoIdsStore: CoingeckoIdsStore,
   ) {
     makeAutoObservable(this);
 
@@ -75,6 +80,8 @@ export class CW20DenomBalanceStore {
     this.priceStore = priceStore;
     this.aggregatedChainsStore = aggregatedChainsStore;
     this.compassTokenTagsStore = compassTokenTagsStore;
+    this.currencyStore = currencyStore;
+    this.coingeckoIdsStore = coingeckoIdsStore;
   }
 
   async initialize() {
@@ -109,6 +116,7 @@ export class CW20DenomBalanceStore {
       this.aggregatedLoadingStatus = true;
     });
 
+    await this.aggregatedChainsStore.readyPromise;
     await Promise.allSettled(
       this.aggregatedChainsStore.aggregatedChainsData.map(async (chain) => {
         return this.fetchChainBalances(chain as SupportedChain, network, refetch);
@@ -162,7 +170,11 @@ export class CW20DenomBalanceStore {
     forceCW20Denoms?: string[],
     skipStateUpdate = false,
   ): Promise<Token[] | undefined> {
-    const cw20DenomAddresses = forceCW20Denoms ?? this.getCW20DenomAddresses(activeChain);
+    let cw20DenomAddresses: string[] | undefined = forceCW20Denoms;
+    await this.cw20DenomsStore.readyPromise;
+    if (!cw20DenomAddresses) {
+      cw20DenomAddresses = this.getCW20DenomAddresses(activeChain);
+    }
 
     const chainInfo = this.chainInfosStore.chainInfos[activeChain];
     if (!chainInfo) {
@@ -204,7 +216,7 @@ export class CW20DenomBalanceStore {
     try {
       rawBalances = await fetchCW20Balances(`${rpcUrl}/`, address, cw20DenomAddresses);
       if (rawBalances && rawBalances.length > 0) {
-        await this.waitForPriceStore();
+        await Promise.all([this.waitForPriceStore(), this.waitForCoingeckoIdsStore()]);
         await Promise.allSettled(
           rawBalances.map(async (balance) => {
             try {
@@ -304,7 +316,9 @@ export class CW20DenomBalanceStore {
       if (!allTokens || allTokens?.length === 0) {
         throw new Error('No tokens found from sei-trace');
       }
-      await this.waitForPriceStore();
+
+      await Promise.all([this.waitForPriceStore(), this.waitForCoingeckoIdsStore()]);
+
       const formattedBalances = allTokens.map((item: any) => {
         const token = {
           address: item.token_contract,
@@ -351,8 +365,9 @@ export class CW20DenomBalanceStore {
   private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
     const chainKey = this.getChainKey(chain, forceNetwork);
     const address = this.addressStore.addresses[chain];
+    const userPreferredCurrency = this.currencyStore.preferredCurrency;
 
-    return `${chainKey}-${address}`;
+    return `${chainKey}-${address}-${userPreferredCurrency}`;
   }
 
   private getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
@@ -360,8 +375,8 @@ export class CW20DenomBalanceStore {
     if (chain === 'aggregated') return `aggregated-${network}`;
     const chainId =
       network === 'testnet'
-        ? this.chainInfosStore.chainInfos[chain].testnetChainId
-        : this.chainInfosStore.chainInfos[chain].chainId;
+        ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
+        : this.chainInfosStore.chainInfos[chain]?.chainId;
     return `${chain}-${chainId}`;
   }
 
@@ -391,6 +406,7 @@ export class CW20DenomBalanceStore {
   formatBalance(balance: { amount: BigNumber; denom: string }, chain: SupportedChain) {
     const chainInfos = this.chainInfosStore.chainInfos;
     const coingeckoPrices = this.priceStore.data;
+    const coingeckoIds = this.coingeckoIdsStore.coingeckoIdsFromS3;
 
     const chainInfo = chainInfos[chain];
     let _denom = balance.denom;
@@ -409,10 +425,16 @@ export class CW20DenomBalanceStore {
     const amount = fromSmall(new BigNumber(balance.amount).toString(), denomInfo?.coinDecimals);
 
     let usdValue;
+    let tokenPrice;
+
+    const coinGeckoId =
+      denomInfo?.coinGeckoId ||
+      coingeckoIds[denomInfo?.coinMinimalDenom] ||
+      coingeckoIds[denomInfo?.coinMinimalDenom?.toLowerCase()] ||
+      '';
+
     if (parseFloat(amount) > 0) {
       if (coingeckoPrices) {
-        let tokenPrice;
-        const coinGeckoId = denomInfo.coinGeckoId;
         const alternateCoingeckoKey = `${chainInfo.chainId}-${denomInfo.coinMinimalDenom}`;
 
         if (coinGeckoId) {
@@ -427,20 +449,20 @@ export class CW20DenomBalanceStore {
       }
     }
 
-    const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
+    const usdPrice = tokenPrice ? String(tokenPrice) : undefined;
 
     const formattedBalance: Token = {
       chain: denomInfo?.chain ?? '',
       name: denomInfo?.name,
       amount,
       symbol: denomInfo?.coinDenom,
-      usdValue: usdValue ?? '',
+      usdValue,
       coinMinimalDenom: denomInfo?.coinMinimalDenom ?? balance.denom,
       img: denomInfo?.icon,
       ibcDenom: '',
       usdPrice,
       coinDecimals: denomInfo?.coinDecimals,
-      coinGeckoId: denomInfo?.coinGeckoId,
+      coinGeckoId,
       tokenBalanceOnChain: chain as SupportedChain,
     };
 
@@ -490,13 +512,24 @@ export class CW20DenomBalanceStore {
           }
         : undefined;
 
+    const coinGeckoPrices = this.priceStore.data;
+    const coingeckoIds = this.coingeckoIdsStore.coingeckoIdsFromS3;
+
+    const coinGeckoId =
+      denomInfo?.coinGeckoId ||
+      coingeckoIds[denomInfo?.coinMinimalDenom] ||
+      coingeckoIds[denomInfo?.coinMinimalDenom?.toLowerCase()] ||
+      coingeckoIds[contract] ||
+      coingeckoIds[contract?.toLowerCase()] ||
+      '';
+
     if (!denomInfo) {
       tokensToAddInDenoms[contract] = {
         name,
         coinDenom: symbol,
         coinMinimalDenom,
         coinDecimals: decimals,
-        coinGeckoId: '',
+        coinGeckoId,
         icon,
         chain,
       };
@@ -506,16 +539,20 @@ export class CW20DenomBalanceStore {
       icon = denomInfo.icon;
       decimals = denomInfo.coinDecimals;
       coinMinimalDenom = denomInfo.coinMinimalDenom;
+      if (!denomInfo?.coinGeckoId && coinGeckoId) {
+        tokensToAddInDenoms[contract] = {
+          ...denomInfo,
+          coinGeckoId,
+        };
+      }
     }
 
-    const coinGeckoPrices = this.priceStore.data;
     const chainInfo = this.chainInfosStore.chainInfos[chain];
     const amount = fromSmall(token.value, decimals);
     let usdValue = token.usdValue;
+    let tokenPrice;
 
     if (!token.usdValue && coinGeckoPrices && parseFloat(amount) > 0) {
-      let tokenPrice;
-      const coinGeckoId = denomInfo?.coinGeckoId;
       const alternateCoingeckoKey = `${chainInfo.chainId}-${contract}`;
 
       if (coinGeckoId) {
@@ -529,9 +566,7 @@ export class CW20DenomBalanceStore {
       }
     }
 
-    const calculatedUsdPrice =
-      parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
-    const usdPrice = token.usdPrice ? token.usdPrice : calculatedUsdPrice;
+    const usdPrice = token.usdPrice ? token.usdPrice : tokenPrice ? String(tokenPrice) : undefined;
     return {
       chain,
       name,
@@ -543,7 +578,7 @@ export class CW20DenomBalanceStore {
       ibcDenom: '',
       usdPrice,
       coinDecimals: decimals,
-      coinGeckoId: denomInfo?.coinGeckoId || '',
+      coinGeckoId,
       tokenBalanceOnChain: chain,
     };
   }
@@ -575,7 +610,12 @@ export class CW20DenomBalanceStore {
 
   getAggregatedCW20Tokens = computedFn((network: SelectedNetworkType) => {
     let allTokens: Token[] = [];
-    const chains = Object.keys(this.chainInfosStore?.chainInfos);
+    const chains = Object.keys(this.chainInfosStore?.chainInfos)?.filter(
+      (chain) =>
+        network === 'testnet' ||
+        this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+          this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId,
+    );
 
     chains.forEach((chain) => {
       const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
@@ -591,7 +631,13 @@ export class CW20DenomBalanceStore {
 
   get allCW20Tokens() {
     let allTokens: Token[] = [];
-    const chains = Object.keys(this.chainInfosStore?.chainInfos);
+    const network = this.selectedNetworkStore.selectedNetwork;
+    const chains = Object.keys(this.chainInfosStore?.chainInfos)?.filter(
+      (chain) =>
+        network === 'testnet' ||
+        this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+          this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId,
+    );
 
     chains.forEach((chain) => {
       const balanceKey = this.getBalanceKey(chain as SupportedChain);
@@ -629,6 +675,14 @@ export class CW20DenomBalanceStore {
 
     const balanceKey = this.getBalanceKey(activeChain);
     return this.chainWiseStatus[balanceKey] === 'loading';
+  }
+
+  private async waitForCoingeckoIdsStore() {
+    try {
+      await this.coingeckoIdsStore.readyPromise;
+    } catch (e) {
+      //
+    }
   }
 
   private async waitForPriceStore() {

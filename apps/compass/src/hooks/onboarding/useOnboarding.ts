@@ -1,42 +1,40 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
 import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
-import { importLedgerAccount, pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
+import { importLedgerAccountV2, pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
-import { Wallet } from 'hooks/wallet/useWallet'
+import { LedgerAppId, Wallet } from 'hooks/wallet/useWallet'
 import { useWeb3Login } from 'pages/onboarding/use-social-login'
 import { useEffect, useRef, useState } from 'react'
 import { getDerivationPathToShow } from 'utils'
-import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 
 import { mergeAddresses } from './mergeAddresses'
 import { Address, Addresses, WalletAccount } from './types'
 
-export function useOnboarding() {
-  const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>()
-  const [customWalletAccounts, setCustomWalletAccounts] = useState<WalletAccount[]>()
-  const [mnemonic, setMnemonic] = useState('')
+type LedgerWalletAccounts = {
+  custom: WalletAccount[]
+  default: WalletAccount[]
+}
 
-  const socialLogin = useWeb3Login()
-
-  const importWalletAccounts = Wallet.useImportMultipleWalletAccounts()
-  const { chains } = useChainsStore()
-
-  const saveLedgerWallet = Wallet.useSaveLedgerWallet()
+export function useLedgerOnboarding() {
+  const [selectedApp, _setSelectedApp] = useState<LedgerAppId>('sei')
   const addresses = useRef<Addresses>()
 
-  useEffect(() => {
-    if (!mnemonic) {
-      const _mnemonic = SeedPhrase.CreateNewMnemonic()
-      setMnemonic(_mnemonic)
-    }
-  }, [mnemonic])
+  const [walletAccounts, setWalletAccounts] = useState<LedgerWalletAccounts>({
+    custom: [],
+    default: [],
+  })
+  const saveLedgerWallet = Wallet.useSaveLedgerWallet()
+  const { chains } = useChainsStore()
 
   const setAddresses = (_addresses: Addresses) => {
     addresses.current = _addresses
+  }
+
+  const setSelectedApp = (app: LedgerAppId) => {
+    _setSelectedApp(app)
+    setWalletAccounts({ custom: [], default: [] })
+    setAddresses({})
   }
 
   const updateAddresses = (
@@ -68,24 +66,13 @@ export function useOnboarding() {
     }
   }
 
-  const onOnboardingComplete = (
-    mnemonic: string,
-    password: Uint8Array,
-    selectedIds: { [key: number]: boolean },
-    type: 'create' | 'import' | 'create-social' | 'import-social',
-    email?: string,
-  ) => {
-    if (mnemonic && password) {
-      return importWalletAccounts({
-        mnemonic,
-        password,
-        selectedAddressIndexes: Object.entries(selectedIds)
-          .filter(([, selected]) => selected)
-          .map(([addressIndex]) => parseInt(addressIndex)),
-        type,
-        email,
-      })
-    }
+  const updateWalletAccounts = (accounts: WalletAccount[], type: 'default' | 'custom') => {
+    setWalletAccounts((prev) => {
+      return {
+        ...prev,
+        [type]: prev[type].concat(accounts),
+      }
+    })
   }
 
   const onBoardingCompleteLedger = async (password: Uint8Array, selectedAddresses: string[]) => {
@@ -111,19 +98,19 @@ export function useOnboarding() {
         let account
 
         if (curr.includes("'")) {
-          account = customWalletAccounts?.find((account) => {
+          account = walletAccounts.custom?.find((account) => {
             const path = getDerivationPathToShow(account.path ?? '')
             return path === curr
           })
         } else {
-          account = walletAccounts?.find((account) => {
+          account = walletAccounts.default?.find((account) => {
             return account.index === parseInt(curr)
           })
         }
 
         return {
           ...acc,
-          [curr]: { pubkey: account?.pubkey, path: account?.path },
+          [curr]: { pubkey: account?.pubkey, path: account?.path, name: account?.name },
         }
       }, {})
 
@@ -131,121 +118,83 @@ export function useOnboarding() {
         addresses: accountsToSave,
         password,
         pubKeys: selectedAccountsPubKeys,
+        app: selectedApp,
       })
     }
   }
 
-  const getAccountDetails = async (mnemonic: string) => {
-    const addressPrefix = 'sei'
-    const walletAccounts = await KeyChain.getWalletsFromMnemonic(mnemonic, 5, '118', addressPrefix)
+  const getLedgerAccountDetailsForIdxs = async (idxs?: Array<number>) => {
+    const primaryChain = 'seiTestnet2'
 
-    setWalletAccounts(
-      walletAccounts.map((account) => ({
-        ...account,
-        evmAddress: account.pubkey ? pubKeyToEvmAddressToShow(account.pubkey) : null,
-      })),
-    )
-  }
-
-  const getEvmLedgerAccountDetails = async () => {
-    const useEvmApp = true
-    const chain = useEvmApp ? 'injective' : 'seiTestnet2'
-
-    const ledgerEnabledEvmChains = getLedgerEnabledEvmChainsKey(Object.values(chains))
-    const { chainWiseAddresses } = await importLedgerAccount(
-      [0, 1, 2, 3, 4],
-      useEvmApp,
-      chain,
-      ledgerEnabledEvmChains,
-      chains,
-    )
-
-    updateAddresses(chainWiseAddresses, 0)
-  }
-
-  const getLedgerAccountDetails = async (useEvmApp: boolean) => {
-    const chain = useEvmApp ? 'injective' : 'seiTestnet2'
-
-    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccount(
-      [0, 1, 2, 3, 4],
-      useEvmApp,
-      chain,
+    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccountV2(
+      selectedApp,
+      idxs ?? [0, 1, 2, 3, 4],
       [],
-      chains,
+      {
+        primaryChain,
+        chainsToImport: [],
+        chainInfos: getChainDetails(),
+      },
     )
 
-    setWalletAccounts(
-      primaryChainAccount.map((account, index) => ({
-        index,
-        evmAddress: null,
-        address: account.address,
-        pubkey: account.pubkey,
-        // @ts-ignore
-        path: account.path,
-      })),
-    )
-
-    updateAddresses(chainWiseAddresses, 0)
-  }
-
-  const getLedgerAccountDetailsForIdxs = async (useEvmApp: boolean, idxs: number[]) => {
-    const chain = useEvmApp ? 'injective' : 'seiTestnet2'
-
-    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccount(
-      idxs,
-      useEvmApp,
-      chain,
-      //Added as a placeholder
-      [],
-      chains,
-    )
+    const prev = walletAccounts.default
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setWalletAccounts((prev: any) => [
-      ...(prev ?? []),
-      ...primaryChainAccount.map((account, index) => ({
+    updateWalletAccounts(
+      primaryChainAccount.map((account, index) => ({
         address: account.address,
         pubkey: account.pubkey,
         index: (prev ?? []).length + index,
         // @ts-ignore
         path: account.path,
+        evmAddress: selectedApp === 'sei' ? pubKeyToEvmAddressToShow(account.pubkey, true) : null,
       })),
-    ])
+      'default',
+    )
 
-    updateAddresses(chainWiseAddresses, idxs[0])
+    updateAddresses(chainWiseAddresses, idxs?.[0] ?? 0)
+  }
+
+  const getChainDetails = () => {
+    const chainDetails: any = {}
+    const chainEntries = Object.entries(chains)
+    for (let i = 0; i < chainEntries.length; i++) {
+      const [chain, chainInfo] = chainEntries[i]
+      chainDetails[chain as SupportedChain] = {
+        enabled: chainInfo.enabled,
+        coinType: chainInfo.bip44.coinType,
+        addressPrefix: chainInfo.addressPrefix,
+      }
+    }
+    return chainDetails
   }
 
   const getCustomLedgerAccountDetails = async (
-    useEvmApp: boolean,
     customDerivationPath: string,
     name: string,
     existingAddresses: string[] | undefined,
   ) => {
-    const allAccounts = [...(walletAccounts ?? []), ...(customWalletAccounts ?? [])]
-    // const isNameAlreadyPresent = allAccounts.some(
-    //   (account) => !!account.name && account.name === name,
-    // )
+    const allAccounts = walletAccounts.default.concat(walletAccounts.custom)
+    const primaryChain = 'seiTestnet2'
 
-    // if (isNameAlreadyPresent) {
-    //   throw new Error('This wallet name is already present, please enter a different name.')
-    // }
-
-    const primaryChain = useEvmApp ? 'injective' : 'seiTestnet2'
-
-    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccount(
-      // Added as a placeholder
+    const { primaryChainAccount, chainWiseAddresses } = await importLedgerAccountV2(
+      selectedApp,
       [],
-      useEvmApp,
-      primaryChain,
-      [],
-      chains,
       [customDerivationPath],
+      {
+        primaryChain,
+        chainsToImport: [],
+        chainInfos: getChainDetails(),
+      },
     )
     const getHdCustomPaths = (customDerivationPath: Array<string>, coinType: string) => {
       return customDerivationPath.map((path) => `m/44'/${coinType}'/${path}`)
     }
 
-    const hdCustomPaths = getHdCustomPaths([customDerivationPath], useEvmApp ? '60' : '118')
+    const hdCustomPaths = getHdCustomPaths(
+      [customDerivationPath],
+      selectedApp === 'sei' ? '60' : '118',
+    )
 
     const isCustomAccountPresentAlready = allAccounts.some((account) => {
       return (
@@ -263,33 +212,88 @@ export function useOnboarding() {
       throw new Error('This account is already present. Kindly enter a different derivation path.')
     }
 
-    setCustomWalletAccounts((prev: any) => [
-      ...(prev ?? []),
-      ...primaryChainAccount.map((account, index) => ({
+    const prev = walletAccounts.custom
+
+    updateWalletAccounts(
+      primaryChainAccount.map((account, index) => ({
         address: account.address,
         pubkey: account.pubkey,
         index: (prev ?? []).length + index,
         // @ts-ignore
         path: account.path,
         name,
-        evmAddress: pubKeyToEvmAddressToShow(account.pubkey, true) || null,
+        evmAddress: selectedApp === 'sei' ? pubKeyToEvmAddressToShow(account.pubkey, true) : null,
       })),
-    ])
+      'custom',
+    )
 
     updateAddresses(chainWiseAddresses, customDerivationPath)
   }
 
   return {
+    walletAccounts: walletAccounts.default,
+    customWalletAccounts: walletAccounts.custom,
+    //getLedgerAccountDetails,
+    onBoardingCompleteLedger,
+    getLedgerAccountDetailsForIdxs,
+    getCustomLedgerAccountDetails,
+    setSelectedApp,
+    selectedApp,
+  }
+}
+
+export function useOnboarding() {
+  const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>()
+  const [mnemonic, setMnemonic] = useState('')
+
+  const socialLogin = useWeb3Login()
+
+  const importWalletAccounts = Wallet.useImportMultipleWalletAccounts()
+
+  useEffect(() => {
+    if (!mnemonic) {
+      const _mnemonic = SeedPhrase.CreateNewMnemonic()
+      setMnemonic(_mnemonic)
+    }
+  }, [mnemonic])
+
+  const onOnboardingComplete = (
+    mnemonic: string,
+    password: Uint8Array,
+    selectedIds: { [key: number]: boolean },
+    type: 'create' | 'import' | 'create-social' | 'import-social',
+    email?: string,
+  ) => {
+    if (mnemonic && password) {
+      return importWalletAccounts({
+        mnemonic,
+        password,
+        selectedAddressIndexes: Object.entries(selectedIds)
+          .filter(([, selected]) => selected)
+          .map(([addressIndex]) => parseInt(addressIndex)),
+        type,
+        email,
+      })
+    }
+  }
+
+  const getAccountDetails = async (mnemonic: string) => {
+    const addressPrefix = 'sei'
+    const walletAccounts = await KeyChain.getWalletsFromMnemonic(mnemonic, 5, '118', addressPrefix)
+
+    setWalletAccounts(
+      walletAccounts.map((account) => ({
+        ...account,
+        evmAddress: account.pubkey ? pubKeyToEvmAddressToShow(account.pubkey) : null,
+      })),
+    )
+  }
+
+  return {
     mnemonic,
     walletAccounts,
-    customWalletAccounts,
     getAccountDetails,
-    getLedgerAccountDetails,
     onOnboardingComplete,
-    onBoardingCompleteLedger,
-    getEvmLedgerAccountDetails,
-    getLedgerAccountDetailsForIdxs,
     socialLogin,
-    getCustomLedgerAccountDetails,
   }
 }

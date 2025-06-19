@@ -14,8 +14,6 @@ export const BannerAdCard = observer(
     index,
     onClick,
     onClose,
-    handleAddChainClick,
-    handleSwitchChainClick,
     activeIndex,
   }: {
     bannerData: BannerADData
@@ -25,8 +23,6 @@ export const BannerAdCard = observer(
     onClick: (bannerId: string, index: number) => void
     // eslint-disable-next-line no-unused-vars
     onClose: (bannerId: string, index: number) => void
-    handleAddChainClick: (chain: string) => void
-    handleSwitchChainClick: (chain: string) => void
     activeIndex: number
   }) => {
     const navigate = useNavigate()
@@ -35,10 +31,6 @@ export const BannerAdCard = observer(
       if (bannerData.banner_type === 'redirect-interanlly') {
         const bannerId = getMixpanelBannerId(bannerData?.id, bannerData.attributes?.campaign_id)
         navigate(`${bannerData.redirect_url}&bannerId=${bannerId}`)
-      } else if (bannerData.banner_type === 'add-chain') {
-        handleAddChainClick(bannerData.redirect_url)
-      } else if (bannerData.banner_type === 'switch-chain') {
-        handleSwitchChainClick(bannerData.redirect_url)
       } else {
         if (bannerData?.redirect_url && bannerData?.redirect_url !== '#') {
           window.open(bannerData.redirect_url)

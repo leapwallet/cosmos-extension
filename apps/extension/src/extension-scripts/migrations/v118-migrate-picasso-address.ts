@@ -15,6 +15,9 @@ export function migratePicassoAddress(
   const keystoreEntries = Object.entries(keystore)
   const newKeyStore = keystoreEntries.reduce(
     (kstore: Record<string, Key<SupportedChain>>, [walletId, key]) => {
+      if (!key?.addresses?.cosmos) {
+        return kstore
+      }
       const newKey = {
         ...key,
         addresses: {
@@ -31,16 +34,18 @@ export function migratePicassoAddress(
     {},
   )
 
-  const newActiveWallet = {
-    ...activeWallet,
-    addresses: {
-      ...activeWallet.addresses,
-      [ChainInfos.composable.key]: convertBech32Address(
-        activeWallet.addresses.cosmos,
-        ChainInfos.composable.addressPrefix,
-      ),
-    },
-  }
+  const newActiveWallet = activeWallet?.addresses?.cosmos
+    ? {
+        ...activeWallet,
+        addresses: {
+          ...activeWallet.addresses,
+          [ChainInfos.composable.key]: convertBech32Address(
+            activeWallet.addresses.cosmos,
+            ChainInfos.composable.addressPrefix,
+          ),
+        },
+      }
+    : activeWallet
 
   return { newKeyStore, newActiveWallet }
 }

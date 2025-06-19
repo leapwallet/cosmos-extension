@@ -271,3 +271,16 @@ export function getMetaDataForAuthzTx(grantee: string, type: string[]) {
     type,
   };
 }
+
+export function getMetaDataForEarnNobleTx(
+  fromToken?: { amount: number; denom: string },
+  toToken?: { amount: number; denom: string },
+) {
+  const globalTxMeta = useTxMetadataStore.getState().txMetadata;
+
+  return {
+    ...globalTxMeta,
+    fromToken,
+    toToken,
+  };
+}

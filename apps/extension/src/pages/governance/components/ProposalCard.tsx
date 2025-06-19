@@ -15,20 +15,20 @@ export function ProposalCard({ proposal, style, handleClick }: ProposalCardProps
 
   return (
     <div
-      className='bg-white-100 dark:bg-gray-950 rounded-xl flex flex-col items-start justify-start gap-[2px] p-[12px] h-[112px] cursor-pointer'
+      className='flex flex-col items-start justify-start p-5 cursor-pointer w-full bg-secondary-100 hover:bg-secondary-200 transition-colors rounded-xl mb-6'
       style={style}
       onClick={handleClick}
     >
-      <p className='text-gray-600 dark:text-gray-400 text-[12px] font-bold'>
+      <p className='text-muted-foreground text-xs font-bold mb-3'>
         {chainInfo?.chainName ?? 'Unknown Chain'}
       </p>
       <p
-        className='text-black-100 dark:text-white-100 font-[700] line-clamp-2'
+        className='text-foreground font-bold text-[18px] mb-1'
         title={(proposal as ProposalApi)?.title ?? (proposal as Proposal)?.content?.title}
       >
         {(proposal as ProposalApi)?.title ?? (proposal as Proposal)?.content?.title}
       </p>
-      <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500]'>
+      <p className='text-muted-foreground text-sm font-medium'>
         #{proposal.proposal_id} · <ProposalStatus status={proposal.status as ProposalStatusEnum} />
       </p>
     </div>

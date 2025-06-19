@@ -16,7 +16,6 @@ import { starredChainsStore } from 'stores/starred-chains-store'
 import { Colors } from 'theme/colors'
 import { getChainName } from 'utils/getChainName'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type Chain = SupportedChain | typeof AGGREGATED_CHAIN_KEY
 
@@ -55,15 +54,13 @@ const ChainCardView = ({
     chainName !== 'aggregated' && activeWallet?.watchWallet && !activeWallet?.addresses[chainName]
 
   const trackCTAEvent = (eventName: EventName) => {
-    if (!isCompassWallet()) {
-      try {
-        mixpanel.track(eventName, {
-          chainSelected: formattedChainName,
-          time: Date.now() / 1000,
-        })
-      } catch (e) {
-        captureException(e)
-      }
+    try {
+      mixpanel.track(eventName, {
+        chainSelected: formattedChainName,
+        time: Date.now() / 1000,
+      })
+    } catch (e) {
+      captureException(e)
     }
   }
 
@@ -101,22 +98,22 @@ const ChainCardView = ({
           handleClick(chainName, beta)
         }
       }}
-      className='flex flex-1 items-center pr-4 p-3 cursor-pointer relative'
+      className='flex flex-1 items-center px-4 py-3.5 cursor-pointer relative'
     >
       <div className='flex items-center flex-1 gap-2'>
         {showStars && (
           <>
             {isStarred ? (
               <Star
-                size={16}
+                size={20}
                 weight='fill'
                 className='text-yellow-500 cursor-pointer'
                 onClick={onStarToggle}
               />
             ) : (
               <Star
-                size={16}
-                className='text-gray-200 dark:text-gray-800 cursor-pointer'
+                size={20}
+                className='text-secondary-600 cursor-pointer'
                 onClick={onStarToggle}
               />
             )}
@@ -125,7 +122,7 @@ const ChainCardView = ({
 
         <img
           src={img ?? defaultTokenLogo}
-          className={classNames('h-6 w-6', {
+          className={classNames('h-6 w-6 ml-1 rounded-full', {
             grayscale: isWatchWalletNotAvailableChain,
           })}
           onError={imgOnError(defaultTokenLogo)}
@@ -134,11 +131,7 @@ const ChainCardView = ({
         <Text
           size='sm'
           className='font-bold'
-          color={
-            isWatchWalletNotAvailableChain
-              ? 'dark:text-gray-800 text-gray-200'
-              : 'dark:text-white-100 text-black-100'
-          }
+          color={isWatchWalletNotAvailableChain ? 'text-secondary-600' : 'text-foreground'}
           data-testing-id={`switch-chain-${formattedChainName.toLowerCase()}-ele`}
         >
           {onPage === 'AddCollection' ? getChainName(formattedChainName) : formattedChainName}
@@ -164,10 +157,7 @@ const ChainCardView = ({
             weight='fill'
             className='ml-2'
             style={{
-              color:
-                selectedChain === AGGREGATED_CHAIN_KEY
-                  ? Colors.green600
-                  : Colors.getChainColor(selectedChain),
+              color: Colors.green500,
             }}
           />
         ) : null}

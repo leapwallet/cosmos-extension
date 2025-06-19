@@ -1,33 +1,39 @@
 import { sliceAddress, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons } from '@leapwallet/leap-ui'
 import BottomModal from 'components/bottom-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { useGetBTCDepositInfo, useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useChainInfos } from 'hooks/useChainInfos'
+import { useQueryParams } from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useState } from 'react'
+import { chainTagsStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { formatAuthzDate } from 'utils/formatAuthzDate'
 import { imgOnError } from 'utils/imgOnError'
+import { queryParams } from 'utils/query-params'
 
 import { SelectChainSheet } from '../side-nav/CustomEndpoints'
 
-export function DepositBTCBanner({ handleClick }: { handleClick: () => void }) {
+export function DepositBTCBanner() {
   const { data } = useNomicBTCDepositConstants()
   const activeChain = useActiveChain()
+  const query = useQueryParams()
 
   if (data && !data.banner.chains.includes(activeChain) && !data.banner.chains.includes('All')) {
     return null
   }
 
   return data ? (
-    <button className='rounded-[20px] w-[312px] h-[62px]' onClick={handleClick}>
+    <button
+      className='rounded-[20px] w-[312px] h-[62px] my-6'
+      onClick={() => query.set('btcDeposit', 'true')}
+    >
       <img
         src={data?.banner.banner_url ?? ''}
         alt='Deposit BTC to get nBTC - Powered by Nomic'
@@ -182,56 +188,49 @@ function NomicBTCDeposit({ selectedChain, handleChainBtnClick }: NomicBTCDeposit
   return null
 }
 
-export const BitcoinDeposit = observer(
-  ({
-    isVisible,
-    onCloseHandler,
-    chainTagsStore,
-  }: {
-    isVisible: boolean
-    onCloseHandler: () => void
-    chainTagsStore: ChainTagsStore
-  }) => {
-    const activeChain = useActiveChain()
-    const [showSelectChain, setShowSelectChain] = useState(false)
-    const { data } = useNomicBTCDepositConstants()
-    const [selectedChain, setSelectedChain] = useState(activeChain)
+export const BitcoinDeposit = observer(() => {
+  const query = useQueryParams()
+  const isVisible = query.get(queryParams.btcDeposit) === 'true'
 
-    useEffect(() => {
-      if (data && data.ibcChains.length) {
-        if (data.ibcChains.includes(activeChain)) {
-          setSelectedChain(activeChain)
-        } else {
-          setSelectedChain(data.ibcChains[0] as SupportedChain)
-        }
+  const activeChain = useActiveChain()
+  const [showSelectChain, setShowSelectChain] = useState(false)
+  const { data } = useNomicBTCDepositConstants()
+  const [selectedChain, setSelectedChain] = useState(activeChain)
+
+  useEffect(() => {
+    if (data && data.ibcChains.length) {
+      if (data.ibcChains.includes(activeChain)) {
+        setSelectedChain(activeChain)
+      } else {
+        setSelectedChain(data.ibcChains[0] as SupportedChain)
       }
-    }, [activeChain, data])
+    }
+  }, [activeChain, data])
 
-    return (
-      <BottomModal
-        isOpen={isVisible}
-        onClose={onCloseHandler}
-        title={'Bitcoin Deposit Address'}
-        closeOnBackdropClick={true}
-      >
-        <>
-          <NomicBTCDeposit
-            selectedChain={selectedChain}
-            handleChainBtnClick={() => setShowSelectChain(true)}
-          />
-          <SelectChainSheet
-            chainsToShow={data?.ibcChains}
-            isVisible={showSelectChain}
-            onClose={() => setShowSelectChain(false)}
-            selectedChain={selectedChain}
-            onChainSelect={(chaiName: SupportedChain) => {
-              setSelectedChain(chaiName)
-              setShowSelectChain(false)
-            }}
-            chainTagsStore={chainTagsStore}
-          />
-        </>
-      </BottomModal>
-    )
-  },
-)
+  return (
+    <BottomModal
+      isOpen={isVisible}
+      onClose={() => query.remove(queryParams.btcDeposit)}
+      title={'Bitcoin Deposit Address'}
+      closeOnBackdropClick={true}
+    >
+      <>
+        <NomicBTCDeposit
+          selectedChain={selectedChain}
+          handleChainBtnClick={() => setShowSelectChain(true)}
+        />
+        <SelectChainSheet
+          chainsToShow={data?.ibcChains}
+          isVisible={showSelectChain}
+          onClose={() => setShowSelectChain(false)}
+          selectedChain={selectedChain}
+          onChainSelect={(chaiName: SupportedChain) => {
+            setSelectedChain(chaiName)
+            setShowSelectChain(false)
+          }}
+          chainTagsStore={chainTagsStore}
+        />
+      </>
+    </BottomModal>
+  )
+})

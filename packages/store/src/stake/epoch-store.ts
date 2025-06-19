@@ -55,7 +55,7 @@ export class StakeEpochStore extends BaseQueryStore<EpochMessage[]> {
   get baseUrl() {
     return this.selectedNetworkStore.selectedNetwork === 'testnet'
       ? this.chainInfosStore.chainInfos.babylon.apis.restTest
-      : this.chainInfosStore.chainInfos.babylon.apis.rest;
+      : this.chainInfosStore.chainInfos.mainBabylon.apis.rest;
   }
 
   get totalDelegatedAmount() {

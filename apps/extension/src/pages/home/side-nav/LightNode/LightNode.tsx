@@ -1,12 +1,9 @@
 import { useAddressStore, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons } from '@leapwallet/leap-ui'
 import { CheckCircle } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
-import classNames from 'classnames'
-import PopupLayout from 'components/layout/popup-layout'
-import { ButtonName, ButtonType, EventName, PageName } from 'config/analytics'
+import { Button } from 'components/ui/button'
+import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { motion } from 'framer-motion'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { Images } from 'images'
 import loadingAnimation from 'lottie-files/light-node-loading.json'
 import Lottie from 'lottie-react'
@@ -15,16 +12,14 @@ import { observer } from 'mobx-react-lite'
 import React, { useEffect, useRef, useState } from 'react'
 import { clientIdStore } from 'stores/client-id-store'
 import { lightNodeStore } from 'stores/light-node-store'
-import { Colors } from 'theme/colors'
-import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
 import Text from '../../../../components/text'
 import BasicAccordion from './components/BaseAccordion'
-import LightNodeHeader from './components/Header'
 import LightNodeDetails from './components/LightNodeDetails'
 import LightNodeSyncProgress from './components/LightNodeSyncProgress'
 import LightNodeSettings from './components/Settings'
+import { LightNodeBanner } from './LumisNFT'
 
 const LoadingAnimation = () => {
   const initialRef = useRef<Record<string, never | number>>({ opacity: 0, y: 50 })
@@ -52,16 +47,25 @@ const LoadingAnimation = () => {
           preserveAspectRatio: 'xMidYMid slice',
         }}
       />
-      <Text size='md' className='font-bold'>
-        Connecting to Celestia network...
-      </Text>
+      <span className='font-bold'>Connecting to Celestia network...</span>
     </motion.div>
   )
 }
 
-const LightNode = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
+const LightNode = ({
+  goBack,
+  showLightNodeSettings,
+  setShowLightNodeSettings,
+  setActiveTab,
+  showBanner,
+}: {
+  goBack: (toHome?: boolean) => void
+  showLightNodeSettings: boolean
+  setShowLightNodeSettings: (show: boolean) => void
+  setActiveTab: React.Dispatch<React.SetStateAction<'Light Node' | 'Lumi NFT'>>
+  showBanner: boolean
+}) => {
   const { primaryAddress } = useAddressStore()
-  const [showLightNodeSettings, setShowLightNodeSettings] = useState(false)
   const [showAnimation, setShowAnimation] = useState(false)
   const [showMoreDetails, setShowMoreDetails] = useState<boolean>(false)
   const handleAccordionClick = () => {
@@ -74,11 +78,12 @@ const LightNode = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
     if (lightNodeStore.isLightNodeRunning) {
       lightNodeStore.stopNode(primaryAddress, clientIdStore.clientId)
     } else {
-      lightNodeStore.startNode()
       setShowAnimation(true)
-      browser.runtime.sendMessage({
-        type: 'capture-light-node-stats',
-        payload: {},
+      lightNodeStore.startNode(primaryAddress, clientIdStore.clientId).then(() => {
+        browser.runtime.sendMessage({
+          type: 'capture-light-node-stats',
+          payload: {},
+        })
       })
     }
 
@@ -102,10 +107,6 @@ const LightNode = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
   }
 
   const initialRef = useRef<Record<string, never | number>>({ opacity: 0, y: 50 })
-
-  usePageView(PageName.CelestiaLightNode, true, {
-    uuid: clientIdStore.clientId,
-  })
 
   useEffect(() => {
     const timeoutMilliSecond = 1000
@@ -137,157 +138,122 @@ const LightNode = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
     // Open Twitter compose window
     window.open(twitterShareUrl.toString(), '_blank')
   }
-  const clearIndexedDB = async () => {
-    const databases = await indexedDB.databases()
-    databases.forEach((element) => {
-      if (element.name?.includes('celestia')) {
-        indexedDB.deleteDatabase(element.name)
-      }
-    })
-  }
+
   const handleClearStorage = async () => {
     setShowLightNodeSettings(false)
     lightNodeStore.clearLastSyncedInfo()
-    await clearIndexedDB()
   }
 
   return (
-    <div
-      className={classNames('panel-height panel-width enclosing-panel', {
-        'pb-5': !isSidePanel(),
-      })}
-    >
-      <PopupLayout
-        className='relative'
-        header={
-          <LightNodeHeader
-            onBack={() => goBack()}
-            showSettings={
-              !lightNodeStore.isLightNodeRunning &&
-              !!lightNodeStore.lastSyncedInfo?.lastSyncedHeader
-            }
-            onSettings={() => setShowLightNodeSettings(true)}
-          />
-        }
-      >
-        <div className='p-6'>
-          {showAnimation ? (
-            <LoadingAnimation />
-          ) : (
-            <div className='flex flex-col gap-3 w-full mb-16'>
-              {lightNodeStore.isLightNodeRunning ? (
-                <>
-                  <LightNodeSyncProgress
-                    network='Mainnet'
+    <>
+      <div className='p-6 flex flex-col gap-5 w-full h-full'>
+        {showAnimation ? (
+          <LoadingAnimation />
+        ) : (
+          <>
+            {showBanner && (
+              <div className='cursor-pointer' onClick={() => setActiveTab('Lumi NFT')}>
+                <LightNodeBanner
+                  title={
+                    lightNodeStore.isLightNodeRunning
+                      ? 'You can mint your exclusive Lumi NFT now!'
+                      : `${
+                          !lightNodeStore.lastSyncedInfo?.lastSyncedHeader ? 'Run a' : 'Resume your'
+                        } Light node to unlock your exclusive Lumi NFT`
+                  }
+                />
+              </div>
+            )}
+
+            {lightNodeStore.isLightNodeRunning ? (
+              <>
+                <LightNodeSyncProgress
+                  network='Mainnet'
+                  syncedPercentage={lightNodeStore.syncedPercentage}
+                  isLightNodeRunning={lightNodeStore.isLightNodeRunning}
+                  latestHeader={lightNodeStore.latestHeader ?? undefined}
+                  blockTime={lightNodeStore.blockTime}
+                  onShareClick={handleShare}
+                />
+                <BasicAccordion
+                  title='More Details'
+                  toggleAccordion={handleAccordionClick}
+                  isExpanded={showMoreDetails}
+                >
+                  <LightNodeDetails
+                    latestHeader={lightNodeStore.latestHeader}
+                    events={lightNodeStore.visualData}
                     syncedPercentage={lightNodeStore.syncedPercentage}
-                    isLightNodeRunning={lightNodeStore.isLightNodeRunning}
-                    latestHeader={lightNodeStore.latestHeader ?? undefined}
-                    blockTime={lightNodeStore.blockTime}
-                    onShareClick={handleShare}
                   />
-                  <BasicAccordion
-                    title='More Details'
-                    toggleAccordion={handleAccordionClick}
-                    isExpanded={showMoreDetails}
-                  >
-                    <LightNodeDetails
-                      latestHeader={lightNodeStore.latestHeader}
-                      events={lightNodeStore.visualData}
-                      syncedPercentage={lightNodeStore.syncedPercentage}
-                    />
-                  </BasicAccordion>
-                  {lightNodeStore.syncedPercentage === 100 && (
-                    <div className='flex gap-1 items-center justify-center'>
-                      <CheckCircle className='w-5 h-5 text-green-600' weight='fill' />
-                      <Text size='sm' color={'dark:text-gray-400 text-black-300'}>
-                        You&apos;re in sync with the most recent block
-                      </Text>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {!lightNodeStore.lastSyncedInfo?.lastSyncedHeader ? (
-                    <>
-                      <img src={Images.Misc.LightNodeBanner} alt='light-node-banner' />
-                      <Text
-                        size='md'
-                        color={'dark:text-gray-200 text-black-100'}
-                        className='font-bold text-left'
-                      >
-                        Run your Celestia Light Node
-                      </Text>
-                      <Text size='sm' color={'dark:text-gray-400 text-black-300'}>
-                        Support a decentralized network and stay connected to verified data by
-                        keeping the Celestia light node on. Don&apos;t trust, verify
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <LightNodeSyncProgress
-                        network='Mainnet'
-                        syncedPercentage={lightNodeStore.lastSyncedInfo?.syncedPercentage}
-                        isLightNodeRunning={lightNodeStore.isLightNodeRunning}
-                        onShareClick={handleShare}
-                        blockTime={lightNodeStore.blockTime}
-                      />
-                      <Text size='sm' color={'dark:text-gray-400 text-black-300'}>
-                        Your light node is currently paused. Support a decentralized network and
-                        stay connected to verified data by keeping the Celestia light node on.
-                        Don&apos;t trust, verify.
-                      </Text>
-                    </>
-                  )}
-                </>
-              )}
-
-              <section className='fixed right-0 bottom-0 left-0 px-6 pb-6 pt-4 dark:bg-black-100 bg-gray-50'>
-                {lightNodeStore.isLightNodeRunning ? (
-                  <div className='flex justify-between gap-2'>
-                    <Buttons.Generic
-                      color={Colors.gray900}
-                      size='normal'
-                      className='w-full !text-white-100'
-                      title={'Stop Verifying'}
-                      onClick={toggleSampling}
-                    >
-                      Stop Verifying
-                    </Buttons.Generic>
-
-                    <Buttons.Generic
-                      color={Colors.green600}
-                      size='normal'
-                      className='w-full'
-                      title={'Go Home'}
-                      onClick={navigateToHome}
-                    >
-                      Home
-                    </Buttons.Generic>
+                </BasicAccordion>
+                {lightNodeStore.syncedPercentage === 100 && (
+                  <div className='flex gap-1 items-center justify-center'>
+                    <CheckCircle className='w-5 h-5 text-accent-success-200' weight='fill' />
+                    <span className='text-sm font-mediumn'>
+                      You&apos;re in sync with the most recent block
+                    </span>
                   </div>
-                ) : (
-                  <Buttons.Generic
-                    color={Colors.green600}
-                    size='normal'
-                    className='w-full'
-                    title={'Start Verifying'}
-                    onClick={toggleSampling}
-                  >
-                    {!lightNodeStore.lastSyncedInfo?.lastSyncedHeader
-                      ? 'Start Verifying'
-                      : 'Resume Verifying'}
-                  </Buttons.Generic>
                 )}
-              </section>
-            </div>
-          )}
-        </div>
-      </PopupLayout>
+              </>
+            ) : (
+              <>
+                {!lightNodeStore.lastSyncedInfo?.lastSyncedHeader ? (
+                  <>
+                    <img src={Images.Misc.LightNodeBanner} alt='light-node-banner' />
+                    <div className='flex flex-col gap-3'>
+                      <span className='font-bold text-mdl'>Run your Celestia Light Node</span>
+                      <span className='text-sm text-muted-foreground'>
+                        Help secure Celestia and stay connected to verified data by running a
+                        Celestia light node. Don&apos;t trust, verify.
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <LightNodeSyncProgress
+                      network='Mainnet'
+                      syncedPercentage={lightNodeStore.lastSyncedInfo?.syncedPercentage}
+                      isLightNodeRunning={lightNodeStore.isLightNodeRunning}
+                      onShareClick={handleShare}
+                      blockTime={lightNodeStore.blockTime}
+                    />
+                    <span className='text-sm text-muted-foreground'>
+                      Your light node is currently paused. Resume verification to help secure
+                      Celestia and stay connected to verified data by running your Celestia light
+                      node.
+                    </span>
+                  </>
+                )}
+              </>
+            )}
+
+            <footer className='mt-auto bg-secondary-100 -m-6 py-6 px-5 sticky bottom-0 !max-w-none'>
+              {lightNodeStore.isLightNodeRunning ? (
+                <div className='flex justify-between gap-2 [&>button]:flex-1'>
+                  <Button variant={'secondary'} onClick={toggleSampling}>
+                    Stop Verifying
+                  </Button>
+
+                  <Button onClick={navigateToHome}>Home</Button>
+                </div>
+              ) : (
+                <Button className='w-full' onClick={toggleSampling}>
+                  {!lightNodeStore.lastSyncedInfo?.lastSyncedHeader
+                    ? 'Start Verifying'
+                    : 'Resume Verifying'}
+                </Button>
+              )}
+            </footer>
+          </>
+        )}
+      </div>
+
       <LightNodeSettings
         isVisible={showLightNodeSettings}
         handleClearStorage={handleClearStorage}
         onCloseHandler={() => setShowLightNodeSettings(false)}
       />
-    </div>
+    </>
   )
 }
 

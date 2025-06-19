@@ -1,69 +1,43 @@
-import { Buttons, ProgressBar } from '@leapwallet/leap-ui'
 import ChoosePasswordView from 'components/choose-password-view'
-import ExtensionPage from 'components/extension-page'
-import { useOnboarding } from 'hooks/onboarding/useOnboarding'
+import { AnimatePresence } from 'framer-motion'
 import { observer } from 'mobx-react-lite'
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React from 'react'
 import { passwordStore } from 'stores/password-store'
-import { Colors } from 'theme/colors'
-import browser from 'webextension-polyfill'
 
-import { ConfirmSecretPhraseView } from './ConfirmSecretPhraseView'
-import { SeedPhraseView } from './SeedPhraseView'
+import { CreateWalletProvider, useCreateWalletContext } from './create-wallet-context'
+import { CreatingWalletLoader } from './creating-wallet-loader'
+import { CreateWalletLayout } from './layout'
+import { ConfirmSecretPhrase } from './steps/confirm-secret-phrase'
+import { SeedPhrase } from './steps/seed-phrase'
 
-export default observer(function OnboardingCreateWallet() {
-  const { mnemonic, onOnboardingComplete } = useOnboarding()
-
-  const [currentStep, setCurrentStep] = useState(1)
-  const navigate = useNavigate()
-  const totalSteps = 4
-
-  const onOnboardingCompleted = async (password: Uint8Array) => {
-    await onOnboardingComplete(mnemonic, password, { 0: true }, 'create')
-    const passwordBase64 = Buffer.from(password).toString('base64')
-    browser.runtime.sendMessage({ type: 'unlock', data: { password: passwordBase64 } })
-    passwordStore.setPassword(password)
-    navigate('/onboardingSuccess')
-  }
-
-  const moveToNextStep = () => {
-    if (currentStep === 2 && passwordStore.password) {
-      onOnboardingCompleted(passwordStore.password)
-    } else {
-      setCurrentStep(currentStep + 1)
-    }
-  }
-
-  const backToPreviousStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1)
-    else {
-      //Get Back to welcome screen
-      navigate(-1)
-    }
-  }
+const OnboardingCreateWalletView = observer(function OnboardingCreateWallet() {
+  const { onOnboardingCompleted, currentStep, loading, prevStep } = useCreateWalletContext()
 
   return (
-    <ExtensionPage
-      titleComponent={
-        <div className='flex flex-row w-[836px] items-center justify-between align- w-[calc(100%-500px)]'>
-          <Buttons.Back isFilled={true} onClick={backToPreviousStep} />
-          <ProgressBar
-            color={Colors.cosmosPrimary}
-            currentStep={currentStep}
-            totalSteps={totalSteps}
-          />
-          <div />
-        </div>
-      }
-    >
-      {currentStep === 1 && <SeedPhraseView mnemonic={mnemonic} onProceed={moveToNextStep} />}
-      {currentStep === 2 && (
-        <ConfirmSecretPhraseView mnemonic={mnemonic} onProceed={moveToNextStep} />
+    <AnimatePresence mode='wait' presenceAffectsLayout>
+      {loading && <CreatingWalletLoader key='creating-wallet-loader' />}
+
+      {currentStep === 1 && !loading && <SeedPhrase key='seed-phrase-view' />}
+
+      {currentStep === 2 && !loading && <ConfirmSecretPhrase key='confirm-secret-phrase-view' />}
+
+      {currentStep === 3 && !loading && !passwordStore.password && (
+        <ChoosePasswordView
+          entry={prevStep <= currentStep ? 'right' : 'left'}
+          key='choose-password-view'
+          onProceed={onOnboardingCompleted}
+        />
       )}
-      {currentStep === 3 && !passwordStore.password && (
-        <ChoosePasswordView onProceed={onOnboardingCompleted} />
-      )}
-    </ExtensionPage>
+    </AnimatePresence>
   )
 })
+
+const OnboardingCreateWallet = observer(() => (
+  <CreateWalletProvider>
+    <CreateWalletLayout>
+      <OnboardingCreateWalletView />
+    </CreateWalletLayout>
+  </CreateWalletProvider>
+))
+
+export default OnboardingCreateWallet

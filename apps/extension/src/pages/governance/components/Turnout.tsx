@@ -1,6 +1,6 @@
 import { CardDivider } from '@leapwallet/leap-ui'
 import { Info } from '@phosphor-icons/react'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
 import React, { Fragment, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
@@ -15,14 +15,14 @@ export function Turnout({ tallying }: { tallying: ITally[] }) {
 
   return (
     <>
-      <div className='rounded-2xl mt-6 h-18 w-full roundex-xxl bg-white-100 dark:bg-gray-900'>
+      <div className='rounded-2xl bg-secondary-100 flex flex-col mt-7'>
         {tallying.map((tally, index) => (
           <Fragment key={tally.label}>
-            <div className='flex items-center justify-between p-4' key={tally.label}>
+            <div className='flex items-center justify-between gap-3 px-5 py-4' key={tally.label}>
               <div className='flex flex-row items-center'>
-                <p className='text-md font-bold text-gray-800 dark:text-white-100'>{tally.label}</p>
-                <button onClick={() => showDetail(tally.label)} className='h-[18px] w-[18px]'>
-                  <Info size={18} className='text-gray-400 ml-1' />
+                <p className='text-secondary-800 text-sm'>{tally.label}</p>
+                <button onClick={() => showDetail(tally.label)} className='h-[16px] w-[16px]'>
+                  <Info size={16} className='text-secondary-600 ml-1' />
                 </button>
               </div>
 
@@ -40,12 +40,7 @@ export function Turnout({ tallying }: { tallying: ITally[] }) {
         ))}
       </div>
 
-      <BottomModal
-        isOpen={!!detail}
-        onClose={() => showDetail('')}
-        title={detail}
-        closeOnBackdropClick={true}
-      >
+      <BottomModal isOpen={!!detail} onClose={() => showDetail('')} title={detail} className='p-6'>
         <Text size='sm' color='text-gray-800 dark:text-white-100'>
           {detail === 'Turnout'
             ? 'Defined as the percentage of voting power already casted on a proposal  as a percentage of total staked tokens.'

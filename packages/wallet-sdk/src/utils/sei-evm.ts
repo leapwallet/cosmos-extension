@@ -10,7 +10,7 @@ import { hashPersonalMessage, isHexString, stripHexPrefix, toBuffer, toRpcSig } 
 
 import { abiERC20, abiERC721, abiERC1155, abiPointerView } from '../constants';
 import { LeapKeystoneSignerEth } from '../keystone';
-import { LeapLedgerSignerEth } from '../ledger';
+import { CompassSeiLedgerSigner, LeapLedgerSignerEth } from '../ledger';
 
 const erc20Interface = new Interface(abiERC20);
 const erc721Interface = new Interface(abiERC721);
@@ -112,11 +112,11 @@ export function encodedUtf8HexToText(hexValue: string) {
 export async function personalSign(
   data: string,
   signerAddress: string,
-  wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth,
+  wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth | CompassSeiLedgerSigner,
 ) {
   let signature: Signature;
 
-  if (wallet instanceof LeapLedgerSignerEth) {
+  if (wallet instanceof LeapLedgerSignerEth || wallet instanceof CompassSeiLedgerSigner) {
     signature = (await wallet.signPersonalMessage(signerAddress, data)) as unknown as Signature;
   } else if (wallet instanceof LeapKeystoneSignerEth || wallet.constructor.name === 'LeapKeystoneSignerEth') {
     const _wallet = wallet as LeapKeystoneSignerEth;
@@ -127,8 +127,12 @@ export async function personalSign(
     signature = wallet.sign(signerAddress, msgHash);
   }
 
+  const v = typeof signature.v === 'string' ? parseInt(signature.v, 16) : signature.v;
+  // Normalize v to either 27 or 28
+  const normalizedV = v === 0 || v === 27 ? 27 : 28;
+
   const rpcSigArgs = {
-    v: signature.v,
+    v: normalizedV,
     r: Buffer.from(arrayify(signature.r)),
     s: Buffer.from(arrayify(signature.s)),
   };
@@ -143,7 +147,7 @@ export async function signTypedData(
 ) {
   let signature: Signature;
 
-  if (wallet instanceof LeapLedgerSignerEth) {
+  if (wallet instanceof LeapLedgerSignerEth || wallet instanceof CompassSeiLedgerSigner) {
     signature = (await wallet.signEip712(signerAddress, data)) as unknown as Signature;
   } else if (wallet instanceof LeapKeystoneSignerEth || wallet.constructor.name === 'LeapKeystoneSignerEth') {
     const _wallet = wallet as LeapKeystoneSignerEth;

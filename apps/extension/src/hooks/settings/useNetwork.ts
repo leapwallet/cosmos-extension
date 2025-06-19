@@ -7,8 +7,6 @@ import { useEffect } from 'react'
 import { rootStore } from 'stores/root-store'
 import browser from 'webextension-polyfill'
 
-import { isCompassWallet } from '../../utils/isCompassWallet'
-
 export type SelectedNetwork = 'mainnet' | 'testnet'
 
 export function useSelectedNetwork() {
@@ -30,7 +28,7 @@ export function useInitNetwork() {
   useEffect(() => {
     browser.storage.local.get(SELECTED_NETWORK).then((storage) => {
       const network = storage[SELECTED_NETWORK]
-      const defaultNetwork = isCompassWallet() ? 'testnet' : 'mainnet'
+      const defaultNetwork = 'mainnet'
       setNetwork(network ?? defaultNetwork)
     })
 

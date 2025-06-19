@@ -1,9 +1,11 @@
-import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { PriorityChains } from 'config/constants'
+import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { PopularChainsStore } from '@leapwallet/cosmos-wallet-store'
+import { DeprioritizedChains } from 'config/constants'
 import { MANAGE_CHAIN_SETTINGS } from 'config/storage-keys'
 import { makeAutoObservable } from 'mobx'
 import Browser from 'webextension-polyfill'
+
+import { popularChainsStore } from './popular-chains-store'
 
 export type ManageChainSettings = {
   chainName: SupportedChain
@@ -23,7 +25,7 @@ export type ManageChainSettings = {
 export class ManageChainsStore {
   chains: ManageChainSettings[] = []
 
-  constructor() {
+  constructor(private popularChainsStore: PopularChainsStore) {
     makeAutoObservable(this)
   }
 
@@ -34,6 +36,8 @@ export class ManageChainsStore {
 
   async initManageChains(chainInfos: typeof ChainInfos) {
     const data = await Browser.storage.local.get(MANAGE_CHAIN_SETTINGS)
+    await this.popularChainsStore.readyPromise
+    const priorityChains = this.popularChainsStore.popularChains
 
     // if the object doesn't exists in the storage, then create a new object
     const addedChains = data[MANAGE_CHAIN_SETTINGS]
@@ -51,13 +55,13 @@ export class ManageChainsStore {
 
     if (!addedChains || missingChains.length > 0) {
       const _chains = (Object.keys(chainInfos) as Array<SupportedChain>).filter(
-        (chain) => !PriorityChains.includes(chain),
+        (chain) => !priorityChains.includes(chain) && !DeprioritizedChains.includes(chain),
       )
-      const chains = [...PriorityChains, ..._chains]
+      const chains = [...priorityChains, ..._chains, ...DeprioritizedChains]
 
       // create an object
       const manageChainObject = chains
-        .filter((chain) => chainInfos[chain].enabled)
+        .filter((chain) => chainInfos[chain]?.enabled)
         .map((chain, index) => {
           return {
             chainName: chain,
@@ -129,4 +133,4 @@ export class ManageChainsStore {
   }
 }
 
-export const manageChainsStore = new ManageChainsStore()
+export const manageChainsStore = new ManageChainsStore(popularChainsStore)

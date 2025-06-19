@@ -50,7 +50,7 @@ export const compassTokenTagsStore = new CompassTokenTagsStore(
   app,
   version,
   isCompassWallet(),
-  betaERC20DenomsStore,
+  denomsStore,
 )
 
 export const enabledCW20DenomsStore = new EnabledCW20DenomsStore(

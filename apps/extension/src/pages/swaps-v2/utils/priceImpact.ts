@@ -12,7 +12,7 @@ import BigNumber from 'bignumber.js'
 import { SourceToken } from 'types/swap'
 
 import { MosaicRouteQueryResponse } from '../hooks/useMosaicRoute'
-import { LifiRouteOverallResponse, SkipRouteResponse } from '../hooks/useRoute'
+import { SkipRouteResponse } from '../hooks/useRoute'
 
 type PriceImpactRemarks =
   | {
@@ -69,7 +69,7 @@ type PriceImpactReturnType = Readonly<
 >
 
 export const routeDoesSwap = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: SkipRouteResponse | MosaicRouteQueryResponse | undefined,
 ): boolean => {
   if (!route) {
     return false
@@ -79,21 +79,19 @@ export const routeDoesSwap = (
 }
 
 export const getPriceImpactPercent = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: SkipRouteResponse | MosaicRouteQueryResponse | undefined,
 ): BigNumber => {
   if (route?.aggregator === RouteAggregator.MOSAIC) return new BigNumber(NaN)
   return new BigNumber(route?.response.swap_price_impact_percent ?? NaN)
 }
 
 export const getSourceAssetUSDValue = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: SkipRouteResponse | MosaicRouteQueryResponse | undefined,
   sourceToken: SourceToken | null,
   denoms: DenomsRecord,
 ): BigNumber => {
   let sourceAssetUSDValue =
-    route?.aggregator === RouteAggregator.LIFI
-      ? new BigNumber(route?.response.fromAmountUSD ?? NaN)
-      : route?.aggregator === RouteAggregator.MOSAIC
+    route?.aggregator === RouteAggregator.MOSAIC
       ? new BigNumber(NaN)
       : new BigNumber(route?.response.usd_amount_in ?? NaN)
 
@@ -114,24 +112,18 @@ export const getSourceAssetUSDValue = (
           .div(10 ** denom.coinDecimals)
           .multipliedBy(sourceTokenUsdPrice)
       }
-    } else if (route?.aggregator === RouteAggregator.LIFI) {
-      sourceAssetUSDValue = new BigNumber(route?.response.fromAmount ?? NaN)
-        .div(10 ** (route?.response.fromToken.decimals ?? NaN))
-        .multipliedBy(sourceTokenUsdPrice)
     }
   }
   return sourceAssetUSDValue
 }
 
 export const getDestinationAssetUSDValue = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: SkipRouteResponse | MosaicRouteQueryResponse | undefined,
   destinationToken: SourceToken | null,
   denoms: DenomsRecord,
 ): BigNumber => {
   let destinationAssetUSDValue =
-    route?.aggregator === RouteAggregator.LIFI
-      ? new BigNumber(route?.response.toAmountUSD ?? NaN)
-      : route?.aggregator === RouteAggregator.MOSAIC
+    route?.aggregator === RouteAggregator.MOSAIC
       ? new BigNumber(NaN)
       : new BigNumber(route?.response.usd_amount_out ?? NaN)
 
@@ -152,17 +144,13 @@ export const getDestinationAssetUSDValue = (
           .div(10 ** denom.coinDecimals)
           .multipliedBy(destinationTokenUsdPrice)
       }
-    } else if (route?.aggregator === RouteAggregator.LIFI) {
-      destinationAssetUSDValue = new BigNumber(route?.response.toAmount ?? NaN)
-        .div(10 ** (route?.response.toToken.decimals ?? NaN))
-        .multipliedBy(destinationTokenUsdPrice)
     }
   }
   return destinationAssetUSDValue
 }
 
 const getPriceImpactVars = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: SkipRouteResponse | MosaicRouteQueryResponse | undefined,
   sourceToken: SourceToken | null,
   destinationToken: SourceToken | null,
   denoms: DenomsRecord,
@@ -185,7 +173,11 @@ const getPriceImpactVars = (
    * Plus, it's just a cent!
    */
   const usdValueDecreasePercent = (
-    sourceAssetUSDValue.isNaN() ? destinationAssetUSDValue.gte(0.01) : sourceAssetUSDValue.gte(0.01)
+    sourceAssetUSDValue.isNaN()
+      ? destinationAssetUSDValue.isNaN()
+        ? new BigNumber(NaN)
+        : destinationAssetUSDValue.gte(0.01)
+      : sourceAssetUSDValue.gte(0.01)
   )
     ? new BigNumber(sourceAssetUSDValue)
         .minus(destinationAssetUSDValue)
@@ -205,7 +197,7 @@ const getPriceImpactVars = (
 type ConversionRateRemark = 'ok' | 'warn' | 'request-confirmation'
 
 const getConversionRateRemark = (
-  route: LifiRouteOverallResponse | SkipRouteResponse | MosaicRouteQueryResponse | undefined,
+  route: SkipRouteResponse | MosaicRouteQueryResponse | undefined,
   sourceToken: SourceToken | null,
   destinationToken: SourceToken | null,
   denoms: DenomsRecord,

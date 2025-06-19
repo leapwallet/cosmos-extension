@@ -67,8 +67,8 @@ export function useGetSwapAssets(
   const selectedNetwork = useSelectedNetwork()
 
   const isQueryEnabled = useMemo(() => {
-    return !!swapChain && !!mergedAssets?.length && !allAssetsLoading
-  }, [swapChain, mergedAssets?.length, allAssetsLoading])
+    return (isChainAbstractionView || !!swapChain) && !!mergedAssets?.length && !allAssetsLoading
+  }, [swapChain, mergedAssets?.length, allAssetsLoading, isChainAbstractionView])
 
   return useQuery(
     [

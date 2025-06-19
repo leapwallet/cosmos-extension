@@ -5,9 +5,10 @@ import { Coin, DeliverTxResponse, StdFee, TimeoutError } from '@cosmjs/stargate'
 import { arrayify, concat, splitSignature } from '@ethersproject/bytes';
 import { serialize } from '@ethersproject/transactions';
 import { EthWallet } from '@leapwallet/leap-keychain';
+import { hex } from '@scure/base';
 import { bech32 } from 'bech32';
 import { VoteOption } from 'cosmjs-types/cosmos/gov/v1beta1/gov';
-import { Fee, SignDoc, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { AuthInfo, Fee, SignDoc, TxBody } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 import dayjs from 'dayjs';
 import { keccak256 } from 'ethereumjs-util';
@@ -28,6 +29,7 @@ import {
   createMessageSend,
   createTxIBCMsgTransfer,
   createTxMsgBeginRedelegate,
+  createTxMsgCancelUnbondingDelegation,
   createTxMsgDelegate,
   createTxMsgGenericRevoke,
   createTxMsgMultipleDelegate,
@@ -117,6 +119,15 @@ type signUnDelegateArgs = {
   memo: string;
 };
 
+type signCancelUnDelegateArgs = {
+  amount: Coin;
+  delegatorAddress: string;
+  fee: StdFee;
+  memo: string;
+  validatorAddress: string;
+  creationHeight: string;
+};
+
 type signWithdrawRewardsArgs = {
   delegatorAddress: string;
   validatorAddresses: string[];
@@ -159,17 +170,20 @@ function bech32ToEthAddress(bech32Address: string): string {
 
 export class EthermintTxHandler {
   protected chain;
+  protected isMinitiaEvm: boolean;
 
   constructor(
     private restUrl: string,
     protected wallet: EthWallet | LeapLedgerSignerEth | LeapKeystoneSignerEth,
     chainId?: string,
     evmChainId?: string,
+    isMinitiaEvm?: boolean,
   ) {
     this.chain = {
       chainId: evmChainId ? parseInt(evmChainId) : 9001,
       cosmosChainId: chainId ? chainId : 'evmos_9001-2',
     };
+    this.isMinitiaEvm = isMinitiaEvm ?? false;
   }
 
   protected static getFeeObject(fee: StdFee) {
@@ -180,7 +194,49 @@ export class EthermintTxHandler {
     };
   }
 
+  ethSignatureToBytes(signature: { v: number | string; r: string; s: string }) {
+    // const v = typeof signature.v === 'string' ? parseInt(signature.v, 16) : signature.v;
+
+    return concat([hex.decode(signature.r.replace('0x', '')), hex.decode(signature.s.replace('0x', ''))]);
+  }
+
   async sign(signerAddress: string, accountNumber: number, tx: any) {
+    if (this.isMinitiaEvm) {
+      if (this.wallet instanceof LeapLedgerSignerEth) {
+        // const signDoc = SignDoc.fromPartial({
+        //   authInfoBytes: tx.signDirect.authInfo.serializeBinary(),
+        //   bodyBytes: tx.signDirect.body.serializeBinary(),
+        //   chainId: this.chain.cosmosChainId,
+        //   accountNumber: accountNumber,
+        // });
+        // const message = Buffer.from(signDoc.serializeBinary());
+        // const dataToSign = Buffer.from(tx.signDirect.signBytes, 'base64');
+        // const EIP191MessagePrefix = '\x19Ethereum Signed Message:\n';
+        // const signBytes = Buffer.concat([
+        //   Buffer.from(EIP191MessagePrefix),
+        //   Buffer.from(dataToSign.length.toString()),
+        //   dataToSign,
+        // ]);
+        const message = Buffer.from(JSON.stringify(tx.legacyAmino));
+        const EIP191MessagePrefix = '\x19Ethereum Signed Message:\n';
+        const _signBytes = Buffer.concat([
+          Buffer.from(EIP191MessagePrefix),
+          Buffer.from(message.length.toString()),
+          message,
+        ]);
+        const signBytes = keccak256(_signBytes).toString('hex');
+        const signature = await this.wallet.signPersonalMessage(signerAddress, signBytes);
+        // const formattedSignature = this.ethSignatureToBytes(signature);
+        // const v = (typeof signature.v === 'string' ? parseInt(signature.v, 16) : signature.v) - 27;
+        // const compressedSignature = compressSignature(v, formattedSignature);
+
+        const body = TxBody.encode(TxBody.fromPartial(tx.legacyAmino.body)).finish();
+        const authInfo = AuthInfo.encode(AuthInfo.fromPartial(tx.legacyAmino.authInfo)).finish();
+        const sig = concat([hex.decode(signature.r.replace('0x', '')), hex.decode(signature.s.replace('0x', ''))]);
+        const txRaw = createTxRaw(body, authInfo, [sig]);
+        return Buffer.from(txRaw.value).toString('base64');
+      }
+    }
     if (this.wallet instanceof LeapLedgerSignerEth) {
       const signature = await (this.wallet as LeapLedgerSignerEth).signEip712(signerAddress, tx.eipToSign);
 
@@ -358,22 +414,29 @@ export class EthermintTxHandler {
       payer: fromAddress,
     });
 
-    const tx = createTxIBCMsgTransfer(this.chain, sender, stdFee, memo ?? '', {
-      sourcePort,
-      sourceChannel,
-      amount: transferAmount.amount,
-      denom: transferAmount.denom,
-      receiver: toAddress,
-      memo: txMemo ?? '',
-      revisionHeight:
-        parseInt(clientState?.data?.identified_client_state.client_state.latest_height.revision_height ?? '0') + 200,
-      revisionNumber: parseInt(
-        clientState?.data?.identified_client_state.client_state.latest_height.revision_number ?? '0',
-      ),
-      timeoutTimestamp: timeoutTimestamp
-        ? ((timeoutTimestamp + 100_000) * 1_000_000_000).toString()
-        : ((Date.now() + 1_000_000) * 1_000_000).toString(),
-    });
+    const tx = createTxIBCMsgTransfer(
+      this.chain,
+      sender,
+      stdFee,
+      memo ?? '',
+      {
+        sourcePort,
+        sourceChannel,
+        amount: transferAmount.amount,
+        denom: transferAmount.denom,
+        receiver: toAddress,
+        memo: txMemo ?? '',
+        revisionHeight:
+          parseInt(clientState?.data?.identified_client_state.client_state.latest_height.revision_height ?? '0') + 200,
+        revisionNumber: parseInt(
+          clientState?.data?.identified_client_state.client_state.latest_height.revision_number ?? '0',
+        ),
+        timeoutTimestamp: timeoutTimestamp
+          ? ((timeoutTimestamp + 100_000) * 1_000_000_000).toString()
+          : ((Date.now() + 1_000_000) * 1_000_000).toString(),
+      },
+      this.isMinitiaEvm,
+    );
 
     return this.sign(fromAddress, sender.accountNumber, tx);
   }
@@ -453,11 +516,18 @@ export class EthermintTxHandler {
       payer: fromAddress,
     });
 
-    const tx = createMessageSend(this.chain, sender, stdFee, memo, {
-      destinationAddress: toAddress,
-      amount: amount[0].amount,
-      denom: amount[0].denom,
-    });
+    const tx = createMessageSend(
+      this.chain,
+      sender,
+      stdFee,
+      memo,
+      {
+        destinationAddress: toAddress,
+        amount: amount[0].amount,
+        denom: amount[0].denom,
+      },
+      this.isMinitiaEvm,
+    );
 
     return this.sign(fromAddress, sender.accountNumber, tx);
   }
@@ -499,10 +569,17 @@ export class EthermintTxHandler {
       gasLimit: fee.gas,
       payer: fromAddress,
     });
-    const tx = createTxMsgVote(this.chain, sender, stdFee, memo, {
-      proposalId: parseInt(proposalId),
-      option,
-    });
+    const tx = createTxMsgVote(
+      this.chain,
+      sender,
+      stdFee,
+      memo,
+      {
+        proposalId: parseInt(proposalId),
+        option,
+      },
+      this.isMinitiaEvm,
+    );
     return this.sign(fromAddress, sender.accountNumber, tx);
   }
 
@@ -525,11 +602,18 @@ export class EthermintTxHandler {
       gasLimit: fee.gas,
       payer: delegatorAddress,
     });
-    const tx = createTxMsgDelegate(this.chain, sender, stdFee, memo, {
-      validatorAddress,
-      amount: amount.amount,
-      denom: amount.denom,
-    });
+    const tx = createTxMsgDelegate(
+      this.chain,
+      sender,
+      stdFee,
+      memo,
+      {
+        validatorAddress,
+        amount: amount.amount,
+        denom: amount.denom,
+      },
+      this.isMinitiaEvm,
+    );
     return this.sign(delegatorAddress, sender.accountNumber, tx);
   }
 
@@ -568,13 +652,20 @@ export class EthermintTxHandler {
       payer: fromAddress,
     });
 
-    const tx = createTxMsgStakeAuthorization(this.chain, sender, stdFee, memo, {
-      bot_address: botAddress,
-      validator_address: validatorAddress,
-      duration_in_seconds: dayjs(expiryDate).unix(),
-      maxTokens: maxTokens?.amount,
-      denom: stdFee.amount[0].denom,
-    });
+    const tx = createTxMsgStakeAuthorization(
+      this.chain,
+      sender,
+      stdFee,
+      memo,
+      {
+        bot_address: botAddress,
+        validator_address: validatorAddress,
+        duration_in_seconds: dayjs(expiryDate).unix(),
+        maxTokens: maxTokens?.amount,
+        denom: stdFee.amount[0].denom,
+      },
+      this.isMinitiaEvm,
+    );
     return this.sign(fromAddress, sender.accountNumber, tx);
   }
 
@@ -697,11 +788,78 @@ export class EthermintTxHandler {
       gasLimit: fee.gas,
       payer: delegatorAddress,
     });
-    const tx = createTxMsgUndelegate(this.chain, sender, stdFee, memo ?? '', {
-      validatorAddress,
-      amount: amount.amount,
-      denom: amount.denom,
+    const tx = createTxMsgUndelegate(
+      this.chain,
+      sender,
+      stdFee,
+      memo ?? '',
+      {
+        validatorAddress,
+        amount: amount.amount,
+        denom: amount.denom,
+      },
+      this.isMinitiaEvm,
+    );
+    return this.sign(delegatorAddress, sender.accountNumber, tx);
+  }
+
+  async cancelUnDelegation(
+    delegatorAddress: string,
+    validatorAddress: string,
+    amount: Coin,
+    creationHeight: string,
+    fee: StdFee,
+    memo = '',
+  ) {
+    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+      throw new Error('Not implemented');
+    } else {
+      const txRaw = await this.signCancelUnDelegationTx({
+        delegatorAddress,
+        validatorAddress,
+        amount,
+        creationHeight,
+        fee,
+        memo,
+      });
+      return this.broadcastTx(txRaw);
+    }
+  }
+
+  async signCancelUnDelegationTx({
+    amount,
+    delegatorAddress,
+    fee,
+    memo,
+    validatorAddress,
+    creationHeight,
+  }: signCancelUnDelegateArgs) {
+    const walletAccount = await this.wallet.getAccounts();
+
+    const sender = await this.getSender(delegatorAddress, Buffer.from(walletAccount[0].pubkey).toString('base64'));
+    const stdFee = Fee.fromPartial({
+      amount: [
+        {
+          amount: fee.amount[0].amount,
+          denom: fee.amount[0].denom,
+        },
+      ],
+      gasLimit: fee.gas,
+      payer: delegatorAddress,
     });
+    const tx = createTxMsgCancelUnbondingDelegation(
+      this.chain,
+      sender,
+      stdFee,
+      memo ?? '',
+      {
+        validatorAddress,
+        amount: amount.amount,
+        denom: amount.denom,
+        creationHeight,
+      },
+      this.isMinitiaEvm,
+    );
     return this.sign(delegatorAddress, sender.accountNumber, tx);
   }
 
@@ -734,9 +892,16 @@ export class EthermintTxHandler {
       gasLimit: fee.gas,
       payer: delegatorAddress,
     });
-    const tx = createTxMsgMultipleWithdrawDelegatorReward(this.chain, sender, stdFee, memo ?? '', {
-      validatorAddresses,
-    });
+    const tx = createTxMsgMultipleWithdrawDelegatorReward(
+      this.chain,
+      sender,
+      stdFee,
+      memo ?? '',
+      {
+        validatorAddresses,
+      },
+      this.isMinitiaEvm,
+    );
     return this.sign(delegatorAddress, sender.accountNumber, tx);
   }
 
@@ -775,12 +940,19 @@ export class EthermintTxHandler {
       gasLimit: fee.gas,
       payer: delegatorAddress,
     });
-    const tx = createTxMsgBeginRedelegate(this.chain, sender, stdFee, memo ?? '', {
-      validatorSrcAddress,
-      validatorDstAddress,
-      amount: amount.amount,
-      denom: amount.denom,
-    });
+    const tx = createTxMsgBeginRedelegate(
+      this.chain,
+      sender,
+      stdFee,
+      memo ?? '',
+      {
+        validatorSrcAddress,
+        validatorDstAddress,
+        amount: amount.amount,
+        denom: amount.denom,
+      },
+      this.isMinitiaEvm,
+    );
     return this.sign(delegatorAddress, sender.accountNumber, tx);
   }
 
@@ -828,13 +1000,20 @@ export class EthermintTxHandler {
       gasLimit: fee.gas,
       payer: delegatorAddress,
     });
-    const tx = createTxMsgMultipleDelegate(this.chain, sender, stdFee, memo ?? '', {
-      values: validatorsWithRewards.map((validatorWithReward) => ({
-        validatorAddress: validatorWithReward.validator,
-        amount: validatorWithReward.amount.amount,
-        denom: validatorWithReward.amount.denom,
-      })),
-    });
+    const tx = createTxMsgMultipleDelegate(
+      this.chain,
+      sender,
+      stdFee,
+      memo ?? '',
+      {
+        values: validatorsWithRewards.map((validatorWithReward) => ({
+          validatorAddress: validatorWithReward.validator,
+          amount: validatorWithReward.amount.amount,
+          denom: validatorWithReward.amount.denom,
+        })),
+      },
+      this.isMinitiaEvm,
+    );
     return this.sign(delegatorAddress, sender.accountNumber, tx);
   }
 

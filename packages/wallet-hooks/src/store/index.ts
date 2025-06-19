@@ -19,6 +19,7 @@ export * from './useBetaEvmNftTokenIds';
 export * from './useBetaNativeTokens';
 export * from './useBetaNFTsCollections';
 export * from './useChainCosmosSDK';
+export * from './useChainFeatureFlags';
 export * from './useChainInfosConfig';
 export * from './useChainsAprStore';
 export * from './useChainsStore';

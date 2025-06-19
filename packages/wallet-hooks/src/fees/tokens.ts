@@ -315,7 +315,7 @@ export const useFeeTokens = (
         }
         const baseDenom = trace.baseDenom;
 
-        const _baseDenom = getKeyToUseForDenoms(baseDenom, trace?.originChainId);
+        const _baseDenom = getKeyToUseForDenoms(baseDenom, String(trace?.sourceChainId || trace?.originChainId || ''));
         const denomInfo = denoms[_baseDenom];
         Object.keys(ibcTraceDataToAdd).length && addIbcTraceData(ibcTraceDataToAdd);
         if (denomInfo) {

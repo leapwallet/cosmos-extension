@@ -1,12 +1,14 @@
-import { Question } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
+import { SearchInput } from 'components/ui/input/search-input'
 import Fuse from 'fuse.js'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
+import { CompassIcon } from 'icons/compass-icon'
+import { SwapsCheckIcon } from 'icons/swaps-check-icon'
 import { GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import Skeleton from 'react-loading-skeleton'
 import { Virtuoso } from 'react-virtuoso'
 import { SourceChain, SourceToken } from 'types/swap'
 import { imgOnError } from 'utils/imgOnError'
@@ -24,6 +26,30 @@ export type ListChainsProps = {
   chainsToShow?: TokenAssociatedChain[]
   setSearchedChain: (chain: string) => void
   searchedChain: string
+  loadingChains: boolean
+}
+
+export function ChainsListSkeleton({ index, isLast }: { index: number; isLast: boolean }) {
+  return (
+    <React.Fragment key={`chain-list-skeleton-${index}`}>
+      <div className='flex items-center py-4 mx-6 z-0 !h-[72px]'>
+        <div className='w-9 h-9'>
+          <Skeleton
+            circle
+            className='w-9 h-9'
+            containerClassName='block !leading-none'
+            style={{
+              zIndex: 0,
+            }}
+          />
+        </div>
+        <div className='max-w-[80px] z-0 ml-4'>
+          <Skeleton width={80} className='z-0 h-[17px]' />
+        </div>
+      </div>
+      {!isLast && <div className='border-b border-gray-100 dark:border-gray-850 mx-6' />}
+    </React.Fragment>
+  )
 }
 
 export function ChainCard({
@@ -43,7 +69,7 @@ export function ChainCard({
   selectedChain?: SourceChain
   selectedToken: SourceToken | null
 }) {
-  const img = tokenAssociatedChain.chain.icon ?? GenericLight
+  const img = tokenAssociatedChain.chain.icon || tokenAssociatedChain.chain.logoUri || GenericLight
   const chainName = tokenAssociatedChain.chain.chainName
   const isLast = index === itemsLength - 1
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -63,26 +89,25 @@ export function ChainCard({
           setSearchedChain('')
           onChainSelect(tokenAssociatedChain)
         }}
-        className={classNames('flex flex-1 items-center py-3 cursor-pointer px-6', {
-          'opacity-20': isSelected,
-        })}
+        className={classNames('flex flex-1 items-center cursor-pointer px-6', isLast ? '' : 'mb-3')}
       >
-        <div className='flex items-center flex-1'>
-          <img
-            src={img ?? defaultTokenLogo}
-            className='h-10 w-10 mr-3'
-            onError={imgOnError(defaultTokenLogo)}
-          />
+        <div className='flex items-center flex-1 bg-secondary-100 hover:bg-secondary-200 rounded-xl px-4 py-2'>
+          <div className='flex items-center justify-center h-10 w-10 mr-3 shrink-0'>
+            <img
+              src={img || defaultTokenLogo}
+              className='h-8 w-8 rounded-full'
+              onError={imgOnError(defaultTokenLogo)}
+            />
+          </div>
           <Text
-            size='md'
-            className='font-bold'
+            className='font-bold text-base !leading-[22px] text-foreground'
             data-testing-id={`switch-chain-${chainName.toLowerCase()}-ele`}
           >
             {chainName}
           </Text>
+          {isSelected && <SwapsCheckIcon size={20} className='text-accent-green ml-auto size-6' />}
         </div>
       </div>
-      {!isLast && <div className='border-b border-gray-100 dark:border-gray-850 mx-6' />}
     </React.Fragment>
   )
 }
@@ -94,6 +119,7 @@ const ChainsListView = ({
   chainsToShow,
   searchedChain,
   setSearchedChain,
+  loadingChains,
 }: ListChainsProps) => {
   const chainsFuse = useMemo(() => {
     return new Fuse(chainsToShow ?? [], {
@@ -112,31 +138,39 @@ const ChainsListView = ({
 
   return (
     <>
-      <div className='flex flex-col items-center h-full p-6'>
+      <div className='flex flex-col items-center px-6 pt-6 pb-7'>
         <SearchInput
           value={searchedChain}
           onChange={(e) => setSearchedChain(e.target.value)}
           data-testing-id='switch-chain-input-search'
-          placeholder='Search chain'
+          placeholder='Search by chain name'
           onClear={() => setSearchedChain('')}
-          divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
-          inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
         />
       </div>
 
       <div
-        className='w-full pb-6'
-        style={{ height: (isSidePanel() ? window.innerHeight : 600) - 200, overflowY: 'scroll' }}
+        className={classNames('w-full pb-6', {
+          'mt-3': filteredChains.length === 0 && !loadingChains,
+        })}
+        style={{ height: (isSidePanel() ? window.innerHeight : 600) - 160, overflowY: 'scroll' }}
       >
-        {filteredChains.length === 0 ? (
-          <div className='py-[88px] w-full flex-col flex  justify-center items-center gap-4 px-6'>
-            <Question size={40} className='dark:text-white-100' />
-            <div className='flex flex-col justify-start items-center w-full gap-1'>
-              <div className='text-md text-center font-bold !leading-[21.5px] dark:text-white-100'>
-                No chains found for &apos;{searchedChain}&apos;
+        {loadingChains ? (
+          Array.from({ length: 5 }).map((_, index) => (
+            <ChainsListSkeleton key={index} index={index} isLast={index === 4} />
+          ))
+        ) : filteredChains.length === 0 ? (
+          <div className='w-full px-6 h-full pb-6'>
+            <div className='h-full px-5 w-full flex-col flex justify-center items-center gap-4 border border-secondary-200 rounded-2xl'>
+              <div className='p-2 bg-secondary-200 rounded-full'>
+                <CompassIcon size={40} className='text-muted-foreground' />
               </div>
-              <div className='text-sm font-normal !leading-[22.4px] text-gray-400 dark:text-gray-400'>
-                Try searching for a different term
+              <div className='flex flex-col justify-start items-center w-full gap-3'>
+                <div className='text-[18px] !leading-[24px] text-center font-bold text-foreground'>
+                  No chains found
+                </div>
+                <div className='text-xs !leading-[16px] text-secondary-800 text-center'>
+                  We couldn&apos;t find a match. Try searching again or use a different keyword.
+                </div>
               </div>
             </div>
           </div>
@@ -145,7 +179,6 @@ const ChainsListView = ({
             <Virtuoso
               data={filteredChains}
               style={{ flexGrow: '1', width: '100%' }}
-              className='scrollbar'
               itemContent={(index, tokenAssociatedChain) => (
                 <ChainCard
                   key={`${tokenAssociatedChain?.chain?.chainName}-${tokenAssociatedChain?.asset?.skipAsset.denom}`}

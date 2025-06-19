@@ -1,8 +1,9 @@
 import { getIsCompass } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
-import { makeObservable, reaction } from 'mobx';
+import { makeObservable, reaction, runInAction } from 'mobx';
 
 import { BaseQueryStore } from '../base/base-data-store';
+import { getBaseURL } from '../globals/config';
 import { CurrencyStore } from '../wallet';
 
 export type MarketData = {
@@ -40,14 +41,28 @@ export class MarketDataStore extends BaseQueryStore<Record<string, MarketData>> 
 
   async initialize() {
     await this.currencyStore.readyPromise;
-    this.getData();
+    await this.getData();
   }
 
   async fetchData() {
-    const ecosystems = getIsCompass() ? 'cosmos-ecosystem' : 'cosmos-ecosystem,ethereum-ecosystem';
+    const ecosystems = getIsCompass()
+      ? 'cosmos-ecosystem'
+      : 'cosmos-ecosystem,ethereum-ecosystem,solana-ecosystem,sui-ecosystem';
     const preferredCurrency = this.currencyStore.preferredCurrency;
-    const marketDataUrl = `https://api.leapwallet.io/v2/market/changes?currency=${preferredCurrency}&ecosystems=${ecosystems}`;
+    const marketDataUrl = `${getBaseURL()}/v2/market/changes?currency=${preferredCurrency}&ecosystems=${ecosystems}`;
     const response = await axios.get(marketDataUrl);
     return response.data;
+  }
+
+  addPercentChange(token: string, percentChange: number) {
+    runInAction(() => {
+      if (!this.data) {
+        this.data = {};
+      }
+      this.data[token] = {
+        ...(this.data[token] ?? {}),
+        price_change_percentage_24h: percentChange,
+      };
+    });
   }
 }

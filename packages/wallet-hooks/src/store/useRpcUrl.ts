@@ -1,4 +1,11 @@
-import { ChainInfo, getChainApis, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  ChainInfo,
+  getChainApis,
+  isAptosChain,
+  isSolanaChain,
+  isSuiChain,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useGetChains, useSelectedNetwork } from '../store';
@@ -54,9 +61,13 @@ export function useChainApis(forceChain?: SupportedChain, forceNetwork?: 'mainne
   const _activeChain = useActiveChain();
   const activeChain = forceChain ?? _activeChain;
   const isAptos = isAptosChain(activeChain);
+  const isSolana = isSolanaChain(activeChain);
+  const isSui = isSuiChain(activeChain);
   const isEvmChain = chains[activeChain]?.evmOnlyChain;
   const isTestnetRpcAvailable = useApiAvailability(
-    selectedNetwork === 'testnet' && !isAptos && !isEvmChain ? chains[activeChain]?.apis?.rpcTest ?? '' : '',
+    selectedNetwork === 'testnet' && !isAptos && !isEvmChain && !isSolana && !isSui
+      ? chains[activeChain]?.apis?.rpcTest ?? ''
+      : '',
   );
 
   const getChainApis = useGetChainApis(activeChain, selectedNetwork, chains);

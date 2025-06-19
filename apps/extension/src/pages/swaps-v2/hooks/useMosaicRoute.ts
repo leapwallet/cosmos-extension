@@ -41,6 +41,7 @@ export type MosaicRouteResponse = {
 }
 
 export const useMosaicRoute = ({
+  enabled = true,
   amountIn,
   sourceAsset,
   sourceAssetChain,
@@ -55,6 +56,7 @@ export const useMosaicRoute = ({
   slippage,
   affiliateFeesByChainId,
 }: {
+  enabled?: boolean
   smartRelay: boolean
   amountIn: string
   sourceAsset?: MergedAsset
@@ -82,7 +84,7 @@ export const useMosaicRoute = ({
     error: routeError,
     refetch: refreshRoute,
   } = useQuery({
-    enabled: isAptos,
+    enabled: isAptos && enabled,
     queryKey: [
       'mosaic-route',
       amountIn,

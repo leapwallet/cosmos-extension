@@ -128,39 +128,13 @@ const NeutronProposals = observer(({ governanceStore, chainTagsStore }: Proposal
 })
 
 function Proposals() {
-  usePageView(PageName.Governance)
-  const activeChain = useActiveChain() as AggregatedSupportedChain
-  const isGovernanceComingSoon = useIsFeatureExistForChain({
-    checkForExistenceType: 'comingSoon',
-    feature: 'governance',
-    platform: 'Extension',
-  })
+  // usePageView(PageName.Governance)
 
   useEffect(() => {
     governanceStore.initialize()
   }, [])
 
-  if (activeChain === AGGREGATED_CHAIN_KEY) {
-    return (
-      <AggregatedGovernance governanceStore={governanceStore} chainTagsStore={chainTagsStore} />
-    )
-  }
-
-  if (isGovernanceComingSoon) {
-    return (
-      <ComingSoon
-        chainTagsStore={chainTagsStore}
-        title='Governance'
-        bottomNavLabel={BottomNavLabel.Governance}
-      />
-    )
-  }
-
-  return activeChain === 'neutron' ? (
-    <NeutronProposals governanceStore={governanceStore} chainTagsStore={chainTagsStore} />
-  ) : (
-    <GeneralProposals governanceStore={governanceStore} chainTagsStore={chainTagsStore} />
-  )
+  return <AggregatedGovernance governanceStore={governanceStore} chainTagsStore={chainTagsStore} />
 }
 
 export default Proposals

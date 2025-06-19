@@ -1123,11 +1123,12 @@ export enum CosmosTxType {
   AuthZRevoke = 'AUTHZ_REVOKE',
   AuthZGrant = 'AUTHZ_GRANT',
   LSStake = 'LS_STAKE',
+  NFTMint = 'NFT_MINT',
+  BridgeSwap = 'BRIDGE_SWAP',
   LSUnstake = 'LS_UNSTAKE',
   StakeClaimAndDelegate = 'STAKE_CLAIM_AND_DELEGATE',
   IBCSwap = 'IBC_SWAP',
   BridgeSend = 'BRIDGE_SEND',
-  BridgeSwap = 'BRIDGE_SWAP',
 }
 
 export enum App {
@@ -1142,7 +1143,7 @@ export type CosmosTxRequest = {
   readonly feeDenomination?: string;
   readonly feeQuantity?: string;
   readonly txHash: string;
-  readonly blockchain: CosmosBlockchain;
+  readonly blockchain?: CosmosBlockchain;
   /** Whether the tx occurred on the mainnet or the testnet. */
   readonly isMainnet: boolean;
   readonly wallet: string;
@@ -1284,6 +1285,7 @@ export enum V2TxOperation {
   Cosmos = 'cosmos.tx',
   Evm = 'evm.tx',
   Solana = 'svm.tx',
+  Sui = 'sui.tx',
 }
 
 export type LightNodeStatsRequest = {

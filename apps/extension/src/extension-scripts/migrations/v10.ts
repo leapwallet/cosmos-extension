@@ -8,7 +8,7 @@ export function storageMigrationV10(storage: Record<string, any>) {
   const primaryWallet: any = Object.values(keystore).find(
     (wallet: any) => wallet.addressIndex === 0 && wallet.walletType === 0,
   )
-  if (primaryWallet) {
+  if (primaryWallet?.addresses?.cosmos) {
     browser.storage.local.set({
       [PRIMARY_WALLET_ADDRESS]: primaryWallet.addresses.cosmos,
     })

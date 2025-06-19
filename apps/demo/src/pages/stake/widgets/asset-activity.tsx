@@ -2,7 +2,7 @@ import { ActivityCardContent } from '@leapwallet/cosmos-wallet-hooks'
 import { ParsedTx } from '@leapwallet/cosmos-wallet-sdk'
 import { CardDivider } from '@leapwallet/leap-ui'
 import React, { ReactElement } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import { useActiveChain } from '~/hooks/settings/use-active-chain'
 import ActivityCard from '~/pages/activity/widgets/activity-card'

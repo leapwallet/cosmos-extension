@@ -1,57 +1,31 @@
-import { ThemeName, useTheme } from '@leapwallet/leap-ui'
-import classNames from 'classnames'
-import { Images } from 'images'
-import React from 'react'
-import { ComponentPropsWithoutRef, forwardRef } from 'react'
+import React, { ComponentPropsWithoutRef, forwardRef } from 'react'
+import { cn } from 'utils/cn'
 
 interface ClickableIconProps extends ComponentPropsWithoutRef<'button'> {
-  darker?: boolean
   disabled?: boolean
   label: string
-  icon: React.ReactNode
-  iconType?: 'image' | 'icon'
+  icon: React.ElementType
 }
 
 const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
-  ({ disabled, icon, label, iconType = 'icon', ...rest }, ref) => {
-    const { theme } = useTheme()
-    const isDark = theme === ThemeName.DARK
-
+  ({ disabled, icon: Icon, label, className, ...rest }, ref) => {
     return (
-      <div
-        className={classNames('flex flex-col text-center justify-center', {
-          'opacity-40': disabled,
-        })}
-      >
+      <div className={cn('flex flex-col text-center justify-center', disabled && 'opacity-40')}>
         <button
-          className={classNames(
-            'mx-auto relative h-11 w-11 text-center text-black-100 dark:text-white-100 cursor-pointer',
-            {
-              '!cursor-not-allowed': disabled,
-            },
-          )}
-          disabled={disabled}
           ref={ref}
           {...rest}
+          disabled={disabled}
+          className={cn(
+            'mx-auto relative size-[52px] bg-secondary-100 hover:bg-secondary-200 transition-colors rounded-full text-center cursor-pointer disabled:cursor-not-allowed flex items-center justify-center',
+            className,
+          )}
         >
-          <Images.Nav.ActionButton
-            fill={isDark ? 'white' : 'black'}
-            color={isDark ? 'white' : ''}
-            className='absolute top-0 pointer-events-none'
-          />
-          <div className={'flex flex-col justify-center items-center'}>
-            {iconType === 'image' && typeof icon === 'string' ? (
-              <img src={icon} alt={label} className='invert dark:invert-0 w-4 h-4' />
-            ) : (
-              icon
-            )}
-          </div>
+          <Icon className='size-5' weight='fill' />
         </button>
-        {label ? (
-          <p className='font-medium text-xs pt-3 tracking-wide text-black-100 dark:text-white-100'>
-            {label}
-          </p>
-        ) : null}
+
+        {!!label && (
+          <p className='text-sm mt-[10px] tracking-wide font-medium !leading-[22px]'>{label}</p>
+        )}
       </div>
     )
   },

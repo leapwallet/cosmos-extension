@@ -4,6 +4,8 @@ import {
   getChainId,
   getIsCompass,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   NativeDenom,
   NetworkType,
   SupportedChain,
@@ -21,6 +23,8 @@ import { EvmGasPricesStore } from './evm-gas-prices-store';
 import { FeeDenomsStore } from './fee-denoms-store';
 import { FeeTokensStore } from './fee-tokens-store';
 import { GasPriceStepForChainStore } from './get-price-step-for-chain-store';
+import { SolanaGasPricesStore } from './solana-gas-price-store';
+import { SuiGasPricesStore } from './sui-gas-price-store';
 import { FeeTokenData, FeeValidationParams, GasOptions, GasPriceStep } from './types';
 
 type GasPriceOption = { option: GasOptions; gasPrice: GasPrice };
@@ -41,6 +45,7 @@ export class ChainGasPriceOptionsStore {
   showFeeSettingSheet = false;
   gasLimit?: string;
   prevFeeRef: string | null = null;
+  computedGas?: number;
 
   private defaultGasEstimatesStore: DefaultGasEstimatesStore;
   private chainCosmosSdkStore: ChainCosmosSdkStore;
@@ -52,6 +57,8 @@ export class ChainGasPriceOptionsStore {
   private gasPriceStepForChainStore: GasPriceStepForChainStore;
   private evmGasPricesStore: EvmGasPricesStore;
   private aptosGasPricesStore: AptosGasPricesStore;
+  private solanaGasPricesStore?: SolanaGasPricesStore;
+  private suiGasPricesStore?: SuiGasPricesStore;
   private feeDenomsStore: FeeDenomsStore;
   private activeChain: SupportedChain;
   private selectedNetwork: NetworkType;
@@ -71,6 +78,8 @@ export class ChainGasPriceOptionsStore {
     evmGasPricesStore: EvmGasPricesStore;
     aptosGasPricesStore: AptosGasPricesStore;
     feeDenomsStore: FeeDenomsStore;
+    solanaGasPricesStore?: SolanaGasPricesStore;
+    suiGasPricesStore?: SuiGasPricesStore;
     currencyStore: CurrencyStore;
   }) {
     this.activeChain = params.activeChain;
@@ -86,6 +95,8 @@ export class ChainGasPriceOptionsStore {
     this.evmGasPricesStore = params.evmGasPricesStore;
     this.aptosGasPricesStore = params.aptosGasPricesStore;
     this.feeDenomsStore = params.feeDenomsStore;
+    this.solanaGasPricesStore = params.solanaGasPricesStore ?? undefined;
+    this.suiGasPricesStore = params.suiGasPricesStore ?? undefined;
     this.currencyStore = params.currencyStore;
 
     this.recommendedGasLimit =
@@ -130,6 +141,12 @@ export class ChainGasPriceOptionsStore {
       lowGasPrice = res?.gasPrice?.low || 0;
     } else if (isAptosChain(this.activeChain)) {
       const res = await this.aptosGasPricesStore.getStore(this.activeChain, this.selectedNetwork)?.getData();
+      lowGasPrice = res?.gasPrice?.low || 0;
+    } else if (isSolanaChain(this.activeChain) && this.solanaGasPricesStore) {
+      const res = await this.solanaGasPricesStore.getStore(this.activeChain, this.selectedNetwork)?.getData();
+      lowGasPrice = res?.gasPrice?.low || 0;
+    } else if (isSuiChain(this.activeChain) && this.suiGasPricesStore) {
+      const res = await this.suiGasPricesStore.getStore(this.activeChain, this.selectedNetwork)?.getData();
       lowGasPrice = res?.gasPrice?.low || 0;
     } else {
       lowGasPrice = await this.gasPriceStepForChainStore.getLowGasPriceStep(this.activeChain, this.selectedNetwork);
@@ -240,6 +257,16 @@ export class ChainGasPriceOptionsStore {
     });
   }
 
+  setComputedGas(value: ValueOrFunction<number>) {
+    runInAction(() => {
+      if (typeof value === 'function') {
+        value = value(this.computedGas ?? 0);
+      }
+
+      this.computedGas = value;
+    });
+  }
+
   get isSeiEvmChain() {
     return getIsCompass() && (this.activeChain === 'seiDevnet' || this.activeChain === 'seiTestnet2');
   }
@@ -333,6 +360,8 @@ export class GasPriceOptionsStore {
   private evmGasPricesStore: EvmGasPricesStore;
   private aptosGasPricesStore: AptosGasPricesStore;
   private feeDenomsStore: FeeDenomsStore;
+  private solanaGasPricesStore?: SolanaGasPricesStore;
+  private suiGasPricesStore?: SuiGasPricesStore;
   private currencyStore: CurrencyStore;
 
   private store = {} as Record<`${SupportedChain}-${NetworkType}`, ChainGasPriceOptionsStore>;
@@ -349,6 +378,8 @@ export class GasPriceOptionsStore {
     evmGasPricesStore: EvmGasPricesStore;
     aptosGasPricesStore: AptosGasPricesStore;
     feeDenomsStore: FeeDenomsStore;
+    solanaGasPricesStore?: SolanaGasPricesStore;
+    suiGasPricesStore?: SuiGasPricesStore;
     currencyStore: CurrencyStore;
   }) {
     this.defaultGasEstimatesStore = params.defaultGasEstimatesStore;
@@ -362,6 +393,8 @@ export class GasPriceOptionsStore {
     this.evmGasPricesStore = params.evmGasPricesStore;
     this.aptosGasPricesStore = params.aptosGasPricesStore;
     this.feeDenomsStore = params.feeDenomsStore;
+    this.solanaGasPricesStore = params.solanaGasPricesStore ?? undefined;
+    this.suiGasPricesStore = params.suiGasPricesStore ?? undefined;
     this.currencyStore = params.currencyStore;
   }
 
@@ -383,6 +416,8 @@ export class GasPriceOptionsStore {
         evmGasPricesStore: this.evmGasPricesStore,
         aptosGasPricesStore: this.aptosGasPricesStore,
         feeDenomsStore: this.feeDenomsStore,
+        solanaGasPricesStore: this.solanaGasPricesStore ?? undefined,
+        suiGasPricesStore: this.suiGasPricesStore ?? undefined,
         currencyStore: this.currencyStore,
       });
     }

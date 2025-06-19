@@ -7,6 +7,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   ChainInfos,
+  CompassSeiLedgerSigner,
   getFetchParams,
   getLedgerTransport,
   isEthAddress,
@@ -57,6 +58,8 @@ import { default as browser, default as extension } from 'webextension-polyfill'
 import { useActiveChain } from '../settings/useActiveChain'
 import useActiveWallet from '../settings/useActiveWallet'
 import { SeedPhrase } from './seed-phrase/useSeedPhrase'
+
+export type LedgerAppId = 'cosmos' | 'sei'
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Wallet {
@@ -500,10 +503,12 @@ export namespace Wallet {
     addresses,
     password,
     pubKeys,
+    app,
   }: {
     addresses: Record<number, SaveLedgerWalletAddress>
     password: Uint8Array
     pubKeys: SaveLedgerWalletPubKeys
+    app: LedgerAppId
   }) {
     const allWallets = await KeyChain.getAllWallets()
     const storage = await browser.storage.local.get([PRIMARY_WALLET_ADDRESS])
@@ -531,7 +536,7 @@ export namespace Wallet {
           { addresses: {}, chainPubKeys: {} },
         )
 
-        const newWallet: Key = {
+        const newWallet: Key & { app: LedgerAppId } = {
           walletType: WALLETTYPE.LEDGER,
           name:
             name ??
@@ -545,8 +550,8 @@ export namespace Wallet {
           pubKeys: chainPubKeys,
           path: pubKeys[addressIndex]?.path,
           createdAt: Date.now(),
+          app,
         }
-
         allWalletsWithNew.push(newWallet)
 
         acc[walletId] = newWallet
@@ -566,15 +571,18 @@ export namespace Wallet {
         addresses,
         password,
         pubKeys,
+        app,
       }: {
         addresses: Record<number, SaveLedgerWalletAddress>
         password: Uint8Array
         pubKeys: SaveLedgerWalletPubKeys
+        app: LedgerAppId
       }) => {
         const wallets = await saveLedgerWallet({
           addresses,
           password: password,
           pubKeys,
+          app,
         })
         setActiveWallet(Object.values(wallets)[0])
 
@@ -609,24 +617,20 @@ export namespace Wallet {
           activeWallet?.walletType === WALLETTYPE.LEDGER &&
           isLedgerEnabled(_chain, coinType, Object.values(chainInfos))
         ) {
-          if (chainInfos[_chain]?.bip44?.coinType === '60') {
-            const derivationPath = activeWallet.path
-              ? getDerivationPathToShow(activeWallet.path ?? '')
-              : `0'/0/${activeWallet.addressIndex}`
+          const derivationPath = activeWallet.path
+            ? getDerivationPathToShow(activeWallet.path ?? '')
+            : `0'/0/${activeWallet.addressIndex}`
 
-            const hdPaths = [`m/44'/60'/${derivationPath}`]
-            const ledgerTransport = await getLedgerTransport()
-            return new LeapLedgerSignerEth(ledgerTransport, { hdPaths, prefix })
+          //@ts-ignore
+          const app = activeWallet.app
+          const coinType = app === 'sei' ? '60' : '118'
+
+          const hdPaths = [activeWallet.path ?? `m/44'/${coinType}'/${derivationPath}`]
+          const ledgerTransport = await getLedgerTransport()
+          if (app === 'sei') {
+            return new CompassSeiLedgerSigner(ledgerTransport, { hdPaths, prefix })
           } else {
-            const derivationPath = activeWallet.path
-              ? getDerivationPathToShow(activeWallet.path ?? '')
-              : `0'/0/${activeWallet.addressIndex}`
-
-            const hdPaths = [activeWallet.path ?? `m/44'/118'/${derivationPath}`]
-            const ledgerTransport = await getLedgerTransport()
             return new LeapLedgerSigner(ledgerTransport, {
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
               hdPaths,
               prefix,
             }) as unknown as OfflineSigner

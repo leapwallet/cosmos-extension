@@ -160,9 +160,13 @@ export async function handleGetKey({ message, passwordManager, sendResponse }: G
         }
       }
     }
+    const payloadId = payload.id
+    const sendMessageToInvoker = (eventName: string, payload: any) => {
+      sendResponse(eventName, payload, payloadId)
+    }
 
     if (isNewChainPresent || !password) {
-      await openPopup('approveConnection', '?unlock-to-approve')
+      await openPopup('approveConnection', '?unlock-to-approve', undefined, sendMessageToInvoker)
       requestEnableAccess({
         origin: msg.origin,
         validChainIds,

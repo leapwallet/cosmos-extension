@@ -37,7 +37,7 @@ export class EpochIntervalStore extends BaseQueryStore<EpochInterval> {
     const baseUrl =
       this.selectNetworkStore.selectedNetwork === 'testnet'
         ? this.chainInfoStore.chainInfos.babylon.apis.restTest
-        : this.chainInfoStore.chainInfos.babylon.apis.rest;
+        : this.chainInfoStore.chainInfos.mainBabylon.apis.rest;
 
     const currentEpochRes = await axiosWrapper({
       baseURL: baseUrl,

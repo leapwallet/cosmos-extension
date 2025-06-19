@@ -4,8 +4,6 @@ import PortStream from 'extension-port-stream'
 import { DEBUG } from 'utils/debug'
 import browser from 'webextension-polyfill'
 
-import { isCompassWallet } from '../utils/isCompassWallet'
-
 const WORKER_RESET_INTERVAL = 1_000
 const WORKER_RESET_MESSAGE = 'WORKER_RESET_MESSAGE'
 
@@ -33,6 +31,16 @@ browser.runtime.onMessage.addListener((data, sender) => {
 
   if (data?.event === 'disconnect') {
     const customEvent = new CustomEvent('disconnect', { detail: { data: data?.data } })
+    window.dispatchEvent(customEvent)
+  }
+
+  if (data?.event === 'solanaAccountsChanged') {
+    const customEvent = new CustomEvent('solanaAccountsChanged', { detail: { data: data?.data } })
+    window.dispatchEvent(customEvent)
+  }
+
+  if (data?.event === 'suiAccountsChanged') {
+    const customEvent = new CustomEvent('suiAccountsChanged', { detail: { data: data?.data } })
     window.dispatchEvent(customEvent)
   }
 
@@ -168,7 +176,7 @@ function setupExtensionStream() {
 }
 
 function setUpPageStreams() {
-  const identifier = isCompassWallet() ? 'compass' : 'leap'
+  const identifier = 'leap'
   pageStream = new WindowPostMessageStream({
     name: `${identifier}:content`,
     target: `${identifier}:inpage`,

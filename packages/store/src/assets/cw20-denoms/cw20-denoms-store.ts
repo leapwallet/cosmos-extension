@@ -22,8 +22,12 @@ export class CW20DenomsStore {
   }
 
   async initialize() {
-    await Promise.all([this.activeChainStore.readyPromise, this.cw20DenomChainsStore.readyPromise]);
-    await this.loadAllCW20Denoms();
+    try {
+      await Promise.all([this.activeChainStore.readyPromise, this.cw20DenomChainsStore.readyPromise]);
+      await this.loadAllCW20Denoms();
+    } catch (e) {
+      console.error('[CW20DenomsStore]', `error initializing cw20 denoms`, e);
+    }
   }
 
   async loadAllCW20Denoms() {

@@ -7,16 +7,19 @@ import {
   denoms as DefaultDenoms,
   DenomsRecord,
   fromSmallBN,
+  isAptosChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/injective/utils/classes';
 import { AxiosError } from 'axios';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
-import { SelectedNetworkType } from 'types';
 
+import { ChainInfosStore, CoingeckoIdsStore } from '../assets';
 import { DenomsStore } from '../assets/denoms-store';
 import { BaseQueryStore } from '../base/base-data-store';
-import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
+import { AggregatedSupportedChainType, SelectedNetworkType } from '../types';
+import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
+import { AptosBalanceApiStore } from './aptos-balance-api-store';
 import { sortTokenBalances } from './balance-calculator';
 import { Token } from './balance-types';
 import { IRawBalanceResponse } from './bitcoin-balance-store';
@@ -128,12 +131,13 @@ export class AptosCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
     private chain: SupportedChain,
     private priceStore: PriceStore,
     private denomsStore: DenomsStore,
+    private coingeckoIdsStore: CoingeckoIdsStore,
   ) {
     super();
   }
 
   async fetchData() {
-    await this.waitForPriceStore();
+    await Promise.all([this.waitForPriceStore(), this.waitForCoingeckoIdsStore()]);
 
     const chainInfo = ChainInfos[this.chain];
     const address = this.address;
@@ -151,14 +155,16 @@ export class AptosCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
     await this.denomsStore.readyPromise;
     const denoms = Object.assign({}, this.denomsStore.denoms, DefaultDenoms);
     const denomsToAdd: DenomsRecord = {};
+    const coingeckoPrices = this.priceStore.data;
+    const coingeckoIds = this.coingeckoIdsStore.coingeckoIdsFromS3;
+
     const tokensData = tokens
       .filter((token) => token.metadata && token?.metadata.decimals && parseInt(token.amount) !== 0)
       .map((token) => {
         const amount = fromSmallBN(token.amount, token.metadata?.decimals);
-        const coingeckoPrices = this.priceStore.data;
+
         let img = token.metadata?.icon_uri ?? '';
-        let usdValue = undefined;
-        let usdPrice = undefined;
+
         let coinMinimalDenom = token.asset_type ?? '';
         const name = token.metadata?.name ?? '';
         const coinDenom = token.metadata?.symbol ?? '';
@@ -171,18 +177,31 @@ export class AptosCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
           denomInfo = denoms[nativeToken];
           img = denomInfo.icon;
           coinMinimalDenom = nativeToken;
-          usdPrice = coingeckoPrices?.[denomInfo.coinGeckoId];
-          usdValue = amount.multipliedBy(usdPrice ?? 0);
         }
+
+        const coinGeckoId =
+          denomInfo?.coinGeckoId ||
+          coingeckoIds[coinMinimalDenom] ||
+          coingeckoIds[coinMinimalDenom?.toLowerCase()] ||
+          '';
+
+        const usdPrice = coingeckoPrices?.[coinGeckoId];
+        const usdValue = usdPrice ? amount.multipliedBy(usdPrice).toString() : undefined;
+
         if (!denomInfo) {
           denomsToAdd[coinMinimalDenom] = {
             name,
             coinDenom,
             icon: img,
-            coinGeckoId: '',
+            coinGeckoId,
             coinDecimals: token.metadata?.decimals || 8,
             coinMinimalDenom,
             chain: this.chain,
+          };
+        } else if (!denomInfo?.coinGeckoId && coinGeckoId) {
+          denomsToAdd[coinMinimalDenom] = {
+            ...denomInfo,
+            coinGeckoId,
           };
         }
 
@@ -191,12 +210,12 @@ export class AptosCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
           symbol: token.metadata?.symbol ?? '',
           coinMinimalDenom,
           amount: amount.toString(),
-          usdValue: usdValue?.toString(),
+          usdValue,
           percentChange: undefined,
           img: denomInfo?.icon ?? img,
           ibcDenom: undefined,
           ibcChainInfo: undefined,
-          usdPrice: usdPrice?.toString(),
+          usdPrice: usdPrice ? String(usdPrice) : undefined,
           coinDecimals: denomInfo?.coinDecimals ?? token.metadata?.decimals,
           invalidKey: false,
           chain: this.chain,
@@ -212,6 +231,15 @@ export class AptosCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
     }
     return tokensData;
   }
+
+  private async waitForCoingeckoIdsStore() {
+    try {
+      await this.coingeckoIdsStore.readyPromise;
+    } catch (e) {
+      //
+    }
+  }
+
   private async waitForPriceStore() {
     try {
       await this.priceStore.readyPromise;
@@ -222,7 +250,9 @@ export class AptosCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
 }
 
 export class AptosCoinDataStore {
-  public balanceRecord: Record<string, AptosCoinDataQueryStore> = {};
+  public chainWiseBalances: Record<string, Token[]> = {};
+  public chainWiseLoadingStatus: Record<string, boolean> = {};
+  public chainWiseErrorStatus: Record<string, boolean> = {};
   static DEFAULT_CHAIN: SupportedChain = 'movement';
   constructor(
     private activeChainStore: ActiveChainStore,
@@ -230,12 +260,18 @@ export class AptosCoinDataStore {
     private addressStore: AddressStore,
     private priceStore: PriceStore,
     private denomsStore: DenomsStore,
+    private chainInfosStore: ChainInfosStore,
+    private aptosBalanceApiStore: AptosBalanceApiStore,
+    private currencyStore: CurrencyStore,
+    private coingeckoIdsStore: CoingeckoIdsStore,
   ) {
     makeObservable(this, {
-      balanceRecord: observable,
+      chainWiseBalances: observable,
+      chainWiseLoadingStatus: observable,
       totalFiatValue: computed,
       balances: computed.struct,
       loading: computed,
+      chainWiseErrorStatus: observable,
     });
   }
 
@@ -252,54 +288,236 @@ export class AptosCoinDataStore {
   }
 
   get loading() {
-    const chain = this.activeChainStore.activeChain as SupportedChain;
-    const balanceKey = this.getBalanceKey(chain);
-    if (this.balanceRecord[balanceKey]) {
-      return this.balanceRecord[balanceKey].isLoading;
+    const chain = this.activeChainStore.activeChain;
+    const network = this.selectedNetworkStore.selectedNetwork;
+
+    if (chain === 'aggregated') {
+      let loadingStatus: boolean = false;
+      const allMoveChains = Object.keys(this.chainInfosStore.chainInfos).filter(
+        (chain) =>
+          (network === 'testnet' ||
+            this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+              this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
+      ) as SupportedChain[];
+      for (const chain of allMoveChains) {
+        const balanceKey = this.getBalanceKey(chain, network);
+        if (this.chainWiseLoadingStatus[balanceKey]) {
+          loadingStatus = loadingStatus || this.chainWiseLoadingStatus[balanceKey];
+        }
+      }
+      return loadingStatus;
     }
-    return true;
+
+    if (!isAptosChain(chain)) {
+      return false;
+    }
+
+    const balanceKey = this.getBalanceKey(chain);
+    return this.chainWiseLoadingStatus[balanceKey] !== false;
+  }
+
+  getErrorStatusForChain(chain: SupportedChain, network: SelectedNetworkType) {
+    const balanceKey = this.getBalanceKey(chain, network);
+    return this.chainWiseErrorStatus[balanceKey] === true;
   }
 
   get balances() {
-    const { chain } = this.getChain();
+    const chain = this.activeChainStore.activeChain;
+    const network = this.selectedNetworkStore.selectedNetwork;
+    if (chain === 'aggregated') {
+      const tokens: Token[] = [];
+      const allMoveChains = Object.keys(this.chainInfosStore.chainInfos).filter(
+        (chain) =>
+          (network === 'testnet' ||
+            this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+              this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
+      ) as SupportedChain[];
+      for (const chain of allMoveChains) {
+        const balanceKey = this.getBalanceKey(chain, network);
+        if (this.chainWiseBalances[balanceKey]) {
+          tokens.push(...(this.chainWiseBalances[balanceKey] ?? []));
+        }
+      }
+      return sortTokenBalances(tokens);
+    }
+
+    const chainInfo = this.chainInfosStore.chainInfos?.[chain];
+
+    if (!chainInfo?.chainId?.startsWith('aptos')) {
+      return [];
+    }
 
     const balanceKey = this.getBalanceKey(chain);
-    return this.balanceRecord[balanceKey] ? sortTokenBalances(this.balanceRecord[balanceKey].data ?? []) : [];
+    return this.chainWiseBalances[balanceKey] ? sortTokenBalances(this.chainWiseBalances[balanceKey] ?? []) : [];
   }
 
-  async getData() {
-    const network = this.selectedNetworkStore.selectedNetwork;
-    const { chain, chainInfo } = this.getChain();
-    const address = this.addressStore.addresses[chain];
-    if (!address) {
+  getAggregatedBalances(forceNetwork?: SelectedNetworkType) {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    const tokens: Token[] = [];
+    const allMoveChains = Object.keys(this.chainInfosStore.chainInfos).filter(
+      (chain) =>
+        (network === 'testnet' ||
+          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+            this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+        isAptosChain(chain),
+    ) as SupportedChain[];
+    for (const chain of allMoveChains) {
+      const balanceKey = this.getBalanceKey(chain, network);
+      if (this.chainWiseBalances[balanceKey]) {
+        tokens.push(...(this.chainWiseBalances[balanceKey] ?? []));
+      }
+    }
+    return sortTokenBalances(tokens);
+  }
+
+  async getChainData(
+    chain: SupportedChain,
+    network: SelectedNetworkType,
+    forceRefetch = false,
+    forceUseFallback = false,
+  ) {
+    const { chain: _chain, chainInfo } = this.getChain(chain);
+    const address = this.addressStore.addresses[_chain];
+    const balanceKey = this.getBalanceKey(chain as SupportedChain, network, address);
+    if (!address || !isAptosChain(chain)) {
+      runInAction(() => {
+        this.chainWiseLoadingStatus[balanceKey] = false;
+        this.chainWiseErrorStatus[balanceKey] = false;
+      });
       return;
     }
+
+    runInAction(() => {
+      this.chainWiseLoadingStatus[balanceKey] = true;
+    });
+
     const selectedNetwork = this.selectedNetworkStore.selectedNetwork;
     const restUrl = selectedNetwork === 'testnet' ? chainInfo.apis.restTest : chainInfo.apis.rest;
     const indexerApi = selectedNetwork === 'testnet' ? chainInfo.apis.indexerTest : chainInfo.apis.indexer;
     if (!restUrl || !indexerApi) {
+      runInAction(() => {
+        this.chainWiseLoadingStatus[balanceKey] = false;
+      });
       return;
     }
-    const balanceKey = this.getBalanceKey(chain as SupportedChain, network, address);
+
+    if (this.chainWiseBalances[balanceKey] && !forceRefetch) {
+      runInAction(() => {
+        this.chainWiseLoadingStatus[balanceKey] = false;
+      });
+      return;
+    }
+
+    if (!forceUseFallback) {
+      const { balances, useFallback } = await this.aptosBalanceApiStore.fetchChainBalanceFromAPI(
+        chain,
+        selectedNetwork,
+        address,
+        forceRefetch,
+      );
+
+      if (!useFallback) {
+        runInAction(() => {
+          this.chainWiseBalances[balanceKey] = balances ?? [];
+          this.chainWiseLoadingStatus[balanceKey] = false;
+        });
+        return;
+      }
+    }
+
     const aptosCoinDataStore = new AptosCoinDataQueryStore(
       restUrl,
       indexerApi,
       address,
-      chain,
+      _chain,
       this.priceStore,
       this.denomsStore,
+      this.coingeckoIdsStore,
     );
-    await aptosCoinDataStore.getData();
-    runInAction(() => {
-      this.balanceRecord[balanceKey] = aptosCoinDataStore ?? [];
-    });
+    try {
+      const data = await aptosCoinDataStore.getData();
+      runInAction(() => {
+        this.chainWiseBalances[balanceKey] = data ?? [];
+        this.chainWiseLoadingStatus[balanceKey] = aptosCoinDataStore.isLoading;
+        this.chainWiseErrorStatus[balanceKey] = false;
+      });
+    } catch (e) {
+      runInAction(() => {
+        this.chainWiseBalances[balanceKey] = [];
+        this.chainWiseLoadingStatus[balanceKey] = false;
+        this.chainWiseErrorStatus[balanceKey] = true;
+      });
+    }
   }
 
-  private getChain() {
-    let chain = this.activeChainStore.activeChain as SupportedChain;
+  async getData(forceChain?: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType, forceRefetch = false) {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    const _chain = forceChain ?? this.activeChainStore.activeChain;
+
+    if (_chain === 'aggregated') {
+      const allMoveChains: SupportedChain[] = [];
+      const supportedChainWiseAddresses: Partial<Record<SupportedChain, string>> = {};
+      Object.keys(this.chainInfosStore.chainInfos)
+        .filter(
+          (chain) =>
+            (network === 'testnet' ||
+              this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+                this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+            this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
+        )
+        .forEach((chain) => {
+          const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
+          if (this.chainWiseBalances[balanceKey] && !forceRefetch) {
+            runInAction(() => {
+              this.chainWiseLoadingStatus[balanceKey] = false;
+            });
+            return;
+          }
+          allMoveChains.push(chain as SupportedChain);
+          supportedChainWiseAddresses[chain as SupportedChain] = this.addressStore.addresses[chain as SupportedChain];
+        });
+
+      if (Object.keys(supportedChainWiseAddresses).length === 0) {
+        return;
+      }
+
+      const balances = await this.aptosBalanceApiStore.fetchAggregatedBalanceFromAPI(
+        supportedChainWiseAddresses,
+        network,
+        forceRefetch,
+      );
+      const chainsToUseFallbackFor: SupportedChain[] = [];
+
+      allMoveChains.forEach((chain) => {
+        const balanceKey = this.getBalanceKey(chain, network);
+        if (balances[chain as SupportedChain]?.useFallback) {
+          chainsToUseFallbackFor.push(chain);
+          return;
+        }
+        runInAction(() => {
+          this.chainWiseBalances[balanceKey] = balances[chain as SupportedChain]?.balances ?? [];
+          this.chainWiseLoadingStatus[balanceKey] = false;
+        });
+      });
+
+      if (chainsToUseFallbackFor.length > 0) {
+        await Promise.allSettled(
+          chainsToUseFallbackFor.map((chain) => this.getChainData(chain, network, forceRefetch, true)),
+        );
+      }
+      return;
+    }
+
+    await this.getChainData(_chain, network, forceRefetch);
+    return;
+  }
+
+  private getChain(forceChain?: SupportedChain) {
+    let chain = forceChain ?? (this.activeChainStore.activeChain as SupportedChain);
     let chainInfo = ChainInfos[chain];
-    const isAptosChain = chainInfo?.chainId.startsWith('aptos');
-    if (!isAptosChain) {
+    if (!isAptosChain(chain)) {
       chainInfo = ChainInfos[AptosCoinDataStore.DEFAULT_CHAIN];
       chain = AptosCoinDataStore.DEFAULT_CHAIN;
     }
@@ -310,11 +528,12 @@ export class AptosCoinDataStore {
     const network = _network ?? this.selectedNetworkStore.selectedNetwork;
     const chainKey = this.getChainKey(chain as SupportedChain, network);
     const address = _address ?? this.addressStore.addresses[chain as SupportedChain];
-    return `${chainKey}-${address}`;
+    const userPreferredCurrency = this.currencyStore.preferredCurrency;
+    return `${chainKey}-${address}-${userPreferredCurrency}`;
   }
 
   private getChainKey(chain: SupportedChain, network: SelectedNetworkType): string {
-    const chainId = network === 'testnet' ? ChainInfos[chain].testnetChainId : ChainInfos[chain].chainId;
+    const chainId = network === 'testnet' ? ChainInfos[chain]?.testnetChainId : ChainInfos[chain]?.chainId;
     return `${chain}-${chainId}`;
   }
 }

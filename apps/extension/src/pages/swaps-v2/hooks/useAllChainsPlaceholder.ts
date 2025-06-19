@@ -7,7 +7,7 @@ import { TokenAssociatedChain } from '../components/ChainsList'
 
 const ALL_CHAINS_PLACEHOLDER: TokenAssociatedChain = {
   chain: {
-    chainName: 'All chains',
+    chainName: 'All ecosystems',
     chainId: 'all',
     icon: '',
     pfmEnabled: false,

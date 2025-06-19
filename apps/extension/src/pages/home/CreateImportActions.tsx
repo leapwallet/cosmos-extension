@@ -5,10 +5,9 @@ import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import extension from 'webextension-polyfill'
 
@@ -50,9 +49,9 @@ const CreateImportActions = observer(
     const handleConnectLedgerClick = useCallback(() => {
       const views = extension.extension.getViews({ type: 'popup' })
       if (views.length === 0 && !isSidePanel()) {
-        navigate('/onboardingImport?walletName=hardwarewallet')
+        navigate('/onboardingImport?walletName=ledger')
       } else {
-        window.open('index.html#/onboardingImport?walletName=hardwarewallet')
+        window.open('index.html#/onboardingImport?walletName=ledger')
         closeSidePanel()
       }
     }, [navigate])
@@ -93,26 +92,24 @@ const CreateImportActions = observer(
             </Text>
           </div>
 
-          {isCompassWallet() ? null : (
-            <>
-              <CardDivider />
-              <div
-                onClick={handleWatchWalletClick}
-                className='flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
-              >
-                <img
-                  src={theme === ThemeName.DARK ? Images.Misc.EyeDark : Images.Misc.EyeLight}
-                  className='mr-4 w-5 h-5 dark:opacity-60'
-                />
-                <Text size='md' className='font-bold'>
-                  Watch wallet
-                </Text>
-                <div className='text-xs font-medium text-green-500 bg-green-500/10 py-1 px-2.5 rounded-2xl ml-2'>
-                  NEW
-                </div>
+          <>
+            <CardDivider />
+            <div
+              onClick={handleWatchWalletClick}
+              className='flex items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+            >
+              <img
+                src={theme === ThemeName.DARK ? Images.Misc.EyeDark : Images.Misc.EyeLight}
+                className='mr-4 w-5 h-5 dark:opacity-60'
+              />
+              <Text size='md' className='font-bold'>
+                Watch wallet
+              </Text>
+              <div className='text-xs font-medium text-green-500 bg-green-500/10 py-1 px-2.5 rounded-2xl ml-2'>
+                NEW
               </div>
-            </>
-          )}
+            </div>
+          </>
         </div>
 
         <div

@@ -1,8 +1,6 @@
 import { TestnetAlertStrip } from 'components/alert-strip'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
-import { PageName } from 'config/analytics'
-import { usePageView } from 'hooks/analytics/usePageView'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import Sort from 'icons/sort'
 import { LeapCosmos } from 'images/logos'
@@ -15,8 +13,6 @@ import InvestViewContainer from './invest-view'
 import type { DisplaySettings } from './types'
 
 const EarnPage = observer(() => {
-  usePageView(PageName.Earn)
-
   const [showChainSelector, setShowChainSelector] = useState(false)
   const [showDisplaySettings, setShowDisplaySettings] = useState(false)
 

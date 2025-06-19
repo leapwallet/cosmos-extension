@@ -6,12 +6,15 @@ import Long from 'long';
 
 import { LeapAptos } from './core-aptos';
 import { LeapEvm } from './core-evm';
+import { LeapSolana } from './core-solana';
+import { LeapSui } from './core-sui';
 import { CosmJSOfflineSigner, CosmJSOfflineSignerOnlyAmino } from './cosmjs';
 import { LeapEnigmaUtils } from './enigma';
 import { InExtensionMessageRequester } from './messaging/requester';
 import {
   ChainInfo,
   EnableAccessMsg,
+  GetChainInfosWithoutEndpointsMsg,
   GetKeyMsg,
   GetKeysMsg,
   GetSupportedChainsMsg,
@@ -34,7 +37,13 @@ export class Leap implements ILeap {
   public defaultOptions: LeapIntereactionOptions = {};
   protected enigmaUtils: Map<string, any> = new Map();
 
-  constructor(public readonly version: string, public readonly mode: LeapMode, public readonly aptos?: LeapAptos) {}
+  constructor(
+    public readonly version: string,
+    public readonly mode: LeapMode,
+    public readonly aptos?: LeapAptos,
+    public readonly solana?: LeapSolana,
+    public readonly sui?: LeapSui,
+  ) {}
 
   async enable(chainIds: string | string[]): Promise<void> {
     if (typeof chainIds === 'string') {
@@ -46,6 +55,10 @@ export class Leap implements ILeap {
 
   async getSupportedChains() {
     return await requester.getSupportedChains(new GetSupportedChainsMsg());
+  }
+
+  async getChainInfosWithoutEndpoints() {
+    return await requester.getChainInfosWithoutEndpoints(new GetChainInfosWithoutEndpointsMsg());
   }
 
   async experimentalSuggestChain(chainInfo: ChainInfo): Promise<void> {

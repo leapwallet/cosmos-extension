@@ -71,12 +71,12 @@ export function useBannerConfig() {
   });
 }
 
-export function useGetNumiaBanner(address: string, positionIds: string[], bannerConfigStatus: QueryStatus) {
+export function useGetNumiaBanner(addresses: string[], positionIds: string[], bannerConfigStatus: QueryStatus) {
   const numiaBearer = getNumiaBannerBearer();
   const isCompassWallet = getAppName() === APP_NAME.Compass;
 
   return useQuery(
-    ['numia-banner-ad-data', address, positionIds, isCompassWallet, numiaBearer],
+    ['numia-banner-ad-data', addresses, positionIds, isCompassWallet, numiaBearer],
     async () => {
       if (isCompassWallet) {
         return [];
@@ -84,7 +84,9 @@ export function useGetNumiaBanner(address: string, positionIds: string[], banner
 
       const responses = await Promise.allSettled(
         positionIds.map(async (positionId) => {
-          const URL = `${NUMIA_BASE_URL}/campaign/${address}?position_id=${positionId}`;
+          const URL = `${NUMIA_BASE_URL}/campaign/multiple-cointype?position_id=${positionId}&addresses=${addresses.join(
+            ',',
+          )}`;
           const { data } = await axios.get(URL, {
             headers: {
               Authorization: `Bearer ${numiaBearer}`,

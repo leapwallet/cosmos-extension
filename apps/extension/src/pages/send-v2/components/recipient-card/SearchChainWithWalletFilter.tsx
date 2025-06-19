@@ -1,12 +1,9 @@
-import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { Key } from '@leapwallet/cosmos-wallet-hooks'
 import { CaretDown } from '@phosphor-icons/react'
 import Text from 'components/text'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { walletLabels } from 'config/constants'
 import { Images } from 'images'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { formatWalletName } from 'utils/formatWalletName'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { trim } from 'utils/strings'
 
 import { SelectWalletSheet } from './SelectWalletSheet'
@@ -35,17 +32,8 @@ export default function SearchChainWithWalletFilter({
     }
   }, [])
 
-  const walletName =
-    selectedWallet?.walletType === WALLETTYPE.LEDGER &&
-    !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(selectedWallet.name)
-      ? `${walletLabels[selectedWallet.walletType]} Wallet ${selectedWallet.addressIndex + 1}`
-      : formatWalletName(selectedWallet?.name || '')
-
+  const walletName = formatWalletName(selectedWallet?.name || '')
   const walletAvatar = useMemo(() => {
-    if (isCompassWallet()) {
-      return Images.Logos.CompassCircle
-    }
-
     if (selectedWallet?.avatar) {
       return selectedWallet.avatar
     } else {

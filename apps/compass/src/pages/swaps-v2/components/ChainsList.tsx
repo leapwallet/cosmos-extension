@@ -1,7 +1,7 @@
 import { Question } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
+import { SearchInput } from 'components/ui/input/search-input'
 import Fuse from 'fuse.js'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { GenericLight } from 'images/logos'
@@ -119,8 +119,6 @@ const ChainsListView = ({
           data-testing-id='switch-chain-input-search'
           placeholder='Search chain'
           onClear={() => setSearchedChain('')}
-          divClassName='rounded-2xl w-full flex gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 focus-within:border-green-600 border border-transparent'
-          inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
         />
       </div>
 

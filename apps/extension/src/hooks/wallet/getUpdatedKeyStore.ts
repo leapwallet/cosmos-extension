@@ -1,7 +1,12 @@
 import { rawSecp256k1PubkeyToRawAddress } from '@cosmjs/amino'
 import { fromBase64, fromHex, toBech32 } from '@cosmjs/encoding'
 import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  ChainInfo,
+  pubKeyToEvmAddressToShow,
+  SupportedChain,
+  validateSuiPrivateKey,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { decrypt } from '@leapwallet/leap-keychain'
 import {
   generateWalletFromMnemonic,
@@ -9,7 +14,12 @@ import {
   getFullHDPath,
   Secp256k1,
 } from '@leapwallet/leap-keychain'
-import { customKeygenfnMove } from 'utils/getChainInfosList'
+import { validateSolanaPrivateKey } from 'extension-scripts/utils'
+import {
+  customKeygenfnMove,
+  customKeygenfnSolana,
+  customKeygenfnSui,
+} from 'utils/getChainInfosList'
 
 type ActionType = 'UPDATE' | 'DELETE'
 
@@ -58,6 +68,32 @@ export const getUpdatedKeyStore = async (
         },
         pubKeys,
       }
+    } else if (coinType === '501') {
+      const account = await customKeygenfnSolana(secret, hdPath, 'seedPhrase')
+      const pubKeys = existingWallet.pubKeys
+        ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
+        : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
+      return {
+        ...existingWallet,
+        addresses: {
+          ...existingWallet.addresses,
+          [chain]: account.address,
+        },
+        pubKeys,
+      }
+    } else if (coinType === '784') {
+      const account = await customKeygenfnSui(secret, hdPath, 'seedPhrase')
+      const pubKeys = existingWallet.pubKeys
+        ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
+        : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
+      return {
+        ...existingWallet,
+        addresses: {
+          ...existingWallet.addresses,
+          [chain]: account.address,
+        },
+        pubKeys,
+      }
     } else {
       const wallet = generateWalletFromMnemonic(secret, {
         hdPath,
@@ -84,18 +120,63 @@ export const getUpdatedKeyStore = async (
       }
     }
   } else if (existingWallet.walletType === WALLETTYPE.PRIVATE_KEY) {
+    if (validateSolanaPrivateKey(secret).isValid) {
+      if (coinType === '501') {
+        const account = await customKeygenfnSolana(secret, hdPath, 'privateKey')
+        const pubKeys = existingWallet.pubKeys
+          ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
+          : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
+        return {
+          ...existingWallet,
+          addresses: {
+            ...existingWallet.addresses,
+            [chain]: account.address,
+          },
+          pubKeys,
+        }
+      }
+      return existingWallet
+    }
+    if (coinType === '501') {
+      return existingWallet
+    }
+    if (validateSuiPrivateKey(secret)) {
+      if (coinType === '784') {
+        const account = await customKeygenfnSui(secret, hdPath, 'privateKey')
+        const pubKeys = existingWallet.pubKeys
+          ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
+          : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
+        return {
+          ...existingWallet,
+          addresses: {
+            ...existingWallet.addresses,
+            [chain]: account.address,
+          },
+          pubKeys,
+        }
+      }
+      return existingWallet
+    }
+
+    if (coinType === '784') {
+      return existingWallet
+    }
     if (coinType === '637') {
-      const account = await customKeygenfnMove(secret, hdPath, 'privateKey')
-      const pubKeys = existingWallet.pubKeys
-        ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
-        : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
-      return {
-        ...existingWallet,
-        addresses: {
-          ...existingWallet.addresses,
-          [chain]: account.address,
-        },
-        pubKeys,
+      try {
+        const account = await customKeygenfnMove(secret, hdPath, 'privateKey')
+        const pubKeys = existingWallet.pubKeys
+          ? { ...existingWallet.pubKeys, [chain]: account.pubkey }
+          : ({ [chain]: account.pubkey } as unknown as Record<SupportedChain, string>)
+        return {
+          ...existingWallet,
+          addresses: {
+            ...existingWallet.addresses,
+            [chain]: account.address,
+          },
+          pubKeys,
+        }
+      } catch (error) {
+        return existingWallet
       }
     } else {
       const wallet = generateWalletFromPrivateKey(secret, hdPath, addressPrefix, btcNetwork)
@@ -117,7 +198,14 @@ export const getUpdatedKeyStore = async (
       }
     }
   } else if (existingWallet.walletType === WALLETTYPE.LEDGER) {
-    if (coinType === '931' || coinType === '0' || coinType === '1' || coinType === '637') {
+    if (
+      coinType === '931' ||
+      coinType === '0' ||
+      coinType === '1' ||
+      coinType === '637' ||
+      coinType === '501' ||
+      coinType === '784'
+    ) {
       return existingWallet
     }
     const sameCoinTypeChains = Object.values(chainInfos).filter(

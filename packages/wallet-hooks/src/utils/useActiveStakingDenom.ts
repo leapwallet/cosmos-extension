@@ -29,7 +29,12 @@ export function useActiveStakingDenom(
         icon: nativeDenom.icon ?? '',
       };
 
-      const activeStakingDenom = denoms[nativeDenom.coinMinimalDenom] ?? nativeDenom;
+      let denomKey = nativeDenom.coinMinimalDenom;
+      if (activeChain === 'babylon' && denomKey === 'ubbn') {
+        denomKey = 'tubbn';
+      }
+
+      const activeStakingDenom = denoms[denomKey] ?? nativeDenom;
       return [activeStakingDenom];
     }
 

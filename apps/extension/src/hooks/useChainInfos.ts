@@ -10,7 +10,6 @@ import {
 } from 'config/storage-keys'
 import { useEffect, useState } from 'react'
 import { chainInfoStore } from 'stores/chain-infos-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
 import { useInitActiveChain } from './settings/useActiveChain'
@@ -53,7 +52,7 @@ export function useInitChainInfos() {
             const existingChain =
               _betaChains[customChains[i].key] || _betaChains[customChains[i].chainName]
 
-            if (!isCompassWallet() && !!resp[BETA_CHAINS] && existingChain) {
+            if (!!resp[BETA_CHAINS] && existingChain) {
               _allChains[customChains[i].key] = {
                 ...customChains[i],
                 chainId: existingChain.chainId,
@@ -68,39 +67,31 @@ export function useInitChainInfos() {
             }
           }
 
-          let betaChains =
+          const betaChains =
             Object.keys(_allChains).length > 0 ? { ..._allChains, ..._betaChains } : _betaChains
-          betaChains = isCompassWallet() ? {} : betaChains
 
-          if (!isCompassWallet()) {
-            // Delete beta chains that are already in the native chain list
-            for (const chainKey in betaChains) {
-              if (
-                Object.values(ChainInfos).some(
-                  (chainInfo) =>
-                    [chainInfo.chainId, chainInfo.testnetChainId].includes(
-                      betaChains[chainKey].chainId,
-                    ) && chainInfo.enabled,
-                )
-              ) {
-                delete betaChains[chainKey]
-              }
+          // Delete beta chains that are already in the native chain list
+          for (const chainKey in betaChains) {
+            if (
+              Object.values(ChainInfos).some(
+                (chainInfo) =>
+                  [chainInfo.chainId, chainInfo.testnetChainId].includes(
+                    betaChains[chainKey].chainId,
+                  ) && chainInfo.enabled,
+              )
+            ) {
+              delete betaChains[chainKey]
             }
+          }
 
-            if (updateStore) {
-              await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
-            }
+          if (updateStore) {
+            await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
           }
 
           const enabledChains = Object.entries(ChainInfos).reduce(
             (chainInfos, [chainKey, chainData]) => {
               // Cosmoshub is kept here for backwards compatibility
-              if (
-                isCompassWallet() &&
-                !['arctic-1', 'pacific-1', 'cosmoshub-4'].includes(chainData.chainId)
-              ) {
-                return chainInfos
-              } else if (!isCompassWallet() && chainData.chainId === 'arctic-1') {
+              if (chainData.chainId === 'arctic-1') {
                 return chainInfos
               }
 

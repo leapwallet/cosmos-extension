@@ -1,11 +1,14 @@
 import { sliceAddress, useActiveChain, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Check } from '@phosphor-icons/react'
 import classNames from 'classnames'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useDefaultTokenLogo } from 'hooks'
-import { CopySvg, OutlinRoundGreenCheckSvg } from 'images/misc'
+import { CopySvg } from 'images/misc'
 import React, { ReactNode, useCallback, useMemo, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
 import { imgOnError } from 'utils/imgOnError'
+import { scaleInOut, transition200 } from 'utils/motion-variants/global-layout-motions'
 
 type CopyAddressCardProps = {
   forceChain?: SupportedChain
@@ -40,16 +43,14 @@ const CopyAddressCard = React.memo(
         return forceName
       }
 
-      let _name =
-        activeChainInfo.addressPrefix.slice(0, 1).toUpperCase() +
-        activeChainInfo.addressPrefix.slice(1).toLowerCase()
+      let _name = activeChainInfo?.chainName
 
       if (address.toLowerCase().startsWith('0x')) {
-        _name = 'EVM'
+        _name = `${_name} (EVM)`
       }
 
-      return _name + ' ' + 'address'
-    }, [activeChainInfo.addressPrefix, address, forceName])
+      return _name
+    }, [activeChainInfo?.chainName, address, forceName])
 
     const handleCopyClick = useCallback(() => {
       setIsCopied(true)
@@ -59,7 +60,7 @@ const CopyAddressCard = React.memo(
     }, [address])
 
     return (
-      <div className='bg-white-100 dark:bg-gray-950 rounded-xl flex items-center justify-between p-[12px] w-full'>
+      <div className='rounded-xl flex items-center justify-between w-full bg-secondary-100 px-4 py-3'>
         <div className='flex items-center justify-start gap-3 w-[150px] flex-1'>
           <img
             className='w-[32px] h-[32px]'
@@ -68,9 +69,9 @@ const CopyAddressCard = React.memo(
             onError={imgOnError(defaultTokenLogo)}
           />
 
-          <div className='flex flex-col'>
-            <p className='text-black-100 dark:text-white-100 font-[700] text-[16px]'>{name}</p>
-            <p className='text-gray-600 dark:text-gray-400 text-[14px] font-[500]'>
+          <div className='flex flex-col gap-[2px] items-start justify-center'>
+            <p className='text-foreground font-bold text-md !leading-[22px]'>{name}</p>
+            <p className='text-secondary-800 font-medium text-xs !leading-[19px]'>
               {address.includes(', ') ? address : sliceAddress(address, 5)}
             </p>
           </div>
@@ -80,7 +81,7 @@ const CopyAddressCard = React.memo(
           <button
             onClick={differentIconButtonOnClick}
             className={classNames(
-              'w-[36px] h-[36px] rounded-full bg-gray-100 dark:bg-gray-850 flex items-center justify-center',
+              'w-[36px] h-[36px] rounded-full bg-secondary-200 flex items-center justify-center',
               differentIconButtonClassName,
             )}
           >
@@ -89,18 +90,39 @@ const CopyAddressCard = React.memo(
         ) : (
           <button
             className={classNames(
-              'w-[36px] h-[36px] rounded-full bg-gray-100 dark:bg-gray-850 flex items-center justify-center',
+              'w-[36px] h-[36px] rounded-full flex transition-all duration-200 items-center justify-center border',
               {
-                'cursor-pointer': !isCopied,
+                'cursor-pointer bg-secondary-200 border-secondary-200': !isCopied,
+                'bg-accent-green/10 border-accent-green/40': isCopied,
               },
             )}
             onClick={isCopied ? undefined : handleCopyClick}
           >
-            {isCopied ? (
-              <OutlinRoundGreenCheckSvg className='w-[16px] h-[16px]' />
-            ) : (
-              <CopySvg className='fill-black-100 dark:fill-white-100 w-[16px] h-[16px]' />
-            )}
+            <AnimatePresence mode='popLayout' initial={false}>
+              {isCopied ? (
+                <motion.div
+                  key='copied'
+                  transition={transition200}
+                  variants={scaleInOut}
+                  initial='hidden'
+                  animate='visible'
+                  exit='hidden'
+                >
+                  <Check className='size-4 text-accent-success' />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key='copy'
+                  transition={transition200}
+                  variants={scaleInOut}
+                  initial='hidden'
+                  animate='visible'
+                  exit='hidden'
+                >
+                  <CopySvg className='size-4 text-muted-foreground' />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
         )}
       </div>

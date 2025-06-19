@@ -1,4 +1,5 @@
 import {
+  capitalize,
   SelectedAddress,
   sliceAddress,
   useActiveChain,
@@ -9,11 +10,11 @@ import {
   isEthAddress,
   isValidAddressWithPrefix,
   pubKeyToEvmAddressToShow,
-  SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { CaretRight, Compass, MagnifyingGlassMinus, PencilSimpleLine } from '@phosphor-icons/react'
+import { CaretRight, MagnifyingGlassMinus, PencilSimpleLine } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
+import { LedgerAppGuide } from 'components/ledger-app-info/ledger-app-guide'
 import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import { useDefaultTokenLogo } from 'hooks'
@@ -21,6 +22,7 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useContacts, useContactsSearch } from 'hooks/useContacts'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { LedgerDriveIcon } from 'icons/ledger-icon'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send/context'
@@ -28,6 +30,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
 import { cn } from 'utils/cn'
+
+const ledgerAddressError = "0x addresses aren't supported with this wallet."
 
 function MyWallets({
   setSelectedAddress,
@@ -46,6 +50,17 @@ function MyWallets({
           .sort((a, b) => a.name.localeCompare(b.name))
       : []
   }, [activeWallet?.id, wallets])
+  const displayLedgerApp = useMemo(() => {
+    return wallets
+      ? Object.values(wallets).some((wallet) => {
+          if (wallet.walletType === WALLETTYPE.LEDGER) {
+            return !wallet.app || wallet.app !== 'sei'
+          } else {
+            return false
+          }
+        })
+      : false
+  }, [wallets])
 
   return (
     <div className='relative mt-2 w-full h-[calc(100%-235px)]] overflow-auto'>
@@ -58,14 +73,14 @@ function MyWallets({
             pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChain], true) ||
             wallet?.addresses?.[activeChain]
 
-          if (wallet.walletType === WALLETTYPE.LEDGER) {
+          if (wallet.walletType === WALLETTYPE.LEDGER && wallet.app !== 'sei') {
             addressText =
               wallet.addresses[activeChain] ||
               pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChain], true)
           }
 
           if (wallet.walletType === WALLETTYPE.LEDGER) {
-            walletLabel = `Imported · ${wallet.path?.replace("m/44'/118'/", '')}`
+            walletLabel = `Imported · ${wallet.path?.replace(/m\/44'\/(118'|60')\//, '')}`
           }
 
           return (
@@ -96,9 +111,23 @@ function MyWallets({
                   <img className='h-11 w-11' src={Images.Misc.getWalletIconAtIndex(1)} />
 
                   <div className='flex flex-col'>
-                    <p className='font-bold text-left text-monochrome text-sm capitalize'>
+                    <div className='flex flex-row items-center gap-2 whitespace-nowrap text-sm font-bold'>
                       {wallet.name}
-                    </p>
+                      {wallet.walletType === WALLETTYPE.LEDGER && (
+                        <span className='shrink-0 p-1 bg-secondary-300 rounded' title='Ledger'>
+                          <LedgerDriveIcon className='size-2' />
+                        </span>
+                      )}
+                      {wallet.walletType === WALLETTYPE.LEDGER && displayLedgerApp && (
+                        <Text
+                          size='xs'
+                          className='font-light dark:bg-black-100 bg-secondary-300 px-1 rounded-[2px] leading-[16px]'
+                          color='dark:text-gray-400'
+                        >
+                          {capitalize(wallet?.app ?? 'cosmos')}
+                        </Text>
+                      )}
+                    </div>
                     <p className='text-sm text-muted-foreground text-left'>
                       {walletLabel ? `${walletLabel} · ` : ''}
                       {sliceAddress(addressText)}
@@ -246,6 +275,7 @@ export const SelectRecipientSheet = observer(
     const [recipientInputValue, setRecipientInputValue] = useState<string>('')
     const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
     const [selectedTab, setSelectedTab] = useState<'contacts' | 'wallets'>('contacts')
+    const [showLedgerAdvisory, setShowLedgerAdvisory] = useState(false)
 
     const { setSelectedAddress, addressError, setAddressError, setMemo, setEthAddress } =
       useSendContext()
@@ -286,19 +316,36 @@ export const SelectRecipientSheet = observer(
       })
     }
 
+    const cosmosLedgerCheck = (address: string) => {
+      return (
+        address.toLowerCase().startsWith('0x') &&
+        activeWallet?.walletType === WALLETTYPE.LEDGER &&
+        activeWallet.app !== 'sei'
+      )
+    }
+
     const handleContactSelect = useCallback(
       (s: SelectedAddress) => {
+        setRecipientInputValue(s.address ?? '')
+        if (s.address && cosmosLedgerCheck(s.address)) {
+          setAddressError(ledgerAddressError)
+          return
+        }
         setSelectedAddress(s)
         setEthAddress(s.ethAddress ?? '')
-        setRecipientInputValue(s.address ?? '')
       },
       [setEthAddress, setSelectedAddress],
     )
 
     const handleWalletSelect = useCallback(
       (s: SelectedAddress) => {
-        setAddressError(undefined)
         setRecipientInputValue(s.address ?? '')
+        if (s.address && cosmosLedgerCheck(s.address)) {
+          setAddressError(ledgerAddressError)
+          return
+        }
+        setAddressError(undefined)
+
         setSelectedAddress(s)
         setEthAddress(s.ethAddress ?? '')
       },
@@ -306,6 +353,10 @@ export const SelectRecipientSheet = observer(
     )
 
     useEffect(() => {
+      if (cosmosLedgerCheck(recipientInputValue)) {
+        setAddressError(ledgerAddressError)
+        return
+      }
       if (
         recipientInputValue.length > 0 &&
         !isValidAddressWithPrefix(recipientInputValue, 'sei') &&
@@ -456,6 +507,7 @@ export const SelectRecipientSheet = observer(
             </button>
           ) : null}
         </div>
+        {addressError === ledgerAddressError && <LedgerAppGuide />}
       </BottomModal>
     )
   },

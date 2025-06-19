@@ -1,4 +1,4 @@
-import Text from 'components/text'
+import { EyeSlash } from '@phosphor-icons/react'
 import { EventName, PageName } from 'config/analytics'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
@@ -37,24 +37,36 @@ export default function CategoryFilter({
   )
 
   return (
-    <div className='mb-4'>
-      <Text size='sm' className='text-gray-600 dark:text-gray-400 mb-3'>
-        Category
-      </Text>
-      <div className='flex flex-col gap-2 bg-gray-100 dark:bg-gray-950 rounded-xl px-2 py-2'>
+    <div className='flex flex-col gap-5'>
+      <span className='text-muted-foreground text-sm uppercase font-bold'>Category</span>
+
+      <div className='flex flex-col'>
         {categoryFilters
           ?.sort((a, b) => a.localeCompare(b))
-          ?.map((category, index) => (
+          ?.map((category) => (
             <FilterItem
               key={category}
               icon={CategoryIcon[category] ?? Images.Alpha.nftGiveaway}
               label={category}
-              isLast={index === categoryFilters.length - 1}
               isSelected={selectedOpportunities?.includes(category)}
               onSelect={() => handleCategoryToggle(category)}
               onRemove={() => handleCategoryToggle(category)}
             />
           ))}
+
+        <FilterItem
+          key={'hidden'}
+          icon={
+            <div className='flex items-center justify-center bg-secondary-400 rounded-full size-8'>
+              <EyeSlash size={20} />
+            </div>
+          }
+          label={'Hidden'}
+          isLast={true}
+          isSelected={selectedOpportunities?.includes('hidden')}
+          onSelect={() => handleCategoryToggle('hidden')}
+          onRemove={() => handleCategoryToggle('hidden')}
+        />
       </div>
     </div>
   )

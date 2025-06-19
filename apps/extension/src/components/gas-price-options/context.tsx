@@ -39,6 +39,8 @@ export type GasPriceOptionsContextType = {
   isSeiEvmTransaction?: boolean
   chainNativeFeeTokenData?: FeeTokenData
   rootDenomsStore: RootDenomsStore
+  computedGas?: number
+  setComputedGas?: React.Dispatch<React.SetStateAction<number>>
 }
 
 export const GasPriceOptionsContext = createContext<GasPriceOptionsContextType | null>(null)

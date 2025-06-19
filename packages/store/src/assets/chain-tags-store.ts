@@ -35,10 +35,21 @@ export class ChainTagsStore {
       runInAction(() => {
         this.chainTagsFromS3 = {
           'initiation-2': ['Initia'],
+          'interwoven-1': ['Initia'],
+          'zaar-mainnet-1': ['Initia'],
+          'zaar-testnet-5': ['Initia'],
+          'echelon-1': ['Initia'],
+          'echelon-testnet-1': ['Initia'],
+          'yominet-1': ['Initia'],
+          'preyominet-1': ['Initia'],
+          'civitia-1': ['Initia'],
           'landlord-2': ['Initia'],
-          'glados-2.1': ['Initia'],
-          'minimove-2': ['Initia'],
-          'miniwasm-2': ['Initia'],
+          'ingnetwork-1': ['Initia'],
+          'intergaze-1': ['Initia'],
+          'rave-1': ['Initia'],
+          'moo-1': ['Initia'],
+          'inertia-2': ['Initia'],
+          'inertiation-12': ['Initia'],
           ...data.chainWiseMapping,
         };
         this.uniqueTags = data.allTags;

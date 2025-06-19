@@ -65,7 +65,7 @@ import {
 } from '../utils';
 import { fetchCurrency } from '../utils/findUSDValue';
 import { getNativeDenom } from '../utils/getNativeDenom';
-import { formatTokenAmount } from '../utils/strings';
+import { formatTokenAmount, sliceWord } from '../utils/strings';
 import { useChainId } from '../utils-hooks';
 
 function getStakeTxType(mode: STAKE_MODE): CosmosTxType {
@@ -211,6 +211,32 @@ export function useDualStakingTx(
     const amtKey = mode === 'UNDELEGATE' || mode === 'CLAIM_REWARDS' ? 'receivedAmount' : 'sentAmount';
     const usdAmtKey = mode === 'UNDELEGATE' || mode === 'CLAIM_REWARDS' ? 'receivedUsdValue' : 'sentUsdValue';
 
+    let subtitle2: string = '';
+    const value = formatTokenAmount(amount, activeStakingDenom.coinDenom, 4);
+
+    switch (mode) {
+      case 'DELEGATE':
+        subtitle2 = `You staked ${value} to ${sliceWord(
+          toValidator.moniker,
+          15,
+        )}. Your rewards will start accumulating shortly`;
+        break;
+      case 'UNDELEGATE':
+        subtitle2 = `You unstaked ${value} from ${sliceWord(
+          toValidator.moniker,
+          15,
+        )}. Funds will be available after the unbonding period`;
+        break;
+      case 'REDELEGATE':
+        subtitle2 = `You redelegated ${value} to ${toProvider ? toProvider.moniker : toValidator.moniker} successfully`;
+        break;
+      case 'CANCEL_UNDELEGATION':
+        subtitle2 = `You cancelled unstake of ${value} successfully`;
+        break;
+      case 'CLAIM_REWARDS':
+        subtitle2 = (delegations ?? []).length > 0 ? `You claimed ${value} from ${delegations?.length} validators` : '';
+    }
+
     setPendingTx({
       img: chainInfos[activeChain].chainSymbolImageUrl,
       [amtKey]: formatTokenAmount(amount, activeStakingDenom.coinDenom, 4),
@@ -218,6 +244,7 @@ export function useDualStakingTx(
       sentTokenInfo: denom,
       title1: '',
       subtitle1: '',
+      subtitle2,
       title2: 'Transaction Successful',
       txStatus: 'loading',
       txType: mode === 'DELEGATE' || mode === 'REDELEGATE' ? 'delegate' : 'undelegate',

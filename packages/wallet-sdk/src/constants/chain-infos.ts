@@ -54,7 +54,6 @@ export type SupportedChain =
   | 'archway'
   | 'terra'
   | 'migaloo'
-  | 'quasar'
   | 'neutron'
   | 'coreum'
   | 'mainCoreum'
@@ -88,17 +87,23 @@ export type SupportedChain =
   | 'thorchain'
   | 'odin'
   | 'saga'
-  | 'initia'
   | 'humans'
   | 'lava'
   | 'mantra'
   | 'ethereum'
   | 'forma'
-  | 'civitia'
   | 'milkywayL1'
-  | 'milkyway'
-  | 'minimove'
-  | 'miniwasm'
+  | 'initia'
+  | 'initiaEvm'
+  | 'zaarEvm'
+  | 'echelonEvm'
+  | 'yominetEvm'
+  | 'civitiaEvm'
+  | 'inertiaEvm'
+  | 'milkywayEvm'
+  | 'ingnetworkEvm'
+  | 'intergazeEvm'
+  | 'raveEvm'
   | 'arbitrum'
   | 'polygon'
   | 'base'
@@ -113,9 +118,9 @@ export type SupportedChain =
   | 'avalanche'
   | 'bsc'
   | 'elys'
+  | 'mainBabylon'
   | 'babylon'
   | 'movement'
-  | 'movementBardock'
   | 'aptos'
   | 'abstract'
   | 'berachain'
@@ -125,7 +130,15 @@ export type SupportedChain =
   | 'nillion'
   | 'megaeth'
   | '0G'
-  | 'zigchain';
+  | 'bob'
+  | 'fluent'
+  | 'soneium'
+  | 'lens'
+  | 'rise'
+  | 'zigchain'
+  | 'solana'
+  | 'sui'
+  | 'fogo';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -172,7 +185,6 @@ export type AddressPrefix =
   | 'archway'
   | 'terra'
   | 'migaloo'
-  | 'quasar'
   | 'neutron'
   | 'core'
   | 'testcore'
@@ -236,7 +248,15 @@ export type AddressPrefix =
   | 'nillion'
   | 'megaeth'
   | '0g'
-  | 'zig';
+  | 'bob'
+  | 'fluent'
+  | 'soneium'
+  | 'lens'
+  | 'rise'
+  | 'zig'
+  | 'solana'
+  | 'sui'
+  | 'fogo';
 
 export type Denom =
   | 'JUNO'
@@ -337,7 +357,12 @@ export type Denom =
   | 'HYPE'
   | 'NIL'
   | 'A0GI'
-  | 'ZIG';
+  | 'ZIG'
+  | 'GHO'
+  | 'ZAAR'
+  | 'SOL'
+  | 'SUI'
+  | 'FOGO';
 
 export type CoinType =
   | '0'
@@ -356,9 +381,11 @@ export type CoinType =
   | '990'
   | '4444'
   | '931'
+  | '501'
   | '505'
   | '494'
-  | '637';
+  | '637'
+  | '784';
 
 export enum CosmosSDK {
   Version_Point_46 = 'v0.46',
@@ -1874,7 +1901,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     chainId: 'initiation-2',
     testnetChainId: 'initiation-2',
     key: 'initia',
-    chainName: 'Initia Testnet',
+    chainName: 'Initia Testnet (old)',
     chainRegistryPath: 'initia',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/initia.svg',
     apis: {
@@ -1901,6 +1928,439 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     ibcChannelIds: {},
     nativeDenoms: {
       uinit: denoms.uinit,
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  initiaEvm: {
+    chainId: 'interwoven-1',
+    testnetChainId: 'initiation-2',
+    key: 'initiaEvm',
+    chainName: 'Initia',
+    chainRegistryPath: 'initia',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/initia.svg',
+    apis: {
+      rest: 'https://rest.initia.xyz',
+      rpc: 'https://rpc.initia.xyz',
+      restTest: 'https://lcd.testnet.initia.xyz',
+      rpcTest: 'https://rpc.testnet.initia.xyz',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/interwoven-1/txs',
+        accountUrl: 'https://scan.initia.xyz/interwoven-1/accounts',
+      },
+      testnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.testnet.initia.xyz/initiation-2/txs',
+        accountUrl: 'https://scan.testnet.initia.xyz/initiation-2/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 0.015,
+      average: 0.015,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      uinit: denoms.uinit,
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  zaarEvm: {
+    chainId: 'zaar-mainnet-1',
+    testnetChainId: 'zaar-testnet-5',
+    key: 'zaarEvm',
+    chainName: 'Zaar',
+    chainRegistryPath: 'zaar',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/ZAAR.png',
+    apis: {
+      rest: 'https://rest-zaar-mainnet-1.anvil.asia-southeast.initia.xyz/',
+      rpc: 'https://rpc-zaar-mainnet-1.anvil.asia-southeast.initia.xyz/',
+      restTest: 'https://rest-zaar-testnet-5.anvil.asia-southeast.initia.xyz',
+      rpcTest: 'https://rpc-zaar-testnet-5.anvil.asia-southeast.initia.xyz',
+    },
+    denom: 'ZAAR',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/interwoven-1/txs',
+        accountUrl: 'https://scan.initia.xyz/interwoven-1/accounts',
+      },
+      testnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.testnet.initia.xyz/zaar-testnet-5/txs',
+        accountUrl: 'https://scan.testnet.initia.xyz/zaar-testnet-5/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 1000000000,
+      average: 1000000000,
+      high: 1000000000,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'evm/7Fb2A94A13186E3C338f0DA9728B4835D86b1a7B': denoms['evm/7Fb2A94A13186E3C338f0DA9728B4835D86b1a7B'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  echelonEvm: {
+    chainId: 'echelon-1',
+    testnetChainId: 'echelon-testnet-1',
+    key: 'echelonEvm',
+    chainName: 'Echelon',
+    chainRegistryPath: 'echelon',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/minitias/echelon.png',
+    apis: {
+      rest: 'https://rest-echelon-1.anvil.asia-southeast.initia.xyz',
+      rpc: 'https://rpc-echelon-1.anvil.asia-southeast.initia.xyz',
+      restTest: 'https://rest-echelon-testnet-1.anvil.asia-southeast.initia.xyz',
+      rpcTest: 'https://rpc-echelon-testnet-1.anvil.asia-southeast.initia.xyz',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/echelon-1/txs',
+        accountUrl: 'https://scan.initia.xyz/echelon-1/accounts',
+      },
+      testnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.testnet.initia.xyz/echelon-testnet-1/txs',
+        accountUrl: 'https://scan.testnet.initia.xyz/echelon-testnet-1/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 0.0,
+      average: 0.0025,
+      high: 0.004,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'l2/23c8396041db74441f4268d0c7e0533177dc3e028a47a8e584318f2d0c46fbe9':
+        denoms['l2/23c8396041db74441f4268d0c7e0533177dc3e028a47a8e584318f2d0c46fbe9'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  raveEvm: {
+    chainId: 'rave-1',
+    key: 'raveEvm',
+    chainName: 'Rave',
+    chainRegistryPath: 'rave',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/minitias/rave.png',
+    apis: {
+      rest: 'https://rest-rave-1.anvil.asia-southeast.initia.xyz',
+      rpc: 'https://rpc-rave-1.anvil.asia-southeast.initia.xyz',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/rave-1/txs',
+        accountUrl: 'https://scan.initia.xyz/rave-1/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 15000000000,
+      average: 25000000000,
+      high: 40000000000,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'evm/4f7566f67941283a30cf65de7b9c6fdf2c04FCA1': denoms['evm/4f7566f67941283a30cf65de7b9c6fdf2c04FCA1'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  yominetEvm: {
+    chainId: 'yominet-1',
+    testnetChainId: 'preyominet-1',
+    key: 'yominetEvm',
+    chainName: 'Yominet',
+    chainRegistryPath: 'yominet',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/minitias/yominet.png',
+    apis: {
+      rest: 'https://rest-yominet-1.anvil.asia-southeast.initia.xyz',
+      rpc: 'https://rpc-yominet-1.anvil.asia-southeast.initia.xyz',
+      restTest: 'https://rest.preyominet-1.initia.tech',
+      rpcTest: 'https://rpc.preyominet-1.initia.tech',
+    },
+    denom: 'ETH',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/yominet-1/txs',
+        accountUrl: 'https://scan.initia.xyz/yominet-1/accounts',
+      },
+      testnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.testnet.initia.xyz/preyominet-1/txs',
+        accountUrl: 'https://scan.testnet.initia.xyz/preyominet-1/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 300000,
+      average: 400000,
+      high: 500000,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'evm/E1Ff7038eAAAF027031688E1535a055B2Bac2546': denoms['evm/E1Ff7038eAAAF027031688E1535a055B2Bac2546'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  civitiaEvm: {
+    chainId: 'civitia-1',
+    testnetChainId: 'landlord-2',
+    key: 'civitiaEvm',
+    chainName: 'Civitia',
+    chainRegistryPath: 'civitia',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/civitia.png',
+    apis: {
+      rest: 'https://rest-civitia-1.anvil.asia-southeast.initia.xyz',
+      rpc: 'https://rpc-civitia-1.anvil.asia-southeast.initia.xyz',
+      restTest: 'https://maze-rest-sequencer-53ecf1d6-4fa1-4103-827f-a9430df97cef.ane1-prod-nocsm.newmetric.xyz',
+      rpcTest: 'https://maze-rpc-sequencer-53ecf1d6-4fa1-4103-827f-a9430df97cef.ane1-prod-nocsm.newmetric.xyz',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/civitia-1/txs',
+        accountUrl: 'https://scan.initia.xyz/civitia-1/accounts',
+      },
+      testnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.testnet.initia.xyz/landlord-2/txs',
+        accountUrl: 'https://scan.testnet.initia.xyz/landlord-2/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 0.015,
+      average: 0.025,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'l2/2b2d36f666e98b9eecf70d6ec24b882b79f2c8e2af73f54f97b8b670dbb87605':
+        denoms['l2/2b2d36f666e98b9eecf70d6ec24b882b79f2c8e2af73f54f97b8b670dbb87605'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  inertiaEvm: {
+    chainId: 'inertia-2',
+    testnetChainId: 'inertiation-12',
+    key: 'inertiaEvm',
+    chainName: 'Inertia',
+    chainRegistryPath: 'inertia',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/minitias/inertia.png',
+    apis: {
+      rest: 'https://rest.inrt.fi',
+      rpc: 'https://rpc.inrt.fi',
+      restTest: 'https://rest.inertiation-12.inrt.fi',
+      rpcTest: 'https://rpc.inertiation-12.inrt.fi',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/inertia-2/txs',
+        accountUrl: 'https://scan.initia.xyz/inertia-2/accounts',
+      },
+      testnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.testnet.initia.xyz/inertiation-12/txs',
+        accountUrl: 'https://scan.testnet.initia.xyz/inertiation-12/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 0.015,
+      average: 0.025,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'l2/c88b68df2060ba982a80d3001afcb2d354031f6901df2391acb4f0e2f545c770':
+        denoms['l2/c88b68df2060ba982a80d3001afcb2d354031f6901df2391acb4f0e2f545c770'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  ingnetworkEvm: {
+    chainId: 'ingnetwork-1',
+    key: 'ingnetworkEvm',
+    chainName: 'Ingnetwork',
+    chainRegistryPath: 'ingnetwork',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/minitias/ingnetwork.png',
+    apis: {
+      rest: 'https://rest-ingnetwork-1.anvil.asia-southeast.initia.xyz',
+      rpc: 'https://rpc-ingnetwork-1.anvil.asia-southeast.initia.xyz',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/ingnetwork-1/txs',
+        accountUrl: 'https://scan.initia.xyz/ingnetwork-1/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 15000000000,
+      average: 25000000000,
+      high: 40000000000,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'evm/6ed1637781269560b204c27Cd42d95e057C4BE44': denoms['evm/6ed1637781269560b204c27Cd42d95e057C4BE44'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  milkywayEvm: {
+    chainId: 'moo-1',
+    key: 'milkywayEvm',
+    chainName: 'Milkyway',
+    chainRegistryPath: 'moo',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/minitias/milkyway.png',
+    apis: {
+      rest: 'https://rest-moo-1.anvil.asia-southeast.initia.xyz',
+      rpc: 'https://rpc-moo-1.anvil.asia-southeast.initia.xyz',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/moo-1/txs',
+        accountUrl: 'https://scan.initia.xyz/moo-1/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 0.015,
+      average: 0.025,
+      high: 0.04,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'ibc/37A3FB4FED4CA04ED6D9E5DA36C6D27248645F0E22F585576A1488B8A89C5A50':
+        denoms['ibc/37A3FB4FED4CA04ED6D9E5DA36C6D27248645F0E22F585576A1488B8A89C5A50'],
+    },
+    theme: {
+      primaryColor: '#0d9488',
+      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
+    },
+    enabled: true,
+    cosmosSDK: CosmosSDK.Version_Point_47,
+  },
+  intergazeEvm: {
+    chainId: 'intergaze-1',
+    key: 'intergazeEvm',
+    chainName: 'Intergaze',
+    chainRegistryPath: 'intergaze',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/minitias/intergaze.png',
+    apis: {
+      rest: 'https://rest.intergaze-apis.com',
+      rpc: 'https://rpc.intergaze-apis.com',
+    },
+    denom: 'INIT',
+    txExplorer: {
+      mainnet: {
+        name: 'Initia Scan',
+        txUrl: 'https://scan.initia.xyz/intergaze-1/txs',
+        accountUrl: 'https://scan.initia.xyz/intergaze-1/accounts',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'init',
+    gasPriceStep: {
+      low: 0.03,
+      average: 0.05,
+      high: 0.07,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      'l2/fb936ffef4eb4019d82941992cc09ae2788ce7197fcb08cb00c4fe6f5e79184e':
+        denoms['l2/fb936ffef4eb4019d82941992cc09ae2788ce7197fcb08cb00c4fe6f5e79184e'],
     },
     theme: {
       primaryColor: '#0d9488',
@@ -2925,47 +3385,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
     cosmosSDK: CosmosSDK.Version_Point_47,
   },
-  quasar: {
-    chainId: 'quasar-1',
-    testnetChainId: 'qsr-questnet-04',
-    key: 'quasar',
-    chainName: 'Quasar',
-    chainRegistryPath: 'quasar',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/quasar.png',
-    apis: {
-      rest: 'https://quasar-api.polkachu.com',
-      rpc: 'https://quasar-rpc.polkachu.com',
-      restTest: 'https://quasar-testnet-api.polkachu.com',
-      rpcTest: 'https://quasar-testnet-rpc.polkachu.com',
-    },
-    denom: 'QSR',
-    txExplorer: {
-      mainnet: {
-        name: 'Mintscan',
-        txUrl: 'https://www.mintscan.io/quasar/txs',
-        accountUrl: 'https://www.mintscan.io/quasar/accounts',
-      },
-      testnet: {
-        name: 'Mintscan Testnet',
-        txUrl: 'https://mintscan.io/quasar-testnet/txs',
-        accountUrl: 'https://mintscan.io/quasar-testnet/account',
-      },
-    },
-    bip44: {
-      coinType: '118',
-    },
-    addressPrefix: 'quasar',
-    gasPriceStep: { low: 0.01, average: 0.01, high: 0.02 },
-    ibcChannelIds: {},
-    nativeDenoms: {
-      uqsr: denoms.uqsr,
-    },
-    theme: {
-      primaryColor: '#8c6af6',
-      gradient: 'linear-gradient(180deg, rgba(140, 106, 246, 0.32) 0%, rgba(140, 106, 246, 0) 100%)',
-    },
-    enabled: true,
-  },
   quicksilver: {
     chainId: 'quicksilver-2',
     key: 'quicksilver',
@@ -3902,185 +4321,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     enabled: true,
     evmOnlyChain: true,
   },
-  civitia: {
-    chainId: 'landlord-2',
-    testnetChainId: 'landlord-2',
-    key: 'civitia',
-    chainName: 'Civitia',
-    chainRegistryPath: 'civitia',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/civitia.png',
-    apis: {
-      restTest: 'https://maze-rest-sequencer-53ecf1d6-4fa1-4103-827f-a9430df97cef.ane1-prod-nocsm.newmetric.xyz',
-      rpcTest: 'https://maze-rpc-sequencer-53ecf1d6-4fa1-4103-827f-a9430df97cef.ane1-prod-nocsm.newmetric.xyz',
-    },
-    denom: 'INIT',
-    bip44: {
-      coinType: '118',
-    },
-    txExplorer: {
-      mainnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/landlord-2/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/landlord-2/account',
-      },
-      testnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/landlord-2/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/landlord-2/account',
-      },
-    },
-    addressPrefix: 'init',
-    gasPriceStep: {
-      low: 0.15,
-      average: 0.15,
-      high: 0.4,
-    },
-    ibcChannelIds: {},
-    nativeDenoms: {
-      'l2/1666ede2bf1985307a86de36a6b78411cbf1edeffc2ac569e6a7b2f8753db4bb':
-        denoms['l2/1666ede2bf1985307a86de36a6b78411cbf1edeffc2ac569e6a7b2f8753db4bb'],
-    },
-    theme: {
-      primaryColor: '#0d9488',
-      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
-    },
-    disableStaking: true,
-    enabled: true,
-  },
-  milkyway: {
-    chainId: 'glados-2.1',
-    testnetChainId: 'glados-2.1',
-    key: 'milkyway',
-    chainName: 'MilkyWay (Minitia)',
-    chainRegistryPath: 'milkINIT',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/milkyway.svg',
-    apis: {
-      restTest: 'https://lcd.rollup-testnet.milkyway.zone',
-      rpcTest: 'https://rpc.rollup-testnet.milkyway.zone',
-    },
-    denom: 'MILK',
-    bip44: {
-      coinType: '118',
-    },
-    txExplorer: {
-      mainnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/glados-2.1/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/glados-2.1/account',
-      },
-      testnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/glados-2.1/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/glados-2.1/account',
-      },
-    },
-    addressPrefix: 'init',
-    gasPriceStep: {
-      low: 0.15,
-      average: 0.15,
-      high: 0.4,
-    },
-    ibcChannelIds: {},
-    nativeDenoms: {
-      umilk: denoms.umilk,
-    },
-    theme: {
-      primaryColor: '#0d9488',
-      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
-    },
-    disableStaking: true,
-    enabled: true,
-  },
-  minimove: {
-    chainId: 'minimove-2',
-    testnetChainId: 'minimove-2',
-    key: 'minimove',
-    chainName: 'Minimove',
-    chainRegistryPath: 'minimove',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/minimove.svg',
-    apis: {
-      restTest: 'https://rest.minimove-2.initia.xyz',
-      rpcTest: 'https://rpc.minimove-2.initia.xyz',
-    },
-    denom: 'INIT',
-    bip44: {
-      coinType: '118',
-    },
-    txExplorer: {
-      mainnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/minimove-2/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/minimove-2/account',
-      },
-      testnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/minimove-2/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/minimove-2/account',
-      },
-    },
-    addressPrefix: 'init',
-    gasPriceStep: {
-      low: 0.15,
-      average: 0.15,
-      high: 0.4,
-    },
-    ibcChannelIds: {},
-    nativeDenoms: {
-      'l2/4b66eb60bf9f503ea97fe4dc96d5c604c1dca14ee988e21510ac4b087bf72671':
-        denoms['l2/4b66eb60bf9f503ea97fe4dc96d5c604c1dca14ee988e21510ac4b087bf72671'],
-    },
-    theme: {
-      primaryColor: '#0d9488',
-      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
-    },
-    disableStaking: true,
-    enabled: true,
-  },
-  miniwasm: {
-    chainId: 'miniwasm-2',
-    testnetChainId: 'miniwasm-2',
-    key: 'miniwasm',
-    chainName: 'Miniwasm',
-    chainRegistryPath: 'miniwasm',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/miniwasm.svg',
-    apis: {
-      restTest: 'https://rest.miniwasm-2.initia.xyz',
-      rpcTest: 'https://rpc.miniwasm-2.initia.xyz',
-    },
-    denom: 'INIT',
-    bip44: {
-      coinType: '118',
-    },
-    txExplorer: {
-      mainnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/miniwasm-2/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/miniwasm-2/account',
-      },
-      testnet: {
-        name: 'Initia Scan',
-        txUrl: 'https://scan.testnet.initia.xyz/miniwasm-2/txs',
-        accountUrl: 'https://scan.testnet.initia.xyz/miniwasm-2/account',
-      },
-    },
-    addressPrefix: 'init',
-    gasPriceStep: {
-      low: 0.15,
-      average: 0.15,
-      high: 0.4,
-    },
-    ibcChannelIds: {},
-    nativeDenoms: {
-      'l2/2588fd87a8e081f6a557f43ff14f05dddf5e34cb27afcefd6eaf81f1daea30d0':
-        denoms['l2/2588fd87a8e081f6a557f43ff14f05dddf5e34cb27afcefd6eaf81f1daea30d0'],
-    },
-    theme: {
-      primaryColor: '#0d9488',
-      gradient: 'linear-gradient(180deg, rgba(13, 148, 136, 0.32) 0%, rgba(13, 148, 136, 0) 100%)',
-    },
-    disableStaking: true,
-    enabled: true,
-  },
   arbitrum: {
     chainId: '42161',
     evmChainId: '42161',
@@ -4657,16 +4897,17 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
-  babylon: {
-    chainId: 'euphrates-0.5.0', // devnet
-    testnetChainId: 'bbn-test-5',
-    key: 'babylon',
-    chainName: 'Babylon',
+  mainBabylon: {
+    chainId: 'bbn-1',
+    key: 'mainBabylon',
+    chainName: 'Babylon Genesis',
     chainRegistryPath: 'babylon',
     addressPrefix: 'bbn',
     apis: {
-      rpcTest: 'https://babylon-testnet-rpc.nodes.guru',
-      restTest: 'https://babylon-testnet-api.nodes.guru',
+      rpc: 'https://babylon.nodes.guru/rpc',
+      rest: 'https://babylon.nodes.guru/api',
+      alternateRest: 'https://babylon-api.polkachu.com',
+      alternateRpc: 'https://babylon-rpc.polkachu.com',
     },
     denom: 'BBN',
     bip44: {
@@ -4696,8 +4937,52 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       },
       mainnet: {
         name: 'BabylonScan',
-        txUrl: 'https://babylon-devnet.l2scan.co/tx',
-        accountUrl: 'https://babylon-devnet.l2scan.co/address',
+        txUrl: 'https://babylon.l2scan.co/tx',
+        accountUrl: 'https://babylon.l2scan.co/address',
+      },
+    },
+  },
+  babylon: {
+    chainId: 'bbn-test-5',
+    testnetChainId: 'bbn-test-5',
+    key: 'babylon',
+    chainName: 'Babylon Testnet',
+    chainRegistryPath: 'babylon',
+    addressPrefix: 'bbn',
+    apis: {
+      rpcTest: 'https://babylon-testnet-rpc.nodes.guru',
+      restTest: 'https://babylon-testnet-api.nodes.guru',
+    },
+    denom: 'BBN',
+    bip44: {
+      coinType: '118',
+    },
+    enabled: true,
+    gasPriceStep: {
+      low: 0.007,
+      average: 0.007,
+      high: 0.01,
+    },
+    nativeDenoms: {
+      tubbn: denoms.tubbn,
+    },
+    ibcChannelIds: {},
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/babylon.png',
+    cosmosSDK: CosmosSDK.Version_Point_47,
+    txExplorer: {
+      testnet: {
+        name: 'BabylonScan',
+        txUrl: 'https://babylon-testnet.l2scan.co/tx',
+        accountUrl: 'https://babylon-testnet.l2scan.co/address',
+      },
+      mainnet: {
+        name: 'BabylonScan',
+        txUrl: 'https://babylon.l2scan.co/tx',
+        accountUrl: 'https://babylon.l2scan.co/address',
       },
     },
   },
@@ -4750,7 +5035,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   },
   movement: {
     chainId: 'aptos-126',
-    testnetChainId: 'aptos-177',
+    testnetChainId: 'aptos-250',
     key: 'movement',
     chainName: 'Movement',
     chainRegistryPath: 'movement',
@@ -4758,51 +5043,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     apis: {
       rest: 'https://mainnet.movementnetwork.xyz/v1',
       rpc: 'https://mainnet.movementnetwork.xyz/v1',
-      restTest: 'https://aptos.testnet.porto.movementlabs.xyz/v1',
-      rpcTest: 'https://aptos.testnet.porto.movementlabs.xyz/v1',
       indexer: 'https://indexer.mainnet.movementnetwork.xyz/v1/graphql',
-      indexerTest: 'https://indexer.testnet.porto.movementlabs.xyz/v1/graphql',
-    },
-    denom: 'MOVE',
-    bip44: {
-      coinType: '637',
-    },
-    addressPrefix: 'move',
-    txExplorer: {
-      mainnet: {
-        name: 'Blockscout',
-        txUrl: 'https://explorer.movementnetwork.xyz/txn/PLACEHOLDER_FOR_TX_HASH?network=mainnet',
-        accountUrl: 'https://explorer.movementnetwork.xyz/account/PLACEHOLDER_FOR_WALLET_ADDRESS?network=mainnet',
-      },
-      testnet: {
-        name: 'Blockscout',
-        txUrl: 'https://explorer.testnet.porto.movementnetwork.xyz/txn/PLACEHOLDER_FOR_TX_HASH',
-        accountUrl: 'https://explorer.testnet.porto.movementnetwork.xyz/account/PLACEHOLDER_FOR_WALLET_ADDRESS',
-      },
-    },
-    gasPriceStep: {
-      low: 0.01,
-      average: 0.025,
-      high: 0.04,
-    },
-    nativeDenoms: {
-      'movement-native': denoms['movement-native'],
-      'movement-native-fa': denoms['movement-native-fa'],
-    },
-    theme: {
-      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
-      primaryColor: '#3281fa',
-    },
-    enabled: true,
-  },
-  movementBardock: {
-    chainId: 'aptos-250',
-    testnetChainId: 'aptos-250',
-    key: 'movementBardock',
-    chainName: 'Movement Bardock',
-    chainRegistryPath: 'movementBardock',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/movement.svg',
-    apis: {
       restTest: 'https://testnet.bardock.movementnetwork.xyz/v1',
       rpcTest: 'https://testnet.bardock.movementnetwork.xyz/v1',
       indexerTest: 'https://indexer.testnet.movementnetwork.xyz/v1/graphql',
@@ -4815,8 +5056,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     txExplorer: {
       mainnet: {
         name: 'Blockscout',
-        txUrl: 'https://explorer.movementnetwork.xyz/txn',
-        accountUrl: 'https://explorer.movementnetwork.xyz/account',
+        txUrl: 'https://explorer.movementnetwork.xyz/txn/PLACEHOLDER_FOR_TX_HASH?network=mainnet',
+        accountUrl: 'https://explorer.movementnetwork.xyz/account/PLACEHOLDER_FOR_WALLET_ADDRESS?network=mainnet',
       },
       testnet: {
         name: 'Blockscout',
@@ -5001,8 +5242,8 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     evmOnlyChain: true,
   },
   zigchain: {
-    chainId: 'zig-test-1',
-    testnetChainId: 'zig-test-1',
+    chainId: 'zig-test-2',
+    testnetChainId: 'zig-test-2',
     key: 'zigchain',
     chainName: 'ZIGChain Testnet',
     chainRegistryPath: 'zigchain',
@@ -5218,5 +5459,343 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
     evmOnlyChain: true,
+  },
+  bob: {
+    chainId: '60808',
+    evmChainId: '60808',
+    testnetChainId: '808813',
+    evmChainIdTestnet: '808813',
+    key: 'bob',
+    chainName: 'Bob',
+    chainRegistryPath: 'bob',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/bob.svg',
+    apis: {
+      rpc: 'https://rpc.gobob.xyz',
+      evmJsonRpc: 'https://rpc.gobob.xyz',
+      rpcTest: 'https://bob-sepolia.rpc.gobob.xyz',
+      evmJsonRpcTest: 'https://bob-sepolia.rpc.gobob.xyz',
+    },
+    denom: 'ETH',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'bob',
+    txExplorer: {
+      mainnet: {
+        name: 'Bob explorer',
+        txUrl: 'https://explorer.gobob.xyz/tx',
+        accountUrl: 'https://explorer.gobob.xyz/address',
+      },
+      testnet: {
+        name: 'Bob Explorer',
+        txUrl: 'https://bob-sepolia.explorer.gobob.xyz/tx',
+        accountUrl: 'https://bob-sepolia.explorer.gobob.xyz/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'bob-native': denoms['bob-native'],
+    },
+    theme: {
+      primaryColor: '#f45c04',
+      gradient: 'linear-gradient(180deg, rgba(244,92,4, 0.32) 0%, rgba(244,92,4, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  fluent: {
+    chainId: '20993',
+    evmChainId: '20993',
+    testnetChainId: '20993',
+    evmChainIdTestnet: '20993',
+    key: 'fluent',
+    chainName: 'Fluent Developer Preview',
+    chainRegistryPath: 'fluent',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/fluent.png',
+    apis: {
+      rpc: 'https://rpc.dev.gblend.xyz',
+      evmJsonRpc: 'https://rpc.dev.gblend.xyz',
+      rpcTest: 'https://rpc.dev.gblend.xyz',
+      evmJsonRpcTest: 'https://rpc.dev.gblend.xyz',
+    },
+    denom: 'ETH',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'fluent',
+    txExplorer: {
+      testnet: {
+        name: 'Fluent explorer',
+        txUrl: 'https://blockscout.dev.gblend.xyz/tx',
+        accountUrl: 'https://blockscout.dev.gblend.xyz/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'fluent-native': denoms['fluent-native'],
+    },
+    theme: {
+      primaryColor: '#242424',
+      gradient: 'linear-gradient(180deg, rgba(36, 36, 36, 0.32) 0%, rgba(36 ,36 ,36 , 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  soneium: {
+    chainId: '1868',
+    evmChainId: '1868',
+    testnetChainId: '1946',
+    evmChainIdTestnet: '1946',
+    key: 'soneium',
+    chainName: 'Soneium',
+    chainRegistryPath: 'soneium',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/soneium.png',
+    apis: {
+      rpc: 'https://rpc.soneium.org',
+      evmJsonRpc: 'https://rpc.soneium.org',
+      rpcTest: 'https://rpc.minato.soneium.org',
+      evmJsonRpcTest: 'https://rpc.minato.soneium.org',
+    },
+    denom: 'ETH',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'soneium',
+    txExplorer: {
+      mainnet: {
+        name: 'Blockscout Explorer',
+        txUrl: 'https://soneium.blockscout.com/tx',
+        accountUrl: 'https://soneium.blockscout.com/address',
+      },
+      testnet: {
+        name: 'Blockscout Explorer',
+        txUrl: 'https://soneium-minato.blockscout.com/tx',
+        accountUrl: 'https://soneium-minato.blockscout.com/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'soneium-native': denoms['soneium-native'],
+    },
+    theme: {
+      primaryColor: '#242424',
+      gradient: 'linear-gradient(180deg, rgba(36, 36, 36, 0.32) 0%, rgba(36 ,36 ,36 , 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  lens: {
+    chainId: '232',
+    evmChainId: '232',
+    key: 'lens',
+    chainName: 'Lens',
+    chainRegistryPath: 'lens',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/lens.png',
+    apis: {
+      rpc: 'https://rpc.lens.xyz',
+      evmJsonRpc: 'https://rpc.lens.xyz',
+    },
+    denom: 'GHO',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'lens',
+    txExplorer: {
+      mainnet: {
+        name: 'Lens Explorer',
+        txUrl: 'https://explorer.lens.xyz/tx',
+        accountUrl: 'https://explorer.lens.xyz/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'lens-native': denoms['lens-native'],
+    },
+    theme: {
+      primaryColor: '#242424',
+      gradient: 'linear-gradient(180deg, rgba(36, 36, 36, 0.32) 0%, rgba(36 ,36 ,36 , 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  rise: {
+    chainId: '11155931',
+    evmChainId: '11155931',
+    testnetChainId: '11155931',
+    evmChainIdTestnet: '11155931',
+    key: 'rise',
+    chainName: 'Rise',
+    chainRegistryPath: 'rise',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/rise.png',
+    apis: {
+      rpcTest: 'https://testnet.riselabs.xyz',
+      evmJsonRpcTest: 'https://testnet.riselabs.xyz',
+    },
+    denom: 'ETH',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'rise',
+    txExplorer: {
+      testnet: {
+        name: 'Rise Explorer',
+        txUrl: 'https://explorer.testnet.riselabs.xyz/tx',
+        accountUrl: 'https://explorer.testnet.riselabs.xyz/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'rise-native': denoms['rise-native'],
+    },
+    theme: {
+      primaryColor: '#242424',
+      gradient: 'linear-gradient(180deg, rgba(36, 36, 36, 0.32) 0%, rgba(36 ,36 ,36 , 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  solana: {
+    chainId: '101',
+    key: 'solana',
+    chainName: 'Solana',
+    chainRegistryPath: 'solana',
+    testnetChainId: '103', //devnet
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/solana.svg',
+    txExplorer: {
+      mainnet: {
+        name: 'Solana Explorer',
+        txUrl: 'https://explorer.solana.com/tx/',
+        accountUrl: 'https://explorer.solana.com/address/',
+      },
+      testnet: {
+        name: 'Solana Explorer',
+        txUrl: 'https://explorer.solana.com/tx/PLACEHOLDER_FOR_TX_HASH?cluster=devnet',
+        accountUrl: 'https://explorer.solana.com/address/PLACEHOLDER_FOR_WALLET_ADDRESS?cluster=devnet',
+      },
+    },
+    apis: {
+      rpc: 'https://go.getblock.io/e8924dbdeef24817a1b024dc6fe4c18b',
+      rpcTest: 'https://api.devnet.solana.com',
+    },
+    denom: 'SOL',
+    bip44: {
+      coinType: '501',
+    },
+    addressPrefix: 'solana',
+    gasPriceStep: {
+      low: 0.000005,
+      average: 0.000005,
+      high: 0.000005,
+    },
+    nativeDenoms: {
+      lamports: denoms.lamports,
+    },
+    theme: {
+      primaryColor: '#14F195',
+      gradient: 'linear-gradient(180deg, rgba(20, 241, 149, 0.32) 0%, rgba(20, 241, 149, 0) 100%)',
+    },
+    enabled: true,
+  },
+  sui: {
+    chainId: 'sui-101',
+    testnetChainId: 'sui-103',
+    key: 'sui',
+    chainName: 'Sui',
+    chainRegistryPath: 'sui',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/sui.webp',
+    apis: {
+      rest: 'https://fullnode.mainnet.sui.io',
+      rpc: 'https://fullnode.mainnet.sui.io',
+      restTest: 'https://fullnode.testnet.sui.io',
+      rpcTest: 'https://fullnode.testnet.sui.io',
+      indexer: 'https://fullnode.mainnet.sui.io/graphql',
+      indexerTest: 'https://fullnode.testnet.sui.io/graphql',
+    },
+    denom: 'SUI',
+    bip44: {
+      coinType: '784',
+    },
+    addressPrefix: 'sui',
+    txExplorer: {
+      mainnet: {
+        name: 'Sui Explorer',
+        txUrl: 'https://suiscan.xyz/mainnet/tx/',
+        accountUrl: 'https://suiscan.xyz/mainnet/account/',
+      },
+      testnet: {
+        name: 'Sui Explorer',
+        txUrl: 'https://suiscan.xyz/testnet/tx/',
+        accountUrl: 'https://suiscan.xyz/testnet/account/',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      mist: denoms.mist,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    enabled: true,
+  },
+  fogo: {
+    chainId: 'fogo-1',
+    key: 'fogo',
+    chainName: 'Fogo Testnet',
+    testnetChainId: 'fogo-1',
+    chainRegistryPath: 'fogo',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/fogo.jpg',
+    txExplorer: {
+      testnet: {
+        name: 'Fogo Explorer',
+        txUrl: 'https://explorer.fogo.io/tx/PLACEHOLDER_FOR_TX_HASH?cluster=testnet',
+        accountUrl: 'https://explorer.fogo.io/address/PLACEHOLDER_FOR_WALLET_ADDRESS?cluster=testnet',
+      },
+    },
+    apis: {
+      rpcTest: 'https://testnet.fogo.io',
+    },
+    denom: 'FOGO',
+    bip44: {
+      coinType: '501',
+    },
+    addressPrefix: 'fogo',
+    gasPriceStep: {
+      low: 0.000005,
+      average: 0.000005,
+      high: 0.000005,
+    },
+    nativeDenoms: {
+      'fogo-native': denoms['fogo-native'],
+    },
+    theme: {
+      primaryColor: '#242424',
+      gradient: 'linear-gradient(180deg, rgba(36, 36, 36, 0.32) 0%, rgba(36 ,36 ,36 , 0) 100%)',
+    },
+    enabled: true,
   },
 };

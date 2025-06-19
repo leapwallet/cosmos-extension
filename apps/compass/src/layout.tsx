@@ -10,7 +10,7 @@ import { observer } from 'mobx-react-lite'
 import { CopyAddressSheet } from 'pages/home/components'
 import SideNav from 'pages/home/side-nav'
 import React, { PropsWithChildren, ReactNode } from 'react'
-import { Location } from 'react-router'
+import { Location } from 'react-router-dom'
 import { cn } from 'utils/cn'
 import { sidePanel } from 'utils/isSidePanel'
 import {
@@ -26,15 +26,11 @@ type GlobalLayoutProps = {
 
 const dAppPages = new Set([
   '/approveConnection',
-  '/suggestChain',
   '/sign',
   '/signSeiEvm',
   '/add-secret-token',
   '/login',
   '/suggest-erc-20',
-  '/switch-ethereum-chain',
-  '/switch-chain',
-  '/suggest-ethereum-chain',
 ])
 
 const showBottomNav = (path?: string) => {
@@ -80,7 +76,7 @@ export const GlobalLayout = observer((props: PropsWithChildren<GlobalLayoutProps
             : 'panel-width bg-secondary panel-height max-panel-height',
         )}
       >
-        <AnimatePresence exitBeforeEnter presenceAffectsLayout initial={false}>
+        <AnimatePresence mode='wait' presenceAffectsLayout initial={false}>
           <motion.div
             key={props.location?.pathname}
             id='popup-layout'

@@ -49,14 +49,13 @@ import { Images } from 'images'
 import { GenericDark, GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { feeTokensStore } from 'stores/fee-store'
 import { Colors } from 'theme/colors'
 import { TransactionStatus } from 'types/utility'
 import { assert } from 'utils/assert'
 import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { uiErrorTags } from 'utils/sentry'
 import { trim } from 'utils/strings'
@@ -91,7 +90,7 @@ export const SignTransaction = observer(
   }: SignTransactionProps) => {
     const getWallet = useGetWallet(activeChain)
     const { theme } = useTheme()
-    const { addressLinkState } = useSeiLinkedAddressState(getWallet, activeChain)
+    const { addressLinkState } = useSeiLinkedAddressState(activeChain)
     const evmBalance = evmBalanceStore.evmBalance
     const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
@@ -103,7 +102,7 @@ export const SignTransaction = observer(
     const assets = useMemo(() => {
       let _assets = allAssets
       const addEvmDetails = hasToAddEvmDetails(
-        isCompassWallet(),
+        false,
         addressLinkState,
         chainInfo?.evmOnlyChain ?? false,
       )
@@ -255,7 +254,7 @@ export const SignTransaction = observer(
           gasPriceOption.gasPrice.amount.toString(),
         )
 
-        const decimals = isCompassWallet() ? 18 : Number(nativeFeeToken?.coinDecimals ?? 18)
+        const decimals = Number(nativeFeeToken?.coinDecimals ?? 18)
         if (
           nativeFeeToken &&
           !!amount &&
@@ -321,7 +320,7 @@ export const SignTransaction = observer(
             Number(userPreferredGasLimit || recommendedGasLimit).toString(),
           )
             .multipliedBy(gasPriceOption.gasPrice.amount.toString())
-            .dividedBy(isCompassWallet() ? 1e12 : 1)
+            .dividedBy(1)
             .toFixed(0)
           const feeDenomination = nativeFeeDenom.coinMinimalDenom
 
@@ -395,11 +394,7 @@ export const SignTransaction = observer(
       }
     }
 
-    if (
-      ((isCompassWallet() && !['done', 'unknown'].includes(addressLinkState)) ||
-        chainInfo?.evmOnlyChain) &&
-      evmBalanceStore.evmBalance.status === 'loading'
-    ) {
+    if (chainInfo?.evmOnlyChain && evmBalanceStore.evmBalance.status === 'loading') {
       return <Loading />
     }
 
@@ -414,7 +409,6 @@ export const SignTransaction = observer(
       <div
         className={classNames(
           'panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center',
-          { 'mt-2': !isSidePanel() },
         )}
       >
         <div
@@ -424,6 +418,7 @@ export const SignTransaction = observer(
           )}
         >
           <PopupLayout
+            className='flex flex-col'
             header={
               <div className='w-[396px]'>
                 <Header
@@ -433,24 +428,13 @@ export const SignTransaction = observer(
                   }
                   imgOnError={imgOnError(theme === ThemeName.DARK ? GenericDark : GenericLight)}
                   title={
-                    <Buttons.Wallet
-                      brandLogo={
-                        isCompassWallet() ? (
-                          <img
-                            className='w-[24px] h-[24px] mr-1'
-                            src={Images.Logos.CompassCircle}
-                          />
-                        ) : undefined
-                      }
-                      title={trim(walletName, 10)}
-                      className='pr-4 cursor-default'
-                    />
+                    <Buttons.Wallet title={trim(walletName, 10)} className='pr-4 cursor-default' />
                   }
                 />
               </div>
             }
           >
-            <div className='px-7 py-3 overflow-y-auto relative h-[calc(100%-150px)]'>
+            <div className='px-7 py-3 overflow-y-auto relative max-h-[calc(100%-150px)]'>
               <h2 className='text-center text-lg font-bold dark:text-white-100 text-gray-900 w-full'>
                 Approve Transaction
               </h2>
@@ -558,7 +542,7 @@ export const SignTransaction = observer(
               ) : null}
             </div>
 
-            <div className='absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full'>
+            <div className='py-3 px-7 dark:bg-black-100 bg-gray-50 w-full mt-auto'>
               <div className='flex items-center justify-center w-full space-x-3'>
                 <Buttons.Generic
                   title='Reject Button'

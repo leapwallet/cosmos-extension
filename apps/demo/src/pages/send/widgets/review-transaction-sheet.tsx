@@ -1,7 +1,7 @@
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { Avatar, Buttons, Card, HeaderActionType, Memo } from '@leapwallet/leap-ui'
 import React, { ReactElement } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import Badge from '~/components/badge'
 import BottomSheet from '~/components/bottom-sheet'

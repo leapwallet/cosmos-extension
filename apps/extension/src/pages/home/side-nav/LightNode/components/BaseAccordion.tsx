@@ -1,7 +1,8 @@
-import { CaretDown, CaretUp } from '@phosphor-icons/react'
+import { CaretUp } from '@phosphor-icons/react'
 import Text from 'components/text'
 import { AnimatePresence, motion } from 'framer-motion'
 import React from 'react'
+import { cn } from 'utils/cn'
 
 const BasicAccordion = ({
   title,
@@ -15,20 +16,19 @@ const BasicAccordion = ({
   toggleAccordion: () => void
 }) => {
   return (
-    <div className='w-full flex-col bg-white-100 dark:bg-gray-900 flex items-center justify-between p-4 gap-3 rounded-2xl overflow-hidden'>
+    <div className='w-full flex-col bg-secondary-100 flex items-center justify-between p-4 gap-3 rounded-2xl overflow-hidden'>
       <div
         role='button'
         tabIndex={0}
         onClick={toggleAccordion}
         className='w-full flex-row flex justify-between items-center gap-2 cursor-pointer'
       >
-        <Text size='sm'>{title}</Text>
+        <span className='text-sm font-medium'>{title}</span>
 
-        {isExpanded ? (
-          <CaretUp size={16} className='dark:text-white-100' />
-        ) : (
-          <CaretDown size={16} className='dark:text-white-100' />
-        )}
+        <CaretUp
+          size={16}
+          className={cn('transition-transform duration-300', !isExpanded && 'rotate-180')}
+        />
       </div>
       <AnimatePresence initial={false}>
         {isExpanded && (

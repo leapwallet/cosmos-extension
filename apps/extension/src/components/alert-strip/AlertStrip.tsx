@@ -1,3 +1,4 @@
+import { X } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import React, { useEffect, useRef, useState } from 'react'
 
@@ -14,6 +15,8 @@ type AlertStripProps = {
   textClassName?: string
   onClick?: VoidFunction
   childComponent?: React.ReactNode
+  showCloseButton?: boolean
+  onClose?: VoidFunction
 }
 
 const AlertStrip = React.memo(
@@ -26,6 +29,8 @@ const AlertStrip = React.memo(
     onClick,
     timeOut = 8000,
     textClassName,
+    showCloseButton = false,
+    onClose,
     ...rest
   }: AlertStripProps) => {
     const [show, setShow] = useState<boolean>(true)
@@ -52,11 +57,21 @@ const AlertStrip = React.memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [show])
 
+    const handleClose = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      setShow(false)
+      onClose?.()
+    }
+
     return show ? (
       <div
-        className={classNames('flex items-center w-full justify-center h-[36px]', className, {
-          'cursor-pointer': !!onClick,
-        })}
+        className={classNames(
+          'flex items-center w-full justify-center h-[36px] relative',
+          className,
+          {
+            'cursor-pointer': !!onClick,
+          },
+        )}
         style={{ backgroundColor: bgColor }}
         onClick={onClick}
       >
@@ -67,6 +82,14 @@ const AlertStrip = React.memo(
         >
           {message}
         </Text>
+        {showCloseButton && (
+          <button
+            onClick={handleClose}
+            className='absolute right-4 top-1/2 -translate-y-1/2 text-white-100 hover:text-gray-200'
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
     ) : null
   },

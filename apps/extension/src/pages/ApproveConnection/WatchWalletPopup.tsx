@@ -70,7 +70,7 @@ export default function WatchWalletPopup({ handleCancel, origin }: WatchWalletPo
       <Buttons.Generic
         size='normal'
         color={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray100}
-        className='w-[344px] absolute bottom-0'
+        className='w-[344px] absolute bottom-0 p-6 pt-0'
         onClick={handleCancel}
       >
         Cancel

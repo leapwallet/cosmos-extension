@@ -42,7 +42,7 @@ export function ChainCardWrapper({
   return (
     <div
       key={chain.chainName + index}
-      className='bg-white-100 dark:bg-gray-950 rounded-xl max-h-[100px] w-full mb-3'
+      className='bg-secondary-100 hover:bg-secondary-200 rounded-xl w-full mb-3'
     >
       <ChainCard
         handleClick={handleClick}

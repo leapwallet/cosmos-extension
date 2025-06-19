@@ -3,7 +3,6 @@ import {
   useChainApis,
   useChainId,
   useGetChains,
-  useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   getChainInfo,
@@ -36,7 +35,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { activeChainStore } from 'stores/active-chain-store'
 import {
   betaCW20DenomsStore,
@@ -49,7 +48,6 @@ import { rootBalanceStore } from 'stores/root-store'
 import { selectedNetworkStore } from 'stores/selected-network-store'
 import { Colors } from 'theme/colors'
 import { getContractInfo } from 'utils/getContractInfo'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isNotValidNumber, isNotValidURL } from 'utils/regex'
 
 const AddTokenForm = observer(
@@ -102,7 +100,6 @@ const AddTokenForm = observer(
     const coinMinimalDenomRef = useRef<HTMLInputElement>(null)
 
     const enabledCW20Tokens = enabledCW20DenomsStore.getEnabledCW20DenomsForChain(activeChain)
-    const isSeiEvmChain = useIsSeiEvmChain()
 
     const fetchTokenInfo = useCallback(
       async (event: ChangeEvent<HTMLInputElement>) => {
@@ -188,7 +185,7 @@ const AddTokenForm = observer(
           }
         }
 
-        if (foundAsset === false && (isSeiEvmChain || chains[activeChain]?.evmOnlyChain)) {
+        if (foundAsset === false && chains[activeChain]?.evmOnlyChain) {
           try {
             const details = await getErc20TokenDetails(
               coinMinimalDenom,
@@ -232,7 +229,7 @@ const AddTokenForm = observer(
         setFoundAsset(foundAsset)
         setFetchingTokenInfo(false)
       },
-      [isSeiEvmChain, chains, activeChain, chain, selectedNetwork, lcdUrl, evmJsonRpc, evmChainId],
+      [chains, activeChain, chain, selectedNetwork, lcdUrl, evmJsonRpc, evmChainId],
     )
 
     const handleChange = useCallback(
@@ -250,7 +247,6 @@ const AddTokenForm = observer(
             } else if (chains[activeChain]?.evmOnlyChain && !isEthAddress(_value)) {
               error = 'Invalid contract address'
             } else if (
-              !isSeiEvmChain &&
               !chains[activeChain]?.evmOnlyChain &&
               (_value.startsWith('erc20/') || isEthAddress(_value))
             ) {
@@ -274,7 +270,7 @@ const AddTokenForm = observer(
 
         setTokenInfo((prevValue) => ({ ...prevValue, [name]: value.trim() }))
       },
-      [activeChain, chains, denoms, errors, isSeiEvmChain],
+      [activeChain, chains, denoms, errors],
     )
 
     useEffect(() => {
@@ -372,22 +368,13 @@ const AddTokenForm = observer(
       if (chains[activeChain]?.evmOnlyChain) {
         coinMinimalDenomPlaceholder = 'Contract address (ex: 0x...)'
         coinDenomPlaceholder = 'Symbol (ex: PYTH)'
-      } else if (isCompassWallet()) {
-        coinMinimalDenomPlaceholder = 'Coin minimal denom (ex: sei16...xx00)'
-        coinDenomPlaceholder = 'Coin denom (ex: ECLIP)'
-
-        if (isSeiEvmChain) {
-          coinMinimalDenomPlaceholder =
-            'Contract address/Coin minimal denom (ex: 0x.../sei16...xx00)'
-          coinDenomPlaceholder = 'Symbol/Coin denom (ex: PYTH/ECLIP)'
-        }
       }
 
       return {
         coinMinimalDenomPlaceholder,
         coinDenomPlaceholder,
       }
-    }, [activeChain, chains, isSeiEvmChain])
+    }, [activeChain, chains])
 
     return (
       <form className='mx-auto w-[344px] mb-5' onSubmit={handleSubmit}>

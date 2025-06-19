@@ -22,6 +22,7 @@ const buttonVariants = cva(
           'bg-secondary-100 hover:bg-secondary-200 disabled:bg-secondary-100/40 text-secondary-foreground',
         destructive:
           'bg-destructive-100 hover:bg-destructive-100/80 disabled:bg-destructive-100/40 text-destructive-foreground',
+        outline: 'bg-gray-950 border-[#70b7ff] border-2 text-[#70b7ff]',
       },
       size: {
         default: 'h-[3.25rem] px-6 py-2 text-md',

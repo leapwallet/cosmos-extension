@@ -8,7 +8,7 @@ export function useInitLightNode(store: LightNodeStore) {
   }, [store])
 
   useEffect(() => {
-    if (store.isLightNodeRunning) {
+    if (!store.isSubscribedToEvents) {
       store.subscribeToEvents()
     }
   }, [store, store.isLightNodeRunning])

@@ -8,8 +8,8 @@ import BottomModal from 'components/bottom-modal'
 import { EmptyCard } from 'components/empty-card'
 import PopupLayout from 'components/layout/popup-layout'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { SearchInput } from 'components/search-input'
 import GovCardSkeleton from 'components/Skeletons/GovCardSkeleton'
+import { SearchInput } from 'components/ui/input/search-input'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import Sort from 'icons/sort'
@@ -144,8 +144,6 @@ export const NtrnProposalList = observer(
                 onChange={(event) => setPropFilter(event.currentTarget.value.toLowerCase())}
                 value={propFilter}
                 onClear={() => setPropFilter('')}
-                inputClassName='flex flex-grow text-base text-gray-600 dark:text-gray-200 outline-none bg-white-0'
-                divClassName='w-full flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'
               />
 
               <button

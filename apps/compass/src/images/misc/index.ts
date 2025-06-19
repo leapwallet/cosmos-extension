@@ -105,6 +105,8 @@ import Language from './language.svg'
 import LeapQrIcon from './leap-qr-icon.svg'
 import LeapReward from './leap-reward.svg'
 import Ledger from './ledger.svg'
+import LedgerError from './ledger-error.svg'
+import LedgerLoader from './ledger-loader.svg'
 import LightTheme from './light-theme.svg'
 import LineDividerDarkMode from './line-divider-dark-mode.svg'
 import LineDividerLightMode from './line-divider-light-mode.svg'
@@ -300,6 +302,8 @@ export {
   LeapQrIcon,
   LeapReward,
   Ledger,
+  LedgerError,
+  LedgerLoader,
   LightTheme,
   LineDividerDarkMode,
   LineDividerLightMode,

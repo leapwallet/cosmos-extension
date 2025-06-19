@@ -64,7 +64,7 @@ const DrawerContent = React.forwardRef<React.ElementRef<'div'>, DrawerContentPro
         {...props}
       >
         {showHandle && (
-          <DrawerPrimitive.Handle className='mx-auto !mt-1 !bg-transparent !h-auto !opacity-100 [&>span]:h-1 [&>span]:!relative [&>span]:!inset-auto [&>span]:!transform-none [&>span]:!w-12 [&>span]:rounded-full [&>span]:bg-secondary-600 [&>span]:block hover:[&>span]:bg-secondary-800 [&>span]:!transition-colors [&>span]:!cursor-pointer' />
+          <DrawerPrimitive.Handle className='mx-auto !mt-1 !bg-transparent !h-auto !opacity-100 [&>span]:h-1 [&>span]:!relative [&>span]:!inset-auto [&>span]:!transform-none [&>span]:!w-full !w-12 [&>span]:rounded-full [&>span]:bg-secondary-600 [&>span]:block hover:[&>span]:bg-secondary-800 [&>span]:!transition-colors [&>span]:!cursor-pointer' />
         )}
         {children}
       </DrawerPrimitive.Content>

@@ -1,13 +1,12 @@
-import { Buttons } from '@leapwallet/leap-ui'
 import { CaretDown, CaretUp, GasPump } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
+import classNames from 'classnames'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import { PageName } from 'config/analytics'
 import { AnimatePresence, motion } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
 import React, { Dispatch, SetStateAction, useCallback, useMemo, useState } from 'react'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useSwapContext } from '../context'
 import { useAggregatorBridgeRelayerFee } from '../hooks/useBridgeFee'
@@ -22,6 +21,7 @@ type TxReviewSheetProps = {
   setShowFeesSettingSheet: Dispatch<SetStateAction<boolean>>
   destinationAssetUSDValue?: BigNumber
   sourceAssetUSDValue?: BigNumber
+  onSlippageInfoClick: () => void
 }
 
 export function TxReviewSheet({
@@ -31,6 +31,7 @@ export function TxReviewSheet({
   setShowFeesSettingSheet,
   destinationAssetUSDValue,
   sourceAssetUSDValue,
+  onSlippageInfoClick,
 }: TxReviewSheetProps) {
   const {
     displayFee,
@@ -41,6 +42,7 @@ export function TxReviewSheet({
     sourceChain,
     destinationChain,
     routingInfo,
+    loadingRoutes,
   } = useSwapContext()
 
   const { totalBridgeFee } = useAggregatorBridgeRelayerFee(routingInfo?.route)
@@ -105,75 +107,78 @@ export function TxReviewSheet({
     <BottomModal
       onClose={onClose}
       isOpen={isOpen}
-      closeOnBackdropClick={true}
-      contentClassName='!bg-white-100 dark:!bg-gray-950'
       className='p-6 max-[399px]:!px-4'
       title='Review Transaction'
     >
-      <div className='flex flex-col items-center w-full gap-6'>
-        <div className='flex flex-col items-center w-full gap-4'>
-          <TxTokensSummary
-            inAmount={inAmount}
-            sourceToken={sourceToken}
-            sourceChain={sourceChain}
-            amountOut={amountOut}
-            destinationToken={destinationToken}
-            destinationChain={destinationChain}
-            destinationAssetUSDValue={destinationAssetUSDValue}
-            sourceAssetUSDValue={sourceAssetUSDValue}
-          />
+      <div
+        className={classNames('flex flex-col items-center w-full', {
+          'gap-y-6': !showMoreDetails,
+          'gap-y-4': showMoreDetails,
+        })}
+      >
+        <TxTokensSummary
+          inAmount={inAmount}
+          sourceToken={sourceToken}
+          sourceChain={sourceChain}
+          amountOut={amountOut}
+          destinationToken={destinationToken}
+          destinationChain={destinationChain}
+          destinationAssetUSDValue={destinationAssetUSDValue}
+          sourceAssetUSDValue={sourceAssetUSDValue}
+          amountOutLoading={loadingRoutes}
+        />
 
-          <div className='w-full flex-col bg-gray-50 dark:bg-gray-900 flex items-center justify-between p-4 gap-3 rounded-2xl overflow-hidden'>
-            <div
-              role='button'
-              tabIndex={0}
-              onClick={handleAccordionClick}
-              onKeyDown={handleAccordingKeyDown}
-              className='w-full flex-row flex justify-between items-center gap-2 cursor-pointer'
-            >
-              <ConversionRateDisplay
-                onClick={() => {
-                  //
-                }}
-              />
-              <div className='flex items-center justify-end gap-1'>
-                <GasPump size={16} className='dark:text-white-100' />
-                <span className='dark:text-white-100 text-xs font-medium'>
-                  {displayFee?.fiatValue}
-                  {totalBridgeFee && ` + $${totalBridgeFee}`}
-                </span>
-                {showMoreDetails ? (
-                  <CaretUp size={16} className='dark:text-white-100' />
-                ) : (
-                  <CaretDown size={16} className='dark:text-white-100' />
-                )}
-              </div>
-            </div>
-            <AnimatePresence initial={false}>
-              {showMoreDetails && (
-                <motion.div
-                  key='more-details'
-                  initial={{ height: 0, opacity: 0.6 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0.6 }}
-                  transition={{ duration: 0.1 }}
-                  className='w-full'
-                >
-                  <div className='border-b w-full border-gray-200 dark:border-gray-800 mb-3' />
-                  <MoreDetails showInfo={false} setShowFeesSettingSheet={setShowFeesSettingSheet} />
-                </motion.div>
+        <div className='w-full flex-col dark:bg-gray-950 bg-white-100 border border-secondary-200 flex items-center justify-between rounded-2xl overflow-hidden'>
+          <div
+            role='button'
+            tabIndex={0}
+            onClick={handleAccordionClick}
+            onKeyDown={handleAccordingKeyDown}
+            className='w-full flex-row flex justify-between items-center gap-2 cursor-pointer p-4'
+          >
+            <ConversionRateDisplay
+              isReviewSheet={true}
+              onClick={() => {
+                //
+              }}
+            />
+            <div className='flex items-center justify-end gap-1'>
+              <GasPump size={16} className='text-secondary-800' weight='fill' />
+              <span className='text-secondary-800 text-sm font-medium'>
+                {displayFee?.fiatValue}
+                {totalBridgeFee && ` + $${totalBridgeFee}`}
+              </span>
+              {showMoreDetails ? (
+                <CaretUp size={16} className='text-secondary-800' />
+              ) : (
+                <CaretDown size={16} className='text-secondary-800' />
               )}
-            </AnimatePresence>
+            </div>
           </div>
+          <AnimatePresence initial={false}>
+            {showMoreDetails && (
+              <motion.div
+                key='more-details'
+                initial={{ height: 0, opacity: 0.6 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0.6 }}
+                transition={{ duration: 0.1 }}
+                className='w-full p-4 border-t border-secondary-300 border-dashed'
+              >
+                <MoreDetails
+                  isReviewSheet={true}
+                  showInfo={true}
+                  setShowFeesSettingSheet={setShowFeesSettingSheet}
+                  onSlippageInfoClick={onSlippageInfoClick}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <Buttons.Generic
-          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-          className='w-[344px]'
-          onClick={onProceed}
-        >
+        <Button className='w-[344px]' onClick={onProceed}>
           Confirm Swap
-        </Buttons.Generic>
+        </Button>
       </div>
     </BottomModal>
   )

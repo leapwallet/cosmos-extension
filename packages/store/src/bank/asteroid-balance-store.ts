@@ -86,8 +86,8 @@ export class AsteroidDenomBalanceStore {
     if (chain === 'aggregated') return 'aggregated';
     const chainId =
       this.selectedNetworkStore.selectedNetwork === 'testnet'
-        ? this.chainInfosStore.chainInfos[chain].testnetChainId
-        : this.chainInfosStore.chainInfos[chain].chainId;
+        ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
+        : this.chainInfosStore.chainInfos[chain]?.chainId;
     return `${chain}-${chainId}`;
   }
 

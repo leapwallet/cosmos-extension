@@ -1,9 +1,8 @@
 import { Avatar, Buttons, CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
-import classnames from 'classnames'
 import classNames from 'classnames'
-import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
+import { SearchInput } from 'components/ui/input/search-input'
 import { CONNECTIONS } from 'config/storage-keys'
 import Fuse from 'fuse.js'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -39,7 +38,7 @@ const ConnectedSiteCard = ({ site, onClick, className }: ConnectedSiteCardProps)
 
   return (
     <div
-      className={classnames(
+      className={classNames(
         'flex gap-4 justify-between items-center bg-white-100 dark:bg-gray-900 rounded-2xl w-full px-4 py-3',
         className,
       )}
@@ -206,7 +205,6 @@ const ConnectedSites = ({ setPage }: Props) => {
 
         <div className='sticky top-0 z-[1] bg-gray-50 dark:bg-black-100 px-7 py-4'>
           <SearchInput
-            divClassName='flex items-center h-10 bg-white-100 dark:bg-gray-900 rounded-full pl-4 pr-3'
             placeholder='Search sites...'
             onChange={handleSearchSite}
             value={searchQuery}

@@ -1,4 +1,4 @@
-import { APP_NAME, getAppName, getFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
+import { getFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { axiosWrapper } from '@leapwallet/cosmos-wallet-sdk'
 import { BaseQueryStore } from '@leapwallet/cosmos-wallet-store/dist/base/base-data-store'
 import { makeObservable } from 'mobx'
@@ -81,7 +81,7 @@ export class LightNodeBlockTimeStore extends BaseQueryStore<BlockData[]> {
 
   private async initDefaultBlockTime() {
     const storageAdapter = getStorageAdapter()
-    const featureFlags = await getFeatureFlags(storageAdapter, getAppName() === APP_NAME.Compass)
+    const featureFlags = await getFeatureFlags(storageAdapter, false)
 
     this.defaultBlockTime = featureFlags?.light_node.default_block_time_in_seconds ?? 6
   }

@@ -66,7 +66,7 @@ export const getAutoAdjustAmount = ({
   }
 
   // get the ratio of amount to fee
-  const ratioOfAmountToFee = new BigNumber(tokenAmount).dividedBy(feeAmount).integerValue(BigNumber.ROUND_FLOOR);
+  const ratioOfAmountToFee = new BigNumber(tokenAmount).dividedBy(feeAmount);
 
   if (ratioOfAmountToFee.isGreaterThan(3)) {
     // if it is at least 3, then we can subtract 3 times the fee amount from the token amount
@@ -74,12 +74,25 @@ export const getAutoAdjustAmount = ({
       .minus(3 * Number(feeAmount))
       .integerValue(BigNumber.ROUND_FLOOR);
 
+    // In case the updated token amount is less than 0, it means that auto adjust logic yielded a negative amount
+    // which is not possible, so we return null
+    if (updatedTokenAmountInMinimalDenom.isLessThan(0)) {
+      return null;
+    }
+
     return fromSmall(updatedTokenAmountInMinimalDenom.toString(), decimalsToUse ?? nativeDenom.coinDecimals);
   } else if (ratioOfAmountToFee.isGreaterThan(1)) {
-    // if it is at least 1, then we can subtract the ratio times the fee amount from the token amount
+    // if it is at least 1, it means that the user is spending close to all the balance
+    // so we can subtract the fee amount from the token amount
     const updatedTokenAmountInMinimalDenom = new BigNumber(tokenAmount)
-      .minus(ratioOfAmountToFee.multipliedBy(feeAmount))
+      .minus(feeAmount)
       .integerValue(BigNumber.ROUND_FLOOR);
+
+    // In case the updated token amount is less than 0, it means that auto adjust logic yielded a negative amount
+    // which is not possible, so we return null
+    if (updatedTokenAmountInMinimalDenom.isLessThan(0)) {
+      return null;
+    }
 
     return fromSmall(updatedTokenAmountInMinimalDenom.toString(), decimalsToUse ?? nativeDenom.coinDecimals);
   }

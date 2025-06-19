@@ -76,7 +76,6 @@ import { useAggregatorGasFeeSWR } from './useAggregatorGasFee'
 import useAssets from './useAssets'
 import { useEnableToken } from './useEnableToken'
 import { useFeeAffiliates } from './useFeeAffiliates'
-import { MosaicRouteQueryResponse } from './useMosaicRoute'
 import { LifiRouteOverallResponse, SkipRouteResponse, useAggregatedRoute } from './useRoute'
 import { useSwapVenues } from './useSwapVenues'
 import { useTokenWithBalances } from './useTokenWithBalances'
@@ -107,12 +106,6 @@ export type RoutingInfo =
       aggregator: RouteAggregator.SKIP
       route: SkipRouteResponse | undefined
       messages: SkipMsgWithCustomTxHash[] | undefined
-      userAddresses: string[] | null
-    }
-  | {
-      aggregator: RouteAggregator.MOSAIC
-      route: MosaicRouteQueryResponse | undefined
-      messages: { customTxHash: string; customMessageChainId: string }[] | undefined
       userAddresses: string[] | null
     }
 
@@ -982,12 +975,7 @@ export function useSwapsTx({
   )
 
   const swapFeeInfo = useMemo(() => {
-    if (
-      !isSwapFeeEnabled ||
-      !messages ||
-      !routeResponse?.response ||
-      routeResponse.aggregator === RouteAggregator.MOSAIC
-    ) {
+    if (!isSwapFeeEnabled || !messages || !routeResponse?.response) {
       return undefined
     }
 
@@ -1198,7 +1186,6 @@ export function useSwapsTx({
    * review button disabled
    */
   const reviewBtnDisabled = useMemo(() => {
-    const isMosaicRoute = routeResponse?.aggregator === RouteAggregator.MOSAIC
     return (
       !!gasError ||
       loadingDestinationAssets ||
@@ -1217,10 +1204,9 @@ export function useSwapsTx({
       isSanctionedAddressPresent ||
       !skipGasFee ||
       !amountOut ||
-      (!isMosaicRoute && loadingMessages)
+      loadingMessages
     )
   }, [
-    routeResponse?.aggregator,
     gasError,
     loadingDestinationAssets,
     loadingSourceAssets,
@@ -1278,14 +1264,6 @@ export function useSwapsTx({
   )
 
   const routingInfo: RoutingInfo = useMemo(() => {
-    if (routeResponse?.aggregator === RouteAggregator.MOSAIC) {
-      return {
-        aggregator: RouteAggregator.MOSAIC,
-        route: routeResponse as MosaicRouteQueryResponse,
-        messages: undefined,
-        userAddresses: userAddresses,
-      }
-    }
     if (routeResponse?.aggregator === RouteAggregator.LIFI) {
       return {
         aggregator: RouteAggregator.LIFI,

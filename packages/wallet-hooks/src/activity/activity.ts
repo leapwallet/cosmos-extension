@@ -77,10 +77,18 @@ async function getActivityCardContent({
         ? `From ${sliceAddress(msg.fromAddress ?? '')}`
         : `To ${sliceAddress(msg.toAddress ?? '')}`;
 
-      content.sentAmount = fromSmall(
-        msg.tokens[0].quantity.toString(),
-        coinDecimals ?? sentTokenInfo?.coinDecimals ?? 0,
-      );
+      if (!sentTokenInfo?.coinDenom) {
+        content.sentAmount = msg.tokens[0].quantity;
+      } else {
+        if (sentTokenInfo?.chain === 'solana' && sentTokenInfo?.coinDenom !== 'SOL') {
+          content.sentAmount = msg.tokens[0].quantity.toString();
+        } else {
+          content.sentAmount = fromSmall(
+            msg.tokens[0].quantity.toString(),
+            sentTokenInfo?.coinDecimals ?? coinDecimals ?? 0,
+          );
+        }
+      }
 
       content.sentTokenInfo = sentTokenInfo;
       break;
@@ -364,8 +372,7 @@ export const getChainActivity = async (config: {
       }
 
       case 'movement':
-      case 'aptos':
-      case 'movementBardock': {
+      case 'aptos': {
         try {
           const aptos = await AptosTx.getAptosClient(restUrl);
           const txs = await aptos.getTransactions(address);
@@ -525,7 +532,9 @@ export const getChainActivity = async (config: {
       }),
     );
 
-    return activity.filter((tx) => tx) as { parsedTx: ParsedTransaction; content: ActivityCardContent }[];
+    return (activity.filter((tx) => tx) as { parsedTx: ParsedTransaction; content: ActivityCardContent }[]).sort(
+      (a, b) => new Date(b?.parsedTx?.timestamp).getTime() - new Date(a?.parsedTx?.timestamp).getTime(),
+    );
   } catch (error) {
     console.log('Tx Parsing Error', error);
     return [];

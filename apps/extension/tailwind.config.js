@@ -4,16 +4,18 @@ const defaultColors = require('tailwindcss/colors')
 
 module.exports = {
   mode: 'jit',
-  content: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html', './public/sidepanel.html'],
+  content: ['./src/**/*.{js,jsx,ts,tsx}', './public/**/*.{html,js,jsx,ts,tsx}'],
   darkMode: 'class',
   theme: {
     fontFamily: {
       Satoshi: ['Satoshi', 'Helvetica', 'Arial', 'sans-serif'],
+      DMMono: ['DMMono', 'Helvetica', 'Arial', 'sans-serif'],
     },
     fontSize: {
       xs: '12px',
       sm: '14px',
       md: '16px',
+      mdl: '18px',
       lg: '20px',
       xl: '24px',
       xxl: '32px',
@@ -30,6 +32,72 @@ module.exports = {
     },
     colors: {
       ...defaultColors,
+      background: 'hsl(var(--background))',
+      foreground: 'hsl(var(--foreground))',
+      warning: 'hsl(var(--warning))',
+      primary: {
+        DEFAULT: 'hsl(var(--primary))',
+        hover: 'hsl(var(--primary-hover))',
+      },
+      secondary: {
+        DEFAULT: 'hsl(var(--secondary))',
+        foreground: 'hsl(var(--secondary-foreground))',
+        50: 'hsl(var(--secondary-50))',
+        100: 'hsl(var(--secondary-100))',
+        200: 'hsl(var(--secondary-200))',
+        250: 'hsl(var(--secondary-250))',
+        300: 'hsl(var(--secondary-300))',
+        350: 'hsl(var(--secondary-350))',
+        400: 'hsl(var(--secondary-400))',
+        500: 'hsl(var(--secondary-500))',
+        600: 'hsl(var(--secondary-600))',
+        700: 'hsl(var(--secondary-700))',
+        800: 'hsl(var(--secondary-800))',
+      },
+      border: {
+        DEFAULT: 'hsl(var(--border))',
+        bottom: 'hsl(var(--border-bottom))',
+      },
+      monochrome: {
+        DEFAULT: 'hsl(var(--monochrome))',
+        foreground: 'hsl(var(--monochrome-foreground))',
+        hover: 'hsl(var(--monochrome-hover))',
+      },
+      destructive: {
+        DEFAULT: 'hsl(var(--destructive))',
+        foreground: 'hsl(var(--destructive-foreground))',
+        100: 'hsl(var(--destructive-100))',
+        200: 'hsl(var(--destructive-200))',
+        400: 'hsl(var(--destructive-400))',
+        700: 'hsl(var(--destructive-700))',
+      },
+      ghost: {
+        hover: 'hsl(var(--ghost-hover))',
+      },
+      muted: {
+        foreground: 'hsl(var(--muted-foreground))',
+      },
+      accent: {
+        foreground: 'hsl(var(--accent-foreground))',
+        success: 'hsl(var(--accent-success))',
+        'success-200': 'hsl(var(--accent-success-200))',
+        warning: {
+          DEFAULT: 'hsl(var(--accent-warning))',
+          700: 'hsl(var(--accent-warning-700))',
+          800: 'hsl(var(--accent-warning-800))',
+          foreground: 'hsl(var(--accent-warning-foreground))',
+        },
+        green: {
+          DEFAULT: 'hsl(var(--accent-green))',
+          200: 'hsl(var(--accent-green-200))',
+          600: 'hsl(var(--accent-green-600))',
+          700: 'hsl(var(--accent-green-700))',
+          900: 'hsl(var(--accent-green-900))',
+        },
+        yellow: {
+          DEFAULT: 'hsl(var(--accent-yellow))',
+        },
+      },
       mainChainTheme: {
         100: '#754f9c66',
         200: '#1B45F5',
@@ -39,6 +107,7 @@ module.exports = {
         400: '#224874',
       },
       green: {
+        50: '#EFFBF6',
         300: '#8CE3BF',
         400: '#22D292',
         500: '#3ACF92',
@@ -99,6 +168,7 @@ module.exports = {
         900: '#422800',
       },
       blue: {
+        50: '#ebf5ff',
         100: '#D1E8FF',
         200: '#ADD6FF',
         400: '#3D9EFF',
@@ -117,6 +187,7 @@ module.exports = {
       animation: {
         fadeIn: 'fadeIn 2s ease-in-out',
         translate: 'translateY 1s ease-in-out',
+        scaleUpDown: 'scaleUpDown 1s ease-in-out infinite',
       },
       keyframes: () => ({
         fadeIn: {
@@ -127,8 +198,19 @@ module.exports = {
           '0%': { transform: 'translateY(0)' },
           '100%': { transform: 'translateY(-50px)' },
         },
+        scaleUpDown: {
+          '0%': { transform: 'scale(var(--scale-up-down-start, 1.05))' },
+          '50%': { transform: 'scale(var(--scale-up-down-end, 1))' },
+          '100%': { transform: 'scale(var(--scale-up-down-start, 1.05))' },
+        },
       }),
+      backgroundImage: {
+        'gradient-linear':
+          'linear-gradient(var(--bg-linear-gradient-rotation), hsl(var(--bg-linear-gradient-start)) 0%, hsl(var(--bg-linear-gradient-end)) 100%)',
+        'gradient-radial-mono':
+          'radial-gradient(50% 50% at 50% 50%, hsl(var(--gradient-radial-mono-start)) 0%, hsl(var(--gradient-radial-mono-end)) 100%)',
+      },
     },
   },
-  plugins: [require('@tailwindcss/typography')],
+  plugins: [require('@tailwindcss/typography'), require('tailwindcss-animate')],
 }

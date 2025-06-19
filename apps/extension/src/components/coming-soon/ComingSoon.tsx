@@ -4,10 +4,12 @@ import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import PopupLayout from 'components/layout/popup-layout'
 import { useChainPageInfo } from 'hooks'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
+import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
+import { ActivityHeader } from 'pages/activity/components/activity-header'
 import SelectChain from 'pages/home/SelectChain'
-import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 import { manageChainsStore } from 'stores/manage-chains-store'
 
 type ComingSoonProps = {
@@ -17,61 +19,30 @@ type ComingSoonProps = {
 }
 
 export const ComingSoon = observer(({ chainTagsStore, title, bottomNavLabel }: ComingSoonProps) => {
-  const [showSideNav, setShowSideNav] = useState(false)
   const [showChainSelector, setShowChainSelector] = useState(false)
   const { headerChainImgSrc } = useChainPageInfo()
   const dontShowSelectChain = useDontShowSelectChain(manageChainsStore)
 
   return (
-    <div className='relative w-full overflow-clip panel-height'>
-      <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-      <PopupLayout
-        header={
-          <Header
-            action={{
-              onClick: function noRefCheck() {
-                setShowSideNav(true)
-              },
-              type: HeaderActionType.NAVIGATION,
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              className:
-                'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full',
-            }}
-            imgSrc={headerChainImgSrc}
-            onImgClick={dontShowSelectChain ? undefined : () => setShowChainSelector(true)}
-            title={title}
-          />
-        }
-      >
-        <div className='h-[475px] px-4 flex flex-col items-center justify-center text-center gap-[4px]'>
-          <div className='relative'>
-            <span
-              className='absolute w-[200px] h-[100px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ml-[0.3rem]'
-              style={{ boxShadow: '2px -2px 4.5rem 1.5rem #28ba5b', borderRadius: '100% 100% 0 0' }}
-            ></span>
+    <>
+      <ActivityHeader />
+      <div className='h-[calc(100%-128px)] p-6'>
+        <div className='rounded-2xl bg-secondary-100 px-2 h-full flex flex-col items-center justify-center text-center'>
+          <img className='w-[180px]' src={Images.Logos.LeapLogo} alt='frog-coming-soon' />
 
-            <img
-              className='z-[1] relative'
-              src='https://assets.leapwallet.io/frog-coming-soon.png'
-              alt='frog-coming-soon'
-            />
-          </div>
-
-          <h3 className='dark:text-white-100 font-bold text-[24px]'>Coming soon</h3>
-          <p className='text-gray-400 text-[16px] font-medium'>
+          <h3 className='text-foreground font-bold text-[24px] mb-3'>Coming Soon!</h3>
+          <p className='text-secondary-800 text-sm'>
             We&apos;re working on it. Or perhaps the chain is...
             <br />
             Either way, this page is coming soon!
           </p>
         </div>
-      </PopupLayout>
+      </div>
       <SelectChain
         isVisible={showChainSelector}
         onClose={() => setShowChainSelector(false)}
         chainTagsStore={chainTagsStore}
       />
-      <BottomNav label={bottomNavLabel} />
-    </div>
+    </>
   )
 })

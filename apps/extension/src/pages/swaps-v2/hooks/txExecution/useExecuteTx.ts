@@ -13,7 +13,6 @@ import { TxPageProps } from 'pages/swaps-v2/components'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SourceChain, SwapFeeInfo, SwapTxnStatus, TransferSequence } from 'types/swap'
 
-import { useExecuteLifiTransaction } from './useExecuteLifiTransaction'
 import { useExecuteMosaicTransaction } from './useExecuteMosaicTransaction'
 import { useExecuteSkipTransaction } from './useExecuteSkipTransaction'
 
@@ -185,24 +184,6 @@ export function useExecuteTx({
     ...props,
   })
 
-  const executeLifiTx = useExecuteLifiTransaction({
-    fee,
-    feeAmount,
-    handleTxError,
-    sourceChain,
-    setIsLoading,
-    setTimeoutError,
-    setFirstTxnError,
-    setUnableToTrackError,
-    setLedgerError,
-    routingInfo,
-    updateTxStatus,
-    setIsSigningComplete,
-    feeDenom,
-    getSwapFeeInfo,
-    ...props,
-  })
-
   const executeMosaicTx = useExecuteMosaicTransaction({
     fee,
     feeAmount,
@@ -222,24 +203,20 @@ export function useExecuteTx({
   })
 
   const executeTx = useCallback(async () => {
-    if (routingInfo?.aggregator === RouteAggregator.LIFI) {
-      await executeLifiTx(routingInfo.messages, routingInfo.route)
-      return
-    }
-
     if (routingInfo?.aggregator === RouteAggregator.MOSAIC) {
       await executeMosaicTx(routingInfo.route)
       return
     }
 
-    await executeSkipTx(routingInfo?.messages, routingInfo?.route)
-    return
+    if (routingInfo.aggregator === RouteAggregator.SKIP) {
+      await executeSkipTx(routingInfo?.messages, routingInfo?.route)
+      return
+    }
   }, [
-    routingInfo?.aggregator,
-    routingInfo.messages,
+    routingInfo.aggregator,
+    routingInfo?.messages,
     routingInfo.route,
     executeSkipTx,
-    executeLifiTx,
     executeMosaicTx,
   ])
 

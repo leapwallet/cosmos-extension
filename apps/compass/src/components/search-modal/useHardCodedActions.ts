@@ -12,7 +12,7 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
 import { useProviderFeatureFlags } from 'pages/swaps-v2/hooks'
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { closeSidePanel } from 'utils/closeSidePanel'
@@ -34,14 +34,6 @@ export function useHardCodedActions() {
 
   const handleBuyClick = () => {
     navigate(`/buy?pageSource=${PageName.Home}`)
-    try {
-      mixpanel.track(EventName.ButtonClick, {
-        buttonName: ButtonName.ONRAMP_TOKEN_SELECTION,
-        buttonType: ButtonType.ONRAMP,
-      })
-    } catch (error) {
-      captureException(error)
-    }
   }
 
   function handleSwapClick(_redirectUrl?: string, navigateUrl?: string) {
@@ -94,17 +86,6 @@ export function useHardCodedActions() {
       window.open(redirectURL, '_blank')
     } else {
       navigate(navigateUrl ?? '/swap')
-    }
-
-    try {
-      mixpanel.track(EventName.ButtonClick, {
-        buttonType: ButtonType.HOME,
-        buttonName: ButtonName.BRIDGE,
-        redirectURL: redirectURL,
-        time: Date.now() / 1000,
-      })
-    } catch (e) {
-      captureException(e)
     }
   }
 

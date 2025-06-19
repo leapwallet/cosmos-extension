@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   SelectedNetwork,
+  STAKE_MODE,
   useActiveChain,
   useActiveStakingDenom,
+  useConsensusValidators,
   useFeatureFlags,
   useLiquidStakingProviders,
   useSelectedNetwork,
@@ -20,14 +22,8 @@ import {
   UndelegationsStore,
   ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { HeaderActionType, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
-import { WalletButton } from 'components/button'
 import { EmptyCard } from 'components/empty-card'
-import { PageHeader } from 'components/header'
-import PopupLayout from 'components/layout/popup-layout'
-import { AmountCardSkeleton } from 'components/Skeletons/StakeSkeleton'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useChainPageInfo, useWalletInfo } from 'hooks'
@@ -38,15 +34,10 @@ import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import SelectChain from 'pages/home/SelectChain'
-import SelectWallet from 'pages/home/SelectWallet'
-import SideNav from 'pages/home/side-nav'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import Skeleton from 'react-loading-skeleton'
-import { useNavigate } from 'react-router'
-import { stakeEpochStore } from 'stores/epoch-store'
+import { useNavigate } from 'react-router-dom'
+import { nmsStore } from 'stores/balance-store'
 import { manageChainsStore } from 'stores/manage-chains-store'
-import { UserClipboard } from 'utils/clipboard'
 
 import ClaimInfo from './components/ClaimInfo'
 import NotStakedCard from './components/NotStakedCard'
@@ -55,11 +46,12 @@ import ReviewClaimTx from './components/ReviewClaimTx'
 import SelectLSProvider from './components/SelectLSProvider'
 import StakeAmountCard from './components/StakeAmountCard'
 import StakeHeading from './components/StakeHeading'
-import StakingCTAs from './components/StakingCTAs'
-import TabList from './components/TabList'
+import TabList from './components/Tablist/index'
 import LavaClaimInfo from './restaking/LavaClaimInfo'
 import { ReviewClaimLavaTx } from './restaking/ReviewClaimLavaTx'
+import { StakeHeader } from './stake-header'
 import { StakeInputPageState } from './StakeInputPage'
+import { StakeTxnSheet } from './StakeTxnSheet'
 
 type StakePageProps = {
   forceChain?: SupportedChain
@@ -92,6 +84,7 @@ const StakePage = observer(
     const _activeChain = useActiveChain()
     const setActiveChain = useSetActiveChain()
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
+    const [claimTxMode, setClaimTxMode] = useState<STAKE_MODE | 'CLAIM_AND_DELEGATE' | null>(null)
 
     const _activeNetwork = useSelectedNetwork()
     const activeNetwork = useMemo(
@@ -136,48 +129,20 @@ const StakePage = observer(
     )
 
     const isLoadingAll = useMemo(() => {
-      return loadingDelegations || loadingNetwork || loadingRewards || loadingUnboundingDelegations
-    }, [loadingDelegations, loadingNetwork, loadingRewards, loadingUnboundingDelegations])
+      return loadingDelegations || loadingRewards || loadingUnboundingDelegations
+    }, [loadingDelegations, loadingRewards, loadingUnboundingDelegations])
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
 
-    const [showChainSelector, setShowChainSelector] = useState(false)
-    const [defaultFilter, setDefaultFilter] = useState('All')
-    const [showSelectWallet, setShowSelectWallet] = useState(false)
-    const [showSideNav, setShowSideNav] = useState(false)
     const [showReviewClaimTx, setShowReviewClaimTx] = useState(false)
     const [showReviewClaimLavaTx, setShowReviewClaimLavaTx] = useState(false)
     const [showReviewClaimAndStakeTx, setShowReviewClaimAndStakeTx] = useState(false)
     const [showClaimInfo, setShowClaimInfo] = useState(false)
     const [showLavaClaimInfo, setShowLavaClaimInfo] = useState(false)
     const [showSelectLSProvider, setShowSelectLSProvider] = useState(false)
-    const [isWalletAddressCopied, setIsWalletAddressCopied] = useState(false)
 
     const { isLoading: isLSProvidersLoading, data: lsProviders = {} } = useLiquidStakingProviders()
     const { data: featureFlags } = useFeatureFlags()
-
-    useEffect(() => {
-      if (!showChainSelector) {
-        setDefaultFilter('All')
-      }
-    }, [showChainSelector])
-
-    const onImgClick = useCallback(
-      (event?: React.MouseEvent<HTMLDivElement>, props?: { defaultFilter?: string }) => {
-        setShowChainSelector(true)
-        if (props?.defaultFilter) {
-          setDefaultFilter(props.defaultFilter)
-        }
-      },
-      [],
-    )
-    const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
-    const handleCopyClick = useCallback(() => {
-      setIsWalletAddressCopied(true)
-      setTimeout(() => setIsWalletAddressCopied(false), 2000)
-
-      UserClipboard.copyText(walletAddresses?.[0])
-    }, [walletAddresses])
 
     const tokenLSProviders = useMemo(() => {
       const _sortedTokenProviders = lsProviders[activeStakingDenom?.coinDenom]?.sort((a, b) => {
@@ -269,19 +234,32 @@ const StakePage = observer(
         }, {} as Record<string, Validator>),
       [chainValidators.validatorData.validators],
     )
+
+    const consensusValidators = useConsensusValidators(
+      validators,
+      nmsStore,
+      activeChain,
+      activeNetwork,
+    )
+
     const redirectToInputPage = useCallback(async () => {
       let chain = activeChain
       if (paramChainId && (_activeChain as AggregatedSupportedChainType) !== AGGREGATED_CHAIN_KEY) {
         const chainIdToChain = await decodeChainIdToChain()
         chain = chainIdToChain[paramChainId] as SupportedChain
       }
-      navigate('/stake/input', {
-        state: {
-          mode: 'DELEGATE',
-          toValidator: paramValidatorAddress ? validators[paramValidatorAddress] : undefined,
-          forceChain: chain,
-          forceNetwork: activeNetwork,
-        } as StakeInputPageState,
+      const toValidator = paramValidatorAddress ? validators?.[paramValidatorAddress] : undefined
+      const state: StakeInputPageState = {
+        mode: 'DELEGATE',
+        toValidator,
+        forceChain: chain,
+        forceNetwork: activeNetwork,
+      }
+      sessionStorage.setItem('navigate-stake-input-state', JSON.stringify(state))
+      // if `toValidator` is not found, we need to redirect to the input page with the validator address
+      const queryString = !toValidator ? `?validatorAddress=${paramValidatorAddress}` : ''
+      navigate(`/stake/input${queryString}`, {
+        state,
         replace: true,
       })
     }, [
@@ -314,11 +292,9 @@ const StakePage = observer(
       if (activeChain === 'lava' && featureFlags?.restaking?.extension) {
         setShowLavaClaimInfo(true)
       } else {
-        setShowReviewClaimTx(true)
+        setShowClaimInfo(true)
       }
     }, [activeChain, featureFlags?.restaking?.extension])
-
-    const onClaimAndStake = useCallback(() => setShowClaimInfo(true), [])
 
     usePerformanceMonitor({
       enabled: !!activeWallet,
@@ -330,151 +306,60 @@ const StakePage = observer(
 
     if (!activeWallet) {
       return (
-        <div className='relative w-full overflow-clip panel-height'>
-          <PopupLayout>
-            <div>
-              <EmptyCard src={Images.Logos.LeapCosmos} heading='No wallet found' />
-            </div>
-          </PopupLayout>
+        <div className='relative w-full overflow-clip panel-height flex items-center justify-center'>
+          <EmptyCard
+            src={Images.Logos.LeapCosmos}
+            heading='No wallet found'
+            logoClassName='size-14'
+          />
         </div>
       )
     }
 
     return (
-      <div className='relative w-full overflow-clip panel-height'>
-        <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-        <PopupLayout
-          header={
-            <PageHeader
-              action={
-                showBackAction && onBackClick
-                  ? {
-                      onClick: onBackClick,
-                      type: HeaderActionType.BACK,
-                    }
-                  : {
-                      onClick: () => setShowSideNav(true),
-                      type: HeaderActionType.NAVIGATION,
-                      className:
-                        'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
-                    }
-              }
-              imgSrc={headerChainImgSrc}
-              onImgClick={dontShowSelectChain ? undefined : onImgClick}
-              title={
-                <WalletButton
-                  walletName={walletName}
-                  showWalletAvatar={true}
-                  walletAvatar={walletAvatar}
-                  showDropdown={true}
-                  handleDropdownClick={handleOpenWalletSheet}
-                  giveCopyOption={true}
-                  handleCopyClick={handleCopyClick}
-                  isAddressCopied={isWalletAddressCopied}
-                />
-              }
-            />
-          }
-        >
-          <div className='flex flex-col gap-y-6 p-6 mb-10 overflow-scroll'>
-            <StakeHeading
-              rootDenomsStore={rootDenomsStore}
-              delegationsStore={delegationsStore}
-              validatorsStore={validatorsStore}
-              unDelegationsStore={unDelegationsStore}
-              claimRewardsStore={claimRewardsStore}
+      <>
+        <StakeHeader onBackClick={onBackClick} />
+        <div className='flex flex-col gap-y-5 px-6 py-7 w-full flex-1'>
+          <StakeHeading forceChain={activeChain} forceNetwork={activeNetwork} />
+
+          {isLoadingAll || Object.values(delegations ?? {}).length > 0 ? (
+            <StakeAmountCard
+              onClaim={onClaim}
               forceChain={activeChain}
               forceNetwork={activeNetwork}
             />
-
-            {isLoadingAll && <AmountCardSkeleton />}
-            {!isLoadingAll &&
-              (Object.values(delegations ?? {}).length > 0 ||
-              stakeEpochStore.getDelegationEpochMessages(activeStakingDenom).length > 0 ? (
-                <StakeAmountCard
-                  onClaim={onClaim}
-                  onClaimAndStake={onClaimAndStake}
-                  rootDenomsStore={rootDenomsStore}
-                  delegationsStore={delegationsStore}
-                  validatorsStore={validatorsStore}
-                  unDelegationsStore={unDelegationsStore}
-                  claimRewardsStore={claimRewardsStore}
-                  forceChain={activeChain}
-                  forceNetwork={activeNetwork}
-                />
-              ) : (
-                <NotStakedCard
-                  rootDenomsStore={rootDenomsStore}
-                  activeChain={activeChain}
-                  activeNetwork={activeNetwork}
-                />
-              ))}
-
-            <div className='flex gap-x-4 w-full'>
-              {isLSProvidersLoading && <Skeleton width={352} borderRadius={100} height={50} />}
-
-              {!isLSProvidersLoading && (
-                <StakingCTAs
-                  tokenLSProviders={tokenLSProviders}
-                  isLSProvidersLoading={isLSProvidersLoading}
-                  setShowSelectLSProvider={setShowSelectLSProvider}
-                  activeChain={activeChain}
-                  activeNetwork={activeNetwork}
-                />
-              )}
-            </div>
-
-            <TabList
-              rootDenomsStore={rootDenomsStore}
-              delegationsStore={delegationsStore}
-              validatorsStore={validatorsStore}
-              unDelegationsStore={unDelegationsStore}
-              claimRewardsStore={claimRewardsStore}
+          ) : (
+            <NotStakedCard
               forceChain={activeChain}
               forceNetwork={activeNetwork}
-              rootBalanceStore={rootBalanceStore}
+              title='Stake tokens to earn rewards'
+              subtitle={`You haven't staked any ${activeStakingDenom?.coinDenom}`}
+              buttonText='Stake now'
             />
-          </div>
-        </PopupLayout>
-
-        <SelectChain
-          isVisible={showChainSelector}
-          onClose={() => setShowChainSelector(false)}
-          chainTagsStore={chainTagsStore}
-          defaultFilter={defaultFilter}
+          )}
+          <TabList
+            forceChain={activeChain}
+            forceNetwork={activeNetwork}
+            setClaimTxMode={setClaimTxMode}
+          />
+        </div>
+        <StakeTxnSheet
+          mode={claimTxMode}
+          isOpen={!!claimTxMode}
+          onClose={() => setClaimTxMode(null)}
+          forceChain={activeChain}
+          forceNetwork={activeNetwork}
         />
-        <SelectWallet
-          isVisible={showSelectWallet}
-          onClose={() => setShowSelectWallet(false)}
-          title='Wallets'
-        />
-
         {!loadingNetwork && (
           <>
             <ReviewClaimTx
               isOpen={showReviewClaimTx}
               onClose={() => setShowReviewClaimTx(false)}
               validators={validators}
-              rootDenomsStore={rootDenomsStore}
-              rootBalanceStore={rootBalanceStore}
-              delegationsStore={delegationsStore}
-              validatorsStore={validatorsStore}
-              unDelegationsStore={unDelegationsStore}
-              claimRewardsStore={claimRewardsStore}
               forceChain={activeChain}
               forceNetwork={activeNetwork}
+              setClaimTxMode={setClaimTxMode}
             />
-
-            {activeChain === 'lava' && featureFlags?.restaking?.extension === 'active' && (
-              <ReviewClaimLavaTx
-                isOpen={showReviewClaimLavaTx}
-                onClose={() => setShowReviewClaimLavaTx(false)}
-                rootDenomsStore={rootDenomsStore}
-                rootBalanceStore={rootBalanceStore}
-                forceChain={activeChain}
-                forceNetwork={activeNetwork}
-              />
-            )}
 
             <ClaimInfo
               isOpen={showClaimInfo}
@@ -487,14 +372,22 @@ const StakePage = observer(
                 setShowClaimInfo(false)
                 setShowReviewClaimAndStakeTx(true)
               }}
-              rootDenomsStore={rootDenomsStore}
-              delegationsStore={delegationsStore}
-              validatorsStore={validatorsStore}
-              unDelegationsStore={unDelegationsStore}
-              claimRewardsStore={claimRewardsStore}
               forceChain={activeChain}
               forceNetwork={activeNetwork}
             />
+
+            {activeChain === 'lava' && featureFlags?.restaking?.extension === 'active' && (
+              <ReviewClaimLavaTx
+                isOpen={showReviewClaimLavaTx}
+                onClose={() => setShowReviewClaimLavaTx(false)}
+                rootDenomsStore={rootDenomsStore}
+                rootBalanceStore={rootBalanceStore}
+                forceChain={activeChain}
+                forceNetwork={activeNetwork}
+                setClaimTxMode={setClaimTxMode}
+              />
+            )}
+
             {activeChain === 'lava' && featureFlags?.restaking?.extension === 'active' && (
               <LavaClaimInfo
                 isOpen={showLavaClaimInfo}
@@ -524,14 +417,9 @@ const StakePage = observer(
                 onClose={() => setShowReviewClaimAndStakeTx(false)}
                 validators={validators}
                 chainRewards={chainRewards}
-                rootDenomsStore={rootDenomsStore}
-                delegationsStore={delegationsStore}
-                validatorsStore={validatorsStore}
-                unDelegationsStore={unDelegationsStore}
-                claimRewardsStore={claimRewardsStore}
-                rootBalanceStore={rootBalanceStore}
                 forceChain={activeChain}
                 forceNetwork={activeNetwork}
+                setClaimTxMode={setClaimTxMode}
               />
             )}
           </>
@@ -547,8 +435,7 @@ const StakePage = observer(
             forceNetwork={activeNetwork}
           />
         )}
-        <BottomNav label={BottomNavLabel.Stake} />
-      </div>
+      </>
     )
   },
 )

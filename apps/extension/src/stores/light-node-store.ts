@@ -46,6 +46,8 @@ export class LightNodeStore {
   blockTimeStore: LightNodeBlockTimeStore
   private networkHeight: number | undefined
 
+  private events: any | undefined
+
   constructor(blockTimeStore: LightNodeBlockTimeStore) {
     makeAutoObservable(this)
 
@@ -59,6 +61,10 @@ export class LightNodeStore {
 
   get blockTime() {
     return this.blockTimeStore.averageBlockTime
+  }
+
+  get isSubscribedToEvents() {
+    return !!this.events
   }
 
   private normalizeStoredRanges(networkHead: string, storedRanges: Range) {
@@ -147,21 +153,30 @@ export class LightNodeStore {
   }
 
   async subscribeToEvents() {
-    let events = await getLightNodeEvents()
+    this.events = await getLightNodeEvents()
 
-    if (!events) {
+    if (!this.events) {
       await init()
-      events = await getLightNodeEvents()
+      this.events = (await getLightNodeEvents()) as MessageEvent
     }
 
-    events.onmessage = (event: MessageEvent) => this.onNodeEvent(event)
+    this.events.onmessage = (event: MessageEvent) => this.onNodeEvent(event)
   }
 
-  async startNode() {
+  async startNode(primaryWalletAddress: string, clientId?: string) {
     try {
       await init()
       await startLightNode()
       const startTimestamp = new Date().toISOString()
+      const storage = await browser.storage.local.get([LIGHT_NODE_RUNNING_STATS])
+      if (!storage[LIGHT_NODE_RUNNING_STATS] && clientId) {
+        await LeapWalletApi.logLightNodeStats({
+          userUUID: clientId,
+          totalRunningTimeInMilliSeconds: 0,
+          lastStartedAt: startTimestamp,
+          walletAddress: primaryWalletAddress,
+        })
+      }
       await this.setLightNodeStats(startTimestamp)
       await this.subscribeToEvents()
     } catch (err: unknown) {
@@ -215,9 +230,19 @@ export class LightNodeStore {
     })
   }
 
+  async clearIndexedDB() {
+    const databases = await indexedDB.databases()
+    databases.forEach((element) => {
+      if (element.name?.includes('celestia')) {
+        indexedDB.deleteDatabase(element.name)
+      }
+    })
+  }
+
   async clearLastSyncedInfo() {
     await this.setLastSyncedInfo(null, null, 0)
-    return browser.storage.local.remove(LIGHT_NODE_LAST_SYNCED_DATA)
+    browser.storage.local.remove(LIGHT_NODE_LAST_SYNCED_DATA)
+    await this.clearIndexedDB()
   }
 
   async initLightNode() {

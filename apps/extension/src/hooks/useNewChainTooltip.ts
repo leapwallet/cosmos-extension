@@ -6,7 +6,6 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { NEW_CHAIN_TOOLTIP_STORAGE_KEY } from 'config/storage-keys'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
 import { useActiveChain } from './settings/useActiveChain'
@@ -40,7 +39,7 @@ export type NewChainTooltipData = {
 export default function useNewChainTooltip() {
   const storage = useGetStorageLayer()
   const [showToolTip, setShowToolTip] = useState<boolean>(false)
-  const [userPreference, setUserPreference] = useState()
+  const [userPreference, setUserPreference] = useState<Record<string, boolean> | undefined>()
   const [userPreferenceLoading, setUserPreferenceLoading] = useState<boolean>(true)
   const [toolTipData, setToolTipData] = useState<NewChainTooltipData>()
   const activeChain = useActiveChain()
@@ -94,11 +93,8 @@ export default function useNewChainTooltip() {
 
   useEffect(() => {
     let isFeatureEnabled = false
-    if (isCompassWallet()) {
-      isFeatureEnabled = data?.['featureFlags']?.['compass-extension'] ?? false
-    } else {
-      isFeatureEnabled = data?.['featureFlags']?.['leap-extension'] ?? false
-    }
+
+    isFeatureEnabled = data?.['featureFlags']?.['leap-extension'] ?? false
 
     if (
       !isFeatureEnabled ||
@@ -169,6 +165,7 @@ export default function useNewChainTooltip() {
       } catch (_) {
         //
       }
+      setUserPreference((_userPreference) => ({ ...(_userPreference ?? {}), [toolTipId]: false }))
     }
     updateUserPreference()
   }, [setShowToolTip, toolTipId, storage])

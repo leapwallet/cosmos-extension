@@ -8,10 +8,9 @@ import {
   useGetExplorerTxnUrl,
   usePendingTxState,
   useSelectedNetwork,
-  useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { sliceWord } from '@leapwallet/cosmos-wallet-hooks/dist/utils/strings'
-import { Provider, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { isBabylon, Provider, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Validator } from '@leapwallet/cosmos-wallet-sdk/dist/browser/types/validators'
 import { RootBalanceStore, RootStakeStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, GenericCard, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
@@ -26,11 +25,10 @@ import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 import { TxSuccessEpochDurationMessage } from './components/TxSuccessEpochDurationMessage'
@@ -87,7 +85,7 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
   const [txHash, setTxHash] = useState<string | undefined>('')
   const [amount, setAmount] = useState<string | number | undefined>('')
   const [copied, setCopied] = useState(false)
-  const { data: imageUrl } = useValidatorImage(validator)
+  const imageUrl = validator?.image
 
   const { data: featureFlags } = useFeatureFlags()
   const { refetchDelegations: refetchProviderDelegations } = useDualStaking()
@@ -333,7 +331,7 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
             />
           )}
 
-          {pendingTx?.txStatus === 'success' && activeChain === 'babylon' && (
+          {pendingTx?.txStatus === 'success' && isBabylon(activeChain) && (
             <TxSuccessEpochDurationMessage mode={mode as STAKE_MODE} />
           )}
         </div>
@@ -357,9 +355,7 @@ const StakeTxnPage = observer(({ rootBalanceStore, rootStakeStore }: StakeTxnPag
             }}
             color={
               pendingTx?.txStatus === 'failed' || mode === 'DELEGATE'
-                ? isCompassWallet()
-                  ? Colors.compassPrimary
-                  : Colors.green600
+                ? Colors.green600
                 : theme === ThemeName.DARK
                 ? Colors.white100
                 : Colors.black100

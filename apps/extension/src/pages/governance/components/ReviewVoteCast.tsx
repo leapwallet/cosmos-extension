@@ -5,14 +5,15 @@ import {
   VoteOptions,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { Buttons, Memo } from '@leapwallet/leap-ui'
+import { Memo } from '@leapwallet/leap-ui'
 import { ThumbsUp } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
 import { ErrorCard } from 'components/ErrorCard'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import { LoaderAnimation } from 'components/loader/Loader'
+import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import React, { useMemo } from 'react'
 import { Colors } from 'theme/colors'
@@ -67,16 +68,16 @@ export function ReviewVoteCast({
       isOpen={isOpen}
       onClose={onCloseHandler}
       title='Review Transaction'
-      className='!p-0'
+      className='p-6 !pt-8'
     >
-      <div className='flex flex-col items-center w-[400px] gap-y-[16px] mt-[28px] mb-[40px] px-7'>
+      <div className='flex flex-col items-center gap-5'>
         <div className={classNames('flex p-4 w-full bg-gray-50 dark:bg-gray-900 rounded-2xl')}>
-          <div className='h-10 w-10 bg-green-300 rounded-full flex items-center justify-center'>
-            <ThumbsUp size={16} className='text-green-700' />
+          <div className='h-10 w-10 bg-green-600 rounded-full flex items-center justify-center'>
+            <ThumbsUp size={20} className='text-foreground' />
           </div>
           <div className='flex flex-col justify-center items-start px-3'>
-            <div className='text-xs text-gray-400 text-left'>Vote message</div>
-            <div className='text-base text-black-100 dark:text-white-100 font-medium'>
+            <div className='text-sm text-muted-foreground text-left'>Vote message</div>
+            <div className='text-[18px] text-foreground font-bold'>
               Vote <b>{selectedVote}</b> on <b>Proposal #{proposalId}</b>
             </div>
           </div>
@@ -89,32 +90,30 @@ export function ReviewVoteCast({
           }}
         />
 
-        <Text size='sm' className='text-gray-400 dark:text-gray-600 justify-center'>
-          {feeText}
-        </Text>
+        {feeText && (
+          <Text size='sm' className='text-gray-400 dark:text-gray-600 justify-center'>
+            {feeText}
+          </Text>
+        )}
 
         {(error ?? ledgerError) && (
           <ErrorCard text={getErrorMsg(error ?? ledgerError ?? '', gasOption, 'vote')} />
         )}
 
-        <Buttons.Generic
-          color={Colors.getChainColor(activeChain)}
-          size='normal'
-          className='w-full'
-          title='Vote'
-          disabled={showLedgerPopup}
+        <Button
+          className='w-full mt-1'
+          disabled={showLedgerPopup || loading}
           onClick={async () => {
             if (selectedVote !== undefined) {
               const txSuccess = await onSubmitVote(selectedVote)
               if (txSuccess) {
                 onCloseHandler()
-                refetchCurrVote()
               }
             }
           }}
         >
           {loading ? <LoaderAnimation color={Colors.white100} /> : 'Approve'}
-        </Buttons.Generic>
+        </Button>
       </div>
     </BottomModal>
   )

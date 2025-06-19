@@ -1,22 +1,18 @@
-import { sliceSearchWord, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore, GovStore } from '@leapwallet/cosmos-wallet-store'
-import { Header, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
-import classNames from 'classnames'
-import { AggregatedSearchComponent } from 'components/aggregated'
-import { EmptyCard } from 'components/empty-card'
-import PopupLayout from 'components/layout/popup-layout'
+import { useTheme } from '@leapwallet/leap-ui'
 import GovCardSkeleton from 'components/Skeletons/GovCardSkeleton'
-import { Images } from 'images'
+import { SearchInput } from 'components/ui/input/search-input'
+import { CompassIcon } from 'icons/compass-icon'
 import { observer } from 'mobx-react-lite'
-import SelectChain from 'pages/home/SelectChain'
 import React, { useCallback, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { VariableSizeList } from 'react-window'
-import { isSidePanel } from 'utils/isSidePanel'
+import { useNavigate } from 'react-router-dom'
+import { Virtuoso } from 'react-virtuoso'
 
 import { filterSearchedProposal, sortProposal } from '../utils'
 import GenericProposalDetails from './GenericProposalDetails'
+import GovHeader from './GovHeader'
 import { ProposalCard } from './index'
 
 const NETWORK = 'mainnet'
@@ -72,7 +68,7 @@ export const AggregatedGovernance = observer(
     }, [])
 
     return (
-      <div className='relative w-full overflow-clip enclosing-panel panel-height'>
+      <>
         {selectedProposalId && selectedProposalChain ? (
           <GenericProposalDetails
             selectedProposalChain={selectedProposalChain}
@@ -84,104 +80,67 @@ export const AggregatedGovernance = observer(
           />
         ) : (
           <>
-            <PopupLayout
-              header={
-                <Header
-                  action={{
-                    onClick: () => navigate(-1),
-                    type: HeaderActionType.BACK,
-                  }}
-                  imgSrc={
-                    theme === ThemeName.DARK
-                      ? Images.Misc.AggregatedViewDarkSvg
-                      : Images.Misc.AggregatedViewSvg
-                  }
-                  onImgClick={() => setShowChainSelector(true)}
-                  title='Governance'
+            <GovHeader />
+            <div className='flex flex-col p-6 !pb-0 h-full'>
+              <div className='flex flex-col items-center w-full pb-6'>
+                <SearchInput
+                  onClear={() => setSearchedText('')}
+                  placeholder='Search proposal'
+                  onChange={(e) => setSearchedText(e.target.value)}
+                  value={searchedText}
                 />
-              }
-            >
-              <div className='flex flex-col pt-[16px] px-[24px]'>
-                {showSearchInput ? (
-                  <AggregatedSearchComponent
-                    handleClose={() => {
-                      setShowSearchInput(false)
-                      setSearchedText('')
-                    }}
-                    handleChange={(value) => setSearchedText(value)}
-                    value={searchedText}
-                    placeholder='Search proposal'
+              </div>
+
+              <div className='flex h-full'>
+                {isLoading ? (
+                  <div className='w-full flex flex-col gap-3'>
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <GovCardSkeleton key={index} isLast={index === 4} aggregatedView />
+                    ))}
+                  </div>
+                ) : allProposals.length > 0 ? (
+                  <Virtuoso
+                    data={allProposals}
+                    style={{ flexGrow: '1', width: '100%' }}
+                    itemContent={(index, proposal) => (
+                      <ProposalCard
+                        proposal={proposal}
+                        handleClick={() =>
+                          handleProposalCardClick(
+                            allProposals[index].proposal_id,
+                            (allProposals[index]?.chain || 'cosmos') as SupportedChain,
+                          )
+                        }
+                      />
+                    )}
                   />
                 ) : (
-                  <h1 className='flex items-center justify-between text-black-100 dark:text-white-100'>
-                    <span className='text-[24px] font-[700]'>Governance</span>
-
-                    <button
-                      className='bg-white-100 dark:bg-gray-950 w-[40px] h-[40px] rounded-full flex items-center justify-center'
-                      onClick={() => setShowSearchInput(true)}
-                    >
-                      <img
-                        src={Images.Misc.SearchWhiteIcon}
-                        className='w-[24px] h-[24px] invert dark:invert-0'
-                      />
-                    </button>
-                  </h1>
-                )}
-
-                <div className={classNames({ 'mt-4': !showSearchInput })}>
-                  {isLoading ? (
-                    <div className='w-full flex flex-col gap-3'>
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <GovCardSkeleton key={index} isLast={index === 4} aggregatedView />
-                      ))}
-                    </div>
-                  ) : allProposals.length > 0 ? (
-                    <VariableSizeList
-                      itemCount={allProposals.length}
-                      width={352}
-                      height={isSidePanel() ? Number(window.innerHeight - 160) : 440}
-                      itemSize={() => 124}
-                    >
-                      {({ index, style }) => (
-                        <div style={style}>
-                          <ProposalCard
-                            proposal={allProposals[index]}
-                            handleClick={() =>
-                              handleProposalCardClick(
-                                allProposals[index].proposal_id,
-                                (allProposals[index]?.chain || 'cosmos') as SupportedChain,
-                              )
-                            }
-                          />
+                  <>
+                    {searchedText.trim().length > 0 ? (
+                      <div className='w-full pb-6 h-full '>
+                        <div className='h-full px-5 w-full flex-col flex justify-center items-center gap-4 border border-secondary-200 rounded-2xl'>
+                          <div className='p-2 bg-secondary-200 rounded-full'>
+                            <CompassIcon size={40} className='text-muted-foreground' />
+                          </div>
+                          <div className='flex flex-col justify-start items-center w-full gap-3'>
+                            <div className='text-[18px] !leading-[24px] text-center font-bold text-foreground'>
+                              No proposals found
+                            </div>
+                            <div className='text-xs !leading-[16px] text-secondary-800 text-center'>
+                              We couldn&apos;t find a match. Try searching again or use a different
+                              keyword.
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </VariableSizeList>
-                  ) : (
-                    <>
-                      {searchedText.trim().length > 0 ? (
-                        <EmptyCard
-                          isRounded
-                          subHeading='Please try again with something else'
-                          heading={'No results for “' + sliceSearchWord(searchedText) + '”'}
-                          src={Images.Misc.Explore}
-                          classname='dark:!bg-gray-950'
-                          imgContainerClassname='dark:!bg-gray-900'
-                        />
-                      ) : null}
-                    </>
-                  )}
-                </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </div>
-            </PopupLayout>
-
-            <SelectChain
-              isVisible={showChainSelector}
-              onClose={() => setShowChainSelector(false)}
-              chainTagsStore={chainTagsStore}
-            />
+            </div>
           </>
         )}
-      </div>
+      </>
     )
   },
 )

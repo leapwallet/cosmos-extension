@@ -1,10 +1,10 @@
 import { useAirdropsEligibilityData } from '@leapwallet/cosmos-wallet-hooks'
 import { CaretRight } from '@phosphor-icons/react'
-import classNames from 'classnames'
 import Text from 'components/text'
 import { Images } from 'images'
 import React from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
+import { cn } from 'utils/cn'
 import { trim } from 'utils/strings'
 
 export default function FailedAirdrops() {
@@ -23,16 +23,13 @@ export default function FailedAirdrops() {
       <Text size='sm' className='font-bold mb-3'>
         Status unavailable
       </Text>
-      <div className='rounded-xl bg-white-100 dark:bg-gray-950 px-3'>
+      <div>
         {failedAirdrops.map((d, index) => (
           <div
             key={index}
-            className={classNames(
-              'flex gap-2 items-center border-gray-100 dark:border-[#2C2C2C] py-3 cursor-pointer',
-              {
-                'border-b': index !== failedAirdrops.length - 1,
-                'border-b-0': index == failedAirdrops.length - 1,
-              },
+            className={cn(
+              'flex gap-2 items-center bg-secondary-100 hover:bg-secondary-200 py-3 cursor-pointer px-3 rounded-xl',
+              index !== failedAirdrops.length - 1 && 'mb-4',
             )}
             onClick={() => navigate(`/airdropsDetails?airdropId=${d.id}`)}
           >

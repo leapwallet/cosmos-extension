@@ -9,19 +9,22 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import BigNumber from 'bignumber.js'
-import classNames from 'classnames'
-import Badge from 'components/badge/Badge'
 import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from 'components/ui/tooltip'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { miscellaneousDataStore } from 'stores/chain-infos-store'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { hidePercentChangeStore } from 'stores/hide-percent-change'
 import { AggregatedSupportedChain } from 'types/utility'
+import { cn } from 'utils/cn'
 import { imgOnError } from 'utils/imgOnError'
+import { opacityFadeInOut, transition150 } from 'utils/motion-variants'
 
 type AggregatedTokenCardProps = {
   readonly title: string
@@ -36,43 +39,44 @@ type AggregatedTokenCardProps = {
   readonly tokenBalanceOnChain: SupportedChain
   readonly isPlaceholder?: boolean
   percentChange24?: number
+  className?: string
 }
 
-const AggregatedTokenCardView = ({
-  title,
-  usdValue,
-  amount,
-  symbol,
-  assetImg,
-  onClick,
-  ibcChainInfo,
-  hasToShowEvmTag,
-  isEvm,
-  tokenBalanceOnChain,
-  isPlaceholder,
-  percentChange24,
-}: AggregatedTokenCardProps) => {
-  const chains = useGetChains()
-  const [formatCurrency] = useFormatCurrency()
-  const defaultTokenLogo = useDefaultTokenLogo()
-  const activeChain = useActiveChain() as AggregatedSupportedChain
+export const AggregatedTokenCardView = observer(
+  ({
+    title,
+    usdValue,
+    amount,
+    symbol,
+    assetImg,
+    onClick,
+    ibcChainInfo,
+    hasToShowEvmTag,
+    isEvm,
+    tokenBalanceOnChain,
+    isPlaceholder,
+    percentChange24,
+    className,
+  }: AggregatedTokenCardProps & { className?: string }) => {
+    const chains = useGetChains()
+    const activeChain = useActiveChain() as AggregatedSupportedChain
+    const [formatCurrency] = useFormatCurrency()
 
-  const [preferredCurrency] = useUserPreferredCurrency()
-  const formattedFiatValue = usdValue ? formatCurrency(new BigNumber(usdValue)) : '-'
+    const defaultTokenLogo = useDefaultTokenLogo()
+    const [preferredCurrency] = useUserPreferredCurrency()
+    const formattedFiatValue = usdValue ? formatCurrency(new BigNumber(usdValue || 0), true) : '-'
 
-  const ibcInfo = useMemo(() => {
-    if (!ibcChainInfo) return ''
+    const ibcInfo = ibcChainInfo
+      ? `${ibcChainInfo.pretty_name} / ${sliceWord(ibcChainInfo?.channelId ?? '', 7, 5)}`
+      : ''
 
-    return `${ibcChainInfo.pretty_name} / ${sliceWord(ibcChainInfo?.channelId ?? '', 7, 5)}`
-  }, [ibcChainInfo])
+    const chainName = chains[tokenBalanceOnChain]?.chainName ?? ''
 
-  const chainName = useMemo(
-    () => chains[tokenBalanceOnChain]?.chainName ?? 'Unknown Chain',
-    [chains, tokenBalanceOnChain],
-  )
+    const percentChangeText = useMemo(() => {
+      if (!percentChange24) {
+        return '-'
+      }
 
-  const percentChangeText = useMemo(() => {
-    if (percentChange24) {
       if (percentChange24 >= 0) {
         return `+${formatPercentAmount(percentChange24.toString(), 2)}%`
       } else {
@@ -80,50 +84,23 @@ const AggregatedTokenCardView = ({
           ? `${formatPercentAmount(percentChange24.toString(), 2)}%`
           : '-99.99%'
       }
-    }
-    return null
-  }, [percentChange24])
+    }, [percentChange24])
 
-  const TokenName = useMemo(() => {
     return (
-      <>
-        <span className='text-ellipsis overflow-hidden whitespace-nowrap max-w-[132px]'>
-          {sliceWord(title, 7, 4)}
-        </span>
-        {!hidePercentChangeStore.isHidden && percentChange24 ? (
-          <div
-            className={classNames(
-              'flex items-center h-[18px] rounded-[4px] px-1 bg-opacity-10',
-              percentChange24 >= 0 ? 'bg-green-600' : 'bg-red-300',
-            )}
-          >
-            <div
-              className={classNames(
-                'text-xs font-medium',
-                percentChange24 >= 0 ? ' text-green-600' : 'text-red-600 dark:text-red-300',
-              )}
-            >
-              {percentChangeText}
-            </div>
-          </div>
-        ) : null}
-      </>
-    )
-  }, [title, hidePercentChangeStore.isHidden, percentChange24, percentChangeText])
-
-  return (
-    <div
-      className='bg-white-100 dark:bg-gray-950 rounded-xl flex items-center justify-between p-[12px] w-full cursor-pointer'
-      onClick={onClick}
-    >
-      <div className='flex items-center justify-start gap-2 w-[150px]'>
-        <div className='relative w-[40px] h-[40px] flex items-center justify-center shrink-0'>
+      <button
+        className={cn(
+          'text-start bg-secondary-100 hover:bg-secondary-200 transition-colors flex items-center justify-between py-3 px-4 w-full cursor-pointer gap-3',
+          className,
+        )}
+        onClick={onClick}
+      >
+        <div className='relative w-[32px] h-[32px] shrink-0 flex items-center justify-center'>
           <TokenImageWithFallback
             assetImg={assetImg}
             text={symbol}
             altText={chainName + ' logo'}
-            imageClassName='w-[36px] h-[36px] rounded-full'
-            containerClassName='w-[36px] h-[36px] rounded-full'
+            imageClassName='w-[30px] h-[30px] rounded-full'
+            containerClassName='w-[30px] h-[30px] rounded-full'
             textClassName='text-[10px] !leading-[14px]'
           />
           {activeChain === AGGREGATED_CHAIN_KEY && (
@@ -134,49 +111,131 @@ const AggregatedTokenCardView = ({
                 defaultTokenLogo
               }
               onError={imgOnError(defaultTokenLogo)}
-              className='w-[15px] h-[15px] absolute bottom-[2px] right-[2px] rounded-full bg-white-100 dark:bg-black-100'
+              className='w-[15px] h-[15px] absolute bottom-[-2px] right-[-2px] rounded-full bg-white-100 dark:bg-black-100'
             />
           )}
         </div>
 
-        <div className='flex flex-col gap-y-[1px]'>
-          <div className='text-black-100 dark:text-white-100 font-[700] flex items-center justify-start gap-2'>
-            {TokenName}
-          </div>
-          <div className='flex gap-x-1 items-center'>
-            {activeChain === AGGREGATED_CHAIN_KEY && (
-              <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500]'>{chainName}</p>
-            )}
-            {ibcChainInfo ? <Badge text='IBC' title={ibcInfo} /> : null}
-            {isEvm && hasToShowEvmTag ? <Badge text='EVM' /> : null}
-          </div>
+        <div className='flex flex-col justify-start mr-auto'>
+          <span className='font-bold text-md truncate max-w-32 text-foreground !leading-[22px] flex items-center gap-1'>
+            {sliceWord(title, 7, 4)}
+            {ibcInfo ? (
+              <span
+                title={ibcInfo}
+                className='px-1 bg-secondary-200 h-[19px] rounded-sm text-secondary-800 text-xs font-medium !leading-[19px] shrink-0'
+              >
+                IBC
+              </span>
+            ) : null}
+          </span>
+
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger className='h-[19px] flex items-center'>
+                <AnimatePresence mode='wait'>
+                  <motion.span
+                    key={hideAssetsStore.isHidden ? 'hidden' : 'visible'}
+                    className='text-muted-foreground text-xs font-medium !leading-[19px] truncate max-w-44'
+                    transition={transition150}
+                    variants={opacityFadeInOut}
+                    initial='hidden'
+                    animate='visible'
+                    exit='hidden'
+                  >
+                    {hideAssetsStore.formatHideBalance(
+                      formatTokenAmount(
+                        amount,
+                        sliceWord(symbol, 4, 4),
+                        3,
+                        currencyDetail[preferredCurrency].locale,
+                      ),
+                    )}
+                    {isEvm && hasToShowEvmTag ? ' · EVM' : ''}
+                  </motion.span>
+                </AnimatePresence>
+              </TooltipTrigger>
+              <TooltipContent side='bottom' className='capitalize'>
+                {chainName}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
-      </div>
-      <div className='flex flex-col items-end gap-y-0.5'>
-        {isPlaceholder ? (
-          <p className='text-black-100 dark:text-white-100 font-[700] text-[14px] text-right'>-</p>
-        ) : (
-          formattedFiatValue !== '-' && (
-            <p className='text-black-100 dark:text-white-100 font-[700] text-[14px] text-right'>
-              {hideAssetsStore.formatHideBalance(formattedFiatValue)}
-            </p>
-          )
-        )}
-        <p className='text-gray-600 dark:text-gray-400 text-[12px] font-[500] text-right'>
-          {isPlaceholder
-            ? '-'
-            : hideAssetsStore.formatHideBalance(
-                formatTokenAmount(
-                  amount,
-                  sliceWord(symbol, 4, 4),
-                  3,
-                  currencyDetail[preferredCurrency].locale,
-                ),
-              )}
-        </p>
-      </div>
+
+        <div className='flex flex-col items-end gap-y-[2px]'>
+          {isPlaceholder ? (
+            <p className='font-bold text-sm text-end'>-</p>
+          ) : (
+            <AnimatePresence mode='wait'>
+              <motion.span
+                key={hideAssetsStore.isHidden ? 'hidden-fiat' : 'visible-fiat'}
+                className={
+                  'font-bold text-sm !leading-[20px] text-end ' +
+                  (hideAssetsStore.isHidden ? 'text-muted-foreground' : '')
+                }
+                transition={transition150}
+                variants={opacityFadeInOut}
+                initial='hidden'
+                animate='visible'
+                exit='hidden'
+              >
+                {hideAssetsStore.isHidden ? '••••••' : formattedFiatValue}
+              </motion.span>
+            </AnimatePresence>
+          )}
+
+          <AnimatePresence mode='wait'>
+            {!hidePercentChangeStore.isHidden && (
+              <motion.span
+                key={hideAssetsStore.isHidden ? 'hidden-percent' : 'visible-percent'}
+                transition={transition150}
+                variants={opacityFadeInOut}
+                initial='hidden'
+                animate='visible'
+                exit='hidden'
+                className={cn(
+                  'text-xs font-medium items-end !leading-[19px]',
+                  percentChange24
+                    ? percentChange24 > 0
+                      ? 'text-accent-success-200'
+                      : 'text-destructive-100'
+                    : 'text-muted-foreground',
+                  hideAssetsStore.isHidden ? 'text-muted-foreground' : '',
+                )}
+              >
+                {hideAssetsStore.isHidden ? '•••' : percentChangeText || '-'}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+      </button>
+    )
+  },
+)
+
+const NobleRewards = () => {
+  return (
+    <div className='w-full py-1.5 bg-accent-green-900 bg-opacity-10 text-center font-medium text-xs text-accent-green-200'>
+      Earn rewards of up to
+      <span className='font-bold'>
+        &nbsp;
+        {parseFloat(miscellaneousDataStore.data?.noble?.usdnEarnApy) > 0
+          ? new BigNumber(miscellaneousDataStore.data.noble.usdnEarnApy)
+              .multipliedBy(100)
+              .toFixed(2) + '%'
+          : '-'}
+        &nbsp;APY!
+      </span>
     </div>
   )
 }
 
-export const AggregatedTokenCard = observer(AggregatedTokenCardView)
+export const AggregatedTokenCard = (props: AggregatedTokenCardProps) => {
+  const showNobleRewards = props.tokenBalanceOnChain === 'noble' && props.symbol === 'USDC'
+
+  return (
+    <div className='flex flex-col w-full rounded-2xl overflow-hidden'>
+      <AggregatedTokenCardView {...props} />
+      {showNobleRewards && <NobleRewards />}
+    </div>
+  )
+}

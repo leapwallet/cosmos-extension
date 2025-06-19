@@ -58,11 +58,13 @@ export function ProposalDescription({
     [isAllowedUrl],
   )
 
+  if (!formattedDescription) return null
+
   return (
     <div className={className}>
-      <div className='text-sm text-gray-400 font-bold mb-2'>{title}</div>
+      <div className='text-sm text-muted-foreground font-medium mb-3'>{title}</div>
       <div
-        className={classNames('text-black-100 dark:text-white-100 break-words overflow-hidden', {
+        className={classNames('text-foreground text-sm break-words overflow-hidden', {
           'line-clamp-4': formattedDescription.length > 300,
           reset: showAll,
         })}

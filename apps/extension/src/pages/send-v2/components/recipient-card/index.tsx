@@ -5,20 +5,22 @@ import {
   useAddressPrefixes,
   useChainsStore,
   useFeatureFlags,
-  useIsSeiEvmChain,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   BTC_CHAINS,
+  ChainInfo,
   getBech32Address,
   getBlockChainFromAddress,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   isValidBtcAddress,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import {
+  ChainFeatureFlagsStore,
   ChainTagsStore,
-  CompassSeiTokensAssociationStore,
   RootCW20DenomsStore,
   RootERC20DenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
@@ -44,6 +46,7 @@ import { useContactsSearch } from 'hooks/useContacts'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
+import * as sol from 'micro-sol-signer'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send-v2/context'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -52,7 +55,6 @@ import { manageChainsStore } from 'stores/manage-chains-store'
 import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 import { sliceAddress } from 'utils/strings'
 
@@ -71,7 +73,7 @@ type RecipientCardProps = {
   rootERC20DenomsStore: RootERC20DenomsStore
   rootCW20DenomsStore: RootCW20DenomsStore
   chainTagsStore: ChainTagsStore
-  compassSeiTokensAssociationsStore: CompassSeiTokensAssociationStore
+  chainFeatureFlagsStore: ChainFeatureFlagsStore
 }
 
 const nameServiceMatcher = /^[a-zA-Z0-9_-]+\.[a-z]+$/
@@ -81,7 +83,7 @@ export const RecipientCard = observer(
     rootERC20DenomsStore,
     rootCW20DenomsStore,
     chainTagsStore,
-    compassSeiTokensAssociationsStore,
+    chainFeatureFlagsStore,
   }: RecipientCardProps) => {
     /**
      * Local States
@@ -124,9 +126,6 @@ export const RecipientCard = observer(
       associatedSeiAddress,
       setAssociated0xAddress,
       setHasToUsePointerLogic,
-      setPointerAddress,
-      setSelectedToken,
-      setHasToUseCw20PointerLogic,
     } = useSendContext()
 
     const { chains } = useChainsStore()
@@ -136,7 +135,6 @@ export const RecipientCard = observer(
 
     const defaultTokenLogo = useDefaultTokenLogo()
     const activeWallet = useActiveWallet()
-    const isSeiEvmChain = useIsSeiEvmChain()
 
     const { data: elementsChains } = useSkipSupportedChains({ chainTypes: ['cosmos'] })
     const { data: featureFlags } = useFeatureFlags()
@@ -153,7 +151,8 @@ export const RecipientCard = observer(
     const ownWalletMatch = selectedAddress?.selectionType === 'currentWallet'
     const isBtcTx = BTC_CHAINS.includes(sendActiveChain)
     const isAptosTx = isAptosChain(sendActiveChain)
-
+    const isSolanaTx = isSolanaChain(sendActiveChain)
+    const isSuiTx = isSuiChain(sendActiveChain)
     const asset: Asset = {
       denom: selectedToken?.ibcDenom || selectedToken?.coinMinimalDenom || '',
       symbol: selectedToken?.symbol || '',
@@ -205,6 +204,7 @@ export const RecipientCard = observer(
         'sol', // for injective .sol domains by SNS
         ...['sei', 'pp'], // for degeNS
         'core', // for bdd
+        'i', //for celestials.id
       ]
       // ex: leap.arch --> name = leap, domain = arch
       const [, domain] = recipientInputValue.split('.')
@@ -299,7 +299,7 @@ export const RecipientCard = observer(
         return null
       }
 
-      if (destinationChainKey === 'initia') {
+      if (destinationChainKey === 'initiaEvm') {
         if (selectedInitiaChain) {
           return chains[selectedInitiaChain]
         }
@@ -308,6 +308,28 @@ export const RecipientCard = observer(
       // we are sure that the key is there in the chains object due to previous checks
       return chains[destinationChainKey]
     }, [addressPrefixes, chains, selectedAddress?.address, selectedInitiaChain])
+
+    const chainFeatureFlags = chainFeatureFlagsStore.chainFeatureFlagsData
+
+    const minitiaChains = useMemo(() => {
+      const _minitiaChains: string[] = []
+      Object.keys(chainFeatureFlags)
+        .filter((chain) => chainFeatureFlags[chain].chainType === 'minitia')
+        .forEach((c) => {
+          if (chains[c as SupportedChain]) {
+            _minitiaChains.push(c)
+          }
+          const _chain = Object.values(chains).find((chainInfo) =>
+            sendSelectedNetwork === 'testnet'
+              ? chainInfo?.testnetChainId === c
+              : chainInfo?.chainId === c,
+          )
+          if (_chain) {
+            _minitiaChains.push(_chain.key)
+          }
+        })
+      return _minitiaChains
+    }, [chainFeatureFlags, chains, sendSelectedNetwork])
 
     /**
      * --------
@@ -338,8 +360,7 @@ export const RecipientCard = observer(
       !existingContactMatch &&
       !selectedAddress &&
       !showNameServiceResults &&
-      sendSelectedNetwork === 'mainnet' &&
-      !isCompassWallet()
+      sendSelectedNetwork === 'mainnet'
 
     const showSecondaryActions = showContactsButton || showMyWalletButton || showAddToContacts
 
@@ -349,10 +370,7 @@ export const RecipientCard = observer(
 
     const fillRecipientInputValue = useCallback(
       (value: string) => {
-        if (
-          (isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) &&
-          value.toLowerCase().startsWith('0x')
-        ) {
+        if (chains[sendActiveChain]?.evmOnlyChain && value.toLowerCase().startsWith('0x')) {
           setAddressError(undefined)
           setEthAddress(value)
           setRecipientInputValue(value)
@@ -380,7 +398,6 @@ export const RecipientCard = observer(
         activeChainInfo.bip44.coinType,
         activeChainInfo.key,
         chains,
-        isSeiEvmChain,
         sendActiveChain,
         setAddressError,
         setEthAddress,
@@ -445,7 +462,9 @@ export const RecipientCard = observer(
       try {
         if (
           isAptosTx ||
-          ((isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) &&
+          isSolanaTx ||
+          isSuiTx ||
+          (chains[sendActiveChain]?.evmOnlyChain &&
             recipientInputValue.toLowerCase().startsWith('0x'))
         ) {
           setIsAddContactSheetVisible(true)
@@ -466,7 +485,8 @@ export const RecipientCard = observer(
       addressPrefixes,
       chains,
       isAptosTx,
-      isSeiEvmChain,
+      isSolanaTx,
+      isSuiTx,
       recipientInputValue,
       sendActiveChain,
       setAddressError,
@@ -513,15 +533,10 @@ export const RecipientCard = observer(
         </>
       ),
       showNameServiceResults,
-      compassEvmToSeiMapping: compassSeiTokensAssociationsStore.compassEvmToSeiMapping,
-      compassSeiToEvmMapping: compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
 
       sendActiveChain,
       sendSelectedNetwork,
       setHasToUsePointerLogic,
-      setPointerAddress,
-      setHasToUseCw20PointerLogic,
-      setSelectedToken,
     })
 
     useEffect(() => {
@@ -537,7 +552,7 @@ export const RecipientCard = observer(
       const cleanInputValue = recipientInputValue?.trim()
 
       if (recipientInputValue === selectedAddress?.address) {
-        const isEvmChain = isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain
+        const isEvmChain = chains[sendActiveChain]?.evmOnlyChain
         const isEvmAddress = cleanInputValue?.toLowerCase()?.startsWith('0x')
         const isSameChain = sendActiveChain === selectedAddress?.chainName
 
@@ -562,11 +577,7 @@ export const RecipientCard = observer(
           return
         }
 
-        if (
-          isAptosTx ||
-          ((isSeiEvmChain || chains[sendActiveChain]?.evmOnlyChain) &&
-            cleanInputValue.toLowerCase().startsWith('0x'))
-        ) {
+        if (isSuiTx) {
           const img = activeChainInfo.chainSymbolImageUrl ?? ''
 
           setSelectedAddress({
@@ -584,6 +595,50 @@ export const RecipientCard = observer(
         }
 
         if (
+          isAptosTx ||
+          (chains[sendActiveChain]?.evmOnlyChain && cleanInputValue.toLowerCase().startsWith('0x'))
+        ) {
+          const img = activeChainInfo.chainSymbolImageUrl ?? ''
+
+          setSelectedAddress({
+            ethAddress: cleanInputValue,
+            address: cleanInputValue,
+            name: sliceAddress(cleanInputValue),
+            avatarIcon: activeChainInfo.chainSymbolImageUrl ?? '',
+            emoji: undefined,
+            chainIcon: img ?? '',
+            chainName: activeChainInfo.key,
+            selectionType: 'notSaved',
+          })
+
+          return
+        }
+
+        if (isSolanaTx) {
+          if (sol.isOnCurve(recipientInputValue)) {
+            const img = chains[sendActiveChain]?.chainSymbolImageUrl ?? defaultTokenLogo
+
+            setSelectedAddress({
+              ethAddress: cleanInputValue,
+              address: cleanInputValue,
+              name: sliceAddress(cleanInputValue),
+              avatarIcon: img ?? '',
+              emoji: undefined,
+              chainIcon: img ?? '',
+              chainName: sendActiveChain,
+              selectionType: 'notSaved',
+            })
+            return
+          } else {
+            return
+          }
+        }
+
+        if (isSuiTx) {
+          return
+        }
+
+        if (
           isBtcTx &&
           !isValidBtcAddress(cleanInputValue, sendActiveChain === 'bitcoin' ? 'mainnet' : 'testnet')
         ) {
@@ -592,6 +647,11 @@ export const RecipientCard = observer(
 
         const { prefix } = isBtcTx ? { prefix: '' } : bech32.decode(cleanInputValue)
         let _chain = addressPrefixes[prefix] as SupportedChain
+
+        if (_chain !== 'noble' && selectedToken?.coinMinimalDenom === 'uusdn') {
+          setAddressError('IBC transfer is not supported for USDN')
+          return
+        }
 
         if (prefix === 'init' && selectedInitiaChain) {
           _chain = selectedInitiaChain
@@ -631,10 +691,10 @@ export const RecipientCard = observer(
       recipientInputValue,
       selectedAddress,
       setSelectedAddress,
-      isSeiEvmChain,
       showNameServiceResults,
       sendActiveChain,
       selectedInitiaChain,
+      selectedToken,
     ])
 
     useEffect(() => {
@@ -696,10 +756,10 @@ export const RecipientCard = observer(
     }, [selectedAddress?.chainName, setCustomIbcChannelId])
 
     useEffect(() => {
-      if (chainTagsStore.allChainTags[chains[sendActiveChain].chainId]?.includes('Initia')) {
+      if (minitiaChains.includes(sendActiveChain)) {
         setSelectedInitiaChain(sendActiveChain)
       }
-    }, [chainTagsStore.allChainTags, chains, sendActiveChain])
+    }, [minitiaChains, sendActiveChain])
 
     const isNotIBCError = addressError
       ? !addressError.includes('IBC transfers are not supported')
@@ -808,10 +868,7 @@ export const RecipientCard = observer(
                 </>
               ) : null}
 
-              {isIBCTransfer &&
-              !isCompassWallet() &&
-              sendSelectedNetwork === 'mainnet' &&
-              destChainInfo ? (
+              {isIBCTransfer && sendSelectedNetwork === 'mainnet' && destChainInfo ? (
                 <div className='flex flex-1 justify-end'>
                   <div className='flex w-fit gap-1 py-1 px-[10px] bg-[#F7EDFC] dark:bg-[#290939] rounded-3xl h-8 items-center'>
                     <Images.Misc.IbcProtocol color={isDark ? '#E0B9F4' : '#A22CDD'} />
@@ -827,7 +884,8 @@ export const RecipientCard = observer(
               ) : null}
 
               {destChainInfo &&
-              chainTagsStore.allChainTags[destChainInfo.chainId]?.includes('Initia') ? (
+              minitiaChains.includes(destChainInfo.key) &&
+              minitiaChains.includes(sendActiveChain) ? (
                 <div
                   onClick={handleSelectInitiaClick}
                   className='flex ml-auto justify-end cursor-pointer'
@@ -860,17 +918,19 @@ export const RecipientCard = observer(
             handleContactSelect={handleContactSelect}
             onClose={() => setIsDestinationSheetVisible(null)}
             skipSupportedDestinationChainsIDs={skipSupportedDestinationChainsIDs}
+            showOnlyMyWallets={
+              selectedToken?.coinMinimalDenom === 'uusdn' && selectedToken?.chain === 'noble'
+            }
           />
 
-          {!isCompassWallet() && (
-            <SelectInitiaChainSheet
-              isOpen={isSelectInitiaChainSheetVisible}
-              setSelectedInitiaChain={setSelectedInitiaChain}
-              onClose={() => setIsSelectInitiaChainSheetVisible(false)}
-              chainTagsStore={chainTagsStore}
-              chainInfoStore={chainInfoStore}
-            />
-          )}
+          <SelectInitiaChainSheet
+            isOpen={isSelectInitiaChainSheetVisible}
+            setSelectedInitiaChain={setSelectedInitiaChain}
+            onClose={() => setIsSelectInitiaChainSheetVisible(false)}
+            chainFeatureFlagsStore={chainFeatureFlagsStore}
+            chainInfoStore={chainInfoStore}
+            selectedNetwork={sendSelectedNetwork}
+          />
 
           <SaveAddressSheet
             isOpen={isAddContactSheetVisible}

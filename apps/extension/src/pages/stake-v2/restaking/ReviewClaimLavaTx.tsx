@@ -2,6 +2,7 @@ import {
   FeeTokenData,
   SelectedNetwork,
   sliceWord,
+  STAKE_MODE,
   useActiveChain,
   useActiveStakingDenom,
   useDualStaking,
@@ -10,16 +11,14 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { Provider, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
-import { Buttons, Card } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
-import Text from 'components/text'
-import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import { EventName } from 'config/analytics'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
@@ -27,20 +26,21 @@ import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
-import Lottie from 'lottie-react'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { hideAssetsStore } from 'stores/hide-assets-store'
-import { Colors } from 'theme/colors'
-import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 
 import { StakeTxnPageState } from '../StakeTxnPage'
 
 import useGetWallet = Wallet.useGetWallet
+
+import Lottie from 'lottie-react'
+
+import { ClaimCard } from '../components/ReviewClaimTx'
+import { transitionTitleMap } from '../utils/stake-text'
 
 interface ReviewClaimLavaTxProps {
   isOpen: boolean
@@ -50,6 +50,7 @@ interface ReviewClaimLavaTxProps {
   rootBalanceStore: RootBalanceStore
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
+  setClaimTxMode: (mode: STAKE_MODE | 'CLAIM_AND_DELEGATE' | null) => void
 }
 export const ReviewClaimLavaTx = observer(
   ({
@@ -60,6 +61,7 @@ export const ReviewClaimLavaTx = observer(
     rootBalanceStore,
     forceChain,
     forceNetwork,
+    setClaimTxMode,
   }: ReviewClaimLavaTxProps) => {
     const denoms = rootDenomsStore.allDenoms
     const _activeChain = useActiveChain()
@@ -136,14 +138,14 @@ export const ReviewClaimLavaTx = observer(
     const formattedTokenProviderReward = useMemo(() => {
       if (rewards) {
         const rewardItems = rewards.rewards
-          .flatMap((reward) => reward.amount)
+          ?.flatMap((reward) => reward.amount)
           .reduce((acc, curr) => {
             acc[curr.denom] = acc[curr.denom]
               ? new BigNumber(acc[curr.denom]).plus(new BigNumber(curr.amount))
               : new BigNumber(curr.amount)
             return acc
           }, {} as Record<string, BigNumber>)
-        const rewardsLength = Object.keys(rewardItems).length
+        const rewardsLength = Object.keys(rewardItems ?? {}).length
         return hideAssetsStore.formatHideBalance(
           `${rewards.formattedTotalRewards} ${
             rewardsLength > 1 ? `+${rewardsLength - 1} more` : ''
@@ -168,15 +170,12 @@ export const ReviewClaimLavaTx = observer(
     }, [])
 
     const txCallback = useCallback(() => {
-      navigate('/stake/pending-txn', {
-        state: {
-          mode: 'CLAIM_REWARDS',
-        } as StakeTxnPageState,
-      })
-      mixpanel.track(EventName.TransactionSigned, {
-        transactionType: 'stake_claim',
-      })
-    }, [navigate])
+      setClaimTxMode('CLAIM_REWARDS')
+      // mixpanel.track(EventName.TransactionSigned, {
+      //   transactionType: 'stake_claim',
+      // })
+      onClose()
+    }, [onClose, setClaimTxMode])
 
     const onClaimRewardsClick = useCallback(async () => {
       try {
@@ -224,116 +223,74 @@ export const ReviewClaimLavaTx = observer(
         <BottomModal
           isOpen={isOpen}
           onClose={onClose}
-          title='Review Transaction'
-          closeOnBackdropClick={true}
-          className='p-6'
+          title={transitionTitleMap.CLAIM_REWARDS}
+          className='p-6 mt-4'
         >
-          <div className='flex flex-col gap-y-6'>
-            <div className='flex flex-col items-center w-full gap-y-4'>
-              <Card
-                className='bg-white-100 dark:bg-gray-950'
-                avatar={
-                  <TokenImageWithFallback
-                    assetImg={activeStakingDenom.icon}
-                    text={activeStakingDenom.coinDenom}
-                    altText={activeStakingDenom.coinDenom}
-                    imageClassName='w-[36px] h-[36px] rounded-full'
-                    containerClassName='w-[36px] h-[36px] rounded-full bg-gray-100 dark:bg-gray-850'
-                    textClassName='text-[10px] !leading-[14px]'
-                  />
-                }
-                isRounded
-                size='md'
-                title={
-                  <Text
-                    size='sm'
-                    color='text-black-100 dark:text-white-100'
-                    className='font-bold mb-0.5'
-                  >
-                    {hideAssetsStore.formatHideBalance(
-                      formatCurrency(new BigNumber(rewards?.totalRewardsDollarAmt ?? '0')),
-                    )}
-                  </Text>
-                }
-                subtitle={
-                  <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                    {formattedTokenProviderReward}
-                  </Text>
-                }
-              />
-              <Card
-                className='bg-white-100 dark:bg-gray-950'
-                avatar={
-                  <img
-                    src={Images.Misc.Validator}
-                    onError={imgOnError(Images.Misc.Validator)}
-                    width={36}
-                    height={36}
-                    className='rounded-full'
-                  />
-                }
-                isRounded
-                size='md'
-                title={
-                  <Text
-                    size='sm'
-                    color='text-black-100 dark:text-white-100'
-                    className='font-bold mb-0.5'
-                  >
-                    {rewardProviders &&
-                      sliceWord(
-                        rewardProviders[0]?.moniker,
-                        isSidePanel()
-                          ? 2 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
-                          : 10,
-                        3,
-                      )}
-                  </Text>
-                }
-                subtitle={
-                  <Text size='xs' color='text-gray-600 dark:text-gray-400' className='font-medium'>
-                    {rewardProviders &&
-                      (rewardProviders.length > 1
-                        ? `+${rewardProviders.length - 1} more providers`
-                        : '')}
-                  </Text>
-                }
-              />
-            </div>
-            <div className='flex flex-col items-center w-full gap-y-2'>
-              <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
-
-              {ledgerError && <p className='text-sm font-bold text-red-300 px-2'>{ledgerError}</p>}
-              {error && <p className='text-sm font-bold text-red-300 px-2'>{error}</p>}
-              {gasError && !showFeesSettingSheet && (
-                <p className='text-sm font-bold text-red-300 px-2'>{gasError}</p>
+          <div className='flex flex-col items-center w-full gap-y-4'>
+            <ClaimCard
+              title={hideAssetsStore.formatHideBalance(
+                formatCurrency(new BigNumber(rewards?.totalRewardsDollarAmt ?? '0')),
               )}
+              subText={formattedTokenProviderReward}
+              imgSrc={activeStakingDenom.icon}
+            />
+            <ClaimCard
+              title={
+                rewardProviders &&
+                sliceWord(
+                  rewardProviders[0]?.moniker,
+                  isSidePanel()
+                    ? 2 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                    : 10,
+                  3,
+                )
+              }
+              subText={
+                rewardProviders &&
+                (rewardProviders.length > 1 ? `+${rewardProviders.length - 1} more providers` : '')
+              }
+              imgSrc={Images.Misc.Validator}
+            />
+          </div>
 
-              <Buttons.Generic
-                color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-                size='normal'
-                disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
-                className='w-full'
-                onClick={onClaimRewardsClick}
-              >
-                {isLoading ? (
-                  <Lottie
-                    loop={true}
-                    autoplay={true}
-                    animationData={loadingImage}
-                    rendererSettings={{
-                      preserveAspectRatio: 'xMidYMid slice',
-                    }}
-                    className={'h-[28px] w-[28px]'}
-                  />
-                ) : (
-                  'Confirm Claim'
-                )}
-              </Buttons.Generic>
-            </div>
+          <div className='flex items-center w-full justify-between mt-5 mb-7'>
+            <span className='text-sm text-muted-foreground font-medium'>Fees</span>
+            <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
+          </div>
+
+          <div className='flex flex-col items-center w-full gap-y-2'>
+            {ledgerError && (
+              <p className='text-sm font-bold text-destructive-100 px-2'>{ledgerError}</p>
+            )}
+            {error && <p className='text-sm font-bold text-destructive-100 px-2'>{error}</p>}
+            {gasError && !showFeesSettingSheet && (
+              <p className='text-sm font-bold text-destructive-100 px-2'>{gasError}</p>
+            )}
+
+            <Button
+              className='w-full'
+              disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
+              onClick={onClaimRewardsClick}
+            >
+              {isLoading ? (
+                <Lottie
+                  loop={true}
+                  autoplay={true}
+                  animationData={loadingImage}
+                  rendererSettings={{
+                    preserveAspectRatio: 'xMidYMid slice',
+                  }}
+                  className={'h-[24px] w-[24px]'}
+                />
+              ) : (
+                'Confirm Claim'
+              )}
+            </Button>
           </div>
         </BottomModal>
-        {showLedgerPopup && <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />}
+
+        <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup} />
+
         <FeesSettingsSheet
           showFeesSettingSheet={showFeesSettingSheet}
           onClose={handleCloseFeeSettingSheet}

@@ -8,7 +8,7 @@ import { getInjectiveValidatorLogo } from './injective/getInjectiveValidators';
 
 async function fetchAllValidators(baseURL: string, urlPath: string, chain: SupportedChain, paginationKey?: string) {
   const timeout = 15000;
-  if (chain !== 'initia') {
+  if (!['initia', 'initiaEvm'].includes(chain)) {
     return await axiosWrapper({
       baseURL,
       method: 'get',
@@ -56,7 +56,7 @@ export async function getValidatorsList(
 
   let queryURL = `/cosmos/staking/v1beta1/validators?${qs.stringify(queryParams)}`;
 
-  if (chain === 'initia') {
+  if (['initia', 'initiaEvm'].includes(chain)) {
     queryURL = `initia/mstaking/v1/validators`;
   }
 

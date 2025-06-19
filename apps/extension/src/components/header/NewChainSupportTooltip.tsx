@@ -1,26 +1,20 @@
 import { useCustomChains } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import { useTheme } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { NewChainTooltipData } from 'hooks/useNewChainTooltip'
-import React, { useCallback } from 'react'
+import useNewChainTooltip from 'hooks/useNewChainTooltip'
+import AddFromChainStore from 'pages/home/AddFromChainStore'
+import React, { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AggregatedSupportedChain } from 'types/utility'
 import { uiErrorTags } from 'utils/sentry'
 
-type NewChainSupportTooltipProps = {
-  toolTipData: NewChainTooltipData
-  handleToolTipClose: () => void
-  setNewChain: (chain: string) => void
-}
+const NewChainSupportTooltip = () => {
+  const { toolTipData, handleToolTipClose, showToolTip } = useNewChainTooltip()
 
-const NewChainSupportTooltip = ({
-  toolTipData,
-  handleToolTipClose,
-  setNewChain,
-}: NewChainSupportTooltipProps) => {
-  const { header, description, imgUrl, ctaText } = toolTipData
+  const [newChain, setNewChain] = useState<string | null>(null)
 
   const { theme } = useTheme()
   const navigate = useNavigate()
@@ -79,21 +73,22 @@ const NewChainSupportTooltip = ({
 
   const handleCTAClick = useCallback(() => {
     handleToolTipClose()
-    switch (toolTipData.ctaAction?.type) {
+
+    switch (toolTipData?.ctaAction?.type) {
       case 'redirect-internally': {
-        navigate(`${toolTipData.ctaAction.redirectUrl}&toolTipId=${toolTipData.id}`)
+        navigate(`${toolTipData?.ctaAction.redirectUrl}&toolTipId=${toolTipData?.id}`)
         break
       }
       case 'redirect-externally': {
-        window.open(toolTipData.ctaAction.redirectUrl, '_blank')
+        window.open(toolTipData?.ctaAction.redirectUrl, '_blank')
         break
       }
       case 'add-chain': {
-        handleAddChainClick(toolTipData.ctaAction.chainRegistryPath)
+        handleAddChainClick(toolTipData?.ctaAction.chainRegistryPath)
         break
       }
       case 'switch-chain': {
-        handleSwitchChainClick(toolTipData.ctaAction.chainRegistryPath)
+        handleSwitchChainClick(toolTipData?.ctaAction.chainRegistryPath)
         break
       }
       default: {
@@ -102,13 +97,17 @@ const NewChainSupportTooltip = ({
       }
     }
   }, [
-    toolTipData.ctaAction,
-    toolTipData.id,
+    toolTipData?.ctaAction,
+    toolTipData?.id,
     handleToolTipClose,
     navigate,
     handleAddChainClick,
     handleSwitchChainClick,
   ])
+
+  if (!showToolTip || !toolTipData) {
+    return null
+  }
 
   return (
     <>
@@ -137,21 +136,23 @@ const NewChainSupportTooltip = ({
           </svg>
         </div>
 
-        {imgUrl && <img src={imgUrl} className='rounded-lg w-full h-[72px]' alt='tooltip-img' />}
+        {toolTipData?.imgUrl && (
+          <img src={toolTipData?.imgUrl} className='rounded-lg w-full h-[72px]' alt='tooltip-img' />
+        )}
 
         <div className='flex flex-col w-full justify-start items-start gap-0'>
           <div className='text-sm !leading-[20px] font-bold text-black-100 dark:text-white-100'>
-            {header}
+            {toolTipData?.header}
           </div>
           <div className='text-xs !leading-[20px] font-medium text-gray-600 dark:text-gray-400'>
-            {description}
+            {toolTipData?.description}
           </div>
         </div>
 
         <div className='flex row w-full justify-between items-center'>
           <button onClick={handleCTAClick} className='bg-green-600 rounded-full flex py-2 px-3'>
             <span className='text-xs !leading-[16.8px] text-white-100 dark:text-white-100 font-bold'>
-              {ctaText}
+              {toolTipData?.ctaText}
             </span>
           </button>
           <button
@@ -162,6 +163,12 @@ const NewChainSupportTooltip = ({
           </button>
         </div>
       </div>
+
+      <AddFromChainStore
+        isVisible={!!newChain}
+        onClose={() => setNewChain(null)}
+        newAddChain={customChains.find((d) => d.chainName === newChain) as ChainInfo}
+      />
     </>
   )
 }

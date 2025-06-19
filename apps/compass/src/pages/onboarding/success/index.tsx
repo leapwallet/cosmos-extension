@@ -30,18 +30,6 @@ export default function OnboardingSuccess() {
     if (timeStarted1 && timeStarted2 && activeWalletCosmosAddress) {
       const hashedAddress = utils.bytesToHex(sha256(activeWalletCosmosAddress))
 
-      try {
-        mixpanel.track(EventName.OnboardingCompleted, {
-          methodChosen,
-          timeTaken1: dayjs(currentTime).diff(timeStarted1, 'seconds'),
-          timeTaken2: dayjs(currentTime).diff(timeStarted2, 'seconds'),
-          wallet: hashedAddress,
-          time: Date.now() / 1000,
-        })
-      } catch (e) {
-        captureException(e)
-      }
-
       localStorage.removeItem('timeStarted1')
       localStorage.removeItem('timeStarted2')
       localStorage.removeItem('onboardingMethodChosen')

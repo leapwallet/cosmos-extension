@@ -1,4 +1,3 @@
-import Text from 'components/text'
 import React from 'react'
 
 import { addedAt, endsIn, getHostname } from '../utils'
@@ -13,36 +12,22 @@ export default function ListingFooter({
   relevantLinks: string[]
 }) {
   return (
-    <div className='w-full flex gap-2 items-center'>
+    <div className='w-full flex gap-1 items-center text-xs text-secondary-800'>
       {endDate && addedAt(additionDate) && (
         <>
-          <Text size='xs' className='!text-gray-600 dark:!text-gray-400'>
-            {endsIn(endDate)}
-          </Text>
-          <Text size='xs' className='!text-gray-600 dark:!text-gray-400'>
-            ·
-          </Text>
+          <span>{endsIn(endDate)}</span>
+          <span>·</span>
         </>
       )}
       {additionDate && relevantLinks?.[0] ? (
         <>
-          <Text size='xs' className='!text-gray-600 dark:!text-gray-400'>
-            {addedAt(additionDate)}
-          </Text>
-          <Text size='xs' className='!text-gray-600 dark:!text-gray-400'>
-            ·
-          </Text>
+          <span>{addedAt(additionDate)}</span>
+          <span>·</span>
         </>
       ) : additionDate ? (
-        <Text size='xs' className='!text-gray-600 dark:!text-gray-400'>
-          {addedAt(additionDate)}
-        </Text>
+        <span>{addedAt(additionDate)}</span>
       ) : null}
-      {relevantLinks?.[0] && (
-        <Text size='xs' className='!text-gray-600 dark:!text-gray-400'>
-          {getHostname(relevantLinks[0])}
-        </Text>
-      )}
+      {relevantLinks?.[0] && <span>{getHostname(relevantLinks[0])}</span>}
     </div>
   )
 }

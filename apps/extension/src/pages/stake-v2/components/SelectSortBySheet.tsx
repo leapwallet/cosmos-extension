@@ -1,7 +1,6 @@
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { GenericCard } from '@leapwallet/leap-ui'
-import BottomModal from 'components/bottom-modal'
-import { Images } from 'images'
+import { CheckCircle } from '@phosphor-icons/react'
+import BottomModal from 'components/new-bottom-modal'
 import React from 'react'
 
 import { STAKE_SORT_BY } from './SelectValidatorSheet'
@@ -25,31 +24,21 @@ export default function SelectSortBySheet({
   onClose,
 }: SelectSortByProps) {
   return (
-    <BottomModal
-      isOpen={isVisible}
-      onClose={onClose}
-      closeOnBackdropClick={true}
-      title='Sort By'
-      className='p-6'
-    >
+    <BottomModal isOpen={isVisible} onClose={onClose} title='Sort By' className='p-6'>
       <div className='flex flex-col gap-y-3'>
         {stackSortBy.map((element) => (
-          <GenericCard
+          <button
             key={element}
+            className='bg-secondary p-4 rounded-xl flex font-medium items-center justify-between gap-4 hover:bg-secondary-200 transition-colors'
             onClick={() => {
               setVisible(false)
               setSortBy(element)
             }}
-            icon={
-              sortBy === (element as STAKE_SORT_BY) ? (
-                <img width={24} height={24} src={Images.Misc.CheckGreenNew} />
-              ) : undefined
-            }
-            size='md'
-            title={element}
-            isRounded={true}
-            className='p-4 !h-auto bg-white-100 dark:bg-gray-950'
-          />
+          >
+            {element}
+
+            {sortBy === element && <CheckCircle size={24} weight='fill' />}
+          </button>
         ))}
       </div>
     </BottomModal>

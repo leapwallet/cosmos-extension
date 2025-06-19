@@ -1,18 +1,6 @@
-/* eslint-disable no-unused-vars */
-import {
-  useChainsStore,
-  useFeatureFlags,
-  useSelectedNetwork,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useChainsStore, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
-import {
-  ArrowsLeftRight,
-  CurrencyDollar,
-  MagnifyingGlass,
-  Pulse,
-  Tag,
-  Wallet,
-} from '@phosphor-icons/react'
+import { ArrowsLeftRight, CurrencyDollar, Pulse, Wallet } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import { LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
@@ -20,8 +8,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import BottomNavIcon from 'pages/alpha/components/BottomNavIcon'
 import React, { useCallback, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { useNavigate } from 'react-router-dom'
 
 export enum BottomNavLabel {
   Home = 'Home',
@@ -31,7 +18,7 @@ export enum BottomNavLabel {
   Governance = 'Governance',
   Earn = 'Earn',
   Airdrops = 'Airdrops', // temporary deprecated
-  Alpha = 'Alpha', // current successor to airdrops
+  Rewards = 'Rewards', // current successor to airdrops
   Swap = 'Swap',
   Search = 'Search',
 }
@@ -45,7 +32,6 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
   const [selected, setSelected] = useState(label)
   const navigate = useNavigate()
   const activeChain = useActiveChain()
-  const activeNetwork = useSelectedNetwork()
   const { chains } = useChainsStore()
   const activeChainInfo = chains[activeChain]
   const { data: featureFlags } = useFeatureFlags()
@@ -64,9 +50,7 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
 
   const bottomNavItems = useMemo(() => {
     const isSwapDisabled =
-      featureFlags?.swaps?.extension === 'disabled' ||
-      ['nomic', 'seiDevnet'].includes(activeChain) ||
-      (isCompassWallet() && activeChain === 'seiTestnet2' && activeNetwork === 'testnet')
+      featureFlags?.swaps?.extension === 'disabled' || ['nomic', 'seiDevnet'].includes(activeChain)
 
     return [
       {
@@ -75,21 +59,14 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
         path: '/home',
         show: true,
       },
-      isCompassWallet() && activeChain === 'seiTestnet2' && activeNetwork === 'mainnet'
-        ? {
-            label: BottomNavLabel.Search,
-            icon: <MagnifyingGlass size={22} />,
-            path: '/search?pageSource=bottomNav',
-            show: true,
-          }
-        : {
-            label: BottomNavLabel.Stake,
-            icon: <CurrencyDollar size={22} weight='fill' />,
-            path: '/stake?pageSource=bottomNav',
-            show: true,
-            disabled: activeChainInfo?.disableStaking || activeChainInfo?.evmOnlyChain,
-            redirectHandler: stakeRedirectForInitiaHandler,
-          },
+      {
+        label: BottomNavLabel.Stake,
+        icon: <CurrencyDollar size={22} weight='fill' />,
+        path: '/stake?pageSource=bottomNav',
+        show: true,
+        disabled: activeChainInfo?.disableStaking || activeChainInfo?.evmOnlyChain,
+        redirectHandler: stakeRedirectForInitiaHandler,
+      },
       {
         label: BottomNavLabel.Swap,
         icon: <ArrowsLeftRight size={22} weight='bold' />,
@@ -98,16 +75,10 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
         disabled: isSwapDisabled,
       },
       {
-        label: BottomNavLabel.NFTs,
-        icon: <Tag size={22} weight='fill' />,
-        path: '/nfts',
-        show: isCompassWallet(),
-      },
-      {
-        label: BottomNavLabel.Alpha,
+        label: BottomNavLabel.Rewards,
         icon: <BottomNavIcon />,
         path: '/alpha',
-        show: !isCompassWallet() && featureFlags?.airdrops?.extension !== 'disabled',
+        show: featureFlags?.airdrops?.extension !== 'disabled',
         shouldRedirect: featureFlags?.airdrops?.extension === 'redirect',
         redirectHandler: alphaRedirectHandler,
       },
@@ -122,7 +93,6 @@ const BottomNav = observer(({ label, disabled: disabledAll }: BottomNavProps) =>
     featureFlags?.swaps?.extension,
     featureFlags?.airdrops?.extension,
     activeChain,
-    activeNetwork,
     activeChainInfo?.disableStaking,
     activeChainInfo?.evmOnlyChain,
     stakeRedirectForInitiaHandler,

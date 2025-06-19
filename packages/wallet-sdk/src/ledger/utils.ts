@@ -3,7 +3,26 @@ import TransportWebHID from '@ledgerhq/hw-transport-webhid';
 import TransportWebUSB from '@ledgerhq/hw-transport-webusb';
 
 import { sleep } from '../utils';
-import { ledgerLockedError } from './ledger-errors';
+import {
+  bolosError,
+  bolosErrorEth,
+  bolosErrorMessage,
+  bolosErrorMessageEthApp,
+  declinedCosmosAppOpenError,
+  declinedEthAppOpenError,
+  declinedSeiAppOpenError,
+  deviceDisconnectedError,
+  deviceLockedError,
+  ledgerDisconnectMessage,
+  LedgerError,
+  ledgerLockedError,
+  ledgerLockedError2,
+  sizeLimitExceededError,
+  sizeLimitExceededErrorUser,
+  transactionDeclinedErrors,
+  txDeclinedErrorUser,
+} from './ledger-errors';
+
 const ERROR_DESCRIPTION: any = {
   1: 'U2F: Unknown',
   2: 'U2F: Bad request',
@@ -167,5 +186,32 @@ export async function attemptAppOpen(transport: Transport, name: string, retry =
     }
   } catch (e) {
     //
+  }
+}
+
+export function handleError(e: any) {
+  if (e.message.includes(bolosErrorMessage)) {
+    return bolosError;
+  } else if (e.message.includes(bolosErrorMessageEthApp)) {
+    return bolosErrorEth;
+  } else if (e.message.includes(ledgerDisconnectMessage)) {
+    return deviceDisconnectedError;
+  } else if (e.message.includes(ledgerLockedError)) {
+    throw deviceLockedError;
+  } else if (transactionDeclinedErrors.some((message) => e.message.includes(message))) {
+    return txDeclinedErrorUser;
+  } else if (e.message === sizeLimitExceededError) {
+    return sizeLimitExceededErrorUser;
+  } else if (e.message === ledgerLockedError2) {
+    return deviceLockedError;
+  } else if (
+    e.message.includes('Please close the') ||
+    e.message.includes(declinedCosmosAppOpenError) ||
+    e.message.includes(declinedEthAppOpenError) ||
+    e.message.includes(declinedSeiAppOpenError)
+  ) {
+    return new LedgerError(e.message);
+  } else {
+    return new LedgerError('Something went wrong. Please reconnect your Ledger and try again.');
   }
 }

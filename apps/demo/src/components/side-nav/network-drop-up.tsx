@@ -1,7 +1,7 @@
 import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk/dist/constants'
 import { GenericCard, HeaderActionType } from '@leapwallet/leap-ui'
 import React, { useMemo } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import BottomSheet from '~/components/bottom-sheet'
 import CardDivider from '~/components/card-divider'

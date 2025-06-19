@@ -20,4 +20,6 @@ export const chainDecimals: Record<CoinType, number> = {
   '494': 6,
   '0': 8,
   '1': 8,
+  '501': 9,
+  '784': 9,
 }

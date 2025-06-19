@@ -33,7 +33,7 @@ import Lottie from 'lottie-react'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
@@ -163,10 +163,6 @@ const ReviewCancelUnstakeTx = observer(
       sessionStorage.setItem('navigate-stake-pending-txn-state', JSON.stringify(state))
       navigate('/stake/pending-txn', {
         state,
-      })
-
-      mixpanel.track(EventName.TransactionSigned, {
-        transactionType: 'stake_cancel_undelegate',
       })
     }, [activeChain, activeNetwork, navigate, validator])
 

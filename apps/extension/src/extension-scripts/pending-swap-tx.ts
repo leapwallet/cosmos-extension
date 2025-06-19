@@ -1,23 +1,17 @@
 // eslint-disable-next-line simple-import-sort/imports
+import { sleep } from '@leapwallet/cosmos-wallet-sdk'
 import {
-  LifiTrackerResponse,
   LifiTransactionStatus,
   MosaicAPI,
   SKIP_TXN_STATUS,
   SkipAPI,
   TXN_STATUS,
 } from '@leapwallet/elements-core'
-import { originalFetch } from './fetch-preserver'
-import { sleep } from '@leapwallet/cosmos-wallet-sdk'
-import { PENDING_SWAP_TXS } from 'config/storage-keys'
-import Browser from 'webextension-polyfill'
-import { addTxToPendingTxList, TxStoreObject, TxStoreRecord } from 'utils/pendingSwapsTxsStore'
 import { RouteAggregator } from '@leapwallet/elements-hooks'
-import {
-  convertLifiErrorToDisplayError,
-  convertLifiStatusToTxnStatus,
-} from 'pages/swaps-v2/utils/lifiTracking'
+import { PENDING_SWAP_TXS } from 'config/storage-keys'
 import { convertSkipStatusToTxnStatus } from 'pages/swaps-v2/utils'
+import { addTxToPendingTxList, TxStoreObject, TxStoreRecord } from 'utils/pendingSwapsTxsStore'
+import Browser from 'webextension-polyfill'
 
 const pendingTxTrackPromises: Record<string, Promise<'not-tracked' | 'resolved'> | undefined> = {}
 
@@ -45,38 +39,6 @@ async function getTxnStatus({
     rawStatus?: LifiTransactionStatus
   }
 }> {
-  if (aggregator === RouteAggregator.LIFI) {
-    const result = await originalFetch(`https://li.quest/v1/status?txHash=${tx_hash}`, {
-      method: 'GET',
-    })
-
-    if (!result.ok) {
-      return {
-        success: false,
-        response: {
-          error: new Error('Unable to get txn status'),
-        },
-      }
-    }
-    const data: LifiTrackerResponse = await result.json()
-    return {
-      success: true,
-      response: data
-        ? {
-            state: convertLifiStatusToTxnStatus(data.status, data.substatus),
-            error: convertLifiErrorToDisplayError(
-              data.status,
-              data.substatus,
-              data.substatusMessage,
-            ),
-            rawStatus: data.status,
-          }
-        : {
-            state: TXN_STATUS.PENDING,
-            error: 'Unable to get txn status',
-          },
-    }
-  }
   if (aggregator === RouteAggregator.MOSAIC) {
     const res = await MosaicAPI.trackTransaction(tx_hash)
     if (!res.success) {
@@ -145,7 +107,7 @@ export async function trackPendingSwapTx(key: string, pendingTx: TxStoreObject) 
         continue
       }
 
-      let retryCount = 0
+      const retryCount = 0
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const isStillPending = await isTransactionStillPending(key)
@@ -161,20 +123,11 @@ export async function trackPendingSwapTx(key: string, pendingTx: TxStoreObject) 
         if (txnStatus.success) {
           const { state, error } = txnStatus.response
           pendingTx.state = state
-          const isFailedLifiTxn =
-            pendingTx.routingInfo?.aggregator === RouteAggregator.LIFI &&
-            state === TXN_STATUS.FAILED
           if (SKIP_TERMINAL_STATES.includes(state ?? TXN_STATUS.PENDING)) {
-            if (!isFailedLifiTxn || retryCount > 20) {
-              await addTxToPendingTxList(pendingTx)
-              break
-            }
+            await addTxToPendingTxList(pendingTx)
+            break
           }
 
-          if (isFailedLifiTxn) {
-            await sleep(3000)
-            retryCount += 1
-          }
           if (typeof error === 'object' && 'code' in error && retryCount > 20) {
             throw new Error((error as { code: number; message: string }).message)
           }

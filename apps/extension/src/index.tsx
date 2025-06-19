@@ -11,7 +11,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import ErrorBoundaryFallback from 'components/error-boundary-fallback'
 import mixpanel from 'mixpanel-browser'
 import * as React from 'react'
-import * as ReactDOM from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import {
   createRoutesFromChildren,
   matchRoutes,
@@ -114,10 +114,17 @@ setInterval(() => {
   }
 }, 1000)
 
-ReactDOM.render(
+const container = document.getElementById('root')
+if (!container) {
+  throw new Error(
+    'Root element not found. Make sure you have a div with id="root" in your index.html',
+  )
+}
+
+createRoot(container).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary beforeCapture={beforeCapture} fallback={<ErrorBoundaryFallback />}>
-      <LeapUiTheme defaultTheme={ThemeName.SYSTEM}>
+      <LeapUiTheme defaultTheme={ThemeName.DARK} storageKey='theme'>
         {/* <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}> */}
         <QueryClientProvider client={queryClient}>
           <App />
@@ -126,5 +133,4 @@ ReactDOM.render(
       </LeapUiTheme>
     </Sentry.ErrorBoundary>
   </React.StrictMode>,
-  document.getElementById('root'),
 )

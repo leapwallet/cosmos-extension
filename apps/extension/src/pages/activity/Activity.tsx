@@ -14,7 +14,7 @@ import { AggregatedSupportedChain } from 'types/utility'
 import { AggregatedActivity, ChainActivity } from './components'
 
 export default function Activity() {
-  usePageView(PageName.Activity)
+  // usePageView(PageName.Activity)
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const isActivityComingSoon = useIsFeatureExistForChain({
     checkForExistenceType: 'comingSoon',

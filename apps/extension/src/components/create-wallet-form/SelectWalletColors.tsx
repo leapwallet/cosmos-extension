@@ -20,18 +20,18 @@ export default function SelectWalletColors({ selectColorIndex, colorIndex }: Pro
             onClick={() => {
               selectColorIndex(index)
             }}
-            className={classNames('p-[5px] rounded-full', {
+            className={classNames('p-[4px] rounded-full cursor-pointer', {
               'border-2': colorIndex === index,
             })}
             style={{ borderColor: color }}
           >
             <div
               className={classNames(
-                'flex items-center justify-center rounded-full w-[24px] h-[24px]',
+                'flex items-center justify-center rounded-full w-[16px] h-[16px]',
               )}
               style={{ backgroundColor: color }}
             >
-              {index === colorIndex && <Check size={16} className='text-white-100' />}
+              {index === colorIndex && <Check size={12} className='text-white-100' />}
             </div>
           </div>
         )

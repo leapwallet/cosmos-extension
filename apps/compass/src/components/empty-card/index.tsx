@@ -8,6 +8,7 @@ export type EmptyCardProps = {
   heading?: ReactNode
   subHeading?: ReactNode
   classname?: string
+  logoClassName?: string
   imgContainerClassname?: string
   isRounded?: boolean
   'data-testing-id'?: string
@@ -30,7 +31,11 @@ export function EmptyCard(props: PropsWithoutRef<EmptyCardProps>) {
             imgContainerClassname,
           )}
         >
-          <img src={src ?? defaultTokenLogo} className='' onError={imgOnError(defaultTokenLogo)} />
+          <img
+            src={src ?? defaultTokenLogo}
+            className={props.logoClassName}
+            onError={imgOnError(defaultTokenLogo)}
+          />
         </div>
         {heading && (
           <div

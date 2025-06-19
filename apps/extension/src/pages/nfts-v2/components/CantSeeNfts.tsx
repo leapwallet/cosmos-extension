@@ -5,7 +5,6 @@ import { Buttons, GenericCard } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
 import { Images } from 'images'
 import React, { useEffect, useMemo, useState } from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type CantSeeNftsProps = {
   openAddCollectionSheet: () => void
@@ -17,18 +16,8 @@ export function CantSeeNfts({ openAddCollectionSheet, className, nftStore }: Can
   const activeWallet = useActiveWallet()
   const [showDetails, setShowDetails] = useState(false)
   const detailsRef = React.useRef<HTMLDivElement>(null)
-  const showAddCollectionSheet = nftStore.compassSeiApiIsDown
 
   const externalPlatforms = useMemo(() => {
-    const palletSei = {
-      title: 'Pallet (Sei)',
-      account: `https://pallet.exchange/profile/${activeWallet?.addresses.seiTestnet2}`,
-    }
-
-    if (isCompassWallet()) {
-      return [palletSei]
-    }
-
     const stargaze = {
       title: 'Stargaze',
       account: `https://www.stargaze.zone/p/${activeWallet?.addresses.stargaze}/tokens`,
@@ -105,19 +94,17 @@ export function CantSeeNfts({ openAddCollectionSheet, className, nftStore }: Can
         <ol className='list-decimal'>
           <p className='mb-2'>It could be because:</p>
 
-          {isCompassWallet() && !showAddCollectionSheet ? null : (
-            <li className='mb-4 ml-4'>
-              Your NFT collection is not in our auto-fetch list. Add it manually to view your NFTs.
-              <Buttons.Generic
-                onClick={openAddCollectionSheet}
-                size='normal'
-                style={{ width: '100%', height: 44 }}
-                className='mt-2 dark:text-gray-900 text-gray-400'
-              >
-                Add your collection
-              </Buttons.Generic>
-            </li>
-          )}
+          <li className='mb-4 ml-4'>
+            Your NFT collection is not in our auto-fetch list. Add it manually to view your NFTs.
+            <Buttons.Generic
+              onClick={openAddCollectionSheet}
+              size='normal'
+              style={{ width: '100%', height: 44 }}
+              className='mt-2 dark:text-gray-900 text-gray-400'
+            >
+              Add your collection
+            </Buttons.Generic>
+          </li>
 
           <li className='ml-4'>
             We&apos;re temporarily unable to fetch your NFTs from some platforms. You can still view

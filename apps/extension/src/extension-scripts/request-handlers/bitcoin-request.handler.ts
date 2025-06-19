@@ -43,12 +43,16 @@ export const bitcoinRequestHandler = async (
   const supportedChains = await getSupportedChains()
   const chainInfo = supportedChains[bitcoinActiveChain as SupportedChain]
 
+  const sendMessageToInvoker = (eventName: string, payload: any) => {
+    sendResponse(eventName, payload, payloadId)
+  }
+
   async function getWalletInfo(payloadId: number) {
     let store = await browser.storage.local.get([ACTIVE_WALLET])
 
     if (!passwordManager.getPassword()) {
       try {
-        await openPopup('login', '?close-on-login=true')
+        await openPopup('login', '?close-on-login=true', undefined, sendMessageToInvoker)
         await awaitUIResponse('user-logged-in')
         store = await browser.storage.local.get([ACTIVE_WALLET])
       } catch (e: any) {
@@ -136,10 +140,7 @@ export const bitcoinRequestHandler = async (
         supportedChains['bitcoin']?.chainId,
         supportedChains['bitcoinSignet']?.chainId,
       ]
-      let queryString = `?origin=${payload?.origin}`
-      chainIds?.forEach((chainId: string) => {
-        queryString += `&chainIds=${chainId}`
-      })
+      const queryString = `?origin=${payload?.origin}`
 
       checkConnection(chainIds, payload)
         .then(async ({ validChainIds, isNewChainPresent }) => {
@@ -162,7 +163,7 @@ export const bitcoinRequestHandler = async (
                 enableAccessRequests.delete(queryString)
                 enableAccessRequests.set(queryString, popupWindowId)
 
-                await customOpenPopup('approveConnection', sendResponse)
+                await customOpenPopup('approveConnection', sendResponse, queryString)
 
                 requestEnableAccess({
                   origin: payload.origin,
@@ -228,16 +229,18 @@ export const bitcoinRequestHandler = async (
           },
         }
       } else if (method === BITCOIN_METHOD_TYPE.SIGN_PSBT) {
-        const { psbtHex } = payload
+        const { psbtHex, options } = payload
         signTxnData = {
           ...signTxnData,
           psbtHex,
+          options,
         }
       } else if (method === BITCOIN_METHOD_TYPE.SIGN_PSBTS) {
-        const { psbtsHexes } = payload
+        const { psbtsHexes, options } = payload
         signTxnData = {
           ...signTxnData,
           psbtsHexes,
+          options,
         }
       } else if (method === BITCOIN_METHOD_TYPE.SIGN_MESSAGE) {
         const { message, type } = payload

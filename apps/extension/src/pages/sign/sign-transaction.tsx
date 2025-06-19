@@ -51,10 +51,8 @@ import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-option
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
-import SelectWalletSheet from 'components/select-wallet-sheet'
 import { Tabs } from 'components/tabs'
 import Text from 'components/text'
-import { walletLabels } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
 import { BG_RESPONSE } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
@@ -68,7 +66,7 @@ import Long from 'long'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { dappDefaultFeeStore, feeTokensStore } from 'stores/fee-store'
@@ -84,7 +82,6 @@ import { uint8ArrayToBase64 } from 'utils/uint8Utils'
 import browser from 'webextension-polyfill'
 
 import { EventName } from '../../config/analytics'
-import { isCompassWallet } from '../../utils/isCompassWallet'
 import { NotAllowSignTxGasOptions } from './additional-fee-settings'
 import { useFeeValidation } from './fee-validation'
 import { MemoInput } from './memo-input'
@@ -134,13 +131,13 @@ const SignTransaction = observer(
     const isApprovedRef = useRef(false)
     const { theme } = useTheme()
 
-    const [showWalletSelector, setShowWalletSelector] = useState(false)
     const [showMessageDetailsSheet, setShowMessageDetailsSheet] = useState(false)
     const [selectedMessage, setSelectedMessage] = useState<{
       index: number
       parsed: ParsedMessage
       raw: null
     } | null>(null)
+
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
     const [ledgerError, setLedgerError] = useState<string>()
     const [signingError, setSigningError] = useState<string | null>(null)
@@ -199,17 +196,17 @@ const SignTransaction = observer(
     assert(activeWallet !== null, 'activeWallet is null')
 
     const walletName = useMemo(() => {
-      return activeWallet.walletType === WALLETTYPE.LEDGER
-        ? `${walletLabels[activeWallet.walletType]} Wallet ${activeWallet.addressIndex + 1}`
-        : formatWalletName(activeWallet.name)
-    }, [activeWallet.addressIndex, activeWallet.name, activeWallet.walletType])
+      return formatWalletName(activeWallet.name)
+    }, [activeWallet.name])
 
     const { isAmino, isAdr36, ethSignType, signOptions, eip712Types } = useMemo(() => {
       const isAmino = !!txnSigningRequest?.isAmino
       const isAdr36 = !!txnSigningRequest?.isAdr36
+
       const ethSignType = txnSigningRequest?.ethSignType
       const eip712Types = txnSigningRequest?.eip712Types
       const signOptions = txnSigningRequest?.signOptions
+
       return { isAmino, isAdr36, ethSignType, signOptions, eip712Types }
     }, [txnSigningRequest])
 
@@ -393,25 +390,23 @@ const SignTransaction = observer(
       if (isRejectedRef.current || isApprovedRef.current) return
       isRejectedRef.current = true
 
-      if (!isCompassWallet()) {
-        try {
-          mixpanel.track(
-            EventName.DappTxnRejected,
-            {
-              dAppURL: siteOrigin,
-              transactionTypes,
-              signMode: isAmino ? 'sign-amino' : 'sign-direct',
-              walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-              chainId: chainInfo.chainId,
-              chainName: chainInfo.chainName,
-              productVersion: browser.runtime.getManifest().version,
-              time: Date.now() / 1000,
-            },
-            mixpanelTrackOptions,
-          )
-        } catch (e) {
-          captureException(e)
-        }
+      try {
+        // mixpanel.track(
+        //   EventName.DappTxnRejected,
+        //   {
+        //     dAppURL: siteOrigin,
+        //     transactionTypes,
+        //     signMode: isAmino ? 'sign-amino' : 'sign-direct',
+        //     walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+        //     chainId: chainInfo.chainId,
+        //     chainName: chainInfo.chainName,
+        //     productVersion: browser.runtime.getManifest().version,
+        //     time: Date.now() / 1000,
+        //   },
+        //   mixpanelTrackOptions,
+        // )
+      } catch (e) {
+        captureException(e)
       }
 
       browser.runtime.sendMessage({
@@ -436,15 +431,6 @@ const SignTransaction = observer(
       chainInfo.chainName,
       navigate,
     ])
-
-    const currentWalletInfo = useMemo(() => {
-      if (!activeWallet || !chainId || !siteOrigin) return undefined
-      return {
-        wallets: [activeWallet] as [typeof activeWallet],
-        chainIds: [chainId] as [string],
-        origin: siteOrigin,
-      }
-    }, [activeWallet, chainId, siteOrigin])
 
     const recommendedGasLimit: string = useMemo(() => {
       if (defaultFee) {
@@ -539,25 +525,23 @@ const SignTransaction = observer(
           try {
             const txHash = getTxHashFromDirectSignResponse(data)
 
-            if (!isCompassWallet()) {
-              mixpanel.track(
-                EventName.DappTxnApproved,
-                {
-                  dAppURL: siteOrigin,
-                  transactionTypes: Array.isArray(messages)
-                    ? messages?.map((msg) => msg.raw['@type'] ?? msg.raw['type']).filter(Boolean)
-                    : [],
-                  signMode: 'sign-direct',
-                  walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-                  txHash,
-                  chainId: chainInfo.chainId,
-                  chainName: chainInfo.chainName,
-                  productVersion: browser.runtime.getManifest().version,
-                  time: Date.now() / 1000,
-                },
-                mixpanelTrackOptions,
-              )
-            }
+            // mixpanel.track(
+            //   EventName.DappTxnApproved,
+            //   {
+            //     dAppURL: siteOrigin,
+            //     transactionTypes: Array.isArray(messages)
+            //       ? messages?.map((msg) => msg.raw['@type'] ?? msg.raw['type']).filter(Boolean)
+            //       : [],
+            //     signMode: 'sign-direct',
+            //     walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+            //     txHash,
+            //     chainId: chainInfo.chainId,
+            //     chainName: chainInfo.chainName,
+            //     productVersion: browser.runtime.getManifest().version,
+            //     time: Date.now() / 1000,
+            //   },
+            //   mixpanelTrackOptions,
+            // )
           } catch (e) {
             captureException(e)
           }
@@ -724,9 +708,7 @@ const SignTransaction = observer(
               //
             }
 
-            if (!isCompassWallet()) {
-              mixpanel.track(EventName.DappTxnApproved, trackingData, mixpanelTrackOptions)
-            }
+            // mixpanel.track(EventName.DappTxnApproved, trackingData, mixpanelTrackOptions)
           } catch (e) {
             captureException(e)
           }
@@ -803,22 +785,20 @@ const SignTransaction = observer(
       if (isDappTxnInitEventLogged.current) return
 
       try {
-        if (!isCompassWallet()) {
-          mixpanel.track(
-            EventName.DappTxnInit,
-            {
-              dAppURL: siteOrigin,
-              transactionTypes,
-              signMode: isAmino ? 'sign-amino' : 'sign-direct',
-              walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-              chainId: chainInfo.chainId,
-              chainName: chainInfo.chainName,
-              productVersion: browser.runtime.getManifest().version,
-              time: Date.now() / 1000,
-            },
-            mixpanelTrackOptions,
-          )
-        }
+        // mixpanel.track(
+        //   EventName.DappTxnInit,
+        //   {
+        //     dAppURL: siteOrigin,
+        //     transactionTypes,
+        //     signMode: isAmino ? 'sign-amino' : 'sign-direct',
+        //     walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+        //     chainId: chainInfo.chainId,
+        //     chainName: chainInfo.chainName,
+        //     productVersion: browser.runtime.getManifest().version,
+        //     time: Date.now() / 1000,
+        //   },
+        //   mixpanelTrackOptions,
+        // )
 
         isDappTxnInitEventLogged.current = true
       } catch (e) {
@@ -867,7 +847,6 @@ const SignTransaction = observer(
       <div
         className={classNames(
           'panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center',
-          { 'mt-2': !isSidePanel() },
         )}
       >
         <div
@@ -877,6 +856,7 @@ const SignTransaction = observer(
           )}
         >
           <PopupLayout
+            className='flex flex-col'
             header={
               <div className='w-[396px]'>
                 <Header
@@ -886,18 +866,7 @@ const SignTransaction = observer(
                   }
                   imgOnError={imgOnError(theme === ThemeName.DARK ? GenericDark : GenericLight)}
                   title={
-                    <Buttons.Wallet
-                      brandLogo={
-                        isCompassWallet() ? (
-                          <img
-                            className='w-[24px] h-[24px] mr-1'
-                            src={Images.Logos.CompassCircle}
-                          />
-                        ) : undefined
-                      }
-                      title={trim(walletName, 10)}
-                      className='pr-4 cursor-default'
-                    />
+                    <Buttons.Wallet title={trim(walletName, 10)} className='pr-4 cursor-default' />
                   }
                 />
               </div>
@@ -963,7 +932,7 @@ const SignTransaction = observer(
                   fee={fee}
                   chain={activeChain}
                   network={selectedNetwork}
-                  validateFee={true}
+                  validateFee={!isAdr36}
                   onInvalidFees={(feeTokenData: NativeDenom, isFeesValid: boolean | null) => {
                     try {
                       if (isFeesValid === false) {
@@ -1137,13 +1106,7 @@ const SignTransaction = observer(
                   setShowLedgerPopup(false)
                 }}
               />
-              <SelectWalletSheet
-                isOpen={showWalletSelector}
-                onClose={() => setShowWalletSelector(false)}
-                currentWalletInfo={currentWalletInfo}
-                title='Select Wallet'
-                activeChain={activeChain}
-              />
+
               <MessageDetailsSheet
                 isOpen={showMessageDetailsSheet}
                 setIsOpen={setShowMessageDetailsSheet}
@@ -1177,7 +1140,7 @@ const SignTransaction = observer(
               )}
             </div>
 
-            <div className='absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full'>
+            <div className='py-3 px-7 dark:bg-black-100 bg-gray-50 w-full mt-auto'>
               {hasToShowCheckbox && (
                 <div className='flex flex-row items-start mb-3 border border-yellow-600 rounded-lg p-[4px]'>
                   <div
@@ -1201,7 +1164,7 @@ const SignTransaction = observer(
                 </div>
               )}
 
-              <div className='flex items-center justify-center w-full space-x-3'>
+              <div className='flex items-center justify-center w-full space-x-3 mt-2'>
                 <Buttons.Generic
                   title={'Reject Button'}
                   color={Colors.gray900}

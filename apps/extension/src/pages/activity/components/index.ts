@@ -1,5 +1,5 @@
+export * from './activity-icon'
 export * from './ActivityCard'
-export * from './ActivityIcon'
 export * from './AggregatedActivity'
 export * from './ChainActivity'
 export * from './ErrorActivityView'

@@ -53,44 +53,34 @@ export function VoteDetails({
     case ProposalStatusEnum.PROPOSAL_STATUS_VOTING_PERIOD:
       return (
         <>
-          <div className='rounded-2xl bg-white-100 dark:bg-gray-900 flex flex-col mt-4'>
-            <div className='flex items-center justify-between gap-3 p-4'>
-              <div className='text-black-100 dark:text-white-100 text-base font-bold'>
-                Voting Starts
-              </div>
+          <div className='rounded-2xl bg-secondary-100 flex flex-col mt-7'>
+            <div className='flex items-center justify-between gap-3 px-5 py-4'>
+              <div className='text-secondary-800 text-sm'>Voting Starts</div>
 
-              <div className='text-black-100 dark:text-white-100 text-sm font-bold'>
+              <div className='text-foreground text-sm font-bold'>
                 {dayjs(proposal.voting_start_time).format('MMM DD, YYYY')}
               </div>
             </div>
+            <div className='h-[1px] bg-secondary-300' />
 
-            <CardDivider />
+            <div className='flex items-center justify-between gap-3 px-5 py-4'>
+              <div className='text-secondary-800 text-sm'>Voting Ends</div>
 
-            <div className='flex items-center justify-between gap-3 p-4'>
-              <div className='text-black-100 dark:text-white-100 text-base font-bold'>
-                Voting Ends
-              </div>
-
-              <div className='text-black-100 dark:text-white-100 text-sm font-bold'>
+              <div className='text-foreground text-sm font-bold'>
                 {dayjs(proposal.voting_end_time).format('MMM DD, YYYY')}
               </div>
             </div>
+            {timeLeft && (
+              <>
+                <div className='h-[1px] bg-secondary-300' />
+                <div className='flex items-center justify-between gap-3 px-5 py-4'>
+                  <div className='text-secondary-800 text-sm'>Ending in</div>
 
-            <div className='px-4 pb-4 text-xs text-gray-600 dark:text-gray-200 min-h-[32px]'>
-              {timeLeft && `Ending in ${timeLeft}`}
-            </div>
+                  <div className='text-foreground text-sm font-bold'>{timeLeft}</div>
+                </div>
+              </>
+            )}
           </div>
-
-          {isLoading ? (
-            <div className='rounded-2xl mt-4 h-18 w-full p-4 flex bg-white-100 dark:bg-gray-900'>
-              <Skeleton count={1} className='rounded-full mt-4 h-10 w-10' />
-
-              <div className='ml-3 w-full'>
-                <Skeleton count={1} className='h-6' />
-                <Skeleton count={1} className='h-5' />
-              </div>
-            </div>
-          ) : null}
 
           {currVote && currVote !== 'NO_VOTE' && (
             <div
@@ -108,38 +98,28 @@ export function VoteDetails({
               </div>
             </div>
           )}
-
-          <Buttons.Generic
-            color={Colors.getChainColor(activeChain)}
-            size='normal'
-            className='w-[344px] py-4 mt-4'
-            onClick={() => onVote()}
-            disabled={!hasMinStaked}
-          >
-            <div className={'flex justify-center text-white-100 items-center'}>
-              <Vote size={20} className='mr-2' />
-              <span>Vote</span>
-            </div>
-          </Buttons.Generic>
         </>
       )
 
     case ProposalStatusEnum.PROPOSAL_STATUS_DEPOSIT_PERIOD:
       return (
         <>
-          <div className='rounded-2xl bg-white-100 dark:bg-gray-900 flex flex-col mt-4'>
-            <div className='flex items-center justify-between gap-3 p-4'>
-              <div className='text-black-100 dark:text-white-100 text-base font-bold'>
-                Deposit Period Ends
-              </div>
-              <div className='text-black-100 dark:text-white-100 text-sm font-bold'>
+          <div className='rounded-2xl bg-secondary-100 flex flex-col mt-7'>
+            <div className='flex items-center justify-between gap-3 px-5 py-4'>
+              <div className='text-secondary-800 text-sm'>Deposit Period Ends</div>
+              <div className='text-foreground text-sm font-bold'>
                 {dayjs(proposal.deposit_end_time).format('MMM DD, YYYY')}
               </div>
             </div>
             {timeLeft && (
-              <div className='px-4 pb-4 text-xs text-gray-600 dark:text-gray-200 min-h-[32px]'>
-                {timeLeft && `Ending in ${timeLeft}`}
-              </div>
+              <>
+                <div className='h-[1px] bg-secondary-300' />
+                <div className='flex items-center justify-between gap-3 px-5 py-4'>
+                  <div className='text-secondary-800 text-sm'>Ending in</div>
+
+                  <div className='text-foreground text-sm font-bold'>{timeLeft}</div>
+                </div>
+              </>
             )}
           </div>
         </>
@@ -150,28 +130,23 @@ export function VoteDetails({
     case ProposalStatusEnum.PROPOSAL_STATUS_REJECTED:
       return (
         <>
-          <div className='rounded-2xl bg-white-100 dark:bg-gray-900 flex flex-col mt-4'>
-            <div className='flex items-center gap-3 p-4'>
-              <div className='text-gray-600 w-[200px] dark:text-gray-200 text-xs font-bold'>
-                Results
-              </div>
-              <div className='text-gray-600 dark:text-gray-200 text-xs font-bold'></div>
-            </div>
+          <div className='rounded-2xl bg-secondary-100 flex flex-col mt-7 p-5'>
+            <div className='text-secondary-800 mb-5 text-sm font-bold'>Results</div>
 
-            <div className='flex flex-col justify-center gap-3 p-4'>
+            <div className='flex flex-col justify-center gap-3'>
               {voteRatio(
                 (proposal as unknown as ProposalApi).tally || proposal.final_tally_result,
               ).map((values) => (
                 <div
                   key={values.label}
                   className={classNames(
-                    'flex relative overflow-clip border-2 rounded-2xl',
+                    'flex relative overflow-clip border rounded-lg',
                     values.selectedBorderCSS,
                   )}
                 >
                   <div
                     className={classNames(
-                      'text-black-100 dark:text-white-100 font-bold py-2 z-10 flex-1',
+                      'text-foreground text-sm font-bold py-2 z-10 flex-1',
                       values.selectedBorderCSS,
                     )}
                   >
@@ -179,7 +154,7 @@ export function VoteDetails({
                   </div>
                   <div
                     className={classNames(
-                      'text-black-100 py-[10px] dark:text-white-100 shrink-0',
+                      'text-foreground text-sm py-[10px] shrink-0',
                       values.selectedBorderCSS,
                     )}
                   >

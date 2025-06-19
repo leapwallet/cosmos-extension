@@ -1,5 +1,4 @@
 import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
-import { MosaicAPI } from '@leapwallet/elements-core'
 import {
   SkipSupportedChainData,
   useChains,
@@ -19,14 +18,8 @@ export function useGetChainsToShow() {
       chainTypes: ['cosmos', 'evm'],
     })
 
-  const skipAndMosaicChains = useMemo(() => {
-    return skipSupportedChains
-      ? [...skipSupportedChains, ...MosaicAPI.supportedChains]
-      : MosaicAPI.supportedChains
-  }, [skipSupportedChains])
-
   const chainsToShow = useMemo(() => {
-    if (skipAndMosaicChains) {
+    if (skipSupportedChains) {
       const _chainsToShow: SourceChain[] = []
 
       const allChains = { ...customChains, ...chains }
@@ -34,7 +27,7 @@ export function useGetChainsToShow() {
       Object.values(allChains)
         .filter((chain) => (isCompassWallet() ? chain.chainId === 'pacific-1' : true))
         .forEach((chain) => {
-          const skipChain = skipAndMosaicChains.find(
+          const skipChain = skipSupportedChains.find(
             (_skipChain) =>
               _skipChain.chainId === chain.chainId ||
               (chain.evmOnlyChain && _skipChain.chainId === chain.evmChainId),
@@ -106,7 +99,7 @@ export function useGetChainsToShow() {
     }
 
     return []
-  }, [chains, customChains, skipAndMosaicChains])
+  }, [chains, customChains, skipSupportedChains])
 
   return { chainsToShow, chainsToShowLoading: isLoading || skipSupportedChainsLoading }
 }

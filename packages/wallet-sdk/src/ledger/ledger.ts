@@ -10,105 +10,94 @@ import { Secp256k1Signature } from '@cosmjs/crypto';
 import { Algo } from '@cosmjs/proto-signing';
 import * as bytes from '@ethersproject/bytes';
 import { _TypedDataEncoder as TypedDataEncoder } from '@ethersproject/hash';
-import { JsonRpcProvider, Provider, TransactionRequest, TransactionResponse } from '@ethersproject/providers';
+import { JsonRpcProvider, TransactionRequest, TransactionResponse } from '@ethersproject/providers';
 import { encodeSecp256k1Signature, Secp256k1 } from '@leapwallet/leap-keychain';
 import EthereumApp from '@ledgerhq/hw-app-eth';
 import Transport from '@ledgerhq/hw-transport';
 import { CosmosApp } from '@zondax/ledger-cosmos-js';
 import { bech32 } from 'bech32';
 import { Address as EthereumUtilsAddress, isHexString } from 'ethereumjs-util';
-import { BigNumber, Signer, utils } from 'ethers';
+import { utils } from 'ethers';
 
 import { ChainInfo, SupportedChain } from '../constants';
 import { getBech32Address, getEthereumAddress } from '../utils';
+import { CompassSeiLedgerSigner } from './compass-sei-ledger-signer';
 import {
   bolosError,
-  bolosErrorEth,
   bolosErrorMessage,
-  bolosErrorMessageEthApp,
   declinedCosmosAppOpenError,
   declinedEthAppOpenError,
   deviceDisconnectedError,
   deviceLockedError,
-  ethAppEnableContractDataError,
   ledgerDisconnectMessage,
   LedgerError,
   ledgerLockedError,
-  ledgerLockedError2,
-  sizeLimitExceededError,
-  sizeLimitExceededErrorUser,
-  transactionDeclinedErrors,
-  txDeclinedErrorUser,
 } from './ledger-errors';
+import { LedgerSignerEthers } from './ledger-signer-ethers';
 import { getSpeculosTransport, getUseSpeculosTransport } from './speculos-transport';
-import { isAppOpen, openApp } from './utils';
-
-class LedgerSignerEthers extends Signer {
-  constructor(
-    private readonly signer: LeapLedgerSignerEth,
-    private eth: EthereumApp,
-    public path: string,
-    public provider?: Provider,
-  ) {
-    super();
-  }
-
-  async getAddress() {
-    const accounts = await this.signer.getAccounts();
-    return getEthereumAddress(accounts[0].address);
-  }
-
-  async signMessage(message: utils.Bytes | string) {
-    if (typeof message === 'string') {
-      message = utils.toUtf8Bytes(message);
-    }
-
-    const messageHex = utils.hexlify(message).substring(2);
-
-    const sig = await this.eth.signPersonalMessage(this.path, messageHex);
-
-    sig.r = '0x' + sig.r;
-    sig.s = '0x' + sig.s;
-    return utils.joinSignature(sig);
-  }
-
-  async signTransaction(transaction: TransactionRequest): Promise<string> {
-    const tx = await utils.resolveProperties(transaction);
-    const baseTx: utils.UnsignedTransaction = {
-      chainId: tx.chainId || undefined,
-      data: tx.data || undefined,
-      gasLimit: tx.gasLimit || undefined,
-      gasPrice: tx.maxPriorityFeePerGas || undefined,
-      nonce: tx.nonce ? BigNumber.from(tx.nonce).toNumber() : undefined,
-      to: tx.to || undefined,
-      value: tx.value || undefined,
-    };
-    const unsignedTx = utils.serializeTransaction(baseTx).substring(2);
-    const resolution = {
-      domains: [],
-      plugin: [],
-      externalPlugin: [],
-      nfts: [],
-      erc20Tokens: [],
-    };
-
-    const signature = await this.eth.signTransaction(this.path, unsignedTx, resolution);
-    return utils.serializeTransaction(baseTx, {
-      v: BigNumber.from('0x' + signature.v).toNumber(),
-      r: '0x' + signature.r,
-      s: '0x' + signature.s,
-    });
-  }
-
-  connect(provider: Provider): Signer {
-    return new LedgerSignerEthers(this.signer, this.eth, this.path, provider);
-  }
-}
+import { handleError, isAppOpen, openApp } from './utils';
 
 const isWindows = () => navigator.platform.indexOf('Win') > -1;
 
+type LedgerAppId = 'cosmos' | 'eth' | 'sei';
+
+async function revokeHIDPermissions() {
+  const vendorId = '0x2C97';
+  // Method 1: Using Permissions API (Chrome 85+)
+
+  try {
+    //@ts-expect-error navigator.hid is available
+    const devices = await navigator.hid.requestDevice({
+      filters: [
+        {
+          vendorId,
+        },
+      ],
+    });
+    if (devices.length === 0) {
+      devices.map((device: any) => device.forget());
+      return false;
+    }
+    console.log('HID permissions revoked successfully');
+    return true;
+  } catch (e) {
+    console.log('Permission API not supported for HID or revoke not available:', e);
+  }
+
+  // Method 2: Force user to clear site data manually (fallback)
+  // We can't programmatically clear permissions in browsers that don't support revoke(),
+  // so we'll need to instruct the user
+
+  console.log('Unable to programmatically revoke HID permissions');
+  return false;
+}
+
+async function disconnectLedger() {
+  const TransportWebHid = (await import('@ledgerhq/hw-transport-webhid')).default;
+  const existingDevices = await TransportWebHid.list();
+
+  for (const device of existingDevices) {
+    try {
+      if (device.opened) device.close();
+
+      const transport = await TransportWebHid.open(device);
+      if (transport) {
+        await transport.close();
+      }
+    } catch (e) {
+      console.error('Error closing transport:', e);
+    }
+  }
+}
+
 export async function getLedgerTransport(): Promise<Transport> {
   let transport;
+
+  try {
+    await disconnectLedger();
+  } catch (e) {
+    console.log('No existing connections to disconnect or error during disconnection:', e);
+  }
   if (getUseSpeculosTransport()) {
     transport = await getSpeculosTransport();
     return transport;
@@ -127,10 +116,11 @@ export async function getLedgerTransport(): Promise<Transport> {
     transport = await TransportWebHid.create();
   } else {
     // For other than Windows
-    const TransportWebUsb = (await import('@ledgerhq/hw-transport-webusb')).default;
+    const TransportWebhid = (await import('@ledgerhq/hw-transport-webhid')).default;
     try {
-      transport = await TransportWebUsb.create();
+      transport = await TransportWebhid.create();
     } catch (e) {
+      console.log('error', e);
       throw new LedgerError(
         'Unable to connect to Ledger device. Please check if your Ledger is connected and try again.',
       );
@@ -141,39 +131,9 @@ export async function getLedgerTransport(): Promise<Transport> {
   return transport;
 }
 
-function handleError(e: any) {
-  if (e instanceof LedgerError) {
-    return e;
-  }
-  if (e.message.includes(bolosErrorMessage)) {
-    return bolosError;
-  } else if (e.message.includes(bolosErrorMessageEthApp)) {
-    return bolosErrorEth;
-  } else if (e.message.includes(ledgerDisconnectMessage)) {
-    return deviceDisconnectedError;
-  } else if (e.message.includes(ledgerLockedError)) {
-    throw deviceLockedError;
-  } else if (transactionDeclinedErrors.some((message) => e.message.includes(message))) {
-    return txDeclinedErrorUser;
-  } else if (e.message === sizeLimitExceededError) {
-    return sizeLimitExceededErrorUser;
-  } else if (e.message === ledgerLockedError2) {
-    return deviceLockedError;
-  } else if (e.message.includes(ethAppEnableContractDataError)) {
-    return new LedgerError(ethAppEnableContractDataError);
-  } else if (
-    e.message.includes('Please close the') ||
-    e.message.includes(declinedCosmosAppOpenError) ||
-    e.message.includes(declinedEthAppOpenError)
-  ) {
-    return new LedgerError(e.message);
-  } else {
-    return new LedgerError('Something went wrong. Please reconnect your Ledger and try again.');
-  }
-}
-
 export class LeapLedgerSigner {
   private ledger: CosmosApp;
+
   constructor(private transport: Transport, private options: { hdPaths: string[]; prefix: string }) {
     this.ledger = new CosmosApp(transport);
   }
@@ -183,6 +143,7 @@ export class LeapLedgerSigner {
       .split('/')
       .filter((x) => x !== 'm')
       .map((x) => parseInt(x, 10));
+
     return path;
   }
 
@@ -190,17 +151,19 @@ export class LeapLedgerSigner {
     try {
       const defaultHdPath = [44, 118, 0, 0, 0];
       const response = await this.ledger.getAddressAndPubKey(defaultHdPath, 'cosmos');
+
       return response.error_message === 'No errors';
     } catch {
       return false;
     }
   }
 
-  async getAccounts(closeTransport?: boolean): Promise<readonly AccountData[]> {
+  async getAccounts(closeTransport?: boolean): Promise<Array<AccountData & { path: string }>> {
     try {
-      const accounts: AccountData[] = [];
+      const accounts: Array<AccountData & { path: string }> = [];
       const hdPaths = this.options.hdPaths;
       const isCosmosAppOpen = await isAppOpen(this.transport, 'Cosmos');
+
       try {
         if (!isCosmosAppOpen) {
           const newTransport = await openApp(this.transport, 'Cosmos');
@@ -301,17 +264,14 @@ export class LeapLedgerSignerEth {
     return TypedDataEncoder.from(
       (() => {
         const types = { ...message.types };
-
         delete types['EIP712Domain'];
 
         const primary = types[message.primaryType];
-
         if (!primary) {
           throw new Error(`Could not find  matching  primary type : ${message.primaryType}`);
         }
 
         delete types[message.primaryType];
-
         return {
           [message.primaryType]: primary,
           ...types,
@@ -320,18 +280,23 @@ export class LeapLedgerSignerEth {
     ).hash(message.message);
   }
 
-  private async _getAccounts(closeTransport?: boolean): Promise<Array<AccountData & { hexAddress: string }>> {
+  private async _getAccounts(
+    closeTransport?: boolean,
+  ): Promise<Array<AccountData & { hexAddress: string; path: string }>> {
     try {
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPaths = this.options.hdPaths ?? [defaultHdPath];
-      const accounts: Array<AccountData & { hexAddress: string }> = [];
+
+      const accounts: Array<AccountData & { hexAddress: string; path: string }> = [];
       const isEthAppOpen = await isAppOpen(this.transport, 'Ethereum');
+
       try {
         if (!isEthAppOpen) {
           const newTransport = await openApp(this.transport, 'Ethereum');
           if (this.transport) {
             await this.transport.close().catch(() => {});
           }
+
           const verifyAppOpen = await isAppOpen(newTransport, 'Ethereum');
           if (!verifyAppOpen) {
             throw new LedgerError(
@@ -347,9 +312,11 @@ export class LeapLedgerSignerEth {
           throw new Error(declinedEthAppOpenError);
         }
       }
+
       for await (const hdPath of hdPaths) {
         const { address, publicKey } = await this.ledger.getAddress(hdPath ?? defaultHdPath);
         const addressBuffer = EthereumUtilsAddress.fromString(address).toBuffer();
+
         const bech32Address = bech32.encode(this.options.prefix ?? 'inj', bech32.toWords(addressBuffer));
         const compressedPubKey = Secp256k1.publicKeyConvert(Buffer.from(publicKey, 'hex'), true);
 
@@ -363,9 +330,11 @@ export class LeapLedgerSignerEth {
 
         accounts.push(account);
       }
+
       if (closeTransport) {
         this.transport.close().catch(() => {});
       }
+
       return accounts;
     } catch (e) {
       this.transport.close().catch(() => {});
@@ -373,7 +342,7 @@ export class LeapLedgerSignerEth {
     }
   }
 
-  async getAccounts(closeTransport?: boolean): Promise<readonly AccountData[]> {
+  async getAccounts(closeTransport?: boolean): Promise<Array<AccountData & { path: string }>> {
     const accounts = await this._getAccounts(closeTransport);
     return accounts;
   }
@@ -382,6 +351,7 @@ export class LeapLedgerSignerEth {
     try {
       const accounts = await this.getAccounts();
       const account = accounts?.find((account) => account.address === signerAddress);
+
       if (!account) throw new Error('Account not found');
       const message = Buffer.from(
         JSON.stringify({
@@ -391,8 +361,10 @@ export class LeapLedgerSignerEth {
           message: signDoc,
         }),
       );
+
       const splitSignature = await this.signEip712(signerAddress, message);
       const signature = bytes.arrayify(bytes.concat([splitSignature.r, splitSignature.s]));
+
       return {
         signed: signDoc,
         signature: encodeSecp256k1Signature(account.pubkey, signature),
@@ -405,7 +377,7 @@ export class LeapLedgerSignerEth {
 
   async sign(signerAddress: string, eipToSign: any) {
     try {
-      this.getAccount(signerAddress);
+      await this.getAccount(signerAddress);
       return this.signEip712(signerAddress, eipToSign);
     } catch (e) {
       await this.transport.close();
@@ -422,6 +394,7 @@ export class LeapLedgerSignerEth {
         }
         return account.address === signerAddress;
       });
+
       if (!account) throw new Error('Account not found');
       return account;
     } catch (e) {
@@ -438,28 +411,29 @@ export class LeapLedgerSignerEth {
     };
   }
 
-  async signPersonalMessage(signerAddress: string, message: string) {
+  async signPersonalMessage(signerAddress: string, message: string | Uint8Array) {
     try {
       await this.getAccount(signerAddress);
       const defaultHdPath = "m/44'/60'/0'/0/0";
       const hdPath = this.options.hdPaths?.toString() ?? defaultHdPath;
-      if (!message.startsWith('0x')) {
+
+      if (typeof message === 'string' && !message.startsWith('0x')) {
         message = `0x${message}`;
       }
-      const messageHex = utils.hexlify(message).substring(2);
-
-      const signature = await this.ledger.signPersonalMessage(hdPath, messageHex);
-      await this.transport.close();
+      const messageHex = utils.hexlify(message);
+      const signature = await this.ledger.signPersonalMessage(hdPath, messageHex.substring(2));
       return LeapLedgerSignerEth.formatSignature(signature);
     } catch (e) {
-      await this.transport.close();
       throw handleError(e);
+    } finally {
+      await this.transport.close();
     }
   }
 
   async signMessage(message: utils.Bytes | string): Promise<string> {
     const leapLedgerSignerEthers = new LedgerSignerEthers(this, this.ledger, this.options.hdPaths[0], this.provider);
     const response = await leapLedgerSignerEthers.signMessage(message);
+
     return response;
   }
 
@@ -467,6 +441,7 @@ export class LeapLedgerSignerEth {
     try {
       await this.getAccount(signerAddress);
       const defaultHdPath = "m/44'/60'/0'/0/0";
+
       const hdPath = this.options.hdPaths?.toString() ?? defaultHdPath;
       const resolution = {
         domains: [],
@@ -478,6 +453,7 @@ export class LeapLedgerSignerEth {
 
       const signature = await this.ledger.signTransaction(hdPath, transaction, resolution);
       await this.transport.close();
+
       return LeapLedgerSignerEth.formatSignature(signature) as { r: string; s: string; v: number };
     } catch (e) {
       await this.transport.close();
@@ -493,6 +469,7 @@ export class LeapLedgerSignerEth {
     try {
       const ledgerSignerEthers = new LedgerSignerEthers(this, this.ledger, this.options.hdPaths[0], this.provider);
       const response = await ledgerSignerEthers.sendTransaction(transactionRequest);
+
       return response;
     } catch (e) {
       try {
@@ -527,23 +504,34 @@ export class LeapLedgerSignerEth {
   }
 }
 
-export async function isLedgerUnlocked(appName: 'Cosmos' | 'Ethereum') {
+export async function isLedgerUnlocked(appName: 'Cosmos' | 'Ethereum', revokePermission?: boolean) {
+  if (revokePermission) {
+    await revokeHIDPermissions();
+  }
   let transport;
+
   try {
     transport = await getLedgerTransport();
+
     if (appName === 'Cosmos') {
       const cosmosApp = new CosmosApp(transport);
       const response = await cosmosApp.appInfo();
+
       return response.error_message === 'No errors';
     } else {
       const ethApp = new EthereumApp(transport);
       await ethApp.getAppConfiguration();
+
       return true;
     }
   } catch (e) {
+    if (e.message.includes('Unable to connect to Ledger device')) {
+      return false;
+    }
     if (!e.message.includes(ledgerLockedError)) {
       return true;
     }
+
     return false;
   } finally {
     transport?.close();
@@ -556,14 +544,19 @@ export async function importLedgerAccount(
   primaryChain: SupportedChain,
   chainsToImport: SupportedChain[],
   chainInfos: Record<SupportedChain, ChainInfo>,
-  customDerivationPath?: string[],
+  customDerivationPath: string[] = [],
+  useCompassSeiApp: boolean = false,
 ) {
   let transport;
+
   try {
     const cosmosDefaultChain = 'cosmos';
     const ethDefaultChain = 'injective';
+    const compassSeiDefaultChain = 'seiTestnet2';
+
     const addressIndexes = indexes ?? [0, 1, 2, 3];
     transport = await getLedgerTransport();
+
     const getHdPaths = (addressIndexes: Array<number>, coinType: string) => {
       return addressIndexes.map((adIdx) => `m/44'/${coinType}'/0'/0/${adIdx}`);
     };
@@ -572,27 +565,37 @@ export async function importLedgerAccount(
       return customDerivationPath.map((path) => `m/44'/${coinType}'/${path}`);
     };
 
-    const ledgerSigner = new LeapLedgerSigner(transport, {
-      prefix: chainInfos[primaryChain ?? cosmosDefaultChain].addressPrefix,
-      hdPaths:
-        customDerivationPath && customDerivationPath?.length
-          ? getHdCustomPaths(customDerivationPath, '118')
-          : getHdPaths(addressIndexes, '118'),
-    });
+    const getPaths = (coinType: string) => [
+      ...getHdPaths(addressIndexes, coinType),
+      ...getHdCustomPaths(customDerivationPath, coinType),
+    ];
 
-    const ethLedgerSigner = new LeapLedgerSignerEth(transport, {
-      prefix: chainInfos[primaryChain ?? ethDefaultChain].addressPrefix,
-      hdPaths:
-        customDerivationPath && customDerivationPath?.length
-          ? getHdCustomPaths(customDerivationPath, '60')
-          : getHdPaths(addressIndexes, '60'),
-    });
+    let primaryChainAccount;
 
-    const primaryChainAccount = useEthApp
-      ? await ethLedgerSigner.getAccounts(true)
-      : await ledgerSigner.getAccounts(true);
+    if (useCompassSeiApp) {
+      const compassSeiLedgerSigner = new CompassSeiLedgerSigner(transport, {
+        hdPaths: getHdPaths(addressIndexes, '60'),
+        prefix: chainInfos[primaryChain ?? compassSeiDefaultChain].addressPrefix,
+      });
+      primaryChainAccount = await compassSeiLedgerSigner.getAccounts(true);
+    } else if (useEthApp) {
+      const ethLedgerSigner = new LeapLedgerSignerEth(transport, {
+        prefix: chainInfos[primaryChain ?? ethDefaultChain].addressPrefix,
+        hdPaths: getPaths('60'),
+      });
+      primaryChainAccount = await ethLedgerSigner.getAccounts(true);
+    } else {
+      const ledgerSigner = new LeapLedgerSigner(transport, {
+        prefix: chainInfos[primaryChain ?? cosmosDefaultChain].addressPrefix,
+        hdPaths: getPaths('118'),
+      });
+      primaryChainAccount = await ledgerSigner.getAccounts(true);
+    }
+
     const chainWiseAddresses: Record<string, Array<{ address: string; pubKey: Uint8Array }>> = {};
+    let pathWiseAddresses: Record<string, Record<string, { address: string; pubKey: Uint8Array }>> = {};
     let enabledChains: Array<any> = [];
+
     if (useEthApp) {
       enabledChains = Object.entries(chainInfos).filter(
         (chain) =>
@@ -606,17 +609,34 @@ export async function importLedgerAccount(
           chain[1].bip44.coinType !== '931' &&
           chain[1].bip44.coinType !== '0' &&
           chain[1].bip44.coinType !== '1' &&
-          chain[1].bip44.coinType !== '637',
+          chain[1].bip44.coinType !== '637' &&
+          chain[1].bip44.coinType !== '501' &&
+          chain[1].bip44.coinType !== '784',
       );
     }
 
     for (const chainEntries of enabledChains) {
       const [chain, chainInfo] = chainEntries;
+
       for (const account of primaryChainAccount) {
         const pubKey = account.pubkey;
+        const path = account.path;
+        const shortPath = path
+          .split('/')
+          .slice(3, path.length - 1)
+          .join('/');
         const address = useEthApp
           ? convertEvmChainAddress(account.address, chainInfo.addressPrefix)
           : pubkeyToAddress(encodeSecp256k1Pubkey(pubKey), chainInfo.addressPrefix);
+
+        pathWiseAddresses = {
+          ...pathWiseAddresses,
+          [shortPath]: {
+            ...pathWiseAddresses[shortPath],
+            [chain]: { address, pubKey },
+          },
+        };
+
         if (chainWiseAddresses[chain]) {
           chainWiseAddresses[chain].push({ address, pubKey });
         } else {
@@ -625,15 +645,147 @@ export async function importLedgerAccount(
       }
     }
 
-    return { primaryChainAccount, chainWiseAddresses };
+    return { primaryChainAccount, chainWiseAddresses, pathWiseAddresses };
   } catch (e) {
     transport = undefined;
     if (e.message.includes(bolosErrorMessage)) {
       throw bolosError;
     }
+
     if (e.message.includes(ledgerDisconnectMessage)) {
       throw deviceDisconnectedError;
     }
+
+    if (e.message.includes(ledgerLockedError)) {
+      throw deviceLockedError;
+    }
+
+    throw new LedgerError(e.message);
+  }
+}
+
+export async function importLedgerAccountV2(
+  app: LedgerAppId,
+  indexes: Array<number>,
+  customDerivationPath: string[] = [],
+  chainConfig: {
+    primaryChain: SupportedChain;
+    chainsToImport: SupportedChain[];
+    chainInfos: Record<SupportedChain, { addressPrefix: string; enabled: boolean; coinType: string }>;
+  },
+) {
+  let transport;
+
+  try {
+    const cosmosDefaultChain = 'cosmos';
+    const ethDefaultChain = 'injective';
+    const compassSeiDefaultChain = 'seiTestnet2';
+
+    const addressIndexes = indexes ?? [0, 1, 2, 3];
+    transport = await getLedgerTransport();
+
+    const getHdPaths = (addressIndexes: Array<number>, coinType: string) => {
+      return addressIndexes.map((adIdx) => `m/44'/${coinType}'/0'/0/${adIdx}`);
+    };
+
+    const getHdCustomPaths = (customDerivationPath: Array<string>, coinType: string) => {
+      return customDerivationPath.map((path) => `m/44'/${coinType}'/${path}`);
+    };
+
+    const getPaths = (coinType: string) => [
+      ...getHdPaths(addressIndexes, coinType),
+      ...getHdCustomPaths(customDerivationPath, coinType),
+    ];
+
+    let primaryChainAccount;
+
+    const { chainInfos, primaryChain, chainsToImport } = chainConfig;
+
+    if (app === 'sei') {
+      const compassSeiLedgerSigner = new CompassSeiLedgerSigner(transport, {
+        hdPaths: getPaths('60'),
+        prefix: chainInfos[primaryChain ?? compassSeiDefaultChain].addressPrefix,
+      });
+      primaryChainAccount = await compassSeiLedgerSigner.getAccounts(true);
+    } else if (app === 'eth') {
+      const ethLedgerSigner = new LeapLedgerSignerEth(transport, {
+        prefix: chainInfos[primaryChain ?? ethDefaultChain].addressPrefix,
+        hdPaths: getPaths('60'),
+      });
+      primaryChainAccount = await ethLedgerSigner.getAccounts(true);
+    } else {
+      const ledgerSigner = new LeapLedgerSigner(transport, {
+        prefix: chainInfos[primaryChain ?? cosmosDefaultChain].addressPrefix,
+        hdPaths: getPaths('118'),
+      });
+      primaryChainAccount = await ledgerSigner.getAccounts(true);
+    }
+
+    const chainWiseAddresses: Record<string, Array<{ address: string; pubKey: Uint8Array }>> = {};
+    let pathWiseAddresses: Record<string, Record<string, { address: string; pubKey: Uint8Array }>> = {};
+    let enabledChains: Array<any> = [];
+
+    if (app === 'eth') {
+      enabledChains = Object.entries(chainInfos).filter(
+        (chain) =>
+          chain[1].enabled && chain[1].coinType === '60' && chainsToImport.includes(chain[0] as SupportedChain),
+      );
+    } else {
+      enabledChains = Object.entries(chainInfos).filter(
+        (chain) =>
+          chain[1].enabled &&
+          chain[1].coinType !== '60' &&
+          chain[1].coinType !== '931' &&
+          chain[1].coinType !== '0' &&
+          chain[1].coinType !== '1' &&
+          chain[1].coinType !== '637' &&
+          chain[1].coinType !== '501' &&
+          chain[1].coinType !== '784',
+      );
+    }
+
+    for (const chainEntries of enabledChains) {
+      const [chain, chainInfo] = chainEntries;
+
+      for (const account of primaryChainAccount) {
+        const pubKey = account.pubkey;
+        const path = account.path;
+        const shortPath = path
+          .split('/')
+          .slice(3, path.length - 1)
+          .join('/');
+        const address =
+          app === 'eth'
+            ? convertEvmChainAddress(account.address, chainInfo.addressPrefix)
+            : pubkeyToAddress(encodeSecp256k1Pubkey(pubKey), chainInfo.addressPrefix);
+
+        pathWiseAddresses = {
+          ...pathWiseAddresses,
+          [shortPath]: {
+            ...pathWiseAddresses[shortPath],
+            [chain]: { address, pubKey },
+          },
+        };
+
+        if (chainWiseAddresses[chain]) {
+          chainWiseAddresses[chain].push({ address, pubKey });
+        } else {
+          chainWiseAddresses[chain] = [{ address, pubKey }];
+        }
+      }
+    }
+
+    return { primaryChainAccount, chainWiseAddresses, pathWiseAddresses };
+  } catch (e) {
+    transport = undefined;
+    if (e.message.includes(bolosErrorMessage)) {
+      throw bolosError;
+    }
+
+    if (e.message.includes(ledgerDisconnectMessage)) {
+      throw deviceDisconnectedError;
+    }
+
     if (e.message.includes(ledgerLockedError)) {
       throw deviceLockedError;
     }

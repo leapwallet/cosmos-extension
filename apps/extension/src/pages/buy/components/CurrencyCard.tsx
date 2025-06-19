@@ -1,35 +1,41 @@
 import { sliceWord } from '@leapwallet/cosmos-wallet-hooks'
-import { GenericCard } from '@leapwallet/leap-ui'
-import React from 'react'
+import Text from 'components/text'
+import React, { useCallback } from 'react'
+import { cn } from 'utils/cn'
 
 export type CurrencyCardProps = {
   code: string
   name: string
   logo: string
   onClick: () => void
+  isSelected: boolean
 }
 
-export default function CurrencyCard({ code, name, logo, onClick }: CurrencyCardProps) {
+export default function CurrencyCard({ code, name, logo, onClick, isSelected }: CurrencyCardProps) {
+  const handleCurrencySelect = useCallback(() => {
+    if (isSelected) return
+    onClick()
+  }, [isSelected, onClick])
+
   return (
-    <GenericCard
-      title={
-        <div className='flex items-center'>
-          <h3 className='text-md mr-1 text-ellipsis overflow-hidden whitespace-nowrap' title={code}>
-            {sliceWord(code)}
-          </h3>
-        </div>
-      }
-      subtitle={name}
-      img={
-        <img
-          src={logo}
-          className='w-[28px] h-[28px] mr-2 border rounded-full dark:border-[#333333] border-[#cccccc]'
-        />
-      }
-      isRounded={true}
-      className={'my-2'}
-      onClick={onClick}
-      size={'md'}
-    />
+    <div
+      className={cn(
+        'flex gap-x-3 items-center px-4 py-3 rounded-xl mt-3 cursor-pointer border border-transparent',
+        isSelected
+          ? 'bg-secondary-200 hover:bg-secondary-200 cursor-not-allowed border-secondary-600'
+          : 'cursor-pointer bg-secondary-100 hover:bg-secondary-200',
+      )}
+      onClick={handleCurrencySelect}
+    >
+      <img src={logo} className='rounded-full w-9 h-9' />
+      <div className='flex flex-col'>
+        <Text size='md' color='text-monochrome' className='font-bold'>
+          {sliceWord(code)}
+        </Text>
+        <Text size='sm' color='text-muted-foreground'>
+          {name}
+        </Text>
+      </div>
+    </div>
   )
 }

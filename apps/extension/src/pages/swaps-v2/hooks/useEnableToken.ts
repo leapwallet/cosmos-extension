@@ -4,7 +4,6 @@ import {
   AutoFetchedCW20DenomsStore,
   BetaCW20DenomsStore,
   BetaERC20DenomsStore,
-  CompassSeiTokensAssociationStore,
   CW20DenomsStore,
   DisabledCW20DenomsStore,
   EnabledCW20DenomsStore,
@@ -28,7 +27,6 @@ export function useEnableToken(
   erc20DenomsStore: ERC20DenomsStore,
   betaERC20DenomsStore: BetaERC20DenomsStore,
   rootBalanceStore: RootBalanceStore,
-  compassTokensAssociationsStore: CompassSeiTokensAssociationStore,
   rootDenomsStore: RootDenomsStore,
 ) {
   const cw20Tokens = cw20DenomsStore.getCW20DenomsForChain((chain?.key ?? '') as SupportedChain)
@@ -48,7 +46,6 @@ export function useEnableToken(
   const betaERC20Denoms = betaERC20DenomsStore.getBetaERC20DenomsForChain(
     (chain?.key ?? '') as SupportedChain,
   )
-  const evmToSeiTokensAssociations = compassTokensAssociationsStore.compassEvmToSeiMapping
   const rootDenoms = rootDenomsStore.baseDenomsStore.denoms
 
   const managedTokens = useMemo(() => {
@@ -96,10 +93,7 @@ export function useEnableToken(
           evmAddress,
         )
 
-      const seiAddress =
-        evmToSeiTokensAssociations[evmAddress] ??
-        evmToSeiTokensAssociations[tokenToEnable?.coinMinimalDenom] ??
-        tokenToEnable?.coinMinimalDenom
+      const seiAddress = tokenToEnable?.coinMinimalDenom
 
       let isAbsentInCW20Denoms = false
       let isAbsentInBetaCW20Denoms = false
@@ -203,7 +197,6 @@ export function useEnableToken(
     enabledCW20DenomsStore,
     betaERC20Denoms,
     erc20Denoms,
-    evmToSeiTokensAssociations,
     rootDenoms,
     cw20Tokens,
     betaCw20Tokens,

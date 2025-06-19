@@ -16,6 +16,7 @@ type Props = {
   className?: string
   sourceAssetUSDValue?: BigNumber
   destinationAssetUSDValue?: BigNumber
+  amountOutLoading?: boolean
 }
 
 function TxTokensSummary({
@@ -28,34 +29,38 @@ function TxTokensSummary({
   className,
   sourceAssetUSDValue,
   destinationAssetUSDValue,
+  amountOutLoading,
 }: Props) {
   return (
     <div
       className={classNames(
-        'w-full bg-gray-50 dark:bg-gray-900 flex items-center justify-between p-4 gap-2 max-[350px]:gap-0 rounded-2xl',
+        'relative w-full flex items-center justify-between gap-3 max-[350px]:gap-0 rounded-2xl',
         className,
       )}
     >
-      <TxReviewTokenInfo
-        amount={inAmount}
-        token={sourceToken}
-        chain={sourceChain}
-        assetUsdValue={sourceAssetUSDValue}
-      />
-
-      <div className='bg-gray-100 dark:bg-gray-850 shrink-0 flex justify-center items-center w-[24px] h-[24px] max-[350px]:w-[20px] max-[350px]:h-[20px] rounded-full'>
-        <ArrowRight
-          size={16}
-          className='dark:text-white-100 text-black-100 !leading-[16px] text-xs max-[350px]:!leading-[13.33px]'
+      <div className='flex justify-center bg-secondary py-[24px] px-4 rounded-xl !max-w-[170px] w-full'>
+        <TxReviewTokenInfo
+          amount={inAmount}
+          token={sourceToken}
+          chain={sourceChain}
+          assetUsdValue={sourceAssetUSDValue}
         />
       </div>
 
-      <TxReviewTokenInfo
-        amount={amountOut}
-        token={destinationToken}
-        chain={destinationChain}
-        assetUsdValue={destinationAssetUSDValue}
+      <ArrowRight
+        size={40}
+        className='dark:text-white-100 text-black-100 bg-gray-100 dark:bg-gray-800 absolute rounded-full p-2.5 left-1/2 -translate-x-1/2'
       />
+
+      <div className='flex justify-center bg-secondary-200 py-[24px] px-4 rounded-xl !max-w-[170px] w-full'>
+        <TxReviewTokenInfo
+          amount={amountOut}
+          amountLoading={amountOutLoading}
+          token={destinationToken}
+          chain={destinationChain}
+          assetUsdValue={destinationAssetUSDValue}
+        />
+      </div>
     </div>
   )
 }

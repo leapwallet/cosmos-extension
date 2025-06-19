@@ -151,7 +151,7 @@ export const AmountCard = (props: {
   return (
     <div className='flex flex-col gap-2 justify-between'>
       <span className='text-xs text-muted-foreground'>{props.title}</span>
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         {props.loading ? (
           <motion.div
             key='loading'

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import { isSidePanel } from 'utils/isSidePanel'
 

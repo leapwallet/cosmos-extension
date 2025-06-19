@@ -1,4 +1,4 @@
-import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
+import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import Text from 'components/text'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
@@ -19,6 +19,7 @@ export default function NFTImageCard({ imgSrc, textNft, onClick }: NFTProps) {
   const [imageIsLoading, setImageIsLoading] = useState(imgSrc ? true : false)
   const [errorInLoadingMP4NFT, setErrorInLoadingMP4NFT] = useState(false)
   const activeChain = useActiveChain()
+  const chainInfo = useChainInfo(activeChain)
 
   return (
     <div className='rounded-2xl' onClick={onClick}>
@@ -51,7 +52,7 @@ export default function NFTImageCard({ imgSrc, textNft, onClick }: NFTProps) {
         ) : (
           <div
             className='rounded-2xl p-4 flex-wrap  flex aspect-square  items-center bg-gray-400  justify-center'
-            style={{ backgroundColor: ChainInfos[activeChain].theme.primaryColor }}
+            style={{ backgroundColor: chainInfo?.theme?.primaryColor }}
           >
             <Text
               size='md'

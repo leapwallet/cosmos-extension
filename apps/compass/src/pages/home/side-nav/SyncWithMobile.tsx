@@ -8,9 +8,7 @@ import { captureException } from '@sentry/react'
 import CountDownTimer from 'components/countdown-timer'
 import Resize from 'components/resize'
 import Text from 'components/text'
-import { PageName } from 'config/analytics'
 import { useChainPageInfo } from 'hooks'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { Dispatch, ReactElement, SetStateAction, useState } from 'react'
@@ -178,8 +176,6 @@ function QrCodeView({
   setPassword,
   goBack,
 }: EnterPasswordViewProps): ReactElement {
-  usePageView(PageName.SyncWithMobileApp)
-
   return (
     <div className='panel-height enclosing-panel'>
       <Header
