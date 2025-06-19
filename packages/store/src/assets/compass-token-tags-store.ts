@@ -1,8 +1,8 @@
-import { axiosWrapper, DenomsRecord } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord } from '@leapwallet/cosmos-wallet-sdk';
 import { makeAutoObservable, runInAction } from 'mobx';
 import semver from 'semver';
 
-import { BetaERC20DenomsStore } from './erc20-denoms';
+import { DenomsStore } from './denoms-store';
 
 const COMPASS_TOKEN_TAGS_S3_URL = 'https://assets.leapwallet.io/cosmos-registry/v1/config/compass-token-tags.json';
 
@@ -11,24 +11,19 @@ export class CompassTokenTagsStore {
   compassTokenDenomInfo: DenomsRecord = {};
   blacklistedTokens: string[] = [];
 
-  betaERC20DenomsStore: BetaERC20DenomsStore;
+  denomStore: DenomsStore;
   readyPromise: Promise<void>;
   app: 'extension' | 'mobile' = 'extension';
   version: string = '0.0.0';
   isCompass: boolean = true;
 
-  constructor(
-    app: 'extension' | 'mobile',
-    version: string,
-    isCompass: boolean,
-    betaERC20DenomsStore: BetaERC20DenomsStore,
-  ) {
+  constructor(app: 'extension' | 'mobile', version: string, isCompass: boolean, denomStore: DenomsStore) {
     makeAutoObservable(this);
 
     this.app = app;
     this.version = version;
     this.isCompass = isCompass;
-    this.betaERC20DenomsStore = betaERC20DenomsStore;
+    this.denomStore = denomStore;
     this.readyPromise = this.initialize();
   }
 
@@ -38,10 +33,9 @@ export class CompassTokenTagsStore {
 
   async loadCompassTokenTagsFromS3() {
     try {
-      const { data } = await axiosWrapper({ baseURL: COMPASS_TOKEN_TAGS_S3_URL, method: 'get' });
-      const tokenWiseMapping = data.tokenWiseMapping;
+      const res = await fetch(COMPASS_TOKEN_TAGS_S3_URL);
+      const { tokenWiseMapping, blacklist, tokenDenomInfo } = await res.json();
 
-      // add 'All' tag to the tokenWiseMapping all tokens
       Object.keys(tokenWiseMapping ?? {}).forEach((token) => {
         if (!tokenWiseMapping[token]) {
           tokenWiseMapping[token] = [];
@@ -53,7 +47,7 @@ export class CompassTokenTagsStore {
       });
 
       const blacklistedTokens: string[] = (Object.entries(
-        data.blacklist[this.app][this.isCompass ? 'compass' : 'leap'] as Record<string, string>,
+        blacklist[this.app][this.isCompass ? 'compass' : 'leap'] as Record<string, string>,
       )
         ?.map(([token, version]) => {
           if (semver.satisfies(this.version, version)) {
@@ -65,9 +59,9 @@ export class CompassTokenTagsStore {
 
       runInAction(() => {
         this.compassTokenTags = tokenWiseMapping;
-        this.compassTokenDenomInfo = data.tokenDenomInfo;
+        this.compassTokenDenomInfo = tokenDenomInfo;
         this.blacklistedTokens = blacklistedTokens;
-        this.betaERC20DenomsStore.setTempBetaERC20Denoms(data.tokenDenomInfo, 'seiTestnet2');
+        this.denomStore.setTempBaseDenoms(tokenDenomInfo);
       });
     } catch (error) {
       console.error('Error loading chain tags:', error);

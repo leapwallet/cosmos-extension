@@ -9,7 +9,6 @@ import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { evmBalanceStore } from 'stores/balance-store'
@@ -22,9 +21,7 @@ import { transition150 } from 'utils/motion-variants'
 export const TotalBalance = observer(() => {
   const [formatCurrency] = useFormatCurrency()
   const activeChain = useActiveChain() as AggregatedSupportedChain
-  const getWallet = Wallet.useGetWallet()
   const { addressLinkState } = useSeiLinkedAddressState(
-    getWallet,
     activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : undefined,
   )
 
@@ -69,7 +66,7 @@ export const TotalBalance = observer(() => {
   }, [totalFiatValue, timedBalancesFiatValue])
 
   return (
-    <AnimatePresence exitBeforeEnter>
+    <AnimatePresence mode='wait'>
       <motion.button
         key={hideAssetsStore.isHidden ? 'hidden' : 'visible'}
         onClick={() => hideAssetsStore.setHidden(!hideAssetsStore.isHidden)}

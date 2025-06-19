@@ -97,6 +97,10 @@ export class LeapEvm implements Ethereum {
 
       this.inpageStream.on('data', (data: any) => {
         if (data.id === id) {
+          if (data?.name === 'invokeOpenSidePanel') {
+            this.send(ETHEREUM_METHOD_TYPE.OPEN_SIDE_PANEL, data);
+            return;
+          }
           if (data.payload?.error) {
             if (data.name === `on${ETHEREUM_METHOD_TYPE.WALLET__REVOKE_PERMISSIONS.toUpperCase()}`) {
               const customEvent = new CustomEvent('disconnect', { detail: { data: data.payload?.error } });

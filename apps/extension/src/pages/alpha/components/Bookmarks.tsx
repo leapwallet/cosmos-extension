@@ -1,222 +1,212 @@
-import { Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import BottomModal from 'components/new-bottom-modal'
 import { PageName } from 'config/analytics'
-import { AnimatePresence, motion } from 'framer-motion'
 import Fuse from 'fuse.js'
-import { useAlphaOpportunities } from 'hooks/useAlphaOpportunities'
-import { Images } from 'images'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { usePageView } from 'hooks/analytics/usePageView'
+import {
+  AlphaOpportunity as AlphaOpportunityType,
+  Raffle,
+  useAlphaOpportunities,
+  useRaffles,
+  useRaffleWins,
+} from 'hooks/useAlphaOpportunities'
+import React, { useMemo, useState } from 'react'
 import { Virtuoso } from 'react-virtuoso'
-import { HeaderActionType } from 'types/components'
 
-import { useBookmarks } from '../context/bookmark-context'
+import RaffleListing from '../chad-components/RaffleListing'
+import { useBookmarks, useChadBookmarks } from '../context/bookmark-context'
+import { useChadProvider } from '../context/chad-exclusives-context'
 import { useFilters } from '../context/filter-context'
-import { sortOpportunitiesByDate } from '../utils'
+import { formatRaffleDate, sortOpportunitiesByDate } from '../utils'
 import { VirtualizationFooter } from './alpha-timeline'
+import { AlphaTimelineFilters } from './alpha-timeline/filters'
 import AlphaOpportunity from './AlphaOpportunity'
 import EmptyBookmarks from './EmptyBookmarks'
-import FilterButton from './FilterButton'
-import FilterDrawer from './FilterDrawer'
-import { NoFilterResult, NoSearchResult } from './NoResultStates'
+import { FilterDrawer } from './FilterDrawer'
+import { NoFilterResult } from './NoResultStates'
 import SelectedFilterTags from './SelectedFilterTags'
+
 type BookmarkedAlphaProps = {
   isOpen: boolean
   toggler: () => void
 }
 
+type TimelineItem = {
+  id: string
+  additionDate: string
+  categoryFilter: string[]
+  ecosystemFilter: string[]
+  type: 'opportunity' | 'raffle'
+  data: AlphaOpportunityType | Raffle
+}
+
 export const BookmarkedAlpha: React.FC<BookmarkedAlphaProps> = ({ isOpen, toggler }) => {
-  const { opportunities, isLoading } = useAlphaOpportunities()
-  const { bookmarks } = useBookmarks()
-  const { theme } = useTheme()
+  const { opportunities, isLoading: isOpportunitiesLoading } = useAlphaOpportunities()
+  const { raffles, isLoading: isRafflesLoading } = useRaffles()
+  const { alphaUser } = useChadProvider()
+  usePageView(PageName.Bookmark, isOpen, {
+    isChad: alphaUser?.isChad ?? false,
+  })
+  const { raffleWins } = useRaffleWins(alphaUser?.id ?? '')
+  const isLoading = isOpportunitiesLoading || isRafflesLoading
+  const { bookmarks: alphaBookmarks } = useBookmarks()
+  const { bookmarks: chadBookmarks } = useChadBookmarks()
+
+  const bookmarks = useMemo(
+    () => new Set([...alphaBookmarks, ...chadBookmarks]),
+    [alphaBookmarks, chadBookmarks],
+  )
+
   const { selectedOpportunities, selectedEcosystems } = useFilters()
-  const containerRef = useRef<HTMLDivElement>(null)
 
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
   const [searchedTerm, setSearchedTerm] = useState('')
   const [customScrollParent, setCustomScrollParent] = useState<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.style.height = '100%'
-      const parentElement = containerRef.current.parentElement
-      if (parentElement) {
-        if (isOpen) {
-          parentElement.style.overflow = 'hidden'
-        } else {
-          parentElement.style.overflow = 'auto'
-        }
-      }
-    }
-  }, [isOpen])
+  // combined alpha listing and raffles:
+  const allItems = useMemo<TimelineItem[]>(() => {
+    const combined = [
+      ...opportunities.map((opp) => ({
+        id: opp.id,
+        additionDate: opp.additionDate,
+        categoryFilter: opp.categoryFilter,
+        ecosystemFilter: opp.ecosystemFilter,
+        type: 'opportunity' as const,
+        data: opp,
+      })),
+      ...raffles.map((raffle) => ({
+        id: raffle.id,
+        additionDate: formatRaffleDate(raffle.createdAt),
+        categoryFilter: raffle.categories ?? [],
+        ecosystemFilter: raffle.ecosystem ?? [],
+        type: 'raffle' as const,
+        data: raffle,
+      })),
+    ]
+    return sortOpportunitiesByDate(combined)
+  }, [opportunities, raffles])
 
   /**
-   * @description filtering alphas acording to search query
+   * @description filtering items according to search query
    */
   const fuse = useMemo(() => {
-    return new Fuse(opportunities, {
-      keys: ['homepageDescription', 'categoryFilter', 'ecosystemFilter'],
+    return new Fuse(allItems, {
+      keys: [
+        'data.homepageDescription',
+        'data.title',
+        'data.description',
+        'categoryFilter',
+        'ecosystemFilter',
+      ],
       threshold: 0.3,
       shouldSort: true,
     })
-  }, [opportunities])
+  }, [allItems])
 
-  const searchedOpportunities = useMemo(() => {
+  const searchedItems = useMemo(() => {
     if (!searchedTerm) {
-      return sortOpportunitiesByDate(opportunities)
+      return allItems
     }
 
     const results = fuse.search(searchedTerm)
     return sortOpportunitiesByDate(results.map((result) => result.item))
-  }, [opportunities, searchedTerm, fuse])
+  }, [allItems, searchedTerm, fuse])
 
   /**
-   * @description filtering alphas acording to category and ecosystem filters
+   * @description filtering items according to category and ecosystem filters
    */
-  const filteredOpportunities = useMemo(() => {
-    const filteredList = searchedOpportunities.filter((opportunity) =>
-      bookmarks.has(opportunity.id ?? ''),
-    )
+  const filteredItems = useMemo(() => {
+    const filteredList = searchedItems.filter((item) => bookmarks.has(item.id ?? ''))
 
     if (!selectedOpportunities?.length && !selectedEcosystems?.length) return filteredList
 
-    return filteredList.filter((opportunity) => {
+    return filteredList.filter((item) => {
       return (
         (!selectedOpportunities?.length ||
-          selectedOpportunities.every((category) =>
-            opportunity.categoryFilter.includes(category),
-          )) &&
+          selectedOpportunities.every((category) => item.categoryFilter.includes(category))) &&
         (!selectedEcosystems?.length ||
-          selectedEcosystems.every((ecosystem) => opportunity.ecosystemFilter.includes(ecosystem)))
+          selectedEcosystems.every((ecosystem) => item.ecosystemFilter.includes(ecosystem)))
       )
     })
-  }, [searchedOpportunities, selectedOpportunities, selectedEcosystems, bookmarks])
+  }, [searchedItems, selectedOpportunities, selectedEcosystems, bookmarks])
 
   const filterCount = selectedEcosystems?.length + selectedOpportunities?.length
 
   return (
-    <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            ref={containerRef}
-            className='absolute right-0 top-0 enclosing-panel panel-width panel-height flex flex-col rounded-[10px] z-[1000] dark:bg-black-100 bg-gray-50'
-            initial={{ x: 400, opacity: 1 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 400, opacity: 1 }}
-            transition={{
-              duration: 0.5,
-              ease: 'easeInOut',
-            }}
-          >
-            <div className='sticky top-0 z-10 bg-inherit'>
-              <Header
-                title='Bookmarks'
-                action={{ type: HeaderActionType.BACK, onClick: toggler }}
+    <BottomModal fullScreen isOpen={isOpen} onClose={toggler} title='Bookmarks' className='flex-1'>
+      {filteredItems.length === 0 && filterCount === 0 && !isLoading && !searchedTerm ? (
+        <EmptyBookmarks
+          title='No Bookmarks Found'
+          subTitle='Try looking at some listings and saving them'
+          className='h-full'
+        />
+      ) : (
+        <div className='flex flex-col gap-4 h-full' ref={setCustomScrollParent}>
+          <AlphaTimelineFilters
+            setSearchedTerm={setSearchedTerm}
+            setIsFilterDrawerOpen={setIsFilterDrawerOpen}
+          />
+
+          {/* Showing Filters */}
+          {selectedOpportunities.length > 0 || selectedEcosystems.length > 0 ? (
+            <SelectedFilterTags />
+          ) : null}
+
+          {/* No results state */}
+          {filteredItems.length === 0 && !isLoading && (
+            <NoFilterResult
+              className='mt-3 h-full flex-1'
+              filterType={searchedTerm ? 'search' : 'no-results'}
+            />
+          )}
+
+          {/* Virtualized Items */}
+          {filteredItems.length > 0 ? (
+            <div className='h-full flex flex-col flex-1'>
+              <Virtuoso
+                components={{ Footer: VirtualizationFooter }}
+                customScrollParent={customScrollParent ?? undefined}
+                style={{ height: '100%' }}
+                totalCount={filteredItems.length}
+                itemContent={(index) => {
+                  const item = filteredItems[index]
+                  if (item.type === 'opportunity') {
+                    return (
+                      <AlphaOpportunity
+                        key={`${item.id}-${index}`}
+                        {...(item.data as AlphaOpportunityType)}
+                        pageName={PageName.Bookmark}
+                        isBookmarked={bookmarks.has(item.id ?? '')}
+                      />
+                    )
+                  } else {
+                    return (
+                      <RaffleListing
+                        highlight={true}
+                        key={`${item.id}-${index}`}
+                        {...(item.data as Raffle)}
+                        pageName={PageName.Bookmark}
+                        isBookmarked={bookmarks.has(item.id ?? '')}
+                        userWon={!!raffleWins?.find((win) => win.id === item.id)}
+                      />
+                    )
+                  }
+                }}
               />
             </div>
-            {filteredOpportunities.length === 0 &&
-            filterCount === 0 &&
-            !isLoading &&
-            !searchedTerm ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className='flex-1 overflow-y-auto'
-              >
-                <div className='flex flex-col gap-4 p-7'>
-                  <EmptyBookmarks
-                    title='No Bookmarks Found'
-                    subTitle='Try looking at some alphas and saving them '
-                  />
-                </div>
-              </motion.div>
-            ) : (
-              <div className='flex-1 overflow-y-auto' ref={setCustomScrollParent}>
-                <div className='flex flex-col gap-4 p-7'>
-                  {/* Search & Filter */}
-                  <div className='flex gap-2 items-center'>
-                    <div className='flex w-full bg-white-100 dark:bg-gray-950 rounded-full py-2 pl-5 pr-[10px] items-center'>
-                      <input
-                        type='text'
-                        value={searchedTerm}
-                        onChange={(e) => setSearchedTerm(e.target.value)}
-                        placeholder='Search...'
-                        className='bg-transparent w-full outline-none text-black-100 dark:text-white-100 placeholder:text-gray-600 dark:placeholder:text-gray-400'
-                      />
-                      {searchedTerm.length === 0 ? (
-                        <img
-                          className='h-5 w-5 mt-0.5'
-                          src={
-                            theme === ThemeName.DARK
-                              ? Images.Misc.SearchWhiteIcon
-                              : Images.Misc.Search
-                          }
-                        />
-                      ) : (
-                        <img
-                          className='cursor-pointer h-4 w-4 mt-1'
-                          src={Images.Misc.CrossFilled}
-                          onClick={() => setSearchedTerm('')}
-                        />
-                      )}
-                    </div>
-                    <FilterButton
-                      setIsFilterDrawerOpen={setIsFilterDrawerOpen}
-                      filterCount={filterCount}
-                    />
-                  </div>
+          ) : isLoading ? (
+            <div className='flex justify-center items-center py-8'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white-100'></div>
+            </div>
+          ) : null}
 
-                  {/* Showing Filters */}
-                  {selectedOpportunities.length > 0 || selectedEcosystems.length > 0 ? (
-                    <SelectedFilterTags />
-                  ) : null}
-
-                  {/* No results state */}
-                  {filteredOpportunities.length === 0 && !isLoading && searchedTerm ? (
-                    <NoSearchResult />
-                  ) : filteredOpportunities.length === 0 && !isLoading ? (
-                    <NoFilterResult />
-                  ) : null}
-
-                  {/* Virtualized Alpha Opportunities */}
-                  {filteredOpportunities.length > 0 ? (
-                    <div className='h-full flex flex-col flex-1'>
-                      <Virtuoso
-                        components={{ Footer: VirtualizationFooter }}
-                        customScrollParent={customScrollParent ?? undefined}
-                        style={{ height: '100%' }}
-                        totalCount={filteredOpportunities.length}
-                        itemContent={(index) => {
-                          const opportunity = filteredOpportunities[index]
-                          return (
-                            <AlphaOpportunity
-                              key={`${opportunity.id}-${index}`}
-                              {...opportunity}
-                              pageName={PageName.Bookmark}
-                              isBookmarked={bookmarks.has(opportunity.id ?? '')}
-                            />
-                          )
-                        }}
-                      />
-                    </div>
-                  ) : isLoading ? (
-                    <div className='flex justify-center items-center py-8'>
-                      <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white-100'></div>
-                    </div>
-                  ) : null}
-
-                  <FilterDrawer
-                    opportunities={opportunities}
-                    isShown={isFilterDrawerOpen}
-                    onClose={() => setIsFilterDrawerOpen(false)}
-                    pageName={PageName.Bookmark}
-                  />
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+          <FilterDrawer
+            opportunities={opportunities}
+            isShown={isFilterDrawerOpen}
+            onClose={() => setIsFilterDrawerOpen(false)}
+            pageName={PageName.Bookmark}
+          />
+        </div>
+      )}
+    </BottomModal>
   )
 }

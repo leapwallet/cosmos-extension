@@ -1,5 +1,4 @@
 import {
-  useActiveChain,
   useActiveWallet,
   useChainsStore,
   useLastEvmActiveChain,
@@ -22,12 +21,11 @@ import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { TransactionStatus } from 'types/utility'
 import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 import Browser from 'webextension-polyfill'
@@ -49,8 +47,7 @@ export function MessageSignature({
   handleTxnListUpdate,
 }: MessageSignatureProps) {
   const lastEvmActiveChain = useLastEvmActiveChain()
-  const _activeChain = useActiveChain()
-  const activeChain = isCompassWallet() ? _activeChain : lastEvmActiveChain
+  const activeChain = lastEvmActiveChain
 
   const activeWallet = useActiveWallet()
   const navigate = useNavigate()
@@ -106,7 +103,7 @@ export function MessageSignature({
       }
 
       try {
-        Browser.runtime.sendMessage({
+        await Browser.runtime.sendMessage({
           type: MessageTypes.signSeiEvmResponse,
           payloadId: txnData?.payloadId,
           payload: { status: 'success', data: signature },
@@ -151,15 +148,7 @@ export function MessageSignature({
               <Header
                 imgSrc={chainInfo?.chainSymbolImageUrl || defaultImage}
                 title={
-                  <Buttons.Wallet
-                    brandLogo={
-                      isCompassWallet() ? (
-                        <img className='w-[24px] h-[24px] mr-1' src={Images.Logos.CompassCircle} />
-                      ) : undefined
-                    }
-                    title={trim(walletName, 10)}
-                    className='pr-4 cursor-default'
-                  />
+                  <Buttons.Wallet title={trim(walletName, 10)} className='pr-4 cursor-default' />
                 }
               />
             </div>

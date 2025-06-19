@@ -397,10 +397,19 @@ export const SelectNFTRecipient = observer(
           setAddressError('')
         }
 
+        if (
+          recipientInputValue.toLowerCase().startsWith('0x') &&
+          activeWallet?.walletType === WALLETTYPE.LEDGER &&
+          activeWallet.app !== 'sei'
+        ) {
+          setAddressError(SEI_EVM_LEDGER_ERROR_MESSAGE)
+          return
+        }
+
         if (currentWalletAddress === recipientInputValue) {
           setAddressError('Cannot send to self')
         } else if (collectionAddress.toLowerCase().startsWith('0x') && recipientInputValue) {
-          if (activeWallet?.walletType === WALLETTYPE.LEDGER) {
+          if (activeWallet?.walletType === WALLETTYPE.LEDGER && activeWallet?.app === 'cosmos') {
             setAddressError(SEI_EVM_LEDGER_ERROR_MESSAGE)
             return
           }

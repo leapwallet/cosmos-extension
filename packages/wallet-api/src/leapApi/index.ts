@@ -30,7 +30,6 @@ import {
   V2MarketPricesRequest,
   V2MarketPricesResponse,
   V2TxOperation,
-  V2TxRequest,
   validateCgPlatform,
 } from '../types';
 
@@ -231,7 +230,7 @@ export class LeapApi {
     throw new NetworkError(new Error('Dummified response'));
   }
 
-  async operateV2Tx(request: V2TxRequest, operation: V2TxOperation): Promise<void> {
+  async operateV2Tx(request: CosmosTxRequest, operation: V2TxOperation): Promise<void> {
     console.log('Transaction Logging: ', request, operation);
     throw new NetworkError(new Error('Dummified response'));
   }

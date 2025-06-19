@@ -1,19 +1,28 @@
-import { Buttons, Input } from '@leapwallet/leap-ui'
-import classNames from 'classnames'
-import CssLoader from 'components/css-loader/CssLoader'
-import Text from 'components/text'
-import { Images } from 'images'
+import { Button } from 'components/ui/button'
+import { Checkbox } from 'components/ui/check-box'
+import { Input } from 'components/ui/input'
+import { PasswordInput } from 'components/ui/input/password-input'
+import { AnimatePresence, motion, Variants } from 'framer-motion'
+import { PasswordLockIcon } from 'icons/password-lock-icon'
+import { OnboardingWrapper } from 'pages/onboarding/wrapper'
 import React, { useCallback, useEffect, useState } from 'react'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { errorVariants } from 'utils/motion-variants'
 import { getPassScore } from 'utils/passChecker'
 
+import { CreatingWalletLoader } from '../../pages/onboarding/create/creating-wallet-loader'
+import { PasswordStrengthIndicator } from './password-strength'
+
 type ViewProps = {
-  // eslint-disable-next-line no-unused-vars
   readonly onProceed: (password: Uint8Array) => void
+  readonly entry?: 'left' | 'right'
 }
 
-export default function ChoosePasswordView({ onProceed }: ViewProps) {
+const passwordErrorVariants: Variants = {
+  hidden: { height: 0 },
+  visible: { height: '2rem' },
+}
+
+export default function ChoosePasswordView({ onProceed, entry }: ViewProps) {
   const [isLoading, setLoading] = useState(false)
   const [passScore, setPassScore] = useState<number | null>(null)
   const [termsOfUseAgreedCheck, setTermsOfUseAgreedCheck] = useState(true)
@@ -68,24 +77,23 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
     }
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     try {
       setLoading(true)
       const textEncoder = new TextEncoder()
       const password = textEncoder.encode(passwords.pass1)
       onProceed(password)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      setError(error.message)
+    } catch (error: unknown) {
+      setError((error as Error)?.message)
     } finally {
       setLoading(false)
     }
   }
 
-  const onSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
+  const onSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault()
     if (validatePasswordMatch()) {
-      await handleSubmit()
+      handleSubmit()
     }
   }
 
@@ -118,10 +126,6 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
   const isSubmitDisabled = !!errors.pass1 || !!errors.pass2 || !passwords.pass1 || !passwords.pass2
 
   useEffect(() => {
-    if (passwords.pass1.length != 0) validateLength()
-  }, [passwords.pass1, validateLength])
-
-  useEffect(() => {
     const timeout = setTimeout(() => {
       getPassCheckData(passwords.pass1)
     }, 500)
@@ -131,167 +135,112 @@ export default function ChoosePasswordView({ onProceed }: ViewProps) {
     }
   }, [passwords.pass1])
 
+  if (isLoading) {
+    return <CreatingWalletLoader />
+  }
+
   return (
-    <div className='flex flex-row gap-x-[20px]'>
-      <div className='flex flex-col w-[408px]'>
-        <div className='flex flex-row gap-x-[12px]'>
-          <img src={Images.Misc.LockFilled} width='32' height='32' />
-          <Text size='xxl' className='font-medium'>
-            Choose a Password
-          </Text>
-        </div>
-        <Text size='md' color='text-gray-400' className='font-medium mb-[32px]'>
-          Use this password to unlock your wallet
-        </Text>
-        <form onSubmit={onSubmit}>
-          <div className='relative flex flex-col gap-y-[20px]'>
+    <form onSubmit={onSubmit} className='flex flex-col h-full'>
+      <OnboardingWrapper
+        headerIcon={<PasswordLockIcon className='size-6' />}
+        entry={entry}
+        heading='Create your password'
+        subHeading='Choose a password to secure & lock your wallet'
+        className='gap-0'
+      >
+        <div className='flex flex-col gap-y-5 w-full mt-10'>
+          <div className='relative flex flex-col w-full'>
             <Input
               autoFocus
               placeholder='Enter password'
               type='password'
               name='pass1'
               onKeyDown={handleKeyDown}
+              onBlur={validateLength}
+              status={errors.pass1 || errors.pass2 ? 'error' : undefined}
               value={passwords.pass1}
-              isErrorHighlighted={!!errors.pass1 || !!errors.pass2}
               onChange={handleInputChange}
               data-testing-id='input-password'
-              className={classNames('border', {
-                '!border-transparent focus:!border-gray-400': !errors.pass1 && !errors.pass2,
-                '!border-red-300 focus:!border-red-300': !!errors.pass1 || !!errors.pass2,
-              })}
+              className='h-[3.625rem]'
+              trailingElement={<PasswordStrengthIndicator score={passScore} />}
             />
-            {passScore !== null && (
-              <div className='absolute flex justify-center items-center top-[1px] right-[40px] w-[80px] h-[45px] bg-white-100 dark:bg-gray-900'>
-                {passScore === 4 && (
-                  <Text size='md' color='text-green-600 dark:text-green-300 px-5 font-bold'>
-                    Strong
-                  </Text>
-                )}
-                {passScore === 3 && (
-                  <Text size='md' color='text-orange-500 dark:text-orange-300 px-5 font-bold'>
-                    Medium
-                  </Text>
-                )}
-                {passScore < 3 && (
-                  <Text size='md' color='text-red-300 dark:text-red-300 px-5 font-bold'>
-                    Weak
-                  </Text>
-                )}
-              </div>
-            )}
-            {errors.pass1 && (
-              <Text size='sm' color='text-red-300'>
-                {errors.pass1}
-              </Text>
-            )}
-            <Input
+
+            <AnimatePresence>
+              {errors.pass1 && (
+                <motion.span
+                  className='flex items-end justify-center text-destructive-100 text-xs text-center font-medium overflow-hidden'
+                  variants={passwordErrorVariants}
+                  initial='hidden'
+                  animate='visible'
+                  exit='hidden'
+                >
+                  {errors.pass1}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className='relative flex flex-col gap-y-5 w-full'>
+            <PasswordInput
               name='pass2'
               value={passwords.pass2}
-              placeholder='Re-enter password'
-              type='password'
+              placeholder='Confirm password'
               onKeyDown={handleKeyDown}
-              isErrorHighlighted={!!errors.pass2}
+              className='h-[3.625rem]'
               onChange={handleInputChange}
+              status={errors.pass2 ? 'error' : undefined}
               data-testing-id='input-confirm-password'
-              className={classNames('border', {
-                '!border-transparent focus:!border-gray-400': !errors.pass2,
-                '!border-red-300 focus:!border-red-300': !!errors.pass2,
-              })}
             />
-            {errors.pass2 && (
-              <Text size='sm' color='text-red-300' data-testing-id='password-error-ele'>
-                {errors.pass2}
-              </Text>
-            )}
+            <AnimatePresence>
+              {(errors.pass2 || error) && (
+                <motion.span
+                  className='text-destructive-100 text-xs text-center font-medium'
+                  data-testing-id='password-error-ele'
+                  variants={errorVariants}
+                  initial='hidden'
+                  animate='visible'
+                  exit='hidden'
+                >
+                  {errors.pass2 || error}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
-          <div className='w-[376px] h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center px-4 py-3 my-7'>
-            <img className='mr-[16px]' src={Images.Misc.Warning} width='40' height='40' />
-            <div className='flex flex-col gap-y-[2px]'>
-              <Text size='sm' color='text-gray-400 font-bold'>
-                Recommended security practice:
-              </Text>
-              <Text size='md' color='font-bold text-gray-400 dark:text-white-100'>
-                Always choose a <span className='text-green-300'>&nbsp;strong&nbsp;</span> password
-              </Text>
-            </div>
-          </div>
-          {isLoading ? (
-            <Buttons.Generic
-              color={Colors.cosmosPrimary}
-              type='button'
-              className='flex items-center'
-            >
-              <CssLoader />
-            </Buttons.Generic>
-          ) : (
-            <Buttons.Generic
-              disabled={isSubmitDisabled || isLoading || !termsOfUseAgreedCheck}
-              color={Colors.cosmosPrimary}
-              type='submit'
-              data-testing-id='btn-password-proceed'
-            >
-              Proceed
-            </Buttons.Generic>
-          )}
-          {error && (
-            <Text size='sm' color='text-red-300 text-center justify-center w-[376px] mt-[5px]'>
-              {error}
-            </Text>
-          )}
-
-          <div className='flex flex-row items-center mt-6'>
-            <input
-              type='checkbox'
-              id='terms'
-              name='terms'
-              value='terms'
-              className='cursor-pointer mr-2 h-4 w-4 bg-black-50'
-              checked={termsOfUseAgreedCheck}
-              onChange={(e) => setTermsOfUseAgreedCheck(e.target.checked)}
-            />
-            <Text size='md' color='text-gray-400'>
-              By proceeding, you agree to our
-              <a
-                href={
-                  isCompassWallet()
-                    ? 'https://compasswallet.io/terms'
-                    : 'https://www.leapwallet.io/terms'
-                }
-                target='_blank'
-                rel='noreferrer'
-                className={classNames('font-medium ml-1', {
-                  'text-indigo-300': !isCompassWallet(),
-                })}
-                style={isCompassWallet() ? { color: Colors.compassPrimary } : {}}
-              >
-                Terms of Use
-              </a>
-            </Text>
-          </div>
-        </form>
-      </div>
-      <div>
-        <div className='shrink flex-col gap-y-[4px] w-[408px] p-[32px] rounded-lg border-[1px] border-gray-800'>
-          <Text size='md' className='font-bold' color='text-gray-200'>
-            {' '}
-            Why do I need to enter a password?
-          </Text>
-          <Text size='sm' color='text-gray-400 mb-[32px] font-medium mt-1'>
-            {' '}
-            For your wallet protection, {isCompassWallet() ? 'Compass' : 'Leap'} locks your wallet
-            after 15 minutes of inactivity. You will need this password to unlock it.
-          </Text>
-
-          <Text size='md' className='font-bold' color='text-gray-200'>
-            {' '}
-            Can I recover a password?
-          </Text>
-          <Text size='sm' color='text-gray-400 font-medium mt-1'>
-            The password is stored securely on your device. We will not be able to recover it for
-            you, so make sure you remember it!
-          </Text>
         </div>
-      </div>
-    </div>
+
+        <label htmlFor='terms' className='flex flex-row justify-center items-center mt-auto'>
+          <Checkbox
+            id='terms'
+            name='terms'
+            value='terms'
+            className='cursor-pointer mr-2 h-4 w-4 accent-accent-foreground'
+            checked={termsOfUseAgreedCheck}
+            onCheckedChange={(e) => {
+              setTermsOfUseAgreedCheck(!!e)
+            }}
+          />
+
+          <p className='text-xs text-muted-foreground text-center'>
+            I agree to the{' '}
+            <a
+              href={'https://leapwallet.io/terms'}
+              target='_blank'
+              rel='noreferrer'
+              className={`text-accent-foreground hover:text-accent-foreground/80 transition-colors`}
+            >
+              Terms & Conditions
+            </a>
+          </p>
+        </label>
+
+        <Button
+          className='w-full mt-5'
+          data-testing-id='btn-password-proceed'
+          disabled={isSubmitDisabled || isLoading || !termsOfUseAgreedCheck}
+        >
+          Set Password
+        </Button>
+      </OnboardingWrapper>
+    </form>
   )
 }

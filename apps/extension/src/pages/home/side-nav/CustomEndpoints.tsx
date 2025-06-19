@@ -28,7 +28,7 @@ import { isSidePanel } from 'utils/isSidePanel'
 import { uiErrorTags } from 'utils/sentry'
 import Browser from 'webextension-polyfill'
 
-import { ListChains, ListChainsProps } from '../SelectChain'
+import SelectChain, { ListChains, ListChainsProps } from '../SelectChain'
 
 type SelectChainSheetProps = ListChainsProps & {
   readonly isVisible: boolean
@@ -391,15 +391,18 @@ export const CustomEndpoints = observer(
             </div>
           </div>
         </div>
-        <SelectChainSheet
+        <SelectChain
           isVisible={showSelectChain}
           onClose={() => setShowSelectChain(false)}
           selectedChain={selectedChain}
-          onChainSelect={(chaiName: SupportedChain) => {
-            setSelectedChain(chaiName)
+          onChainSelect={(chainName: AggregatedSupportedChain) => {
+            if (chainName !== AGGREGATED_CHAIN_KEY) {
+              setSelectedChain(chainName)
+            }
             setShowSelectChain(false)
           }}
           chainTagsStore={chainTagsStore}
+          showAggregatedOption={false}
         />
       </>
     )

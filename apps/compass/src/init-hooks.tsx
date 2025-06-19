@@ -32,15 +32,13 @@ import { useInitiateCurrencyPreference } from 'hooks/settings/useCurrency'
 import { useInitChainInfos } from 'hooks/useChainInfos'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
-import { useLocation } from 'react-router'
+import { useLocation } from 'react-router-dom'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { manageChainsStore } from 'stores/manage-chains-store'
 import { favNftStore, hiddenNftStore } from 'stores/manage-nft-store'
 import { passwordStore } from 'stores/password-store'
 import Browser from 'webextension-polyfill'
 
-import { useInitSecretTokens } from './hooks/secret/useInitSecretTokens'
-import { useInitSecretViewingKeys } from './hooks/secret/useInitSecretViewingKeys'
 import { useInitActiveWallet } from './hooks/settings/useActiveWallet'
 import { useInitManageChains } from './hooks/settings/useManageChains'
 import { useInitPrimaryWalletAddress } from './hooks/wallet/useInitPrimaryWalletAddress'
@@ -51,7 +49,6 @@ const individualPages = [
   '/approveConnection',
   '/sign',
   '/suggest-chain',
-  '/switch-ethereum-chain',
   '/SuggestEthereumChain',
   '/SignSeiEvmTransaction',
   '/onboarding',
@@ -116,9 +113,6 @@ export const InitHooks = observer(() => {
 
   useInitPrimaryWalletAddress()
   useInitAnalytics()
-
-  useInitSecretTokens()
-  useInitSecretViewingKeys(passwordStore)
 
   useFeatureFlags()
   useTransactionConfigs()

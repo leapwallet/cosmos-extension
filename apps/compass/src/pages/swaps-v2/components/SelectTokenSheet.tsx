@@ -6,11 +6,9 @@ import {
 } from '@leapwallet/cosmos-wallet-store'
 import { MagnifyingGlassMinus } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
-import { SearchInput } from 'components/search-input'
+import { SearchInput } from 'components/ui/input/search-input'
 import { EventName } from 'config/analytics'
 import Fuse from 'fuse.js'
-import { useDefaultTokenLogo } from 'hooks'
-import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -18,13 +16,8 @@ import { GroupedVirtuoso } from 'react-virtuoso'
 import { marketDataStore } from 'stores/balance-store'
 import { compassTokenTagsStore } from 'stores/denoms-store-instance'
 import { SourceChain, SourceToken } from 'types/swap'
-import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useSwapContext } from '../context'
-import { useAllChainsPlaceholder } from '../hooks/useAllChainsPlaceholder'
-import { TokenAssociatedChain } from './ChainsList'
-import { SelectChainSheet } from './SelectChainSheet'
 import { SelectDestinationSheet } from './SelectDestinationSheet'
 import { TokenCard, TokenCardSkeleton } from './TokenCard'
 
@@ -117,30 +110,8 @@ export function SelectTokenSheet({
   loadingTokens,
 }: SelectTokenSheetProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSelectChainOpen, setIsSelectChainOpen] = useState(false)
-  const allChainsPlaceholder = useAllChainsPlaceholder()
-  const [selectedFilteredChain, setSelectedFilteredChain] = useState<
-    TokenAssociatedChain | undefined
-  >(allChainsPlaceholder)
   const activeNetwork = useSelectedNetwork()
   const { chainsToShow } = useSwapContext()
-
-  useEffect(() => {
-    if (!sourceToken) {
-      setSelectedFilteredChain(undefined)
-      return
-    }
-    if (!sourceToken?.skipAsset?.chainId?.startsWith('aptos-')) {
-      setSelectedFilteredChain(undefined)
-      return
-    }
-    const chain = chainsToShow.find((chain) => chain.chainId === sourceToken.skipAsset.chainId)
-    if (!chain) {
-      setSelectedFilteredChain(undefined)
-      return
-    }
-    setSelectedFilteredChain({ chain })
-  }, [sourceToken, chainsToShow])
 
   useEffect(() => {
     if (isOpen) {
@@ -233,12 +204,6 @@ export function SelectTokenSheet({
     return searchResult.map((result) => result.item)
   }, [searchQuery, tokensToShow, simpleFuse, extendedFuse])
 
-  const chainsToShowWithAssociatedTokens = useMemo(() => {
-    return chainsToShow.map((chain) => ({
-      chain,
-    }))
-  }, [chainsToShow])
-
   const tokenGroups = useMemo(() => {
     return [
       {
@@ -256,37 +221,15 @@ export function SelectTokenSheet({
       },
     ]
   }, [filteredTokens])
-  const defaultTokenLogo = useDefaultTokenLogo()
-
-  const emitMixpanelDropdownCloseEvent = useCallback(
-    (tokenSelected?: string) => {
-      try {
-        mixpanel.track(EventName.DropdownClosed, {
-          dropdownType: showFor === 'source' ? 'Source Token' : 'Destination Token',
-          tokenSelected,
-          searchField: searchQuery,
-        })
-      } catch (error) {
-        // ignore
-      }
-    },
-    [searchQuery, showFor],
-  )
 
   const handleOnTokenSelect = useCallback(
     (token: SourceToken) => {
       onTokenSelect(token)
-      const chain = chainsToShow.find((chain) => chain.chainId === token.skipAsset.chainId)
-      emitMixpanelDropdownCloseEvent(`${token.symbol} (${chain?.chainName})`)
     },
-    [chainsToShow, emitMixpanelDropdownCloseEvent, onTokenSelect],
+    [onTokenSelect],
   )
 
-  const onSelectChainFilterClick = useCallback(() => {
-    setIsSelectChainOpen(true)
-  }, [])
-
-  if (isCompassWallet() && activeNetwork !== 'testnet' && showFor === 'destination') {
+  if (activeNetwork !== 'testnet' && showFor === 'destination') {
     return (
       <SelectDestinationSheet
         isOpen={isOpen}
@@ -300,7 +243,6 @@ export function SelectTokenSheet({
         )}
         destinationToken={destinationToken}
         onClose={() => {
-          emitMixpanelDropdownCloseEvent()
           onClose()
         }}
         onTokenSelect={handleOnTokenSelect}
@@ -315,7 +257,6 @@ export function SelectTokenSheet({
     <BottomModal
       title={'You pay'}
       onClose={() => {
-        emitMixpanelDropdownCloseEvent()
         onClose()
       }}
       isOpen={isOpen}
@@ -324,30 +265,13 @@ export function SelectTokenSheet({
       containerClassName='bg-secondary-50'
     >
       <div className='flex flex-col items-center w-full h-full'>
-        <div className='flex flex-col items-center w-full pb-2'>
-          <SearchInput
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testing-id='switch-token-input-search'
-            placeholder={isChainAbstractionView ? 'Search Token or Chain' : 'Search Token'}
-            onClear={() => setSearchQuery('')}
-            divClassName='rounded-2xl w-full flex items-center gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 dark:focus-within:border-white-100 hover:border-secondary-400 focus-within:border-black-100 border border-transparent'
-            inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
-          />
-          {showFor === 'destination' ? (
-            <div
-              className='flex items-center cursor-pointer bg-gray-50 dark:bg-gray-900 h-12 rounded-3xl px-3 py-2'
-              onClick={onSelectChainFilterClick}
-            >
-              <img
-                src={selectedFilteredChain?.chain.icon || defaultTokenLogo}
-                className='w-[28px] h-[28px]'
-                onError={imgOnError(defaultTokenLogo)}
-              />
-              <img src={Images.Misc.FilledArrowDown} className='h-1.5 w-4 ml-2' />
-            </div>
-          ) : null}
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          data-testing-id='switch-token-input-search'
+          placeholder={isChainAbstractionView ? 'Search Token or Chain' : 'Search Token'}
+          onClear={() => setSearchQuery('')}
+        />
 
         <div className='w-full h-full overflow-y-scroll'>
           {loadingTokens ? (
@@ -413,20 +337,6 @@ export function SelectTokenSheet({
           )}
         </div>
       </div>
-      <SelectChainSheet
-        isOpen={isSelectChainOpen}
-        onClose={() => {
-          setIsSelectChainOpen(false)
-        }}
-        chainsToShow={chainsToShowWithAssociatedTokens}
-        selectedChain={selectedFilteredChain?.chain}
-        onChainSelect={(chain) => {
-          setSelectedFilteredChain(chain)
-          setIsSelectChainOpen(false)
-        }}
-        selectedToken={null}
-        showAllChainsOption
-      />
     </BottomModal>
   )
 }

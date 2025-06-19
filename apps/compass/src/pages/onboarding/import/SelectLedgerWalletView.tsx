@@ -1,5 +1,6 @@
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { CaretRight } from '@phosphor-icons/react'
+import { WalletInfoCardSkeletons } from 'components/Skeletons'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
 import WalletInfoCard from 'components/wallet-info-card'
@@ -17,9 +18,8 @@ type SelectWalletViewProps = {
   readonly customAccountsData: readonly WalletAccount[] | undefined
   readonly setSelectedIds: (val: { [id: number]: boolean }) => void
   readonly selectedIds: { [id: string]: boolean }
-  getLedgerAccountDetailsForIdxs: (useEvmApp: boolean, idxs: number[]) => Promise<void>
+  getLedgerAccountDetailsForIdxs: (idxs: number[]) => Promise<void>
   getCustomLedgerAccountDetails: (
-    useEvmApp: boolean,
     customDerivationPath: string,
     name: string,
     existingAddresses: string[] | undefined,
@@ -35,7 +35,7 @@ export default function SelectLedgerWalletView({
   getLedgerAccountDetailsForIdxs,
   getCustomLedgerAccountDetails,
 }: SelectWalletViewProps) {
-  const { prevStep, currentStep } = useImportWalletContext()
+  const { prevStep, currentStep, selectedApp } = useImportWalletContext()
   const [isLoading, setIsLoading] = useState(false)
   const [existingAddresses, setExistingAddresses] = useState<string[]>([])
   const [isAdvanceModeEnabled, setIsAdvanceModeEnabled] = useState<boolean>(false)
@@ -65,7 +65,7 @@ export default function SelectLedgerWalletView({
           return (accountsData ?? []).length + index
         })
 
-        getLedgerAccountDetailsForIdxs(false, idxs)
+        getLedgerAccountDetailsForIdxs(idxs)
       }
     }
 
@@ -104,7 +104,7 @@ export default function SelectLedgerWalletView({
       subHeading='Select the wallets you want to import'
       entry={prevStep <= currentStep ? 'right' : 'left'}
     >
-      <div className='flex flex-col bg-secondary-200 w-full max-h-[340px] py-1 overflow-y-auto rounded-xl'>
+      <div className='flex flex-col bg-secondary-200 w-full max-h-[280px] py-1 overflow-y-auto rounded-xl'>
         {hasCustomAccounts ? (
           <div className='pt-5 pl-5'>
             <Text size='sm' className='font-medium' color='text-muted-foreground'>
@@ -183,6 +183,12 @@ export default function SelectLedgerWalletView({
             />
           )
         })}
+
+        <WalletInfoCardSkeletons
+          count={2}
+          id='fetch-more-wallets'
+          cardClassName='bg-transparent border-b border-dashed border-secondary-600/75 last:border-b-0'
+        />
       </div>
 
       <Button
@@ -194,16 +200,13 @@ export default function SelectLedgerWalletView({
         Add selected wallets
       </Button>
 
-      {/* <div className='w-full flex justify-center items-center'>
-        <button
-          className='flex items-center gap-1 text-sm font-medium text-[#70B7FF]'
-          onClick={handleAdvancedSettingsClick}
-        >
-          Advanced settings
-          <CaretRight className='h-[16px]' />
-        </button>
-      </div>
-
+      <button
+        className='flex w-fill items-center justify-center gap-1 text-sm font-medium hover:text-accent-blue-200 text-accent-foreground transition-colors'
+        onClick={handleAdvancedSettingsClick}
+      >
+        Advanced settings
+        <CaretRight className='h-[16px]' />
+      </button>
       <LedgerAdvancedMode
         isAdvanceModeEnabled={isAdvanceModeEnabled}
         setIsAdvanceModeEnabled={setIsAdvanceModeEnabled}
@@ -211,7 +214,8 @@ export default function SelectLedgerWalletView({
         getCustomLedgerAccountDetails={getCustomLedgerAccountDetails}
         setSelectedIds={setSelectedIds}
         selectedIds={selectedIds}
-      /> */}
+        selectedApp={selectedApp}
+      />
     </OnboardingWrapper>
   )
 }

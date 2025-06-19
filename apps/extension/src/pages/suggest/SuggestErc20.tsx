@@ -5,11 +5,10 @@ import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { BG_RESPONSE, SUGGEST_TOKEN } from 'config/storage-keys'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { betaERC20DenomsStore, enabledCW20DenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import Browser from 'webextension-polyfill'
 
@@ -91,11 +90,7 @@ const SuggestErc20 = observer(({ handleRejectBtnClick }: ChildrenParams) => {
     <>
       <div className='flex flex-col items-center'>
         <Heading text='Add Token' />
-        <SubHeading
-          text={`This will allow this token to be viewed within ${
-            isCompassWallet() ? 'Compass' : 'Leap'
-          } Wallet`}
-        />
+        <SubHeading text={`This will allow this token to be viewed within Leap Wallet`} />
         <TokenContractAddress
           address={contractInfo.address}
           img={

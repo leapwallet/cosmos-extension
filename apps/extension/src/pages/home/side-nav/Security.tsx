@@ -5,10 +5,10 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 import { DEBUG } from 'utils/debug'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
-import { NavPages, SideNavSection, SideNavSectionHeader } from '.'
+import { NavPages, SideNavSection, SideNavSectionContent, SideNavSectionHeader } from '.'
 
 export const Security = observer(
   ({
@@ -56,7 +56,7 @@ export const Security = observer(
           onClick: () => {
             setShowNavPage(NavPages.SyncWithMobile)
           },
-          enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER && !isCompassWallet(),
+          enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
         },
         {
           title: 'Security',
@@ -80,6 +80,7 @@ export const Security = observer(
           titleIcon: Images.Nav.Lock,
           onClick: () => {
             auth?.signout(() => {
+              globalSheetsStore.setSideNavOpen(false)
               DEBUG('SideNav', 'SignOut', 'success')
             })
           },
@@ -93,19 +94,21 @@ export const Security = observer(
     return (
       <SideNavSection>
         <SideNavSectionHeader>Security</SideNavSectionHeader>
-        {Privacy.filter((item) => item.enabled).map((item, index) => {
-          return (
-            <React.Fragment key={item.title}>
-              {index !== 0 && <CardDivider />}
-              <NavCard
-                property={item.title}
-                imgSrc={item.titleIcon}
-                onClick={item.onClick}
-                data-testing-id={item['data-testing-id'] ?? ''}
-              />
-            </React.Fragment>
-          )
-        })}
+        <SideNavSectionContent>
+          {Privacy.filter((item) => item.enabled).map((item, index) => {
+            return (
+              <React.Fragment key={item.title}>
+                {index !== 0 && <CardDivider />}
+                <NavCard
+                  property={item.title}
+                  imgSrc={item.titleIcon}
+                  onClick={item.onClick}
+                  data-testing-id={item['data-testing-id'] ?? ''}
+                />
+              </React.Fragment>
+            )
+          })}
+        </SideNavSectionContent>
       </SideNavSection>
     )
   },

@@ -78,6 +78,7 @@ export async function handleCosmosTx(
     const signMode: SignMode = SignMode.SIGN_MODE_LEGACY_AMINO_JSON
 
     const pubkey = getPublicKey({
+      chainKey: messageChain.key,
       chainId: String(messageChain.chainId),
       coinType: messageChain.coinType,
       key: walletAccounts[0].pubkey,

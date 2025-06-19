@@ -1,9 +1,4 @@
-import {
-  Key,
-  useActiveWalletStore,
-  useFeatureFlags,
-  useIsCompassWallet,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { Key, useActiveWalletStore, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { PasswordStore } from '@leapwallet/cosmos-wallet-store'
 import { KeyChain } from '@leapwallet/leap-keychain'
@@ -140,7 +135,6 @@ export function useInitActiveWallet(passwordStore: PasswordStore) {
 
 export default function useActiveWallet() {
   const { setActiveWallet: setState, activeWallet } = useActiveWalletStore()
-  const isCompassWallet = useIsCompassWallet()
   const { data: featureFlags } = useFeatureFlags()
 
   const setActiveWallet = useCallback(
@@ -148,24 +142,32 @@ export default function useActiveWallet() {
       if (!wallet) return
 
       const store = await browser.storage.local.get([ACTIVE_CHAIN, LAST_EVM_ACTIVE_CHAIN])
-      const lastEvmActiveChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum'
-      const activeChain: SupportedChain = isCompassWallet
-        ? store[ACTIVE_CHAIN] ?? 'seiTestnet2'
-        : lastEvmActiveChain
+      const lastEvmActiveChain: SupportedChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum'
+      const activeChain: SupportedChain = store[ACTIVE_CHAIN] ?? 'cosmos'
 
-      const evmAddress = pubKeyToEvmAddressToShow(wallet.pubKeys?.[activeChain])
+      const evmAddress = pubKeyToEvmAddressToShow(wallet.pubKeys?.[lastEvmActiveChain])
       await sendMessageToTab({ event: 'accountsChanged', data: [evmAddress] })
+      if (wallet.pubKeys?.['sui']) {
+        const suiAddress = wallet.pubKeys?.['sui']
+        await sendMessageToTab({ event: 'suiAccountsChanged', data: [suiAddress] })
+      }
+      if (wallet.pubKeys?.['solana']) {
+        const solanaAddress = wallet.pubKeys?.['solana']
+        await sendMessageToTab({ event: 'solanaAccountsChanged', data: [solanaAddress] })
+      }
 
       await sendMessageToTab({ event: 'leap_keystorechange' })
       await browser.storage.local.set({ [ACTIVE_WALLET]: wallet, [ACTIVE_WALLET_ID]: wallet.id })
 
-      if (
-        featureFlags?.swaps?.chain_abstraction === 'active' &&
-        (activeChain as AggregatedSupportedChain) !== AGGREGATED_CHAIN_KEY
-      ) {
-        rootStore.rootBalanceStore.loadBalances('aggregated')
-      }
-      rootStore.reloadAddresses()
+      rootStore.reloadAddresses().finally(() => {
+        if (
+          featureFlags?.swaps?.chain_abstraction === 'active' &&
+          (activeChain as AggregatedSupportedChain) !== AGGREGATED_CHAIN_KEY
+        ) {
+          rootStore.rootBalanceStore.loadBalances('aggregated')
+        }
+      })
+
       try {
         setState(wallet)
       } catch (e) {

@@ -1,6 +1,7 @@
 import { useChainInfo } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { QueryStatus } from '@tanstack/react-query'
+import { SeiLedgerAppStrip } from 'components/alert-strip/SeiLedgerAppStrip'
 import { EmptyCard } from 'components/empty-card'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
@@ -69,8 +70,12 @@ export const GeneralHome = observer(() => {
 
   if (!activeWallet) {
     return (
-      <div className='relative w-full overflow-clip panel-height'>
-        <EmptyCard src={Images.Logos.LeapCosmos} heading='No wallet found' />
+      <div className='relative w-full overflow-clip panel-height flex justify-center items-center'>
+        <EmptyCard
+          heading='No wallet found'
+          logoClassName='size-14'
+          src={Images.Logos.CompassCircle}
+        />
       </div>
     )
   }
@@ -85,6 +90,7 @@ export const GeneralHome = observer(() => {
 
       <div className={'w-full flex flex-col justify-center items-center mb-20 relative isolate'}>
         <GeneralHomeAlertStirps evmStatus={evmStatus} balanceError={balanceError} />
+        <SeiLedgerAppStrip />
 
         <BalanceHeader watchWallet={activeWallet?.watchWallet} />
 

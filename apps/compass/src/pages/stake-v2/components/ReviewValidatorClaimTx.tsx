@@ -38,7 +38,7 @@ import Lottie from 'lottie-react'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -196,10 +196,6 @@ const ReviewValidatorClaimTx = observer(
       sessionStorage.setItem('navigate-stake-pending-txn-state', JSON.stringify(state))
       navigate('/stake/pending-txn', {
         state,
-      })
-
-      mixpanel.track(EventName.TransactionSigned, {
-        transactionType: 'stake_claim',
       })
     }, [activeChain, activeNetwork, navigate, validator])
 

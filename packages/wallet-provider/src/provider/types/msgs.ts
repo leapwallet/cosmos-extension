@@ -1,4 +1,4 @@
-import { AccountAuthenticator, Serializer, SimpleTransaction } from '@aptos-labs/ts-sdk';
+import { AccountAuthenticator } from '@aptos-labs/ts-sdk';
 import { AminoSignResponse, StdSignature, StdSignDoc } from '@cosmjs/amino';
 import { EthSignType } from '@leapwallet/cosmos-wallet-sdk';
 import { BroadcastMode } from 'cosmjs-types/cosmos/tx/v1beta1/service';
@@ -25,6 +25,24 @@ export class EnableAccessMsg extends Message<void> {
 
   type(): string {
     return EnableAccessMsg.type();
+  }
+}
+
+export class GetChainInfosWithoutEndpointsMsg extends Message<void> {
+  constructor() {
+    super();
+  }
+
+  public static type() {
+    return 'get-chain-infos-without-endpoints';
+  }
+
+  validateBasic(): void {
+    //;
+  }
+
+  type(): string {
+    return GetChainInfosWithoutEndpointsMsg.type();
   }
 }
 
@@ -230,6 +248,7 @@ export class RequestSignAminoMsg extends Message<AminoSignResponse> {
       ethSignType?: EthSignType;
       enableExtraEntropy?: boolean;
       isSignArbitrary?: boolean;
+      isADR36?: boolean;
     } = {},
   ) {
     super();
@@ -287,6 +306,10 @@ export class RequestSignAminoMsg extends Message<AminoSignResponse> {
 
     if (!this.signOptions) {
       throw new Error('Sign options are null');
+    }
+
+    if (hasOnlyMsgSignData) {
+      this.signOptions.isADR36 = true;
     }
   }
 
@@ -595,5 +618,78 @@ export class RequestDecryptMsg extends Message<Uint8Array> {
 
   type(): string {
     return RequestDecryptMsg.type();
+  }
+}
+
+export class RequestSignSolanaMsg extends Message<Uint8Array> {
+  constructor(
+    public readonly chainId: string,
+    public readonly signer: string,
+    public readonly signDoc: string | Uint8Array,
+    public readonly submit: boolean,
+    public readonly signMessage: boolean,
+    public readonly signOptions: LeapSignOptions & {
+      sendOptions?: any;
+    } = {},
+  ) {
+    super();
+  }
+
+  public static type() {
+    return 'request-sign-solana';
+  }
+
+  validateBasic(): void {
+    if (!this.chainId) {
+      throw new Error('chain id not set');
+    }
+
+    if (!this.signer) {
+      throw new Error('signer not set');
+    }
+
+    if (!this.signOptions) {
+      throw new Error('Sign options are null');
+    }
+  }
+
+  type(): string {
+    return RequestSignSolanaMsg.type();
+  }
+}
+export class RequestSignSuiMsg extends Message<Uint8Array> {
+  constructor(
+    public readonly chainId: string,
+    public readonly signer: string,
+    public readonly signDoc: string | Uint8Array,
+    public readonly submit: boolean,
+    public readonly signMessage: boolean,
+    public readonly signOptions: LeapSignOptions & {
+      sendOptions?: any;
+    } = {},
+  ) {
+    super();
+  }
+
+  public static type() {
+    return 'request-sign-sui';
+  }
+
+  validateBasic(): void {
+    if (!this.chainId) {
+      throw new Error('chain id not set');
+    }
+
+    if (!this.signer) {
+      throw new Error('signer not set');
+    }
+
+    if (!this.signOptions) {
+      throw new Error('Sign options are null');
+    }
+  }
+
+  type(): string {
+    return RequestSignSolanaMsg.type();
   }
 }

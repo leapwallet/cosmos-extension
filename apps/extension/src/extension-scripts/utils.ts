@@ -6,10 +6,13 @@ import {
   chainIdToChain,
   ChainInfo,
   isAptosChain,
+  isSuiChain,
+  sleep,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { initStorage } from '@leapwallet/leap-keychain'
+import { base58 } from '@scure/base'
 import { COMPASS_CHAINS } from 'config/config'
 import { LEAPBOARD_URL, LEAPBOARD_URL_OLD } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
@@ -21,6 +24,7 @@ import {
   SELECTED_NETWORK,
 } from 'config/storage-keys'
 import CryptoJs from 'crypto-js'
+import * as sol from 'micro-sol-signer'
 import { addToConnections } from 'pages/ApproveConnection/utils'
 import { getStorageAdapter } from 'utils/storageAdapter'
 import browser, { Storage, Windows } from 'webextension-polyfill'
@@ -49,21 +53,21 @@ export const decodeChainIdToChain = async (): Promise<Record<string, string>> =>
 }
 
 export const validateChains = async (chainIds: Array<string>) => {
-  const ChainInfos = await getChains()
+  const chainInfos = await getChains()
   const compassChainIds = (COMPASS_CHAINS as SupportedChain[])
     .map((chain: SupportedChain) => {
-      if (ChainInfos[chain]) {
-        return [ChainInfos[chain].chainId, ChainInfos[chain].testnetChainId]
+      if (chainInfos[chain]) {
+        return [chainInfos[chain].chainId, chainInfos[chain].testnetChainId]
       }
       return []
     })
     .flat()
     .filter(Boolean)
 
-  const supportedChains = Object.values(ChainInfos)
+  const supportedChains = Object.values(chainInfos)
     .filter((chain) => chain.enabled)
     .map((chain) => chain.chainId)
-  const supportedTestnetChains = Object.values(ChainInfos)
+  const supportedTestnetChains = Object.values(chainInfos)
     .filter((chain) => chain.enabled)
     .map((chain) => chain.testnetChainId)
   const experimentalChains = (await getExperimentalChains()) ?? {}
@@ -177,45 +181,102 @@ export type Page =
   | 'signAptos'
   | 'signBitcoin'
   | 'signSeiEvm'
+  | 'signSolana'
+  | 'signSui'
   | 'add-secret-token'
   | 'login'
   | 'suggest-erc-20'
   | 'switch-ethereum-chain'
   | 'switch-chain'
   | 'suggest-ethereum-chain'
+  | 'switch-solana-chain'
 
-export async function openPopup(page: Page, queryString?: string, isEvm?: boolean) {
+async function getSidePanelStatus() {
   let response
+  let sidePanelOptions
+  let isSidePanelMounted
+  let isSidePanelEnabled
   try {
+    sidePanelOptions = await chrome.sidePanel.getOptions({})
+    isSidePanelEnabled = sidePanelOptions?.enabled
     response = (await chrome.runtime.sendMessage({ type: 'side-panel-status' })) as any
+    isSidePanelMounted =
+      response?.type === 'side-panel-status' && response?.message?.enabled === true
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(e)
   }
 
-  const isSidePanelEnabled =
-    response?.type === 'side-panel-status' && response?.message?.enabled === true
-  if (isSidePanelEnabled) {
-    try {
-      let url = '/'
-      if (page !== 'login') {
-        url = url + page
-      }
+  return { isSidePanelMounted, isSidePanelEnabled }
+}
 
-      if (queryString) {
-        url = url + queryString
-      }
-      await chrome.runtime.sendMessage({
-        type: 'side-panel-update',
-        message: {
-          url,
-        },
-      })
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e)
+async function openPageInSidePanel(page: Page, queryString?: string) {
+  try {
+    let url = '/'
+    if (page !== 'login') {
+      url = url + page
     }
-  } else {
+
+    if (queryString) {
+      url = url + queryString
+    }
+    await chrome.runtime.sendMessage({
+      type: 'side-panel-update',
+      message: {
+        url,
+      },
+    })
+    return true
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
+    return false
+  }
+}
+
+export async function openPopup(
+  page: Page,
+  queryString?: string,
+  isEvm?: boolean,
+  sendMessageToInvoker?: (eventName: string, payload: any) => void,
+) {
+  const { isSidePanelMounted, isSidePanelEnabled } = await getSidePanelStatus()
+  let pageOpened = false
+  try {
+    if (isSidePanelMounted) {
+      pageOpened = await openPageInSidePanel(page, queryString)
+    } else if (isSidePanelEnabled && sendMessageToInvoker) {
+      // open side panel
+      const currentWindow = await chrome.windows.getCurrent()
+      if (!currentWindow?.id) {
+        throw new Error('Unable to fetch current window id')
+      }
+      await sendMessageToInvoker('invokeOpenSidePanel', {
+        windowId: currentWindow?.id,
+      })
+      let { isSidePanelMounted: updatedIsSidePanelMounted } = await getSidePanelStatus()
+      let retryCount = 0
+      let sleepDuration = 100
+      while (!updatedIsSidePanelMounted) {
+        await sleep(sleepDuration)
+        const { isSidePanelMounted } = await getSidePanelStatus()
+        updatedIsSidePanelMounted = isSidePanelMounted
+        retryCount += 1
+        if (retryCount > 5) {
+          sleepDuration = 200
+        }
+        if (retryCount > 10) {
+          throw new Error('Side panel not mounted')
+        }
+      }
+      pageOpened = await openPageInSidePanel(page, queryString)
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
+    pageOpened = false
+  }
+  if (!pageOpened) {
     let url = `index.html#/`
     if (page !== 'login') {
       url = url + page
@@ -260,7 +321,7 @@ export async function openPopup(page: Page, queryString?: string, isEvm?: boolea
           }
         }
 
-        if (isEvm && popupId) {
+        if (isEvm && popupId && page !== 'approveConnection') {
           if (page === 'signSeiEvm') {
             return
           }
@@ -318,11 +379,16 @@ export async function disconnect(msg: { chainId?: string | string[]; origin: str
   const isAptos = Array.isArray(msg.chainId)
     ? !!msg?.chainId?.every((_chainId) => isAptosChain(_chainId))
     : isAptosChain(msg.chainId)
+  const isSui = Array.isArray(msg.chainId)
+    ? !!msg?.chainId?.every((_chainId) => isSuiChain(_chainId))
+    : isSuiChain(msg.chainId)
 
   const [activeWallet, connections] = await Promise.all([
     getActiveWallet(),
     getConnections(),
-    browser.storage.local.remove(getChainOriginStorageKey(msg.origin, isAptos ? 'aptos-' : '')),
+    browser.storage.local.remove(
+      getChainOriginStorageKey(msg.origin, isAptos ? 'aptos-' : isSui ? 'sui-' : ''),
+    ),
   ])
 
   if (Array.isArray(msg.chainId)) {
@@ -351,12 +417,12 @@ export async function disconnect(msg: { chainId?: string | string[]; origin: str
 }
 
 export async function getSupportedChains(): Promise<Record<SupportedChain, ChainInfo>> {
-  const ChainInfos = await getChains()
+  const chainInfos = await getChains()
 
-  let allChains = ChainInfos
+  let allChains = chainInfos
   try {
     const betaChains = (await getExperimentalChains()) ?? {}
-    allChains = { ...ChainInfos, ...betaChains }
+    allChains = { ...chainInfos, ...betaChains }
   } catch (_) {
     //
   }
@@ -591,10 +657,110 @@ export const customOpenPopup = async (
   isEvm?: boolean,
 ) => {
   try {
-    await openPopup(page, queryString, isEvm)
+    const payloadId = response?.[2]
+    if (payloadId !== undefined) {
+      const sendMessageToInvoker = (eventName: string, payload: any) => {
+        sendResponse(eventName, payload, payloadId)
+      }
+      await openPopup(page, queryString, isEvm, sendMessageToInvoker)
+    } else {
+      await openPopup(page, queryString, isEvm)
+    }
   } catch (e: any) {
     if (response && e.message.includes('Requests exceeded')) {
       return sendResponse(...response)
+    }
+  }
+}
+
+function arrayEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+export function validateSolanaPrivateKey(privateKey: string | number[]) {
+  try {
+    let privateKeyBytes: Uint8Array
+
+    if (typeof privateKey === 'string') {
+      if (privateKey.match(/^[0-9a-fA-F]+$/)) {
+        const privateKeyBytes = new Uint8Array(
+          privateKey.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
+        )
+        privateKey = base58.encode(privateKeyBytes)
+      }
+
+      if (privateKey.length === 32 || privateKey.length === 44) {
+        try {
+          const decoded = base58.decode(privateKey)
+          if (decoded.length === 32) {
+            return {
+              isValid: false,
+              publicAddress: '',
+              privateKey: '',
+            }
+          }
+        } catch {
+          //
+        }
+      }
+
+      privateKeyBytes = base58.decode(privateKey)
+    } else if (Array.isArray(privateKey)) {
+      privateKeyBytes = new Uint8Array(privateKey)
+    } else {
+      return {
+        isValid: false,
+        publicAddress: '',
+        privateKey: '',
+      }
+    }
+
+    if (privateKeyBytes.length === 64) {
+      const originalPublicKey = privateKeyBytes.slice(32)
+      privateKeyBytes = privateKeyBytes.slice(0, 32)
+
+      const derivedPublicKey = sol.getPublicKey(privateKeyBytes)
+      if (!arrayEqual(derivedPublicKey, originalPublicKey)) {
+        return {
+          isValid: false,
+          publicAddress: '',
+          privateKey: '',
+        }
+      }
+    }
+
+    if (privateKeyBytes.length !== 32) {
+      return {
+        isValid: false,
+        publicAddress: '',
+        privateKey: '',
+      }
+    }
+
+    const derivedPublicKey = sol.getPublicKey(privateKeyBytes)
+
+    const derivedAddress = sol.getAddress(privateKeyBytes)
+    if (!derivedPublicKey || (typeof privateKey === 'string' && privateKey === derivedAddress)) {
+      return {
+        isValid: false,
+        publicAddress: '',
+      }
+    }
+
+    return {
+      isValid: true,
+      publicAddress: derivedAddress,
+      privateKey: privateKeyBytes,
+    }
+  } catch (error) {
+    return {
+      isValid: false,
+      publicAddress: '',
+      privateKey: '',
     }
   }
 }

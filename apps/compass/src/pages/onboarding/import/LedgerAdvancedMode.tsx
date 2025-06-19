@@ -7,6 +7,7 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
 import { Input } from 'components/ui/input'
+import { LedgerAppId } from 'hooks/wallet/useWallet'
 import React, { ChangeEvent, Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { cn } from 'utils/cn'
@@ -19,7 +20,6 @@ interface LedgerAdvancedModeProps {
   isAdvanceModeEnabled: boolean
   setIsAdvanceModeEnabled: React.Dispatch<React.SetStateAction<boolean>>
   getCustomLedgerAccountDetails: (
-    useEvmApp: boolean,
     customDerivationPath: string,
     name: string,
     existingAddresses: string[] | undefined,
@@ -27,6 +27,7 @@ interface LedgerAdvancedModeProps {
   existingAddresses: string[] | undefined
   setSelectedIds: (val: { [id: number]: boolean }) => void
   selectedIds: { [id: string]: boolean }
+  selectedApp: LedgerAppId
 }
 
 export default function LedgerAdvancedMode({
@@ -36,6 +37,7 @@ export default function LedgerAdvancedMode({
   existingAddresses,
   setSelectedIds,
   selectedIds,
+  selectedApp,
 }: LedgerAdvancedModeProps) {
   const [walletName, setWalletName] = useState<string>('')
   const [derivationInput, setDerivationInput] = useState<{
@@ -122,18 +124,11 @@ export default function LedgerAdvancedMode({
         return
       }
 
-      // if (Object.values(derivationInput).includes(undefined)) {
-      //   setErrors((prevValue: any) => ({
-      //     ...(prevValue ?? {}),
-      //     derivationInput: 'Kindly enter a valid derivation path',
-      //   }))
-      //   setIsLoading(false)
-      //   return
-      // }
       const input = `${derivationInput.index1}'/${derivationInput.index2}/${derivationInput.index3}`
-      await getCustomLedgerAccountDetails(false, input, walletName, existingAddresses)
+      await getCustomLedgerAccountDetails(input, walletName, existingAddresses)
+      const coinType = selectedApp === 'sei' ? 60 : 118
 
-      const hdPath = `m/44'/118'/${input}`
+      const hdPath = `m/44'/${coinType}'/${input}`
       setSelectedIds({ ...selectedIds, [hdPath]: true })
       setIsLoading(false)
       clearFields()
@@ -277,7 +272,7 @@ export default function LedgerAdvancedMode({
         {isLoading ? (
           <LoaderAnimation color={Colors.white100} className='w-10 h-10' />
         ) : (
-          <Text color='dark:text-white-100 text-white-100'>Confirm and proceed</Text>
+          <>Confirm and proceed</>
         )}
       </Button>
     </BottomModal>

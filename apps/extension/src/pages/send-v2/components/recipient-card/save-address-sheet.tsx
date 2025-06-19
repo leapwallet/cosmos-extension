@@ -1,13 +1,7 @@
-import {
-  SelectedAddress,
-  useAddressPrefixes,
-  useGetChains,
-  useIsSeiEvmChain,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { SelectedAddress, useAddressPrefixes, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { getBlockChainFromAddress, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Avatar, Buttons, Input } from '@leapwallet/leap-ui'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
-import { bech32 } from 'bech32'
 import BottomModal from 'components/bottom-modal'
 import { CustomCheckbox } from 'components/custom-checkbox'
 import { LoaderAnimation } from 'components/loader/Loader'
@@ -18,7 +12,6 @@ import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
 import { AddressBook } from 'utils/addressbook'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { sliceAddress } from 'utils/strings'
 
 import { SendContextType, useSendContext } from '../../context'
@@ -68,7 +61,6 @@ export default function SaveAddressSheet({
 
   const chains = useGetChains()
   const _activeChain = useActiveChain()
-  const isSeiEvmChain = useIsSeiEvmChain()
 
   const activeChain = useMemo(() => {
     return sendActiveChain ?? _activeChain
@@ -76,10 +68,7 @@ export default function SaveAddressSheet({
 
   const chain = useMemo(() => {
     try {
-      if (
-        (isSeiEvmChain || chains[activeChain]?.evmOnlyChain) &&
-        address.toLowerCase().startsWith('0x')
-      ) {
+      if (chains[activeChain]?.evmOnlyChain && address.toLowerCase().startsWith('0x')) {
         return activeChain
       }
 
@@ -90,9 +79,9 @@ export default function SaveAddressSheet({
       }
       return _chain as SupportedChain
     } catch (e) {
-      return isCompassWallet() ? 'seiTestnet2' : 'cosmos'
+      return 'cosmos'
     }
-  }, [activeChain, address, addressPrefixes, chains, isSeiEvmChain])
+  }, [activeChain, address, addressPrefixes, chains])
 
   useEffect(() => {
     if (existingContact) {
@@ -247,7 +236,7 @@ export default function SaveAddressSheet({
           <LoaderAnimation color={Colors.white100} />
         ) : (
           <Buttons.Generic
-            color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+            color={Colors.green600}
             size='normal'
             className='w-full'
             disabled={!name || !!error}

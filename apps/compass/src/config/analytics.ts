@@ -71,7 +71,6 @@ export enum PageName {
   SwapsReview = 'Swaps - Review',
   SwapsTracking = 'Swaps - Tracking',
   SwapsCompletion = 'Swaps - Completion',
-  Governance = 'Governance',
   Stake = 'Stake',
   StakeInput = 'Stake - Input',
   Activity = 'Activity',

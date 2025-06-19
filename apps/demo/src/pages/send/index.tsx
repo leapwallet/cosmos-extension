@@ -2,7 +2,7 @@ import { ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { ChainLogos } from 'images/logos'
 import React, { ReactElement, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import BottomNav, { BottomNavLabel } from '~/components/bottom-nav'
 import PopupLayout from '~/components/popup-layout'

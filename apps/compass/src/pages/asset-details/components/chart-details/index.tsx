@@ -35,10 +35,8 @@ import ReadMoreText from 'components/read-more-text'
 import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
-import { EventName, PageName } from 'config/analytics'
 import { differenceInDays } from 'date-fns'
 import { useChainPageInfo } from 'hooks'
-import { usePageView } from 'hooks/analytics/usePageView'
 import useGetTopCGTokens from 'hooks/explore/useGetTopCGTokens'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -50,7 +48,6 @@ import { BuyIcon } from 'icons/buy-icon'
 import { DollarIcon } from 'icons/dollar-icon'
 import { SwapIcon } from 'icons/swap-icon'
 import { UploadIcon } from 'icons/upload-icon'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import { DiscoverHeader } from 'pages/discover/components/discover-header'
 import SelectChain from 'pages/home/SelectChain'
@@ -58,7 +55,8 @@ import { StakeInputPageState } from 'pages/stake-v2/StakeInputPage'
 import useAssets from 'pages/swaps-v2/hooks/useAssets'
 import React, { useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { coingeckoIdsStore } from 'stores/balance-store'
 import { manageChainsStore } from 'stores/manage-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { cn } from 'utils/cn'
@@ -97,7 +95,6 @@ const TokensDetails = observer(
     const navigate = useNavigate()
     const { data: cgTokens = [] } = useGetTopCGTokens()
     const { data: featureFlags } = useFeatureFlags()
-    const marketData = marketDataStore.data
 
     const location = useLocation()
     const portfolio = useMemo(() => {
@@ -210,7 +207,8 @@ const TokensDetails = observer(
       denom: assetsId as unknown as SupportedDenoms,
       tokenChain: (tokenChain ?? 'cosmos') as unknown as SupportedChain,
       compassParams,
-      marketData,
+      marketDataStore,
+      coingeckoIdsStore,
     })
 
     const denomInfo: NativeDenom = _denomInfo ?? {
@@ -221,10 +219,6 @@ const TokensDetails = observer(
       icon: portfolio?.img ?? '',
       coinGeckoId: portfolio?.coinGeckoId ?? '',
     }
-    usePageView(PageName.AssetDetails, {
-      pageViewSource: pageSource,
-      tokenName: denomInfo.coinDenom,
-    })
 
     const [preferredCurrency] = useUserPreferredCurrency()
     const { data: socials } = useAssetSocials(denomInfo?.coinGeckoId)
@@ -339,8 +333,8 @@ const TokensDetails = observer(
       return (
         isStakeComingSoon ||
         isStakeNotSupported ||
-        !!chainInfos[activeChain].evmOnlyChain ||
-        activeStakingDenom?.coinMinimalDenom !== portfolio?.coinMinimalDenom
+        activeStakingDenom?.coinMinimalDenom !== portfolio?.coinMinimalDenom ||
+        !!chainInfos[activeChain].evmOnlyChain
       )
     }, [
       activeChain,
@@ -381,13 +375,6 @@ const TokensDetails = observer(
           forceChain: activeChain,
           forceNetwork: activeNetwork,
         } as StakeInputPageState,
-      })
-      mixpanel.track(EventName.PageView, {
-        pageName: PageName.Stake,
-        pageViewSource: PageName.AssetDetails,
-        chainName: chain.chainName,
-        chainId: chain.chainId,
-        time: Date.now() / 1000,
       })
     }
 

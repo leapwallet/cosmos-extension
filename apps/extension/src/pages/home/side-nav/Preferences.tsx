@@ -9,10 +9,9 @@ import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import { manageChainsStore } from 'stores/manage-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { capitalize } from 'utils/strings'
 
-import { NavPages, SideNavSection, SideNavSectionHeader } from '.'
+import { NavPages, SideNavSection, SideNavSectionContent, SideNavSectionHeader } from '.'
 
 export const Preferences = observer(
   ({
@@ -20,8 +19,10 @@ export const Preferences = observer(
     containerRef,
     setShowNetworkDropUp,
     setShowThemeDropUp,
+    isExpandViewVisible,
   }: {
     setShowNavPage: (page: NavPages) => void
+    isExpandViewVisible: boolean
     containerRef: React.RefObject<HTMLDivElement>
     setShowNetworkDropUp: (show: boolean) => void
     setShowThemeDropUp: (show: boolean) => void
@@ -40,7 +41,7 @@ export const Preferences = observer(
         onClick: () => {
           setShowNavPage(NavPages.LightNode)
         },
-        enabled: !isCompassWallet() && featureFlags?.light_node?.extension === 'active',
+        enabled: featureFlags?.light_node?.extension === 'active',
       }),
       [featureFlags?.light_node?.extension, setShowNavPage],
     )
@@ -72,11 +73,7 @@ export const Preferences = observer(
             containerRef.current?.scrollTo(0, 0)
             setShowNetworkDropUp(true)
           },
-          enabled: !(
-            (isCompassWallet() && activeChain === 'seiDevnet') ||
-            activeChain === AGGREGATED_CHAIN_KEY ||
-            manageChain?.beta
-          ),
+          enabled: !(activeChain === AGGREGATED_CHAIN_KEY || manageChain?.beta),
         },
         // {
         //   title: 'Finder',
@@ -118,33 +115,35 @@ export const Preferences = observer(
     )
 
     return (
-      <SideNavSection>
+      <SideNavSection className={!isExpandViewVisible ? '!mt-0' : ''}>
         <SideNavSectionHeader>Preferences</SideNavSectionHeader>
-        {Preferences.filter((item) => item.enabled).map((item, index) => {
-          return (
-            <React.Fragment key={item.title}>
-              {index !== 0 && <CardDivider />}
-              {item.title === LightNodeItem.title ? (
-                <div key={item.title} className='relative'>
+        <SideNavSectionContent>
+          {Preferences.filter((item) => item.enabled).map((item, index) => {
+            return (
+              <React.Fragment key={item.title}>
+                {index !== 0 && <CardDivider />}
+                {item.title === LightNodeItem.title ? (
+                  <div key={item.title} className='relative'>
+                    <NavCard
+                      property={item.title}
+                      imgSrc={item.titleIcon}
+                      value={item.subTitle}
+                      onClick={item.onClick}
+                    />
+                    <BetaTag className='top-[18px] left-[202px]' />
+                  </div>
+                ) : (
                   <NavCard
                     property={item.title}
                     imgSrc={item.titleIcon}
                     value={item.subTitle}
                     onClick={item.onClick}
                   />
-                  <BetaTag className='top-[18px] left-[202px]' />
-                </div>
-              ) : (
-                <NavCard
-                  property={item.title}
-                  imgSrc={item.titleIcon}
-                  value={item.subTitle}
-                  onClick={item.onClick}
-                />
-              )}
-            </React.Fragment>
-          )
-        })}
+                )}
+              </React.Fragment>
+            )
+          })}
+        </SideNavSectionContent>
       </SideNavSection>
     )
   },

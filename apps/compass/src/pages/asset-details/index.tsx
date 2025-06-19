@@ -21,24 +21,17 @@ import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
 import ReadMoreText from 'components/read-more-text'
 import Text from 'components/text'
-import { PageName } from 'config/analytics'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { BuyIcon } from 'icons/buy-icon'
-import CardIcon from 'icons/card-icon'
-import { DollarIcon } from 'icons/dollar-icon'
-import { SendIcon } from 'icons/send-icon'
-import { SwapIcon } from 'icons/swap-icon'
-import { UploadIcon } from 'icons/upload-icon'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import { DiscoverHeader } from 'pages/discover/components/discover-header'
 import React, { useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { coingeckoIdsStore } from 'stores/balance-store'
 import { cn } from 'utils/cn'
 import { imgOnError } from 'utils/imgOnError'
 import { capitalize, formatForSubstring } from 'utils/strings'
@@ -70,7 +63,6 @@ const AssetDetails = observer(
     const queryAssetsId = useQuery().get('assetName') ?? undefined
     const pageSource = useQuery().get('pageSource') ?? undefined
     const navigate = useNavigate()
-    const marketData = marketDataStore.data
     const activeWallet = useActiveWallet()
     const location = useLocation()
     const portfolio = useMemo(() => {
@@ -136,7 +128,8 @@ const AssetDetails = observer(
       denom: assetsId as unknown as SupportedDenoms,
       tokenChain: activeChain,
       compassParams,
-      marketData,
+      marketDataStore,
+      coingeckoIdsStore,
     })
 
     const denomInfo: NativeDenom = _denomInfo ?? {
@@ -147,10 +140,6 @@ const AssetDetails = observer(
       icon: portfolio?.img ?? '',
       coinGeckoId: portfolio?.coinGeckoId ?? '',
     }
-    usePageView(PageName.AssetDetails, {
-      pageViewSource: pageSource,
-      tokenName: denomInfo.coinDenom,
-    })
 
     const { chartsData, chartsLoading, chartsErrors } = useMemo(() => {
       return { chartsData: data, chartsLoading: loadingCharts, chartsErrors: errorCharts }

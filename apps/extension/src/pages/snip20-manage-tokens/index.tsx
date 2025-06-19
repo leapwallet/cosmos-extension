@@ -8,7 +8,7 @@ import useQuery from 'hooks/useQuery'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { sliceSearchWord } from 'utils/strings'
 
 import { AddTokenSheet, CreateKeySheet, ImportKeySheet } from './components'

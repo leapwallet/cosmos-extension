@@ -255,10 +255,18 @@ export function useClaimAndStakeRewards(
 
               setPendingTx({
                 img: chainInfos[activeChain].chainSymbolImageUrl,
-                sentAmount: formatTokenAmount(chainRewards.rewardsDenomValue.toString(), '', 4),
+                sentAmount: formatTokenAmount(chainRewards.rewardsDenomValue.toString(), denom.coinDenom, 4),
                 sentTokenInfo: denom,
                 sentUsdValue: formatCurrency(chainRewards.rewardsUsdValue),
                 subtitle1: `Validator ${'Unknown'}`,
+                subtitle2:
+                  validatorsWithRewards.length > 0
+                    ? `You claimed and staked ${formatTokenAmount(
+                        chainRewards.rewardsDenomValue.toString(),
+                        denom.coinDenom,
+                        4,
+                      )} to ${validatorsWithRewards.length} validators successfully`
+                    : '',
                 title1: `Claim and Stake Rewards`,
                 txStatus: 'loading',
                 txType: 'delegate',

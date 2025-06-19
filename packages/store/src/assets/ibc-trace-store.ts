@@ -61,7 +61,10 @@ export class IbcTraceFetcher {
 
     function getDenom(trace: any) {
       if (trace.baseDenom) {
-        const baseDenom = getKeyToUseForDenoms(trace.baseDenom, trace.originChainId);
+        const baseDenom = getKeyToUseForDenoms(
+          trace.baseDenom,
+          String(trace.sourceChainId || trace.originChainId || ''),
+        );
         const _denom = denoms[baseDenom];
         return _denom;
       } else {

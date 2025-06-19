@@ -13,6 +13,7 @@ import {
 } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
 import { AuthInfo, Fee, SignerInfo, TxBody, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
 import { Height } from 'cosmjs-types/ibc/core/client/v1/client';
 
@@ -31,6 +32,7 @@ import {
 import {
   buildGrantMsg,
   getCancelUnDelegationMsg,
+  getCW20SendMsg,
   getDelegateMsg,
   getIbcTransferMsg,
   getRedelegateMsg,
@@ -52,7 +54,16 @@ export async function simulateSend(
   toAddress: string,
   amount: Coin[],
   fee: Coin[],
+  isCW20?: boolean,
 ) {
+  if (isCW20) {
+    const msg = getCW20SendMsg(fromAddress, toAddress, amount);
+    const encodedMsg = {
+      typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
+      value: MsgExecuteContract.encode(MsgExecuteContract.fromPartial(msg.value)).finish(),
+    };
+    return await simulateTx(lcdEndpoint, fromAddress, [encodedMsg], { amount: fee });
+  }
   const msg = getSendTokensMsg(fromAddress, toAddress, amount);
   const encodedMsg = {
     typeUrl: msg.typeUrl,
@@ -89,7 +100,7 @@ export async function simulateDelegate(
   chain?: SupportedChain,
 ) {
   let msg, encodedMsg;
-  if (chain === 'initia') {
+  if (chain && ['initia', 'initiaEvm'].includes(chain)) {
     msg = getInitiaDelegateMsg(fromAddress, validatorAddress, amount);
     encodedMsg = {
       typeUrl: msg.typeUrl,
@@ -114,7 +125,7 @@ export async function simulateUndelegate(
   chain?: SupportedChain,
 ) {
   let msg, encodedMsg;
-  if (chain === 'initia') {
+  if (chain && ['initia', 'initiaEvm'].includes(chain)) {
     msg = getInitiaUndelegateMsg(fromAddress, validatorAddress, amount);
     encodedMsg = {
       typeUrl: msg.typeUrl,
@@ -140,7 +151,7 @@ export async function simulateCancelUndelegation(
   chain?: SupportedChain,
 ) {
   let msg, encodedMsg;
-  if (chain === 'initia') {
+  if (chain && ['initia', 'initiaEvm'].includes(chain)) {
     msg = getInitiaCancelUnbondingDelegationMsg(fromAddress, validatorAddress, amount, creationHeight);
     encodedMsg = {
       typeUrl: msg.typeUrl,
@@ -167,7 +178,7 @@ export async function simulateRedelegate(
   chain?: SupportedChain,
 ) {
   let msg, encodedMsg;
-  if (chain === 'initia') {
+  if (chain && ['initia', 'initiaEvm'].includes(chain)) {
     msg = getInitiaRedelegateMsg(fromAddress, validatorDstAddress, validatorSrcAddress, amount);
     encodedMsg = {
       typeUrl: msg.typeUrl,
@@ -321,7 +332,8 @@ export async function simulateClaimAndStake(
   }[] = [];
   validatorsWithRewards.map((validatorWithReward) => {
     switch (chain) {
-      case 'initia': {
+      case 'initia':
+      case 'initiaEvm': {
         const msg = getInitiaDelegateMsg(fromAddress, validatorWithReward.validator, validatorWithReward.amount);
         const delegateMsg = {
           typeUrl: msg.typeUrl,

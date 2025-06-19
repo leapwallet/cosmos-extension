@@ -1,3 +1,5 @@
+import { SUPPORTED_METHODS } from '../messaging/requester';
+
 export const ETHEREUM_POPUP_METHOD_TYPE = {
   ETH__REQUEST_ACCOUNTS: 'eth_requestAccounts',
   ETH__SEND_TRANSACTION: 'eth_sendTransaction',
@@ -9,12 +11,14 @@ export const ETHEREUM_POPUP_METHOD_TYPE = {
   WALLET__WATCH_ASSET: 'wallet_watchAsset',
   WALLET__SWITCH_ETHEREUM_CHAIN: 'wallet_switchEthereumChain',
   WALLET__ADD_ETHEREUM_CHAIN: 'wallet_addEthereumChain',
+  OPEN_SIDE_PANEL: SUPPORTED_METHODS.OPEN_SIDE_PANEL,
 };
 
 export const ETHEREUM_NO_POPUP_METHOD_TYPE = {
   ETH__ACCOUNTS: 'eth_accounts',
   ETH__CHAIN_ID: 'eth_chainId',
   ETH__CALL: 'eth_call',
+  ETH__GET_CODE: 'eth_getCode',
   ETH__GET_BALANCE: 'eth_getBalance',
   ETH__BLOCK_NUMBER: 'eth_blockNumber',
   ETH__ESTIMATE_GAS: 'eth_estimateGas',

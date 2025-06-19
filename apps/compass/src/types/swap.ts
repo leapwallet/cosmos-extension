@@ -132,14 +132,6 @@ export interface GoFastTransferPacketTxnSeq extends TransferSequenceBase {
   originalState: GoFastTransferState
 }
 
-export interface MosaicTxnSeq extends TransferSequenceBase {
-  originalState: TXN_STATUS
-  packetTxs: {
-    sendTx: ChainTransaction | null
-    receiveTx: ChainTransaction | null
-  }
-}
-
 export type TransferSequence =
   | IBCPacketTxnSeq
   | CCTPPacketTxnSeq
@@ -148,7 +140,6 @@ export type TransferSequence =
   | OPInitPacketTxnSeq
   | LifiPacketTxnSeq
   | GoFastTransferPacketTxnSeq
-  | MosaicTxnSeq
 
 export type SwapTxnStatus = {
   status: TXN_STATUS

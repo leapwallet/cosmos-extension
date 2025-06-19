@@ -8,10 +8,8 @@ import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { TransferSequence } from 'types/swap'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useDenomData, useGetChainsToShow } from '../hooks'
-import { sanitizeChainIdForCompass } from '../utils'
 import { TxStepsStatusIcon } from './TxStepsStatusIcon'
 
 type TxPageStepsTypeProps = {
@@ -63,11 +61,6 @@ export const TxPageStepsType = observer(
         }
       }
 
-      if (isCompassWallet()) {
-        srcChainId = sanitizeChainIdForCompass(srcChainId)
-        destChainId = sanitizeChainIdForCompass(destChainId)
-      }
-
       return {
         srcChainId,
         destChainId,
@@ -102,28 +95,13 @@ export const TxPageStepsType = observer(
 
     const handleViewInExplorer = useCallback(
       (chainId: string, txHash: string) => {
-        if (isCompassWallet()) {
-          const explorerLink =
-            response?.packetTxs?.sendTx?.explorerLink ??
-            response?.packetTxs?.receiveTx?.explorerLink
-          if (explorerLink) {
-            window.open(explorerLink, '_blank', 'noopener noreferrer')
-            return
-          }
-          chainId = sanitizeChainIdForCompass(chainId)
-        }
         const chain = chains?.find((chain) => chain.chainId === chainId)
         if (!chain) return
 
         const explorerTxnUrl = getExplorerTxnUrl(txHash, chain.txExplorer?.mainnet?.txUrl ?? '')
         window.open(explorerTxnUrl, '_blank', 'noopener noreferrer')
       },
-      [
-        chains,
-        getExplorerTxnUrl,
-        response?.packetTxs?.receiveTx?.explorerLink,
-        response?.packetTxs?.sendTx?.explorerLink,
-      ],
+      [chains, getExplorerTxnUrl],
     )
 
     const { status, txData } = useMemo(() => {

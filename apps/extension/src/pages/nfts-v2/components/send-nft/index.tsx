@@ -1,13 +1,9 @@
 import {
   SelectedNetworkType,
   useActiveChain,
-  useGetChains,
-  useGetEvmGasPrices,
-  useIsSeiEvmChain,
   useSendNft,
   UseSendNftReturnType,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons } from '@leapwallet/leap-ui'
 import assert from 'assert'
@@ -16,10 +12,8 @@ import { useThemeColor } from 'hooks/utility/useThemeColor'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import { SelectedAddress } from 'pages/send-v2/types'
-import React, { createContext, useContext, useMemo, useState } from 'react'
-import { useEffect } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { nftStore } from 'stores/nft-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { useTxCallBack } from 'utils/txCallback'
 
 import { NftDetailsType } from '../../context'
@@ -48,13 +42,10 @@ export const SendNftCard = observer(
     const [showReviewSheet, setShowReviewSheet] = useState(false)
     const [addressError, setAddressError] = useState<string>()
 
-    const chains = useGetChains()
     const _activeChain = useActiveChain()
     const activeChain = useMemo(() => {
       return nftDetails?.chain ?? _activeChain
     }, [_activeChain, nftDetails?.chain])
-
-    const isSeiEvmChain = useIsSeiEvmChain(activeChain)
     const walletAddresses = useGetWalletAddresses(activeChain)
     const [selectedAddress, setSelectedAddress] = useState<SelectedAddress | null>(null)
     const [associatedSeiAddress, setAssociatedSeiAddress] = useState<string>('')
@@ -69,22 +60,10 @@ export const SendNftCard = observer(
       return nftDetails?.collection.address ?? ''
     }, [nftDetails?.collection.address])
 
-    const fromAddress = useMemo(() => {
-      let address = walletAddresses[0]
-      if (isSeiEvmChain && !collectionAddress.toLowerCase().startsWith('0x')) {
-        if (!address.toLowerCase().startsWith('0x')) {
-          return address
-        }
-
-        address = walletAddresses[1]
-      }
-
-      return address
-    }, [collectionAddress, isSeiEvmChain, walletAddresses])
+    const fromAddress = walletAddresses[0]
     const denoms = rootDenomsStore.allDenoms
 
     const sendNftReturn = useSendNft(denoms, collectionAddress, activeChain, forceNetwork)
-    const { status: gasPriceStatus } = useGetEvmGasPrices(activeChain, forceNetwork)
     const {
       isSending,
       fee,
@@ -92,7 +71,6 @@ export const SendNftCard = observer(
       showLedgerPopup,
       simulateTransferNFTContract,
       fetchAccountDetailsStatus,
-      fetchAccountDetailsData,
     } = sendNftReturn
 
     useEffect(() => {
@@ -108,30 +86,9 @@ export const SendNftCard = observer(
           return
         }
 
-        let wallet
-        let toAddress = selectedAddress?.address
+        const toAddress = selectedAddress?.address
 
-        if (isCompassWallet() && collectionAddress.toLowerCase().startsWith('0x')) {
-          wallet = await getWallet(activeChain, true)
-
-          if (
-            toAddress.toLowerCase().startsWith(chains[activeChain]?.addressPrefix) &&
-            fetchAccountDetailsData?.pubKey.key
-          ) {
-            toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
-          }
-        } else {
-          wallet = await getWallet(activeChain)
-
-          if (
-            isCompassWallet() &&
-            selectedAddress?.address.toLowerCase().startsWith('0x') &&
-            !collectionAddress.toLowerCase().startsWith('0x') &&
-            associatedSeiAddress
-          ) {
-            toAddress = associatedSeiAddress
-          }
-        }
+        const wallet = await getWallet(activeChain)
 
         await simulateTransferNFTContract({
           wallet: wallet,
@@ -160,31 +117,8 @@ export const SendNftCard = observer(
         return
       }
 
-      let wallet
-      let toAddress = selectedAddress?.address
-
-      if (isCompassWallet() && collectionAddress.toLowerCase().startsWith('0x')) {
-        wallet = await getWallet(activeChain, true)
-
-        if (
-          toAddress.toLowerCase().startsWith(chains[activeChain]?.addressPrefix) &&
-          fetchAccountDetailsData?.pubKey.key
-        ) {
-          toAddress = pubKeyToEvmAddressToShow(fetchAccountDetailsData.pubKey.key)
-        }
-      } else {
-        wallet = await getWallet(activeChain)
-
-        if (
-          isCompassWallet() &&
-          selectedAddress?.address.toLowerCase().startsWith('0x') &&
-          !collectionAddress.toLowerCase().startsWith('0x') &&
-          associatedSeiAddress
-        ) {
-          toAddress = associatedSeiAddress
-        }
-      }
-
+      const toAddress = selectedAddress?.address
+      const wallet = await getWallet(activeChain)
       const res = await transferNFTContract({
         wallet: wallet,
         collectionId: collectionAddress,
@@ -208,12 +142,7 @@ export const SendNftCard = observer(
     }
 
     const isReviewDisabled =
-      !selectedAddress ||
-      !!addressError ||
-      ['loading', 'error'].includes(fetchAccountDetailsStatus) ||
-      (isSeiEvmChain &&
-        collectionAddress.toLowerCase().startsWith('0x') &&
-        gasPriceStatus === 'loading')
+      !selectedAddress || !!addressError || ['loading', 'error'].includes(fetchAccountDetailsStatus)
 
     const handleReviewTransferClick = () => {
       setShowReviewSheet(true)

@@ -8,24 +8,28 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
-import { AggregatedLoading } from 'components/aggregated'
-import BottomNav, { BottomNavLabel } from 'components/bottom-nav/BottomNav'
-import { PageHeader } from 'components/header'
-import PopupLayout from 'components/layout/popup-layout'
+import { AggregatedLoadingList } from 'components/aggregated'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { PENDING_SWAP_TXS } from 'config/storage-keys'
 import { useChainPageInfo } from 'hooks'
 import { SelectedNetwork } from 'hooks/settings/useNetwork'
 import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
+import PendingSwapsAlertStrip from 'pages/home/PendingSwapsAlertStrip'
 import SelectChain from 'pages/home/SelectChain'
-import SideNav from 'pages/home/side-nav'
+import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 import { Colors } from 'theme/colors'
-import { HeaderActionType } from 'types/components'
 import { AggregatedSupportedChain } from 'types/utility'
+import { moveTxsFromCurrentToPending, TxStoreObject } from 'utils/pendingSwapsTxsStore'
+import Browser from 'webextension-polyfill'
 
+import { ActivitySwapTxPage } from '../ActivitySwapTxPage'
 import { reduceActivityInSections } from '../utils'
+import { ActivityHeader } from './activity-header'
 import { SelectedTx } from './ChainActivity'
 import {
   ActivityCard,
@@ -61,6 +65,9 @@ const GeneralActivity = observer(
     const [showActivityChainSelector, setShowActivityChainSelector] = useState(false)
     const _activeNetwork = useSelectedNetwork()
     const { headerChainImgSrc } = useChainPageInfo()
+    const [pendingSwapTxs, setPendingSwapTxs] = useState<TxStoreObject[]>([])
+    const [showSwapTxPageFor, setShowSwapTxPageFor] = useState<TxStoreObject | undefined>(undefined)
+    const navigate = useNavigate()
 
     const selectedChain = useMemo(() => {
       if (activeChain !== AGGREGATED_CHAIN_KEY) {
@@ -82,9 +89,8 @@ const GeneralActivity = observer(
     /**
      * Local states
      */
-    const [showSideNav, setShowSideNav] = useState(false)
     const [showChainSelector, setShowChainSelector] = useState(false)
-    const [defaultFilter, setDefaultFilter] = useState('All')
+    const [defaultFilter, setDefaultFilter] = useState('Popular')
     const [selectedTx, setSelectedTx] = useState<SelectedTx | null>(null)
 
     /**
@@ -116,13 +122,48 @@ const GeneralActivity = observer(
       return ''
     }, [activeNetwork, address, chains, selectedChain])
 
+    useEffect(() => {
+      async function updatePendingSwapTxs() {
+        const storage = await Browser.storage.local.get([PENDING_SWAP_TXS])
+
+        if (storage[PENDING_SWAP_TXS]) {
+          const pendingTxs = Object.values(
+            JSON.parse(storage[PENDING_SWAP_TXS]) ?? {},
+          ) as TxStoreObject[]
+
+          setPendingSwapTxs(pendingTxs)
+        } else {
+          setPendingSwapTxs([])
+        }
+      }
+      moveTxsFromCurrentToPending()
+      updatePendingSwapTxs()
+
+      Browser.storage.onChanged.addListener((storage) => {
+        if (storage[PENDING_SWAP_TXS]) {
+          updatePendingSwapTxs()
+        }
+      })
+
+      return Browser.storage.onChanged.removeListener((storage) => {
+        if (storage[PENDING_SWAP_TXS]) {
+          updatePendingSwapTxs()
+        }
+      })
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
     const sections = useMemo(() => {
       const txsByDate = activity?.reduce(reduceActivityInSections, {})
       return Object.entries(txsByDate ?? {}).map((entry) => ({ title: entry[0], data: entry[1] }))
     }, [activity])
 
+    const hasPendingSwapTxs = useMemo(() => {
+      return pendingSwapTxs?.length > 0
+    }, [pendingSwapTxs])
+
     const ShowView = useMemo(() => {
-      if (activity?.length === 0 && !txResponse?.loading) {
+      if (!hasPendingSwapTxs && activity?.length === 0 && !txResponse?.loading) {
         return (
           <div className='mt-4'>
             <NoActivityView accountExplorerLink={accountExplorerLink} chain={selectedChain} />
@@ -130,7 +171,7 @@ const GeneralActivity = observer(
         )
       }
 
-      if (txResponse?.error) {
+      if (!hasPendingSwapTxs && txResponse?.error) {
         return (
           <div className='mt-4'>
             <ErrorActivityView accountExplorerLink={accountExplorerLink} chain={selectedChain} />
@@ -140,12 +181,24 @@ const GeneralActivity = observer(
 
       return (
         <>
-          {txResponse?.loading ? (
-            <div className='flex flex-col mt-4'>
-              <AggregatedLoading className='mb-2' />
-              <AggregatedLoading />
-            </div>
+          {hasPendingSwapTxs ? (
+            <>
+              <div className='font-bold text-sm text-gray-600 dark:text-gray-200 mb-2 mt-4'>
+                Recent swaps
+              </div>
+              <div className='flex flex-col gap-3'>
+                {pendingSwapTxs.map((tx) => (
+                  <PendingSwapsAlertStrip
+                    key={`${tx.routingInfo?.messages?.[0]?.customTxHash}-${tx.routingInfo?.messages?.[0]?.customMessageChainId}`}
+                    setShowSwapTxPageFor={setShowSwapTxPageFor}
+                    selectedPendingSwapTx={tx}
+                  />
+                ))}
+              </div>
+            </>
           ) : null}
+
+          {txResponse?.loading ? <AggregatedLoadingList className='mt-4' /> : null}
 
           {!txResponse?.loading &&
             sections &&
@@ -156,13 +209,12 @@ const GeneralActivity = observer(
                     {title}
                   </div>
 
-                  <div className='flex flex-col'>
+                  <div className='flex flex-col gap-3'>
                     {data.map((tx) => (
                       <React.Fragment key={tx.parsedTx.txHash}>
                         <ActivityCard
                           content={tx.content}
                           isSuccessful={tx.parsedTx.code === 0}
-                          containerClassNames='dark:!bg-gray-950 mb-2 !p-[12px] !rounded-xl'
                           forceChain={selectedChain}
                           titleClassName='!font-normal'
                           imgSize='sm'
@@ -180,7 +232,7 @@ const GeneralActivity = observer(
               href={accountExplorerLink}
               target='_blank'
               className='font-semibold text-base mt-4 text-center block'
-              style={{ color: Colors.getChainColor(selectedChain, chains[selectedChain]) }}
+              style={{ color: Colors.green600 }}
               rel='noreferrer'
             >
               Check more on Explorer
@@ -191,16 +243,17 @@ const GeneralActivity = observer(
     }, [
       accountExplorerLink,
       activity?.length,
-      chains,
       sections,
       selectedChain,
       txResponse?.error,
       txResponse?.loading,
+      hasPendingSwapTxs,
+      pendingSwapTxs,
     ])
 
     useEffect(() => {
       if (!showChainSelector) {
-        setDefaultFilter('All')
+        setDefaultFilter('Popular')
       }
     }, [showChainSelector])
 
@@ -226,64 +279,45 @@ const GeneralActivity = observer(
       [],
     )
 
-    const handleOpenSideNavSheet = useCallback(() => setShowSideNav(true), [])
+    const handleOpenSideNavSheet = useCallback(() => globalSheetsStore.toggleSideNav(), [])
 
     /**
      * Render
      */
 
     return (
-      <div className='relative w-full overflow-clip panel-height'>
+      <>
         {selectedTx ? (
           <TxDetails
-            content={selectedTx.content}
-            parsedTx={selectedTx.parsedTx}
+            open={!!selectedTx}
+            tx={selectedTx}
             onBack={() => setSelectedTx(null)}
             forceChain={selectedChain}
           />
         ) : (
           <>
-            <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-            <PopupLayout
-              header={
-                <PageHeader
-                  title='Activity'
-                  imgSrc={headerChainImgSrc}
-                  onImgClick={onImgClick}
-                  action={{
-                    onClick: handleOpenSideNavSheet,
-                    type: HeaderActionType.NAVIGATION,
-                    className:
-                      'min-w-[48px] h-[36px] px-2 bg-[#FFFFFF] dark:bg-gray-950 rounded-full',
-                  }}
-                />
-              }
-            >
-              <div className='flex flex-col pt-[16px] pb-24 px-[24px]'>
-                <h1 className='flex items-center justify-between text-black-100 dark:text-white-100'>
-                  <div className='flex flex-col items-start justify-start'>
-                    <span className='text-[24px] font-[700]'>Activity</span>
-                    <span className='text-[12px] font-[500] text-gray-600 dark:text-gray-400'>
-                      {chains[selectedChain]?.chainName ?? 'Unknown Chain'}
-                    </span>
-                  </div>
+            <ActivityHeader />
+            <div className='flex flex-col pt-8 px-6 pb-6 mb-16'>
+              <h1 className='flex items-center justify-between text-black-100 dark:text-white-100'>
+                <div className='flex flex-col items-start justify-start'>
+                  <span className='text-[24px] font-[700]'>Activity</span>
+                  <span className='text-[12px] font-[500] text-gray-600 dark:text-gray-400'>
+                    {chains[selectedChain]?.chainName ?? 'Unknown Chain'}
+                  </span>
+                </div>
 
-                  {filteredChains?.length ? (
-                    <button
-                      className='bg-white-100 dark:bg-gray-950 w-[40px] h-[40px] rounded-full flex items-center justify-center'
-                      onClick={() => setShowActivityChainSelector(true)}
-                    >
-                      <img
-                        src={Images.Misc.TuneIcon}
-                        className='w-[16px] h-[16px] invert dark:invert-0'
-                      />
-                    </button>
-                  ) : null}
-                </h1>
+                {filteredChains?.length ? (
+                  <button
+                    className=' rounded-full flex items-center justify-center'
+                    onClick={() => setShowActivityChainSelector(true)}
+                  >
+                    <img src={Images.Misc.TuneIcon} className='w-4 h-4 invert dark:invert-0' />
+                  </button>
+                ) : null}
+              </h1>
 
-                {ShowView}
-              </div>
-            </PopupLayout>
+              {ShowView}
+            </div>
 
             {filteredChains?.length ? (
               <SelectAggregatedActivityChain
@@ -301,10 +335,34 @@ const GeneralActivity = observer(
               chainTagsStore={chainTagsStore}
               defaultFilter={defaultFilter}
             />
-            <BottomNav label={BottomNavLabel.Activity} />
+
+            {showSwapTxPageFor ? (
+              <ActivitySwapTxPage
+                onClose={(
+                  sourceChainId?: string,
+                  sourceToken?: string,
+                  destinationChainId?: string,
+                  destinationToken?: string,
+                ) => {
+                  setShowSwapTxPageFor(undefined)
+                  let queryStr = ''
+                  if (sourceChainId || sourceToken || destinationChainId || destinationToken) {
+                    queryStr = `?${qs.stringify({
+                      sourceChainId,
+                      sourceToken,
+                      destinationChainId,
+                      destinationToken,
+                      pageSource: 'swapAgain',
+                    })}`
+                    navigate(`/swap${queryStr}`)
+                  }
+                }}
+                {...showSwapTxPageFor}
+              />
+            ) : null}
           </>
         )}
-      </div>
+      </>
     )
   },
 )

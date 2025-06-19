@@ -7,6 +7,7 @@ import {
   AptosTx,
   BTC_CHAINS,
   BtcTx,
+  convertScientificNotation,
   denoms as DefaultDenoms,
   DenomsRecord,
   Dict,
@@ -17,10 +18,15 @@ import {
   isValidAddress,
   isValidAddressWithPrefix,
   isValidBtcAddress,
+  LedgerError,
   MayaTx,
   NativeDenom,
   SeiEvmTx,
   SigningSscrt,
+  SOLANA_CHAINS,
+  SolanaTx,
+  SUI_CHAINS,
+  SuiTx,
   SupportedChain,
   SupportedDenoms,
   ThorTx,
@@ -34,6 +40,7 @@ import { EthWallet } from '@leapwallet/leap-keychain';
 import { BtcWallet, BtcWalletHD, BtcWalletPk } from '@leapwallet/leap-keychain/dist/browser/key/btc-wallet';
 import { bech32 } from 'bech32';
 import { BigNumber } from 'bignumber.js';
+import e from 'express';
 import { useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'secretjs';
 
@@ -51,7 +58,7 @@ import {
 import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
-import { convertScientificNotation, getMetaDataForIbcTx, getMetaDataForSendTx, sliceAddress } from '../utils';
+import { getMetaDataForIbcTx, getMetaDataForSendTx, sliceAddress } from '../utils';
 import { useChainId, useChainInfo } from '../utils-hooks';
 
 type _TokenDenom = {
@@ -64,10 +71,11 @@ export type sendTokensParams = {
   selectedToken: Token;
   amount: BigNumber;
   memo: string;
-  getWallet: () => Promise<OfflineSigner | Wallet | Ed25519Account>;
+  getWallet: () => Promise<OfflineSigner | Wallet | Ed25519Account | any>;
   fees: StdFee;
   ibcChannelId?: string;
   txHandler?: SigningSscrt | InjectiveTx | EthermintTxHandler | Tx;
+  computedGas?: number;
 };
 
 export type SendTokenEthParamOptions = {
@@ -199,7 +207,7 @@ export const useSimpleSend = (
         };
       }
     },
-    [],
+    [getCW20TxClient],
   );
 
   const sendSnip20 = useCallback(
@@ -407,6 +415,150 @@ export const useSimpleSend = (
     [lcdUrl, chainInfo],
   );
 
+  const sendSolana = useCallback(
+    async ({
+      account,
+      fromAddress,
+      toAddress,
+      amount,
+      selectedDenom,
+      fees,
+    }: {
+      account: any;
+      fromAddress: string;
+      toAddress: string;
+      amount: BigNumber;
+      selectedDenom: _TokenDenom;
+      fees: StdFee;
+    }): Promise<sendTokensReturnType> => {
+      try {
+        const solanaTx = await SolanaTx.getSolanaClient(rpcUrl ?? '', account, selectedNetwork, activeChain);
+        const normalizedAmount = parseFloat(toSmall(amount.toString(), selectedDenom?.coinDecimals ?? 9));
+        let txHash = '';
+        if (selectedDenom.coinMinimalDenom === 'lamports' || selectedDenom.coinMinimalDenom === 'fogo-native') {
+          txHash = await solanaTx.sendSol(toAddress, normalizedAmount, fees);
+        } else {
+          txHash = await solanaTx.sendSplToken(
+            selectedDenom.coinMinimalDenom,
+            toAddress,
+            normalizedAmount,
+            selectedDenom.coinDecimals,
+            fees,
+          );
+        }
+        const feeQuantity =
+          fees?.amount?.[0]?.amount && !new BigNumber(fees.amount[0].amount).isNaN()
+            ? new BigNumber(fees.amount[0].amount).plus(5000).toString()
+            : fees?.amount?.[0]?.amount;
+        return {
+          success: true,
+          pendingTx: {
+            txHash,
+            img: chainInfo.chainSymbolImageUrl,
+            sentAmount: amount.toString(),
+            sentTokenInfo: selectedDenom as unknown as NativeDenom,
+            sentUsdValue: '0',
+            subtitle1: sliceAddress(fromAddress),
+            title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
+            txStatus: 'submitted',
+            txType: 'send',
+            promise: new Promise((resolve) => {
+              resolve({ status: 'submitted' });
+            }),
+          },
+          data: {
+            txHash,
+            txType: CosmosTxType.Send,
+            metadata: getMetaDataForSendTx(toAddress, coin(normalizedAmount, selectedDenom.coinMinimalDenom)),
+            feeDenomination: fees?.amount?.[0]?.denom ?? 'lamports',
+            feeQuantity,
+          },
+        };
+      } catch (e: any) {
+        return {
+          success: false,
+          errors: [e.message?.slice(0, 200)],
+        };
+      }
+    },
+    [rpcUrl, chainInfo],
+  );
+
+  const sendSui = useCallback(
+    async ({
+      account,
+      fromAddress,
+      toAddress,
+      amount,
+      selectedDenom,
+      fees,
+      computedGas,
+    }: {
+      account: any;
+      fromAddress: string;
+      toAddress: string;
+      amount: BigNumber;
+      selectedDenom: _TokenDenom;
+      fees: StdFee;
+      computedGas?: number;
+    }): Promise<sendTokensReturnType> => {
+      try {
+        const suiTx = await SuiTx.getSuiClient(account, selectedNetwork);
+        const normalizedAmount = parseFloat(toSmall(amount.toString(), selectedDenom?.coinDecimals ?? 9));
+
+        let txHash = '';
+        if (selectedDenom.coinMinimalDenom === 'mist') {
+          const { digest } = await suiTx.sendSui(fromAddress, toAddress, normalizedAmount, fees);
+          txHash = digest;
+        } else {
+          const { digest } = await suiTx.sendNonNativeToken(
+            selectedDenom.coinMinimalDenom,
+            toAddress,
+            normalizedAmount,
+            selectedDenom.coinDecimals,
+            fees,
+          );
+          txHash = digest;
+        }
+
+        const feeQuantity =
+          fees?.amount?.[0]?.amount && !new BigNumber(fees.amount[0].amount).isNaN()
+            ? new BigNumber(fees.amount[0].amount).plus(computedGas ?? 0).toString()
+            : fees?.amount?.[0]?.amount;
+        return {
+          success: true,
+          pendingTx: {
+            txHash,
+            img: chainInfo.chainSymbolImageUrl,
+            sentAmount: amount.toString(),
+            sentTokenInfo: selectedDenom as unknown as NativeDenom,
+            sentUsdValue: '0',
+            subtitle1: sliceAddress(fromAddress),
+            title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
+            txStatus: 'submitted',
+            txType: 'send',
+            promise: new Promise((resolve) => {
+              resolve({ status: 'submitted' });
+            }),
+          },
+          data: {
+            txHash,
+            txType: CosmosTxType.Send,
+            metadata: getMetaDataForSendTx(toAddress, coin(normalizedAmount, selectedDenom.coinMinimalDenom)),
+            feeDenomination: fees?.amount?.[0]?.denom ?? 'mist',
+            feeQuantity,
+          },
+        };
+      } catch (e: any) {
+        return {
+          success: false,
+          errors: [e.message?.slice(0, 200)],
+        };
+      }
+    },
+    [rpcUrl, chainInfo],
+  );
+
   const sendBtc = useCallback(
     async ({
       sourceAddress,
@@ -557,6 +709,8 @@ export const useSimpleSend = (
           toAddress,
         };
 
+        setShowLedgerPopup(false);
+
         return {
           success: true,
           pendingTx: pendingTx,
@@ -569,13 +723,14 @@ export const useSimpleSend = (
       } catch (e: any) {
         return {
           success: false,
-          errors: [e.message?.slice(0, 200)],
+          errors: e instanceof LedgerError ? e : [e.message?.slice(0, 200)],
         };
       } finally {
         setIsSending(false);
+        setShowLedgerPopup(false);
       }
     },
-    [evmJsonRpc],
+    [evmJsonRpc, showLedgerPopup],
   );
 
   const send = useCallback(
@@ -744,10 +899,13 @@ export const useSimpleSend = (
       memo,
       txHandler,
       ibcChannelId,
+      computedGas,
     }: sendTokensParams): Promise<sendTokensReturnType> => {
       setIsSending(true);
       const isBtcTx = BTC_CHAINS.includes(activeChain);
       const isAptosTx = APTOS_CHAINS.includes(activeChain);
+      const isSolanaTx = SOLANA_CHAINS.includes(activeChain);
+      const isSuiTx = SUI_CHAINS.includes(activeChain);
 
       if (!selectedToken) {
         return {
@@ -763,7 +921,7 @@ export const useSimpleSend = (
         };
       }
 
-      if (!isBtcTx && !isAptosTx && !isValidAddress(toAddress)) {
+      if (!isBtcTx && !isAptosTx && !isSolanaTx && !isSuiTx && !isValidAddress(toAddress)) {
         return {
           success: false,
           errors: ['Invalid recipient address'],
@@ -796,7 +954,7 @@ export const useSimpleSend = (
       const isDenomSupported = denoms[selectedToken.coinMinimalDenom] ?? _nativeDenom;
       const isFAToken = selectedToken.aptosTokenType === 'v2';
 
-      if (!isDenomSupported && !isFAToken) {
+      if (!isDenomSupported && !isFAToken && !selectedToken.isSolana && !selectedToken.isSui) {
         return {
           success: false,
           errors: ['We do not support transferring this token yet'],
@@ -889,6 +1047,37 @@ export const useSimpleSend = (
           gasPrice,
           gasLimit,
         });
+      } else if (isSolanaTx) {
+        const account = (await getWallet()) as any;
+        result = await sendSolana({
+          account: account,
+          fromAddress: activeWallet.addresses[activeChain],
+          amount: amount,
+          selectedDenom: {
+            ...selectedDenomData,
+            coinMinimalDenom: selectedToken.coinMinimalDenom,
+            coinDenom: selectedToken.symbol || selectedDenomData.coinDenom,
+            coinDecimals: selectedToken.coinDecimals ?? selectedDenomData.coinDecimals,
+          },
+          toAddress,
+          fees,
+        });
+      } else if (isSuiTx) {
+        const account = (await getWallet()) as any;
+        result = await sendSui({
+          account: account,
+          fromAddress: activeWallet.addresses[activeChain],
+          amount: amount,
+          selectedDenom: {
+            ...selectedDenomData,
+            coinMinimalDenom: selectedToken.coinMinimalDenom,
+            coinDenom: selectedToken.symbol || selectedDenomData.coinDenom,
+            coinDecimals: selectedToken.coinDecimals ?? selectedDenomData.coinDecimals,
+          },
+          toAddress,
+          fees,
+          computedGas,
+        });
       } else {
         result = await send({
           fromAddress: activeWallet.addresses[activeChain],
@@ -916,6 +1105,7 @@ export const useSimpleSend = (
 
   return {
     showLedgerPopup,
+    setShowLedgerPopup,
     sendTokens,
     sendTokenEth,
     isSending,

@@ -1,79 +1,204 @@
 import { KeyChain } from '@leapwallet/leap-keychain'
-import { OnboardCard as Card } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
-import ExtensionPage from 'components/extension-page'
-import { Header } from 'components/header'
-import Loader from 'components/loader/Loader'
-import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { EventName } from 'config/analytics'
 import { AuthContextType, useAuth } from 'context/auth-context'
-import { Images } from 'images'
+import { motion, useAnimate, Variants } from 'framer-motion'
+import { HappyFrog } from 'icons/frog'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
-import React, { useEffect, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { passwordStore } from 'stores/password-store'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { preloadOnboardingRoutes } from 'utils/preload'
 import extension from 'webextension-polyfill'
 
-import { IMPORT_WALLET_DATA } from './constants'
+import { OnboardingLayout } from './layout'
+
+const transition = {
+  duration: 0.25,
+  delay: 1.05,
+  ease: 'easeOut',
+}
+
+const headerTextVariants: Variants = {
+  hidden: { opacity: 0, y: '-25%' },
+  visible: { opacity: 1, y: 0 },
+}
+
+const buttonVariants: Variants = {
+  hidden: { opacity: 0, y: '25%' },
+  visible: { opacity: 1, y: 0 },
+}
+
+const backgroundGradient =
+  'linear-gradient(180deg, hsl(var(--bg-linear-gradient-start) / 1) 19.35%, hsl(var(--bg-linear-gradient-end)/ 1) 80.65%)'
+
+const OnboardingView = ({
+  navigate,
+  trackCTAEvent,
+}: {
+  navigate: (path: string) => void
+  trackCTAEvent: (methodChosen: string) => void
+}) => {
+  const [scope, animate] = useAnimate()
+
+  const intiAnimation = useCallback(async () => {
+    const logoId = '#leap-logo'
+    const backgroundGradientId = '#background-gradient'
+
+    const logoUpScale = 1.3334
+    const yShift = 120
+
+    await Promise.all([
+      animate(logoId, { y: yShift }, { duration: 0 }),
+      animate(backgroundGradientId, { opacity: 0.4 }, { duration: 0 }),
+    ])
+
+    await Promise.all([
+      animate(
+        logoId,
+        { scale: logoUpScale, y: yShift },
+        {
+          duration: 0.25,
+          ease: 'easeOut',
+        },
+      ),
+      animate(
+        backgroundGradientId,
+        { opacity: 0.75 },
+        {
+          duration: 0.25,
+        },
+      ),
+    ])
+
+    await Promise.all([
+      animate(
+        logoId,
+        { scale: 1, y: yShift },
+        {
+          delay: 0.25,
+          duration: 0.25,
+          ease: 'easeOut',
+        },
+      ),
+      animate(
+        backgroundGradientId,
+        { opacity: 0.4 },
+        {
+          delay: 0.25,
+          duration: 0.25,
+        },
+      ),
+    ])
+
+    await Promise.all([
+      animate(
+        logoId,
+        { scale: logoUpScale, y: 0 },
+        {
+          delay: 0.25,
+          duration: 0.2,
+          ease: 'easeOut',
+        },
+      ),
+      animate(
+        backgroundGradientId,
+        { opacity: 1 },
+        {
+          delay: 0.25,
+          duration: 0.25,
+        },
+      ),
+    ])
+  }, [animate])
+
+  useEffect(() => {
+    intiAnimation()
+  }, [intiAnimation])
+
+  return (
+    <div ref={scope} className='flex flex-col flex-1 w-full p-7 isolate'>
+      <div
+        id='background-gradient'
+        style={{ backgroundImage: backgroundGradient }}
+        className='absolute inset-0 -z-10'
+      />
+
+      <div className='flex flex-col gap-6 items-center justify-center flex-1'>
+        <HappyFrog
+          id='leap-logo'
+          className='size-[5.625rem]'
+          style={{ transform: 'translateY(120px)' }}
+        />
+
+        <motion.span
+          key='main-text'
+          initial='hidden'
+          animate='visible'
+          variants={headerTextVariants}
+          transition={transition}
+          className='flex flex-col gap-4'
+        >
+          <span className='text-center text-xxl font-bold text-secondary-foreground'>
+            Leap everywhere
+          </span>
+          <span className='text-center text-xl text-secondary-800'>
+            Multi-chain wallet for Cosmos, Ethereum, Solana, Bitcoin & more
+          </span>
+        </motion.span>
+      </div>
+
+      <motion.div
+        className='flex flex-col gap-y-4 w-full mt-auto'
+        initial='hidden'
+        animate='visible'
+        variants={buttonVariants}
+        transition={transition}
+      >
+        <Button
+          className='w-full'
+          data-testing-id='create-new-wallet'
+          onClick={() => {
+            navigate('/onboardingCreate')
+            trackCTAEvent('new')
+          }}
+        >
+          Create a new wallet
+        </Button>
+
+        <Button
+          variant='mono'
+          className='w-full'
+          data-testing-id='import-existing-wallet'
+          onClick={() => {
+            navigate('/onboardingImport')
+            trackCTAEvent('import-seed-phrase')
+          }}
+        >
+          Import an existing wallet
+        </Button>
+      </motion.div>
+    </div>
+  )
+}
 
 export default observer(function Onboarding() {
   const navigate = useNavigate()
   const { loading, noAccount } = useAuth() as AuthContextType
 
   const trackCTAEvent = (methodChosen: string) => {
-    if (!isCompassWallet()) {
-      try {
-        mixpanel.track(EventName.OnboardingMethod, { methodChosen, time: Date.now() / 1000 })
-      } catch (e) {
-        captureException(e)
-      }
+    try {
+      mixpanel.track(EventName.OnboardingMethod, { methodChosen, time: Date.now() / 1000 })
+    } catch (e) {
+      captureException(e)
     }
 
     localStorage.setItem('onboardingMethodChosen', methodChosen)
     localStorage.setItem('timeStarted2', new Date().getTime().toString())
   }
-
-  const importWalletData = useMemo(() => {
-    const keplrWallet = {
-      imgSrc: Images.Logos.Keplr,
-      title: 'Keplr',
-      'data-testing-id': '',
-      mixpanelMethod: 'existing-keplr',
-    }
-
-    if (isCompassWallet()) {
-      return {
-        Leap: {
-          imgSrc: Images.Logos.LeapLogo28,
-          title: 'Leap',
-          'data-testing-id': '',
-          mixpanelMethod: 'existing-leap',
-        },
-        MetaMask: {
-          imgSrc: Images.Logos.Metamask,
-          title: 'MetaMask',
-          'data-testing-id': '',
-          mixpanelMethod: 'existing-metamask',
-        },
-        EvmWallets: {
-          imgSrc: Images.Misc.EvmWalletIcon,
-          title: 'Other EVM wallets',
-          'data-testing-id': '',
-          mixpanelMethod: 'existing-evm',
-        },
-        ...IMPORT_WALLET_DATA,
-        Keplr: undefined,
-      }
-    } else {
-      return {
-        Keplr: keplrWallet,
-        ...IMPORT_WALLET_DATA,
-      }
-    }
-  }, [])
 
   useEffect(() => {
     ;(async () => {
@@ -88,6 +213,8 @@ export default observer(function Onboarding() {
   }, [loading, navigate, noAccount, passwordStore.password])
 
   useEffect(() => {
+    preloadOnboardingRoutes()
+
     extension.extension.getViews({ type: 'popup' })
 
     const timeStarted1 = localStorage.getItem('timeStarted1')
@@ -95,112 +222,23 @@ export default observer(function Onboarding() {
       localStorage.setItem('timeStarted1', new Date().getTime().toString())
     }
 
-    if (!isCompassWallet()) {
-      try {
-        mixpanel.track(EventName.OnboardingStarted, {
-          firstWallet: true,
-          time: Date.now() / 1000,
-        })
-      } catch (e) {
-        captureException(e)
-      }
+    try {
+      mixpanel.track(EventName.OnboardingStarted, {
+        firstWallet: true,
+        time: Date.now() / 1000,
+      })
+    } catch (e) {
+      captureException(e)
     }
   }, [])
 
+  if (loading) {
+    return null
+  }
+
   return (
-    <ExtensionPage childrenMargin={true}>
-      {loading ? (
-        <Loader color='#fff' />
-      ) : (
-        <div className='flex flex-col gap-y-[20px] justify-center items-center'>
-          <Header
-            heading={`Welcome to ${isCompassWallet() ? 'Compass' : 'Leap'}`}
-            subtitle={`Choose how you'd like to set up your wallet:`}
-          />
-          <Card
-            imgSrc={Images.Misc.PlusIcon}
-            title='Create new wallet'
-            isRounded={true}
-            size='xl'
-            iconSrc={Images.Misc.RightArrow}
-            onClick={() => {
-              navigate('/onboardingCreate')
-              trackCTAEvent('new')
-            }}
-            data-testing-id='create-new-wallet'
-          />
-
-          <div className='flex flex-col rounded-[12px] px-[20px] py-[24px] bg-white-100 dark:bg-gray-900 gap-y-[12px]'>
-            <Text size='lg' className='items-start self-start pl-[5px] font-medium'>
-              Import an existing wallet:
-            </Text>
-            {Object.values(importWalletData).map((val, ind) => {
-              if (!val) return null
-
-              return (
-                <Card
-                  key={ind}
-                  className='border-[1px] dark:border-gray-800 border-gray-100'
-                  imgSrc={val.imgSrc}
-                  title={val.title ?? 'Using a recovery phrase'}
-                  data-testing-id={val['data-testing-id']}
-                  isFilled={true}
-                  isRounded={true}
-                  iconSrc={Images.Misc.RightArrow}
-                  size='sm'
-                  onClick={() => {
-                    navigate(`/onboardingImport?walletName=${val.title ?? ''}`)
-                    trackCTAEvent(val?.mixpanelMethod)
-                  }}
-                />
-              )
-            })}
-          </div>
-
-          {isCompassWallet() ? null : (
-            <div
-              className='flex gap-x-4 items-center px-[30px] py-[20px] pl-[24px] rounded-xl dark:bg-gray-900 bg-gray-50 w-full cursor-pointer'
-              onClick={() => {
-                navigate('/onboardingWatchAddress')
-                trackCTAEvent('watch-wallet')
-              }}
-            >
-              <img src={Images.Misc.EyeDark} />
-              <div className='flex w-full gap-x-2 items-center'>
-                <Text size='lg' color='text-black-100 dark:text-white-100' className='font-medium'>
-                  Watch wallet
-                </Text>
-                <Text
-                  size='xs'
-                  color='text-green-400'
-                  className='bg-green-500 bg-opacity-20 rounded-3xl py-1 px-2.5 font-medium'
-                >
-                  NEW
-                </Text>
-              </div>
-              <img src={Images.Misc.RightArrow} />
-            </div>
-          )}
-
-          <div
-            className='flex gap-x-4 items-center px-[30px] py-[20px] pl-[24px] rounded-xl dark:bg-gray-900 bg-gray-50 w-full cursor-pointer'
-            onClick={() => {
-              navigate('/onboardingImport?walletName=hardwarewallet')
-              trackCTAEvent('hardware-ledger')
-            }}
-          >
-            <img src={Images.Misc.HardwareWallet} className='mx-1' />
-            <Text
-              size='lg'
-              color='text-black-100 dark:text-white-100'
-              className='font-medium w-full'
-            >
-              Connect hardware wallet
-            </Text>
-            <img src={Images.Misc.RightArrow} />
-          </div>
-        </div>
-      )}
-    </ExtensionPage>
+    <OnboardingLayout className='flex flex-col gap-y-5 justify-center items-center grow'>
+      <OnboardingView navigate={navigate} trackCTAEvent={trackCTAEvent} />
+    </OnboardingLayout>
   )
 })

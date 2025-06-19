@@ -47,7 +47,12 @@ export class ActiveStakingDenomStore {
         icon: nativeDenom.icon ?? '',
       };
 
-      const activeStakingDenom = denoms[nativeDenom.coinMinimalDenom] ?? nativeDenom;
+      let denomKey = nativeDenom.coinMinimalDenom;
+      if (chain === 'babylon' && denomKey === 'ubbn') {
+        denomKey = 'tubbn';
+      }
+
+      const activeStakingDenom = denoms[denomKey] ?? nativeDenom;
       return [activeStakingDenom];
     }
 

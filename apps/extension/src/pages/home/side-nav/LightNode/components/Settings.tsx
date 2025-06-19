@@ -1,5 +1,5 @@
-import BottomModal from 'components/bottom-modal'
-import Text from 'components/text'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import React from 'react'
 
 const Settings = ({
@@ -13,21 +13,17 @@ const Settings = ({
 }) => {
   return (
     <BottomModal isOpen={isVisible} onClose={onCloseHandler} title={'Light Node Settings'}>
-      <div className='bg-gray-50 dark:bg-gray-900 flex items-center justify-between p-4 rounded-2xl mb-2'>
-        <Text size='md' className='font-bold'>
-          Reset sync progress
-        </Text>
+      <div className='bg-secondary-100 flex items-center justify-between p-4 rounded-2xl mb-2'>
+        <span className='font-bold text-md'>Reset sync progress</span>
 
-        <button
-          className='text-base block flex-shrink-0 px-4 py-2 font-bold text-xs text-white-100 bg-gray-950 rounded-full text-right cursor-pointer'
-          onClick={handleClearStorage}
-        >
+        <Button size={'sm'} variant={'secondary'} onClick={handleClearStorage}>
           Clear storage
-        </button>
+        </Button>
       </div>
-      <Text size='sm' color='text-gray-400' className='ml-2'>
+
+      <span className='ml-2 text-sm text-muted-foreground'>
         Clear sync information saved on this device
-      </Text>
+      </span>
     </BottomModal>
   )
 }

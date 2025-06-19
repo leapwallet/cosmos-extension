@@ -18,6 +18,7 @@ import {
   useGasRateQuery,
   useGetChains,
   useGetExplorerTxnUrl,
+  useGetIsMinitiaEvmChain,
   useInvalidateTokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -53,6 +54,7 @@ import { SkipRouteResponse } from 'pages/swaps-v2/hooks/useRoute'
 import { RoutingInfo, SkipMsgWithCustomTxHash, SWAP_NETWORK } from 'pages/swaps-v2/hooks/useSwapsTx'
 import { handleCosmosTx } from 'pages/swaps-v2/tx/cosmosTxHandler'
 import { handleEthermintTx } from 'pages/swaps-v2/tx/ethermintTxHandler'
+import { handleInitiaTx } from 'pages/swaps-v2/tx/initiaTxHandler'
 import { handleInjectiveTx } from 'pages/swaps-v2/tx/injectiveTxHandler'
 import {
   approveTokenAllowanceIfNeeded,
@@ -161,6 +163,7 @@ export function useExecuteSkipTransaction({
 
   const gasPrices = useGasRateQuery(denoms, (sourceChain?.key ?? '') as SupportedChain)
   const gasPriceOptions = gasPrices?.[feeDenom.coinMinimalDenom]
+  const getIsMinitiaEvmChain = useGetIsMinitiaEvmChain()
 
   const invalidateBalances = useInvalidateTokenBalances()
   const invalidateSwapAssets = useInvalidateSwapAssetsQueries()
@@ -218,6 +221,10 @@ export function useExecuteSkipTransaction({
         }
         if ('hyperlane_transfer' in operation) {
           bridgeName = 'hyperlane'
+          break
+        }
+        if ('eureka_transfer' in operation) {
+          bridgeName = 'eureka'
           break
         }
       }
@@ -661,6 +668,12 @@ export function useExecuteSkipTransaction({
 
         const walletAccounts = await wallet.getAccounts()
 
+        const isMinitiaEvmChain = getIsMinitiaEvmChain(
+          SWAP_NETWORK,
+          messageChain.key as SupportedChain,
+          messageChain.chainId,
+        )
+
         const txClient = new TxClient(
           String(messageChain.chainId),
           messageChain.restUrl ?? '',
@@ -668,6 +681,7 @@ export function useExecuteSkipTransaction({
           // @ts-expect-error Type error since LeapLedgerSignerEth does not have signDirect method
           wallet,
           { ...walletAccounts[0], pubKey: walletAccounts[0].pubkey },
+          isMinitiaEvmChain ? '/initia.crypto.v1beta1.ethsecp256k1.PubKey' : undefined,
         )
 
         let txBytesString: string
@@ -680,7 +694,15 @@ export function useExecuteSkipTransaction({
               sourceChain &&
               ledgerEnabledEvmChainsIds.includes((sourceChain?.chainId as string) ?? '')
             ) {
-              if (messageChain.key === 'injective') {
+              if (messageChain.key === 'initiaEvm') {
+                ;({ txRaw, txBytesString } = await handleInitiaTx(
+                  encodedMessage as { typeUrl: string; value: MsgTransfer },
+                  fee,
+                  messageChain,
+                  wallet as unknown as LeapLedgerSignerEth,
+                  senderAddress,
+                ))
+              } else if (messageChain.key === 'injective') {
                 ;({ txRaw, txBytesString } = await handleInjectiveTx(
                   wallet as unknown as LeapLedgerSignerEth,
                   messageChain,
@@ -723,6 +745,7 @@ export function useExecuteSkipTransaction({
               [{ typeUrl: binaryMessage.typeUrl, value: binaryMessage.value }],
               fee,
               '',
+              isMinitiaEvmChain ? '/initia.crypto.v1beta1.ethsecp256k1.PubKey' : undefined,
             )
 
             const formattedSignDoc = {

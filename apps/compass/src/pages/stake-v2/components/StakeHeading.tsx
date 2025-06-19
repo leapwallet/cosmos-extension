@@ -61,7 +61,7 @@ const StakeHeading = observer(() => {
         <span className='font-semibold text-lg uppercase'>{activeChainInfo.chainName}</span>
       </div>
 
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         {loadingNetwork ? (
           <motion.div
             key='skeleton'

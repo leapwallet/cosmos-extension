@@ -8,7 +8,7 @@ import { Images } from 'images'
 import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { GroupedVirtuoso } from 'react-virtuoso'
 import { activeChainStore } from 'stores/active-chain-store'
 import { cw20TokenBalanceStore, erc20TokenBalanceStore } from 'stores/balance-store'
@@ -26,7 +26,6 @@ import {
 } from 'stores/denoms-store-instance'
 import { selectedNetworkStore } from 'stores/selected-network-store'
 import { getContractInfo } from 'utils/getContractInfo'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import extension from 'webextension-polyfill'
 
 import { DeleteTokenSheet, ManageTokensEmptyCard, SupportedToken } from './components'
@@ -45,11 +44,7 @@ const ManageTokens = observer(() => {
   const betaNativeDenoms = betaNativeDenomsStore.betaNativeDenoms
   const betaERC20Denoms = betaERC20DenomsStore.betaERC20Denoms
   const { erc20Denoms } = erc20DenomsStore
-  const { autoFetchedCW20Denoms: _autoFetchedCW20Denoms } = autoFetchedCW20DenomsStore
-  const autoFetchedCW20Denoms = useMemo(
-    () => (isCompassWallet() ? [] : _autoFetchedCW20Denoms),
-    [_autoFetchedCW20Denoms],
-  )
+  const { autoFetchedCW20Denoms } = autoFetchedCW20DenomsStore
 
   const { cw20Tokens: cw20TokensBalances } = cw20TokenBalanceStore
   const { erc20Tokens: erc20TokensBalances } = erc20TokenBalanceStore

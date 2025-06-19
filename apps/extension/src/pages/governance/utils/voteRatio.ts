@@ -16,19 +16,19 @@ type VoteSectionValues = {
 }
 
 const borderCSS = {
-  [VoteOptions.YES]: 'dark:border-green-800 border-green-300',
-  [VoteOptions.ABSTAIN]: 'dark:border-gray-800 border-gray-200',
+  [VoteOptions.YES]: 'border-green-600',
+  [VoteOptions.ABSTAIN]: 'border-secondary-300',
   [VoteOptions.NO]: 'dark:border-red-800 border-red-300',
   [VoteOptions.NO_WITH_VETO]: 'dark:border-red-800 border-red-300',
-  GENERAL: 'dark:border-gray-800 border-gray-200',
+  GENERAL: 'border-secondary-300',
 }
 
 const backgroundCSS = {
-  [VoteOptions.YES]: 'bg-green-600/20',
-  [VoteOptions.ABSTAIN]: 'bg-gray-600/20',
+  [VoteOptions.YES]: 'bg-green-600/40',
+  [VoteOptions.ABSTAIN]: 'bg-secondary-300',
   [VoteOptions.NO]: 'bg-red-600/20',
   [VoteOptions.NO_WITH_VETO]: 'bg-red-600/20',
-  GENERAL: 'bg-gray-600/20',
+  GENERAL: 'bg-secondary-300',
 }
 
 export function voteRatio(tally: TallyResult): VoteSectionValues[] {

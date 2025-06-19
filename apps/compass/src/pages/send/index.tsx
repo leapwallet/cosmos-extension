@@ -4,16 +4,14 @@ import { ArrowLeft } from '@phosphor-icons/react/dist/ssr'
 import { WalletButton } from 'components/button'
 import { PageHeader } from 'components/header'
 import { LoaderAnimation } from 'components/loader/Loader'
-import { PageName } from 'config/analytics'
 import { useWalletInfo } from 'hooks'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import SelectWallet from 'pages/home/SelectWallet'
 import TxPage, { TxType } from 'pages/nfts-v2/send-nft/TxPage'
 import React, { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { evmBalanceStore } from 'stores/balance-store'
 import { compassTokensAssociationsStore } from 'stores/chain-infos-store'
 import {
@@ -36,8 +34,6 @@ import { useFillAddressWarning } from './hooks/useFillAddressWarning'
 import { SelectRecipientSheet } from './SelectRecipientSheet'
 
 const Send = observer(() => {
-  usePageView(PageName.Send)
-
   const navigate = useNavigate()
   const isAllAssetsLoading = rootBalanceStore.loading
   const [showSelectWallet, setShowSelectWallet] = useState(false)

@@ -61,6 +61,7 @@ type BottomModalProps = React.PropsWithChildren<{
    * custom secondary action button
    */
   secondaryActionButton?: React.ReactNode
+  containerDiv?: HTMLElement
 }>
 
 const BottomModal: React.FC<BottomModalProps> = ({
@@ -79,8 +80,10 @@ const BottomModal: React.FC<BottomModalProps> = ({
   contentClassName,
   hideActionButton,
   secondaryActionButton,
+  containerDiv,
 }) => {
-  const container = document.getElementById('popup-layout')?.parentNode as HTMLElement
+  const container =
+    containerDiv ?? (document.getElementById('popup-layout')?.parentNode as HTMLElement)
 
   const handleCloseAction = useCallback(() => {
     if (!disableClose) {

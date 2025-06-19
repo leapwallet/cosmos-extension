@@ -6,7 +6,6 @@ import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { LEAPBOARD_URL } from 'config/constants'
 import mixpanel from 'mixpanel-browser'
 import React from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 interface ClaimButtonProps {
   selectedAirdrop: AirdropEligibilityInfo
@@ -19,17 +18,15 @@ export default function ClaimButton({ selectedAirdrop }: ClaimButtonProps) {
       : selectedAirdrop?.CTAInfo?.href
 
   const trackCTAEvent = () => {
-    if (!isCompassWallet()) {
-      try {
-        mixpanel.track(EventName.ButtonClick, {
-          buttonType: ButtonType.AIRDROPS,
-          buttonName: ButtonName.CLAIM_AIRDROP,
-          redirectURL,
-          time: Date.now() / 1000,
-        })
-      } catch (e) {
-        captureException(e)
-      }
+    try {
+      mixpanel.track(EventName.ButtonClick, {
+        buttonType: ButtonType.AIRDROPS,
+        buttonName: ButtonName.CLAIM_AIRDROP,
+        redirectURL,
+        time: Date.now() / 1000,
+      })
+    } catch (e) {
+      captureException(e)
     }
   }
 

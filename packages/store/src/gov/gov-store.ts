@@ -3,6 +3,9 @@ import {
   CosmosSDK,
   getNeutronProposals,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
+  pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
@@ -206,7 +209,14 @@ export class GovStore {
         : this.chainInfosStore.chainInfos[chain]?.chainId;
     const address = this.addressStore.addresses?.[chain];
 
-    if (!activeChainId || !address || this.chainInfosStore.chainInfos[chain]?.evmOnlyChain || isAptosChain(chain))
+    if (
+      !activeChainId ||
+      !address ||
+      this.chainInfosStore.chainInfos[chain]?.evmOnlyChain ||
+      isAptosChain(chain) ||
+      isSolanaChain(chain) ||
+      isSuiChain(chain)
+    )
       return;
     const chainKey = this.getChainKey(chain);
 
@@ -460,12 +470,15 @@ export class GovStore {
   }
 
   private getChainKey(chain: SupportedChain) {
-    const cosmosAddress = this.addressStore.addresses?.cosmos;
+    const evmPubKey = this.addressStore?.pubKeys?.ethereum;
+    const cosmosAddress = this.addressStore?.addresses?.cosmos;
+    const evmAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : '';
+    const address = cosmosAddress || evmAddress;
     const chainId =
       this.selectedNetworkStore.selectedNetwork == 'testnet'
         ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
-    return `${cosmosAddress}-${chain}-${chainId}`;
+    return `${address}-${chain}-${chainId}`;
   }
 }

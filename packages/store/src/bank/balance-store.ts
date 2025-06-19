@@ -1,24 +1,31 @@
-import { denoms as ConstantDenoms, DenomsRecord, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
-import axios from 'axios';
+import { denoms as ConstantDenoms, DenomsRecord, isBabylon, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
 import { computed, makeAutoObservable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 import { AggregatedSupportedChainType, SelectedNetworkType } from 'types';
 
-import { AggregatedChainsStore, ChainInfosStore, getIbcTraceData, NmsStore, RootDenomsStore } from '../assets';
+import {
+  AggregatedChainsStore,
+  ChainFeatureFlagsStore,
+  ChainInfosStore,
+  CoingeckoIdsStore,
+  getIbcTrace,
+  getIbcTraceData,
+  NmsStore,
+  RootDenomsStore,
+} from '../assets';
 import { StakeEpochStore } from '../stake/epoch-store';
 import { getNativeDenom, isBitcoinChain } from '../utils';
 import { fromSmall } from '../utils/balance-converter';
-import { chainIdToChainName } from '../utils/chain-id-chain-name-map';
 import { getKeyToUseForDenoms } from '../utils/get-denom-key';
 import { generateRandomString } from '../utils/random-string-generator';
-import { ActiveChainStore } from '../wallet';
+import { ActiveChainStore, CurrencyStore } from '../wallet';
 import { AddressStore } from '../wallet/address-store';
 import { SelectedNetworkStore } from '../wallet/selected-network-store';
 import { BabylonBalanceStore } from './babylon-balance-store';
+import { BalanceAPIStore } from './balance-api-store';
 import { sortTokenBalances } from './balance-calculator';
 import { BalanceLoadingStatus, Token } from './balance-types';
-import { BitcoinBalanceStore } from './bitcoin-balance-store';
 import { PriceStore } from './price-store';
 import { RawBalanceStore } from './raw-balance-store';
 
@@ -32,18 +39,22 @@ export class BalanceStore {
   activeChainStore: ActiveChainStore;
   loading: boolean = true;
   selectedNetworkStore: SelectedNetworkStore;
+  chainFeatureFlagsStore: ChainFeatureFlagsStore;
+  balanceAPIStore: BalanceAPIStore;
+  currencyStore: CurrencyStore;
+  coingeckoIdsStore: CoingeckoIdsStore;
 
   chainWiseBalances: Record<string, Array<Token>> = {};
   chainWiseSpendableBalances: Record<string, Array<Token>> = {};
   chainWiseStates: Record<string, BalanceLoadingStatus> = {};
 
   rawBalances: any = {};
-  rawBalanceStores: Record<string, RawBalanceStore | BitcoinBalanceStore | BabylonBalanceStore> = {};
-  rawSpendableBalanceStores: Record<string, RawBalanceStore | BitcoinBalanceStore | BabylonBalanceStore> = {};
+  rawBalanceStores: Record<string, RawBalanceStore | BabylonBalanceStore> = {};
+  rawSpendableBalanceStores: Record<string, RawBalanceStore | BabylonBalanceStore> = {};
 
   displayedAssets: Array<Token> = [];
   aggregateBalanceVisible: boolean = false;
-  chainsWithoutSpendableBalance: Array<SupportedChain> = ['thorchain', 'bitcoin'];
+  chainsWithoutSpendableBalance: Array<SupportedChain> = ['thorchain'];
 
   epochStore: StakeEpochStore;
 
@@ -57,6 +68,10 @@ export class BalanceStore {
     activeChainStore: ActiveChainStore,
     selectedNetworkStore: SelectedNetworkStore,
     stakeEpochStore: StakeEpochStore,
+    chainFeatureFlagsStore: ChainFeatureFlagsStore,
+    balanceAPIStore: BalanceAPIStore,
+    currencyStore: CurrencyStore,
+    coingeckoIdsStore: CoingeckoIdsStore,
   ) {
     makeAutoObservable(this, {
       totalFiatValue: computed,
@@ -74,6 +89,10 @@ export class BalanceStore {
     this.activeChainStore = activeChainStore;
     this.selectedNetworkStore = selectedNetworkStore;
     this.epochStore = stakeEpochStore;
+    this.chainFeatureFlagsStore = chainFeatureFlagsStore;
+    this.balanceAPIStore = balanceAPIStore;
+    this.currencyStore = currencyStore;
+    this.coingeckoIdsStore = coingeckoIdsStore;
   }
 
   getBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
@@ -124,7 +143,7 @@ export class BalanceStore {
     }
 
     const balanceKey = this.getBalanceKey(chain as SupportedChain);
-    return this.chainWiseStates?.[balanceKey] === 'loading';
+    return this.chainWiseStates?.[balanceKey] !== null && this.chainWiseStates?.[balanceKey] !== 'error';
   }
 
   async initialize() {
@@ -136,6 +155,7 @@ export class BalanceStore {
       this.aggregatedChainsStore.readyPromise,
       this.activeChainStore.readyPromise,
       this.selectedNetworkStore.readyPromise,
+      this.coingeckoIdsStore.readyPromise,
     ]);
 
     if (this.addressStore.addresses) {
@@ -168,6 +188,7 @@ export class BalanceStore {
     _network?: SelectedNetworkType,
     _address?: string,
     forceRefetch = false,
+    forceUseFallback = false,
   ) {
     const network = _network || this.selectedNetworkStore.selectedNetwork;
     const chainId =
@@ -177,8 +198,8 @@ export class BalanceStore {
 
     if (!chainId) return;
 
-    const restTestKey = isBitcoinChain(chain) ? 'rpcTestBlockbook' : 'restTest';
-    const restKey = isBitcoinChain(chain) ? 'rpcBlockbook' : 'rest';
+    const restTestKey = 'restTest';
+    const restKey = 'rest';
 
     const nodeUrlKey = network === 'testnet' ? restTestKey : restKey;
     const hasEntryInNms = this.nmsStore.restEndpoints[chainId] && this.nmsStore.restEndpoints[chainId].length > 0;
@@ -192,7 +213,10 @@ export class BalanceStore {
     const balanceKey = this.getBalanceKey(chain, network, _address);
     const evmOnlyChain = this.chainInfosStore.chainInfos[chain]?.evmOnlyChain;
     const aptosChain = this.chainInfosStore.chainInfos[chain]?.chainId.startsWith('aptos');
-    if (!address || evmOnlyChain || aptosChain) {
+    const solanaChain = this.chainInfosStore.chainInfos[chain]?.bip44.coinType === '501';
+    const bitcoinChain = isBitcoinChain(chain as SupportedChain);
+    const suiChain = this.chainInfosStore.chainInfos[chain]?.chainId.startsWith('sui');
+    if (!address || evmOnlyChain || aptosChain || solanaChain || bitcoinChain || suiChain) {
       runInAction(() => {
         this.chainWiseStates[balanceKey] = null;
       });
@@ -212,29 +236,59 @@ export class BalanceStore {
     });
 
     try {
+      if (!forceUseFallback) {
+        const { balances: formattedBalancesFromAPI, useFallback } = await this.balanceAPIStore.fetchChainBalanceFromAPI(
+          chain,
+          network,
+          address,
+          false,
+          forceRefetch,
+        );
+
+        if (!useFallback) {
+          runInAction(() => {
+            this.chainWiseSpendableBalances[balanceKey] = formattedBalancesFromAPI;
+            this.chainWiseBalances[balanceKey] = formattedBalancesFromAPI;
+            this.chainWiseStates[balanceKey] = null;
+            this.aggregateBalanceVisible = true;
+          });
+          return;
+        }
+      }
+
       const restUrl = hasEntryInNms
         ? this.nmsStore.restEndpoints[chainId][0].nodeUrl
         : this.chainInfosStore.chainInfos[chain].apis[nodeUrlKey];
 
       if (!restUrl) {
-        if (isBitcoinChain(chain)) {
-          throw new Error('No rpc url found');
-        }
-
         throw new Error('No rest url found');
       }
 
-      if (!['bitcoin', 'aptos', 'babylon'].includes(chain) && !this.rawBalanceStores[balanceKey]) {
-        const rawBalanceStore = new RawBalanceStore(restUrl, address, chain, 'balances');
+      if (!['aptos'].includes(chain) && !isBabylon(chain) && !this.rawBalanceStores[balanceKey]) {
+        await this.chainFeatureFlagsStore.readyPromise;
+        const rawBalanceStore = new RawBalanceStore(
+          restUrl,
+          address,
+          chain,
+          'balances',
+          this.chainFeatureFlagsStore.chainFeatureFlagsData[chain]?.balanceQueryPaginationParam,
+        );
         this.rawBalanceStores[balanceKey] = rawBalanceStore;
       }
 
-      if (!['bitcoin', 'aptos', 'babylon'].includes(chain) && !this.rawSpendableBalanceStores[balanceKey]) {
-        const rawSpendableBalanceStore = new RawBalanceStore(restUrl, address, chain, 'spendable_balances');
+      if (!['aptos'].includes(chain) && !isBabylon(chain) && !this.rawSpendableBalanceStores[balanceKey]) {
+        await this.chainFeatureFlagsStore.readyPromise;
+        const rawSpendableBalanceStore = new RawBalanceStore(
+          restUrl,
+          address,
+          chain,
+          'spendable_balances',
+          this.chainFeatureFlagsStore.chainFeatureFlagsData[chain]?.balanceQueryPaginationParam,
+        );
         this.rawSpendableBalanceStores[balanceKey] = rawSpendableBalanceStore;
       }
 
-      if (chain === 'babylon') {
+      if (isBabylon(chain)) {
         if (!this.rawBalanceStores[balanceKey]) {
           const babylonBalanceStore = new BabylonBalanceStore(restUrl, address, 'balances', this.epochStore);
           this.rawBalanceStores[balanceKey] = babylonBalanceStore;
@@ -249,18 +303,6 @@ export class BalanceStore {
           );
           this.rawSpendableBalanceStores[balanceKey] = babylonSpendableBalanceStore;
         }
-      }
-
-      // if (isAptosChain(chain)) {
-      //   const aptosBalanceStore = new AptosBalanceStore(restUrl, address, chain);
-      //   this.rawBalanceStores[balanceKey] = aptosBalanceStore;
-      //   this.rawSpendableBalanceStores[balanceKey] = aptosBalanceStore;
-      // }
-
-      if (isBitcoinChain(chain)) {
-        const bitcoinBalanceStore = new BitcoinBalanceStore(restUrl, address, chain);
-        this.rawBalanceStores[balanceKey] = bitcoinBalanceStore;
-        this.rawSpendableBalanceStores[balanceKey] = bitcoinBalanceStore;
       }
 
       const rawBalanceStore = this.rawBalanceStores[balanceKey];
@@ -327,34 +369,77 @@ export class BalanceStore {
 
   async fetchAggregatedBalances(network: SelectedNetworkType, forceRefetch = false) {
     this.loading = true;
-    const loadBalanceParams: Array<[string, string, SupportedChain]> = [];
 
-    Object.entries(this.nmsStore.restEndpoints).forEach(([key, value]) => {
-      const chainId = key;
+    const chainWiseAddresses: Partial<Record<SupportedChain, string>> = {};
+    const chainsToUseFallbackFor = new Set<SupportedChain>();
+    await this.aggregatedChainsStore.readyPromise;
+    this.aggregatedChainsStore.aggregatedChainsData.forEach((chain) => {
+      const evmOnlyChain = this.chainInfosStore.chainInfos[chain as SupportedChain]?.evmOnlyChain;
+      const aptosChain = this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos');
+      const bitcoinChain = isBitcoinChain(chain as SupportedChain);
+      const solanaChain = this.chainInfosStore.chainInfos[chain as SupportedChain]?.bip44?.coinType === '501';
+      if (evmOnlyChain || aptosChain || bitcoinChain || solanaChain) {
+        return;
+      }
 
-      if (value && value.length > 0) {
-        const restEndpoint = value[0].nodeUrl;
-        const chainName = chainIdToChainName[chainId] as SupportedChain;
-        const chainInfos = this.chainInfosStore.chainInfos;
+      const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
 
-        if (
-          this.aggregatedChainsStore.aggregatedChainsData.includes(chainName) &&
-          chainInfos[chainName].testnetChainId !== chainId
-        ) {
-          loadBalanceParams.push([restEndpoint, this.addressStore.addresses[chainName], chainName as SupportedChain]);
-        }
+      if (this.chainWiseBalances[balanceKey] && this.chainWiseSpendableBalances[balanceKey] && !forceRefetch) {
+        runInAction(() => {
+          this.chainWiseStates[balanceKey] = null;
+        });
+        return;
+      }
+
+      const address = this.addressStore.addresses[chain as SupportedChain];
+      if (address) {
+        chainWiseAddresses[chain as SupportedChain] = address;
       }
     });
 
+    if (Object.keys(chainWiseAddresses).length > 0) {
+      const results = await Promise.all([
+        this.balanceAPIStore.fetchAggregatedBalanceFromAPI(chainWiseAddresses, network, false, forceRefetch),
+        this.balanceAPIStore.fetchAggregatedBalanceFromAPI(chainWiseAddresses, network, true, forceRefetch),
+      ]);
+
+      const [balancesResult, spendableBalancesResult] = results;
+
+      Object.entries(balancesResult).forEach(([chain, { balances, useFallback }]) => {
+        if (useFallback) {
+          chainsToUseFallbackFor.add(chain as SupportedChain);
+          return;
+        }
+
+        const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
+
+        runInAction(() => {
+          this.chainWiseBalances[balanceKey] = balances;
+          this.chainWiseSpendableBalances[balanceKey] =
+            spendableBalancesResult[chain as SupportedChain]?.balances ?? [];
+          this.chainWiseStates[balanceKey] = null;
+          this.aggregateBalanceVisible = true;
+        });
+      });
+    }
+
+    if (chainsToUseFallbackFor.size === 0) {
+      runInAction(() => {
+        this.loading = false;
+        this.aggregateBalanceVisible = true;
+      });
+      return;
+    }
+
     let completedRequests = 0;
-    const totalRequests = loadBalanceParams.length;
 
     this.aggregatedChainsStore.aggregatedChainsData
       ?.filter(
         (chain) =>
-          network === 'testnet' ||
-          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
-            this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId,
+          (network === 'testnet' ||
+            this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+              this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+          chainsToUseFallbackFor.has(chain as SupportedChain),
       )
       .forEach((chain) => {
         const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
@@ -362,7 +447,7 @@ export class BalanceStore {
           this.chainWiseStates[balanceKey] = 'loading';
         });
 
-        this.fetchChainBalance(chain as SupportedChain, network, undefined, forceRefetch)
+        this.fetchChainBalance(chain as SupportedChain, network, undefined, forceRefetch, true)
           .catch(() => {
             completedRequests += 1;
           })
@@ -370,36 +455,12 @@ export class BalanceStore {
             completedRequests += 1;
 
             runInAction(() => {
-              if (completedRequests === totalRequests) {
+              if (completedRequests === chainsToUseFallbackFor.size) {
                 this.loading = false;
               }
             });
           });
       });
-  }
-
-  private async getAptosDenomDetails(lcdUrl: string, denom: string, chain: SupportedChain) {
-    try {
-      const res = await axios.get(
-        `${lcdUrl}/accounts/${denom.split('::')?.[0]}/resource/0x1::coin::CoinInfo<${denom}>`,
-      );
-      const fetchedDenom = res.data?.data;
-      if (fetchedDenom && fetchedDenom.symbol && fetchedDenom.decimals) {
-        return {
-          name: fetchedDenom.name ?? '',
-          coinDenom: fetchedDenom.symbol,
-          coinMinimalDenom: denom,
-          coinDecimals: fetchedDenom.decimals,
-          icon: '',
-          chain,
-          coinGeckoId: '',
-        };
-      }
-
-      return null;
-    } catch (e) {
-      console.error(`Error fetching aptos denom info for ${denom}`, e);
-    }
   }
 
   private async formatBalance(
@@ -410,8 +471,9 @@ export class BalanceStore {
     tokensToAddInDenoms: DenomsRecord,
   ) {
     const chainInfos = this.chainInfosStore.chainInfos;
-    await this.waitForPriceStore();
+    await Promise.all([this.waitForPriceStore(), this.waitForCoingeckoIdsStore()]);
     const coingeckoPrices = this.priceStore.data;
+    const coingeckoIds = this.coingeckoIdsStore.coingeckoIdsFromS3;
 
     const rootDenoms = this.rootDenomsStore.allDenoms;
     const allDenoms: DenomsRecord = { ...ConstantDenoms, ...rootDenoms };
@@ -421,9 +483,13 @@ export class BalanceStore {
       const denomInfo = allDenoms[nativeDenom?.coinMinimalDenom ?? ''] ?? nativeDenom;
 
       let tokenPrice: number | undefined;
-      if (coingeckoPrices) {
-        const coinGeckoId = denomInfo.coinGeckoId;
+      const coinGeckoId =
+        denomInfo.coinGeckoId ||
+        coingeckoIds[denomInfo?.coinMinimalDenom] ||
+        coingeckoIds[denomInfo?.coinMinimalDenom?.toLowerCase()] ||
+        '';
 
+      if (coingeckoPrices) {
         const alternateCoingeckoKey = `${chainInfos?.[chain]?.chainId}-${denomInfo.coinMinimalDenom}`;
 
         if (coinGeckoId) {
@@ -447,7 +513,7 @@ export class BalanceStore {
           ibcDenom: undefined,
           usdPrice: tokenPrice ? String(tokenPrice) : '0',
           coinDecimals: denomInfo?.coinDecimals ?? 6,
-          coinGeckoId: denomInfo?.coinGeckoId ?? '',
+          coinGeckoId,
           tokenBalanceOnChain: chain,
           id: generateRandomString(10),
         },
@@ -457,10 +523,8 @@ export class BalanceStore {
     const formattedBalances = await Promise.all(
       balances.map(async (balance) => {
         const chainInfo = chainInfos[chain];
-        let _denom = balance.denom;
-        if (chain === 'noble' && _denom === 'uusdc') {
-          _denom = 'usdc';
-        }
+        const chainId = network === 'testnet' ? chainInfo.testnetChainId : chainInfo.chainId;
+        let _denom = getKeyToUseForDenoms(balance.denom, chain);
 
         let isIbcDenom = false;
         let ibcChainInfo;
@@ -468,13 +532,21 @@ export class BalanceStore {
         if (_denom.startsWith('ibc/')) {
           isIbcDenom = true;
           const ibcTraceData = getIbcTraceData();
-          const trace = ibcTraceData[_denom];
+          let trace = ibcTraceData[_denom];
 
           if (!trace) {
-            return null as unknown as Token;
+            try {
+              const ibcTraceData = await getIbcTrace(_denom, lcdUrl, chainId ?? '');
+              trace = ibcTraceData;
+            } catch (e) {
+              console.error(`Error fetching ibc trace for ${_denom}`, e);
+            }
+            if (!trace) {
+              return null as unknown as Token;
+            }
           }
 
-          _denom = getKeyToUseForDenoms(trace.baseDenom, trace.originChainId);
+          _denom = getKeyToUseForDenoms(trace.baseDenom, String(trace.sourceChainId || trace.originChainId || ''));
           ibcChainInfo = {
             pretty_name: trace?.originChainId,
             icon: '',
@@ -491,25 +563,37 @@ export class BalanceStore {
           }
         }
 
-        if (!denomInfo && isAptosChain(chain)) {
-          const fetchedDenom = await this.getAptosDenomDetails(lcdUrl, _denom, chain);
-          if (fetchedDenom) {
-            denomInfo = fetchedDenom;
-            tokensToAddInDenoms[_denom] = denomInfo;
-          }
-        }
-
         if (!denomInfo) {
           return null as unknown as Token;
         }
 
         const amount = fromSmall(new BigNumber(balance.amount).toString(), denomInfo?.coinDecimals);
         let usdValue;
+        const coinGeckoId =
+          denomInfo.coinGeckoId ||
+          coingeckoIds[_denom] ||
+          coingeckoIds[_denom?.toLowerCase()] ||
+          coingeckoIds[denomInfo?.coinMinimalDenom] ||
+          coingeckoIds[denomInfo?.coinMinimalDenom?.toLowerCase()] ||
+          '';
+
+        if (coinGeckoId && !denomInfo.coinGeckoId) {
+          if (allDenoms[_denom]) {
+            tokensToAddInDenoms[_denom] = {
+              ...allDenoms[_denom],
+              coinGeckoId,
+            };
+          } else {
+            tokensToAddInDenoms[denomInfo.coinMinimalDenom] = {
+              ...denomInfo,
+              coinGeckoId,
+            };
+          }
+        }
 
         if (parseFloat(amount) > 0) {
           if (coingeckoPrices) {
             let tokenPrice;
-            const coinGeckoId = denomInfo.coinGeckoId;
 
             const alternateCoingeckoKey = `${(chainInfos?.[denomInfo?.chain as SupportedChain] ?? chainInfo).chainId}-${
               denomInfo.coinMinimalDenom
@@ -544,7 +628,7 @@ export class BalanceStore {
           ibcChainInfo,
           usdPrice,
           coinDecimals: denomInfo?.coinDecimals,
-          coinGeckoId: denomInfo?.coinGeckoId,
+          coinGeckoId,
           tokenBalanceOnChain: chain,
           id: generateRandomString(10),
         };
@@ -561,8 +645,9 @@ export class BalanceStore {
   ): string {
     const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
     const address = _address ?? this.addressStore.addresses[chain as SupportedChain];
+    const userPreferredCurrency = this.currencyStore.preferredCurrency;
 
-    return `${chainKey}-${address}`;
+    return `${chainKey}-${address}-${userPreferredCurrency}`;
   }
 
   private getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
@@ -571,8 +656,8 @@ export class BalanceStore {
 
     const chainId =
       network === 'testnet'
-        ? this.chainInfosStore.chainInfos[chain].testnetChainId
-        : this.chainInfosStore.chainInfos[chain].chainId;
+        ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
+        : this.chainInfosStore.chainInfos[chain]?.chainId;
 
     return `${chain}-${chainId}`;
   }
@@ -632,6 +717,14 @@ export class BalanceStore {
       return this.getAggregatedTokens(balanceSource, network);
     } else {
       return this.getChainTokens(chain as SupportedChain, network, balanceSource);
+    }
+  }
+
+  private async waitForCoingeckoIdsStore() {
+    try {
+      await this.coingeckoIdsStore.readyPromise;
+    } catch (e) {
+      //
     }
   }
 

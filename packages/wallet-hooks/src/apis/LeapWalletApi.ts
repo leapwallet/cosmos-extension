@@ -66,7 +66,9 @@ export namespace LeapWalletApi {
 
   export type LogLightNodeStats = (info: LightNodeStatsInfo) => Promise<void>;
 
-  export type OperateCosmosTx = (info: LogInfo & { isAptos?: boolean }) => Promise<void>;
+  export type OperateCosmosTx = (
+    info: LogInfo & { isAptos?: boolean; isSolana?: boolean; isSui?: boolean },
+  ) => Promise<void>;
 
   export type LogCosmosDappTx = (
     info: LogInfo & { address: string; chain: SupportedChain; network?: 'mainnet' | 'testnet' },
@@ -80,7 +82,7 @@ export namespace LeapWalletApi {
     details: string;
     price: number;
     priceChange: number;
-    marketCap: number;
+    // marketCap: number;
   }> {
     const leapApiBaseUrl = getLeapapiBaseUrl();
     const customHeaders = getLeapApiGlobalHeaders();
@@ -103,21 +105,21 @@ export namespace LeapWalletApi {
 
     const priceRes: MarketPricesResponse = await operateMarketPrices([token], chain, preferredCurrency);
     const priceChangeRes: MarketPercentageChangesResponse = await operateMarketPercentChanges([token], chain);
-    const marketCapRes: MarketCapsResponse = await leapApi.getMarketCaps({
-      platform,
-      tokens: [token],
-      currency: preferredCurrency,
-    });
+    // const marketCapRes: MarketCapsResponse = await leapApi.getMarketCaps({
+    //   platform,
+    //   tokens: [token],
+    //   currency: preferredCurrency,
+    // });
 
     const price = Object.values(priceRes)[0];
     const priceChange = Object.values(priceChangeRes)[0];
-    const marketCap = Object.values(marketCapRes)[0];
+    // const marketCap = Object.values(marketCapRes)[0];
 
     return {
       details: details ?? '',
       price,
       priceChange,
-      marketCap,
+      // marketCap,
     };
   }
 
@@ -202,12 +204,8 @@ export namespace LeapWalletApi {
       if (coingeckoPrices[currencySelected] && coingeckoPrices[currencySelected][tokens[0]]) {
         return { [tokens[0]]: coingeckoPrices[currencySelected][tokens[0]] };
       } else {
-        if (!platforms[chain]) {
-          throw new Error();
-        }
-
         return await leapApi.getMarketPrices({
-          platform: platforms[chain],
+          platform: platforms[chain] ?? 'DEFAULT',
           tokens: tokens,
           currency: currencySelected,
         });
@@ -327,7 +325,7 @@ export namespace LeapWalletApi {
     return entries.reduce((acc, [key, value]) => {
       return {
         ...acc,
-        [platformToChain[key as Platform]]: value,
+        [platformToChain[key as Platform] ?? 'DEFAULT']: value,
       };
     }, {});
   }
@@ -402,6 +400,8 @@ export namespace LeapWalletApi {
         amount,
         isAptos,
         isEvmOnly,
+        isSolana,
+        isSui,
       }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
         const customHeaders = getLeapApiGlobalHeaders();
@@ -428,7 +428,7 @@ export namespace LeapWalletApi {
           metadata: formatMetadata(metadata),
           feeDenomination,
           feeQuantity,
-          chainId: _chainId ?? '',
+          chainId: isSolana ? activeChain : isSui ? 'sui' : _chainId ?? '',
         } as V2TxRequest;
 
         if (amount !== undefined) {
@@ -451,6 +451,12 @@ export namespace LeapWalletApi {
           } else if (isEvmOnly) {
             const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
             await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
+          } else if (isSolana) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
+            await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Solana);
+          } else if (isSui) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
+            await txnLeapApi.operateV2Tx(logReq, 'sui.tx' as V2TxOperation);
           } else if (isCompassWallet) {
             await txnLeapApi.operateSeiTx(logReq as unknown as CosmosTxRequest);
           } else {
@@ -470,6 +476,8 @@ export namespace LeapWalletApi {
       chain: SupportedChain;
       network?: 'mainnet' | 'testnet';
       isAptos?: boolean;
+      isSolana?: boolean;
+      isSui?: boolean;
     },
   ) => Promise<void> {
     const { chains } = useChainsStore();
@@ -494,8 +502,17 @@ export namespace LeapWalletApi {
         txType,
         isEvmOnly,
         isAptos,
+        isSolana,
+        isSui,
         network,
-      }: LogInfo & { chain: SupportedChain; address: string; network?: 'mainnet' | 'testnet'; isAptos?: boolean }) => {
+      }: LogInfo & {
+        chain: SupportedChain;
+        address: string;
+        network?: 'mainnet' | 'testnet';
+        isAptos?: boolean;
+        isSolana?: boolean;
+        isSui?: boolean;
+      }) => {
         const leapApiBaseUrl = getLeapapiBaseUrl();
         const customHeaders = getLeapApiGlobalHeaders();
         const txnLeapApi = new LeapApi(`${leapApiBaseUrl}/v2`, customHeaders);
@@ -518,7 +535,7 @@ export namespace LeapWalletApi {
             metadata: formatMetadata(metadata),
             feeDenomination,
             feeQuantity,
-            chainId: _chainId ?? '',
+            chainId: isSolana ? 'solana' : isSui ? 'sui' : _chainId ?? '',
           } as V2TxRequest;
 
           if (blockchain !== undefined) {
@@ -534,6 +551,12 @@ export namespace LeapWalletApi {
           } else if (isEvmOnly) {
             const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
             await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Evm);
+          } else if (isSolana) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
+            await txnLeapApi.operateV2Tx(logReq, V2TxOperation.Solana);
+          } else if (isSui) {
+            const txnLeapApi = new LeapApi(leapApiBaseUrl, customHeaders);
+            await txnLeapApi.operateV2Tx(logReq, 'sui.tx' as V2TxOperation);
           } else if (isCompassWallet) {
             await txnLeapApi.operateSeiTx(logReq as unknown as CosmosTxRequest);
           } else {

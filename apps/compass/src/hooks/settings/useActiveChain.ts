@@ -135,6 +135,7 @@ export function useInitActiveChain(enabled: boolean) {
         return
       }
 
+      const storageActiveChain = storage[ACTIVE_CHAIN]
       let activeChain: SupportedChain = storage[ACTIVE_CHAIN]
       const leapFallbackChain = AGGREGATED_CHAIN_KEY as SupportedChain
 
@@ -162,6 +163,9 @@ export function useInitActiveChain(enabled: boolean) {
 
       setActiveChain(activeChain)
       rootStore.setActiveChain(activeChain)
+      if (storageActiveChain !== activeChain) {
+        browser.storage.local.set({ [ACTIVE_CHAIN]: activeChain })
+      }
       setIsActiveChainInitialized(true)
     })
 

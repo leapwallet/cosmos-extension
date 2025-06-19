@@ -4,12 +4,15 @@ import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { CaretDown, Info } from '@phosphor-icons/react'
 import Text from 'components/text'
+import { Button } from 'components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from 'components/ui/tooltip'
+import { PenIcon } from 'icons/pen-icon'
 import { Images } from 'images'
 import { GenericDark, GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useState } from 'react'
 import { imgOnError } from 'utils/imgOnError'
-import { isSidePanel } from 'utils/isSidePanel'
+import { isSidePanel, sidePanel } from 'utils/isSidePanel'
 
 import ProviderTooltip from './ProviderTooltip'
 
@@ -43,40 +46,24 @@ export const SelectProviderCard = observer(
     }, [])
 
     return (
-      <div className='flex flex-col gap-y-3 p-4 rounded-2xl bg-white-100 dark:bg-gray-950 relative'>
+      <div className='flex flex-col gap-4 p-5 rounded-xl bg-secondary-100'>
         <div className='flex justify-between w-full'>
-          <Text size='sm' color='text-black-100 dark:text-white-100' className='font-medium'>
-            {title}
-          </Text>
+          <span className='font-medium text-sm text-muted-foreground'>{title}</span>
           {selectedProvider && (
-            <div className='relative'>
-              <Info
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                size={18}
-                className='text-gray-400 dark:text-gray-600'
-              />
-              {showTooltip && (
-                <ProviderTooltip
-                  provider={selectedProvider}
-                  handleMouseEnter={handleMouseEnter}
-                  handleMouseLeave={handleMouseLeave}
-                  positionClassName='bottom-full -right-2 py-3'
-                />
-              )}
-            </div>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info size={18} className='text-gray-400 dark:text-gray-600' />
+                </TooltipTrigger>
+                <TooltipContent side='left' className='bg-transparent border-none'>
+                  <ProviderTooltip provider={selectedProvider} />
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
-        <button
-          className='flex w-full items-center cursor-pointer py-2.5 px-4 justify-between bg-gray-50 dark:bg-gray-900 rounded-xl'
-          onClick={() => {
-            if (!selectDisabled) {
-              setShowSelectProviderSheet(true)
-            }
-          }}
-          disabled={selectDisabled}
-        >
-          <div className='flex items-center gap-x-2'>
+        <div className='flex w-full items-center cursor-pointer justify-between'>
+          <div className='flex items-center gap-4'>
             <img
               src={
                 selectedProvider
@@ -87,40 +74,41 @@ export const SelectProviderCard = observer(
               }
               onError={imgOnError(GenericLight)}
               className='rounded-full'
-              width={24}
-              height={24}
+              width={44}
+              height={44}
             />
-            <Text
-              size='sm'
-              color={
-                selectedProvider
-                  ? 'text-black-100 dark:text-white-100'
-                  : 'text-gray-700 dark:text-gray-400'
-              }
-              className=' font-bold'
-            >
-              {selectedProvider
-                ? sliceWord(selectedProvider.moniker ?? '', 12, 0)
-                : `Select Provider ${optional ? '(optional)' : ''}`}
-            </Text>
-            {selectedProvider && parseFloat(apr ?? '0') > 0 && (
-              <Text size='xs' color='dark:text-gray-400 text-gray-600' className='font-medium'>
-                Estimated APR&nbsp;
-                <span className='font-bold'>{formatPercentAmount(apr ?? '', 1)}</span>%
-              </Text>
-            )}
+            <div className='flex flex-col gap-1'>
+              <span className='font-bold text-sm'>
+                {selectedProvider
+                  ? sliceWord(
+                      selectedProvider.moniker,
+                      sidePanel
+                        ? 21 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7)
+                        : 30,
+                      0,
+                    )
+                  : `Select Provider ${optional ? '(optional)' : ''}`}
+              </span>
+              {selectedProvider && parseFloat(apr ?? '0') > 0 && (
+                <span className='text-xs text-accent-success font-medium'>
+                  Estimated APR&nbsp;
+                  <span className='font-bold'>{formatPercentAmount(apr ?? '', 1)}</span>%
+                </span>
+              )}
+            </div>
           </div>
+
           {!selectDisabled && (
-            <CaretDown
-              size={16}
-              className={`${
-                selectedProvider
-                  ? 'text-gray-800 dark:text-white-100'
-                  : 'text-gray-700 dark:text-gray-400'
-              }`}
-            />
+            <Button
+              size={'icon'}
+              variant={'secondary'}
+              className='bg-secondary-300 hover:bg-secondary-400'
+              onClick={() => setShowSelectProviderSheet(true)}
+            >
+              <PenIcon size={24} />
+            </Button>
           )}
-        </button>
+        </div>
       </div>
     )
   },

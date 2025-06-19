@@ -42,8 +42,9 @@ export async function getDelegationsForChain({
     baseURL: lcdUrl,
     method: 'get',
     url:
-      (activeChain === 'initia' ? '/initia/mstaking/v1/delegations/' : '/cosmos/staking/v1beta1/delegations/') +
-      address,
+      (['initia', 'initiaEvm'].includes(activeChain)
+        ? '/initia/mstaking/v1/delegations/'
+        : '/cosmos/staking/v1beta1/delegations/') + address,
   });
 
   if (isCancelled) return;
@@ -62,7 +63,7 @@ export async function getDelegationsForChain({
     if (isCancelled) return;
   }
 
-  if (activeChain === 'initia') {
+  if (['initia', 'initiaEvm'].includes(activeChain)) {
     delegation_responses = delegation_responses.reduce((acc: Delegation[], delegation: Delegation) => {
       const uinitDelegation = (delegation.balance as unknown as Amount[]).find(
         (balance) => balance.denom === activeStakingDenom.coinMinimalDenom,

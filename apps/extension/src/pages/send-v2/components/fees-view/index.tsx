@@ -34,6 +34,8 @@ export const FeesView = observer(
       sendActiveChain,
       sendSelectedNetwork,
       isSeiEvmTransaction,
+      computedGas,
+      setComputedGas,
     } = useSendContext()
 
     const denoms = rootDenomsStore.allDenoms
@@ -99,6 +101,8 @@ export const FeesView = observer(
           isSeiEvmTransaction={isSeiEvmTransaction}
           rootDenomsStore={rootDenomsStore}
           rootBalanceStore={rootBalanceStore}
+          setComputedGas={setComputedGas}
+          computedGas={computedGas}
         >
           {addressWarning.type === 'link' ? null : (
             <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />

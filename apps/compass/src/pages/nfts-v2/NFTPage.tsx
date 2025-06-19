@@ -4,13 +4,11 @@ import { ArrowCounterClockwise, Faders, MagnifyingGlassMinus } from '@phosphor-i
 import { WalletButton } from 'components/button'
 import { PageHeader } from 'components/header'
 import { SideNavMenuOpen } from 'components/header/sidenav-menu'
-import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
-import { PageName } from 'config/analytics'
+import { SearchInput } from 'components/ui/input/search-input'
 import { motion } from 'framer-motion'
 import { useWalletInfo } from 'hooks'
-import { usePageView } from 'hooks/analytics/usePageView'
 import useQuery from 'hooks/useQuery'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
@@ -18,7 +16,7 @@ import SelectWallet from 'pages/home/SelectWallet'
 import SideNav from 'pages/home/side-nav'
 import { createWalletLoaderVariants } from 'pages/onboarding/create/creating-wallet-loader'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { FavNftStore, favNftStore } from 'stores/manage-nft-store'
 import { nftStore } from 'stores/nft-store'
 import { transition } from 'utils/motion-variants'
@@ -218,8 +216,6 @@ const NFTs = observer(
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder='Search by collection or name'
               onClear={() => setSearchQuery('')}
-              divClassName='rounded-2xl w-full flex items-center gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4 dark:focus-within:border-white-100 hover:border-secondary-400 focus-within:border-black-100 border border-transparent'
-              inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
             />
             {filteredCollections?.length > 0 ? (
               <CollectionList collections={filteredCollections} />
@@ -263,7 +259,6 @@ const NFTs = observer(
 )
 
 export default function NFTPage() {
-  usePageView(PageName.NFT)
   const [activePage, setActivePage] = useState<NftPage>('ShowNfts')
   const [showSelectWallet, setShowSelectWallet] = useState(false)
   const value = { activePage, setActivePage }

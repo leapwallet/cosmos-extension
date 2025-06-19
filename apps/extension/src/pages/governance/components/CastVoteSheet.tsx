@@ -17,8 +17,10 @@ import { captureException } from '@sentry/react'
 import classNames from 'classnames'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { LoaderAnimation } from 'components/loader/Loader'
+import { Button } from 'components/ui/button'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Colors } from 'theme/colors'
+import { cn } from 'utils/cn'
 
 import { ProposalStatusEnum } from './ProposalStatus'
 
@@ -135,19 +137,29 @@ export function CastVoteSheet({
 
   return (
     <>
-      <div className='flex flex-col items-center gap-4'>
+      <div className='flex flex-col items-center gap-3'>
         {VoteOptionsList.map((option) => (
           <button
             key={option.label}
             onClick={() => setSelectedOption(option.label)}
-            className={classNames('flex items-center w-[344px] p-4 rounded-2xl cursor-pointer', {
-              'dark:text-gray-200 dark:bg-gray-900 text-gray-600 bg-white-100':
-                selectedOption !== option.label,
-              [option.selectedCSS]: selectedOption === option.label,
-            })}
+            className={classNames(
+              'flex items-center w-full px-5 py-4 rounded-xl cursor-pointer border',
+              {
+                'bg-secondary-100 text-foreground hover:bg-secondary-200 border-transparent':
+                  selectedOption !== option.label,
+                'text-green-600 bg-green-500/10 border-green-600': selectedOption === option.label,
+              },
+            )}
           >
             <span className='mr-3'>{option.icon}</span>
-            <span className='text-base font-bold dark:text-white-100'>{option.label}</span>
+            <span
+              className={cn('text-base font-bold', {
+                'text-foreground': selectedOption !== option.label,
+                'text-green-600': selectedOption === option.label,
+              })}
+            >
+              {option.label}
+            </span>
           </button>
         ))}
       </div>
@@ -156,21 +168,17 @@ export function CastVoteSheet({
         <DisplayFee className='mt-4' setShowFeesSettingSheet={setShowFeesSettingSheet} />
       ) : (
         <div className='flex justify-center'>
-          <LoaderAnimation color={Colors.getChainColor(activeChain)} />
+          <LoaderAnimation color={Colors.green600} />
         </div>
       )}
 
-      <Buttons.Generic
-        color={Colors.getChainColor(activeChain)}
-        size='normal'
-        className='w-[344px] py-3 mt-4'
+      <Button
+        className='w-full mt-6'
         disabled={!selectedOption || simulating}
         onClick={() => onSubmitVote(selectedOption as VoteOptions)}
       >
-        <div className={'flex justify-center text-white-100 items-center'}>
-          <span>Submit</span>
-        </div>
-      </Buttons.Generic>
+        Submit
+      </Button>
     </>
   )
 }

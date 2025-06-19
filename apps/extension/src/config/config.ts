@@ -16,6 +16,6 @@ export const QUICK_SEARCH_DISABLED_PAGES = [
 ]
 
 export const RECAPTCHA_CHAINS = ['pryzmtestnet']
-export const LEDGER_DISABLED_COINTYPES = ['931', '0', '1', '637']
+export const LEDGER_DISABLED_COINTYPES = ['931', '0', '1', '637', '784', '501']
 
 export const COMPASS_CHAINS = ['seiTestnet2', 'seiDevnet']

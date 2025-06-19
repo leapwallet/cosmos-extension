@@ -1,11 +1,13 @@
 import { ActivityCardContent } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { CaretRight } from '@phosphor-icons/react'
 import { default as classNames } from 'classnames'
 import { useActivityImage } from 'hooks/activity/useActivityImage'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
+import { cn } from 'utils/cn'
 import { formatTokenAmount } from 'utils/strings'
 
 import { ActivityIcon } from './index'
@@ -59,36 +61,30 @@ function ActivityCardView({
     txType === 'undelegate' || txType === 'receive' || txType === 'liquidity/remove'
 
   return (
-    <div
-      className={classNames(
-        'flex rounded-2xl justify-between items-center p-[16px] bg-white-100 dark:bg-gray-900 cursor-pointer',
+    <button
+      className={cn(
+        'flex rounded-2xl justify-between items-center p-4 bg-secondary-100 hover:bg-secondary-200 transition-colors',
         containerClassNames,
       )}
       onClick={onClick}
     >
-      <div className='flex items-center flex-grow'>
+      <div className='flex items-center flex-grow gap-3'>
         <ActivityIcon
-          img={img}
           showLoader={showLoader}
           voteOption={content.txType === 'vote' ? content.title1 : ''}
           secondaryImg={secondaryImg}
           type={txType}
           isSuccessful={isSuccessful}
           size={imgSize}
+          img={img}
         />
-        <div className='flex flex-col justify-center items-start px-3'>
-          <div
-            className={classNames(
-              'text-base font-bold text-black-100 dark:text-white-100 text-left',
-              titleClassName,
-            )}
-          >
-            {title1}
-          </div>
-          <div className='text-xs text-gray-600 dark:text-gray-400'>{subtitle1}</div>
+        <div className='flex flex-col justify-center items-start'>
+          <span className={cn('text-base font-bold', titleClassName)}>{title1}</span>
+          <span className='text-xs font-medium text-muted-foreground'>{subtitle1}</span>
         </div>
         <div className='flex flex-grow' />
-        <div className='flex flex-col justify-center items-end pr-3'>
+
+        <div className='flex flex-col justify-center items-end'>
           {txType === 'swap' ? (
             <>
               {receivedAmountInfo && (
@@ -97,7 +93,7 @@ function ActivityCardView({
                 </p>
               )}
               {sentAmountInfo && (
-                <p className='text-[10px] text-right text-gray-600 dark:text-gray-400'>
+                <p className='text-xs font-medium text-muted-foreground text-end'>
                   {balanceReduced && '-'} {hideAssetsStore.formatHideBalance(sentAmountInfo)}
                 </p>
               )}
@@ -106,10 +102,10 @@ function ActivityCardView({
             <>
               {sentUsdValue && (
                 <p
-                  className={classNames('text-sm text-right font-bold', {
+                  className={cn('text-sm text-end font-bold', {
                     'text-black-100 dark:text-white-100': !balanceIncreased && !balanceReduced,
-                    'text-red-600 dark:text-red-300': balanceReduced,
-                    'text-green-600 dark:text-green-600': balanceIncreased,
+                    'text-destructive-200': balanceReduced,
+                    'text-accent-success': balanceIncreased,
                   })}
                 >
                   {balanceReduced && '-'} $
@@ -118,17 +114,16 @@ function ActivityCardView({
               )}
 
               {sentAmountInfo && (
-                <p className={classNames('text-xs text-right text-gray-600 dark:text-gray-400')}>
+                <p className={'text-xs font-medium text-muted-foreground'}>
                   {balanceReduced && '-'} {hideAssetsStore.formatHideBalance(sentAmountInfo)}
                 </p>
               )}
             </>
           )}
         </div>
-
-        {onClick ? <img src={Images.Misc.RightArrow} /> : null}
+        {onClick ? <CaretRight size={12} className='text-muted-foreground' /> : null}
       </div>
-    </div>
+    </button>
   )
 }
 

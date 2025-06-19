@@ -27,7 +27,7 @@ import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { sidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
@@ -157,10 +157,6 @@ const ReviewClaimAndStakeTx = observer(
     const txCallback = useCallback(() => {
       setClaimTxMode('CLAIM_AND_DELEGATE')
       onClose()
-
-      mixpanel.track(EventName.TransactionSigned, {
-        transactionType: 'stake_claim_and_delegate',
-      })
     }, [onClose, setClaimTxMode])
 
     const onClaimRewardsClick = useCallback(async () => {

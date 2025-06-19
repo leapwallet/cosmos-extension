@@ -81,7 +81,7 @@ const TabList = observer(() => {
         />
       </div>
 
-      <AnimatePresence exitBeforeEnter initial={false}>
+      <AnimatePresence mode='wait' initial={false}>
         {selectedTab?.label === TabElements.YOUR_DELEGATIONS && (
           <motion.div
             key={TabElements.YOUR_DELEGATIONS}

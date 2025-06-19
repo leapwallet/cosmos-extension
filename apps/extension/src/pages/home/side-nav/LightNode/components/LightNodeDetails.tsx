@@ -1,9 +1,8 @@
-import { ArrowSquareOut } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
-import Text from 'components/text'
-import React from 'react'
+import { Separator } from 'components/ui/separator'
+import { ExternalLinkIcon } from 'icons/external-link'
+import React, { useMemo } from 'react'
 
-import CustomDivider from './CustomDivider'
 import SquareVisualization from './SquareVisualization'
 
 function LightNodeInfo({
@@ -15,43 +14,53 @@ function LightNodeInfo({
   events: any | null
   syncedPercentage: number | null
 }) {
-  const formattedSyncedPercentage = new BigNumber(syncedPercentage ?? '0')
-    .decimalPlaces(2)
-    .toNumber()
+  const infoItems = useMemo(() => {
+    const formattedSyncedPercentage = new BigNumber(syncedPercentage ?? '0')
+      .decimalPlaces(2)
+      .toNumber()
+
+    return [
+      {
+        label: 'Fetching past headers',
+        value: `${formattedSyncedPercentage}%`,
+      },
+      {
+        label: 'Latest Celestia Block',
+        value: latestHeader ?? '-',
+      },
+    ]
+  }, [latestHeader, syncedPercentage])
 
   return (
     <>
-      <CustomDivider />
+      <Separator className='mb-3' />
+
       <section className='flex flex-col gap-3 mt-1'>
-        <div className='flex justify-between'>
-          <Text size='sm' color='dark:text-gray-200 text-black-200'>
-            Fetching past headers
-          </Text>
-          <Text size='sm' className='font-bold'>
-            {formattedSyncedPercentage}%
-          </Text>
-        </div>
-        <div className='flex justify-between'>
-          <Text size='sm' color='dark:text-gray-200 text-black-200'>
-            Latest Celestia Block
-          </Text>
-          <Text size='sm' className='font-bold'>
-            {latestHeader ?? '-'}
-          </Text>
-        </div>
+        {infoItems.map((item, index) => (
+          <div key={index} className='flex justify-between'>
+            <span className='text-sm font-medium'>{item.label}</span>
+            <span className='text-sm font-bold'>{item.value}</span>
+          </div>
+        ))}
 
         <div className='flex gap-1 items-center'>
-          <Text size='sm' color='dark:text-gray-200 text-black-200'>
-            Square Visualization
-          </Text>
-          {latestHeader && (
-            <Text size='xs' color='text-gray-400'>
-              for {latestHeader}
-            </Text>
-          )}
+          <span className='text-sm font-medium'>Square Visualization</span>
+          {latestHeader && <span className='text-xs text-gray-400'>for {latestHeader}</span>}
         </div>
 
         <SquareVisualization events={events} />
+
+        <Separator />
+
+        <a
+          target='_blank'
+          rel='noreferrer noopener'
+          href={`https://celenium.io/block/${latestHeader}`}
+          className='flex gap-1 items-center justify-center cursor-pointer text-secondary-800'
+        >
+          <ExternalLinkIcon className='w-4 h-4' />
+          <span className='text-sm font-medium'>View in Explorer</span>
+        </a>
       </section>
     </>
   )

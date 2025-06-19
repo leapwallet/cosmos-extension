@@ -11,6 +11,8 @@ import {
   useGetAptosGasPrices,
   useGetChains,
   useGetEvmGasPrices,
+  useGetSolanaGasPrices,
+  useGetSuiGasPrices,
   useHasToCalculateDynamicFee,
   useLowGasPriceStep,
   useNativeFeeDenom,
@@ -21,21 +23,21 @@ import {
   DenomsRecord,
   GasPrice,
   isAptosChain,
+  isSolanaChain,
+  isSuiChain,
   NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { CaretDown } from '@phosphor-icons/react'
 import * as Sentry from '@sentry/react'
 import { useQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
-import { ActionInputWithPreview } from 'components/action-input-with-preview'
-import Tooltip from 'components/better-tooltip'
+import Text from 'components/text'
 import { TokenImageWithFallback } from 'components/token-image-with-fallback'
-import { aptos } from 'content-scripts/inject-leap'
 import { useEnableEvmGasRefetch } from 'hooks/cosm-wasm/use-enable-evm-gas-refetch'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -44,7 +46,12 @@ import { observer } from 'mobx-react-lite'
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { activeChainStore } from 'stores/active-chain-store'
-import { aptosCoinDataStore, evmBalanceStore } from 'stores/balance-store'
+import {
+  aptosCoinDataStore,
+  evmBalanceStore,
+  solanaCoinDataStore,
+  suiCoinDataStore,
+} from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { chainApisStore } from 'stores/chains-api-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
@@ -58,7 +65,7 @@ import {
 } from 'stores/fee-store'
 import { rootBalanceStore } from 'stores/root-store'
 import { selectedNetworkStore } from 'stores/selected-network-store'
-import { Colors } from 'theme/colors'
+import { cn } from 'utils/cn'
 import { sliceWord } from 'utils/strings'
 
 import { GasPriceOptionsContext, GasPriceOptionsContextType, useGasPriceContext } from './context'
@@ -85,6 +92,8 @@ export const useDefaultGasPrice = (
   const _lowGasPriceStep = useLowGasPriceStep(activeChain)
   const { gasPrice: evmGasPrice } = useGetEvmGasPrices(activeChain, options?.selectedNetwork)
   const { gasPrice: aptosGasPrice } = useGetAptosGasPrices(activeChain, options?.selectedNetwork)
+  const { gasPrice: solanaGasPrice } = useGetSolanaGasPrices(activeChain, options?.selectedNetwork)
+  const { gasPrice: suiGasPrice } = useGetSuiGasPrices(activeChain, options?.selectedNetwork)
   const chains = useGetChains()
 
   const lowGasPriceStep = useMemo(() => {
@@ -96,14 +105,24 @@ export const useDefaultGasPrice = (
       return aptosGasPrice.low
     }
 
+    if (isSolanaChain(activeChain)) {
+      return solanaGasPrice.low
+    }
+
+    if (isSuiChain(activeChain)) {
+      return suiGasPrice.low
+    }
+
     return _lowGasPriceStep
   }, [
     _lowGasPriceStep,
     activeChain,
     aptosGasPrice.low,
+    solanaGasPrice.low,
     chains,
     evmGasPrice.low,
     options?.isSeiEvmTransaction,
+    suiGasPrice.low,
   ])
 
   const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, options?.selectedNetwork)
@@ -150,6 +169,8 @@ export type GasPriceOptionsProps = React.PropsWithChildren<{
   notUpdateInitialGasPrice?: boolean
   rootDenomsStore: RootDenomsStore
   rootBalanceStore: RootBalanceStore
+  computedGas?: number
+  setComputedGas?: React.Dispatch<React.SetStateAction<number>>
 }>
 
 interface GasPriceOptionsType extends React.FC<GasPriceOptionsProps> {
@@ -163,6 +184,7 @@ interface GasPriceOptionsType extends React.FC<GasPriceOptionsProps> {
     showGasLimitWarning?: boolean
     rootDenomsStore: RootDenomsStore
     rootBalanceStore: RootBalanceStore
+    gasError?: string | null
   }>
 }
 
@@ -189,6 +211,7 @@ const GasPriceOptions = observer(
     isSeiEvmTransaction,
     notUpdateInitialGasPrice,
     hasUserTouchedFees,
+    computedGas,
   }: GasPriceOptionsProps) => {
     const activeChain = chain ?? (activeChainStore.activeChain as SupportedChain)
     const selectedNetwork = network ?? selectedNetworkStore.selectedNetwork
@@ -204,6 +227,8 @@ const GasPriceOptions = observer(
     const chainInfo = chainInfoStore.chainInfos[activeChain]
     const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork)
     const aptosBalance = aptosCoinDataStore.balances
+    const solanaBalance = solanaCoinDataStore.getSolanaBalances(activeChain, selectedNetwork)
+    const suiBalance = suiCoinDataStore.getSuiBalances(activeChain, selectedNetwork)
 
     const isSeiEvmChain = chainGasPriceOptionsStore.isSeiEvmChain
     const feeTokenData = chainGasPriceOptionsStore.feeTokenData
@@ -214,15 +239,22 @@ const GasPriceOptions = observer(
     const chainNativeFeeTokenData = feeTokens?.data?.[0]
     const isPayingFeeInNonNativeToken = feeTokenData?.ibcDenom !== chainNativeFeeTokenData?.ibcDenom
 
-    const getWallet = Wallet.useGetWallet()
-    const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+    const { addressLinkState } = useSeiLinkedAddressState()
 
     useEnableEvmGasRefetch(activeChain, selectedNetwork)
 
     const allTokens = useMemo(() => {
       const isAptosChain = chainInfo.chainId.startsWith('aptos')
+      const _isSolanaChain = isSolanaChain(chainInfo.chainId)
+      const _isSuiChain = isSuiChain(chainInfo.chainId)
       if (isAptosChain) {
         return aptosBalance
+      }
+      if (_isSolanaChain) {
+        return solanaBalance
+      }
+      if (_isSuiChain) {
+        return suiBalance
       }
       if (
         (isSeiEvmChain && isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) ||
@@ -242,6 +274,9 @@ const GasPriceOptions = observer(
       spendableBalancesForChain,
       evmBalance?.evmBalance,
       aptosBalance,
+      solanaBalance,
+      suiBalance,
+      chainInfo.chainId,
     ])
 
     const allTokensStatus = useMemo(() => {
@@ -289,8 +324,8 @@ const GasPriceOptions = observer(
             {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               gaslimit: (fee as any).gasLimit ?? Long.fromString(fee.gas),
-              feeAmount: fee.amount[0].amount,
-              feeDenom: fee.amount[0].denom,
+              feeAmount: fee.amount[0]?.amount,
+              feeDenom: fee.amount[0]?.denom,
               chain: activeChain,
             },
             onInvalidFees ??
@@ -645,6 +680,7 @@ const GasPriceOptions = observer(
             rootDenomsStore: rootDenomsStore,
             isSeiEvmTransaction,
             chainNativeFeeTokenData,
+            computedGas,
           }}
         >
           {children}
@@ -660,20 +696,36 @@ export const calculateFeeAmount = ({
   feeDenom,
   gasAdjustment,
   isSeiEvmTransaction,
+  isSolana,
+  isSui,
+  computedGas,
 }: {
   gasPrice: BigNumber.Value
   gasLimit: BigNumber.Value
   feeDenom: NativeDenom
   gasAdjustment: number
   isSeiEvmTransaction?: boolean
+  isSolana?: boolean
+  isSui?: boolean
+  computedGas?: number
 }) => {
   const gasPriceBN = new BigNumber(gasPrice)
 
-  const amount = gasPriceBN
+  let amount = gasPriceBN
     .multipliedBy(gasAdjustment)
     .multipliedBy(gasLimit)
     .dividedBy(10 ** (isSeiEvmTransaction ? 18 : feeDenom.coinDecimals))
 
+  if (isSolana) {
+    if (isNaN(amount.toNumber())) {
+      amount = new BigNumber(5000).dividedBy(10 ** feeDenom.coinDecimals)
+    } else {
+      amount = amount.plus(new BigNumber(5000).dividedBy(10 ** feeDenom.coinDecimals))
+    }
+  }
+  if (isSui) {
+    amount = amount.plus(new BigNumber(computedGas ?? 0).dividedBy(10 ** feeDenom.coinDecimals))
+  }
   return {
     amount,
     formattedAmount: amount.isEqualTo(0)
@@ -701,6 +753,7 @@ function Selector({
     activeChain,
     selectedNetwork,
     isSeiEvmTransaction,
+    computedGas,
   } = useGasPriceContext()
   const chains = useGetChains()
   const chainId = useChainId(activeChain, selectedNetwork)
@@ -753,12 +806,7 @@ function Selector({
 
   return (
     <>
-      <div
-        className={classNames(
-          'rounded-2xl bg-transparent border border-gray-300 dark:border-gray-800 p-1 grid grid-cols-3',
-          className,
-        )}
-      >
+      <div className={classNames('grid grid-cols-3 gap-[5px]', className)}>
         {Object.entries(feeTokenData?.gasPriceStep ?? {}).map(([level, gasPrice]) => {
           const isSelected = value.option === level
           const gasPriceBN = new BigNumber(gasPrice)
@@ -774,6 +822,9 @@ function Selector({
               ? gasAdjustmentStore.getGasAdjustments(activeChain)
               : 1,
             isSeiEvmTransaction: isSeiEvmTransaction || chains[activeChain]?.evmOnlyChain,
+            isSolana: isSolanaChain(activeChain),
+            isSui: isSuiChain(activeChain),
+            computedGas: computedGas,
           })
           const amountInFiat = feeTokenFiatValue
             ? new BigNumber(amount).multipliedBy(feeTokenFiatValue)
@@ -783,7 +834,7 @@ function Selector({
               {
                 option: level as GasOptions,
                 gasPrice: GasPrice.fromUserInput(
-                  gasPrice.toString(),
+                  gasPrice?.toString() || '0',
                   feeTokenData.ibcDenom ?? feeTokenData.denom.coinMinimalDenom,
                 ),
               },
@@ -806,8 +857,8 @@ function Selector({
             <label
               id={`gas-option-${level}`}
               key={level}
-              className={`relative flex flex-col justify-center items-center w-full h-full rounded-xl cursor-pointer p-2 transition-colors ${
-                isSelected ? 'bg-gray-100 dark:bg-gray-800' : ''
+              className={`relative flex flex-col justify-center items-center w-full h-full rounded-lg cursor-pointer py-3 px-2.5 transition-colors ${
+                isSelected ? 'bg-secondary-100' : ''
               }`}
               title={
                 amountInFiat
@@ -825,26 +876,22 @@ function Selector({
                 onClick={handleChange}
               />
               <span
-                className={`text-gray-900 dark:text-gray-200 capitalize text-sm font-bold transition-all text-center ${
-                  isSelected ? 'dark:brightness-200 brightness-50' : ''
+                className={`capitalize text-[18px] transition-all text-center ${
+                  isSelected ? 'text-monochrome font-bold' : 'text-muted-foreground font-medium'
                 }`}
               >
                 {levelText(level as GasOptions)}
               </span>
               <span
-                className={`text-gray-700 transition-all text-center mt-[2px] ${
-                  isSelected ? 'dark:brightness-200 brightness-50' : ''
-                } ${formattedAmount.length > 4 ? 'text-[10px]' : 'text-xs'}`}
+                className={`transition-all text-center mt-1 text-xs font-medium ${
+                  isSelected ? 'text-monochrome' : 'text-muted-foreground'
+                }`}
               >
                 {isVerySmallAmount ? '< 0.00001' : formattedAmount}{' '}
                 {sliceWord(feeTokenData?.denom?.coinDenom ?? '')}
               </span>
               {amountInFiat ? (
-                <span
-                  className={`text-gray-700 text-xs transition-all text-center ${
-                    isSelected ? 'dark:brightness-200 brightness-50' : ''
-                  }`}
-                >
+                <span className={`text-muted-foreground text-xs transition-all text-center mt-0.5`}>
                   {formatCurrency(amountInFiat)}
                 </span>
               ) : null}
@@ -869,29 +916,32 @@ GasPriceOptions.AdditionalSettingsToggle = function AdditionalSettingsToggle({
   const { viewAdditionalOptions, setViewAdditionalOptions } = useGasPriceContext()
 
   return (
-    <button
-      className={classNames('rounded-full flex items-center justify-center p-1', className)}
-      title='Additional Settings'
-      onClick={() => {
-        setViewAdditionalOptions((v) => !v)
-      }}
+    <div
+      role='button'
+      tabIndex={0}
+      onClick={() => setViewAdditionalOptions((v) => !v)}
+      className='w-full flex-row flex justify-between items-center gap-2 cursor-pointer p-4'
     >
-      {children?.(viewAdditionalOptions) ?? viewAdditionalOptions ? (
-        <div className='flex w-full'>
-          <p className='ml-auto dark:text-white-100 text-gray-900 text-xs'>
-            Hide additional settings
-          </p>
-          <img src={Images.Misc.RemoveCircle} alt='Close Settings' className='ml-2' />
-        </div>
-      ) : (
-        <div className='flex w-full'>
-          <p className='ml-auto dark:text-white-100 text-gray-900 text-xs'>
+      {children?.(viewAdditionalOptions) ?? (
+        <div className='flex w-full justify-between items-center'>
+          <p
+            className={cn(
+              'text-xs font-medium transition-colors',
+              !viewAdditionalOptions && 'text-muted-foreground',
+            )}
+          >
             Show additional settings
           </p>
-          <img src={Images.Misc.AddCircle} alt='Open Settings' className='ml-2' />
+          <CaretDown
+            size={14}
+            className={cn(
+              'text-muted-foreground transition-transform',
+              viewAdditionalOptions && 'rotate-180',
+            )}
+          />
         </div>
       )}
-    </button>
+    </div>
   )
 }
 
@@ -906,11 +956,13 @@ GasPriceOptions.AdditionalSettings = observer(
     showGasLimitWarning,
     rootDenomsStore,
     rootBalanceStore,
+    gasError,
   }: {
     className?: string
     showGasLimitWarning?: boolean
     rootDenomsStore: RootDenomsStore
     rootBalanceStore: RootBalanceStore
+    gasError?: string | null
   }) => {
     const [showTokenSelectSheet, setShowTokenSelectSheet] = useState(false)
     const [inputTouched, setInputTouched] = useState(false)
@@ -1005,8 +1057,8 @@ GasPriceOptions.AdditionalSettings = observer(
     if (!feeTokenAsset && (!eligibleFeeTokens || eligibleFeeTokens?.length === 0)) {
       if (allTokensStatus === 'error') {
         return (
-          <div className='w-full z-0 mt-3'>
-            <p className='text-sm dark:text-gray-400 text-gray-700 mt-3'>
+          <div className='w-full z-0 p-3'>
+            <p className='text-sm dark:text-gray-400 text-gray-700'>
               Failed to load your tokens, please reload the extension and try again
             </p>
           </div>
@@ -1014,7 +1066,7 @@ GasPriceOptions.AdditionalSettings = observer(
       }
       if (allTokensStatus === 'loading' && viewAdditionalOptions) {
         return (
-          <div className='w-full z-0 mt-3'>
+          <div className='w-full z-0 p-3'>
             <div className='flex w-full justify-between items-center'>
               <Skeleton className='rounded-full h-10 w-20 bg-gray-50 dark:bg-gray-800' />
               <Skeleton className='rounded-full h-5 w-32 bg-gray-50 dark:bg-gray-800' />
@@ -1025,8 +1077,8 @@ GasPriceOptions.AdditionalSettings = observer(
       }
       if (allTokensStatus === 'success' && viewAdditionalOptions) {
         return (
-          <div className='w-full z-0 mt-3'>
-            <p className='text-sm dark:text-gray-400 text-gray-700 mt-3'>
+          <div className='w-full z-0 p-3'>
+            <p className='text-sm dark:text-gray-400 text-gray-700'>
               You do not have any tokens that can be used to pay transaction fees.
             </p>
           </div>
@@ -1090,21 +1142,16 @@ GasPriceOptions.AdditionalSettings = observer(
 
     return viewAdditionalOptions ? (
       <>
-        <div
-          ref={ref}
-          className={classNames('dark:bg-[#141414] bg-white-100 p-4 rounded-xl', className)}
-        >
-          <p className='text-sm dark:text-gray-400 text-gray-700'>
+        <div ref={ref} className={classNames('w-full p-4', className)}>
+          <p className='text-xs text-secondary-800'>
             {onlySingleFeeToken
               ? 'You are paying fees transaction fees in'
               : 'Choose a token for paying transaction fees'}
           </p>
-          <div className='flex items-center justify-between mt-3'>
+          <div className='flex items-center justify-between mt-3 bg-secondary-100 rounded-lg pr-3 py-1'>
             <button
-              className={`rounded-full flex items-center py-2 shrink-0 pl-3 pr-2 cursor-pointer disabled:cursor-default ${
-                onlySingleFeeToken
-                  ? 'bg-white-100 dark:bg-[#141414] border border-gray-300 dark:border-gray-800'
-                  : 'bg-gray-50 dark:bg-gray-800'
+              className={`rounded-full flex items-center py-2 shrink-0 pl-3 pr-2 disabled:cursor-default ${
+                onlySingleFeeToken ? '' : 'cursor-pointer'
               }`}
               disabled={isLoading || onlySingleFeeToken}
               onClick={() => {
@@ -1116,7 +1163,7 @@ GasPriceOptions.AdditionalSettings = observer(
                 text={feeTokenData.denom.coinDenom}
                 altText={feeTokenData.denom.coinDenom}
                 imageClassName='h-6 w-6 mr-1'
-                containerClassName='h-6 w-6 mr-1 bg-gray-300 dark:bg-gray-700'
+                containerClassName='h-6 w-6 mr-1'
                 textClassName='text-[7px] !leading-[9px]'
               />
               <p className='text-black-100 dark:text-white-100 font-bold text-base mr-2'>
@@ -1125,12 +1172,12 @@ GasPriceOptions.AdditionalSettings = observer(
               {isLoading || onlySingleFeeToken ? null : <img src={Images.Misc.ArrowDown} />}
             </button>
             <p
-              className='text-sm text-gray-700 dark:text-gray-400 font-bold text-right max-[350px]:flex max-[350px]:flex-col max-[350px]:items-end'
+              className='text-xs text-muted-foreground text-right max-[350px]:flex max-[350px]:flex-col max-[350px]:items-end'
               title={`${new BigNumber(feeTokenAsset?.amount ?? '0').decimalPlaces(
                 feeTokenData.denom.coinDecimals ?? 6,
               )} ${sliceWord(feeTokenData?.denom?.coinDenom ?? '')}`}
             >
-              <span>Balance:</span>
+              <span>BAL:</span>
               <span className='ml-1'>
                 {formatBigNumber(new BigNumber(feeTokenAsset?.amount ?? '0'))}{' '}
                 {sliceWord(feeTokenData?.denom?.coinDenom ?? '')}
@@ -1138,49 +1185,52 @@ GasPriceOptions.AdditionalSettings = observer(
             </p>
           </div>
           <div className='mt-4'>
-            <div className='flex items-center'>
-              <p className='dark:text-gray-400 text-gray-700 text-sm font-medium tracking-wide'>
-                Gas Limit
-              </p>
-              <Tooltip
-                content={
-                  <p className='text-gray-500 dark:text-gray-100 text-sm'>
-                    The computation effort (gas) you are willing to spend on this transaction
-                  </p>
-                }
-              >
-                <div className='relative ml-2'>
-                  <img src={Images.Misc.InfoCircle} alt='Hint' />
+            <div className='flex flex-col gap-3'>
+              <p className='text-xs text-secondary-800'>Enter gas limit manually</p>
+              <div className='w-full py-3 px-4 flex items-center bg-secondary-100 rounded-lg'>
+                <input
+                  className={classNames(
+                    'flex flex-grow text-md  outline-none font-medium bg-transparent',
+                    {
+                      'text-monochrome': !gasError,
+                      'text-destructive-100': gasError,
+                    },
+                  )}
+                  value={gasLimitInputValue}
+                  onChange={handleGasLimitOnChange}
+                  ref={inputRef}
+                />
+                <div
+                  onClick={() => {
+                    setGasLimit(recommendedGasLimit)
+                  }}
+                >
+                  <Text
+                    size='xs'
+                    color='text-muted-foreground'
+                    className=' font-bold cursor-pointer'
+                  >
+                    Clear
+                  </Text>
                 </div>
-              </Tooltip>
+              </div>
+              {gasError ? (
+                <p className='text-destructive-100 text-xs font-medium'>{gasError}</p>
+              ) : showGasLimitWarning &&
+                inputTouched &&
+                new BigNumber(gasLimitInputValue).isLessThan(
+                  Math.round(
+                    Number(recommendedGasLimit) *
+                      (considerGasAdjustment
+                        ? gasAdjustmentStore.getGasAdjustments(activeChain)
+                        : 1),
+                  ),
+                ) ? (
+                <p className='text-orange-500 text-xs font-medium'>
+                  We recommend using the default gas limit
+                </p>
+              ) : null}
             </div>
-            <div className='flex items-center mt-2'>
-              <ActionInputWithPreview
-                ref={inputRef}
-                action='reset'
-                buttonText='Reset'
-                buttonTextColor={Colors.getChainColor(activeChain)}
-                value={gasLimitInputValue}
-                invalid={isGasLimitInvalid(gasLimitInputValue)}
-                maxLength={18}
-                onAction={() => {
-                  setGasLimit(recommendedGasLimit)
-                }}
-                onChange={handleGasLimitOnChange}
-              />
-            </div>
-            {showGasLimitWarning &&
-            inputTouched &&
-            new BigNumber(gasLimitInputValue).isLessThan(
-              Math.round(
-                Number(recommendedGasLimit) *
-                  (considerGasAdjustment ? gasAdjustmentStore.getGasAdjustments(activeChain) : 1),
-              ),
-            ) ? (
-              <p className='text-orange-500 text-xs font-medium mt-2 ml-1'>
-                We recommend using the default gas limit.
-              </p>
-            ) : null}
           </div>
         </div>
         <SelectTokenModal

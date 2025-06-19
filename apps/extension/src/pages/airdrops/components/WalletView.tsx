@@ -1,37 +1,24 @@
-import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import Text from 'components/text'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { walletLabels } from 'config/constants'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import React, { useMemo } from 'react'
 import { formatWalletName } from 'utils/formatWalletName'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { trim } from 'utils/strings'
 
 export default function WalletView() {
   const { activeWallet } = useActiveWallet()
-
-  const walletName =
-    activeWallet?.walletType === WALLETTYPE.LEDGER &&
-    !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(activeWallet.name)
-      ? `${walletLabels[activeWallet.walletType]} Wallet ${activeWallet.addressIndex + 1}`
-      : formatWalletName(activeWallet?.name || '')
+  const walletName = formatWalletName(activeWallet?.name || '')
 
   const walletAvatar = useMemo(() => {
     if (activeWallet?.avatar) {
       return activeWallet.avatar
     }
 
-    if (isCompassWallet()) {
-      return Images.Logos.CompassCircle
-    }
-
     return
   }, [activeWallet?.avatar])
 
   return (
-    <div className='flex items-center justify-between bg-white-100 dark:bg-gray-950 rounded-xl py-[10px] pl-4 pr-3'>
+    <div className='flex items-center justify-between bg-secondary-100 pl-4 rounded-xl py-[10px]'>
       <Text size='sm' className='font-medium'>
         Airdrops shown for
       </Text>

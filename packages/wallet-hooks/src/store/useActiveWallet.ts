@@ -17,6 +17,8 @@ export type Key = {
   watchWallet?: boolean;
   createdAt?: number;
   path?: string;
+  // Added for compass
+  app?: 'sei' | 'cosmos';
 };
 
 type ActiveWallet = {

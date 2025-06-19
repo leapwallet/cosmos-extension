@@ -1,4 +1,5 @@
 import { Key } from '@leapwallet/cosmos-wallet-hooks'
+import { WALLETTYPE } from '@leapwallet/leap-keychain'
 import { Plus } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import { Button } from 'components/ui/button'
@@ -33,6 +34,17 @@ const SelectWallet = ({
 
   const [editWallet, setEditWallet] = useState<Key>()
   const [showCreateImportActions, setShowCreateImportActions] = useState(false)
+  const displayLedgerApp = useMemo(() => {
+    return wallets
+      ? Object.values(wallets).some((wallet) => {
+          if (wallet.walletType === WALLETTYPE.LEDGER) {
+            return !wallet.app || wallet.app !== 'sei'
+          } else {
+            return false
+          }
+        })
+      : false
+  }, [wallets])
 
   const walletsList = useMemo(() => {
     return wallets
@@ -75,6 +87,7 @@ const SelectWallet = ({
                   onClose={onClose}
                   setEditWallet={setEditWallet}
                   setIsEditWalletVisible={setIsEditWalletVisible}
+                  displayLedgerApp={displayLedgerApp}
                 />
               )
             })}

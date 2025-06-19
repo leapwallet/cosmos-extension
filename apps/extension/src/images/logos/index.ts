@@ -4,12 +4,16 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/const
 import Appstore from './appstore.svg'
 import ArchId from './archId.svg'
 import Bidds from './bidds.png'
+import CelestialsId from './celestialsId.svg'
 import CompassCircle from './compass-circle.svg'
 import CosmoStation from './cosmo-station.svg'
+import Cosmos from './cosmos.png'
 import Dashboard from './dashboard.svg'
 import DegeNS from './degens.svg'
+import Ethereum from './ethereum.png'
 import GenericDark from './generic-dark.svg'
 import GenericLight from './generic-light.svg'
+import GenericNFT from './generic-nft.svg'
 import IBCDomains from './ibc-domains.svg'
 import ICNS from './icns.svg'
 import ImgNotAvailableDark from './img-not-available-dark.svg'
@@ -33,7 +37,10 @@ import SeiV2 from './sei-v2.svg'
 import SNS from './sns.svg'
 import SpaceId from './space-id.svg'
 import StargazeNames from './stargaze-names.svg'
+import SwappedDark from './swappedDark.svg'
+import SwappedLight from './swappedLight.svg'
 import TerraStation from './terra-station.svg'
+import USDCLogo from './usdc-logo.svg'
 import XLogo from './X_logo.svg'
 import XLogoDark from './X_logo_dark.svg'
 
@@ -81,7 +88,6 @@ const ChainLogos: Record<string, string | undefined> = {
   passage: ChainInfos.passage.chainSymbolImageUrl,
   archway: ChainInfos.archway.chainSymbolImageUrl,
   terra: ChainInfos.terra.chainSymbolImageUrl,
-  quasar: ChainInfos.quasar.chainSymbolImageUrl,
   neutron: ChainInfos.neutron.chainSymbolImageUrl,
   mainCoreum: ChainInfos.mainCoreum.chainSymbolImageUrl,
   coreum: ChainInfos.coreum.chainSymbolImageUrl,
@@ -114,6 +120,7 @@ const ChainLogos: Record<string, string | undefined> = {
   saga: ChainInfos.saga.chainSymbolImageUrl,
   initia: ChainInfos.initia.chainSymbolImageUrl,
   humans: ChainInfos.humans.chainSymbolImageUrl,
+  initiaEvm: ChainInfos.initiaEvm.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {
@@ -156,6 +163,8 @@ export const getNameServiceLogo = (name: string) => {
       return DegeNS
     case 'bdd':
       return Bidds
+    case 'celestialsId':
+      return CelestialsId
     default:
       return GenericLight
   }
@@ -167,11 +176,14 @@ export {
   Bidds,
   ChainLogos,
   CompassCircle,
+  Cosmos,
   CosmoStation,
   Dashboard,
   DegeNS,
+  Ethereum,
   GenericDark,
   GenericLight,
+  GenericNFT,
   IBCDomains,
   ICNS,
   ImgNotAvailableDark,
@@ -193,7 +205,10 @@ export {
   SeiV2,
   SNS,
   StargazeNames,
+  SwappedDark,
+  SwappedLight,
   TerraStation,
+  USDCLogo,
   XLogo,
   XLogoDark,
 }

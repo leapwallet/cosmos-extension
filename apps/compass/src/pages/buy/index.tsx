@@ -8,9 +8,8 @@ import { WalletButton } from 'components/button'
 import { PageHeader } from 'components/header'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
-import { ButtonName, ButtonType, EventName, OnRampProvider, PageName } from 'config/analytics'
+import { PageName } from 'config/analytics'
 import { useWalletInfo } from 'hooks'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { AssetProps } from 'hooks/kado/useGetSupportedAssets'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { getConversionRateKado, getQuoteKado } from 'hooks/useGetKadoDetails'
@@ -21,12 +20,11 @@ import { useAddress } from 'hooks/wallet/useAddress'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { isString } from 'markdown-it/lib/common/utils'
-import mixpanel from 'mixpanel-browser'
 import SelectWallet from 'pages/home/SelectWallet'
 import { convertObjInQueryParams } from 'pages/home/utils'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from 'utils/cn'
 import { getCountryLogo } from 'utils/getCountryLogo'
 import { uiErrorTags } from 'utils/sentry'
@@ -79,13 +77,6 @@ export const ProviderDetails: ProviderDetailsType = {
 
 const Buy = () => {
   const pageViewSource = useQuery().get('pageSource') ?? undefined
-  const pageViewAdditionalProperties = useMemo(
-    () => ({
-      pageViewSource,
-    }),
-    [pageViewSource],
-  )
-  usePageView(PageName.OnRampQuotePreview, pageViewAdditionalProperties)
   const { walletAvatar, walletName } = useWalletInfo()
 
   const navigate = useNavigate()
@@ -352,24 +343,6 @@ const Buy = () => {
     }
   }, [provider, providersQuote])
 
-  const trackCTAEvent = useCallback(
-    (amount: string, asset: AssetProps, currency: string, provider: ServiceProviderEnum) => {
-      mixpanel.track(EventName.ButtonClick, {
-        buttonType: ButtonType.ONRAMP,
-        buttonName: ButtonName.ONRAMP_PROVIDER_REDIRECTION,
-        provider: provider,
-        buyToken: asset?.symbol,
-        buyTokenNetwork: asset?.origin,
-        fiatCurrency: currency,
-        fiatAmountInUSD: new BigNumber(amount).toNumber(),
-        fiatAmount: new BigNumber(debouncedPayAmount).toNumber(),
-        transferToSelf: selectedAddressIsSelf,
-        receiverAddress: selectedAddress,
-      })
-    },
-    [debouncedPayAmount, selectedAddress, selectedAddressIsSelf],
-  )
-
   const getQueryParams = useCallback(
     (val: ServiceProviderEnum) => {
       switch (val) {
@@ -423,11 +396,8 @@ const Buy = () => {
       const queryParams = convertObjInQueryParams(params)
       const url = `${ProviderDetails[provider].url}?${queryParams}`
       window.open(url, '_blank')
-      if (selectedAsset) {
-        trackCTAEvent(fiatAmountInUsd, selectedAsset, selectedCurrency, provider)
-      }
     }
-  }, [provider, getQueryParams, selectedAsset, trackCTAEvent, fiatAmountInUsd, selectedCurrency])
+  }, [provider, getQueryParams])
 
   return (
     <>

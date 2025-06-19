@@ -17,7 +17,8 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { searchModalStore } from 'stores/search-modal-store'
 import { Colors } from 'theme/colors'
@@ -165,7 +166,7 @@ const SearchModalView = () => {
       }
 
       case 'Settings': {
-        searchModalStore.setShowSideNavFromSearchModal(true)
+        globalSheetsStore.toggleSideNav()
         break
       }
     }

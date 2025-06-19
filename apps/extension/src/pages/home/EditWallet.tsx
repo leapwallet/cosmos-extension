@@ -1,5 +1,5 @@
 import { Key, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, getEthereumAddress, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { getEthereumAddress, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ActiveChainStore, ChainInfosStore } from '@leapwallet/cosmos-wallet-store'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { Buttons, Input, ThemeName, useTheme } from '@leapwallet/leap-ui'
@@ -11,13 +11,11 @@ import IconButton from 'components/icon-button'
 import { LEDGER_NAME_EDITED_SUFFIX, LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useChainPageInfo } from 'hooks'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { ChangeEventHandler, useEffect, useState } from 'react'
 import { Colors } from 'theme/colors'
-import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { sliceAddress } from 'utils/strings'
 
@@ -91,6 +89,7 @@ export const EditWalletForm = observer(
     return (
       <>
         <BottomModal
+          containerDiv={document.getElementById('edit-wallet-container') ?? undefined}
           isOpen={isVisible}
           onClose={() => onClose(false)}
           title={'Edit wallet'}
@@ -181,14 +180,14 @@ export const EditWalletForm = observer(
           </div>
         </BottomModal>
 
-        <RemoveWallet
+        {/* <RemoveWallet
           wallet={wallet}
           isVisible={isShowRemoveWallet}
           onClose={(action) => {
             setShowRemoveWallet(false)
             if (action) onClose(action)
           }}
-        />
+        /> */}
       </>
     )
   },

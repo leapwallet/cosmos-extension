@@ -2,6 +2,7 @@ import { calculateFee } from '@cosmjs/stargate'
 import {
   FeeTokenData,
   GasOptions,
+  TxCallback,
   useChainApis,
   useChainCosmosSDK,
   useDefaultGasEstimates,
@@ -27,10 +28,10 @@ import {
 import { captureException } from '@sentry/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
+import BottomModal from 'components/new-bottom-modal'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
@@ -40,6 +41,7 @@ import { rootBalanceStore } from 'stores/root-store'
 import { useTxCallBack } from 'utils/txCallback'
 
 import { CastVoteSheet, ProposalStatusEnum, ReviewVoteCast } from './index'
+import { VoteTxnSheet } from './VoteTxnSheet'
 
 const useGetWallet = Wallet.useGetWallet
 
@@ -67,6 +69,7 @@ export const CastVote = observer(
     forceNetwork,
   }: CastVoteProps) => {
     const _activeChain = useActiveChain()
+    const [showTxPage, setShowTxPage] = useState(false)
     const activeChain = useMemo(() => forceChain || _activeChain, [_activeChain, forceChain])
     const _selectedNetwork = useSelectedNetwork()
     const selectedNetwork = useMemo(
@@ -194,13 +197,20 @@ export const CastVote = observer(
       [],
     )
 
+    const modifiedCallback: TxCallback = useCallback(
+      (status) => {
+        setShowTxPage(true)
+      },
+      [setShowTxPage],
+    )
+
     const submitVote = useCallback(
       async (option: VoteOptions) => {
         try {
           const wallet = await getWallet(activeChain)
           const result = await vote({
             wallet,
-            callback: txCallback,
+            callback: modifiedCallback,
             voteOption: option,
             customFee: {
               stdFee: customFee,
@@ -297,8 +307,8 @@ export const CastVote = observer(
           <BottomModal
             isOpen={showCastVoteSheet && !showLedgerPopup}
             onClose={() => setShowCastVoteSheet(false)}
-            title='Cast your Vote'
-            closeOnBackdropClick={true}
+            title='Call your Vote'
+            className='!pt-8 p-6'
           >
             <CastVoteSheet
               feeDenom={feeDenom}
@@ -338,6 +348,15 @@ export const CastVote = observer(
             gasOption={gasPriceOption.option}
             forceChain={activeChain}
           />
+          {showTxPage && (
+            <VoteTxnSheet
+              isOpen={showTxPage}
+              onClose={() => setShowTxPage(false)}
+              forceChain={forceChain}
+              forceNetwork={forceNetwork}
+              refetchVote={refetchVote}
+            />
+          )}
         </GasPriceOptions>
       </div>
     )

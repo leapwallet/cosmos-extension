@@ -1,4 +1,12 @@
-import { ChainData, ChainInfo, ChainInfos, getApr, getRestUrl, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  ChainData,
+  ChainInfo,
+  ChainInfos,
+  getApr,
+  getChainInfo,
+  getRestUrl,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
 
 import { getBaseURL } from '../../globals/config';
@@ -29,6 +37,7 @@ export async function getChainsApr(
     const response = await axios.post(url, requestData);
     return response.data.apr;
   } catch (error) {
+    const chainData = await getChainInfo(chain, testnet);
     return await getApr(chain, testnet, chainInfos, chainData);
   }
 }

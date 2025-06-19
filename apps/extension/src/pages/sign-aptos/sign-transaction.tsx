@@ -43,7 +43,6 @@ import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-option
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
-import SelectWalletSheet from 'components/select-wallet-sheet'
 import { Tabs } from 'components/tabs'
 import Text from 'components/text'
 import { walletLabels } from 'config/constants'
@@ -58,7 +57,7 @@ import { GenericDark, GenericLight } from 'images/logos'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { feeTokensStore } from 'stores/fee-store'
 import { rootBalanceStore } from 'stores/root-store'
@@ -71,7 +70,6 @@ import { trim } from 'utils/strings'
 import browser from 'webextension-polyfill'
 
 import { EventName } from '../../config/analytics'
-import { isCompassWallet } from '../../utils/isCompassWallet'
 import { NotAllowSignTxGasOptions } from './additional-fee-settings'
 import StaticFeeDisplay from './static-fee-display'
 import { mapWalletTypeToMixpanelWalletType, mixpanelTrackOptions } from './utils/mixpanel-config'
@@ -101,7 +99,6 @@ const SignTransaction = observer(
     const isApprovedRef = useRef(false)
     const { theme } = useTheme()
 
-    const [showWalletSelector, setShowWalletSelector] = useState(false)
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
     const [signingError, setSigningError] = useState<string | null>(null)
     const [ledgerError] = useState<string | null>(null)
@@ -256,24 +253,22 @@ const SignTransaction = observer(
       if (isRejectedRef.current || isApprovedRef.current) return
       isRejectedRef.current = true
 
-      if (!isCompassWallet()) {
-        try {
-          mixpanel.track(
-            EventName.DappTxnRejected,
-            {
-              dAppURL: siteOrigin,
-              signMode: 'sign-aptos',
-              walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-              chainId: chainInfo.chainId,
-              chainName: chainInfo.chainName,
-              productVersion: browser.runtime.getManifest().version,
-              time: Date.now() / 1000,
-            },
-            mixpanelTrackOptions,
-          )
-        } catch (e) {
-          captureException(e)
-        }
+      try {
+        // mixpanel.track(
+        //   EventName.DappTxnRejected,
+        //   {
+        //     dAppURL: siteOrigin,
+        //     signMode: 'sign-aptos',
+        //     walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+        //     chainId: chainInfo.chainId,
+        //     chainName: chainInfo.chainName,
+        //     productVersion: browser.runtime.getManifest().version,
+        //     time: Date.now() / 1000,
+        //   },
+        //   mixpanelTrackOptions,
+        // )
+      } catch (e) {
+        captureException(e)
       }
 
       browser.runtime.sendMessage({
@@ -498,21 +493,19 @@ const SignTransaction = observer(
       if (isDappTxnInitEventLogged.current) return
 
       try {
-        if (!isCompassWallet()) {
-          mixpanel.track(
-            EventName.DappTxnInit,
-            {
-              dAppURL: siteOrigin,
-              signMode: 'sign-aptos',
-              walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
-              chainId: chainInfo.chainId,
-              chainName: chainInfo.chainName,
-              productVersion: browser.runtime.getManifest().version,
-              time: Date.now() / 1000,
-            },
-            mixpanelTrackOptions,
-          )
-        }
+        // mixpanel.track(
+        //   EventName.DappTxnInit,
+        //   {
+        //     dAppURL: siteOrigin,
+        //     signMode: 'sign-aptos',
+        //     walletType: mapWalletTypeToMixpanelWalletType(activeWallet.walletType),
+        //     chainId: chainInfo.chainId,
+        //     chainName: chainInfo.chainName,
+        //     productVersion: browser.runtime.getManifest().version,
+        //     time: Date.now() / 1000,
+        //   },
+        //   mixpanelTrackOptions,
+        // )
 
         isDappTxnInitEventLogged.current = true
       } catch (e) {
@@ -543,7 +536,6 @@ const SignTransaction = observer(
       <div
         className={classNames(
           'panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center',
-          { 'mt-2': !isSidePanel() },
         )}
       >
         <div
@@ -553,6 +545,7 @@ const SignTransaction = observer(
           )}
         >
           <PopupLayout
+            className='flex flex-col'
             header={
               <div className='w-[396px]'>
                 <Header
@@ -562,18 +555,7 @@ const SignTransaction = observer(
                   }
                   imgOnError={imgOnError(theme === ThemeName.DARK ? GenericDark : GenericLight)}
                   title={
-                    <Buttons.Wallet
-                      brandLogo={
-                        isCompassWallet() ? (
-                          <img
-                            className='w-[24px] h-[24px] mr-1'
-                            src={Images.Logos.CompassCircle}
-                          />
-                        ) : undefined
-                      }
-                      title={trim(walletName, 10)}
-                      className='pr-4 cursor-default'
-                    />
+                    <Buttons.Wallet title={trim(walletName, 10)} className='pr-4 cursor-default' />
                   }
                 />
               </div>
@@ -582,7 +564,7 @@ const SignTransaction = observer(
             <div
               className='px-7 py-3 overflow-y-auto relative'
               style={{
-                height: `calc(100% - 144px)`,
+                maxHeight: `calc(100% - 144px)`,
               }}
             >
               <h2 className='text-center text-lg font-bold dark:text-white-100 text-gray-900 w-full'>
@@ -749,13 +731,6 @@ const SignTransaction = observer(
                   setShowLedgerPopup(false)
                 }}
               />
-              <SelectWalletSheet
-                isOpen={showWalletSelector}
-                onClose={() => setShowWalletSelector(false)}
-                currentWalletInfo={currentWalletInfo}
-                title='Select Wallet'
-                activeChain={activeChain}
-              />
               {isFeesValid === false && (
                 <div
                   ref={errorMessageRef}
@@ -781,7 +756,7 @@ const SignTransaction = observer(
               )}
             </div>
 
-            <div className='absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full'>
+            <div className='py-3 px-7 dark:bg-black-100 bg-gray-50 w-full mt-auto'>
               <div className='flex items-center justify-center w-full space-x-3'>
                 <Buttons.Generic
                   title={'Reject Button'}

@@ -1,7 +1,7 @@
 import { WindowPostMessageStream } from '@metamask/post-message-stream';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BITCOIN_METHOD_TYPE, ILeapBitcoin, LINE_TYPE, Network } from './types';
+import { BITCOIN_METHOD_TYPE, ILeapBitcoin, LINE_TYPE, Network, SignPsbtOptions } from './types';
 
 const IDENTIFIER = process.env.APP?.includes('compass') ? 'compass' : 'leap';
 
@@ -46,6 +46,10 @@ export class LeapBitcoin implements ILeapBitcoin {
     return new Promise((resolve) => {
       this.inpageStream.on('data', (result) => {
         if (result.id === id) {
+          if (result?.name === 'invokeOpenSidePanel') {
+            this.send(BITCOIN_METHOD_TYPE.OPEN_SIDE_PANEL, result);
+            return;
+          }
           resolve(result);
         }
       });
@@ -150,12 +154,12 @@ export class LeapBitcoin implements ILeapBitcoin {
     return await this.requestWrapper(BITCOIN_METHOD_TYPE.SIGN_MESSAGE, { message, type });
   }
 
-  async signPsbt(psbtHex: string): Promise<string> {
-    return await this.requestWrapper(BITCOIN_METHOD_TYPE.SIGN_PSBT, { psbtHex });
+  async signPsbt(psbtHex: string, options?: SignPsbtOptions): Promise<string> {
+    return await this.requestWrapper(BITCOIN_METHOD_TYPE.SIGN_PSBT, { psbtHex, options });
   }
 
-  async signPsbts(psbtsHexes: string[]): Promise<string[]> {
-    return await this.requestWrapper(BITCOIN_METHOD_TYPE.SIGN_PSBTS, { psbtsHexes });
+  async signPsbts(psbtsHexes: string[], options?: SignPsbtOptions): Promise<string[]> {
+    return await this.requestWrapper(BITCOIN_METHOD_TYPE.SIGN_PSBTS, { psbtsHexes, options });
   }
 
   async switchNetwork(network: Network) {

@@ -7,10 +7,10 @@ import {
   useGetChains,
   useUserPreferredCurrency,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { isSolanaChain, isSuiChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { CaretDown, GasPump } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import classNames from 'classnames'
-import { Images } from 'images'
 import React, { useEffect, useMemo } from 'react'
 
 import { DisplayFeeValue, useGasPriceContext } from './context'
@@ -32,7 +32,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
   const [formatCurrency] = useformatCurrency()
   const [preferredCurrency] = useUserPreferredCurrency()
 
-  const { gasLimit, value, feeTokenData, activeChain, selectedNetwork, isSeiEvmTransaction } =
+  const { gasLimit, value, feeTokenData, activeChain, selectedNetwork, computedGas } =
     useGasPriceContext()
   const chainId = useChainId(activeChain, selectedNetwork)
   const chainGasAdjustment = useGasAdjustmentForChain(activeChain)
@@ -56,7 +56,10 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
       feeDenom: feeTokenData.denom,
       gasPrice: value.gasPrice.amount.toFloatApproximation(),
       gasAdjustment: chainGasAdjustment,
-      isSeiEvmTransaction: isSeiEvmTransaction || chains[activeChain]?.evmOnlyChain,
+      isSeiEvmTransaction: chains[activeChain]?.evmOnlyChain,
+      isSolana: isSolanaChain(activeChain),
+      isSui: isSuiChain(activeChain),
+      computedGas,
     })
 
     return {
@@ -69,11 +72,11 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
     feeTokenData.denom,
     value.gasPrice.amount,
     chainGasAdjustment,
-    isSeiEvmTransaction,
     chains,
     activeChain,
     feeTokenFiatValue,
     formatCurrency,
+    computedGas,
   ])
 
   useEffect(() => {
@@ -83,23 +86,24 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
   return (
     <div
       className={classNames(
-        'flex items-center justify-center text-gray-600 dark:text-gray-200',
+        'flex gap-1 items-center justify-center text-gray-600 dark:text-gray-200',
         className,
       )}
     >
-      <p className='font-semibold text-center text-sm shrink-0'>Transaction fee: </p>
+      <GasPump size={16} className='text-secondary-800' />
       <button
         className='flex items-center ml-1 shrink-0'
         onClick={() => (setShowFeesSettingSheet ? setShowFeesSettingSheet(true) : undefined)}
         data-testing-id='send-tx-fee-text'
       >
-        <p className='font-semibold text-center text-sm'>
-          <strong>
-            {displayFee.formattedAmount} {feeTokenData.denom.coinDenom}
-          </strong>{' '}
-          {displayFee.fiatValue ? `(${displayFee.fiatValue})` : null}
+        <p className='font-medium text-center text-xs text-secondary-800 !leading-[16.2px]'>
+          {displayFee.formattedAmount} {feeTokenData.denom.coinDenom}
+          {'  '}
+          <span className='text-muted-foreground'>
+            {displayFee.fiatValue ? `(${displayFee.fiatValue})` : null}
+          </span>
         </p>
-        {setShowFeesSettingSheet && <img src={Images.Misc.ArrowDown} className='ml-1' />}
+        {setShowFeesSettingSheet && <CaretDown size={16} className='ml-1 text-muted-foreground' />}
       </button>
     </div>
   )

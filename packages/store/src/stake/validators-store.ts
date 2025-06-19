@@ -1,4 +1,12 @@
-import { getChainInfo, getUnbondingTime, isAptosChain, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  getChainInfo,
+  getUnbondingTime,
+  isAptosChain,
+  isSolanaChain,
+  pubKeyToEvmAddressToShow,
+  SupportedChain,
+  Validator,
+} from '@leapwallet/cosmos-wallet-sdk';
 import CosmosDirectory from '@leapwallet/cosmos-wallet-sdk/dist/browser/chains/cosmosDirectory';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
@@ -20,6 +28,7 @@ import {
 } from '../types';
 import { getChainsApr, isFeatureExistForChain } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
+import { StakingApiStore } from './staking-api-store';
 import { ChainsAprStore } from './utils-store';
 
 export class ValidatorsStore {
@@ -33,6 +42,7 @@ export class ValidatorsStore {
   priorityValidatorsStore: PriorityValidatorsStore;
   aggregatedChainsStore: AggregatedChainsStore;
   chainsAprStore: ChainsAprStore;
+  stakingApiStore: StakingApiStore;
 
   chainWiseValidators: Record<string, ValidatorData | Record<string, never>> = {};
   chainWiseStatus: Record<string, LoadingStatusType> = {};
@@ -49,6 +59,7 @@ export class ValidatorsStore {
     priorityValidatorsStore: PriorityValidatorsStore,
     aggregatedChainsStore: AggregatedChainsStore,
     chainsAprStore: ChainsAprStore,
+    stakingApiStore: StakingApiStore,
   ) {
     makeObservable(this, {
       chainWiseValidators: observable.shallow,
@@ -67,6 +78,7 @@ export class ValidatorsStore {
     this.priorityValidatorsStore = priorityValidatorsStore;
     this.aggregatedChainsStore = aggregatedChainsStore;
     this.chainsAprStore = chainsAprStore;
+    this.stakingApiStore = stakingApiStore;
   }
 
   get chainValidators() {
@@ -108,33 +120,53 @@ export class ValidatorsStore {
     network = network || this.selectedNetworkStore.selectedNetwork;
 
     if (chain === 'aggregated') {
-      this.aggregatedChainsStore.aggregatedChainsData.forEach((chain) => {
-        const chainKey = this.getChainKey(chain as SupportedChain);
-
-        if (!this.chainWiseValidators[chainKey] || forceRefetch) {
-          runInAction(() => (this.chainWiseStatus[chainKey] = 'loading'));
-          this.fetchChainValidators(chain as SupportedChain, network ?? 'mainnet');
-        }
-      });
+      Promise.allSettled(
+        this.aggregatedChainsStore.aggregatedChainsData.map(async (chain) => {
+          const chainKey = this.getChainKey(chain as SupportedChain);
+          if (!this.chainWiseValidators[chainKey] || forceRefetch) {
+            runInAction(() => {
+              this.chainWiseStatus[chainKey] = 'loading';
+            });
+            await this.fetchChainValidators(chain as SupportedChain, network ?? 'mainnet', true);
+          }
+        }),
+      );
     } else {
       const chainKey = this.getChainKey(chain);
 
-      if (!this.chainWiseValidators[chainKey] || forceRefetch) {
-        runInAction(() => (this.chainWiseStatus[chainKey] = 'loading'));
+      if ((this.chainWiseValidators[chainKey]?.validators ?? []).length === 0 || forceRefetch) {
+        runInAction(() => {
+          this.chainWiseStatus[chainKey] = 'loading';
+        });
         this.fetchChainValidators(chain, network);
       }
     }
   }
 
-  async fetchChainValidators(chain: SupportedChain, network: SelectedNetworkType) {
+  ensureValidatorsLoaded(chain: SupportedChain, network: SelectedNetworkType) {
+    const shouldLoadValidators =
+      !this?.chainValidators?.validatorData?.validators ||
+      this?.chainValidators?.validatorData?.validators?.length === 0 ||
+      this?.chainValidators?.validatorDataStatus !== 'error';
+
+    if (shouldLoadValidators) this.loadValidators(chain, network);
+  }
+
+  async fetchChainValidators(chain: SupportedChain, network: SelectedNetworkType, isAggregated = false) {
     const isTestnet = network === 'testnet';
     const address = this.addressStore.addresses?.[chain];
 
     const activeChainInfo = this.chainInfosStore.chainInfos[chain];
     const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
 
-    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
     const chainKey = this.getChainKey(chain);
+    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain) || isSolanaChain(chain)) {
+      runInAction(() => {
+        this.chainWiseValidators[chainKey] = {};
+        this.chainWiseStatus[chainKey] = 'success';
+      });
+      return;
+    }
 
     const isFeatureComingSoon = isFeatureExistForChain(
       'comingSoon',
@@ -159,8 +191,10 @@ export class ValidatorsStore {
     });
 
     if (isFeatureComingSoon || isFeatureNotSupported) {
-      this.chainWiseValidators[chainKey] = {};
-      runInAction(() => (this.chainWiseStatus[chainKey] = 'success'));
+      runInAction(() => {
+        this.chainWiseValidators[chainKey] = {};
+        this.chainWiseStatus[chainKey] = 'success';
+      });
       return;
     }
 
@@ -177,35 +211,44 @@ export class ValidatorsStore {
       : activeChainInfo?.apis[nodeUrlKey];
 
     try {
-      const chainData = await getChainInfo(activeChainKey, isTestnet);
-      const _chainData = activeChainInfo?.beta
-        ? { params: { calculated_apr: 0, estimated_apr: 0, unbonding_time: 0 } }
-        : chainData;
+      let validators: Validator[] = [];
+      let unbonding_time = 0;
+      if (!isAggregated) {
+        const chainData = await getChainInfo(activeChainKey, isTestnet);
+        const validatorsPromise = this.stakingApiStore.getValidators(activeChainInfo.chainId, denom.coinMinimalDenom);
 
-      let validators = (await CosmosDirectory(isTestnet).getValidators(
-        activeChainKey,
-        lcdUrl,
-        denom,
-        this.chainInfosStore.chainInfos,
-      )) as Validator[];
+        const unbondingTimePromise = getUnbondingTime(
+          activeChainKey,
+          isTestnet,
+          lcdUrl,
+          this.chainInfosStore.chainInfos,
+          chainData,
+        );
 
-      const { unbonding_time = 0 } = await getUnbondingTime(
-        activeChainKey,
-        isTestnet,
-        lcdUrl,
-        this.chainInfosStore.chainInfos,
-        chainData,
-      );
+        const [{ data, error }, res] = await Promise.all([validatorsPromise, unbondingTimePromise]);
+
+        if (error && error.chainId === activeChainInfo.chainId) {
+          validators = (await CosmosDirectory(isTestnet).getValidators(
+            activeChainKey,
+            lcdUrl,
+            denom,
+            this.chainInfosStore.chainInfos,
+          )) as Validator[];
+        } else {
+          validators = data;
+        }
+
+        unbonding_time = res.unbonding_time;
+      }
+
       const calculatedApr = await getChainsApr(
         this.chainsAprStore.chainsApr,
         chain as SupportedChain,
         isTestnet,
         this.chainInfosStore.chainInfos,
-        chainData,
       );
 
       const priorityValidatorsByChain = this.priorityValidatorsStore.priorityValidators;
-
       if (Object.keys(priorityValidatorsByChain).includes(activeChainId ?? '')) {
         const priorityValidators = validators.reduce((acc, validator) => {
           const priorityValidator = priorityValidatorsByChain[activeChainId ?? ''].find(
@@ -240,7 +283,7 @@ export class ValidatorsStore {
           chainData: {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
-            params: Object.assign(_chainData?.params ?? {}, { calculated_apr: calculatedApr, unbonding_time }),
+            params: Object.assign({}, { calculated_apr: calculatedApr, unbonding_time }),
           },
           validators,
         };
@@ -255,12 +298,16 @@ export class ValidatorsStore {
   }
 
   private getChainKey(chain: SupportedChain) {
-    const cosmosAddress = this.addressStore.addresses?.cosmos;
+    const evmPubKey = this.addressStore?.pubKeys?.ethereum;
+    const cosmosAddress = this.addressStore?.addresses?.cosmos;
+    const evmAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : '';
+    const address = cosmosAddress || evmAddress;
+
     const chainId =
       this.selectedNetworkStore.selectedNetwork == 'testnet'
         ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
-    return `${cosmosAddress}-${chain}-${chainId}`;
+    return `${address}-${chain}-${chainId}`;
   }
 }

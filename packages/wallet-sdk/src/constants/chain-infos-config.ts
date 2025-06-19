@@ -10,7 +10,9 @@ export type ChainInfosConfigType = {
 };
 
 export const BTC_CHAINS = ['bitcoin', 'bitcoinSignet'];
-export const APTOS_CHAINS = ['movement', 'aptos', 'movementBardock'];
+export const APTOS_CHAINS = ['movement', 'aptos'];
+export const SOLANA_CHAINS = ['solana', '101', '103', 'fogo', 'fogo-1'];
+export const SUI_CHAINS = ['sui', 'sui-101', 'sui-103'];
 
 export const CHAIN_INFOS_CONFIG: ChainInfosConfigType = {
   coming_soon_features: {

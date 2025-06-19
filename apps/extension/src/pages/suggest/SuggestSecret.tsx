@@ -16,12 +16,11 @@ import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { useCreateViewingKey, verifyViewingKey } from 'hooks/secret/useCreateViewingKey'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { betaCW20DenomsStore, enabledCW20DenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
 import { getContractInfo } from 'utils/getContractInfo'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import { uiErrorTags } from 'utils/sentry'
 import Browser from 'webextension-polyfill'
@@ -36,6 +35,7 @@ import {
   TokenContractAddress,
   TokenContractInfo,
 } from './components'
+import { TokenContractInfoSkeleton } from './components/TokenContractInfoSkeleton'
 
 const SuggestSecret = observer(({ handleRejectBtnClick }: ChildrenParams) => {
   const chains = useGetChains()
@@ -51,7 +51,7 @@ const SuggestSecret = observer(({ handleRejectBtnClick }: ChildrenParams) => {
   const [isVerifying, setIsVerifying] = useState(false)
   const [isCustomKeyError, setIsCustomKeyError] = useState(false)
 
-  const [isFetching, setIsFetching] = useState(false)
+  const [isFetching, setIsFetching] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -126,6 +126,7 @@ const SuggestSecret = observer(({ handleRejectBtnClick }: ChildrenParams) => {
           setIsFetching(false)
         }
       }
+      setIsFetching(false)
     })
   }, [getChainApis, secretTokens])
 
@@ -242,19 +243,19 @@ const SuggestSecret = observer(({ handleRejectBtnClick }: ChildrenParams) => {
     <>
       <div className='flex flex-col items-center'>
         <Heading text='Adding token' />
-        <SubHeading
-          text={`This will allow this token to be viewed within ${
-            isCompassWallet() ? 'Compass' : 'Leap'
-          } Wallet`}
-        />
+        <SubHeading text={`This will allow this token to be viewed within Leap Wallet`} />
 
         <TokenContractAddress address={payload.contractAddress ?? ''} />
-        {contractInfo && !isFetching && (
-          <TokenContractInfo
-            name={contractInfo.name ?? ''}
-            symbol={contractInfo.symbol ?? ''}
-            decimals={contractInfo.decimals ?? 0}
-          />
+        {isFetching ? (
+          <TokenContractInfoSkeleton />
+        ) : (
+          contractInfo && (
+            <TokenContractInfo
+              name={contractInfo.name ?? ''}
+              symbol={contractInfo.symbol ?? ''}
+              decimals={contractInfo.decimals ?? 0}
+            />
+          )
         )}
       </div>
 

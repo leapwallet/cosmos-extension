@@ -24,7 +24,7 @@ export function InterchangeButton({
   return (
     <div
       className={classNames(
-        'w-[44px] h-[44px] relative rounded-full bg-white-100 dark:bg-gray-950 flex items-center justify-center border-4 border-gray-50 dark:border-black-100 -mt-[18px] -mb-[18px]',
+        'w-[40px] h-[40px] relative rounded-full bg-primary flex items-center justify-center border-[5px] border-gray-50 dark:border-black-100 -mt-[18px] -mb-[18px]',
         { 'cursor-pointer': isSwitchOrderPossible },
       )}
       onClick={handleBtnClick}

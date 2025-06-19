@@ -14,4 +14,6 @@ export * from './native-fee-denoms';
 export * from './networks';
 export * from './sei-evm';
 export * from './snip20-denoms';
+export * from './solana-gas-price';
 export * from './staking-denoms';
+export * from './sui-gas-price';

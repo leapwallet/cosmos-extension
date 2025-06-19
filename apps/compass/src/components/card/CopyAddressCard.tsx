@@ -72,7 +72,7 @@ const CopyAddressCard = React.memo(({ forceChain, address, forceName }: CopyAddr
         </div>
       </div>
 
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         <Button
           key={isCopied ? 'copied' : 'copy'}
           variant={'ghost'}

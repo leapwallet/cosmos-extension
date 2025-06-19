@@ -1,7 +1,7 @@
 import { useSwapContext } from 'pages/swaps-v2/context'
 import { isNoRoutesAvailableError } from 'pages/swaps-v2/hooks'
 import React, { Dispatch, SetStateAction } from 'react'
-import { compassTokenTagsStore, rootDenomsStore } from 'stores/denoms-store-instance'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
 
 import PriceImpactWarnings from './PriceImpactWarnings'
 import { WarningBox } from './WarningBox'
@@ -63,7 +63,6 @@ export function WarningsSection({
       isPriceImpactChecked={isPriceImpactChecked}
       setIsPriceImpactChecked={setIsPriceImpactChecked}
       rootDenomsStore={rootDenomsStore}
-      compassTokenTagsStore={compassTokenTagsStore}
     />
   )
 }

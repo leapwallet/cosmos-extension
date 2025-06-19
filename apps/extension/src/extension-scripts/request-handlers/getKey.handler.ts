@@ -1,5 +1,12 @@
 import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, isAptosChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { getChains } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  isAptosChain,
+  isSolanaChain,
+  isSuiChain,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
+import { getStorageAdapter } from 'utils/storageAdapter'
 import browser from 'webextension-polyfill'
 
 import { ACTIVE_WALLET, CONNECTIONS } from '../../config/storage-keys'
@@ -30,22 +37,22 @@ export async function getKey(chainId: string, passwordManager: PasswordManager) 
   let { 'active-wallet': activeWallet } = await browser.storage.local.get([ACTIVE_WALLET])
   const _chainIdToChain = await decodeChainIdToChain()
   let chain = _chainIdToChain[chainId]
-
+  const chainInfos = await getChains()
   chain = chain === 'cosmoshub' ? 'cosmos' : chain
   const password = passwordManager.getPassword()
-  if (!activeWallet.addresses[chain] && !ChainInfos[chain as SupportedChain].enabled) {
+  if (!activeWallet.addresses[chain] && !chainInfos[chain as SupportedChain].enabled) {
     throw new Error('Invalid chain id')
   }
 
-  if (!activeWallet.addresses[chain] && ChainInfos[chain as SupportedChain].enabled && password) {
+  if (!activeWallet.addresses[chain] && chainInfos[chain as SupportedChain].enabled && password) {
     if (
       activeWallet.walletType === WALLETTYPE.LEDGER &&
-      ['637'].includes(ChainInfos[chain as SupportedChain].bip44.coinType)
+      ['637', '784', '501'].includes(chainInfos[chain as SupportedChain].bip44.coinType)
     ) {
       throw new Error('Ledger wallet is not supported for this chain')
     }
     const updatedKeyStore = await getUpdatedKeyStore(
-      ChainInfos,
+      chainInfos,
       password,
       chain as SupportedChain,
       activeWallet,
@@ -55,6 +62,20 @@ export async function getKey(chainId: string, passwordManager: PasswordManager) 
   }
 
   if (isAptosChain(chain)) {
+    return {
+      address: activeWallet.addresses[chain],
+      publicKey: activeWallet.pubKeys?.[chain] ?? '',
+    }
+  }
+
+  if (isSolanaChain(chain)) {
+    return {
+      address: activeWallet.addresses[chain],
+      publicKey: activeWallet.pubKeys?.[chain] ?? '',
+    }
+  }
+
+  if (isSuiChain(chain)) {
     return {
       address: activeWallet.addresses[chain],
       publicKey: activeWallet.pubKeys?.[chain] ?? '',
@@ -87,6 +108,18 @@ async function getKeys(chainIds: string[]) {
           publicKey: activeWallet.pubKeys?.[chain] ?? '',
         }
       }
+      if (isSolanaChain(chain)) {
+        return {
+          address: activeWallet.addresses[chain],
+          publicKey: activeWallet.pubKeys?.[chain] ?? '',
+        }
+      }
+      if (isSuiChain(chain)) {
+        return {
+          address: activeWallet.addresses[chain],
+          publicKey: activeWallet.pubKeys?.[chain] ?? '',
+        }
+      }
       return {
         address: Bech32Address.fromBech32(activeWallet.addresses[chain] ?? '').address,
         algo: 'secp256k1',
@@ -108,10 +141,7 @@ export async function handleGetKey({ message, passwordManager, sendResponse }: G
   const chainIds = msg.chainIds ?? (Array.isArray(msg.chainId) ? msg.chainId : [msg.chainId])
   const eventName = `on${type.toUpperCase()}`
 
-  let queryString = `?origin=${msg?.origin}`
-  chainIds?.forEach((chainId: string) => {
-    queryString += `&chainIds=${chainId}`
-  })
+  const queryString = `?origin=${msg?.origin}`
 
   try {
     const store = await browser.storage.local.get([CONNECTIONS, ACTIVE_WALLET])
@@ -161,8 +191,13 @@ export async function handleGetKey({ message, passwordManager, sendResponse }: G
       }
     }
 
+    const payloadId = payload.id
+    const sendMessageToInvoker = (eventName: string, payload: any) => {
+      sendResponse(eventName, payload, payloadId)
+    }
+
     if (isNewChainPresent || !password) {
-      await openPopup('approveConnection', '?unlock-to-approve')
+      await openPopup('approveConnection', queryString, undefined, sendMessageToInvoker)
       requestEnableAccess({
         origin: msg.origin,
         validChainIds,

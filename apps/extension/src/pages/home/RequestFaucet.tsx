@@ -1,7 +1,12 @@
 import HCaptcha from '@hcaptcha/react-hcaptcha'
-import { Faucet, useActiveChain, useChainInfo, useGetFaucet } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  Faucet,
+  useActiveChain,
+  useAddress,
+  useChainInfo,
+  useGetFaucet,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { getBlockChainFromAddress } from '@leapwallet/cosmos-wallet-sdk'
-import { RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
 import { useMutation } from '@tanstack/react-query'
 import CssLoader from 'components/css-loader/CssLoader'
 import { Recaptcha } from 'components/re-captcha'
@@ -10,29 +15,22 @@ import { RECAPTCHA_CHAINS } from 'config/config'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
+import { useQueryParams } from 'hooks/useQuery'
 import React, { useCallback, useEffect, useRef } from 'react'
+import { rootBalanceStore } from 'stores/root-store'
 import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 dayjs.extend(utc)
 
-type RequestFaucetProps = {
-  address: string
-  // eslint-disable-next-line no-unused-vars
-  setShowFaucetResp: (data: { msg: string; status: 'success' | 'fail' | null }) => void
-  rootBalanceStore: RootBalanceStore
-}
-
-export default function RequestFaucet({
-  rootBalanceStore,
-  address,
-  setShowFaucetResp,
-}: RequestFaucetProps) {
+export default function RequestFaucet() {
   const chain = useChainInfo()
   const activeChain = useActiveChain()
   const selectedNetwork = useSelectedNetwork()
   const hCaptchaRef = useRef<HCaptcha>(null)
   const reCaptchaRef = useRef<Recaptcha>(null)
+  const address = useAddress()
+
+  const query = useQueryParams()
 
   const invalidateBalances = useCallback(() => {
     rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
@@ -103,7 +101,7 @@ export default function RequestFaucet({
             'Content-Type': 'application/json',
           }
 
-          if (chain.chainId === 'constantine-3') {
+          if (chain?.chainId === 'constantine-3') {
             headers['Authorization'] = `Basic ${Buffer.from(
               `${process.env.ARCHWAY_FAUCET_USERNAME}:${process.env.ARCHWAY_FAUCET_PASSWORD}`,
             ).toString('base64')}`
@@ -127,6 +125,16 @@ export default function RequestFaucet({
       cacheTime: 0,
     },
   )
+
+  const setShowFaucetResp = (data: { msg: string; status: 'success' | 'fail' | null }) => {
+    if (!data.status) {
+      query.remove('faucet-success')
+      query.remove('faucet-error')
+      return
+    }
+
+    query.set(data.status === 'success' ? 'faucet-success' : 'faucet-error', data.msg)
+  }
 
   // TODO:- handle the case where there are more properties on faucetDetails.payloadSchema.schema
   // TODO:- in future when we have configuration for multiple faucets, add a responseSchema to the faucet config
@@ -203,17 +211,17 @@ export default function RequestFaucet({
 
   return (
     <>
-      <div className='h-captcha' data-sitekey={faucetDetails.security?.key} data-theme='dark' />
+      <div className='h-captcha' data-sitekey={faucetDetails?.security?.key} data-theme='dark' />
       <button
         className='relative rounded-2xl w-[344px] m-auto mb-4 p-4 flex items-center overflow-hidden'
         style={{
-          background: isCompassWallet() ? Colors.compassGradient : chain.theme.gradient,
+          background: chain?.theme?.gradient,
           backgroundSize: 'contain',
         }}
         onClick={handleSubmit}
       >
         <img
-          src={chain.chainSymbolImageUrl}
+          src={chain?.chainSymbolImageUrl}
           alt='chain logo'
           className='absolute z-0 right-0 opacity-20 h-full w-fit'
         />
@@ -234,7 +242,7 @@ export default function RequestFaucet({
         ) : (
           <>
             <img
-              src={chain.chainSymbolImageUrl}
+              src={chain?.chainSymbolImageUrl}
               alt='chain logo'
               width='24'
               height='24'
@@ -245,21 +253,13 @@ export default function RequestFaucet({
             />
             <div>
               <Text size='sm' color='dark:text-white-100 text-gray-800 font-black'>
-                {faucetDetails.title}
+                {faucetDetails?.title}
               </Text>
               <Text
                 size='xs'
                 color='dark:text-gray-400 text-gray-700 font-medium mt-[2px] text-left'
               >
-                {faucetDetails.description.includes('Leap')
-                  ? faucetDetails.description.replace('Leap', () => {
-                      if (isCompassWallet()) {
-                        return 'Compass'
-                      } else {
-                        return 'Leap'
-                      }
-                    })
-                  : faucetDetails.description}
+                {faucetDetails?.description}
               </Text>
             </div>
           </>
@@ -272,7 +272,7 @@ export default function RequestFaucet({
             elementID='g-recaptcha'
             className='g-recaptcha'
             ref={reCaptchaRef}
-            sitekey={faucetDetails.security?.key ?? ''}
+            sitekey={faucetDetails?.security?.key ?? ''}
             size='invisible'
             theme='dark'
             render='explicit'
@@ -288,7 +288,7 @@ export default function RequestFaucet({
         ) : (
           <HCaptcha
             ref={hCaptchaRef}
-            sitekey={faucetDetails.security?.key ?? ''}
+            sitekey={faucetDetails?.security?.key ?? ''}
             size='invisible'
             theme='dark'
           />

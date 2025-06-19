@@ -11,9 +11,10 @@
 # review when someone opens a pull request.
 
 -       @baryon2
+-       @karan-leapwallet
 
 # The CODEOWNERS file restricts approval capabilities to a subset
 
 # of contributors.
 
-.github/CODEOWNERS @baryon2
+.github/CODEOWNERS @baryon2 @karan-leapwallet

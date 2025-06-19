@@ -47,12 +47,6 @@ export function ProviderCard({
     <GenericCard
       onClick={() => {
         window.open(provider.url, '_blank')
-        mixpanel.track(EventName.ButtonClick, {
-          buttonType: 'stake',
-          buttonName: 'liquid staking redirection',
-          redirectURL: provider.url,
-          stakeToken: activeStakingDenom.coinDenom,
-        })
       }}
       className={`${backgroundColor} w-full`}
       img={

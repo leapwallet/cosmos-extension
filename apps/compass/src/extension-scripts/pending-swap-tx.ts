@@ -2,7 +2,6 @@
 import {
   LifiTrackerResponse,
   LifiTransactionStatus,
-  MosaicAPI,
   SKIP_TXN_STATUS,
   SkipAPI,
   TXN_STATUS,
@@ -77,23 +76,7 @@ async function getTxnStatus({
           },
     }
   }
-  if (aggregator === RouteAggregator.MOSAIC) {
-    const res = await MosaicAPI.trackTransaction(tx_hash)
-    if (!res.success) {
-      return {
-        success: false,
-        response: {
-          error: new Error('Unable to get txn status'),
-        },
-      }
-    }
-    return {
-      success: true,
-      response: {
-        state: TXN_STATUS.SUCCESS,
-      },
-    }
-  }
+
   const result = await SkipAPI.getTxnStatus({
     chain_id,
     tx_hash,

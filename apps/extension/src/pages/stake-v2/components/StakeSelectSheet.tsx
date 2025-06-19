@@ -14,7 +14,7 @@ import {
 } from '@leapwallet/cosmos-wallet-store'
 import { GenericCard } from '@leapwallet/leap-ui'
 import { CaretDown, CaretUp } from '@phosphor-icons/react'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
 import currency from 'currency.js'
 import { observer } from 'mobx-react-lite'
@@ -92,7 +92,6 @@ const StakeSelectSheet = observer(
           setShowLSProviders(false)
           onClose()
         }}
-        closeOnBackdropClick={true}
         title={title}
         className='p-6'
       >

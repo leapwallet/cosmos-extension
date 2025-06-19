@@ -96,6 +96,14 @@ export type FeatureFlags = {
   restaking: {
     extension: FeatureFlagState;
   };
+  lightNodeNFT: {
+    extension: FeatureFlagState;
+    mobile: FeatureFlagState;
+    extension_v2: string;
+    mobile_v2: string;
+    tweetText: string;
+    tweetImageUrl: string;
+  };
   light_node: {
     extension: FeatureFlagState;
     default_block_time_in_seconds: number;

@@ -55,7 +55,6 @@ import {
   LineType,
 } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import { getEvmError } from '@leapwallet/cosmos-wallet-provider/dist/utils/get-evm-error'
-import { EncryptionUtilsImpl } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/encryptionutil'
 import { MessageTypes } from 'config/message-types'
 import { handleSendTx } from './handle-sendtx'
 import { storageMigrationV10 } from './migrations/v10'
@@ -125,7 +124,15 @@ const connectRemote = (remotePort: any) => {
     isEvm?: boolean,
   ) => {
     try {
-      await openPopup(page, queryString, isEvm)
+      const payloadId = response?.[2]
+      if (payloadId !== undefined) {
+        const sendMessageToInvoker = (eventName: string, payload: any) => {
+          sendResponse(eventName, payload, payloadId)
+        }
+        await openPopup(page, queryString, isEvm, sendMessageToInvoker)
+      } else {
+        await openPopup(page, queryString, isEvm)
+      }
     } catch (e: any) {
       if (response && e.message.includes('Requests exceeded')) {
         return sendResponse(...response)
@@ -140,7 +147,7 @@ const connectRemote = (remotePort: any) => {
       case 'chain-enabled':
         if (message.payload?.ecosystem === LINE_TYPE.ETHEREUM) {
           const store = await browser.storage.local.get([ACTIVE_WALLET, ACTIVE_CHAIN])
-          const lastEvmActiveChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'ethereum'
+          const lastEvmActiveChain = store[LAST_EVM_ACTIVE_CHAIN] ?? 'seiTestnet2'
           const activeChain: SupportedChain = message.payload?.isLeap
             ? lastEvmActiveChain
             : store[ACTIVE_CHAIN] ?? 'seiTestnet2'
@@ -373,50 +380,8 @@ const connectRemote = (remotePort: any) => {
         })
       }
 
-      case SUPPORTED_METHODS.GET_SECRET20_VIEWING_KEY: {
-        if (!payload.chainId || !payload.contractAddress) {
-          return sendResponse(`on${type.toUpperCase()}`, '', payload.id)
-        }
-        const storage = await browser.storage.local.get([VIEWING_KEYS, ACTIVE_WALLET])
-
-        if (!passwordManager.getPassword()) {
-          try {
-            await cosmosCustomOpenPopup('login', '?close-on-login=true')
-            await awaitUIResponse('user-logged-in')
-          } catch {
-            sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
-            break
-          }
-        }
-        const viewingKeys = storage[VIEWING_KEYS] || {}
-        const address = await getWalletAddress(payload.chainId)
-        try {
-          const key = viewingKeys[address][payload.contractAddress]
-          if (!key) {
-            throw Error()
-          }
-          const password = passwordManager.getPassword()
-          if (!password) throw new Error('unable to decrypt key')
-          let decryptKey = decrypt(key, password)
-          if (decryptKey === '') {
-            decryptKey = decrypt(key, password, 100)
-          }
-          sendResponse(`on${type.toUpperCase()}`, decryptKey, payload.id)
-        } catch (error) {
-          sendResponse(
-            `on${type.toUpperCase()}`,
-            {
-              error: "key doesn't exists",
-            },
-            payload.id,
-          )
-        }
-        break
-      }
-
       case SUPPORTED_METHODS.SUGGEST_CW20_TOKEN:
-      case SUPPORTED_METHODS.SUGGEST_TOKEN:
-      case SUPPORTED_METHODS.UPDATE_SECRET20_VIEWING_KEY: {
+      case SUPPORTED_METHODS.SUGGEST_TOKEN: {
         if (!payload.chainId || !payload.contractAddress) {
           return sendResponse(`on${type.toUpperCase()}`, '', payload.id)
         }
@@ -426,6 +391,10 @@ const connectRemote = (remotePort: any) => {
             if (validChainIds.length === 0) {
               return sendResponse(eventName, { error: 'Invalid chain id' }, payload.id)
             }
+            const payloadId = payload.id
+            const sendMessageToInvoker = (eventName: string, payload: any) => {
+              sendResponse(eventName, payload, payloadId)
+            }
             return browser.storage.local
               .set({
                 [REDIRECT_REQUEST]: {
@@ -434,7 +403,7 @@ const connectRemote = (remotePort: any) => {
                 },
               })
               .then(async () =>
-                openPopup('add-secret-token')
+                openPopup('add-secret-token', undefined, undefined, sendMessageToInvoker)
                   .then(() => {
                     return awaitEnableChainResponse()
                       .then(() => sendResponse(eventName, { payload: '' }, payload.id))
@@ -478,66 +447,6 @@ const connectRemote = (remotePort: any) => {
         }
 
         break
-      }
-
-      case SUPPORTED_METHODS.GET_PUBKEY_MSG:
-      case SUPPORTED_METHODS.GET_TX_ENCRYPTION_KEY_MSG:
-      case SUPPORTED_METHODS.REQUEST_ENCRYPT_MSG:
-      case SUPPORTED_METHODS.REQUEST_DECRYPT_MSG: {
-        if (!passwordManager.getPassword()) {
-          const store = await browser.storage.local.get([ACTIVE_WALLET])
-          if (!store[ACTIVE_WALLET]) {
-            try {
-              await cosmosCustomOpenPopup('login', '?close-on-login=true')
-              await awaitUIResponse('user-logged-in')
-            } catch {
-              sendResponse(`on${type.toUpperCase()}`, { error: 'Invalid chain id' }, payload.id)
-              break
-            }
-          }
-        }
-        getSeed(passwordManager.getPassword() ?? new TextEncoder().encode('')).then(
-          async (seed) => {
-            const ChainInfos = await getChains()
-            const secretLcdUrl = getRestUrl(ChainInfos, 'secret', false)
-            const result = new EncryptionUtilsImpl(secretLcdUrl, payload.chainId, seed)
-
-            if (type === SUPPORTED_METHODS.GET_PUBKEY_MSG) {
-              result
-                .getPubkey()
-                .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
-                .catch((error) =>
-                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-                )
-            } else if (type === SUPPORTED_METHODS.GET_TX_ENCRYPTION_KEY_MSG) {
-              result
-                .getTxEncryptionKey(payload.nonce)
-                .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
-                .catch((error) =>
-                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-                )
-            } else if (type === SUPPORTED_METHODS.REQUEST_ENCRYPT_MSG) {
-              result
-                .encrypt(payload.contractCodeHash, payload.msg)
-                .then((res) => sendResponse(`on${type.toUpperCase()}`, res, payload.id))
-                .catch((error) =>
-                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-                )
-            } else if (type === SUPPORTED_METHODS.REQUEST_DECRYPT_MSG) {
-              result
-                .decrypt(
-                  new Uint8Array(Object.values(payload.ciphertext)),
-                  new Uint8Array(Object.values(payload.nonce)),
-                )
-                .then((res) => {
-                  sendResponse(`on${type.toUpperCase()}`, res, payload.id)
-                })
-                .catch((error) =>
-                  sendResponse(`on${type.toUpperCase()}`, { error: error.message }, payload.id),
-                )
-            }
-          },
-        )
       }
     }
   }
@@ -597,7 +506,10 @@ const connectRemote = (remotePort: any) => {
 
       if (!passwordManager.getPassword()) {
         try {
-          await openPopup('login', '?close-on-login=true')
+          const sendMessageToInvoker = (eventName: string, payload: any) => {
+            sendResponse(eventName, payload, payloadId)
+          }
+          await openPopup('login', '?close-on-login=true', undefined, sendMessageToInvoker)
           await awaitUIResponse('user-logged-in')
           store = await browser.storage.local.get([ACTIVE_WALLET])
         } catch (e: any) {
@@ -1425,6 +1337,12 @@ const connectRemote = (remotePort: any) => {
   }
 
   portStream.on('data', async (data: any) => {
+    if ([data?.type, data?.method].includes(SUPPORTED_METHODS.OPEN_SIDE_PANEL)) {
+      await chrome.sidePanel.open({ windowId: data?.payload?.windowId })
+      sendResponse(`on${data?.type?.toUpperCase()}`, {}, data?.payload?.id)
+      return
+    }
+
     switch (data?.ecosystem) {
       case LINE_TYPE.ETHEREUM: {
         await evmRequestHandler(data)

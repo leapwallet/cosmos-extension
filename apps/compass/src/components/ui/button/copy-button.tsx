@@ -40,7 +40,7 @@ export const CopyButton = ({ children, ...props }: ButtonProps) => {
         props.onClick?.(e)
       }}
     >
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         {isCopied ? (
           <motion.img
             key='check'

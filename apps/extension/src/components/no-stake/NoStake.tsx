@@ -7,9 +7,9 @@ import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import SelectChain from 'pages/home/SelectChain'
-import SideNav from 'pages/home/side-nav'
 import React, { useState } from 'react'
 import { chainTagsStore } from 'stores/chain-infos-store'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 import { manageChainsStore } from 'stores/manage-chains-store'
 
 export const NoStake = observer(() => {
@@ -20,14 +20,11 @@ export const NoStake = observer(() => {
 
   return (
     <div className='relative w-full overflow-clip panel-height'>
-      <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
       <PopupLayout
         header={
           <Header
             action={{
-              onClick: function noRefCheck() {
-                setShowSideNav(true)
-              },
+              onClick: () => globalSheetsStore.toggleSideNav(),
               type: HeaderActionType.NAVIGATION,
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
@@ -55,7 +52,6 @@ export const NoStake = observer(() => {
         chainTagsStore={chainTagsStore}
         onClose={() => setShowChainSelector(false)}
       />
-      <BottomNav label={BottomNavLabel.Stake} />
     </div>
   )
 })

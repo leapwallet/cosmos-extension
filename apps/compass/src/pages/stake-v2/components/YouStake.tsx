@@ -245,7 +245,7 @@ const YouStake = observer(
           </div>
 
           <div className='flex items-center gap-1'>
-            <AnimatePresence exitBeforeEnter>
+            <AnimatePresence mode='wait'>
               {balanceLoading ? (
                 <Skeleton key={'loading'} className='w-16 h-5' asChild>
                   <motion.div

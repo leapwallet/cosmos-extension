@@ -12,7 +12,8 @@ import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
 import { useProviderFeatureFlags } from 'pages/swaps-v2/hooks'
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
+import { earnFeatureShowStore } from 'stores/earn-feature-show'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
 import { closeSidePanel } from 'utils/closeSidePanel'
@@ -120,12 +121,20 @@ export function useHardCodedActions() {
     }
   }
 
+  function handleNobleEarnClick() {
+    if (earnFeatureShowStore.show !== 'false') {
+      navigate('/home?openEarnUSDN=true')
+    } else {
+      navigate('/earn-usdn')
+    }
+  }
+
   function handleConnectLedgerClick() {
     const views = Browser.extension.getViews({ type: 'popup' })
     if (views.length === 0 && !isSidePanel()) {
-      navigate('/onboardingImport?walletName=hardwarewallet')
+      navigate('/onboardingImport?walletName=ledger')
     } else {
-      window.open('index.html#/onboardingImport?walletName=hardwarewallet')
+      window.open('index.html#/onboardingImport?walletName=ledger')
       closeSidePanel()
     }
   }
@@ -154,5 +163,6 @@ export function useHardCodedActions() {
     handleVoteClick,
     onSendClick,
     handleBridgeClick,
+    handleNobleEarnClick,
   }
 }

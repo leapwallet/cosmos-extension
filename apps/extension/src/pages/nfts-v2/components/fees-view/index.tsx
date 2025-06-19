@@ -9,7 +9,6 @@ import { useChainInfos } from 'hooks/useChainInfos'
 import { observer } from 'mobx-react-lite'
 import { NftDetailsType } from 'pages/nfts-v2/context'
 import React, { useEffect, useMemo, useState } from 'react'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 import { useSendNftCardContext } from '../send-nft'
 
@@ -32,7 +31,7 @@ export const FeesView: React.FC<FeesViewProps> = observer(
     const defaultGasPrice = useDefaultGasPrice(denoms, {
       activeChain,
       selectedNetwork: activeNetwork,
-      isSeiEvmTransaction: isCompassWallet() && collectionAddress.toLowerCase().startsWith('0x'),
+      isSeiEvmTransaction: false,
     })
 
     const chainInfos = useChainInfos()

@@ -21,6 +21,8 @@ export const LINE_TYPE = {
   APTOS: 'APTOS',
   ETHEREUM: 'ETHEREUM',
   BITCOIN: 'BITCOIN',
+  SOLANA: 'SOLANA',
+  SUI: 'SUI',
 };
 
 export type LineType = ValueOf<typeof LINE_TYPE>;

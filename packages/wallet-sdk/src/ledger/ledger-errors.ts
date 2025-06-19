@@ -44,3 +44,5 @@ export const deviceDisconnectedError = new LedgerError(
 export const sizeLimitExceededErrorUser = new LedgerError(
   'Error: Transaction size exceeds Ledger capacity. Please contact dApp developer for support.',
 );
+
+export const declinedSeiAppOpenError = 'Please open the Sei app on your Ledger device.';

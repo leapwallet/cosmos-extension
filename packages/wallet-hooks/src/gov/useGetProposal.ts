@@ -51,7 +51,7 @@ export function useGetProposal(
       let poolUrl = `/cosmos/staking/${version}/pool`;
       const proposerUrl = `${prefix}/gov/${version}/proposals/${id}/deposits`;
 
-      if (activeChain === 'initia') {
+      if (['initia', 'initiaEvm'].includes(activeChain)) {
         poolUrl = `/initia/mstaking/v1/pool`;
       }
 

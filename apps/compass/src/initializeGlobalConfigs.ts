@@ -8,12 +8,7 @@ import {
   setStorageLayer,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { setAppType, setBaseURL, setIsCompass } from '@leapwallet/cosmos-wallet-store'
-import {
-  initCachingLayer,
-  setCustomHeaders,
-  setLeapIntegratorID,
-  setMosaicAPIKey,
-} from '@leapwallet/elements-hooks'
+import { initCachingLayer, setCustomHeaders, setLeapIntegratorID } from '@leapwallet/elements-hooks'
 import { initCrypto, initStorage } from '@leapwallet/leap-keychain'
 import axios from 'axios'
 import { AsyncIDBStorage } from 'utils/asyncIDBStorage'
@@ -45,7 +40,6 @@ setCustomHeaders({
 })
 initCachingLayer(AsyncIDBStorage)
 setLeapIntegratorID(process.env.ELEMENTS_INTEGRATOR_ID as string)
-setMosaicAPIKey(process.env.MOSAIC_API_KEY as string)
 
 // keychain config
 initStorage(storageAdapter)

@@ -14,7 +14,7 @@ import Text from 'components/text'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { Images } from 'images'
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
 

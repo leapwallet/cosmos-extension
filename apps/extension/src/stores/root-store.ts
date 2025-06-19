@@ -5,13 +5,16 @@ import { addressStore } from './address-store-instance'
 import {
   aptosCoinDataStore,
   balanceStore,
+  bitcoinBalanceStore,
   currencyStore,
   cw20TokenBalanceStore,
   erc20TokenBalanceStore,
   evmBalanceStore,
-  marketDataStore,
   nmsStore,
+  percentageChangeDataStore,
   priceStore,
+  solanaCoinDataStore,
+  suiCoinDataStore,
 } from './balance-store'
 import { chainInfoStore, compassTokensAssociationsStore } from './chain-infos-store'
 import { stakeEpochStore } from './epoch-store'
@@ -38,10 +41,14 @@ export const rootBalanceStore = new RootBalanceStore(
   activeChainStore,
   chainInfoStore,
   evmBalanceStore,
+  solanaCoinDataStore,
   aptosCoinDataStore,
+  bitcoinBalanceStore,
+  suiCoinDataStore,
   compassTokensAssociationsStore,
   addressStore,
   selectedNetworkStore,
+  currencyStore,
 )
 
 export const rootStore = new RootStore(
@@ -52,7 +59,7 @@ export const rootStore = new RootStore(
   rootBalanceStore,
   rootStakeStore,
   priceStore,
-  marketDataStore,
+  percentageChangeDataStore,
   currencyStore,
   chainInfoStore,
   evmBalanceStore,

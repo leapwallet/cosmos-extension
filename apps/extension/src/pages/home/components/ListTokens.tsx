@@ -1,157 +1,133 @@
-import {
-  Token,
-  useGetChains,
-  useIsSeiEvmChain,
-  useSeiLinkedAddressState,
-} from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { EvmBalanceStore, RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
-import { AptosCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/aptos-balance-store'
-import { CaretDown, CaretUp } from '@phosphor-icons/react'
-import classNames from 'classnames'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
-import { Wallet } from 'hooks/wallet/useWallet'
+import { Token } from '@leapwallet/cosmos-wallet-hooks'
+import { CaretRight, CaretUp, MagnifyingGlassMinus } from '@phosphor-icons/react'
+import { SideNavMenuOpen } from 'components/header/sidenav-menu'
 import { observer } from 'mobx-react-lite'
-import React, { useCallback, useMemo, useState } from 'react'
-import { marketDataStore } from 'stores/balance-store'
-import { chainInfoStore, compassTokensAssociationsStore } from 'stores/chain-infos-store'
-import { AggregatedSupportedChain } from 'types/utility'
+import React, { useMemo, useState } from 'react'
+import { percentageChangeDataStore } from 'stores/balance-store'
+import { chainInfoStore } from 'stores/chain-infos-store'
+import { hideSmallBalancesStore } from 'stores/hide-small-balances-store'
 
 import { AssetCard } from './index'
 
-export function ListView({ assets }: { assets: Token[] }) {
-  return (
-    <>
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      {assets.map((asset: any) => (
-        <AssetCard
-          key={asset.id}
-          asset={asset}
-          style={{ marginBottom: 16 }}
-          marketDataStore={marketDataStore}
-          compassTokensAssociationsStore={compassTokensAssociationsStore}
-          chainInfosStore={chainInfoStore}
-        />
-      ))}
-    </>
-  )
-}
+const maxAssets = 10
+
+const sideNavDefaults = { openTokenDisplayPage: true }
 
 export const ListTokens = observer(
-  ({
-    balances: { allTokens },
-    evmBalances,
-    aptosBalances,
-  }: {
-    balances: RootBalanceStore
-    evmBalances: EvmBalanceStore
-    aptosBalances: AptosCoinDataStore
-  }) => {
-    const [showMaxAssets, setShowMaxAssets] = useState<number | 'all'>(10)
-    const activeChain = useActiveChain() as AggregatedSupportedChain
-    const getWallet = Wallet.useGetWallet()
-    const { addressLinkState } = useSeiLinkedAddressState(
-      getWallet,
-      activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : undefined,
-    )
-    const chains = useGetChains()
-    const evmBalance = evmBalances.evmBalance
-    const aptosBalance = aptosBalances.balances
-    const isAptosChain = chains?.[activeChain as SupportedChain]?.chainId.startsWith('aptos')
-    const isEvmOnlyChain = chains?.[activeChain as SupportedChain]?.evmOnlyChain
-    const isSeiEvmChain = useIsSeiEvmChain(
-      activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : activeChain,
-    )
-
-    allTokens = useMemo(() => {
-      if (isSeiEvmChain && !['done', 'unknown'].includes(addressLinkState)) {
-        const firstElement = allTokens?.[0]
-
-        if (firstElement) {
-          return [firstElement, ...(evmBalance?.evmBalance ?? []), ...(allTokens ?? []).slice(1)]
-        } else {
-          return [...(evmBalance?.evmBalance ?? []), ...(allTokens ?? []).slice(1)]
-        }
-      }
-
-      if (isEvmOnlyChain) {
-        return [...(evmBalance?.evmBalance ?? []), ...(allTokens ?? [])]
-      }
-      if (isAptosChain) {
-        return [...(aptosBalance ?? [])]
-      }
-
-      return allTokens
-    }, [
-      addressLinkState,
-      allTokens,
-      evmBalance?.evmBalance,
-      isEvmOnlyChain,
-      isSeiEvmChain,
-      isAptosChain,
-    ])
+  ({ allTokens, searchQuery }: { allTokens: Token[]; searchQuery: string }) => {
+    const [showMaxAssets, setShowMaxAssets] = useState(false)
 
     const assetsToShow = useMemo(() => {
-      return showMaxAssets === 'all' || allTokens.length < 10
-        ? allTokens
-        : allTokens?.slice(0, showMaxAssets)
-    }, [allTokens, showMaxAssets])
+      let truncatedAssets =
+        searchQuery || showMaxAssets || allTokens.length < maxAssets
+          ? allTokens
+          : allTokens?.slice(0, maxAssets)
 
-    const TextElementToShow = useMemo(() => {
-      const assetsLength = allTokens.length
-
-      if (assetsLength > 10) {
-        switch (showMaxAssets) {
-          case 'all':
-            return (
-              <>
-                <span>Collapse</span>
-                <CaretUp size={16} className='text-gray-600 dark:text-gray-400 ml-2' />
-              </>
-            )
-
-          default:
-            return (
-              <>
-                <span>View {assetsLength - showMaxAssets} more tokens</span>
-                <CaretDown size={16} className='text-gray-600 dark:text-gray-400 ml-2' />
-              </>
-            )
-        }
+      if (searchQuery) {
+        truncatedAssets = truncatedAssets.filter(
+          (asset) =>
+            asset.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            asset.name?.toLowerCase().includes(searchQuery.toLowerCase()),
+        )
       }
 
-      return null
-    }, [allTokens?.length, showMaxAssets])
-
-    const handleTextElementClick = useCallback(() => {
-      switch (showMaxAssets) {
-        case 'all':
-          setShowMaxAssets(10)
-          break
-
-        default:
-          setShowMaxAssets('all')
-          break
+      if (hideSmallBalancesStore.isHidden) {
+        return truncatedAssets.filter((asset) => Number(asset.usdValue) > 0.1)
       }
-    }, [showMaxAssets])
+
+      return truncatedAssets
+    }, [allTokens, showMaxAssets, hideSmallBalancesStore.isHidden, searchQuery])
+
+    const atLeastOneTokenHasSmallBalance = useMemo(() => {
+      return allTokens.some((asset) => Number(asset.usdValue) < 0.1)
+    }, [allTokens])
 
     return (
-      <div
-        className={classNames({
-          'w-full flex flex-col items-center justify-center': !!TextElementToShow,
-        })}
-      >
-        <ListView assets={assetsToShow} />
-        {TextElementToShow ? (
-          <button
-            className='flex items-center justify-center text-gray-600 dark:text-gray-400 text-[14px] font-bold'
-            onClick={handleTextElementClick}
-          >
-            {TextElementToShow}
-          </button>
-        ) : null}
+      <div className={'w-full flex flex-col items-center justify-center gap-3'}>
+        {assetsToShow.map((asset: any) => (
+          <AssetCard
+            key={asset.id}
+            asset={asset}
+            percentageChangeDataStore={percentageChangeDataStore}
+            chainInfosStore={chainInfoStore}
+          />
+        ))}
+
+        {searchQuery && assetsToShow.length === 0 && (
+          <div className='w-full flex items-center justify-center h-[276px] bg-secondary-100 rounded-2xl border border-secondary-200'>
+            <div className='flex items-center justify-center flex-col gap-4'>
+              <div className='p-5 bg-secondary-200 rounded-full flex items-center justify-center'>
+                <MagnifyingGlassMinus size={24} className='text-foreground' />
+              </div>
+              <p className='text-[18px] !leading-[24px] font-bold text-foreground text-center'>
+                No tokens found
+              </p>
+            </div>
+          </div>
+        )}
+
+        {allTokens.length > maxAssets && (
+          <TextElementToShow
+            allTokens={allTokens}
+            showMaxAssets={showMaxAssets}
+            searchQuery={searchQuery}
+            setShowMaxAssets={setShowMaxAssets}
+          />
+        )}
+
+        {hideSmallBalancesStore.isHidden && atLeastOneTokenHasSmallBalance && (
+          <p className='text-xs px-4 font-bold text-muted-foreground text-center'>
+            Tokens with small balances hidden (&lt;$0.1).
+            <br /> Customize settings{' '}
+            <SideNavMenuOpen className='inline underline' sideNavDefaults={sideNavDefaults}>
+              here
+            </SideNavMenuOpen>
+            .
+          </p>
+        )}
       </div>
     )
   },
 )
+
+const TextElementToShow = ({
+  allTokens,
+  showMaxAssets,
+  searchQuery,
+  setShowMaxAssets,
+}: {
+  allTokens: Token[]
+  showMaxAssets: boolean
+  searchQuery: string
+  setShowMaxAssets: (value: boolean) => void
+}) => {
+  const assetsLength = hideSmallBalancesStore.isHidden
+    ? allTokens.filter((asset) => Number(asset.usdValue) > 0.1).length
+    : allTokens.length
+
+  if (searchQuery || assetsLength <= maxAssets) {
+    return null
+  }
+
+  if (showMaxAssets) {
+    return (
+      <button
+        className='flex items-center text-sm font-bold w-full text-muted-foreground hover:text-foreground py-3.5 transition-colors'
+        onClick={() => setShowMaxAssets(!showMaxAssets)}
+      >
+        <CaretUp size={16} weight='bold' className='mr-1.5' />
+        <span>Collapse</span>
+      </button>
+    )
+  }
+
+  return (
+    <button
+      className='flex items-center text-sm font-bold w-full text-muted-foreground hover:text-foreground py-3.5 transition-colors'
+      onClick={() => setShowMaxAssets(!showMaxAssets)}
+    >
+      <CaretRight size={16} weight='bold' className='mr-1.5' />
+      <span>View {assetsLength - maxAssets} more tokens</span>
+    </button>
+  )
+}

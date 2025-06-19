@@ -2,10 +2,9 @@ import { Token } from '@leapwallet/cosmos-wallet-hooks'
 import { fromSmall, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import BigNumber from 'bignumber.js'
-import BottomModal from 'components/bottom-modal'
-import React, { useCallback, useMemo } from 'react'
+import BottomModal from 'components/new-bottom-modal'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 type AutoAdjustSheetProps = {
   onCancel: () => void
@@ -47,6 +46,15 @@ export default function AutoAdjustAmountSheet({
     }
   }, [onAdjust, onCancel, setTokenAmount, updatedAmount])
 
+  useEffect(() => {
+    if (updatedAmount) {
+      setTokenAmount(updatedAmount)
+      onAdjust()
+    } else {
+      onCancel()
+    }
+  }, [onAdjust, onCancel, setTokenAmount, updatedAmount])
+
   const displayTokenAmount = useMemo(() => {
     return `${tokenAmount} ${token.symbol ?? ''}`
   }, [token.symbol, tokenAmount])
@@ -59,12 +67,7 @@ export default function AutoAdjustAmountSheet({
   }, [token.symbol, updatedAmount])
 
   return (
-    <BottomModal
-      isOpen={isOpen}
-      onClose={onCancel}
-      closeOnBackdropClick={false}
-      title='Adjust for Transaction Fees'
-    >
+    <BottomModal isOpen={isOpen} onClose={onCancel} title='Adjust for Transaction Fees'>
       <div className='rounded-2xl p-4 dark:bg-gray-900 bg-white-100 dark:text-gray-200 text-gray-800'>
         <p>Insufficient {token.symbol ?? ''} balance to pay transaction fees.</p>
         <p className='mt-2'>
@@ -84,7 +87,7 @@ export default function AutoAdjustAmountSheet({
           Cancel Transaction
         </Buttons.Generic>
         <Buttons.Generic
-          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
+          color={Colors.green600}
           size='normal'
           className='w-full'
           title='Auto-adjust'

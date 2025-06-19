@@ -1,4 +1,4 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 import { makeAutoObservable } from 'mobx';
 
@@ -118,7 +118,7 @@ export class AggregateStakeStore {
       Object.values(perChainDelegations).reduce((acc, { apr }) => acc + (apr ?? 0), 0) /
       Object.values(perChainDelegations).length;
 
-    const isEveryChainLoading = Object.values(perChainDelegations).every((chain) => chain.loading);
+    const isEveryChainLoading = Object.values(perChainDelegations).every((chain) => chain.loading !== false);
     const isSomeChainLoading = Object.values(perChainDelegations).some((chain) => chain.loading);
 
     const totalClaimRewardsAmount = Object.values(perChainDelegations).reduce(
@@ -137,12 +137,15 @@ export class AggregateStakeStore {
   }
 
   private getChainKey(chain: SupportedChain) {
-    const cosmosAddress = this.addressStore.addresses?.cosmos;
+    const evmPubKey = this.addressStore?.pubKeys?.ethereum;
+    const cosmosAddress = this.addressStore?.addresses?.cosmos;
+    const evmAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : '';
+    const address = cosmosAddress || evmAddress;
     const chainId =
       this.selectedNetworkStore.selectedNetwork == 'testnet'
         ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
-    return `${cosmosAddress}-${chain}-${chainId}`;
+    return `${address}-${chain}-${chainId}`;
   }
 }

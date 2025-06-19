@@ -16,7 +16,7 @@ import currency from 'currency.js'
 import { Images } from 'images'
 import { ChainLogos } from 'images/logos'
 import React, { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Colors } from 'theme/colors'
 
 import BottomNav, { BottomNavLabel } from '~/components/bottom-nav'

@@ -6,7 +6,7 @@ import { DollarIcon } from 'icons/dollar-icon'
 import { SendIcon } from 'icons/send-icon'
 import { SwapIcon } from 'icons/swap-icon'
 import React, { useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 export function HomeButtons() {
   const navigate = useNavigate()

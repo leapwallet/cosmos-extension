@@ -2,10 +2,10 @@ import { isLedgerUnlocked, sleep } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { AuthContextType, useAuth } from 'context/auth-context'
 import { WalletAccount } from 'hooks/onboarding/types'
-import { useOnboarding } from 'hooks/onboarding/useOnboarding'
+import { useLedgerOnboarding, useOnboarding } from 'hooks/onboarding/useOnboarding'
 import useQuery from 'hooks/useQuery'
 import usePrevious from 'hooks/utility/usePrevious'
-import { Wallet } from 'hooks/wallet/useWallet'
+import { LedgerAppId, Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, {
   createContext,
@@ -13,6 +13,7 @@ import React, {
   SetStateAction,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -30,6 +31,7 @@ type StepName =
   | 'loading'
   | 'select-import-type'
   | 'import-ledger'
+  | 'select-ledger-app'
   | 'select-ledger-wallet'
   | 'select-wallet'
   | 'choose-password'
@@ -60,11 +62,15 @@ const getStepName = (config: {
   }
 
   if (currentStep === 1 && walletName === 'ledger') {
-    return 'import-ledger'
+    return 'select-ledger-app'
   }
 
   if (currentStep === 2 && walletName === 'ledger') {
     return 'select-ledger-wallet'
+  }
+
+  if (currentStep === 3 && walletName === 'ledger') {
+    return 'choose-password'
   }
 
   if (currentStep === 2) {
@@ -86,7 +92,7 @@ export type ImportWalletContextType = {
   loading: boolean
   setLoading: Dispatch<SetStateAction<boolean>>
   importWalletFromSeedPhrase: () => Promise<void>
-  importLedger: (fn: (flag: boolean) => Promise<void>) => Promise<void>
+  importLedger: (fn: (idxs?: Array<number>) => Promise<void>) => Promise<void>
   backToPreviousStep: () => void
   moveToNextStep: () => void
   moveToNextStepSocial: () => void
@@ -102,17 +108,18 @@ export type ImportWalletContextType = {
   walletName: ImportWalletType
   setWalletName: Dispatch<SetStateAction<ImportWalletType>>
   walletAccounts?: WalletAccount[]
-  getLedgerAccountDetails: (useEvmApp: boolean) => Promise<void>
-  getLedgerAccountDetailsForIdxs: (useEvmApp: boolean, idxs: number[]) => Promise<void>
+  //getLedgerAccountDetails: () => Promise<void>
+  getLedgerAccountDetailsForIdxs: (idxs?: Array<number>) => Promise<void>
   currentStepName: StepName
   socialLogin: ReturnType<typeof useWeb3Login>
   customWalletAccounts?: WalletAccount[]
   getCustomLedgerAccountDetails: (
-    useEvmApp: boolean,
     customDerivationPath: string,
     name: string,
     existingAddresses: string[] | undefined,
   ) => Promise<void>
+  selectedApp: LedgerAppId
+  setSelectedApp: (app: LedgerAppId) => void
 }
 
 const ImportWalletContext = createContext<ImportWalletContextType | null>(null)
@@ -139,16 +146,23 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
   const [existingAddresses, setExistingAddresses] = useState<string[] | undefined>(undefined)
 
   const {
-    walletAccounts,
-    customWalletAccounts,
+    walletAccounts: hotWalletAccounts = [],
     getAccountDetails,
     onOnboardingComplete,
-    onBoardingCompleteLedger,
-    getLedgerAccountDetails,
-    getLedgerAccountDetailsForIdxs,
     socialLogin,
-    getCustomLedgerAccountDetails,
   } = useOnboarding()
+
+  const {
+    onBoardingCompleteLedger,
+    //getLedgerAccountDetails,
+    getLedgerAccountDetailsForIdxs,
+    customWalletAccounts,
+    getCustomLedgerAccountDetails,
+    selectedApp,
+    setSelectedApp,
+    walletAccounts: ledgerWalletAccounts = [],
+    customWalletAccounts: ledgerCustomWalletAccounts = [],
+  } = useLedgerOnboarding()
 
   const navigateToSuccess = async (delay = true) => {
     if (!noAccount) {
@@ -168,17 +182,19 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
     try {
       setLoading(true)
       if (isLedger) {
-        await onBoardingCompleteLedger(
-          password,
-          Object.entries(selectedIds)
-            .filter(([, selected]) => selected)
-            .map(
-              ([id]) =>
-                [...(customWalletAccounts ?? []), ...(walletAccounts ?? [])]?.find(
-                  (w) => (w.path ?? w.index).toString() === id,
-                )?.address,
-            ) as string[],
-        )
+        const walletAccounts = isLedger
+          ? ledgerWalletAccounts.concat(ledgerCustomWalletAccounts)
+          : hotWalletAccounts
+        const walletsToImport = Object.entries(selectedIds)
+          .filter(([, selected]) => selected)
+          .map(
+            ([id]) =>
+              [...(customWalletAccounts ?? []), ...(walletAccounts ?? [])]?.find(
+                (w) => (w.path ?? w.index).toString() === id,
+              )?.address,
+          ) as string[]
+
+        await onBoardingCompleteLedger(password, walletsToImport)
       } else if (walletName === 'social') {
         const [privateKey, userInfo] = await Promise.all([
           socialLogin.getPrivateKey(),
@@ -237,7 +253,16 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
     }
     if (currentStep + 1 === 2 && isPrivateKey && !passwordStore.password) {
       setCurrentStep(currentStep + 2)
-    } else if (currentStep === 2 && !noAccount) {
+    } else if (currentStep === 2 && !noAccount && !isLedger) {
+      try {
+        if (passwordStore.password) {
+          await onOnboardingCompleted(passwordStore.password)
+        }
+      } catch (_) {
+        //
+      }
+      return navigateToSuccess(false)
+    } else if (currentStep === 2 && !noAccount && isLedger) {
       try {
         if (passwordStore.password) {
           await onOnboardingCompleted(passwordStore.password)
@@ -288,45 +313,26 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
     await moveToNextStep()
   }
 
-  const importLedger = async (fn: (flag: boolean) => Promise<void>) => {
+  const importLedger = async (fn: (idxs?: Array<number>) => Promise<void>) => {
     if (isLedger) {
-      try {
-        setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step2)
-        await fn(false)
-        setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step3)
-        await moveToNextStep()
-      } catch {
-        setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step1)
-      }
+      setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step2)
+      await fn()
+      setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step3)
+      await moveToNextStep()
     }
   }
 
   const currentStepName = getStepName({ currentStep, walletName, loading })
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout
-    const fn = async () => {
-      isLedgerUnlocked('Cosmos').then((unlocked) => {
-        if (unlocked) {
-          setLedgerConnectionStatus(LEDGER_CONNECTION_STEP.step1)
-          clearTimeout(timeout)
-        } else {
-          timeout = setTimeout(async () => {
-            await fn()
-          }, 1000)
-        }
-      })
-    }
-    if (isLedger) {
-      fn()
-    }
-  }, [isLedger])
-
-  useEffect(() => {
     const walletName = query.get('walletName')
+    const app = query.get('app')
     if (walletName === 'ledger') {
       setWalletName('ledger')
       setCurrentStep(1)
+    }
+    if (app === 'sei') {
+      setSelectedApp('sei')
     }
   }, [query])
 
@@ -344,14 +350,25 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
     fn()
   }, [])
 
-  useEffect(() => {
+  const selectIds = (walletAccounts: WalletAccount[]) => {
     if (walletAccounts?.length) {
       const [firstWallet] = walletAccounts
       setSelectedIds({
         [firstWallet.path ?? firstWallet.index]: !existingAddresses?.includes(firstWallet.address),
       })
     }
-  }, [existingAddresses, walletAccounts])
+  }
+
+  useEffect(() => {
+    if (!isLedger) return
+    const walletAccounts = ledgerWalletAccounts.concat(ledgerCustomWalletAccounts)
+    selectIds(walletAccounts)
+  }, [existingAddresses, isLedger, ledgerWalletAccounts, ledgerCustomWalletAccounts])
+
+  useEffect(() => {
+    if (isLedger) return
+    selectIds(hotWalletAccounts)
+  }, [existingAddresses, hotWalletAccounts, isLedger])
 
   return (
     <ImportWalletContext.Provider
@@ -378,13 +395,17 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
         setSelectedIds,
         walletName,
         setWalletName,
-        getLedgerAccountDetails,
+        //getLedgerAccountDetails,
         getLedgerAccountDetailsForIdxs,
-        walletAccounts,
+        walletAccounts: isLedger
+          ? ledgerWalletAccounts.concat(ledgerCustomWalletAccounts)
+          : hotWalletAccounts,
         currentStepName,
         socialLogin,
         customWalletAccounts,
         getCustomLedgerAccountDetails,
+        selectedApp,
+        setSelectedApp,
       }}
     >
       {children}

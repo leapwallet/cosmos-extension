@@ -12,7 +12,7 @@ import {
   useStakeTx,
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { isBabylon, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Delegation,
   Provider,
@@ -27,31 +27,24 @@ import {
   UndelegationsStore,
   ValidatorsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { CaretDown, GasPump } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
-import classNames from 'classnames'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import { DisplayFeeValue, GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
-import PopupLayout from 'components/layout/popup-layout'
 import { YouStakeSkeleton } from 'components/Skeletons/StakeSkeleton'
-import Text from 'components/text'
 import { EventName } from 'config/analytics'
 import { addSeconds } from 'date-fns'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
+import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
-import { isSidePanel } from 'utils/isSidePanel'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { timeLeft } from 'utils/timeLeft'
 
-import InactiveValidatorCard from './components/InactiveValidatorCard'
 import InsufficientBalanceCard from './components/InsufficientBalanceCard'
 import ReviewStakeTx, { getButtonTitle } from './components/ReviewStakeTx'
 import SelectValidatorCard from './components/SelectValidatorCard'
@@ -59,6 +52,7 @@ import SelectValidatorSheet from './components/SelectValidatorSheet'
 import YouStake from './components/YouStake'
 import useGetWallet = Wallet.useGetWallet
 
+import { Button } from 'components/ui/button'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 
@@ -66,7 +60,8 @@ import AutoAdjustAmountSheet from './components/AutoAdjustModal'
 import { SelectProviderCard } from './restaking/SelectProviderCard'
 import SelectProviderSheet from './restaking/SelectProviderSheet'
 import SuggestSelectProviderSheet from './restaking/SuggestSelectProviderSheet'
-import { StakeTxnPageState } from './StakeTxnPage'
+import { StakeHeader } from './stake-header'
+import { StakeTxnSheet } from './StakeTxnSheet'
 
 export type StakeInputPageState = {
   mode: STAKE_MODE
@@ -118,7 +113,6 @@ const StakeInputPage = observer(
     nmsStore,
   }: StakeInputPageProps) => {
     const [selectedValidator, setSelectedValidator] = useState<Validator | undefined>()
-    const [showSelectValidatorSheet, setShowSelectValidatorSheet] = useState(false)
     const [showSelectProviderSheet, setShowSelectProviderSheet] = useState(false)
     const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
     const [showReviewStakeTx, setShowReviewStakeTx] = useState(false)
@@ -127,12 +121,15 @@ const StakeInputPage = observer(
     const [loadingSelectedValidator, setLoadingSelectedValidator] = useState(false)
     const [showAdjustAmountSheet, setShowAdjustAmountSheet] = useState(false)
     const [adjustAmount, setAdjustAmount] = useState(false)
+    const [claimTxMode, setClaimTxMode] = useState<STAKE_MODE | 'CLAIM_AND_DELEGATE' | null>(null)
 
     const navigate = useNavigate()
     const location = useLocation()
+    const query = useQuery()
+    const paramValidatorAddress = query.get('validatorAddress') ?? undefined
 
     const {
-      toValidator,
+      toValidator: _toValidator,
       fromValidator,
       mode = 'DELEGATE',
       delegation,
@@ -146,8 +143,9 @@ const StakeInputPage = observer(
         sessionStorage.getItem('navigate-stake-input-state') ?? 'null',
       )
 
-      return (location?.state ?? navigateStakeInputState) as StakeInputPageState
+      return (location?.state || navigateStakeInputState || {}) as StakeInputPageState
     }, [location?.state])
+
     const [selectedProvider, setSelectedProvider] = useState(toProvider)
 
     const _activeChain = useActiveChain()
@@ -165,6 +163,10 @@ const StakeInputPage = observer(
     const chainValidators = validatorsStore.validatorsForChain(activeChain)
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
+
+    useEffect(() => {
+      validatorsStore.ensureValidatorsLoaded(activeChain, activeNetwork)
+    }, [activeChain, activeNetwork, validatorsStore])
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const { network } = useStaking(
@@ -189,6 +191,7 @@ const StakeInputPage = observer(
         ),
       [network],
     )
+
     const validators = useMemo(
       () =>
         chainValidators.validatorData.validators?.reduce((acc, validator) => {
@@ -196,6 +199,14 @@ const StakeInputPage = observer(
           return acc
         }, {} as Record<string, Validator>),
       [chainValidators.validatorData.validators],
+    )
+
+    const hasDefaultValidator = useMemo(() => {
+      return Object.values(validators ?? {}).some((v) => v.custom_attributes?.priority === 0)
+    }, [validators])
+
+    const [showSelectValidatorSheet, setShowSelectValidatorSheet] = useState(
+      (mode === 'DELEGATE' && !hasDefaultValidator) || (mode === 'REDELEGATE' && !fromProvider),
     )
     const apr = network?.validatorAprs
     const { data: featureFlags } = useFeatureFlags()
@@ -280,6 +291,16 @@ const StakeInputPage = observer(
       [consensusValidators, fromValidator?.address],
     )
 
+    const toValidator = useMemo(() => {
+      if (_toValidator) {
+        return _toValidator
+      }
+      if (paramValidatorAddress) {
+        return validators?.[paramValidatorAddress]
+      }
+      return undefined
+    }, [_toValidator, paramValidatorAddress, validators])
+
     const activeProviders = useMemo(() => {
       const _providers = [...providers]
       if (mode === 'REDELEGATE') {
@@ -311,6 +332,7 @@ const StakeInputPage = observer(
         setLoadingSelectedValidator(true)
         if (toValidator) {
           setSelectedValidator(toValidator)
+          setShowSelectValidatorSheet(false)
         } else {
           if (mode === 'DELEGATE') {
             const validator = Object.values(validators ?? {}).find(
@@ -343,32 +365,13 @@ const StakeInputPage = observer(
     )
 
     const txCallback = useCallback(() => {
-      const state = {
-        validator: selectedValidator,
-        provider: selectedProvider,
-        mode,
-        forceChain: activeChain,
-        forceNetwork: activeNetwork,
-      } as StakeTxnPageState
-
-      sessionStorage.setItem('navigate-stake-pending-txn-state', JSON.stringify(state))
-      navigate('/stake/pending-txn', {
-        state,
-      })
-
-      mixpanel.track(EventName.TransactionSigned, {
-        transactionType:
-          mode === 'REDELEGATE' && fromProvider ? 'provider_redelegate' : getTransactionType(mode),
-      })
-    }, [
-      selectedValidator,
-      selectedProvider,
-      mode,
-      activeChain,
-      activeNetwork,
-      navigate,
-      fromProvider,
-    ])
+      setClaimTxMode(mode)
+      setShowReviewStakeTx(false)
+      // mixpanel.track(EventName.TransactionSigned, {
+      //   transactionType:
+      //     mode === 'REDELEGATE' && fromProvider ? 'provider_redelegate' : getTransactionType(mode),
+      // })
+    }, [fromProvider, mode])
 
     const onSubmit = useCallback(async () => {
       try {
@@ -435,200 +438,187 @@ const StakeInputPage = observer(
     const delegationBalanceLoading =
       delegationsStore.delegationsForChain(activeChain)?.loadingDelegations
 
+    useEffect(() => {
+      return () => {
+        if (!location.state) {
+          sessionStorage.removeItem('navigate-stake-input-state')
+        }
+      }
+    }, [location.state])
+
     return (
       <>
-        <PopupLayout
-          header={
-            <Header
-              action={{
-                onClick: () => navigate(-1),
-                type: HeaderActionType.BACK,
-              }}
-              title={mode === 'UNDELEGATE' ? 'Unstaking' : 'Staking'}
-            />
-          }
-        >
-          <div className='space-y-4 overflow-y-auto p-4'>
-            {fromValidator && (
-              <SelectValidatorCard
-                title='Current Validator'
-                selectedValidator={fromValidator}
-                setShowSelectValidatorSheet={setShowSelectValidatorSheet}
-                selectDisabled={true}
-              />
-            )}
-
-            {fromProvider && (
-              <SelectProviderCard
-                title='Current Provider'
-                selectedProvider={fromProvider}
-                setShowSelectProviderSheet={setShowSelectProviderSheet}
-                selectDisabled={true}
-                rootDenomsStore={rootDenomsStore}
-              />
-            )}
-
-            <YouStake
-              amount={amount}
-              setAmount={setAmount}
-              adjustAmount={adjustAmount}
-              setAdjustAmount={setAdjustAmount}
-              token={token}
-              fees={customFee?.amount[0]}
-              hasError={hasError}
-              setHasError={setHasError}
-              mode={mode}
-              tokenLoading={tokenLoading}
-              delegationBalance={delegationBalance}
-              rootDenomsStore={rootDenomsStore}
-              activeChain={activeChain}
-              activeNetwork={activeNetwork}
-              delegationBalanceLoading={delegationBalanceLoading}
-            />
-            {!fromProvider &&
-              (loadingSelectedValidator ? (
-                <YouStakeSkeleton />
-              ) : (
+        {selectedValidator || fromProvider ? (
+          <>
+            <StakeHeader />
+            <div className='flex flex-col gap-y-5 px-6 pb-6 pt-7 w-full flex-1 h-[calc(100%-132px)] overflow-y-scroll bg-secondary'>
+              {fromValidator && (
                 <SelectValidatorCard
-                  title={
-                    activeChain === 'lava' &&
-                    featureFlags?.restaking?.extension === 'active' &&
-                    mode === 'DELEGATE'
-                      ? 'Stake to Validator'
-                      : 'Validator'
-                  }
-                  selectedValidator={selectedValidator}
+                  title='Current Validator'
+                  selectedValidator={fromValidator}
                   setShowSelectValidatorSheet={setShowSelectValidatorSheet}
-                  selectDisabled={mode === 'UNDELEGATE' && !!toValidator}
+                  selectDisabled={true}
+                  apr={apr && apr[fromValidator?.address ?? '']}
                 />
-              ))}
+              )}
 
-            {activeChain === 'lava' &&
-              featureFlags?.restaking?.extension === 'active' &&
-              (mode === 'DELEGATE' ||
-                (mode === 'REDELEGATE' && fromProvider) ||
-                (mode === 'UNDELEGATE' && toProvider)) && (
+              {fromProvider && (
                 <SelectProviderCard
-                  title={mode === 'DELEGATE' ? 'Restake to Provider' : 'Provider'}
-                  optional={mode === 'DELEGATE'}
-                  selectedProvider={selectedProvider}
+                  title='Current Provider'
+                  selectedProvider={fromProvider}
                   setShowSelectProviderSheet={setShowSelectProviderSheet}
-                  selectDisabled={mode === 'UNDELEGATE'}
+                  selectDisabled={true}
                   rootDenomsStore={rootDenomsStore}
                 />
               )}
 
-            {token && new BigNumber(token.amount).isEqualTo(0) && (
-              <InsufficientBalanceCard
+              <YouStake
+                amount={amount}
+                setAmount={setAmount}
+                adjustAmount={adjustAmount}
+                setAdjustAmount={setAdjustAmount}
+                token={token}
+                fees={customFee?.amount[0]}
+                hasError={hasError}
+                setHasError={setHasError}
+                mode={mode}
+                tokenLoading={tokenLoading}
+                delegationBalance={delegationBalance}
                 rootDenomsStore={rootDenomsStore}
                 activeChain={activeChain}
                 activeNetwork={activeNetwork}
+                delegationBalanceLoading={delegationBalanceLoading}
               />
-            )}
-          </div>
+              {!fromProvider &&
+                (loadingSelectedValidator ? (
+                  <YouStakeSkeleton />
+                ) : (
+                  <SelectValidatorCard
+                    title={
+                      activeChain === 'lava' &&
+                      featureFlags?.restaking?.extension === 'active' &&
+                      mode === 'DELEGATE'
+                        ? 'Stake to Validator'
+                        : 'Validator'
+                    }
+                    selectedValidator={selectedValidator}
+                    setShowSelectValidatorSheet={setShowSelectValidatorSheet}
+                    selectDisabled={mode === 'UNDELEGATE' && !!toValidator}
+                    apr={apr && apr[selectedValidator?.address ?? '']}
+                  />
+                ))}
 
-          <div className={classNames('absolute bottom-4 px-3', { 'mt-auto': isSidePanel() })}>
-            {new BigNumber(amount).isGreaterThan(0) && (
-              <div className='flex items-center justify-between pt-2 px-2'>
-                {activeChain !== 'babylon' && (
-                  <div className='flex gap-x-1'>
-                    <Text
-                      size='xs'
-                      color='text-gray-700 dark:text-gray-400'
-                      className='font-medium text-center'
-                    >
-                      Unstaking period
-                    </Text>
-                    <Text
-                      size='xs'
-                      color='text-black-100 dark:text-white-100'
-                      className='font-medium'
-                    >
-                      {unstakingPeriod}
-                    </Text>
-                  </div>
+              {activeChain === 'lava' &&
+                featureFlags?.restaking?.extension === 'active' &&
+                (mode === 'DELEGATE' ||
+                  (mode === 'REDELEGATE' && fromProvider) ||
+                  (mode === 'UNDELEGATE' && toProvider)) && (
+                  <SelectProviderCard
+                    title={mode === 'DELEGATE' ? 'Restake to Provider' : 'Provider'}
+                    optional={mode === 'DELEGATE'}
+                    selectedProvider={selectedProvider}
+                    setShowSelectProviderSheet={setShowSelectProviderSheet}
+                    selectDisabled={mode === 'UNDELEGATE'}
+                    rootDenomsStore={rootDenomsStore}
+                  />
                 )}
 
-                {displayFeeValue?.fiatValue && (
-                  <div
-                    onClick={() => setShowFeesSettingSheet(true)}
-                    className='flex gap-x-1 items-center hover:cursor-pointer ml-auto'
-                  >
-                    <GasPump size={20} className='text-black-100 dark:text-white-100' />
-                    <Text
-                      size='xs'
-                      color='text-black-100 dark:text-white-100'
-                      className='font-medium'
-                    >
-                      {displayFeeValue?.fiatValue}
-                    </Text>
-                    <CaretDown size={16} className='text-black-100 dark:text-white-100' />
-                  </div>
-                )}
-              </div>
-            )}
+              {token && new BigNumber(token.amount).isEqualTo(0) && (
+                <InsufficientBalanceCard
+                  rootDenomsStore={rootDenomsStore}
+                  activeChain={activeChain}
+                  activeNetwork={activeNetwork}
+                />
+              )}
 
-            <Buttons.Generic
-              size='normal'
-              className='mt-2'
-              color={
-                hasError
-                  ? Colors.red300
-                  : !isCompassWallet()
-                  ? Colors.green600
-                  : Colors.compassPrimary
-              }
-              onClick={() => {
-                if (
-                  mode === 'DELEGATE' &&
-                  parseFloat(amount) + (displayFeeValue?.value ?? 0) >
-                    parseFloat(token?.amount ?? '')
-                ) {
-                  setShowAdjustAmountSheet(true)
-                } else {
+              {new BigNumber(amount).isGreaterThan(0) && (
+                <div className='flex items-center justify-between px-2'>
+                  {!isBabylon(activeChain) && (
+                    <div className='text-xs font-medium'>
+                      <span className='text-muted-foreground'>Unstaking period: </span>
+                      <span>{unstakingPeriod}</span>
+                    </div>
+                  )}
+
+                  {displayFeeValue?.fiatValue && (
+                    <button
+                      onClick={() => setShowFeesSettingSheet(true)}
+                      className='flex items-center hover:cursor-pointer ml-auto gap-1 group'
+                    >
+                      <GasPump size={16} />
+                      <span className='text-xs text-secondary-800 font-medium group-hover:text-foreground transition-colors'>
+                        {displayFeeValue?.fiatValue}
+                      </span>
+                      <CaretDown
+                        size={12}
+                        className='text-secondary-600 group-hover:text-secondary-800 transition-colors'
+                      />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className='flex flex-col gap-4 w-full p-4 mt-auto sticky bottom-0 bg-secondary-100'>
+              <Button
+                className='w-full'
+                variant={hasError ? 'destructive' : 'default'}
+                onClick={() => {
                   if (
-                    activeChain === 'lava' &&
-                    featureFlags?.restaking?.extension === 'active' &&
                     mode === 'DELEGATE' &&
-                    !selectedProvider
+                    parseFloat(amount) + (displayFeeValue?.value ?? 0) >
+                      parseFloat(token?.amount ?? '')
                   ) {
-                    setShowSuggestSelectProviderSheet(true)
+                    setShowAdjustAmountSheet(true)
                   } else {
-                    if (activeWallet?.watchWallet) {
-                      importWatchWalletSeedPopupStore.setShowPopup(true)
+                    if (
+                      activeChain === 'lava' &&
+                      featureFlags?.restaking?.extension === 'active' &&
+                      mode === 'DELEGATE' &&
+                      !selectedProvider
+                    ) {
+                      setShowSuggestSelectProviderSheet(true)
                     } else {
-                      setShowReviewStakeTx(true)
+                      if (activeWallet?.watchWallet) {
+                        importWatchWalletSeedPopupStore.setShowPopup(true)
+                      } else {
+                        setShowReviewStakeTx(true)
+                      }
                     }
                   }
+                }}
+                disabled={
+                  !new BigNumber(amount).isGreaterThan(0) ||
+                  hasError ||
+                  ((fromValidator || mode === 'DELEGATE') && !selectedValidator) ||
+                  (fromProvider && !selectedProvider) ||
+                  !!ledgerError
                 }
-              }}
-              disabled={
-                !new BigNumber(amount).isGreaterThan(0) ||
-                hasError ||
-                ((fromValidator || mode === 'DELEGATE') && !selectedValidator) ||
-                (fromProvider && !selectedProvider) ||
-                !!ledgerError
-              }
-            >
-              {hasError ? 'Insufficient Balance' : `Review ${getButtonTitle(mode, !!fromProvider)}`}
-            </Buttons.Generic>
-          </div>
-        </PopupLayout>
-
+              >
+                {hasError
+                  ? 'Insufficient Balance'
+                  : `Review ${getButtonTitle(mode, !!fromProvider)}`}
+              </Button>
+            </div>
+          </>
+        ) : null}
         <SelectValidatorSheet
           isVisible={showSelectValidatorSheet}
-          onClose={() => setShowSelectValidatorSheet(false)}
+          onClose={() => {
+            if (!selectedValidator) {
+              navigate(-1)
+            } else {
+              setShowSelectValidatorSheet(false)
+            }
+          }}
           onValidatorSelect={(validator) => {
             setSelectedValidator(validator)
             setShowSelectValidatorSheet(false)
           }}
           validators={activeValidators}
           apr={apr}
-          rootDenomsStore={rootDenomsStore}
           forceChain={activeChain}
           forceNetwork={activeNetwork}
         />
-
         {activeChain === 'lava' && featureFlags?.restaking?.extension === 'active' && (
           <SelectProviderSheet
             isVisible={showSelectProviderSheet}
@@ -640,7 +630,6 @@ const StakeInputPage = observer(
             providers={activeProviders}
           />
         )}
-
         {(selectedValidator || (mode === 'REDELEGATE' && selectedProvider)) && (
           <ReviewStakeTx
             isVisible={showReviewStakeTx}
@@ -659,7 +648,6 @@ const StakeInputPage = observer(
             ledgerError={ledgerError}
           />
         )}
-
         {mode === 'DELEGATE' && token && customFee && showAdjustAmountSheet ? (
           <AutoAdjustAmountSheet
             tokenAmount={amount}
@@ -677,7 +665,6 @@ const StakeInputPage = observer(
             isOpen={showAdjustAmountSheet}
           />
         ) : null}
-
         {activeChain === 'lava' &&
           featureFlags?.restaking?.extension === 'active' &&
           mode === 'DELEGATE' && (
@@ -694,7 +681,16 @@ const StakeInputPage = observer(
               }}
             />
           )}
-
+        <StakeTxnSheet
+          mode={claimTxMode}
+          isOpen={!!claimTxMode}
+          onClose={() => {
+            setAmount('')
+            setClaimTxMode(null)
+          }}
+          forceChain={activeChain}
+          forceNetwork={activeNetwork}
+        />
         <GasPriceOptions
           recommendedGasLimit={recommendedGasLimit}
           gasLimit={userPreferredGasLimit?.toString() ?? recommendedGasLimit}

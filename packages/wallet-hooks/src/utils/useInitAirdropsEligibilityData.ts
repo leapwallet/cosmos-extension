@@ -49,6 +49,8 @@ export type AirdropEligibilityInfo = {
 };
 
 export function useInitAirdropsEligibilityData() {
+  const [airdropsEligibilityDataUrl, setAirdropsEligibilityDataUrl] = useState<string>();
+
   const storage = useGetStorageLayer();
   const { airdropsData, setAirdropsData } = useAirdropsDataStore();
   const { setAirdropsEligibilityData } = useAirdropsEligibilityDataStore();
@@ -63,7 +65,12 @@ export function useInitAirdropsEligibilityData() {
 
     initResourceFromS3({
       storage,
-      setResource: (val) => setAirdropsData(val?.airdrops),
+      setResource: (val) => {
+        setAirdropsData(val?.airdrops);
+        if (val?.url) {
+          setAirdropsEligibilityDataUrl(val?.url);
+        }
+      },
       resourceKey: AIRDROPS_DATA,
       resourceURL: AIRDROPS_DATA_URL,
       lastUpdatedAtKey: AIRDROPS_DATA_LAST_UPDATED_AT,
@@ -99,6 +106,7 @@ export function useInitAirdropsEligibilityData() {
     const queryRes = await queryAddresses(
       addresses.current,
       Object.keys(airdropsMetadata)?.map((airdropId) => Number(airdropId)) ?? [],
+      airdropsEligibilityDataUrl,
     );
 
     if (Object.keys(queryRes)?.length > 0) {

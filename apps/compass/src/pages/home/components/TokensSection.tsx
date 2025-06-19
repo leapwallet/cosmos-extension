@@ -93,7 +93,7 @@ export const TokensSection = observer(
         ) : balanceError ? (
           <NativeTokenPlaceholder />
         ) : (
-          <AnimatePresence exitBeforeEnter>
+          <AnimatePresence mode='wait'>
             {isTokenLoading ? (
               <AggregatedLoadingList />
             ) : (

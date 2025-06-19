@@ -11,11 +11,10 @@ import { MessageTypes } from 'config/message-types'
 import { BG_RESPONSE } from 'config/storage-keys'
 import { getChainOriginStorageKey, getSupportedChains } from 'extension-scripts/utils'
 import React, { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { evmBalanceStore } from 'stores/balance-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import Browser from 'webextension-polyfill'
 
 import { ArrowHeader, Loading, MessageSignature, SignTransaction } from './components'
@@ -120,7 +119,7 @@ const withSeiEvmTxnSigningRequest = (Component: React.FC<any>) => {
         const storageKey = getChainOriginStorageKey(txnData.origin)
 
         const storage = await Browser.storage.local.get(storageKey)
-        const defaultChain = isCompassWallet() ? 'seiTestnet2' : 'ethereum'
+        const defaultChain = 'ethereum'
         const { chainKey = defaultChain, network = 'mainnet' } = storage[storageKey] || {}
         const supportedChains = await getSupportedChains()
         const chainData = supportedChains[chainKey as SupportedChain]

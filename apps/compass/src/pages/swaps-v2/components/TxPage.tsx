@@ -3,18 +3,15 @@ import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { RootCW20DenomsStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import { TRANSFER_STATE, TXN_STATUS } from '@leapwallet/elements-core'
 import { CaretRight } from '@phosphor-icons/react'
-import classNames from 'classnames'
 import BottomModal from 'components/bottom-modal'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import Loader from 'components/loader/Loader'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
-import { PageName } from 'config/analytics'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SourceChain, SourceToken, SwapFeeInfo, SwapTxAction } from 'types/swap'
 
 import { RoutingInfo, useExecuteTx, useOnline, useTransactions } from '../hooks'
@@ -84,6 +81,7 @@ export const TxPage = observer(
     const [initialFeeAmount, setFeeAmount] = useState('')
 
     const isOnline = useOnline()
+    const prevIsOnline = useRef<boolean | null>(null)
 
     const navigate = useNavigate()
 
@@ -156,70 +154,6 @@ export const TxPage = observer(
         setShowLedgerPopupText,
       })
 
-    const isTrackingInProgress = useMemo(() => {
-      if (isLoading) {
-        return true
-      }
-      if (txStatus) {
-        const isTxnComplete = txStatus.every((txn) => txn.isComplete)
-        const isFailed = txStatus.some((txn) => txn.status === TXN_STATUS.FAILED)
-        return !(isTxnComplete || isFailed)
-      }
-      return true
-    }, [isLoading, txStatus])
-
-    const pageViewEventAdditionalProperties = useMemo(() => {
-      let inAmountDollarValue, outAmountDollarValue
-      if (
-        sourceToken?.usdPrice &&
-        !isNaN(parseFloat(sourceToken?.usdPrice)) &&
-        inAmount &&
-        !isNaN(parseFloat(inAmount))
-      ) {
-        inAmountDollarValue = parseFloat(sourceToken?.usdPrice) * parseFloat(inAmount)
-      }
-      if (
-        destinationToken?.usdPrice &&
-        !isNaN(parseFloat(destinationToken?.usdPrice)) &&
-        amountOut &&
-        !isNaN(parseFloat(amountOut))
-      ) {
-        outAmountDollarValue = parseFloat(destinationToken.usdPrice) * parseFloat(amountOut)
-      }
-      const properties = {
-        fromToken: sourceToken?.symbol,
-        fromTokenAmount: inAmountDollarValue,
-        fromChain: sourceChain?.chainName ?? '',
-        toToken: destinationToken?.symbol,
-        toChain: destinationChain?.chainName,
-        toTokenAmount: outAmountDollarValue,
-        transactionCount: routingInfo?.route?.transactionCount,
-      }
-      if (isTrackingInProgress) {
-        return properties
-      }
-      return isSuccessFull
-        ? { transactionStatus: 'Success', ...properties }
-        : { transactionStatus: 'Failure', ...properties }
-    }, [
-      amountOut,
-      destinationChain?.chainName,
-      destinationToken?.symbol,
-      destinationToken?.usdPrice,
-      inAmount,
-      isSuccessFull,
-      isTrackingInProgress,
-      routingInfo?.route?.transactionCount,
-      sourceChain?.chainName,
-      sourceToken?.symbol,
-      sourceToken?.usdPrice,
-    ])
-
-    usePageView(
-      isTrackingInProgress ? PageName.SwapsTracking : PageName.SwapsCompletion,
-      pageViewEventAdditionalProperties,
-    )
-
     const failedActionWasSwap = useMemo(() => {
       // !: Here 0 is hardcoded since we allow only one step transactions
       const transferSequence = txStatus?.[0]?.responses
@@ -248,8 +182,11 @@ export const TxPage = observer(
     }, [isLoading])
 
     useEffect(() => {
-      setIsSuccessFull(false)
-      callExecuteTx()
+      if (prevIsOnline.current !== isOnline) {
+        prevIsOnline.current = isOnline
+        setIsSuccessFull(false)
+        callExecuteTx()
+      }
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOnline])
@@ -365,7 +302,7 @@ export const TxPage = observer(
                   ? `Tokens have been deposited into your wallet`
                   : failedActionWasSwap
                   ? `The price changed too much during the swap. Adjust your slippage tolerance and try again.`
-                  : `There was a network issue. Please check your internet connection or try again later.`}
+                  : `There was an issue with this transaction. Please try again.`}
               </Text>
             </div>
 

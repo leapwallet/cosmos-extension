@@ -80,7 +80,13 @@ export default function SelectWallet({
 
   return (
     <>
-      <BottomModal isOpen={isVisible} onClose={onClose} title={title} closeOnBackdropClick={true}>
+      <BottomModal
+        containerDiv={document.getElementById('select-wallet-container') ?? undefined}
+        isOpen={isVisible}
+        onClose={onClose}
+        title={title}
+        closeOnBackdropClick={true}
+      >
         <div>
           {currentWalletInfo && (
             <div className='flex flex-col rounded-2xl bg-white-100 dark:bg-gray-900 min-h-[100px] justify-center items-center p-2'>
@@ -96,12 +102,14 @@ export default function SelectWallet({
                   <img src={Images.Misc.DefaultWebsiteIcon} alt='Website default icon' />
                 </object>
               </div>
+
               <Text size='md' color='text-green-600' className='font-bold my-2'>
                 {siteName}
               </Text>
               <Text size='xl' className='my-0 font-extrabold'>
                 {walletName} not Connected
               </Text>
+
               <Text
                 size='xs'
                 style={{ textAlign: 'center' }}
@@ -110,6 +118,7 @@ export default function SelectWallet({
               >
                 You can connect this wallet, or can switch to an already connected wallet.
               </Text>
+
               <div
                 onClick={handleConnectWalletClick}
                 style={{ background: 'rgba(225, 136, 129, 0.1)', color: '#E18881' }}
@@ -190,6 +199,10 @@ export default function SelectWallet({
           setShowImportWatchWallet(false)
         }}
       />
+      <div id='select-wallet-container' />
+      <div id='import-private-key-container' />
+      <div id='edit-wallet-container' />
+      <div id='remove-wallet-container' />
     </>
   )
 }

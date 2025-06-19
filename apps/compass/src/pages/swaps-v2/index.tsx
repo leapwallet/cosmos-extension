@@ -1,5 +1,5 @@
 import { useActiveWallet, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
 import { Faders } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
@@ -10,20 +10,17 @@ import { PageHeader } from 'components/header'
 import { SideNavMenuOpen } from 'components/header/sidenav-menu'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
-import { EventName, PageName } from 'config/analytics'
-import { usePageView } from 'hooks/analytics/usePageView'
+import { PageName } from 'config/analytics'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useNonNativeCustomChains } from 'hooks/useNonNativeCustomChains'
 import useQuery from 'hooks/useQuery'
 import { useWalletInfo } from 'hooks/useWalletInfo'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
-import AddFromChainStore from 'pages/home/AddFromChainStore'
 import SelectWallet from 'pages/home/SelectWallet'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { activeChainStore } from 'stores/active-chain-store'
 import { cw20TokenBalanceStore, priceStore } from 'stores/balance-store'
 import { compassTokensAssociationsStore } from 'stores/chain-infos-store'
@@ -40,7 +37,7 @@ import {
   whitelistedFactoryTokensStore,
 } from 'stores/denoms-store-instance'
 import { globalSheetsStore } from 'stores/ui/global-sheets-store'
-import { SourceChain, SourceToken } from 'types/swap'
+import { SourceToken } from 'types/swap'
 
 import {
   InterchangeButton,
@@ -141,7 +138,6 @@ const SwapPage = observer(() => {
   const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
 
   const [showMoreDetailsSheet, setShowMoreDetailsSheet] = useState<boolean>(false)
-  const [showChainSelectSheet, setShowChainSelectSheet] = useState<boolean>(false)
   const [showTxPage, setShowTxPage] = useState<boolean>(false)
   const [showSlippageSheet, setShowSlippageSheet] = useState(false)
   const [showSlippageInfo, setShowSlippageInfo] = useState(false)
@@ -150,12 +146,7 @@ const SwapPage = observer(() => {
   const [showMainnetAlert, setShowMainnetAlert] = useState<boolean>(false)
   const [isQuoteReady, setIsQuoteReady] = useState<boolean>(false)
   const [isQuoteReadyEventLogged, setIsQuoteReadyEventLogged] = useState<boolean>(false)
-  const [newChain, setNewChain] = useState<ChainInfo | null>(null)
-  const [tokenToSet, setTokenToSet] = useState<SourceToken | null>(null)
-  const [chainToSet, setChainToSet] = useState<{
-    chain: SourceChain
-    callbackToUse: 'handleSetChain' | 'handleSetDestinationChain'
-  } | null>(null)
+
   const customChains = useNonNativeCustomChains()
   const selectedNetwork = useSelectedNetwork()
 
@@ -333,7 +324,6 @@ const SwapPage = observer(() => {
   useEffect(() => {
     if (isQuoteReady && !isQuoteReadyEventLogged) {
       try {
-        mixpanel.track(EventName.PageView, additionalProperties)
         setIsQuoteReadyEventLogged(true)
       } catch (error) {
         // ignore
@@ -379,20 +369,6 @@ const SwapPage = observer(() => {
     }
     return chainsToShow
   }, [activeWallet, chainsToShow])
-
-  const _destinationAssets = useMemo(() => {
-    const _destinationAssets = destinationAssets.filter((asset) => {
-      if (asset.skipAsset.originDenom === 'uusdc') {
-        return (
-          asset.skipAsset.originDenom === destinationToken?.skipAsset.originDenom &&
-          asset.skipAsset.originChainId === destinationToken?.skipAsset.originChainId
-        )
-      }
-      return asset.skipAsset.originDenom === destinationToken?.skipAsset.originDenom
-    })
-
-    return _destinationAssets
-  }, [destinationToken, destinationAssets])
 
   const reviewBtnText = useMemo(() => {
     if (inAmount === '') {
@@ -461,22 +437,12 @@ const SwapPage = observer(() => {
     }
   }, [sourceToken])
 
-  const emitMixpanelDropdownOpenEvent = useCallback((dropdownType: string) => {
-    try {
-      mixpanel.track(EventName.DropdownOpened, {
-        dropdownType,
-      })
-    } catch (error) {
-      // ignore
-    }
-  }, [])
-
   const handleOnSettingsClick = useCallback(() => {
     setShowSlippageSheet(true)
   }, [setShowSlippageSheet])
 
   const handleInputAmountChange = useCallback(
-    (value) => {
+    (value: string) => {
       handleInAmountChange(value)
       uncheckWarnings()
     },
@@ -487,106 +453,23 @@ const SwapPage = observer(() => {
     setShowTokenSelectSheet(true)
     setShowSelectSheetFor('source')
     uncheckWarnings()
-    emitMixpanelDropdownOpenEvent('Source Token')
-  }, [
-    setShowTokenSelectSheet,
-    setShowSelectSheetFor,
-    uncheckWarnings,
-    emitMixpanelDropdownOpenEvent,
-  ])
+  }, [setShowTokenSelectSheet, setShowSelectSheetFor, uncheckWarnings])
 
   const handleInputChainSelectSheetOpen = useCallback(() => {
-    setShowChainSelectSheet(true)
     setShowSelectSheetFor('source')
     uncheckWarnings()
-  }, [uncheckWarnings, setShowChainSelectSheet, setShowSelectSheetFor])
+  }, [uncheckWarnings, setShowSelectSheetFor])
 
   const handleOutputTokenSelectSheetOpen = useCallback(() => {
     setShowTokenSelectSheet(true)
     setShowSelectSheetFor('destination')
     uncheckWarnings()
-    emitMixpanelDropdownOpenEvent('Destination Token')
-  }, [
-    setShowTokenSelectSheet,
-    setShowSelectSheetFor,
-    uncheckWarnings,
-    emitMixpanelDropdownOpenEvent,
-  ])
+  }, [setShowTokenSelectSheet, setShowSelectSheetFor, uncheckWarnings])
 
   const handleOutputChainSelectSheetOpen = useCallback(() => {
-    setShowChainSelectSheet(true)
     setShowSelectSheetFor('destination')
     uncheckWarnings()
-    emitMixpanelDropdownOpenEvent('Destination Chain')
-  }, [
-    uncheckWarnings,
-    setShowChainSelectSheet,
-    setShowSelectSheetFor,
-    emitMixpanelDropdownOpenEvent,
-  ])
-
-  const handleSetChain = useCallback(
-    (chain: SourceChain) => {
-      if (showSelectSheetFor === 'source' && chain.chainId !== sourceChain?.chainId) {
-        setSourceChain(chain)
-        setSourceToken(null)
-      } else if (
-        showSelectSheetFor === 'destination' &&
-        chain.chainId !== destinationChain?.chainId
-      ) {
-        setDestinationChain(chain)
-        setDestinationToken(null)
-      }
-      setShowChainSelectSheet(false)
-      setShowSelectSheetFor('')
-    },
-    [
-      destinationChain?.chainId,
-      setDestinationChain,
-      setDestinationToken,
-      setSourceChain,
-      setSourceToken,
-      showSelectSheetFor,
-      sourceChain?.chainId,
-    ],
-  )
-
-  const handleOnChainSelect = useCallback(
-    (chain: SourceChain) => {
-      const customChain = Object.values(customChains).find(
-        (_customChain) => _customChain.chainId === chain.chainId,
-      )
-      if (customChain) {
-        setChainToSet({
-          chain,
-          callbackToUse: 'handleSetChain',
-        })
-        setNewChain(customChain)
-        return
-      }
-      handleSetChain(chain)
-    },
-    [customChains, handleSetChain],
-  )
-
-  const handleSetDestinationChain = useCallback(
-    (chain: SourceChain) => {
-      setDestinationChain(chain)
-      const _destToken = _destinationAssets.find(
-        (asset) => asset.skipAsset.chainId === chain.chainId,
-      )
-      setDestinationToken(_destToken as SourceToken)
-      setShowChainSelectSheet(false)
-      setShowSelectSheetFor('')
-    },
-    [
-      _destinationAssets,
-      setDestinationChain,
-      setDestinationToken,
-      setShowChainSelectSheet,
-      setShowSelectSheetFor,
-    ],
-  )
+  }, [uncheckWarnings, setShowSelectSheetFor])
 
   const handleOnTokenSelectSheetClose = useCallback(() => {
     setShowTokenSelectSheet(false)
@@ -627,29 +510,12 @@ const SwapPage = observer(() => {
         (_customChain) => _customChain.chainId === token.skipAsset.chainId,
       )
       if (customChain) {
-        setTokenToSet(token)
-        setNewChain(customChain)
         return
       }
       handleSetToken(token)
     },
     [customChains, handleSetToken],
   )
-
-  const handlePostAddChainCallback = useCallback(() => {
-    setNewChain(null)
-    if (tokenToSet) {
-      handleSetToken(tokenToSet)
-      setTokenToSet(null)
-    } else if (chainToSet) {
-      if (chainToSet.callbackToUse === 'handleSetChain') {
-        handleOnChainSelect(chainToSet.chain)
-      } else if (chainToSet.callbackToUse === 'handleSetDestinationChain') {
-        handleSetDestinationChain(chainToSet.chain)
-      }
-      setChainToSet(null)
-    }
-  }, [tokenToSet, chainToSet, handleSetToken, handleOnChainSelect, handleSetDestinationChain])
 
   const handleOnSlippageInfoClick = useCallback(() => {
     setShowSlippageInfo(true)
@@ -893,19 +759,7 @@ const SwapPage = observer(() => {
           setShowFeesSettingSheet={setShowFeesSettingSheet}
         />
       )}
-      {newChain && (
-        <AddFromChainStore
-          isVisible={!!newChain}
-          onClose={() => {
-            setNewChain(null)
-            setTokenToSet(null)
-            setChainToSet(null)
-          }}
-          newAddChain={newChain}
-          skipUpdatingActiveChain={true}
-          successCallback={handlePostAddChainCallback}
-        />
-      )}
+
       {showTxPage ? (
         <SwapTxPage
           onClose={handleOnTxPageClose}
@@ -987,8 +841,6 @@ const Swap = observer(({ rootBalanceStore }: { rootBalanceStore: RootBalanceStor
     return _properties
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, location?.key])
-
-  usePageView(PageName.SwapsStart, pageViewAdditionalProperties)
 
   useEffect(() => {
     setTimeout(() => {

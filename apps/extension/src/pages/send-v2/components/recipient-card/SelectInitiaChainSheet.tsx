@@ -1,8 +1,8 @@
-import { chainIdToChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ChainInfosStore, ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
+import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainFeatureFlagsStore, ChainInfosStore } from '@leapwallet/cosmos-wallet-store'
 import BottomModal from 'components/bottom-modal'
-import { SearchInput } from 'components/search-input'
 import Text from 'components/text'
+import { SearchInput } from 'components/ui/input/search-input'
 import { GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo, useState } from 'react'
@@ -12,18 +12,50 @@ type SelectInitiaChainSheetProps = {
   isOpen: boolean
   setSelectedInitiaChain: (chain: SupportedChain) => void
   onClose: () => void
-  chainTagsStore: ChainTagsStore
+  chainFeatureFlagsStore: ChainFeatureFlagsStore
   chainInfoStore: ChainInfosStore
+  selectedNetwork: 'mainnet' | 'testnet'
 }
+
 export const SelectInitiaChainSheet: React.FC<SelectInitiaChainSheetProps> = observer(
-  ({ isOpen, setSelectedInitiaChain, onClose, chainTagsStore, chainInfoStore }) => {
+  ({
+    isOpen,
+    setSelectedInitiaChain,
+    onClose,
+    chainFeatureFlagsStore,
+    chainInfoStore,
+    selectedNetwork,
+  }) => {
     const [searchedTerm, setSearchedTerm] = useState('')
+
+    const chains = chainInfoStore.chainInfos
+    const chainFeatureFlags = chainFeatureFlagsStore.chainFeatureFlagsData
+
+    const minitiaChains = useMemo(() => {
+      const _minitiaChains: ChainInfo[] = []
+      Object.keys(chainFeatureFlags)
+        .filter((chain) => chainFeatureFlags[chain].chainType === 'minitia')
+        .forEach((c) => {
+          if (chains[c as SupportedChain]) {
+            _minitiaChains.push(chains[c as SupportedChain])
+          }
+          const _chain = Object.values(chainInfoStore.chainInfos).find((chainInfo) =>
+            selectedNetwork === 'testnet'
+              ? chainInfo?.testnetChainId === c
+              : chainInfo?.chainId === c,
+          )
+          if (_chain) {
+            _minitiaChains.push(_chain)
+          }
+        })
+      return _minitiaChains
+    }, [chainFeatureFlags, chainInfoStore.chainInfos, chains, selectedNetwork])
+
     const initiaChains = useMemo(() => {
-      return Object.entries(chainTagsStore.allChainTags)
-        .filter(([chainId, tags]) => tags.includes('Initia'))
-        .map(([chainId]) => chainInfoStore.chainInfos[chainIdToChain[chainId] as SupportedChain])
-        .filter((chain) => chain?.chainName.toLowerCase().includes(searchedTerm.toLowerCase()))
-    }, [chainInfoStore.chainInfos, chainTagsStore.allChainTags, searchedTerm])
+      return minitiaChains.filter((chain) =>
+        chain?.chainName.toLowerCase().includes(searchedTerm.toLowerCase()),
+      )
+    }, [minitiaChains, searchedTerm])
 
     return (
       <BottomModal
@@ -39,7 +71,6 @@ export const SelectInitiaChainSheet: React.FC<SelectInitiaChainSheetProps> = obs
       >
         <div className='flex flex-col gap-y-6 h-full'>
           <SearchInput
-            divClassName='flex w-full bg-white-100 dark:bg-gray-950 rounded-full py-2 pl-5 pr-[10px] focus-within:border-green-600'
             value={searchedTerm}
             onChange={(e) => setSearchedTerm(e.target.value)}
             placeholder='Search chain'

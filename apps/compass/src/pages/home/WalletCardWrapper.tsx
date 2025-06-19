@@ -1,6 +1,7 @@
-import { Key, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { capitalize, Key, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { Check, DotsThreeVertical } from '@phosphor-icons/react'
+import Text from 'components/text'
 import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
 import { walletLabels } from 'config/constants'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -29,12 +30,14 @@ const WalletCardWrapper = observer(
     onClose,
     setEditWallet,
     setIsEditWalletVisible,
+    displayLedgerApp,
   }: {
     isLast: boolean
     wallet: Key
     onClose: () => void
     setEditWallet: (wallet: Key) => void
     setIsEditWalletVisible: (visible: boolean) => void
+    displayLedgerApp: boolean
   }) => {
     const navigate = useNavigate()
     const activeChainInfo = useChainInfo()
@@ -53,7 +56,7 @@ const WalletCardWrapper = observer(
       }
 
       if (!wallet.watchWallet && wallet.walletType === WALLETTYPE.LEDGER && wallet.path) {
-        walletLabel = `Imported · ${wallet.path?.replace("m/44'/118'/", '')}`
+        walletLabel = `Imported · ${wallet.path?.replace(/m\/44'\/(118'|60')\//, '')}`
       }
 
       const socialWallet = socialWallets?.[wallet.id]
@@ -78,7 +81,7 @@ const WalletCardWrapper = observer(
 
       let disableEdit = false
 
-      if (wallet.walletType === WALLETTYPE.LEDGER) {
+      if (wallet.walletType === WALLETTYPE.LEDGER && wallet.app !== 'sei') {
         if (!wallet.addresses[activeChainInfo?.key]) {
           addressText = `Please import EVM wallet`
           disableEdit = true
@@ -130,6 +133,15 @@ const WalletCardWrapper = observer(
               <span className='shrink-0 p-1 bg-secondary-300 rounded' title='Ledger'>
                 <LedgerDriveIcon className='size-2' />
               </span>
+            )}
+            {wallet.walletType === WALLETTYPE.LEDGER && displayLedgerApp && (
+              <Text
+                size='xs'
+                className='font-light dark:bg-black-100 bg-secondary-300 px-1 rounded-[2px] leading-[16px]'
+                color='dark:text-gray-400'
+              >
+                {capitalize(wallet?.app ?? 'cosmos')}
+              </Text>
             )}
           </div>
           <span className='text-xs text-muted-foreground max-w-56 whitespace-nowrap w-full flex items-center gap-1'>
@@ -183,7 +195,7 @@ const AddressLabel = ({ address }: { address: string }) => {
         setIsCopied(true)
       }}
     >
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         {isCopied ? (
           <motion.span
             key='copied'

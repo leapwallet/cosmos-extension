@@ -7,5 +7,6 @@ export * from './is-bitcoin-chain';
 export * from './is-feature-exist-for-chain';
 export * from './nft';
 export * from './normalize-image-src';
+export * from './random-string-generator';
 export * from './sort-string-arr';
 export * from './stake';

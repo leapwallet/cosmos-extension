@@ -1,6 +1,5 @@
 import { ChainInfo } from '@leapwallet/cosmos-wallet-provider/dist/provider/types'
 import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/constants'
-import { isCompassWallet } from 'utils/isCompassWallet'
 
 /* eslint-disable @typescript-eslint/no-namespace */
 export namespace Colors {
@@ -13,7 +12,7 @@ export namespace Colors {
   export const aggregateGradient =
     'linear-gradient(180deg, rgba(252, 176, 69, 0.28) 0%, rgba(131, 58, 180, 0.24) 32%, rgba(58, 141, 180, 0.12) 56%, rgba(58, 141, 180, 0) 100%)'
 
-  export const cosmosPrimary = isCompassWallet() ? compassPrimary : '#754F9C'
+  export const cosmosPrimary = '#754F9C'
   export const juno = '#E18881'
   export const gray900 = '#212121'
   export const gray400 = '#9E9E9E'
@@ -56,10 +55,21 @@ export namespace Colors {
     },
   ): string {
     const chainInfo = activeChainInfo ?? ChainInfos[chainName]
-    return isCompassWallet() ? compassPrimary : chainInfo?.theme?.primaryColor ?? cosmosPrimary
+    return chainInfo?.theme?.primaryColor ?? cosmosPrimary
   }
 
-  export const walletColors = ['#3ACF92', '#3D9EFF', '#8583EC', '#C984EB', '#FF707E', '#FFB33D']
+  export const walletColors = [
+    '#29A874',
+    '#1E1CB5',
+    '#811DB4',
+    '#C01189',
+    '#D10014',
+    '#D17F00',
+    '#D1A700',
+    '#3ACF92',
+    '#0094D1',
+    '#696969',
+  ]
 
   export function getWalletColorAtIndex(index: number | undefined): string {
     return walletColors[index ?? 0 % walletColors.length]

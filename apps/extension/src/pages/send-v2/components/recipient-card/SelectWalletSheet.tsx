@@ -2,8 +2,7 @@ import { Key, useChainInfo, useGetChains, WALLETTYPE } from '@leapwallet/cosmos-
 import { CheckCircle } from '@phosphor-icons/react'
 import BottomModal from 'components/bottom-modal'
 import Text from 'components/text'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { walletLabels } from 'config/constants'
+import { WALLET_NAME_SLICE_LENGTH } from 'config/constants'
 import { useChainPageInfo } from 'hooks'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -15,6 +14,8 @@ import { sliceAddress } from 'utils/strings'
 
 import useWallets = Wallet.useWallets
 import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
+import { getDerivationPathToShow } from 'utils'
+import { getLedgerEnabledEvmChainsKey } from 'utils/getLedgerEnabledEvmChains'
 
 type SelectWalletSheetProps = {
   isOpen: boolean
@@ -32,8 +33,17 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
   const wallets = useWallets()
   const { topChainColor } = useChainPageInfo()
   const { sendActiveChain } = useSendContext()
+
   const activeChainInfo = useChainInfo(sendActiveChain)
   const chains = useGetChains()
+
+  const ledgerEnabledEvmChainsKeys = useMemo(() => {
+    return getLedgerEnabledEvmChainsKey(Object.values(chains))
+  }, [chains])
+
+  const ledgerApp = useMemo(() => {
+    return ledgerEnabledEvmChainsKeys.includes(activeChainInfo?.key) ? 'EVM' : 'Cosmos'
+  }, [activeChainInfo?.key, ledgerEnabledEvmChainsKeys])
 
   const walletsList = useMemo(() => {
     return wallets
@@ -58,7 +68,11 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
           let walletLabel = ''
 
           if (wallet.walletType === WALLETTYPE.LEDGER) {
-            walletLabel = ` · /0'/0/${wallet.addressIndex}`
+            const path = wallet.path
+              ? getDerivationPathToShow(wallet.path)
+              : `0'/0/${wallet.addressIndex}`
+
+            walletLabel = ` · /${path}`
           }
 
           if (
@@ -69,15 +83,11 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
             walletLabel = ` · Imported`
           }
 
-          const walletName =
-            wallet.walletType == WALLETTYPE.LEDGER &&
-            !LEDGER_NAME_EDITED_SUFFIX_REGEX.test(wallet.name)
-              ? `${walletLabels[wallet.walletType]} Wallet ${wallet.addressIndex + 1}`
-              : formatWalletName(wallet.name)
-          const walletNameLength = walletName.length
-          const sliceLength = wallet.walletType === WALLETTYPE.LEDGER ? 10 : 19
+          const walletName = formatWalletName(wallet.name)
           const shortenedWalletName =
-            walletNameLength > sliceLength ? walletName.slice(0, sliceLength) + '...' : walletName
+            walletName.length > WALLET_NAME_SLICE_LENGTH
+              ? walletName.slice(0, WALLET_NAME_SLICE_LENGTH) + '...'
+              : walletName
           const walletAddress = activeChainInfo?.evmOnlyChain
             ? pubKeyToEvmAddressToShow(wallet?.pubKeys?.[activeChainInfo?.key], true)
             : wallet?.addresses?.[activeChainInfo?.key]
@@ -109,7 +119,7 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
             ) &&
             !wallet.addresses[activeChainInfo.key]
           ) {
-            addressText = `Please import EVM wallet`
+            addressText = `Please import ${ledgerApp} wallet`
           }
 
           return (
@@ -129,6 +139,7 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
                   alt={`wallet icon`}
                   className='rounded-full border border-white-30 h-10 w-10'
                 />
+
                 <div className='flex-1 flex flex-col items-start'>
                   <p className='flex text-left items-center gap-1 font-bold dark:text-white-100 text-gray-700 capitalize'>
                     {shortenedWalletName}
@@ -142,10 +153,12 @@ export const SelectWalletSheet: React.FC<SelectWalletSheetProps> = ({
                       </Text>
                     )}
                   </p>
+
                   <p className='text-sm font-medium dark:text-gray-400 text-gray-600'>
                     {addressText}
                   </p>
                 </div>
+
                 {selectedWallet?.id === wallet.id ? (
                   <CheckCircle
                     weight='fill'

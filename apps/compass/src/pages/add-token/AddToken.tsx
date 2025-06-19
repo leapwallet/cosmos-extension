@@ -35,7 +35,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { activeChainStore } from 'stores/active-chain-store'
 import {
   betaCW20DenomsStore,

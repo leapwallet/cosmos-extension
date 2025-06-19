@@ -18,6 +18,7 @@ import { AggregatedSupportedChain } from 'types/utility'
 
 import { AggregatedStake } from './components/AggregatedStake'
 import StakingUnavailable from './components/StakingUnavailable'
+import { StakeHeader } from './stake-header'
 import StakePage from './StakePage'
 
 export default function Stake() {
@@ -28,7 +29,7 @@ export default function Stake() {
     }),
     [pageViewSource],
   )
-  usePageView(PageName.Stake, true, pageViewAdditionalProperties)
+  // usePageView(PageName.Stake, true, pageViewAdditionalProperties)
   const activeChain = useActiveChain() as AggregatedSupportedChain
 
   const isStakeComingSoon = useIsFeatureExistForChain({
@@ -60,30 +61,25 @@ export default function Stake() {
 
   if (isStakeNotSupported || isStakeComingSoon) {
     return (
-      <StakingUnavailable
-        chainTagsStore={chainTagsStore}
-        isStakeComingSoon={isStakeComingSoon}
-        isStakeNotSupported={isStakeNotSupported}
-        rootDenomsStore={rootDenomsStore}
-        delegationsStore={delegationsStore}
-        validatorsStore={validatorsStore}
-        unDelegationsStore={unDelegationsStore}
-        claimRewardsStore={claimRewardsStore}
-      />
+      <>
+        <StakeHeader />
+        <StakingUnavailable
+          isStakeComingSoon={isStakeComingSoon}
+          isStakeNotSupported={isStakeNotSupported}
+        />
+      </>
     )
   }
 
   return (
-    <>
-      <StakePage
-        rootDenomsStore={rootDenomsStore}
-        delegationsStore={delegationsStore}
-        validatorsStore={validatorsStore}
-        unDelegationsStore={unDelegationsStore}
-        claimRewardsStore={claimRewardsStore}
-        rootBalanceStore={rootBalanceStore}
-        chainTagsStore={chainTagsStore}
-      />
-    </>
+    <StakePage
+      rootDenomsStore={rootDenomsStore}
+      delegationsStore={delegationsStore}
+      validatorsStore={validatorsStore}
+      unDelegationsStore={unDelegationsStore}
+      claimRewardsStore={claimRewardsStore}
+      rootBalanceStore={rootBalanceStore}
+      chainTagsStore={chainTagsStore}
+    />
   )
 }

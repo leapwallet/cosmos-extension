@@ -44,7 +44,7 @@ export const BalanceHeader = observer((props: { watchWallet?: boolean }) => {
 
   return (
     <div className='w-full p-7 flex flex-col items-center justify-center'>
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         {isTokenLoading ? (
           <BalanceHeaderLoading key='balance-header-loading' watchWallet={props.watchWallet} />
         ) : (

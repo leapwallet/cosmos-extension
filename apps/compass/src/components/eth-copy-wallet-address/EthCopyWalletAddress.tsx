@@ -1,7 +1,6 @@
 import { useSeiLinkedAddressState } from '@leapwallet/cosmos-wallet-hooks'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import classNames from 'classnames'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import React, { MouseEventHandler, useMemo, useState } from 'react'
 import { closeSidePanel } from 'utils/closeSidePanel'
@@ -30,9 +29,8 @@ export function EthCopyWalletAddress({
   onTextClick,
   ...rest
 }: EthCopyWalletAddressProps) {
-  const getWallet = Wallet.useGetWallet()
   const [copied, setCopied] = useState(false)
-  const { addressLinkState } = useSeiLinkedAddressState(getWallet)
+  const { addressLinkState } = useSeiLinkedAddressState()
 
   const text = copied ? textOnCopied : walletAddresses?.[0] ?? ''
   const copyIconSrc: string =

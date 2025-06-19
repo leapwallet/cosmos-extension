@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-vars */
-import { Account } from '@aptos-labs/ts-sdk'
 import {
   BETA_NFTS_COLLECTIONS,
   ENABLED_NFTS_COLLECTIONS,
@@ -7,13 +6,11 @@ import {
   useActiveChain,
   useGetChains,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfos, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ENCRYPTED_ACTIVE_WALLET, Key, KeyChain } from '@leapwallet/leap-keychain'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { ENCRYPTED_ACTIVE_WALLET, KeyChain } from '@leapwallet/leap-keychain'
 import * as Sentry from '@sentry/react'
 import classNames from 'classnames'
 import ExtensionPage from 'components/extension-page'
-import PopupLayout from 'components/layout/popup-layout'
-import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { SearchModal } from 'components/search-modal'
 import { QUICK_SEARCH_DISABLED_PAGES } from 'config/config'
 import {
@@ -33,8 +30,9 @@ import { migrateEncryptedKeyStore, migrateKeyStore } from 'extension-scripts/mig
 import { migratePicassoAddress } from 'extension-scripts/migrations/v118-migrate-picasso-address'
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { v2LayoutPages } from 'layout'
 import { observer } from 'mobx-react-lite'
-import SideNav from 'pages/home/side-nav'
+import { HomeLoadingState } from 'pages/home/components/home-loading-state'
 import React, {
   ReactElement,
   ReactNode,
@@ -53,7 +51,6 @@ import { searchModalStore } from 'stores/search-modal-store'
 import { AggregatedSupportedChain } from 'types/utility'
 import { sendMessageToTab } from 'utils'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser, { extension } from 'webextension-polyfill'
 
@@ -140,7 +137,7 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
             await KeyChain.decrypt(password)
           }
 
-          if (!isCompassWallet() && !storage[V118_KEYSTORE_MIGRATION_COMPLETE]) {
+          if (!storage[V118_KEYSTORE_MIGRATION_COMPLETE]) {
             const newStore = await browser.storage.local.get([
               ACTIVE_WALLET,
               KEYSTORE,
@@ -296,9 +293,9 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
       if (!storage[ACTIVE_WALLET] && !storage[ENCRYPTED_ACTIVE_WALLET]) {
         setNoAccount(true)
       }
+
       //setting locked state to pending on new wallet to avoid password page flash
-      setLocked('pending')
-      window.location.reload()
+      setLocked('locked')
 
       if (callback) callback()
     },
@@ -316,6 +313,7 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
             const password = Buffer.from(passwordBase64, 'base64')
             await signin(password)
           } catch (_) {
+            signout()
             setLoading(false)
           }
         } else {
@@ -379,30 +377,28 @@ const RequireAuthView = ({
 }: {
   children: JSX.Element
   hideBorder?: boolean
-  titleComponent?: ReactElement
+  titleComponent?: JSX.Element
 }) => {
   const auth = useAuth()
   const location = useLocation()
   const activeChain = useActiveChain() as AggregatedSupportedChain
 
   if (!auth || auth?.locked === 'pending') {
-    return (
-      <PopupLayout>
-        <div />
-      </PopupLayout>
-    )
+    return location.pathname === '/home' ? <HomeLoadingState /> : null
   }
 
   if (auth?.locked === 'locked') {
     return <Navigate to='/' state={{ from: location }} replace />
   }
 
+  if (v2LayoutPages.has(location.pathname)) {
+    return children
+  }
+
   const views = extension.getViews({ type: 'popup' })
 
   const Children =
-    QUICK_SEARCH_DISABLED_PAGES.includes(location.pathname) ||
-    isCompassWallet() ||
-    activeChain === 'aggregated' ? (
+    QUICK_SEARCH_DISABLED_PAGES.includes(location.pathname) || activeChain === 'aggregated' ? (
       children
     ) : (
       <>
@@ -468,12 +464,6 @@ const RequireAuthView = ({
         />
         {children}
         <SearchModal />
-        {searchModalStore.showSideNavFromSearchModal ? (
-          <SideNav
-            isShown={searchModalStore.showSideNavFromSearchModal}
-            toggler={() => searchModalStore.setShowSideNavFromSearchModal(false)}
-          />
-        ) : null}
       </>
     )
 
@@ -482,8 +472,7 @@ const RequireAuthView = ({
       <div
         id='search-modal-container'
         className={classNames(
-          'relative flex flex-col w-screen h-screen z-0 dark:bg-black-100 overflow-y-scroll pt-0',
-          { 'p-[20px]': !isSidePanel() },
+          'relative flex flex-col z-0 dark:bg-black-100 overflow-y-scroll pt-0 panel-width panel-height',
         )}
       >
         {Children}
@@ -505,6 +494,7 @@ const RequireAuthView = ({
             'dark:shadow-sm shadow-xl dark:shadow-gray-700':
               !location.pathname.includes('onboardEvmLedger'),
             'max-w-full': isSidePanel(),
+            'panel-width': !isSidePanel(),
           })}
         >
           {Children}
@@ -512,7 +502,7 @@ const RequireAuthView = ({
       </div>
     </ExtensionPage>
   ) : (
-    <div id='search-modal-container' className='relative w-full'>
+    <div id='search-modal-container' className='relative panel-width'>
       {Children}
     </div>
   )
@@ -543,7 +533,7 @@ export function RequireAuthOnboarding({ children }: { children: JSX.Element }) {
         newUser.current = true
       }
       const hasPrimaryWallet = hasMnemonicWallet(allWallets)
-      const isLedger = walletName === 'hardwarewallet'
+      const isLedger = walletName === 'ledger'
 
       if (hasPrimaryWallet && !isLedger) {
         setRedirectTo('home')
@@ -557,8 +547,10 @@ export function RequireAuthOnboarding({ children }: { children: JSX.Element }) {
   if (redirectTo === 'onboarding') {
     return children
   }
+
   if (redirectTo === 'home') {
-    return <Navigate to='/' replace />
+    return <Navigate to='/home' state={{ from: location }} />
   }
+
   return null
 }

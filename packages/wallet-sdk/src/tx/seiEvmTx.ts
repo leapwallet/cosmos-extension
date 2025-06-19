@@ -4,8 +4,10 @@ import { Contract } from '@ethersproject/contracts';
 import { JsonRpcProvider } from '@ethersproject/providers';
 import { parseEther, parseUnits } from '@ethersproject/units';
 import { EthWallet, pubkeyToAddress } from '@leapwallet/leap-keychain';
+import { base64 } from '@scure/base';
 import BigNumber from 'bignumber.js';
 import { hashPersonalMessage, intToHex } from 'ethereumjs-util';
+import { CompassSeiLedgerSigner } from 'ledger';
 
 import {
   abiERC20,
@@ -26,9 +28,9 @@ export type JsonRpcResponse = {
 
 export class SeiEvmTx {
   private static rpcUrl: string;
-  private constructor(private rpc: string, private wallet: EthWallet) {}
+  private constructor(private rpc: string, private wallet: EthWallet | CompassSeiLedgerSigner) {}
 
-  public static GetSeiEvmClient(wallet: EthWallet, rpc: string, chainId: number) {
+  public static GetSeiEvmClient(wallet: EthWallet | CompassSeiLedgerSigner, rpc: string, chainId: number) {
     const provider = new JsonRpcProvider(rpc, chainId);
     this.rpcUrl = rpc;
 
@@ -243,6 +245,11 @@ export class SeiEvmTx {
     return await SeiEvmTx.fetchRequest(fetchParams, rpc);
   }
 
+  public static async GetCode(txParams: any, rpc?: string) {
+    const fetchParams = getFetchParams(txParams, 'eth_getCode');
+    return await SeiEvmTx.fetchRequest(fetchParams, rpc);
+  }
+
   public static async GetTransactionReceipt(txHash: string, rpc?: string) {
     const fetchParams = getFetchParams([txHash], 'eth_getTransactionReceipt');
     return await SeiEvmTx.fetchRequest(fetchParams, rpc);
@@ -418,7 +425,7 @@ export class SeiEvmTx {
     const data = Buffer.alloc(4);
     const msgHash = hashPersonalMessage(data);
 
-    const signature = this.wallet.sign(account.address, msgHash);
+    const signature = await this.wallet.sign(account.address, msgHash);
     const compactV = Number(signature.v) - 27;
 
     const params = {
@@ -466,4 +473,20 @@ export class SeiEvmTx {
 
     return responseData.result;
   }
+}
+
+export async function getAssociation(
+  pubkey: string,
+  rpc: string,
+): Promise<{
+  jsonrpc: string;
+  id: number;
+  result?: string;
+  error?: { code: number; message: string };
+}> {
+  const _pubkey = base64.decode(pubkey);
+  const seiAddress = pubkeyToAddress('sei', _pubkey);
+
+  const res = await fetch(rpc, getFetchParams([seiAddress], 'sei_getEVMAddress'));
+  return res.json();
 }

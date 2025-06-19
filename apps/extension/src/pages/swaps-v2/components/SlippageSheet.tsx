@@ -1,13 +1,20 @@
-import { Buttons } from '@leapwallet/leap-ui'
-import { Info, Warning } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
+import Text from 'components/text'
+import { Button } from 'components/ui/button'
+import { AnimatePresence, motion } from 'framer-motion'
+import { InfoIcon } from 'icons/info-icon'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Colors } from 'theme/colors'
-import { isCompassWallet } from 'utils/isCompassWallet'
+import { cn } from 'utils/cn'
+import { transition150 } from 'utils/motion-variants'
 
 import { useSwapContext } from '../context'
 import { getSlippageRemarks, SlippageRemarks } from '../utils/slippage'
+
+const slippageVariants = {
+  hidden: { opacity: 0, height: 0 },
+  visible: { opacity: 1, height: 'auto' },
+}
 
 interface SlippageSheetProps {
   isOpen: boolean
@@ -21,8 +28,9 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
   const [selectedSlippageOption, setSelectedSlippageOption] = useState(
     SLIPPAGE_OPTIONS.includes(slippagePercent) ? slippagePercent : 'custom',
   )
-  const [customSlippage, setCustomSlippage] = useState<string>(slippagePercent.toString())
+  const [customSlippage, setCustomSlippage] = useState<string>('')
   const [slippageRemarks, setSlippageRemarks] = useState<SlippageRemarks>()
+  const [showCustomInput, setShowCustomInput] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -30,7 +38,6 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
       setSelectedSlippageOption(
         SLIPPAGE_OPTIONS.includes(slippagePercent) ? slippagePercent : 'custom',
       )
-      setCustomSlippage(slippagePercent.toString())
       if (!SLIPPAGE_OPTIONS.includes(slippagePercent)) {
         inputRef.current?.focus()
       }
@@ -40,10 +47,24 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
   }, [isOpen])
 
   useEffect(() => {
-    if (selectedSlippageOption === 'custom') {
+    if (showCustomInput) {
       inputRef.current?.focus()
     }
-  }, [selectedSlippageOption])
+  }, [showCustomInput])
+
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (event.target && 'id' in event.target && event.target.id !== 'customBtn') {
+      setShowCustomInput(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    document.addEventListener('click', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [handleClickOutside])
 
   useEffect(() => {
     setSlippageRemarks(getSlippageRemarks(customSlippage))
@@ -70,36 +91,53 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
     <BottomModal
       isOpen={isOpen}
       onClose={onClose}
-      contentClassName='!bg-white-100 dark:!bg-gray-950'
-      className='p-6'
-      titleComponent={
+      title={
         <div className='flex justify-start gap-2 items-center'>
-          <h1 className='text-[18px] text-black-100 dark:text-white-100 !leading-[24.3px] font-bold'>
-            Max. Slippage
-          </h1>
-          <button onClick={onSlippageInfoClick} className='dark:text-gray-400 text-gray-600'>
-            <Info size={20} />
+          <h1 className='text-[18px] text-foreground !leading-[24px] font-bold'>Max. Slippage</h1>
+          <button onClick={onSlippageInfoClick} className='text-muted-foreground'>
+            <InfoIcon size={20} className='padding-[1px]' />
           </button>
         </div>
       }
-      title={'Max. Slippage'}
-      closeOnBackdropClick={true}
     >
-      <div className='flex flex-col gap-6 w-full'>
-        <div className='flex flex-col gap-4 p-4 dark:bg-gray-900 bg-gray-50 rounded-2xl w-full'>
-          <span className='dark:text-white-100 text-sm !leading-[19.6px] font-bold text-black-100'>
-            Select a slippage value
-          </span>
-          <div className='flex flex-col gap-2 justify-start items-start w-full p-2 bg-gray-100 dark:bg-gray-850 rounded-2xl hide-scrollbar overflow-scroll'>
-            <div className='flex flex-row w-full justify-between items-center'>
-              {SLIPPAGE_OPTIONS.map((option) => (
+      <div className='flex flex-col gap-10 w-full p-2 !pt-6'>
+        <div className='flex flex-col gap-4'>
+          <div className='flex flex-row w-full justify-between items-center'>
+            {SLIPPAGE_OPTIONS.map((option) =>
+              option === 'custom' && showCustomInput ? (
+                <input
+                  type='number'
+                  value={customSlippage}
+                  onChange={(e) => {
+                    setCustomSlippage(e.target.value)
+                  }}
+                  ref={inputRef}
+                  className={cn(
+                    'w-[88px] h-[48px] rounded-lg font-bold text-[18px] !leading-[24.3px] text-foreground bg-transparent outline-none focus:border focus:border-white text-center caret-primary',
+                    slippageRemarks?.type === 'error'
+                      ? 'border-destructive-100'
+                      : slippageRemarks?.type === 'warn'
+                      ? 'border-accent-yellow'
+                      : '',
+                  )}
+                />
+              ) : (
                 <button
                   key={option}
+                  id={option === 'custom' ? 'customBtn' : undefined}
                   onClick={() => {
                     setSelectedSlippageOption(option)
+                    if (customSlippage) {
+                      setCustomSlippage('')
+                    }
+                    if (option === 'custom') {
+                      setShowCustomInput(true)
+                    } else {
+                      setShowCustomInput(false)
+                    }
                   }}
                   className={classNames(
-                    'text-sm h-[32px] rounded-full !leading-[19.6px] px-[16px] w-full',
+                    'text-[18px] h-[48px] rounded-lg !leading-[24.3px] px-2.5 py-3 w-full',
                     {
                       'dark:text-white-100 text-black-100 font-bold bg-gray-50 dark:bg-gray-900':
                         selectedSlippageOption === option,
@@ -108,78 +146,49 @@ export function SlippageSheet({ isOpen, onClose, onSlippageInfoClick }: Slippage
                     },
                   )}
                 >
-                  {option === 'custom' ? 'Custom' : `${option}%`}
+                  {option === 'custom'
+                    ? customSlippage
+                      ? `${customSlippage}%`
+                      : 'Custom'
+                    : `${option}%`}
                 </button>
-              ))}
-            </div>
-            {selectedSlippageOption === 'custom' && (
-              <div
-                className={classNames(
-                  'flex w-full py-2 h-[48px] pl-3 pr-4 flex-row rounded-2xl justify-between gap-4 bg-gray-50 dark:bg-gray-900 items-center relative border border-transparent',
-                  {
-                    'focus-within:border-green-600': !slippageRemarks,
-                    'focus-within:border-orange-500 dark:focus-within:border-orange-300':
-                      slippageRemarks?.color === 'orange',
-                    'focus-within:border-red-400 dark:focus-within:border-red-300':
-                      slippageRemarks?.color === 'red',
-                  },
-                )}
-              >
-                <div className='shrink-0 font-medium text-sm !leading-[22.5px] text-gray-600 dark:text-gray-400'>
-                  Amount
-                </div>
-                <div className='flex flex-row justify-end items-center w-full'>
-                  <input
-                    type='number'
-                    value={customSlippage}
-                    placeholder='0'
-                    onChange={(e) => {
-                      setCustomSlippage(e.target.value)
-                    }}
-                    ref={inputRef}
-                    className='w-full font-bold text-[18px] !leading-[24.3px] text-black-100 placeholder:text-gray-600 placeholder:dark:text-gray-400 dark:text-white-100 bg-transparent outline-none text-right'
-                  />
-                  <div
-                    className={classNames('shrink-0 font-bold text-[18px] !leading-[24.3px] ', {
-                      'text-gray-600 dark:text-gray-400': customSlippage === '',
-                      'text-black-100 dark:text-white-100': customSlippage !== '',
-                    })}
-                  >
-                    %
-                  </div>
-                </div>
-              </div>
+              ),
             )}
           </div>
-          {slippageRemarks && (
-            <div className='flex flex-row w-full justify-start items-start gap-2'>
-              <Warning
-                size={16}
-                className={classNames('!leading-[16px]', {
-                  'text-orange-500 dark:text-orange-300': slippageRemarks.color === 'orange',
-                  'text-red-400 dark:text-red-300': slippageRemarks.color === 'red',
-                })}
-              />
-              <span
-                className={classNames('font-medium text-xs !leading-[19.2px]', {
-                  'text-orange-500 dark:text-orange-300': slippageRemarks.color === 'orange',
-                  'text-red-400 dark:text-red-300': slippageRemarks.color === 'red',
-                })}
+
+          <AnimatePresence>
+            {slippageRemarks ? (
+              <motion.div
+                initial='hidden'
+                animate='visible'
+                exit='hidden'
+                variants={slippageVariants}
+                transition={transition150}
+                className='overflow-hidden'
               >
-                {slippageRemarks.message}
-              </span>
-            </div>
-          )}
+                <div
+                  className={classNames(
+                    'text-sm !leading-[22px]',
+                    slippageRemarks.type === 'error'
+                      ? 'text-destructive-100'
+                      : 'text-accent-yellow',
+                  )}
+                >
+                  {slippageRemarks.message}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          <Text color='dark:text-gray-400 text-gray-600' size='sm'>
+            Your transaction will fail if the price changes more than the slippage. Too high of a
+            value will result in an unfavorable trade.
+          </Text>
         </div>
 
-        <Buttons.Generic
-          color={isCompassWallet() ? Colors.compassPrimary : Colors.green600}
-          disabled={proceedDisabled}
-          onClick={handleOnProceedClick}
-          className='w-full'
-        >
-          Proceed
-        </Buttons.Generic>
+        <Button disabled={proceedDisabled} onClick={handleOnProceedClick} className='w-full mt-4'>
+          Confirm
+        </Button>
       </div>
     </BottomModal>
   )

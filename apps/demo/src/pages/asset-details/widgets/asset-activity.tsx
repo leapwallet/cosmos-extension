@@ -3,7 +3,7 @@ import { ParsedTx } from '@leapwallet/cosmos-wallet-sdk'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import React, { ReactElement } from 'react'
 import Skeleton from 'react-loading-skeleton'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 import CardDivider from '~/components/card-divider'
 import EmptyCard from '~/components/empty-card'

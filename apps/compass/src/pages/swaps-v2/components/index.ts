@@ -1,7 +1,6 @@
 export * from './FeesView'
 export * from './InterchangeButton'
 export * from './MoreDetails'
-export * from './SelectChainSheet'
 export * from './SelectTokenSheet'
 export * from './SlippageSheet'
 export * from './SwapError'

@@ -16,7 +16,7 @@ import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { TransactionStatus } from 'types/utility'
 import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
@@ -60,7 +60,7 @@ export function MessageSignature({
 
   const handleSignClick = async () => {
     try {
-      if (activeWallet.walletType === WALLETTYPE.LEDGER) {
+      if (activeWallet.walletType === WALLETTYPE.LEDGER && activeWallet.app === 'cosmos') {
         if (chainInfo?.evmOnlyChain === true) {
           setShowLedgerPopup(true)
         } else {
@@ -91,7 +91,7 @@ export function MessageSignature({
       }
 
       try {
-        Browser.runtime.sendMessage({
+        await Browser.runtime.sendMessage({
           type: MessageTypes.signSeiEvmResponse,
           payloadId: txnData?.payloadId,
           payload: { status: 'success', data: signature },

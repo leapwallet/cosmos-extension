@@ -7,7 +7,7 @@ import {
   useGetChains,
   useIsSeiEvmChain,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { LeapLedgerSignerEth, pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
+import { LedgerError, pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { EthWallet } from '@leapwallet/leap-keychain'
 import { ArrowDown } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
@@ -25,8 +25,6 @@ import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send/context'
 import React, { useCallback, useMemo } from 'react'
 import { rootERC20DenomsStore } from 'stores/denoms-store-instance'
-
-import { useExecuteSkipTx } from './executeSkipTx'
 
 type ReviewTransactionSheetProps = {
   isOpen: boolean
@@ -53,16 +51,15 @@ export const ReviewTransferSheet = observer(
       tokenFiatValue,
       isSending,
       txError,
-      isIBCTransfer,
       sendDisabled,
       confirmSend,
       confirmSendEth,
+      setTxError,
+      setShowLedgerPopup,
       clearTxError,
       userPreferredGasPrice,
       userPreferredGasLimit,
       gasEstimate,
-      transferData,
-      isIbcUnwindingDisabled,
       fetchAccountDetailsData,
       associatedSeiAddress,
       sendActiveChain,
@@ -73,15 +70,12 @@ export const ReviewTransferSheet = observer(
       pointerAddress,
     } = useSendContext()
 
-    const { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError } =
-      useExecuteSkipTx()
     const fiatValue = useMemo(
       () => formatCurrency(new BigNumber(inputAmount).multipliedBy(tokenFiatValue ?? 0)),
       [formatCurrency, inputAmount, tokenFiatValue],
     )
 
     const handleClose = useCallback(() => {
-      setError('')
       onClose()
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +123,7 @@ export const ReviewTransferSheet = observer(
           const wallet = await getWallet(sendActiveChain, true)
           const nativeTokenKey = Object.keys(chains[sendActiveChain]?.nativeDenoms ?? {})?.[0]
 
-          await confirmSendEth(
+          confirmSendEth(
             toAddress,
             inputAmount,
             userPreferredGasLimit ?? gasEstimate,
@@ -145,30 +139,6 @@ export const ReviewTransferSheet = observer(
               nativeTokenKey,
             },
           )
-        } else if (
-          transferData?.isSkipTransfer &&
-          !isIbcUnwindingDisabled &&
-          (isIBCTransfer || selectedAddress?.address?.startsWith('init'))
-        ) {
-          // If skiptranfer is supported and ibc unwinding in not disabled and it is ibc transfer
-          // we use Skip API for transfer or
-          // else we use default Cosmos API
-
-          const wallet = await getWallet(sendActiveChain, true)
-          if (sendActiveChain === 'evmos' && wallet instanceof LeapLedgerSignerEth) {
-            await confirmSend(
-              {
-                selectedToken: selectedToken,
-                toAddress: associatedSeiAddress || selectedAddress?.address || '',
-                amount: new BigNumber(inputAmount),
-                memo: memo,
-                fees: fee,
-              },
-              modifiedCallback,
-            )
-          } else {
-            confirmSkipTx()
-          }
         } else {
           await confirmSend(
             {
@@ -182,13 +152,19 @@ export const ReviewTransferSheet = observer(
           )
         }
       } catch (err: unknown) {
+        if (err instanceof LedgerError) {
+          setTxError(err.message)
+          setShowLedgerPopup(false)
+        }
         setIsSending(false)
         captureException(err)
       }
     }, [
       clearTxError,
+      setShowLedgerPopup,
+      setTxError,
       fee,
-      selectedAddress?.address,
+      selectedAddress,
       selectedToken,
       allERC20Denoms,
       isSeiEvmChain,
@@ -198,9 +174,6 @@ export const ReviewTransferSheet = observer(
       associatedSeiAddress,
       associated0xAddress,
       isSeiEvmTransaction,
-      transferData?.isSkipTransfer,
-      isIbcUnwindingDisabled,
-      isIBCTransfer,
       getWallet,
       confirmSendEth,
       inputAmount,
@@ -212,78 +185,84 @@ export const ReviewTransferSheet = observer(
       pointerAddress,
       confirmSend,
       memo,
-      confirmSkipTx,
       setIsSending,
     ])
 
     useCaptureTxError(txError)
-    if ((showLedgerPopup || showLedgerPopupSkipTx) && !txError) {
-      return <LedgerConfirmationPopup showLedgerPopup={showLedgerPopup || showLedgerPopupSkipTx} />
-    }
+
+    const onCloseLedgerPopup = useCallback(() => {
+      setShowLedgerPopup(false)
+    }, [setShowLedgerPopup])
 
     return (
-      <BottomModal
-        isOpen={isOpen}
-        onClose={handleClose}
-        title='Review transfer'
-        className='p-6 !pt-8'
-      >
-        <div className='flex flex-col items-center w-full gap-4 relative'>
-          <div className='bg-secondary-100 p-6 rounded-xl flex w-full justify-between items-center'>
-            <div className='flex flex-col gap-1'>
+      <>
+        <BottomModal
+          isOpen={isOpen}
+          onClose={handleClose}
+          title='Review transfer'
+          className='p-6 !pt-8'
+        >
+          <div className='flex flex-col items-center w-full gap-4 relative'>
+            <div className='bg-secondary-100 p-6 rounded-xl flex w-full justify-between items-center'>
+              <div className='flex flex-col gap-1'>
+                <p
+                  className='text-lg text-monochrome font-bold !leading-[27px]'
+                  data-testing-id='send-review-sheet-inputAmount-ele'
+                >
+                  {formatTokenAmount(inputAmount, selectedToken?.symbol ?? '')}
+                </p>
+
+                <p className='text-sm text-muted-foreground !leading-[18.9px]'>{fiatValue}</p>
+              </div>
+              <img src={selectedToken?.img ?? defaultTokenLogo} width={48} height={48} />
+            </div>
+
+            <ArrowDown
+              size={40}
+              className={classNames(
+                'absolute top-[108px] rounded-full bg-accent-blue-200 flex items-center justify-center border-[5px] border-gray-50 dark:border-black-100 -mt-[18px] -mb-[18px] p-[5px]',
+              )}
+            />
+
+            <div className='bg-secondary-200 p-6 rounded-xl flex w-full justify-between items-center'>
               <p
                 className='text-lg text-monochrome font-bold !leading-[27px]'
-                data-testing-id='send-review-sheet-inputAmount-ele'
+                data-testing-id='send-review-sheet-to-ele'
               >
-                {formatTokenAmount(inputAmount, selectedToken?.symbol ?? '')}
+                {selectedAddress?.ethAddress
+                  ? sliceAddress(selectedAddress.ethAddress)
+                  : selectedAddress?.selectionType === 'currentWallet'
+                  ? selectedAddress?.name?.split('-')[0]
+                  : sliceAddress(selectedAddress?.address)}
               </p>
-
-              <p className='text-sm text-muted-foreground !leading-[18.9px]'>{fiatValue}</p>
+              <img src={Images.Misc.getWalletIconAtIndex(0)} width={48} height={48} />
             </div>
-            <img src={selectedToken?.img ?? defaultTokenLogo} width={48} height={48} />
-          </div>
 
-          <ArrowDown
-            size={40}
-            className={classNames(
-              'absolute top-[108px] rounded-full bg-accent-blue-200 flex items-center justify-center border-[5px] border-gray-50 dark:border-black-100 -mt-[18px] -mb-[18px] p-[5px]',
-            )}
-          />
+            {memo ? (
+              <div className='w-full flex items-baseline gap-2.5 p-5 rounded-xl bg-secondary-100 border border-secondary mt-0.5'>
+                <p className='text-sm text-muted-foreground font-medium'>Memo:</p>
+                <p className='font-medium text-sm text-monochrome !leading-[22.4px] overflow-auto break-words'>
+                  {memo}
+                </p>
+              </div>
+            ) : null}
 
-          <div className='bg-secondary-200 p-6 rounded-xl flex w-full justify-between items-center'>
-            <p
-              className='text-lg text-monochrome font-bold !leading-[27px]'
-              data-testing-id='send-review-sheet-to-ele'
+            {txError ? <ErrorCard text={txError} /> : null}
+            <Button
+              className='w-full mt-4'
+              onClick={handleSend}
+              disabled={showLedgerPopup || isSending || sendDisabled}
+              data-testing-id='send-review-sheet-send-btn'
             >
-              {selectedAddress?.ethAddress
-                ? sliceAddress(selectedAddress.ethAddress)
-                : selectedAddress?.selectionType === 'currentWallet'
-                ? selectedAddress?.name?.split('-')[0]
-                : sliceAddress(selectedAddress?.address)}
-            </p>
-            <img src={Images.Misc.getWalletIconAtIndex(0)} width={48} height={48} />
+              {isSending ? 'Sending...' : 'Confirm transfer'}
+            </Button>
           </div>
-
-          {memo ? (
-            <div className='w-full flex items-baseline gap-2.5 p-5 rounded-xl bg-secondary-100 border border-secondary mt-0.5'>
-              <p className='text-sm text-muted-foreground font-medium'>Memo:</p>
-              <p className='font-medium text-sm text-monochrome !leading-[22.4px] overflow-auto break-words'>
-                {memo}
-              </p>
-            </div>
-          ) : null}
-
-          {txError || error ? <ErrorCard text={txError || error} /> : null}
-          <Button
-            className='w-full mt-4'
-            onClick={handleSend}
-            disabled={showLedgerPopup || isSending || sendDisabled || txnProcessing}
-            data-testing-id='send-review-sheet-send-btn'
-          >
-            {isSending || txnProcessing ? 'Sending...' : 'Confirm transfer'}
-          </Button>
-        </div>
-      </BottomModal>
+        </BottomModal>
+        <LedgerConfirmationPopup
+          showLedgerPopup={showLedgerPopup && !txError}
+          onCloseLedgerPopup={onCloseLedgerPopup}
+        />
+      </>
     )
   },
 )

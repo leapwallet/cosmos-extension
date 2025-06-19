@@ -11,6 +11,8 @@ import {
   GasPriceOptionsStore,
   GasPriceStepForChainStore,
   GasPriceStepStore,
+  SolanaGasPricesStore,
+  SuiGasPricesStore,
 } from '@leapwallet/cosmos-wallet-store'
 
 import { getStorageAdapter } from '../utils/storageAdapter'
@@ -49,6 +51,9 @@ export const evmGasPricesStore = new EvmGasPricesStore(
 
 export const aptosGasPricesStore = new AptosGasPricesStore(chainInfoStore, chainApisStore)
 
+export const solanaGasPricesStore = new SolanaGasPricesStore(chainInfoStore, chainApisStore)
+
+export const suiGasPricesStore = new SuiGasPricesStore(chainInfoStore, chainApisStore)
 export const dappDefaultFeeStore = new DappDefaultFeeStore()
 
 export const feeDenomsStore = new FeeDenomsStore(chainInfoStore, storageAdapter)
@@ -62,6 +67,8 @@ export const feeTokensStore = new FeeTokensStore({
   evmGasPricesStore,
   dappDefaultFeeStore,
   feeDenomsStore,
+  solanaGasPricesStore,
+  suiGasPricesStore,
   gasPriceStepForChainStore,
   addIbcTraceData: useIbcTraceStore.getState().addIbcTraceData, // remove this when `useIbcTraceStore` is migrated to mobx
 })
@@ -78,5 +85,7 @@ export const gasPriceOptionsStore = new GasPriceOptionsStore({
   evmGasPricesStore,
   feeDenomsStore,
   gasPriceStepForChainStore,
+  solanaGasPricesStore,
+  suiGasPricesStore,
   currencyStore,
 })

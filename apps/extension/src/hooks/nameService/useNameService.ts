@@ -1,10 +1,14 @@
+import type { NameServiceResolveResult } from '@leapwallet/name-matcha'
 import { allowedTopLevelDomains, registry } from '@leapwallet/name-matcha'
 import { useDebounceCallback } from 'hooks/useDebounceCallback'
 import { useCallback, useEffect, useState } from 'react'
 
+export type { NameServiceResolveResult }
+
 // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useNameServiceResolver = (queryAddress: string, network: 'mainnet' | 'testnet') => {
-  const [data, setData] = useState({})
+  const [data, setData] = useState<Record<string, NameServiceResolveResult | null>>({})
+
   const [isLoading, setLoading] = useState(false)
   const { debounce } = useDebounceCallback()
   const getAllResolvedAddresses = useCallback(
@@ -15,6 +19,7 @@ export const useNameServiceResolver = (queryAddress: string, network: 'mainnet' 
         const options = {
           allowedTopLevelDomains,
         }
+
         const data = await registry.resolveAll(queryAddress, options)
         setData(data)
         // eslint-disable-next-line no-empty
@@ -47,4 +52,5 @@ export const nameServices: Record<string, string> = {
   sns: 'SNS',
   degeNS: 'DegeNS',
   bdd: 'BDD',
+  celestialsId: 'Celestials ID',
 }

@@ -12,11 +12,10 @@ import { useChainInfos, useSetChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { imgOnError } from 'utils/imgOnError'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
@@ -145,11 +144,7 @@ const SuggestChain = observer(
       <>
         <div className='flex flex-col items-center'>
           <Heading text='Add Network' />
-          <SubHeading
-            text={`This will allow this network to be used within ${
-              isCompassWallet() ? 'Compass' : 'Leap'
-            } Wallet.`}
-          />
+          <SubHeading text={`This will allow this network to be used within Leap Wallet.`} />
 
           <GenericCard
             title={

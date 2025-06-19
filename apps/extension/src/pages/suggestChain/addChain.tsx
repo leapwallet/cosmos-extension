@@ -13,14 +13,14 @@ import {
   sleep,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { ArrowLeft, ExclamationMark } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
 import axios from 'axios'
 import { ErrorCard } from 'components/ErrorCard'
 import { InputComponent } from 'components/input-component/InputComponent'
-import PopupLayout from 'components/layout/popup-layout'
 import Loader from 'components/loader/Loader'
-import Text from 'components/text'
+import NewBottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { BETA_CHAINS } from 'config/storage-keys'
 import { useSetActiveChain } from 'hooks/settings/useActiveChain'
@@ -29,12 +29,10 @@ import { useChainInfos, useSetChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
-import SideNav from 'pages/home/side-nav'
-import React, { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import React, { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { rootStore } from 'stores/root-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import { isNotValidNumber, isNotValidURL } from 'utils/regex'
 import browser from 'webextension-polyfill'
 
@@ -159,18 +157,16 @@ const AddChainForm = observer(
 
     const trackCTAEvent = useCallback(
       (buttonName: string, redirectURL?: string) => {
-        if (!isCompassWallet()) {
-          try {
-            mixpanel.track(EventName.ButtonClick, {
-              buttonType: ButtonType.CHAIN_MANAGEMENT,
-              buttonName,
-              addedChainName: chainName,
-              redirectURL,
-              time: Date.now() / 1000,
-            })
-          } catch (e) {
-            captureException(e)
-          }
+        try {
+          mixpanel.track(EventName.ButtonClick, {
+            buttonType: ButtonType.CHAIN_MANAGEMENT,
+            buttonName,
+            addedChainName: chainName,
+            redirectURL,
+            time: Date.now() / 1000,
+          })
+        } catch (e) {
+          captureException(e)
         }
       },
       [chainName],
@@ -225,118 +221,114 @@ const AddChainForm = observer(
       [chainInfos, errors],
     )
 
-    const handleSubmit = useCallback(
-      async (event: FormEvent) => {
-        setLoading(true)
-        event.preventDefault()
-        const data: any = {
-          chainId: chainId,
-          chainName: chainName,
-          chainRegistryPath: addressPrefix,
-          key: chainName,
-          chainSymbolImageUrl: Images.Logos.GenericLight,
-          txExplorer: {
-            mainnet: {
-              name: 'Explorer',
-              txUrl: explorerUrl,
-            },
+    const handleSubmit = useCallback(async () => {
+      setLoading(true)
+      const data: any = {
+        chainId: chainId,
+        chainName: chainName,
+        chainRegistryPath: addressPrefix,
+        key: chainName,
+        chainSymbolImageUrl: Images.Logos.GenericLight,
+        txExplorer: {
+          mainnet: {
+            name: 'Explorer',
+            txUrl: explorerUrl,
           },
-          apis: {
-            rest: removeTrailingSlash(restUrl),
-            rpc: removeTrailingSlash(rpcUrl),
+        },
+        apis: {
+          rest: removeTrailingSlash(restUrl),
+          rpc: removeTrailingSlash(rpcUrl),
+        },
+        denom: denom,
+        bip44: {
+          coinType: evmChainInfo.isEvmChain ? '60' : coinType,
+        },
+        addressPrefix: addressPrefix,
+        gasPriceStep: defaultGasPriceStep,
+        ibcChannelIds: {},
+        nativeDenoms: {
+          [denom]: {
+            coinDenom: denom,
+            coinMinimalDenom: denom,
+            coinDecimals: evmChainInfo.isEvmChain ? 18 : Number(decimals),
+            coinGeckoId: '',
+            icon: Images.Logos.GenericLight,
+            chain: chainName,
           },
-          denom: denom,
-          bip44: {
-            coinType: evmChainInfo.isEvmChain ? '60' : coinType,
-          },
-          addressPrefix: addressPrefix,
-          gasPriceStep: defaultGasPriceStep,
-          ibcChannelIds: {},
-          nativeDenoms: {
-            [denom]: {
-              coinDenom: denom,
-              coinMinimalDenom: denom,
-              coinDecimals: evmChainInfo.isEvmChain ? 18 : Number(decimals),
-              coinGeckoId: '',
-              icon: Images.Logos.GenericLight,
-              chain: chainName,
-            },
-          },
-          theme: {
-            primaryColor: '#E18881',
-            gradient:
-              'linear-gradient(180deg, rgba(225, 136, 129, 0.32) 0%, rgba(225, 136, 129, 0) 100%)',
-          },
-          enabled: true,
-          beta: true,
-          features: [],
-        }
+        },
+        theme: {
+          primaryColor: '#E18881',
+          gradient:
+            'linear-gradient(180deg, rgba(225, 136, 129, 0.32) 0%, rgba(225, 136, 129, 0) 100%)',
+        },
+        enabled: true,
+        beta: true,
+        features: [],
+      }
 
-        if (evmChainInfo.isEvmChain) {
-          data.evmChainId = chainId
-          data.apis.evmJsonRpc = removeTrailingSlash(rpcUrl)
-          data.evmOnlyChain = true
-          data.chainRegistryPath = chainId
-          data.addressPrefix = denom
-        }
+      if (evmChainInfo.isEvmChain) {
+        data.evmChainId = chainId
+        data.apis.evmJsonRpc = removeTrailingSlash(rpcUrl)
+        data.evmOnlyChain = true
+        data.chainRegistryPath = chainId
+        data.addressPrefix = denom
+      }
 
-        setChainInfos({ ...chainInfos, [chainName]: data })
-        rootStore.setChains({ ...chainInfos, [chainName]: data })
-        await sleep(500)
+      setChainInfos({ ...chainInfos, [chainName]: data })
+      rootStore.setChains({ ...chainInfos, [chainName]: data })
+      await sleep(500)
 
-        browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {
-          try {
-            const updatedKeystore = await updateKeyStore(
-              activeWallet,
-              chainName as unknown as SupportedChain,
-              'UPDATE',
-              data,
-            )
-            let betaChains = resp?.[BETA_CHAINS]
+      browser.storage.local.get([BETA_CHAINS]).then(async (resp) => {
+        try {
+          const updatedKeystore = await updateKeyStore(
+            activeWallet,
+            chainName as unknown as SupportedChain,
+            'UPDATE',
+            data,
+          )
+          let betaChains = resp?.[BETA_CHAINS]
 
-            betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
-            betaChains[chainName] = data
-            await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
+          betaChains = typeof betaChains === 'string' ? JSON.parse(betaChains) : {}
+          betaChains[chainName] = data
+          await browser.storage.local.set({ [BETA_CHAINS]: JSON.stringify(betaChains) })
 
-            if (data.evmOnlyChain) {
-              chainTagsStore.setBetaChainTags(data.chainId, ['EVM'])
-            } else {
-              chainTagsStore.setBetaChainTags(data.chainId, ['Cosmos'])
-            }
-
-            await setActiveWallet(updatedKeystore[activeWallet.id])
-            await setActiveChain(chainName as unknown as SupportedChain, data)
-            navigate('/')
-          } catch (error) {
-            setErrors((s) => ({ ...s, submit: 'Unable to add chain' }))
-            // do nothing
-          } finally {
-            setLoading(false)
+          if (data.evmOnlyChain) {
+            chainTagsStore.setBetaChainTags(data.chainId, ['EVM'])
+          } else {
+            chainTagsStore.setBetaChainTags(data.chainId, ['Cosmos'])
           }
-        })
-        trackCTAEvent(ButtonName.ADD_NEW_CHAIN, '/add-chain')
-      },
-      [
-        activeWallet,
-        addressPrefix,
-        chainId,
-        chainInfos,
-        chainName,
-        coinType,
-        decimals,
-        denom,
-        evmChainInfo.isEvmChain,
-        explorerUrl,
-        navigate,
-        restUrl,
-        rpcUrl,
-        setActiveChain,
-        setActiveWallet,
-        setChainInfos,
-        trackCTAEvent,
-        updateKeyStore,
-      ],
-    )
+
+          await setActiveWallet(updatedKeystore[activeWallet.id])
+          await setActiveChain(chainName as unknown as SupportedChain, data)
+          navigate('/')
+        } catch (error) {
+          setErrors((s) => ({ ...s, submit: 'Unable to add chain' }))
+          // do nothing
+        } finally {
+          setLoading(false)
+        }
+      })
+      trackCTAEvent(ButtonName.ADD_NEW_CHAIN, '/add-chain')
+    }, [
+      activeWallet,
+      addressPrefix,
+      chainId,
+      chainInfos,
+      chainName,
+      coinType,
+      decimals,
+      denom,
+      evmChainInfo.isEvmChain,
+      explorerUrl,
+      navigate,
+      restUrl,
+      rpcUrl,
+      setActiveChain,
+      setActiveWallet,
+      setChainInfos,
+      trackCTAEvent,
+      updateKeyStore,
+    ])
 
     const handleOnBlurChainId = useCallback(
       (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -370,154 +362,140 @@ const AddChainForm = observer(
     }, [chainInfo.chainId, evmChainInfo.chainId])
 
     return (
-      <form className='w-full mb-5' onSubmit={handleSubmit}>
-        <InputComponent
-          placeholder='Chain Id (Ex: juno-1)'
-          value={chainId}
-          name='chainId'
-          onChange={handleChange}
-          error={errors.chainId}
-          onBlur={handleOnBlurChainId}
-        />
+      <React.Fragment>
+        <div className='overflow-y-auto overflow-x-visible h-[calc(100%-56px)]'>
+          <div className='rounded-lg w-full flex items-center h-[56px] p-4 bg-secondary-100 mb-7 gap-x-[10px]'>
+            <ExclamationMark className='text-secondary-100 bg-accent-yellow rounded-full h-5 w-5 p-[2px]' />
+            <div className='font-medium text-foreground text-sm !leading-[22px]'>
+              Only add custom networks you trust.
+            </div>
+          </div>
+          <form className='w-full overflow-x-visible' onSubmit={handleSubmit}>
+            <InputComponent
+              placeholder='Chain id (Ex: juno-1)'
+              value={chainId}
+              name='chainId'
+              onChange={handleChange}
+              error={errors.chainId}
+              onBlur={handleOnBlurChainId}
+            />
 
-        <InputComponent
-          placeholder='Chain Name (Ex: Juno)'
-          value={chainName}
-          name='chainName'
-          onChange={handleChange}
-          error={errors.chainName}
-        />
+            <InputComponent
+              placeholder='Chain name (Ex: Juno)'
+              value={chainName}
+              name='chainName'
+              onChange={handleChange}
+              error={errors.chainName}
+            />
 
-        <InputComponent
-          placeholder='New RPC URL (Without Trailing Slash)'
-          value={rpcUrl}
-          name='rpcUrl'
-          onChange={handleChange}
-          error={errors.rpcUrl}
-          onBlur={handleOnBlurRpcUrl}
-        />
+            <InputComponent
+              placeholder='New RPC URL (without trailing slash)'
+              value={rpcUrl}
+              name='rpcUrl'
+              onChange={handleChange}
+              error={errors.rpcUrl}
+              onBlur={handleOnBlurRpcUrl}
+            />
 
-        {!evmChainInfo.isEvmChain && (
-          <InputComponent
-            placeholder='New REST URL (Without Trailing Slash)'
-            value={restUrl}
-            name='restUrl'
-            onChange={handleChange}
-            error={errors.restUrl}
-          />
-        )}
+            {!evmChainInfo.isEvmChain && (
+              <InputComponent
+                placeholder='New REST URL (without trailing slash)'
+                value={restUrl}
+                name='restUrl'
+                onChange={handleChange}
+                error={errors.restUrl}
+              />
+            )}
 
-        {!evmChainInfo.isEvmChain && (
-          <InputComponent
-            placeholder='Address Prefix (Ex: juno)'
-            value={addressPrefix}
-            name='addressPrefix'
-            onChange={handleChange}
-          />
-        )}
+            {!evmChainInfo.isEvmChain && (
+              <InputComponent
+                placeholder='Address prefix (Ex: juno)'
+                value={addressPrefix}
+                name='addressPrefix'
+                onChange={handleChange}
+              />
+            )}
 
-        <InputComponent
-          placeholder='Native Denom (Ex: ujuno)'
-          value={denom}
-          name='denom'
-          onChange={handleChange}
-        />
+            <InputComponent
+              placeholder='Native denom (Ex: ujuno)'
+              value={denom}
+              name='denom'
+              onChange={handleChange}
+            />
 
-        {!evmChainInfo.isEvmChain && (
-          <InputComponent
-            placeholder='Coin Type (Ex: 118)'
-            value={coinType}
-            name='coinType'
-            onChange={handleChange}
-            error={errors.coinType}
-          />
-        )}
+            {!evmChainInfo.isEvmChain && (
+              <InputComponent
+                placeholder='Coin type (Ex: 118)'
+                value={coinType}
+                name='coinType'
+                onChange={handleChange}
+                error={errors.coinType}
+              />
+            )}
 
-        {!evmChainInfo.isEvmChain && (
-          <InputComponent
-            placeholder='Decimals (Ex: 6)'
-            value={decimals}
-            name='decimals'
-            onChange={handleChange}
-            error={errors.decimals}
-          />
-        )}
+            {!evmChainInfo.isEvmChain && (
+              <InputComponent
+                placeholder='Decimals (Ex: 6)'
+                value={decimals}
+                name='decimals'
+                onChange={handleChange}
+                error={errors.decimals}
+              />
+            )}
 
-        <InputComponent
-          placeholder='Block explorer URL (Optional)'
-          value={explorerUrl}
-          name='explorerUrl'
-          onChange={handleChange}
-          error={errors.explorerUrl}
-        />
-        {errors.submit ? <ErrorCard text={errors.submit} /> : null}
-
-        <div className='flex gap-x-4 mt-3'>
-          <Buttons.Generic
-            className='rounded-2xl w-full font-bold py-3 dark:bg-gray-900 bg-gray-900 text-gray-900 dark:text-white-100 h-12'
-            type='reset'
-            onClick={() => navigate('/')}
-            style={{ boxShadow: 'none' }}
-          >
-            Cancel
-          </Buttons.Generic>
-
-          <Buttons.Generic
-            className='rounded-2xl w-full font-bold py-3 text-gray-900 dark:text-white-100 relative h-12'
-            style={{ backgroundColor: '#E18881', boxShadow: 'none' }}
-            type='submit'
-            disabled={loading || disableSubmit}
-          >
-            {loading ? <Loader /> : 'Add chain'}
-          </Buttons.Generic>
+            <InputComponent
+              placeholder='Block explorer URL (Optional)'
+              value={explorerUrl}
+              name='explorerUrl'
+              onChange={handleChange}
+              error={errors.explorerUrl}
+            />
+            {errors.submit ? <ErrorCard text={errors.submit} /> : null}
+          </form>
         </div>
-      </form>
+        <div className='absolute bottom-0 left-0 right-0 p-4 bg-secondary-100 backdrop-blur-xl'>
+          {loading ? (
+            <div className='h-[44px]'>
+              <Loader />
+            </div>
+          ) : (
+            <Button
+              className='rounded-full w-full font-bold text-sm !leading-5 text-gray-900 dark:text-white-100 h-11 !bg-primary'
+              type='submit'
+              disabled={loading || disableSubmit}
+              onClick={handleSubmit}
+            >
+              Add chain
+            </Button>
+          )}
+        </div>
+      </React.Fragment>
     )
   },
 )
 
-export default function AddChain() {
-  const navigate = useNavigate()
-  const [showSideNav, setShowSideNav] = useState(false)
+export default function AddChain({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const updateKeyStore = useUpdateKeyStore()
   const { activeWallet, setActiveWallet } = useActiveWallet()
   const setActiveChain = useSetActiveChain()
   return (
-    <div className='relative overflow-clip m-auto'>
-      <SideNav isShown={showSideNav} toggler={() => setShowSideNav(!showSideNav)} />
-      <PopupLayout
-        header={
-          <Header
-            title='Add Chain'
-            action={{
-              onClick: () => {
-                navigate('/home')
-              },
-              type: HeaderActionType.BACK,
-            }}
-          />
-        }
-      >
-        <div className='panel-width max-panel-height px-7 overflow-y-auto bg-gray-50 dark:bg-black-100'>
-          <div className='rounded-xl w-full flex items-center h-[68px] bg-white-100 dark:bg-gray-900 py-2 pl-5 pr-[10px] mt-7 mb-4'>
-            <img className='mr-[16px]' src={Images.Misc.Warning} width='40' height='40' />
-            <div className='flex flex-col gap-y-[2px]'>
-              <Text size='sm' color='text-gray-400 font-medium'>
-                Caution:
-              </Text>
-              <Text size='sm' color='font-bold dark:text-white-100 text-gray-900'>
-                Only add custom networks you trust.
-              </Text>
-            </div>
-          </div>
-          <AddChainForm
-            updateKeyStore={updateKeyStore as () => Promise<Record<string, Key>>}
-            activeWallet={activeWallet as Key}
-            setActiveWallet={setActiveWallet}
-            setActiveChain={setActiveChain}
-          />
-        </div>
-      </PopupLayout>
-    </div>
+    <NewBottomModal
+      isOpen={isOpen}
+      onClose={onClose}
+      fullScreen
+      title='Add Chain'
+      secondaryActionButton={
+        <ArrowLeft size={24} className='cursor-pointer p-[2px] text-foreground' onClick={onClose} />
+      }
+      className='h-full p-6 relative overflow-y-hidden overflow-x-visible'
+      hideActionButton
+    >
+      <AddChainForm
+        updateKeyStore={updateKeyStore as () => Promise<Record<string, Key>>}
+        activeWallet={activeWallet as Key}
+        setActiveWallet={setActiveWallet}
+        setActiveChain={setActiveChain}
+      />
+    </NewBottomModal>
   )
 }

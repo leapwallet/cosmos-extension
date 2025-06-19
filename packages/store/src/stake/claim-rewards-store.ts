@@ -1,4 +1,11 @@
-import { axiosWrapper, fromSmall, isAptosChain, RewardsResponse, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  axiosWrapper,
+  fromSmall,
+  isAptosChain,
+  pubKeyToEvmAddressToShow,
+  RewardsResponse,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
@@ -11,12 +18,12 @@ import {
   ChainClaimRewards,
   ChainInfosConfigType,
   ClaimRewards,
-  GetRewardsForChainParams,
   LoadingStatusType,
   SelectedNetworkType,
 } from '../types';
 import { formatTokenAmount, isFeatureExistForChain } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
+import { ClaimRewardAPIRequest, StakingApiStore } from './staking-api-store';
 import { ActiveStakingDenomStore, IbcDenomInfoStore } from './utils-store';
 
 class RewardsQuery extends BaseQueryStore<RewardsResponse> {
@@ -53,6 +60,7 @@ export class ClaimRewardsStore {
   activeStakingDenomStore: ActiveStakingDenomStore;
   priceStore: PriceStore;
   ibcDenomInfoStore: IbcDenomInfoStore;
+  stakingApiStore: StakingApiStore;
 
   chainWiseRewards: Record<string, ClaimRewards | Record<string, never>> = {};
   chainWiseLoading: Record<string, LoadingStatusType> = {};
@@ -71,6 +79,7 @@ export class ClaimRewardsStore {
     activeStakingDenomStore: ActiveStakingDenomStore,
     priceStore: PriceStore,
     ibcDenomInfoStore: IbcDenomInfoStore,
+    stakingApiStore: StakingApiStore,
   ) {
     makeObservable(this, {
       chainClaimRewards: computed.struct,
@@ -88,6 +97,7 @@ export class ClaimRewardsStore {
     this.activeStakingDenomStore = activeStakingDenomStore;
     this.priceStore = priceStore;
     this.ibcDenomInfoStore = ibcDenomInfoStore;
+    this.stakingApiStore = stakingApiStore;
   }
 
   get chainClaimRewards(): ChainClaimRewards {
@@ -126,176 +136,194 @@ export class ClaimRewardsStore {
     network = network || this.selectedNetworkStore.selectedNetwork;
 
     if (chain === 'aggregated') {
-      this.aggregatedChainsStore.aggregatedChainsData.forEach((chain) => {
-        const chainKey = this.getChainKey(chain as SupportedChain);
-
-        if (!this.chainWiseRewards[chainKey] || forceRefetch) {
-          runInAction(() => (this.chainWiseLoading[chainKey] = 'loading'));
-          this.fetchChainRewards(chain as SupportedChain, network ?? 'mainnet');
-        }
-      });
+      this.fetchRewards(
+        this.aggregatedChainsStore.aggregatedChainsData as SupportedChain[],
+        network ?? 'mainnet',
+        forceRefetch,
+      );
     } else {
       const chainKey = this.getChainKey(chain);
 
       if (!this.chainWiseRewards[chainKey] || forceRefetch) {
-        this.chainWiseLoading[chainKey] = 'loading';
-        this.fetchChainRewards(chain, network);
+        this.fetchRewards([chain], network, forceRefetch);
       }
     }
   }
 
-  async fetchChainRewards(chain: SupportedChain, network: SelectedNetworkType) {
+  async fetchRewards(chainsList: SupportedChain[], network: SelectedNetworkType, forceRefetch = false) {
     const isTestnet = network === 'testnet';
-    const address = this.addressStore.addresses?.[chain];
+    const request: ClaimRewardAPIRequest = {
+      chains: {},
+      forceRefetch,
+    };
 
-    const activeChainInfo = this.chainInfosStore.chainInfos[chain];
-    const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
+    chainsList.forEach((chain) => {
+      const address = this.addressStore.addresses?.[chain];
 
-    if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
-    const chainKey = this.getChainKey(chain);
+      const activeChainInfo = this.chainInfosStore.chainInfos[chain];
+      const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
 
-    const isFeatureComingSoon = isFeatureExistForChain(
-      'comingSoon',
-      'stake',
-      'Extension',
-      activeChainId,
-      this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
-    );
+      if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) return;
+      const chainKey = this.getChainKey(chain);
 
-    const isFeatureNotSupported = isFeatureExistForChain(
-      'notSupported',
-      'stake',
-      'Extension',
-      activeChainId,
-      this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
-    );
-
-    runInAction(() => {
-      this.chainWiseRefetch[chainKey] = async () => {
-        this.chainWiseIsFetchingRewards[chainKey] = true;
-
-        await this.fetchChainRewards(
-          this.activeChainStore.activeChain as SupportedChain,
-          this.selectedNetworkStore.selectedNetwork,
-        );
-
-        this.chainWiseIsFetchingRewards[chainKey] = false;
-      };
-    });
-
-    if (isFeatureComingSoon || isFeatureNotSupported) {
       runInAction(() => {
-        this.chainWiseRewards[chainKey] = {};
-        this.chainWiseLoading[chainKey] = 'success';
-      });
-      return;
-    }
-
-    const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
-    const hasEntryInNms =
-      this.nmsStore.restEndpoints[activeChainId] && this.nmsStore.restEndpoints[activeChainId].length > 0;
-
-    const lcdUrl = hasEntryInNms
-      ? this.nmsStore.restEndpoints[activeChainId][0].nodeUrl
-      : activeChainInfo?.apis[nodeUrlKey];
-
-    try {
-      const response = await this.getRewardsForChain({
-        lcdUrl: lcdUrl ?? '',
-        address,
-        chainId: activeChainId,
-        chainKey,
-        activeChain: chain as SupportedChain,
-        selectedNetwork: network,
+        this.chainWiseLoading[chainKey] = 'loading';
       });
 
-      if (response) {
-        const { claimTotal, totalRewardsDollarAmt, _rewards } = response;
-        const rewards = _rewards.reduce((a: any, v: any) => {
-          return Object.assign(a, { [v.validator_address]: v });
-        }, {});
+      const isFeatureComingSoon = isFeatureExistForChain(
+        'comingSoon',
+        'stake',
+        'Extension',
+        activeChainId,
+        this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
+      );
 
-        const totalRewards = await Promise.all(
-          _rewards.map((_reward) => {
-            const reward = _reward?.reward.map((claim) => {
-              const { amount: _amount, denom } = claim;
-              const denomInfo = claimTotal.find((token) => token.denom === denom);
-              const amount = fromSmall(_amount, denomInfo?.tokenInfo?.coinDecimals ?? 6);
+      const isFeatureNotSupported = isFeatureExistForChain(
+        'notSupported',
+        'stake',
+        'Extension',
+        activeChainId,
+        this.chainInfosConfigStore.chainInfosConfig as ChainInfosConfigType,
+      );
 
-              const denomFiatValue = denomInfo?.denomFiatValue ?? '0';
-              const currencyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
-
-              let formatted_amount = '';
-              if (denomInfo && denomInfo.tokenInfo) {
-                const tokenInfo = denomInfo.tokenInfo;
-                formatted_amount = formatTokenAmount(amount, tokenInfo.coinDenom, tokenInfo.coinDecimals);
-
-                if (formatted_amount === 'NaN') {
-                  formatted_amount = '0 ' + tokenInfo.coinDenom;
-                }
-              }
-
-              return Object.assign(claim, {
-                amount,
-                currencyAmount,
-                formatted_amount,
-                tokenInfo: denomInfo?.tokenInfo,
-              });
-            });
-
-            return Object.assign(_reward, reward);
-          }),
-        );
-
-        const totalRewardsAmt = claimTotal
-          .reduce((a, v) => {
-            return a + +v.amount;
-          }, 0)
-          .toString();
-
-        const activeStakingDenom = this.activeStakingDenomStore.stakingDenomForChain(chain)?.[0];
-        let formattedTotalRewardsAmt = formatTokenAmount(totalRewardsAmt, activeStakingDenom.coinDenom, 4);
-        if (formattedTotalRewardsAmt === 'NaN') {
-          formattedTotalRewardsAmt = '0 ' + activeStakingDenom.coinDenom;
-        }
-
-        runInAction(() => {
-          this.chainWiseLoading[chainKey] = 'success';
-          this.chainWiseRewards[chainKey] = {
-            rewards,
-            result: { rewards: totalRewards, total: claimTotal },
-            totalRewards: totalRewardsAmt,
-            formattedTotalRewards: formattedTotalRewardsAmt,
-            totalRewardsDollarAmt,
-          };
-        });
-      } else {
+      if (isFeatureComingSoon || isFeatureNotSupported) {
         runInAction(() => {
           this.chainWiseRewards[chainKey] = {};
           this.chainWiseLoading[chainKey] = 'success';
         });
+        return;
       }
-    } catch (_) {
+
       runInAction(() => {
-        this.chainWiseLoading[chainKey] = 'error';
-        this.chainWiseRewards[chainKey] = {};
+        this.chainWiseRefetch[chainKey] = async () => {
+          await this.fetchRewards([chain], this.selectedNetworkStore.selectedNetwork, true);
+        };
       });
-    }
+
+      request.chains[activeChainId] = {
+        address,
+      };
+    });
+
+    const { chains, errors } = await this.stakingApiStore.getRewards(request);
+
+    chainsList.forEach(async (chain) => {
+      const address = this.addressStore.addresses?.[chain];
+      const activeChainInfo = this.chainInfosStore.chainInfos[chain as SupportedChain];
+      const activeChainId = isTestnet ? activeChainInfo?.testnetChainId : activeChainInfo?.chainId;
+      const chainKey = this.getChainKey(chain);
+      const activeStakingDenom = this.activeStakingDenomStore.stakingDenomForChain(chain as SupportedChain)?.[0];
+
+      try {
+        if (!activeChainId || !address || activeChainInfo?.evmOnlyChain || isAptosChain(chain)) {
+          throw new Error('Missing details or stake is not supported');
+        }
+
+        let res: RewardsResponse = {
+          rewards: [],
+          total: [],
+        };
+        const hasError = errors && errors.some((item) => item.chainId === activeChainInfo.chainId);
+        if (hasError) {
+          const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
+          const hasEntryInNms =
+            this.nmsStore.restEndpoints[activeChainId] && this.nmsStore.restEndpoints[activeChainId].length > 0;
+
+          const lcdUrl = hasEntryInNms
+            ? this.nmsStore.restEndpoints[activeChainId][0].nodeUrl
+            : activeChainInfo?.apis[nodeUrlKey];
+
+          const { data } = await axiosWrapper<RewardsResponse>({
+            baseURL: lcdUrl,
+            method: 'get',
+            url: `/cosmos/distribution/v1beta1/delegators/${address}/rewards`,
+          });
+          res = data;
+        } else {
+          res = chains[activeChainId].result;
+        }
+        const response = await this.formatRewards(res, chain, network, !hasError);
+        if (response) {
+          const { claimTotal, totalRewardsDollarAmt, _rewards } = response;
+          const rewards = _rewards.reduce((a: any, v: any) => {
+            return Object.assign(a, { [v.validator_address]: v });
+          }, {});
+
+          const totalRewards = await Promise.all(
+            _rewards.map((_reward) => {
+              const reward = _reward?.reward.map((claim) => {
+                const { amount: _amount, denom } = claim;
+                const denomInfo = claimTotal.find((token) => token.denom === denom);
+                const amount = !hasError ? _amount : fromSmall(_amount, denomInfo?.tokenInfo?.coinDecimals ?? 6);
+
+                const denomFiatValue = denomInfo?.denomFiatValue ?? '0';
+                const currencyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();
+
+                let formatted_amount = '';
+                if (denomInfo && denomInfo.tokenInfo) {
+                  const tokenInfo = denomInfo.tokenInfo;
+                  formatted_amount = formatTokenAmount(amount, tokenInfo.coinDenom, tokenInfo.coinDecimals);
+
+                  if (formatted_amount === 'NaN') {
+                    formatted_amount = '0 ' + tokenInfo.coinDenom;
+                  }
+                }
+
+                return Object.assign(claim, {
+                  amount,
+                  currencyAmount,
+                  formatted_amount,
+                  tokenInfo: denomInfo?.tokenInfo,
+                });
+              });
+
+              return Object.assign(_reward, reward);
+            }),
+          );
+
+          const totalRewardsAmt = claimTotal
+            .reduce((a, v) => {
+              return a + +v.amount;
+            }, 0)
+            .toString();
+
+          let formattedTotalRewardsAmt = formatTokenAmount(totalRewardsAmt, activeStakingDenom.coinDenom, 4);
+          if (formattedTotalRewardsAmt === 'NaN') {
+            formattedTotalRewardsAmt = '0 ' + activeStakingDenom.coinDenom;
+          }
+
+          runInAction(() => {
+            this.chainWiseLoading[chainKey] = 'success';
+            this.chainWiseRewards[chainKey] = {
+              rewards,
+              result: { rewards: totalRewards, total: claimTotal },
+              totalRewards: totalRewardsAmt,
+              formattedTotalRewards: formattedTotalRewardsAmt,
+              totalRewardsDollarAmt,
+            };
+          });
+        } else {
+          runInAction(() => {
+            this.chainWiseRewards[chainKey] = {};
+            this.chainWiseLoading[chainKey] = 'success';
+          });
+        }
+      } catch (error) {
+        runInAction(() => {
+          this.chainWiseLoading[chainKey] = 'error';
+          this.chainWiseRewards[chainKey] = {};
+        });
+      }
+    });
   }
 
-  async getRewardsForChain({
-    lcdUrl,
-    address,
-    chainId,
-    activeChain,
-    chainKey,
-    selectedNetwork,
-  }: GetRewardsForChainParams) {
-    if (!this.rewardsQueryStore[chainKey]) {
-      this.rewardsQueryStore[chainKey] = new RewardsQuery(lcdUrl, address, activeChain);
-    }
-    const res = await this.rewardsQueryStore[chainKey].fetchData();
-
+  async formatRewards(
+    res: RewardsResponse,
+    activeChain: SupportedChain,
+    selectedNetwork: SelectedNetworkType,
+    isFormatted: boolean,
+  ) {
+    const activeChainInfo = this.chainInfosStore.chainInfos[activeChain];
     const { total, rewards: _rewards } = res as RewardsResponse;
     await this.waitForPriceStore();
     const claimTotal = await Promise.all(
@@ -307,7 +335,7 @@ export class ClaimRewardsStore {
             ?.stakingDenomForChain(activeChain)
             ?.find((d) => d?.coinMinimalDenom === denom);
         }
-        const amount = fromSmall(_amount, denomInfo?.coinDecimals ?? 6);
+        const amount = isFormatted ? _amount : fromSmall(_amount, denomInfo?.coinDecimals ?? 6);
 
         let denomFiatValue = '0';
         const coingeckoPrices = this.priceStore.data;
@@ -316,7 +344,7 @@ export class ClaimRewardsStore {
           if (coingeckoPrices) {
             let tokenPrice;
             const coinGeckoId = denomInfo?.coinGeckoId;
-            const alternateCoingeckoKey = `${chainId}-${denomInfo?.coinMinimalDenom}`;
+            const alternateCoingeckoKey = `${activeChainInfo.chainId}-${denomInfo?.coinMinimalDenom}`;
 
             if (coinGeckoId) {
               tokenPrice = coingeckoPrices[coinGeckoId];
@@ -370,13 +398,16 @@ export class ClaimRewardsStore {
   }
 
   private getChainKey(chain: SupportedChain) {
-    const cosmosAddress = this.addressStore.addresses?.cosmos;
+    const evmPubKey = this.addressStore?.pubKeys?.ethereum;
+    const cosmosAddress = this.addressStore?.addresses?.cosmos;
+    const evmAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : '';
+    const address = cosmosAddress || evmAddress;
     const chainId =
       this.selectedNetworkStore.selectedNetwork == 'testnet'
         ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
         : this.chainInfosStore.chainInfos[chain]?.chainId;
 
-    return `${cosmosAddress}-${chain}-${chainId}`;
+    return `${address}-${chain}-${chainId}`;
   }
 
   private async waitForPriceStore() {

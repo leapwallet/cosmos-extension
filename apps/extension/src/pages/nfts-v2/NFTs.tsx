@@ -14,20 +14,21 @@ import {
 } from './index'
 
 export default function NFTs() {
-  usePageView(PageName.NFT)
+  // usePageView(PageName.NFT)
 
   const address = useAddress()
   const [activePage, setActivePage] = useState<NftPage>('ShowNfts')
   const value = { activePage, setActivePage }
 
   return (
-    <NftContextProvider value={value} key={address}>
-      {activePage === 'ShowNfts' && (
-        <ShowNfts nftStore={nftStore} chainTagsStore={chainTagsStore} />
-      )}
-      {activePage === 'CollectionDetails' && <CollectionDetails nftStore={nftStore} />}
-      {activePage === 'NftDetails' && <NftDetails />}
-      {activePage === 'ChainNftsDetails' && <ChainNftsDetails nftStore={nftStore} />}
-    </NftContextProvider>
+    <></>
+    // <NftContextProvider value={value} key={address}>
+    //   {activePage === 'ShowNfts' && (
+    //     <ShowNfts nftStore={nftStore} chainTagsStore={chainTagsStore} />
+    //   )}
+    //   {activePage === 'CollectionDetails' && <CollectionDetails nftStore={nftStore} />}
+    //   {activePage === 'NftDetails' && <NftDetails />}
+    //   {activePage === 'ChainNftsDetails' && <ChainNftsDetails nftStore={nftStore} />}
+    // </NftContextProvider>
   )
 }

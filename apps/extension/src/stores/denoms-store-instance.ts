@@ -18,7 +18,6 @@ import {
   RootERC20DenomsStore,
   WhitelistedFactoryTokensStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { isCompassWallet } from 'utils/isCompassWallet'
 import browser from 'webextension-polyfill'
 
 import { getStorageAdapter } from '../utils/storageAdapter'
@@ -29,8 +28,8 @@ import { chainInfoStore } from './chain-infos-store'
 const app = 'extension'
 const version = browser.runtime.getManifest().version
 const storageAdapter = getStorageAdapter()
-const cw20DenomChainsStore = new CW20DenomChainsStore(isCompassWallet(), storageAdapter)
-const erc20DenomChainStore = new ERC20DenomsChainsStore(isCompassWallet(), storageAdapter)
+const cw20DenomChainsStore = new CW20DenomChainsStore(false, storageAdapter)
+const erc20DenomChainStore = new ERC20DenomsChainsStore(false, storageAdapter)
 
 export const erc404DenomsStore = new Erc404DenomsStore(activeChainStore)
 export const erc20DenomsStore = new ERC20DenomsStore(activeChainStore, erc20DenomChainStore)
@@ -46,12 +45,7 @@ export const autoFetchedCW20DenomsStore = new AutoFetchedCW20DenomsStore(
 export const betaCW20DenomsStore = new BetaCW20DenomsStore(activeChainStore, storageAdapter)
 export const betaNativeDenomsStore = new BetaNativeDenomsStore(activeChainStore, storageAdapter)
 export const betaERC20DenomsStore = new BetaERC20DenomsStore(activeChainStore, storageAdapter)
-export const compassTokenTagsStore = new CompassTokenTagsStore(
-  app,
-  version,
-  isCompassWallet(),
-  betaERC20DenomsStore,
-)
+export const compassTokenTagsStore = new CompassTokenTagsStore(app, version, false, denomsStore)
 
 export const enabledCW20DenomsStore = new EnabledCW20DenomsStore(
   activeChainStore,

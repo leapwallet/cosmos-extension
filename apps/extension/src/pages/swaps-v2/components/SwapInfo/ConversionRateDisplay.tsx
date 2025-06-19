@@ -4,12 +4,14 @@ import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useSwapContext } from 'pages/swaps-v2/context'
 import React, { useCallback, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { cn } from 'utils/cn'
 
 type ConversionRateDisplayProps = {
   onClick?: () => void
+  isReviewSheet?: boolean
 }
 
-export function ConversionRateDisplay({ onClick }: ConversionRateDisplayProps) {
+export function ConversionRateDisplay({ onClick, isReviewSheet }: ConversionRateDisplayProps) {
   const { amountOut, inAmount, sourceToken, destinationToken, loadingRoutes } = useSwapContext()
   const [interchangeTokens, setInterchangeTokens] = useState<boolean>(false)
 
@@ -48,11 +50,21 @@ export function ConversionRateDisplay({ onClick }: ConversionRateDisplayProps) {
     <button onClick={onClick ?? handleInterchange} className='flex items-center gap-1 flex-wrap'>
       {conversionRate && baseToken && quoteToken && (
         <>
-          <span className='dark:text-white-100 text-xs !leading-[19.2px] font-medium'>
+          <span
+            className={cn(
+              'text-secondary-800 text-xs !leading-[19.2px] font-medium',
+              isReviewSheet && 'text-sm',
+            )}
+          >
             1 {baseToken?.symbol} ={' '}
           </span>
-          <div className='!leading-[19.2px] text-xs !leading-[19.2px] font-medium h-[19.2px]'>
-            <span className='dark:text-white-100'>
+          <div
+            className={cn(
+              'text-xs !leading-[19.2px] font-medium h-[19.2px]',
+              isReviewSheet && 'text-sm',
+            )}
+          >
+            <span className='text-secondary-800'>
               {formatTokenAmount(
                 conversionRate ?? '0',
                 sliceWord(quoteToken?.symbol ?? '', 4, 4),
@@ -60,7 +72,7 @@ export function ConversionRateDisplay({ onClick }: ConversionRateDisplayProps) {
               )}
             </span>
             {baseToken.usdPrice && (
-              <span className='ml-1 text-gray-600 dark:text-gray-400'>
+              <span className='ml-1 text-muted-foreground'>
                 ({formatCurrency(new BigNumber(baseToken.usdPrice))})
               </span>
             )}

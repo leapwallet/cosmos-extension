@@ -143,7 +143,7 @@ export const SeedPhraseInput = ({ onChangeHandler, isError, className }: SeedPhr
         />
       </div>
 
-      <AnimatePresence exitBeforeEnter>
+      <AnimatePresence mode='wait'>
         <motion.div
           key={seedPhraseWordCount}
           className={cn(

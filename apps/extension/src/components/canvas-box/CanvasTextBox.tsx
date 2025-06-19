@@ -27,6 +27,7 @@ export type CanvasTextBoxProps = {
   text: string
   size?: 'lg' | 'md' | 'sm'
   noSpace?: boolean
+  className?: string
 }
 
 export type CanvasBoxProps = {
@@ -45,9 +46,9 @@ export const CanvasBox = ({ text, height, width, noSpace }: CanvasBoxProps): Rea
     const canvas = canvasRef.current
     const context = canvas && canvas.getContext('2d')
     if (canvas == null || context === null) return
-    const offset = 15
-    canvas.width = width * dpr + offset
-    canvas.height = height * dpr + offset
+
+    canvas.width = width * dpr
+    canvas.height = height * dpr
     context.scale(dpr, dpr)
     const isDark = theme === ThemeName.DARK
 
@@ -58,8 +59,8 @@ export const CanvasBox = ({ text, height, width, noSpace }: CanvasBoxProps): Rea
     }
     context.fillRect(0, 0, width, height)
 
-    let xPos = 25,
-      yPos = 10
+    let xPos = 24,
+      yPos = 0
     let x = xPos,
       y = yPos
 
@@ -108,32 +109,37 @@ export const CanvasBox = ({ text, height, width, noSpace }: CanvasBoxProps): Rea
         const rectW = 80
         const rectR = 13
         roundRect(context, x, y, rectW, rectH, rectR)
-        if (isDark) {
-          context.fillStyle = 'rgba(103, 103, 103, 0.3)'
-        } else {
-          context.fillStyle = '#F4F4F4'
-        }
-        context.fill()
 
-        context.font = '600 13px Satoshi'
-        context.textAlign = 'center'
+        context.font = '500 12px Satoshi'
+        context.textAlign = 'start'
         context.fillStyle = '#9e9e9e'
-        context.fillText(`${idx + 1}`, x - 10, y + rectH / 2 + 5)
+        context.fillText(`${idx + 1}`, x - 8, y + rectH / 2 + 5)
 
-        context.font = '600 13px Satoshi'
-        context.textAlign = 'center'
+        context.font = '500 14px Satoshi'
+        context.textAlign = 'start'
         if (isDark) {
           context.fillStyle = '#ffffff'
         } else {
           context.fillStyle = '#383838'
         }
-        context.fillText(`${word}`, x + rectW / 2, y + rectH / 2 + 5)
+        context.fillText(`${word}`, x + 16, y + rectH / 2 + 5)
         x += width / 3
       })
     }
   }, [canvasRef, text, height, width, noSpace, theme])
 
   return <canvas style={{ height, width }} ref={canvasRef} />
+}
+const widthMap = {
+  lg: 376,
+  md: 344,
+  sm: 304,
+}
+
+const widthClassMap = {
+  lg: `w-[${widthMap.lg}px]`,
+  md: `w-[${widthMap.md}px]`,
+  sm: `w-[${widthMap.sm}px]`,
 }
 
 export default function CanvasTextBox({
@@ -142,48 +148,36 @@ export default function CanvasTextBox({
   size = 'lg',
 }: CanvasTextBoxProps): ReactElement {
   const textLength = (text ?? '').split(' ').length
-  const widthMap = {
-    lg: 376,
-    md: 344,
-    sm: 304,
-  }
 
   return (
     <div
       className={classNames(
-        'rounded-2xl dark:bg-gray-900 bg-white-100 text-xs font-medium box-border font-Satoshi max-[350px]:!px-1',
+        'rounded-2xl bg-secondary-200 relative text-xs font-medium box-border max-[350px]:!px-1 group opacity-80 hover:opacity-100 transition-opacity duration-300',
         {
           'h-[184px]': textLength !== 24,
           'h-[328px]': textLength === 24,
         },
-        {
-          'w-[376px] p-5': size === 'lg',
-          'w-[344px] p-5': size === 'md',
-          'w-[304px] p-5': size === 'sm',
-        },
+        widthClassMap[size],
         classNames,
       )}
     >
-      <CanvasBox
-        height={textLength === 24 ? 288 : 144}
-        width={widthMap[size] - 30}
-        text={text}
-        noSpace={noSpace}
-      />
-      <div
-        className={classNames(
-          'relative rounded-xl transform -translate-y-[100%] backdrop-blur-sm hover:backdrop-blur-none hover:opacity-0 w-full h-full',
-        )}
-      >
+      <div className='flex flex-1 justify-center items-center h-full'>
+        <CanvasBox
+          height={textLength === 24 ? 288 : 144}
+          width={widthMap[size] - 30}
+          text={text}
+          noSpace={noSpace}
+        />
+      </div>
+
+      <div className='absolute inset-0 rounded-xl backdrop-blur-sm group-hover:backdrop-blur-none group-hover:opacity-0 w-full h-full transition-opacity duration-300'>
         <div className='absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 w-full text-center'>
           <img
-            className='transform invert dark:invert-0 inline'
+            className='transform invert dark:invert-0 inline size-12'
             src={Images.Misc.VisibilityOffIcon}
-            alt=''
+            alt='visibility-off'
           />
-          <div className='text-sm font-bold dark:text-white-100 text-gray-800'>
-            {'Hover here to view the phrase'}
-          </div>
+          <span className='sr-only'>Hover here to view the phrase</span>
         </div>
       </div>
     </div>

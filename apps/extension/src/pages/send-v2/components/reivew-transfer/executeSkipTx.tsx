@@ -10,6 +10,7 @@ import {
   useChainId,
   useChainsStore,
   useDenoms,
+  useGetIsMinitiaEvmChain,
   usePendingTxState,
   useTxMetadata,
   WALLETTYPE,
@@ -83,6 +84,8 @@ export const useExecuteSkipTx = () => {
     return getLedgerEnabledEvmChainsKey(Object.values(chains))
   }, [chains])
 
+  const getIsMinitiaEvmChain = useGetIsMinitiaEvmChain()
+
   const confirmSkipTx = async () => {
     if (
       !fee ||
@@ -144,12 +147,18 @@ export const useExecuteSkipTx = () => {
       }
       let txBytesString: string | undefined = undefined
 
+      const isMinitiaEvmChain = getIsMinitiaEvmChain(
+        sendSelectedNetwork,
+        messageChain.key as SupportedChain,
+        messageChain.chainId,
+      )
       const tx = new TxClient(
         String(messageChain.chainId),
         messageChain.restUrl,
         messageChain.coinType,
         signer,
         account,
+        isMinitiaEvmChain ? '/initia.crypto.v1beta1.ethsecp256k1.PubKey' : undefined,
       )
       const wallet = await getWallet(messageChain.key as SupportedChain)
 
@@ -373,5 +382,12 @@ export const useExecuteSkipTx = () => {
     setTxnProcessing(false)
   }
 
-  return { confirmSkipTx, txnProcessing, error, showLedgerPopupSkipTx, setError }
+  return {
+    confirmSkipTx,
+    txnProcessing,
+    error,
+    showLedgerPopupSkipTx,
+    setShowLedgerPopupSkipTx: setShowLedgerPopup,
+    setError,
+  }
 }
