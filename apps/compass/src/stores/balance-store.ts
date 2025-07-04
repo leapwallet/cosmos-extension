@@ -83,6 +83,7 @@ export const balanceStore = new BalanceStore(
   balanceAPIStore,
   currencyStore,
   coingeckoIdsStore,
+  storageAdapter,
 )
 
 export const cw20TokenBalanceStore = new CW20DenomBalanceStore(

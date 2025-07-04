@@ -109,6 +109,8 @@
 
     --accent-yellow: 37 100% 72%;
 
+    --accent-blue: 210 100% 72%;
+
     --border-bottom: 240 2% 85%;
 
     --muted-foreground: 0 0% 45%; /* text/text-3, text/text-disabled */
@@ -176,6 +178,8 @@
     --accent-green-900: 156 61% 13%;
 
     --accent-yellow: 37 100% 72%;
+
+    --accent-blue: 210 100% 72%;
 
     --border-bottom: 240 2% 16%;
 

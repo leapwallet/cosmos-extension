@@ -1,82 +1,74 @@
-import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
-import classNames from 'classnames'
 import CanvasTextBox from 'components/canvas-box/CanvasTextBox'
-import Text from 'components/text'
-import { useChainPageInfo } from 'hooks'
+import BottomModal from 'components/new-bottom-modal'
+import { CopyButton } from 'components/ui/button/copy-button'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
-import { Images } from 'images'
+import { UserKeyIcon } from 'icons/user-key'
 import React, { ReactElement, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
 
 import { EnterPasswordView } from './EnterPasswordView'
 
-function SeedPhraseView({
-  goBack,
-  password,
-}: {
-  password: Uint8Array
-  goBack: () => void
-}): ReactElement {
+function SeedPhraseView({ password }: { password: Uint8Array }): ReactElement {
   const mnemonic = SeedPhrase.useMnemonic(password)
-  const { topChainColor } = useChainPageInfo()
 
   return (
-    <div className={classNames('panel-height enclosing-panel overflow-scroll')}>
-      <Header
-        title='Recovery Phrase'
-        action={{
-          type: HeaderActionType.BACK,
-          onClick: goBack,
-          'data-testing-id': 'export-seed-phrase-back-btn',
-        }}
-      />
-      <div className='flex flex-col items-center p-[28px] pt-[10px]'>
-        <div className='p-4 rounded-2xl dark:bg-gray-900 bg-white-100'>
-          <img src={Images.Misc.TextSnippet} />
-        </div>
-        <div className='dark:text-white-100 text-black-100 text-base mt-4 mb-1 font-bold text-center'>
-          These words are the keys to your wallet
-        </div>
-        <div className='dark:text-gray-400 text-gray-600 text-xs mb-5 w-4/5 text-center'>
-          Exporting a recovery phrase to MetaMask might give a different address, use private key
-          instead.
-        </div>
-
-        <CanvasTextBox text={mnemonic} noSpace={false} size={'md'} />
-        <Buttons.CopyToClipboard
-          color={topChainColor}
-          data-testing-id='copy-seed-phrase'
-          onCopy={() => {
-            UserClipboard.copyText(mnemonic)
-          }}
-        />
-        <div className='w-full h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center p-[10px] my-[20px]'>
-          <img className='mr-[16px]' src={Images.Misc.Warning} />
-          <div className='flex flex-col gap-y-[2px]'>
-            <Text size='xs' className='font-black'>
-              Recommended security practice:
-            </Text>
-            <Text size='xs' color='text-gray-400'>
-              Write down recovery phrase instead of copying it
-            </Text>
-          </div>
-        </div>
+    <div className='flex flex-col items-center gap-4'>
+      <div className='size-16 rounded-full bg-secondary-100 grid place-items-center'>
+        <UserKeyIcon size={24} />
       </div>
+
+      <header className='flex flex-col items-center gap-2 text-center'>
+        <span className='text-xl font-bold'>Your secret recovery phrase</span>
+        <div className='text-muted-foreground text-sm'>
+          Your secret recovery phrase is the only way to recover your wallet and funds!
+        </div>
+      </header>
+
+      <CanvasTextBox text={mnemonic} noSpace={false} size={'md'} />
+
+      {mnemonic && (
+        <CopyButton onClick={() => UserClipboard.copyText(mnemonic)} className='gap-1'>
+          Copy to clipboard
+        </CopyButton>
+      )}
     </div>
   )
 }
 
-export default function ExportSeedPhrase({ goBack }: { goBack: () => void }): ReactElement {
+export default function ExportSeedPhrase({
+  isVisible,
+  onClose,
+}: {
+  isVisible: boolean
+  onClose: () => void
+}): ReactElement {
   const [password, setPassword] = useState<Uint8Array>()
   const [isRevealed, setRevealed] = useState(false)
-  return isRevealed && !!password ? (
-    <SeedPhraseView password={password} goBack={goBack} />
-  ) : (
-    <EnterPasswordView
-      passwordTo='view the Recovery Phrase'
-      setRevealed={setRevealed}
-      setPassword={setPassword}
-      goBack={goBack}
-    />
+
+  const goBack = () => {
+    onClose()
+    setPassword(undefined)
+    setRevealed(false)
+  }
+
+  return (
+    <BottomModal
+      fullScreen
+      isOpen={isVisible}
+      onClose={goBack}
+      title={isRevealed ? 'Recovery Phrase' : 'Enter Password'}
+      className='max-h-full overflow-y-auto h-full p-6 !pt-12'
+    >
+      {isRevealed && !!password ? (
+        <SeedPhraseView password={password} />
+      ) : (
+        <EnterPasswordView
+          passwordTo='view the Recovery Phrase'
+          autoFocus={isVisible}
+          setRevealed={setRevealed}
+          setPassword={setPassword}
+        />
+      )}
+    </BottomModal>
   )
 }

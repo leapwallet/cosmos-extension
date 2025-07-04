@@ -1,8 +1,8 @@
 import { sliceAddress, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Buttons } from '@leapwallet/leap-ui'
-import BottomModal from 'components/bottom-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
+import BottomModal from 'components/new-bottom-modal'
 import { useGetBTCDepositInfo, useNomicBTCDepositConstants } from 'hooks/nomic-btc-deposit'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useChainInfos } from 'hooks/useChainInfos'
@@ -198,11 +198,11 @@ export const BitcoinDeposit = observer(() => {
   const [selectedChain, setSelectedChain] = useState(activeChain)
 
   useEffect(() => {
-    if (data && data.ibcChains.length) {
-      if (data.ibcChains.includes(activeChain)) {
+    if (data && data.ibcChains?.length) {
+      if (data.ibcChains?.includes(activeChain)) {
         setSelectedChain(activeChain)
       } else {
-        setSelectedChain(data.ibcChains[0] as SupportedChain)
+        setSelectedChain(data.ibcChains?.[0] as SupportedChain)
       }
     }
   }, [activeChain, data])
@@ -212,7 +212,6 @@ export const BitcoinDeposit = observer(() => {
       isOpen={isVisible}
       onClose={() => query.remove(queryParams.btcDeposit)}
       title={'Bitcoin Deposit Address'}
-      closeOnBackdropClick={true}
     >
       <>
         <NomicBTCDeposit

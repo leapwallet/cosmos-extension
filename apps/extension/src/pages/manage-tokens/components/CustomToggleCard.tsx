@@ -2,6 +2,7 @@ import { GenericCard, GenericCardProps, Toggle } from '@leapwallet/leap-ui'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Images } from 'images'
 import React from 'react'
+import { cn } from 'utils/cn'
 import { imgOnError } from 'utils/imgOnError'
 
 type CustomToggleCardProps = GenericCardProps & {
@@ -11,6 +12,7 @@ type CustomToggleCardProps = GenericCardProps & {
   isToggleChecked: boolean
   className?: string
   onDeleteClick: () => void
+  imageClassName?: string
 }
 
 export function CustomToggleCard({
@@ -23,6 +25,7 @@ export function CustomToggleCard({
   isToggleChecked,
   onDeleteClick,
   className,
+  imageClassName,
 }: CustomToggleCardProps) {
   const defaultTokenLogo = useDefaultTokenLogo()
 
@@ -39,7 +42,7 @@ export function CustomToggleCard({
       img={
         <img
           src={imgSrc ?? defaultTokenLogo}
-          className='h-8 w-8 mr-3'
+          className={cn('h-8 w-8 mr-3', imageClassName)}
           onError={imgOnError(defaultTokenLogo)}
         />
       }

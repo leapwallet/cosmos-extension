@@ -1,13 +1,15 @@
 import { useAddressStore, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
 import { checkMintEligibility, getNFTBalance, NFTMetadata } from '@leapwallet/cosmos-wallet-sdk'
 import { Key } from '@leapwallet/leap-keychain'
+import { GearSix } from '@phosphor-icons/react'
 import { LoaderAnimation } from 'components/loader/Loader'
+import BottomModal, { BottomModalClose } from 'components/new-bottom-modal'
 import { AnimatePresence, motion } from 'framer-motion'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useCallback, useEffect, useState } from 'react'
 import semver from 'semver'
-import { evmBalanceStore } from 'stores/balance-store'
+import { balanceStore, evmBalanceStore } from 'stores/balance-store'
 import { lightNodeStore } from 'stores/light-node-store'
 import { opacityFadeInOut, transition150 } from 'utils/motion-variants'
 import { slideVariants } from 'utils/motion-variants/global-layout-motions'
@@ -20,7 +22,13 @@ import LumisNFT from './LumisNFT'
 const lightNodeTabs = ['Light Node', 'Lumi NFT'] as const
 type LightNodeTab = typeof lightNodeTabs[number]
 
-const LightNodePage = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
+const LightNodePage = ({
+  isVisible,
+  goBack,
+}: {
+  isVisible: boolean
+  goBack: (toHome?: boolean) => void
+}) => {
   const [activeTab, setActiveTab] = useState<LightNodeTab>('Light Node')
   const [showLightNodeSettings, setShowLightNodeSettings] = useState(false)
   const [isEligible, setIsEligible] = useState(false)
@@ -92,16 +100,25 @@ const LightNodePage = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
   }, [checkEligibility, lightNodeStore.isLightNodeRunning])
 
   return (
-    <>
+    <BottomModal
+      fullScreen
+      isOpen={isVisible}
+      onClose={goBack}
+      className='p-0 h-full flex flex-col'
+      title={<LightNodeHeader />}
+      actionButton={<BottomModalClose />}
+      secondaryActionButton={
+        showLightNodeSettings && (
+          <button
+            onClick={() => setShowLightNodeSettings(true)}
+            className='p-3 text-muted-foreground hover:text-foreground transition-colors'
+          >
+            <GearSix size={18} />
+          </button>
+        )
+      }
+    >
       <header className='sticky top-0 z-10 bg-secondary-50'>
-        <LightNodeHeader
-          onBack={() => goBack()}
-          showSettings={
-            !lightNodeStore.isLightNodeRunning && !!lightNodeStore.lastSyncedInfo?.lastSyncedHeader
-          }
-          onSettings={() => setShowLightNodeSettings(true)}
-        />
-
         {isFeatureFlagEnabled && (
           <div className='flex w-full border-b border-border-bottom relative -mt-px'>
             {lightNodeTabs.map((tab) => (
@@ -143,6 +160,7 @@ const LightNodePage = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
               setShowLightNodeSettings={setShowLightNodeSettings}
               setActiveTab={setActiveTab}
               showBanner={showBanner}
+              balanceStore={balanceStore}
             />
           </motion.div>
         ) : loading ? (
@@ -176,7 +194,7 @@ const LightNodePage = ({ goBack }: { goBack: (toHome?: boolean) => void }) => {
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </BottomModal>
   )
 }
 

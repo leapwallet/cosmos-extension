@@ -430,4 +430,5 @@ export const GAS_PRICE_STEPS = {
     high: 0.00003,
     average: 0.000035,
   },
+  xrpl: { low: 200000000000, average: 250000000000, high: 400000000000 },
 };

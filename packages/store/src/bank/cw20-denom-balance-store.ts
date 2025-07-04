@@ -365,7 +365,7 @@ export class CW20DenomBalanceStore {
   private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
     const chainKey = this.getChainKey(chain, forceNetwork);
     const address = this.addressStore.addresses[chain];
-    const userPreferredCurrency = this.currencyStore.preferredCurrency;
+    const userPreferredCurrency = this.currencyStore?.preferredCurrency;
 
     return `${chainKey}-${address}-${userPreferredCurrency}`;
   }

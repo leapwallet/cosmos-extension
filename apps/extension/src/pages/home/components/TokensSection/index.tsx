@@ -1,12 +1,11 @@
 import {
-  Token,
   useChainId,
   useChainInfo,
   useGetChains,
   useSnipGetSnip20TokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { isSolanaChain, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { AggregatedLoadingList } from 'components/aggregated'
 import WarningCard from 'components/WarningCard'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
@@ -15,12 +14,7 @@ import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  aptosCoinDataStore,
-  evmBalanceStore,
-  solanaCoinDataStore,
-  suiCoinDataStore,
-} from 'stores/balance-store'
+import { evmBalanceStore } from 'stores/balance-store'
 import { rootBalanceStore } from 'stores/root-store'
 import { zeroStateBannerStore } from 'stores/zero-state-banners'
 import { zeroStateTokensStore } from 'stores/zero-state-tokens-store'
@@ -55,13 +49,7 @@ export const TokensSection = observer(
     const [searchQuery, setSearchQuery] = useState<string>('')
     const allTokens = rootBalanceStore.allTokens
     const evmBalance = evmBalanceStore.evmBalance
-    const aptosBalance = aptosCoinDataStore.balances
-    const suiBalance = suiCoinDataStore.balances
-    const solanaBalance = solanaCoinDataStore.balances
-    const isAptosChain = chains?.[activeChain as SupportedChain]?.chainId.startsWith('aptos')
     const isEvmOnlyChain = chains?.[activeChain as SupportedChain]?.evmOnlyChain
-    const isSuiChain = chains?.[activeChain as SupportedChain]?.chainId.startsWith('sui')
-    const _isSolanaChain = isSolanaChain(activeChain)
 
     const toggleSearchTokensInput = useCallback(() => {
       setIsSearchTokensInputVisible((prev) => !prev)
@@ -78,15 +66,6 @@ export const TokensSection = observer(
       if (isEvmOnlyChain) {
         _allTokens = [...(evmBalance?.evmBalance ?? []), ...(_allTokens ?? [])]
       }
-      if (isAptosChain) {
-        _allTokens = [...(aptosBalance ?? [])]
-      }
-      if (_isSolanaChain) {
-        _allTokens = [...(solanaBalance ?? [])]
-      }
-      if (isSuiChain) {
-        _allTokens = [...(suiBalance ?? [])]
-      }
 
       zeroStateTokens.forEach((token) => {
         const existingToken = _allTokens.find((t) => t.coinMinimalDenom === token.coinMinimalDenom)
@@ -102,19 +81,7 @@ export const TokensSection = observer(
       })
 
       return _allTokens
-    }, [
-      isEvmOnlyChain,
-      isAptosChain,
-      allTokens,
-      activeChain,
-      evmBalance?.evmBalance,
-      aptosBalance,
-      zeroStateTokens,
-      _isSolanaChain,
-      suiBalance,
-      solanaBalance,
-      isSuiChain,
-    ])
+    }, [isEvmOnlyChain, allTokens, activeChain, evmBalance?.evmBalance, zeroStateTokens])
 
     const isWalletHasFunds = !!allTokensToShow?.some((token) => tokenHasBalance(token))
     const selectedNetwork = useSelectedNetwork()

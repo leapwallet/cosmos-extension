@@ -202,7 +202,7 @@ export class EthermintTxHandler {
 
   async sign(signerAddress: string, accountNumber: number, tx: any) {
     if (this.isMinitiaEvm) {
-      if (this.wallet instanceof LeapLedgerSignerEth) {
+      if (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth') {
         // const signDoc = SignDoc.fromPartial({
         //   authInfoBytes: tx.signDirect.authInfo.serializeBinary(),
         //   bodyBytes: tx.signDirect.body.serializeBinary(),
@@ -225,7 +225,7 @@ export class EthermintTxHandler {
           message,
         ]);
         const signBytes = keccak256(_signBytes).toString('hex');
-        const signature = await this.wallet.signPersonalMessage(signerAddress, signBytes);
+        const signature = await (this.wallet as LeapLedgerSignerEth).signPersonalMessage(signerAddress, signBytes);
         // const formattedSignature = this.ethSignatureToBytes(signature);
         // const v = (typeof signature.v === 'string' ? parseInt(signature.v, 16) : signature.v) - 27;
         // const compressedSignature = compressSignature(v, formattedSignature);
@@ -237,7 +237,7 @@ export class EthermintTxHandler {
         return Buffer.from(txRaw.value).toString('base64');
       }
     }
-    if (this.wallet instanceof LeapLedgerSignerEth) {
+    if (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth') {
       const signature = await (this.wallet as LeapLedgerSignerEth).signEip712(signerAddress, tx.eipToSign);
 
       const extension = {
@@ -257,7 +257,7 @@ export class EthermintTxHandler {
       return Buffer.from(txRaw as Uint8Array).toString('base64');
     }
 
-    if (this.wallet instanceof LeapKeystoneSignerEth || this.wallet.constructor.name === 'LeapKeystoneSignerEth') {
+    if (this.wallet instanceof LeapKeystoneSignerEth || this.wallet?.constructor?.name === 'LeapKeystoneSignerEth') {
       const _wallet = this.wallet as LeapKeystoneSignerEth;
       const signature = await _wallet.signEip712(signerAddress, tx.eipToSign);
 
@@ -278,7 +278,7 @@ export class EthermintTxHandler {
       return Buffer.from(txRaw as Uint8Array).toString('base64');
     }
 
-    if (!(this.wallet instanceof EthWallet)) {
+    if (!(this.wallet instanceof EthWallet || (this.wallet as any)?.constructor?.name === 'EthWallet')) {
       const signDoc = SignDoc.fromPartial({
         authInfoBytes: tx.signDirect.authInfo.serializeBinary(),
         bodyBytes: tx.signDirect.body.serializeBinary(),
@@ -342,7 +342,10 @@ export class EthermintTxHandler {
     let result;
 
     try {
-      if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+      if (
+        this.chain.cosmosChainId === 'evmos_9001-2' &&
+        (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+      ) {
         const { data } = await axiosWrapper({
           baseURL: evmosRpcUrl,
           method: 'post',
@@ -453,7 +456,10 @@ export class EthermintTxHandler {
     memo: string | undefined,
     txMemo: string = '',
   ) {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethSenderAddress = bech32ToEthAddress(fromAddress);
       const clientState = await getClientState(this.restUrl ?? '', sourceChannel, sourcePort);
       const tx = await icsContract.populateTransaction.transfer(
@@ -533,7 +539,10 @@ export class EthermintTxHandler {
   }
 
   async sendTokens(fromAddress: string, toAddress: string, amount: Coin[], fee: StdFee, memo = '') {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethToAddress = bech32ToEthAddress(toAddress);
       const tx = await erc20Contract.populateTransaction.transfer(
         ethToAddress,
@@ -618,7 +627,10 @@ export class EthermintTxHandler {
   }
 
   async delegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee, memo = '') {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethDelegatorAddress = bech32ToEthAddress(delegatorAddress);
       const tx = await stakingContract.populateTransaction.delegate(
         ethDelegatorAddress,
@@ -688,7 +700,10 @@ export class EthermintTxHandler {
     fee: StdFee,
     memo = '',
   ) {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const tx = await stakingContract.populateTransaction.approve(
         bech32ToEthAddress(validatorAddress),
         ethers.BigNumber.from(maxTokens?.amount ?? '0'),
@@ -732,7 +747,10 @@ export class EthermintTxHandler {
   }
 
   async revokeRestake(fromAddress: string, grantee: string, fee: StdFee, memo = '') {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethGranteeAddress = bech32ToEthAddress(grantee);
       const tx = await stakingContract.populateTransaction.revoke(ethGranteeAddress, [MSG_DELEGATE]);
       return this.signAndBroadcastEvmosLedgerTx(tx, fromAddress, fee);
@@ -764,7 +782,10 @@ export class EthermintTxHandler {
   }
 
   async revokeGrant(msgType: string, fromAddress: string, grantee: string, fee: StdFee, memo = '') {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethGranteeAddress = bech32ToEthAddress(grantee);
       const tx = await stakingContract.populateTransaction.revoke(ethGranteeAddress, [msgType]);
       return this.signAndBroadcastEvmosLedgerTx(tx, fromAddress, fee);
@@ -811,7 +832,10 @@ export class EthermintTxHandler {
     fee: StdFee,
     memo = '',
   ) {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       throw new Error('Not implemented');
     } else {
       const txRaw = await this.signCancelUnDelegationTx({
@@ -864,7 +888,10 @@ export class EthermintTxHandler {
   }
 
   async unDelegate(delegatorAddress: string, validatorAddress: string, amount: Coin, fee: StdFee, memo = '') {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethDelegatorAddress = bech32ToEthAddress(delegatorAddress);
       const tx = await stakingContract.populateTransaction.undelegate(
         ethDelegatorAddress,
@@ -906,7 +933,10 @@ export class EthermintTxHandler {
   }
 
   async withdrawRewards(delegatorAddress: string, validatorAddresses: string[], fee: StdFee, memo = '') {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethDelegatorAddress = bech32ToEthAddress(delegatorAddress);
       const tx = await distributionContract.populateTransaction.withdrawDelegatorRewards(
         ethDelegatorAddress,
@@ -964,7 +994,10 @@ export class EthermintTxHandler {
     fee: StdFee,
     memo = '',
   ) {
-    if (this.chain.cosmosChainId === 'evmos_9001-2' && this.wallet instanceof LeapLedgerSignerEth) {
+    if (
+      this.chain.cosmosChainId === 'evmos_9001-2' &&
+      (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth')
+    ) {
       const ethDelegatorAddress = bech32ToEthAddress(delegatorAddress);
       const tx = await stakingContract.populateTransaction.redelegate(
         ethDelegatorAddress,

@@ -45,7 +45,7 @@ export function useAssetDetails({
   const chainId = selectedNetwork === 'mainnet' ? chainInfo?.chainId : chainInfo?.testnetChainId;
   const isCompassWallet = useIsCompassWallet();
   const autoFetchedCW20Tokens = useAutoFetchedCW20Tokens();
-  const percentageChangeData = percentageChangeDataStore.data;
+  const percentageChangeData = percentageChangeDataStore?.data;
   const coingeckoIds = coingeckoIdsStore.coingeckoIdsFromS3;
 
   const combinedDenoms = useMemo(() => {

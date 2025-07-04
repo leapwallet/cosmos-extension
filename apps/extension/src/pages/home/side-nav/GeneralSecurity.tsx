@@ -1,132 +1,171 @@
-import { useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
-import { CardDivider, Header, HeaderActionType, NavCard, ToggleCard } from '@leapwallet/leap-ui'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { Images } from 'images'
+import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { CardDivider } from '@leapwallet/leap-ui'
+import { EyeSlash } from '@phosphor-icons/react/dist/ssr'
+import BottomModal from 'components/new-bottom-modal'
+import { Switch } from 'components/ui/switch'
+import useActiveWallet from 'hooks/settings/useActiveWallet'
+import { AuthZIcon } from 'icons/auth-z'
+import { KeyIcon } from 'icons/key-icon'
+import { StopWatch } from 'icons/stop-watch'
+import { UserKeyIcon } from 'icons/user-key'
 import { observer } from 'mobx-react-lite'
-import React, { ReactElement, useMemo, useState } from 'react'
+import React, { ReactElement, useState } from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
-import { autoLockTimeStore, TimerLockPeriodRev } from 'stores/password-store'
-import { AggregatedSupportedChain } from 'types/utility'
 
 import { SideNavSection } from '.'
-import ConnectedSites from './ConnectedSites'
+import ExportPrivateKey from './ExportPrivateKey'
+import ExportSeedPhrase from './ExportSeedPhrase'
 import { ManageAuthZ } from './ManageAuthZ'
+import { NavItem } from './NavItem'
 import SetLockTimerDropUp from './SetLockTimer'
 
-export const GENERAL_SECURITY_PAGES = {
-  DEFAULT: 0,
-  CONNECTED_SITES: 1,
-  MANAGE_AUTHZ: 2,
+export enum GENERAL_SECURITY_PAGES {
+  RECOVERY_PHRASE = 'RECOVERY_PHRASE',
+  PRIVATE_KEY = 'PRIVATE_KEY',
+  AUTO_LOCK_TIMER = 'AUTO_LOCK_TIMER',
+  MANAGE_AUTHZ = 'MANAGE_AUTHZ',
 }
 
-const GeneralSecurity = observer(
-  ({
-    goBack,
-    chainTagsStore,
-  }: {
-    goBack: () => void
-    chainTagsStore: ChainTagsStore
-  }): ReactElement => {
-    const activeChain = useActiveChain()
-    const [showLockTimeDropUp, setShowLockTimeDropUp] = useState(false)
-    const [page, setPage] = useState(GENERAL_SECURITY_PAGES.DEFAULT)
+const HideAssetsToggle = observer(() => {
+  return (
+    <Switch
+      className='data-[state=unchecked]:bg-secondary-400'
+      checked={hideAssetsStore.isHidden}
+      onCheckedChange={() => hideAssetsStore.setHidden(!hideAssetsStore.isHidden)}
+    />
+  )
+})
 
-    const NavOptions = useMemo(
-      () => [
-        {
-          imgSrc: Images.Misc.Timer,
-          property: 'Auto-lock timer',
-          value: TimerLockPeriodRev[autoLockTimeStore.time],
-          onClick: () => {
-            setShowLockTimeDropUp(true)
-          },
-          disabled: false,
-        },
-        {
-          imgSrc: Images.Misc.Globe,
-          property: 'Connected Sites',
-          value: '',
-          onClick: () => {
-            setPage(GENERAL_SECURITY_PAGES.CONNECTED_SITES)
-          },
-          disabled: (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY,
-        },
+const securityOptions: {
+  tab: GENERAL_SECURITY_PAGES | null
+  label: string
+  icon: React.ReactNode
+  onClick?: () => void
+  trailingIcon?: React.ReactNode
+  'data-testing-id'?: string
+}[][] = [
+  [
+    {
+      tab: GENERAL_SECURITY_PAGES.RECOVERY_PHRASE,
+      label: 'Show Recovery Phrase',
+      icon: <UserKeyIcon />,
+      'data-testing-id': 'sidenav-show-secret-phrase-card',
+    },
+    {
+      tab: GENERAL_SECURITY_PAGES.PRIVATE_KEY,
+      label: 'Show Private Key',
+      icon: <KeyIcon />,
+      'data-testing-id': 'sidenav-show-private-key-card',
+    },
+  ],
+  [
+    {
+      tab: GENERAL_SECURITY_PAGES.AUTO_LOCK_TIMER,
+      label: 'Auto-Lock Timer',
+      icon: <StopWatch />,
+      'data-testing-id': 'sidenav-auto-lock-timer-card',
+    },
+    {
+      tab: null,
+      label: 'Hide Assets',
+      icon: <EyeSlash weight='fill' />,
+      trailingIcon: <HideAssetsToggle />,
+    },
+  ],
+  [
+    {
+      tab: GENERAL_SECURITY_PAGES.MANAGE_AUTHZ,
+      label: 'Manage AuthZ',
+      icon: <AuthZIcon />,
+      'data-testing-id': 'sidenav-manage-authz-card',
+    },
+  ],
+]
 
-        {
-          imgSrc: Images.Nav.ManageAuthZ,
-          property: 'Manage AuthZ',
-          value: '',
-          onClick: () => {
-            setPage(GENERAL_SECURITY_PAGES.MANAGE_AUTHZ)
-          },
-          disabled: false,
-        },
-      ],
-      [activeChain],
-    )
+const GeneralSecurityView = ({
+  isVisible,
+  goBack,
+}: {
+  isVisible: boolean
+  goBack: () => void
+}): ReactElement => {
+  const [selectedTab, setSelectedTab] = useState<GENERAL_SECURITY_PAGES | null>(null)
+  const { activeWallet } = useActiveWallet()
 
-    if (page === GENERAL_SECURITY_PAGES.CONNECTED_SITES) {
-      return <ConnectedSites setPage={setPage} />
-    }
+  const isPrivateKeyEnabled = activeWallet?.walletType !== WALLETTYPE.LEDGER
+  const isRecoveryPhraseEnabled =
+    activeWallet?.walletType === WALLETTYPE.SEED_PHRASE ||
+    activeWallet?.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
 
-    if (page === GENERAL_SECURITY_PAGES.MANAGE_AUTHZ) {
-      return (
-        <ManageAuthZ
-          goBack={() => setPage(GENERAL_SECURITY_PAGES.DEFAULT)}
-          chainTagsStore={chainTagsStore}
-        />
-      )
-    }
+  // if (page === GENERAL_SECURITY_PAGES.CONNECTED_SITES) {
+  //   return <ConnectedSites setPage={setPage} />
+  // }
 
-    return (
-      <div className='panel-height enclosing-panel'>
-        <Header title='Security' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
-        <div className='flex flex-col items-center p-[28px]'>
-          <SideNavSection>
-            <div className='pt-3 pb-1 bg-white-100 dark:bg-gray-900'>
-              <ToggleCard
-                imgSrc={Images.Misc.VisibilityOff}
-                isEnabled={hideAssetsStore.isHidden}
-                isRounded={false}
-                className='[&_input]:shrink-0'
-                size='sm'
-                title='Hide Assets'
-                subtitle='Balances will be hidden upon loading wallet'
-                onClick={() => {
-                  hideAssetsStore.setHidden(!hideAssetsStore.isHidden)
-                }}
-              />
-            </div>
+  return (
+    <>
+      <BottomModal
+        fullScreen
+        isOpen={isVisible}
+        onClose={goBack}
+        title='Security'
+        className='pb-7 pt-2 !px-5'
+      >
+        {securityOptions.map((group) => (
+          <SideNavSection key={group[0].label}>
+            {group.map((item, index) => {
+              if (item.tab === GENERAL_SECURITY_PAGES.PRIVATE_KEY && !isPrivateKeyEnabled) {
+                return null
+              }
 
-            {NavOptions.map((navOption) => {
-              if (navOption.disabled) {
+              if (item.tab === GENERAL_SECURITY_PAGES.RECOVERY_PHRASE && !isRecoveryPhraseEnabled) {
                 return null
               }
 
               return (
-                <React.Fragment key={navOption.property}>
-                  <CardDivider />
-                  <div className='py-1 bg-white-100 dark:bg-gray-900'>
-                    <NavCard
-                      imgSrc={navOption.imgSrc}
-                      property={navOption.property}
-                      value={navOption.value}
-                      onClick={navOption.onClick}
-                    />
-                  </div>
+                <React.Fragment key={item.label}>
+                  {index !== 0 && <CardDivider />}
+                  <NavItem
+                    label={item.label}
+                    icon={item.icon}
+                    trailingIcon={item.trailingIcon}
+                    data-testing-id={item['data-testing-id']}
+                    onClick={() => {
+                      if (item.tab) {
+                        setSelectedTab(item.tab)
+                      }
+                      if (item.onClick) {
+                        item.onClick()
+                      }
+                    }}
+                  />
                 </React.Fragment>
               )
             })}
           </SideNavSection>
-        </div>
-        <SetLockTimerDropUp
-          isVisible={showLockTimeDropUp}
-          onCloseHandler={() => setShowLockTimeDropUp(false)}
-        />
-      </div>
-    )
-  },
-)
+        ))}
+      </BottomModal>
 
-export default GeneralSecurity
+      <ExportSeedPhrase
+        isVisible={selectedTab === GENERAL_SECURITY_PAGES.RECOVERY_PHRASE}
+        onClose={() => setSelectedTab(null)}
+      />
+
+      <ExportPrivateKey
+        isVisible={selectedTab === GENERAL_SECURITY_PAGES.PRIVATE_KEY}
+        onClose={() => setSelectedTab(null)}
+      />
+
+      <SetLockTimerDropUp
+        isVisible={selectedTab === GENERAL_SECURITY_PAGES.AUTO_LOCK_TIMER}
+        onClose={() => setSelectedTab(null)}
+      />
+
+      <ManageAuthZ
+        isVisible={selectedTab === GENERAL_SECURITY_PAGES.MANAGE_AUTHZ}
+        onClose={() => setSelectedTab(null)}
+      />
+    </>
+  )
+}
+
+export default observer(GeneralSecurityView)

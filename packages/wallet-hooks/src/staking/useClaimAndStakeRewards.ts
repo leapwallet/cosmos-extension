@@ -159,7 +159,9 @@ export function useClaimAndStakeRewards(
 
   const setLedgerError = useCallback((error?: string) => {
     setLedgerErrorMsg(error);
-    setShowLedgerPopup(false);
+    if (error) {
+      setShowLedgerPopup(false);
+    }
   }, []);
 
   const claimAndStakeRewards = useCallback(
@@ -221,7 +223,7 @@ export function useClaimAndStakeRewards(
             setShowLedgerPopup(true);
           }
 
-          txHandler
+          await txHandler
             .claimAndStake(userAddress, validatorsWithRewards, fee, memo)
             .then(async (txHash: any) => {
               const txResult = txHandler.pollForTx(txHash);

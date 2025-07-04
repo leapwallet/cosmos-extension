@@ -1,15 +1,11 @@
 import { useChainApis } from '@leapwallet/cosmos-wallet-hooks'
 import { NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
-import { Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { Plus } from '@phosphor-icons/react'
-import PopupLayout from 'components/layout/popup-layout'
-import { LoaderAnimation } from 'components/loader/Loader'
-import { Images } from 'images'
+import { SearchInput } from 'components/ui/input/search-input'
 import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GroupedVirtuoso } from 'react-virtuoso'
 import { activeChainStore } from 'stores/active-chain-store'
 import { cw20TokenBalanceStore, erc20TokenBalanceStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
@@ -28,9 +24,9 @@ import { selectedNetworkStore } from 'stores/selected-network-store'
 import { getContractInfo } from 'utils/getContractInfo'
 import extension from 'webextension-polyfill'
 
-import { DeleteTokenSheet, ManageTokensEmptyCard, SupportedToken } from './components'
-import { ManuallyAddedTokenCard } from './components/ManuallyAddedTokenCard'
-import { SupportedTokenCard } from './components/SupportedTokenCard'
+import { DeleteTokenSheet, SupportedToken } from './components'
+import ManageTokensHeader from './components/ManageTokensHeader'
+import { ManageTokensTabs } from './components/ManageTokensTab'
 import { sortBySymbols } from './utils'
 
 const ManageTokens = observer(() => {
@@ -60,6 +56,8 @@ const ManageTokens = observer(() => {
   const [fetchingContract, setFetchingContract] = useState(false)
   const timeoutIdRef = useRef<NodeJS.Timeout>()
   const [manuallyAddedTokens, setManuallyAddedTokens] = useState<NativeDenom[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [activeTab, setActiveTab] = useState('supported')
 
   /**
    * Initialize supported tokens
@@ -381,114 +379,44 @@ const ManageTokens = observer(() => {
     setTokenToDelete(token)
   }, [])
 
-  const groups = useMemo(() => {
-    return [
-      {
-        type: 'supported' as const,
-        items: filteredSupportedTokens,
-        Component: SupportedTokenCard,
-      },
-      {
-        type: 'manually-added' as const,
-        items: filteredManuallyAddedTokens,
-        Component: ManuallyAddedTokenCard,
-      },
-    ]
-  }, [filteredManuallyAddedTokens, filteredSupportedTokens])
+  useEffect(() => {
+    searchInputRef.current?.focus()
+  }, [])
 
   return (
-    <div className='relative w-full overflow-clip panel-height'>
-      <PopupLayout
-        header={
-          <Header
-            action={{
-              onClick: () => navigate(-1),
-              type: HeaderActionType.BACK,
-            }}
-            title='Manage Tokens'
-          />
-        }
-      >
-        <div className='w-full h-[calc(100%-72px)] flex flex-col justify-start py-[28px] items-center px-7 gap-[16px]'>
-          <div className='w-full flex items-center justify-between gap-[10px]'>
-            <div className='w-[296px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
-              <input
-                placeholder='Search by token or paste address...'
-                className='flex flex-grow text-base text-gray-600 dark:text-gray-200 max-[399px]:!w-[50px]  outline-none bg-white-0'
-                onChange={(event) => setSearchedText(event.target.value)}
-              />
-              <img src={Images.Misc.Search} className='shrink-0' />
-            </div>
+    <div className='flex flex-col h-full bg-secondary-50'>
+      <ManageTokensHeader />
+      <div className='flex items-center gap-2 m-6'>
+        <SearchInput
+          ref={searchInputRef}
+          value={searchedText}
+          onChange={(e) => setSearchedText(e?.target?.value ?? '')}
+          placeholder='Search by chain name'
+          onClear={() => setSearchedText('')}
+        />
 
-            <button
-              className='h-10 bg-white-100 dark:bg-gray-900 w-10 flex justify-center items-center rounded-full shrink-0'
-              onClick={() => handleAddNewTokenClick()}
-            >
-              <Plus size={16} className='text-gray-400 dark:text-gray-400' />
-            </button>
+        {handleAddNewTokenClick && (
+          <div
+            className='bg-secondary-100 hover:bg-secondary-200 px-4 py-3 text-muted-foreground rounded-xl cursor-pointer'
+            onClick={() => handleAddNewTokenClick()}
+          >
+            <Plus size={20} />
           </div>
-          {fetchingContract === true ? (
-            <div className='flex items-center justify-center'>
-              <LoaderAnimation color='#29a874' />
-            </div>
-          ) : null}
-          {fetchingContract === false &&
-          filteredManuallyAddedTokens.length === 0 &&
-          filteredSupportedTokens.length === 0 ? (
-            <ManageTokensEmptyCard
-              onAddTokenClick={handleAddNewTokenClick}
-              searchedText={searchedText}
-            />
-          ) : null}
-          {filteredManuallyAddedTokens.length + filteredSupportedTokens.length !== 0 ? (
-            <GroupedVirtuoso
-              style={{ flexGrow: '1', width: '100%' }}
-              groupContent={() => <div className='w-[1px] h-[1px] bg-transparent'></div>} //This is to avoid virtuoso errors in console logs
-              groupCounts={groups.map((group) => group.items.length)}
-              itemContent={(index, groupIndex) => {
-                const group = groups[groupIndex]
-                if (group.type === 'supported') {
-                  const { Component } = group
-                  const item = group.items[index]
-                  return (
-                    <Component
-                      key={`${item.coinMinimalDenom}`}
-                      activeChainStore={activeChainStore}
-                      cw20DenomsStore={cw20DenomsStore}
-                      autoFetchedCW20DenomsStore={autoFetchedCW20DenomsStore}
-                      token={item}
-                      tokensLength={group.items.length}
-                      index={index}
-                      handleToggleChange={handleToggleChange}
-                    />
-                  )
-                }
+        )}
+      </div>
 
-                const { Component } = group
-                const effectiveIndex = index - groups[0].items.length
-                const item = group.items[effectiveIndex]
-
-                return (
-                  <Component
-                    index={effectiveIndex}
-                    key={`${item?.coinMinimalDenom ?? effectiveIndex}`}
-                    token={item}
-                    hasSupportedTokens={filteredSupportedTokens?.length !== 0}
-                    tokensLength={group.items.length}
-                    handleToggleChange={handleToggleChange}
-                    fetchedTokens={fetchedTokens}
-                    onDeleteClick={onDeleteClick}
-                    betaCW20DenomsStore={betaCW20DenomsStore}
-                    disabledCW20DenomsStore={disabledCW20DenomsStore}
-                    enabledCW20DenomsStore={enabledCW20DenomsStore}
-                    betaERC20DenomsStore={betaERC20DenomsStore}
-                  />
-                )
-              }}
-            />
-          ) : null}
-        </div>
-      </PopupLayout>
+      <ManageTokensTabs
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        fetchingContract={fetchingContract}
+        filteredSupportedTokens={filteredSupportedTokens}
+        filteredManuallyAddedTokens={filteredManuallyAddedTokens}
+        fetchedTokens={fetchedTokens}
+        handleToggleChange={handleToggleChange}
+        onDeleteClick={onDeleteClick}
+        handleAddNewTokenClick={handleAddNewTokenClick}
+        searchedText={searchedText}
+      />
 
       <DeleteTokenSheet
         activeChainStore={activeChainStore}
@@ -504,4 +432,6 @@ const ManageTokens = observer(() => {
   )
 })
 
-export default ManageTokens
+export default observer(() => {
+  return <ManageTokens />
+})

@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Token, useGasAdjustmentForChain } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  getKeyToUseForDenoms,
+  Token,
+  useGasAdjustmentForChain,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   EvmBalanceStore,
@@ -24,7 +28,6 @@ import { useLocation } from 'react-router-dom'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { AggregatedSupportedChain } from 'types/utility'
 
-import { SelectTokenSheet } from './select-token-sheet'
 import { TokenInputCard } from './TokenInputCard'
 
 type AmountCardProps = {
@@ -35,6 +38,10 @@ type AmountCardProps = {
   rootERC20DenomsStore: RootERC20DenomsStore
   evmBalanceStore: EvmBalanceStore
   resetForm: boolean
+  setShowTokenSelectSheet: (show: boolean) => void
+  isTokenStatusSuccess: boolean
+  amount: string
+  setAmount: (amount: string) => void
 }
 
 export const AmountCard = observer(
@@ -46,19 +53,23 @@ export const AmountCard = observer(
     rootERC20DenomsStore,
     evmBalanceStore,
     resetForm,
+    setShowTokenSelectSheet,
+    isTokenStatusSuccess,
+    amount,
+    setAmount,
   }: AmountCardProps) => {
-    const inputRef = useRef<HTMLInputElement | null>(null)
-    const locationState = useLocation().state
-    const activeChain = useActiveChain()
     const chainInfos = chainInfoStore.chainInfos
     const selectedNetwork = useSelectedNetwork()
-
-    const [showTokenSelectSheet, setShowTokenSelectSheet] = useState<boolean>(false)
-    const [amount, setAmount] = useState('')
     const [isInputInUSDC, setIsInputInUSDC] = useState<boolean>(false)
     const allCW20Denoms = rootCW20DenomsStore.allCW20Denoms
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
     const { getAggregatedSpendableBalances } = rootBalanceStore
+    const allAssets = getAggregatedSpendableBalances(selectedNetwork)
+    const assets = useMemo(() => {
+      const _assets = allAssets
+
+      return _assets.sort((a, b) => Number(b.usdValue) - Number(a.usdValue))
+    }, [allAssets])
 
     const isCW20Token = useCallback(
       (token: Token) => {
@@ -69,9 +80,6 @@ export const AmountCard = observer(
       },
       [allCW20Denoms],
     )
-
-    const assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
-    const chainId = useQuery().get('chainId') ?? undefined
 
     const {
       inputAmount,
@@ -91,12 +99,10 @@ export const AmountCard = observer(
       feeDenom,
       sameChain,
       setFeeDenom,
-      setGasError,
       hasToUsePointerLogic,
     } = useSendContext()
 
     const gasAdjustment = useGasAdjustmentForChain()
-    const evmBalance = evmBalanceStore.evmBalance
 
     function getFlooredFixed(v: number, d: number) {
       return (Math.floor(v * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d)
@@ -111,91 +117,6 @@ export const AmountCard = observer(
         setInputAmount(amount)
       }
     }, [amount, selectedToken?.coinDecimals])
-
-    const allAssets = getAggregatedSpendableBalances(selectedNetwork)
-    const assets = useMemo(() => {
-      const _assets = allAssets
-
-      return _assets.sort((a, b) => Number(b.usdValue) - Number(a.usdValue))
-    }, [allAssets])
-
-    const isTokenStatusSuccess = useMemo(() => {
-      let status = isAllAssetsLoading === false
-      const addEvmDetails = chainInfos?.[sendActiveChain]?.evmOnlyChain ?? false
-
-      if (addEvmDetails) {
-        status = status && evmBalance.status === 'success'
-      }
-      return status
-    }, [chainInfos, evmBalance.status, isAllAssetsLoading, sendActiveChain])
-
-    const updateSelectedToken = useCallback(
-      (token: Token | null) => {
-        setSelectedToken(token)
-        setSelectedChain(token?.tokenBalanceOnChain || null)
-
-        if (token && token?.isEvm) {
-          setFeeDenom({
-            coinMinimalDenom: token.coinMinimalDenom,
-            coinDecimals: token.coinDecimals ?? 6,
-            coinDenom: token.symbol,
-            icon: token.img,
-            coinGeckoId: token.coinGeckoId ?? '',
-            chain: token.chain ?? '',
-          })
-        }
-
-        if (token && (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY) {
-          const _token =
-            Object.values(
-              chainInfos[token.tokenBalanceOnChain as SupportedChain]?.nativeDenoms,
-            )?.[0] || token
-
-          setFeeDenom({
-            coinMinimalDenom: _token.coinMinimalDenom,
-            coinDecimals: _token.coinDecimals ?? 6,
-            coinDenom: _token.coinDenom || token.symbol,
-            icon: _token.icon || token.img,
-            coinGeckoId: _token.coinGeckoId ?? '',
-            chain: _token.chain ?? '',
-          })
-        }
-      },
-      [setSelectedToken, activeChain, setSelectedChain, setFeeDenom, chainInfos],
-    )
-
-    useEffect(() => {
-      if (!selectedToken && !assetCoinDenom && isTokenStatusSuccess) {
-        if (locationState && (locationState as Token).coinMinimalDenom) {
-          const token = locationState as Token
-          updateSelectedToken(token)
-        }
-      }
-    }, [
-      assets,
-      locationState,
-      isTokenStatusSuccess,
-      selectedToken,
-      updateSelectedToken,
-      assetCoinDenom,
-      selectedChain,
-    ])
-
-    useEffect(() => {
-      if (assetCoinDenom) {
-        const tokenFromParams: Token | null =
-          assets.find(
-            (asset) =>
-              asset.ibcDenom === assetCoinDenom || asset.coinMinimalDenom === assetCoinDenom,
-          ) || null
-
-        updateSelectedToken(tokenFromParams)
-      } else if (chainId) {
-        const tokenFromParams: Token | null =
-          assets.find((asset) => new BigNumber(asset.amount).gt(0)) || null
-        updateSelectedToken(tokenFromParams)
-      }
-    }, [chainId, assetCoinDenom, activeChain, assets, updateSelectedToken])
 
     useEffect(() => {
       const check = () => {
@@ -291,23 +212,6 @@ export const AmountCard = observer(
           sendActiveChain={sendActiveChain}
           selectedChain={selectedChain}
           resetForm={resetForm}
-        />
-
-        <SelectTokenSheet
-          denoms={rootDenomsStore.allDenoms}
-          isOpen={showTokenSelectSheet}
-          assets={assets}
-          selectedToken={selectedToken}
-          onClose={() => {
-            setShowTokenSelectSheet(false)
-          }}
-          onTokenSelect={(token) => {
-            updateSelectedToken(token)
-            setGasError('')
-            setAmount('')
-            inputRef.current?.focus()
-          }}
-          assetCoinDenom={assetCoinDenom}
         />
       </motion.div>
     )

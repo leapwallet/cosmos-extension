@@ -47,6 +47,7 @@ export function ManageTokensEmptyCard({
       heading={
         <p className='text-[15px]'>{searchedText ? 'No results found' : 'Search for any token'}</p>
       }
+      classname='flex-1 justify-center pt-0'
       src={Images.Misc.Explore}
     />
   )

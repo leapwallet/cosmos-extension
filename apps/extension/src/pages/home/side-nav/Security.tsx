@@ -1,115 +1,99 @@
-import { WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { CardDivider, NavCard, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { useActiveChain, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { CardDivider } from '@leapwallet/leap-ui'
+import { Faders, GlobeHemisphereWest } from '@phosphor-icons/react'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useAuth } from 'context/auth-context'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
-import { Images } from 'images'
+import { LockIcon } from 'icons/lock'
+import { Phone } from 'icons/phone'
+import { ShieldIcon } from 'icons/shield'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import { globalSheetsStore } from 'stores/global-sheets-store'
-import { DEBUG } from 'utils/debug'
 
-import { NavPages, SideNavSection, SideNavSectionContent, SideNavSectionHeader } from '.'
+import { SideNavSection } from '.'
+import { NavItem } from './NavItem'
+import { NavPages } from './types'
 
-export const Security = observer(
-  ({
-    setShowNavPage,
-    setShowGSDropUp,
-  }: {
-    setShowNavPage: (page: NavPages) => void
-    setShowGSDropUp: (show: boolean) => void
-  }) => {
-    const auth = useAuth()
-    const { theme } = useTheme()
-    const isDark = theme === ThemeName.DARK
+const SecurityView = ({ setShowNavPage }: { setShowNavPage: (page: NavPages) => void }) => {
+  const { activeWallet } = useActiveWallet()
+  const auth = useAuth()
+  const activeChain = useActiveChain()
 
-    const { activeWallet } = useActiveWallet()
-
-    const managePasswords = useMemo(() => {
-      const managePasswords = []
-      if (!activeWallet?.watchWallet) {
-        managePasswords.push(
-          {
-            title: 'Show Recovery Phrase',
-            titleIcon: Images.Nav.SecretPhrase,
-            onClick: () => setShowNavPage(NavPages.ExportSeedPhrase),
-            enabled:
-              activeWallet?.walletType === WALLETTYPE.SEED_PHRASE ||
-              activeWallet?.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED,
-            'data-testing-id': 'sidenav-show-secret-phrase-card',
-          },
-          {
-            title: 'Export Private Key',
-            titleIcon: isDark ? Images.Nav.SecretKeyDark : Images.Nav.SecretKeyLight,
-            onClick: () => setShowNavPage(NavPages.ExportPrivateKey),
-            enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
-          },
-        )
-      }
-      return managePasswords
-    }, [activeWallet?.walletType, activeWallet?.watchWallet, isDark, setShowNavPage])
-
-    const Privacy = useMemo(
-      () => [
-        {
-          title: 'Sync with mobile app',
-          titleIcon: Images.Nav.SyncMobile,
-          onClick: () => {
-            setShowNavPage(NavPages.SyncWithMobile)
-          },
-          enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
+  const privacyOpts = useMemo(
+    () => [
+      {
+        title: 'Security & Privacy',
+        titleIcon: ShieldIcon,
+        onClick: () => {
+          setShowNavPage(NavPages.Security)
         },
-        {
-          title: 'Security',
-          titleIcon: Images.Nav.LockTimer,
-          onClick: () => {
-            setShowGSDropUp(true)
-          },
-          enabled: true,
-        },
-        ...managePasswords,
+        enabled: true,
+        'data-testing-id': 'sidenav-security-privacy-card',
+      },
 
-        // {
-        //   title: 'Auto-lock timer',
-        //   titleIcon: Images.Nav.getImage('lock-timer.svg'),
-        //   onClick: () => {
-        //     setShowLockTimeDropUp(true)
-        //   },
-        // },
-        {
-          title: 'Lock Wallet',
-          titleIcon: Images.Nav.Lock,
-          onClick: () => {
-            auth?.signout(() => {
-              globalSheetsStore.setSideNavOpen(false)
-              DEBUG('SideNav', 'SignOut', 'success')
-            })
-          },
-          enabled: true,
-          'data-testing-id': 'sidenav-lock-wallet-card',
+      {
+        title: 'Preferences',
+        titleIcon: Faders,
+        onClick: () => {
+          setShowNavPage(NavPages.Preferences)
         },
-      ],
-      [activeWallet?.walletType, auth, managePasswords, setShowGSDropUp, setShowNavPage],
-    )
+        enabled: true,
+        'data-testing-id': 'sidenav-lock-wallet-card',
+      },
+      {
+        title: 'Sync with Mobile App',
+        titleIcon: Phone,
+        onClick: () => {
+          setShowNavPage(NavPages.SyncWithMobile)
+        },
+        enabled: activeWallet?.walletType !== WALLETTYPE.LEDGER,
+      },
+      {
+        title: 'Network',
+        titleIcon: GlobeHemisphereWest,
+        onClick: () => {
+          setShowNavPage(NavPages.Network)
+        },
+        enabled: (activeChain as string) !== AGGREGATED_CHAIN_KEY,
+        'data-testing-id': 'sidenav-network-card',
+      },
+      {
+        title: 'Lock Wallet',
+        titleIcon: LockIcon,
+        trailingIcon: <></>,
+        onClick: () => {
+          auth?.signout(() => {
+            globalSheetsStore.setSideNavOpen(false)
+          })
+        },
+        enabled: true,
+        'data-testing-id': 'sidenav-lock-wallet-card',
+      },
+    ],
+    [activeWallet?.walletType, auth, setShowNavPage],
+  )
 
-    return (
-      <SideNavSection>
-        <SideNavSectionHeader>Security</SideNavSectionHeader>
-        <SideNavSectionContent>
-          {Privacy.filter((item) => item.enabled).map((item, index) => {
-            return (
-              <React.Fragment key={item.title}>
-                {index !== 0 && <CardDivider />}
-                <NavCard
-                  property={item.title}
-                  imgSrc={item.titleIcon}
-                  onClick={item.onClick}
-                  data-testing-id={item['data-testing-id'] ?? ''}
-                />
-              </React.Fragment>
-            )
-          })}
-        </SideNavSectionContent>
-      </SideNavSection>
-    )
-  },
-)
+  return (
+    <SideNavSection>
+      {privacyOpts
+        .filter((item) => item.enabled)
+        .map((item, index) => {
+          return (
+            <React.Fragment key={item.title}>
+              {index !== 0 && <CardDivider />}
+              <NavItem
+                label={item.title}
+                icon={<item.titleIcon />}
+                onClick={item.onClick}
+                trailingIcon={item.trailingIcon}
+                data-testing-id={item['data-testing-id'] ?? ''}
+              />
+            </React.Fragment>
+          )
+        })}
+    </SideNavSection>
+  )
+}
+
+export const Security = observer(SecurityView)

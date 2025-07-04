@@ -1,4 +1,5 @@
 import {
+  getIsCompass,
   getNftContractInfo,
   getNftTokenIdInfo,
   pubKeyToEvmAddressToShow,
@@ -162,6 +163,7 @@ export class NftStore {
     let batchedChains: [SupportedChain, string][] = [];
     const activeNetwork = forceNetwork || this.selectedNetworkStore.selectedNetwork;
     const chainKey = this.getChainKey(activeNetwork);
+    const isCompassWallet = getIsCompass();
 
     runInAction(() => {
       this.loading = true;
@@ -172,10 +174,10 @@ export class NftStore {
     nftChainsList.forEach(async (nftChain) => {
       const network = nftChain.forceNetwork;
       const chain = nftChain.forceContractsListChain;
-      forceChain = process.env.APP?.includes('compass') ? forceChain || this.activeChainStore.activeChain : undefined;
+      forceChain = isCompassWallet ? forceChain || this.activeChainStore.activeChain : undefined;
 
       if (forceChain && forceChain !== chain) return;
-      if (process.env.APP?.includes('compass') && !this.activeChainStore.isSeiEvm(chain)) return;
+      if (isCompassWallet && !this.activeChainStore.isSeiEvm(chain)) return;
 
       const isTestnet = network === 'testnet';
       const chainInfo = this.chainInfosStore.chainInfos[chain];
@@ -191,7 +193,7 @@ export class NftStore {
         const pubKey = this.addressStore.pubKeys?.[chain];
         const walletAddress = chainInfo?.evmOnlyChain ? pubKeyToEvmAddressToShow(pubKey) : address;
 
-        const isSeiEvmChain = process.env.APP?.includes('compass') && this.activeChainStore.isSeiEvm(chain);
+        const isSeiEvmChain = isCompassWallet && this.activeChainStore.isSeiEvm(chain);
         batchedChains = [...batchedChains, [chain, chainId]];
 
         batchChainsList = [
@@ -209,6 +211,10 @@ export class NftStore {
     });
 
     const promises = [];
+
+    batchChainsList = isCompassWallet
+      ? batchChainsList.filter((d) => ['pacific-1', 'atlantic-2'].includes(d['chain-id']))
+      : batchChainsList;
 
     if (batchChainsList.length > BATCH_SIZE) {
       let startIndex = 0;
@@ -237,8 +243,7 @@ export class NftStore {
       const chainInfo = this.chainInfosStore.chainInfos[chain];
       const isEvmOnlyChain = chainInfo?.evmOnlyChain;
 
-      const isSeiEvmChain =
-        process.env.APP?.includes('compass') && this.activeChainStore.isSeiEvm(chain) && this.compassSeiApiIsDown;
+      const isSeiEvmChain = isCompassWallet && this.activeChainStore.isSeiEvm(chain) && this.compassSeiApiIsDown;
 
       if (isEvmOnlyChain || isSeiEvmChain) {
         const collections = this.betaNftsCollectionsStore.getBetaNftsCollections(chain, activeNetwork);
@@ -292,12 +297,13 @@ export class NftStore {
     activeNetwork: SelectedNetworkType,
     batchedChains: [SupportedChain, string][],
   ) {
+    const isCompassWallet = getIsCompass();
     const response = await axios.post(
       `${getBaseURL()}/nft/cosmos/batch`,
       {
         'pagination-limit': '50',
         'pagination-offset': '0',
-        'is-compass-wallet': process.env.APP?.includes('compass') ? true : false,
+        'is-compass-wallet': isCompassWallet,
         'skip-cache': true,
         chains,
       },
@@ -506,10 +512,11 @@ export class NftStore {
     const cosmosAddress = this.addressStore?.addresses?.cosmos;
     const evmAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : '';
     const address = cosmosAddress || evmAddress;
+    const isCompassWallet = getIsCompass();
 
     network = network || this.selectedNetworkStore.selectedNetwork;
 
-    const chain = process.env.APP?.includes('compass') ? this.activeChainStore.activeChain : undefined;
+    const chain = isCompassWallet ? this.activeChainStore.activeChain : undefined;
     const chainInfo = this.chainInfosStore.chainInfos[chain as SupportedChain];
     const chainId = network === 'testnet' ? chainInfo?.testnetChainId : chainInfo?.chainId;
 

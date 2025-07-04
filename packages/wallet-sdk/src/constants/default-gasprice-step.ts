@@ -162,6 +162,8 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   lens: DefaultGasEstimates,
   rise: DefaultGasEstimates,
   solana: { DEFAULT_GAS_TRANSFER: 10_000, DEFAULT_GAS_STAKE: 10_000, DEFAULT_GAS_IBC: 10_000 },
-  sui: DefaultGasEstimates,
-  fogo: DefaultGasEstimates,
+  sui: { DEFAULT_GAS_TRANSFER: 1_000, DEFAULT_GAS_STAKE: 1_000, DEFAULT_GAS_IBC: 1_000 },
+  fogo: { DEFAULT_GAS_TRANSFER: 10_000, DEFAULT_GAS_STAKE: 10_000, DEFAULT_GAS_IBC: 10_000 },
+  xrpl: DefaultGasEstimates,
+  citrea: DefaultGasEstimates,
 };

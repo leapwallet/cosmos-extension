@@ -1,7 +1,8 @@
-import { compressSignature, NETWORK, TEST_NETWORK, Transaction } from '@leapwallet/leap-keychain';
+import { compressSignature } from '@leapwallet/leap-keychain';
 import { BtcWallet } from '@leapwallet/leap-keychain/dist/browser/key/btc-wallet';
 import { sha256 } from '@noble/hashes/sha256';
 import { hex } from '@scure/base';
+import { NETWORK, TEST_NETWORK, Transaction } from '@scure/btc-signer';
 import { Address, OutScript, p2wpkh, Script } from '@scure/btc-signer';
 import axios from 'axios';
 import { encode } from 'varuint-bitcoin';
@@ -86,10 +87,39 @@ export interface BtcTxStatus {
 
 export interface PsbtDetails {
   tx: Transaction;
-  txAmount: any;
+  txAmount: bigint | undefined;
   fee: bigint;
-  inputs: any[];
-  outputs: any[];
+  inputs: {
+    address: string;
+    amount: bigint | undefined;
+    tapScriptInfo: {
+      internalKey: Uint8Array | undefined;
+      merklePath: Uint8Array | undefined;
+      scriptTree:
+        | [
+            import('micro-packed').StructInput<{
+              version: number;
+              internalKey: Uint8Array;
+              merklePath: Uint8Array[];
+            }>,
+            Uint8Array,
+          ][]
+        | undefined;
+      controlBlock:
+        | [
+            import('micro-packed').StructInput<{
+              pubKey: Uint8Array;
+              leafHash: Uint8Array;
+            }>,
+            Uint8Array,
+          ][]
+        | undefined;
+    } | null;
+  }[];
+  outputs: {
+    address: string;
+    amount: bigint | undefined;
+  }[];
 }
 
 export async function fetchUtxos(address: string, rpcUrl: string) {

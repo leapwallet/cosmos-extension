@@ -1,6 +1,7 @@
 export * from './assets';
 export * from './bank';
 export * from './banners';
+export { BaseQueryStore } from './base/base-data-store';
 export * from './chains';
 export * from './fees';
 export { setAppType, setBaseURL, setIsCompass } from './globals/config';

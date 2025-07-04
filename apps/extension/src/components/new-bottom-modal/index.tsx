@@ -1,10 +1,21 @@
 import { X } from '@phosphor-icons/react/dist/ssr'
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { Button } from 'components/ui/button'
-import { Drawer, DrawerClose, DrawerContent, DrawerHeader } from 'components/ui/drawer'
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle } from 'components/ui/drawer'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback } from 'react'
 import { cn } from 'utils/cn'
 import { sidePanel } from 'utils/isSidePanel'
+
+export const BottomModalClose = () => {
+  return (
+    <DrawerClose asChild>
+      <Button variant={'ghost'} size={'icon'} className='size-12'>
+        <X weight='bold' size={18} />
+      </Button>
+    </DrawerClose>
+  )
+}
 
 type BottomModalProps = React.PropsWithChildren<{
   /*
@@ -63,6 +74,10 @@ type BottomModalProps = React.PropsWithChildren<{
    * should the modal be full screen
    */
   fullScreen?: boolean
+  /*
+   * direction of the modal
+   */
+  direction?: 'top' | 'bottom' | 'left' | 'right'
 }>
 
 const BottomModal: React.FC<BottomModalProps> = ({
@@ -81,6 +96,7 @@ const BottomModal: React.FC<BottomModalProps> = ({
   secondaryActionButton,
   footerComponent,
   fullScreen,
+  direction = 'bottom',
 }) => {
   const container = document.getElementById('popup-layout')?.parentNode as HTMLElement
 
@@ -98,6 +114,7 @@ const BottomModal: React.FC<BottomModalProps> = ({
     <Drawer
       container={container}
       open={isOpen}
+      direction={direction}
       dismissible={!disableClose}
       onOpenChange={(open) => {
         if (!open) {
@@ -106,6 +123,14 @@ const BottomModal: React.FC<BottomModalProps> = ({
         }
       }}
     >
+      {/**
+       * This is added to avoid the console errors from vaul 1.1.2:
+       * https://github.com/emilkowalski/vaul/issues/523
+       */}
+      <VisuallyHidden>
+        <DrawerTitle></DrawerTitle>
+      </VisuallyHidden>
+
       <DrawerContent
         showHandle={!fullScreen}
         className={cn(
@@ -129,17 +154,7 @@ const BottomModal: React.FC<BottomModalProps> = ({
 
           <h3 className='text-mdl font-bold'>{title}</h3>
 
-          {hideActionButton ? (
-            <div className='flex items-center size-12' />
-          ) : (
-            <DrawerClose asChild>
-              {actionButton ?? (
-                <Button variant={'ghost'} size={'icon'} className='size-12'>
-                  <X weight='bold' size={18} />
-                </Button>
-              )}
-            </DrawerClose>
-          )}
+          {hideActionButton ? <div className='flex items-center size-12' /> : <BottomModalClose />}
         </DrawerHeader>
 
         <div

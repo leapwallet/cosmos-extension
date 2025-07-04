@@ -1,5 +1,6 @@
 import { Avatar, Card, CardDivider, ThemeName, useTheme } from '@leapwallet/leap-ui'
-import BottomModal from 'components/bottom-modal'
+import { CheckCircle } from '@phosphor-icons/react'
+import BottomModal from 'components/new-bottom-modal'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { Images } from 'images'
 import React from 'react'
@@ -36,27 +37,30 @@ export default function ThemeDropUp({
 
   return (
     <BottomModal
-      closeOnBackdropClick
       isOpen={isVisible}
       onClose={onCloseHandler}
       title={'Select Theme'}
+      className='flex flex-col gap-4'
     >
-      <div className='overflow-hidden rounded-2xl'>
-        {themes.map((item, index) => {
-          return (
-            <React.Fragment key={item.title}>
-              {index !== 0 && <CardDivider />}
-              <Card
-                iconSrc={item.isSelected ? Images.Misc.ChainChecks[activeChain] : undefined}
-                avatar={<Avatar avatarImage={item.icon} />}
-                size='md'
-                title={item.title}
-                onClick={item.onClick}
-              />
-            </React.Fragment>
-          )
-        })}
-      </div>
+      {themes.map((item) => {
+        return (
+          <button
+            key={item.title}
+            onClick={item.onClick}
+            className='flex items-center gap-3 py-3 px-4 w-full rounded-xl bg-secondary-100 hover:bg-secondary-200 transition-colors'
+          >
+            <Avatar avatarImage={item.icon} />
+
+            <span className='mr-auto font-semibold'>{item.title}</span>
+
+            <CheckCircle
+              weight='fill'
+              size={24}
+              className={item.isSelected ? 'text-accent-foreground' : 'text-transparent'}
+            />
+          </button>
+        )
+      })}
     </BottomModal>
   )
 }

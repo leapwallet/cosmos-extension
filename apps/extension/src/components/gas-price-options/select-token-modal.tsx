@@ -13,7 +13,7 @@ import NoSearchResults from 'components/no-search-results'
 import Text from 'components/text'
 import { SearchInput } from 'components/ui/input/search-input'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { cn } from 'utils/cn'
 
@@ -105,7 +105,7 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
   ({ assets, selectedToken, isOpen, onClose, onTokenSelect }: SelectTokenSheetProps) => {
     const [searchQuery, setSearchQuery] = useState('')
     const input = useMemo(() => searchQuery.trim(), [searchQuery])
-
+    const searchInputRef = useRef<HTMLInputElement>(null)
     const choiceOfTokens = useMemo(() => {
       return (
         assets
@@ -126,11 +126,21 @@ export const SelectTokenModal: React.FC<SelectTokenSheetProps> = React.memo(
       [onClose, onTokenSelect],
     )
 
+    useEffect(() => {
+      if (isOpen) {
+        setSearchQuery('')
+        setTimeout(() => {
+          searchInputRef.current?.focus()
+        }, 200)
+      }
+    }, [isOpen])
+
     return (
       <BottomModal isOpen={isOpen} onClose={onClose} title='Select fees token' fullScreen>
         <div className='flex flex-col h-full w-full gap-7'>
           <SearchInput
             value={input}
+            ref={searchInputRef}
             onChange={(e) => setSearchQuery(e.target.value)}
             onClear={() => setSearchQuery('')}
             placeholder='Search by token name'

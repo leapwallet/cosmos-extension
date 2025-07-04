@@ -5,7 +5,7 @@ import BottomModal from 'components/new-bottom-modal'
 import { Button } from 'components/ui/button'
 import { SearchInput } from 'components/ui/input/search-input'
 import { useChainInfos } from 'hooks/useChainInfos'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { activeChainStore } from 'stores/active-chain-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { cn } from 'utils/cn'
@@ -65,6 +65,12 @@ const SelectWallet = ({
           )
       : []
   }, [wallets, searchQuery, chainInfos])
+
+  useEffect(() => {
+    if (!isVisible) {
+      setSearchQuery('')
+    }
+  }, [isVisible])
 
   return (
     <>

@@ -272,16 +272,22 @@ export class LeapSui implements Wallet {
 
       const messageBase64 = base64.encode(message);
 
+      let chainId = chain;
+
+      if (!chain) {
+        chainId = SUI_MAINNET_CHAIN as `${string}:${string}`;
+      }
+
       if (account !== this.#account) throw new Error('invalid account');
 
-      const msg = new RequestSignSuiMsg(chain as `${string}:${string}`, account.address, message, false, true, {});
+      const msg = new RequestSignSuiMsg(chainId as `${string}:${string}`, account.address, message, false, true, {});
       msg.validateBasic();
 
       const signResponse = await this.requestWrapper(SUI_FEATURE.SUI__SIGN_TRANSACTION, msg);
 
       return {
+        signature: base64.encode(new Uint8Array(Object.values(signResponse.signedTxData))),
         bytes: messageBase64,
-        signature: base64.encode(new Uint8Array(Object.values(signResponse.signedTxData.signature))),
       };
     } catch (error) {
       console.error('Failed to sign personal message:', error);

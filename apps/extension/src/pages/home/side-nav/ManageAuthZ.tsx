@@ -11,13 +11,15 @@ import {
   useGetGivenAuthz,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ChainTagsStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
-import { CardDivider, GenericCard, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
+import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import { CaretRight } from '@phosphor-icons/react'
 import classNames from 'classnames'
+import BottomModal from 'components/new-bottom-modal'
 import { ProposalDescription } from 'components/proposal-description'
 import Text from 'components/text'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { AnimatePresence } from 'framer-motion'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDontShowSelectChain } from 'hooks/useDontShowSelectChain'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
@@ -26,6 +28,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { createContext, ReactNode, useContext, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { chainTagsStore } from 'stores/chain-infos-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { manageChainsStore } from 'stores/manage-chains-store'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -71,7 +74,7 @@ export function useAuthZContext() {
 }
 
 const _ManageAuthZ = observer(
-  ({ goBack, chainTagsStore }: { goBack: () => void; chainTagsStore: ChainTagsStore }) => {
+  ({ isVisible, onClose }: { isVisible: boolean; onClose: () => void }) => {
     const activeChain = useActiveChain()
     const chainInfos = useChainInfos()
     const defaultTokenLogo = useDefaultTokenLogo()
@@ -82,8 +85,6 @@ const _ManageAuthZ = observer(
       setShowAuthzDetailsFor,
       setSelectedChain,
       setMsgType,
-      setGasError,
-      setError,
       selectedChainHasMainnetOnly,
     } = useAuthZContext()
 
@@ -168,156 +169,163 @@ const _ManageAuthZ = observer(
       }
     }
 
-    return showAuthzDetailsFor ? (
-      <AuthzDetails
-        goBack={() => {
-          setShowAuthzDetailsFor(undefined)
-          setMsgType('')
-          setError('')
-          setGasError('')
-        }}
-        grant={showAuthzDetailsFor}
-      />
-    ) : (
-      <>
-        <div className='pb-5 enclosing-panel panel-height'>
-          <Header title='Manage AuthZ' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
+    return (
+      <BottomModal
+        fullScreen
+        isOpen={isVisible}
+        onClose={onClose}
+        title={showAuthzDetailsFor ? 'AuthZ Details' : 'Manage AuthZ'}
+        className='pb-7 pt-2 !px-5'
+      >
+        <AnimatePresence mode='wait' initial={false}>
+          {showAuthzDetailsFor ? (
+            <AuthzDetails grant={showAuthzDetailsFor} />
+          ) : (
+            <>
+              <div className='pb-5'>
+                <div className='flex flex-col items-center gap-4 pb-4'>
+                  <button
+                    onClick={dontShowSelectChain ? undefined : () => setShowSelectChain(true)}
+                    className='flex items-center gap-3 py-3 px-4 w-full rounded-xl bg-secondary-100 hover:bg-secondary-200 transition-colors'
+                  >
+                    <img
+                      src={chainInfos[selectedChain].chainSymbolImageUrl ?? defaultTokenLogo}
+                      className='w-[28px] h-[28px] mr-2 border rounded-full dark:border-[#333333] border-[#cccccc]'
+                      onError={imgOnError(defaultTokenLogo)}
+                    />
 
-          <div className='overflow-y-auto w-full h-[calc(100%-70px)] p-[28px]'>
-            <div className='flex flex-col items-center gap-4 pb-4'>
-              <GenericCard
-                title={chainInfos[selectedChain].chainName ?? ''}
-                img={
-                  <img
-                    src={chainInfos[selectedChain].chainSymbolImageUrl ?? defaultTokenLogo}
-                    className='w-[28px] h-[28px] mr-2 border rounded-full dark:border-[#333333] border-[#cccccc]'
-                    onError={imgOnError(defaultTokenLogo)}
-                  />
-                }
-                isRounded={true}
-                title2='Chain'
-                icon={
-                  dontShowSelectChain ? undefined : (
-                    <img className='w-[10px] h-[10px] ml-2' src={Images.Misc.RightArrow} />
-                  )
-                }
-                className={classNames({ '!cursor-default': dontShowSelectChain })}
-                onClick={dontShowSelectChain ? undefined : () => setShowSelectChain(true)}
-              />
+                    <span className='mr-auto font-semibold'>
+                      {chainInfos[selectedChain].chainName ?? ''}
+                    </span>
 
-              {isLoading && (
-                <div className='flex flex-col gap-y-4 w-full'>
-                  <Skeleton count={3} />
-                </div>
-              )}
+                    {!dontShowSelectChain && (
+                      <CaretRight size={14} className='text-muted-foreground' />
+                    )}
+                  </button>
 
-              {isEmpty && !isLoading && (
-                <div className='rounded-2xl bg-white-100 dark:bg-gray-900 p-8 flex flex-col items-center text-center w-full'>
-                  <div className='rounded-full bg-gray-50 dark:bg-gray-800 p-[18px] w-fit flex'>
-                    <img src={Images.Nav.NoAuthZ} alt='' className='w-6 h-6 invert dark:invert-0' />
-                  </div>
+                  {isLoading && (
+                    <div className='flex flex-col gap-y-4 w-full'>
+                      <Skeleton count={3} />
+                    </div>
+                  )}
 
-                  <h1 className='font-bold text-gray-800 dark:text-white-100 text-base mt-3'>
-                    No AuthZ
-                  </h1>
+                  {isEmpty && !isLoading && (
+                    <div className='rounded-2xl bg-white-100 dark:bg-gray-900 p-8 flex flex-col items-center text-center w-full'>
+                      <div className='rounded-full bg-gray-50 dark:bg-gray-800 p-[18px] w-fit flex'>
+                        <img
+                          src={Images.Nav.NoAuthZ}
+                          alt=''
+                          className='w-6 h-6 invert dark:invert-0'
+                        />
+                      </div>
 
-                  <p className='text-gray-400 font-medium text-sm'>
-                    Your AuthZ grants will appear here
-                  </p>
-                </div>
-              )}
+                      <h1 className='font-bold text-gray-800 dark:text-white-100 text-base mt-3'>
+                        No AuthZ
+                      </h1>
 
-              {!isEmpty && !isLoading && (
-                <div className='max-h-[400px] overflow-y-auto w-full'>
-                  <div className='flex flex-col gap-4 overflow-hidden'>
-                    {Object.entries(formattedGrants).map(([grantType, grants], index) => {
-                      if (grants.length === 0) return null
+                      <p className='text-gray-400 font-medium text-sm'>
+                        Your AuthZ grants will appear here
+                      </p>
+                    </div>
+                  )}
 
-                      return (
-                        <div className='overflow-y-auto rounded-2xl w-full' key={grantType + index}>
-                          <h2 className='w-full h-10 px-4 pb-1 pt-5 font-bold text-xs bg-white-100 dark:bg-gray-900 text-gray-600 dark:text-gray-200'>
-                            {grants.length} {grantType} Authorization{grants.length > 1 ? 's' : ''}
-                          </h2>
+                  {!isEmpty && !isLoading && (
+                    <div className='max-h-[400px] overflow-y-auto w-full'>
+                      <div className='flex flex-col gap-4 overflow-hidden'>
+                        {Object.entries(formattedGrants).map(([grantType, grants], index) => {
+                          if (grants.length === 0) return null
 
-                          {grants.map((grant, index) => {
-                            let date = ''
+                          return (
+                            <div
+                              className='overflow-y-auto rounded-2xl w-full'
+                              key={grantType + index}
+                            >
+                              <h2 className='w-full h-10 px-4 pb-1 pt-5 font-bold text-xs bg-white-100 dark:bg-gray-900 text-gray-600 dark:text-gray-200'>
+                                {grants.length} {grantType} Authorization
+                                {grants.length > 1 ? 's' : ''}
+                              </h2>
 
-                            if (grant.expiration) {
-                              date = formatAuthzDate(grant.expiration)
+                              {grants.map((grant, index) => {
+                                let date = ''
 
-                              if (date !== 'Expired') {
-                                date = `Expiration Date: ${date}`
-                              }
-                            }
+                                if (grant.expiration) {
+                                  date = formatAuthzDate(grant.expiration)
 
-                            return (
-                              <React.Fragment key={grant.grantee + index}>
-                                {index !== 0 && <CardDivider />}
-
-                                <div
-                                  onClick={() =>
-                                    handleGrantClick(grant, grantType as TypeOfAuthzGrant)
+                                  if (date !== 'Expired') {
+                                    date = `Expiration Date: ${date}`
                                   }
-                                  className='flex justify-between h-[72px] items-center px-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
-                                >
-                                  <p className='flex flex-col flex-1 justify-center items-start'>
-                                    <span className='text-base font-bold text-black-100 dark:text-white-100 text-left text-ellipsis overflow-hidden'>
-                                      <Text size='md' className='font-bold'>
-                                        You authorized {sliceWord(grant.grantee, 12, 5)}
-                                      </Text>
-                                    </span>
+                                }
 
-                                    {grant.expiration && (
-                                      <span className='text-xs font-medium text-gray-400'>
-                                        {date}
-                                      </span>
-                                    )}
-                                  </p>
-                                  <CaretRight size={20} className='text-gray-400' />
-                                </div>
-                              </React.Fragment>
-                            )
-                          })}
-                        </div>
-                      )
-                    })}
-                  </div>
+                                return (
+                                  <React.Fragment key={grant.grantee + index}>
+                                    {index !== 0 && <CardDivider />}
+
+                                    <div
+                                      onClick={() =>
+                                        handleGrantClick(grant, grantType as TypeOfAuthzGrant)
+                                      }
+                                      className='flex justify-between h-[72px] items-center px-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+                                    >
+                                      <p className='flex flex-col flex-1 justify-center items-start'>
+                                        <span className='text-base font-bold text-black-100 dark:text-white-100 text-left text-ellipsis overflow-hidden'>
+                                          <Text size='md' className='font-bold'>
+                                            You authorized {sliceWord(grant.grantee, 12, 5)}
+                                          </Text>
+                                        </span>
+
+                                        {grant.expiration && (
+                                          <span className='text-xs font-medium text-gray-400'>
+                                            {date}
+                                          </span>
+                                        )}
+                                      </p>
+                                      <CaretRight size={20} className='text-gray-400' />
+                                    </div>
+                                  </React.Fragment>
+                                )
+                              })}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <ProposalDescription
-              title='About AuthZ'
-              description='AuthZ empowers you to delegate specific tasks, like voting or claiming rewards, to another wallet without compromising the security of your account. On this page, you can view and manage all AuthZ transactions initiated by your wallet.'
-              btnColor={
-                (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY
-                  ? 'cosmos'
-                  : activeChain
-              }
-            />
-          </div>
-        </div>
+                <ProposalDescription
+                  title='About AuthZ'
+                  description='AuthZ empowers you to delegate specific tasks, like voting or claiming rewards, to another wallet without compromising the security of your account. On this page, you can view and manage all AuthZ transactions initiated by your wallet.'
+                  btnColor={
+                    (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY
+                      ? 'cosmos'
+                      : activeChain
+                  }
+                />
+              </div>
 
-        <SelectChainSheet
-          isVisible={showSelectChain}
-          onClose={() => setShowSelectChain(false)}
-          selectedChain={selectedChain}
-          onChainSelect={(chaiName: SupportedChain) => {
-            setSelectedChain(chaiName)
-            setShowSelectChain(false)
-          }}
-          chainTagsStore={chainTagsStore}
-        />
-      </>
+              <SelectChainSheet
+                isVisible={showSelectChain}
+                onClose={() => setShowSelectChain(false)}
+                selectedChain={selectedChain}
+                onChainSelect={(chaiName: SupportedChain) => {
+                  setSelectedChain(chaiName)
+                  setShowSelectChain(false)
+                }}
+                chainTagsStore={chainTagsStore}
+              />
+            </>
+          )}
+        </AnimatePresence>
+      </BottomModal>
     )
   },
 )
 
 export const ManageAuthZ = observer(
-  ({ goBack, chainTagsStore }: { goBack: () => void; chainTagsStore: ChainTagsStore }) => {
+  ({ isVisible, onClose }: { isVisible: boolean; onClose: () => void }) => {
     return (
       <AuthZContextProvider rootDenomsStore={rootDenomsStore}>
-        <_ManageAuthZ goBack={goBack} chainTagsStore={chainTagsStore} />
+        <_ManageAuthZ isVisible={isVisible} onClose={onClose} />
       </AuthZContextProvider>
     )
   },

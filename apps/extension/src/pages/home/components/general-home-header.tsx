@@ -4,11 +4,13 @@ import { PageHeader } from 'components/header/PageHeaderV2'
 import { SideNavMenuOpen } from 'components/header/sidenav-menu'
 import { SidePanelTrigger } from 'components/header/sidepanel-trigger'
 import { useDefaultTokenLogo } from 'hooks'
+import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useQuery from 'hooks/useQuery'
 import { useWalletInfo } from 'hooks/useWalletInfo'
 import { useChainPageInfo } from 'hooks/utility/useChainPageInfo'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useState } from 'react'
+import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
 import { earnFeatureShowStore } from 'stores/earn-feature-show'
 import { globalSheetsStore } from 'stores/global-sheets-store'
@@ -18,13 +20,14 @@ import SelectChain from '../SelectChain'
 import SelectWallet from '../SelectWallet/v2'
 import EarnUSDNSheet from './EarnUSDNSheet'
 
-const GeneralHomeHeaderView = (props: { disableWalletButton?: boolean }) => {
+const GeneralHomeHeaderView = (props: { disableWalletButton?: boolean; isLoading?: boolean }) => {
   const [showSelectWallet, setShowSelectWallet] = useState(false)
   const [defaultFilter, setDefaultFilter] = useState<string | undefined>(undefined)
   const [showEarnUSDN, setShowEarnUSDN] = useState(false)
   const walletInfo = useWalletInfo()
   const query = useQuery()
   const navigate = useNavigate()
+  const activeChain = useActiveChain()
 
   const { headerChainImgSrc } = useChainPageInfo()
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -85,12 +88,21 @@ const GeneralHomeHeaderView = (props: { disableWalletButton?: boolean }) => {
         <button
           className='bg-secondary-200 hover:bg-secondary-300 rounded-full px-3 py-2 transition-colors flex items-center gap-1'
           onClick={() => globalSheetsStore.toggleChainSelector()}
+          key={activeChain}
         >
-          <img
-            src={headerChainImgSrc}
-            className={'size-5 rounded-full overflow-hidden object-cover'}
-            onError={imgOnError(defaultTokenLogo)}
-          />
+          {!props.isLoading ? (
+            <img
+              src={headerChainImgSrc}
+              className={'size-5 rounded-full overflow-hidden object-cover'}
+              onError={imgOnError(defaultTokenLogo)}
+            />
+          ) : (
+            <Skeleton
+              circle
+              className='size-5 shrink-0'
+              containerClassName='block shrink-0 size-5 !leading-none'
+            />
+          )}
           <CaretDown weight='fill' className='size-3 fill-muted-foreground' />
         </button>
       </PageHeader>

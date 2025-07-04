@@ -44,7 +44,7 @@ export function useGetIsMinitiaEvmChain() {
       }
       let chainId = _chainId;
       if (chainKey && !_chainId) {
-        chainId = selectedNetwork === 'mainnet' ? chains[chainKey]?.chainId : chains[chainKey]?.testnetChainId;
+        chainId = selectedNetwork === 'mainnet' ? chains?.[chainKey]?.chainId : chains?.[chainKey]?.testnetChainId;
       }
 
       if (chainKey && minitiaChains.includes(chainKey)) {

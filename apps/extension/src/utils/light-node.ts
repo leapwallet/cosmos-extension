@@ -2,7 +2,6 @@
 // example of NodeClient showing off starting node and monitoring its syncing status
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LIGHT_NODE_SYNC_WINDOW_SECS } from 'config/constants'
-/* import { Network, NodeClient, NodeConfig } from 'lumina-node-wasm' */
 
 declare const self: Window &
   typeof globalThis & { lumina: any; luminaClient: any; luminaInPopup: any }
@@ -10,17 +9,26 @@ declare const self: Window &
 // NodeClient will send messages and expect responses over provided port.
 // See background.js and worker.js to see how the commands get to the worker
 
+let initialisationStarted = false
+
 export async function init() {
-  if (!self.luminaClient) {
+  if (!self.luminaClient && !initialisationStarted) {
+    initialisationStarted = true
     const { NodeClient } = await import('lumina-node-wasm')
     const connection = chrome.runtime.connect()
+    connection.onMessage.addListener((message) => {
+      console.log('message received', message)
+    })
     self.luminaClient = await new NodeClient(connection)
+    initialisationStarted = false
   }
 }
 
 export async function getIsLightNodeRunning(): Promise<boolean> {
   try {
-    return await self.luminaClient?.isRunning()
+    const isLightNodeRunning = await self.luminaClient?.isRunning()
+    console.log('logging is light node running', isLightNodeRunning)
+    return isLightNodeRunning
   } catch (e) {
     console.error('getIsLightNodeRunning error', e)
     return false
@@ -28,8 +36,10 @@ export async function getIsLightNodeRunning(): Promise<boolean> {
 }
 
 export async function startLightNode() {
+  console.log('starting light node in foreground?')
   const { NodeConfig, Network } = await import('lumina-node-wasm')
-  if (await getIsLightNodeRunning()) {
+  const isLightNodeRunning = await getIsLightNodeRunning()
+  if (isLightNodeRunning) {
     console.log('node is already running')
     return
   }
@@ -45,14 +55,16 @@ export async function startLightNode() {
     console.error('unrecognised network ', network)
     return
   }
-  console.log('requesting connection to', networkConfig.bootnodes)
+  console.log('requesting connection to', networkConfig.bootnodes, networkConfig)
 
-  networkConfig.custom_syncing_window_secs = LIGHT_NODE_SYNC_WINDOW_SECS
+  networkConfig.customSamplingWindowSecs = LIGHT_NODE_SYNC_WINDOW_SECS
+  networkConfig.usePersistentMemory = true
 
   const started = await self.luminaClient.start(networkConfig)
+  await self.luminaClient.waitConnected()
   console.log('started:', started)
 
-  // updateStats()
+  //updateStats()
 }
 
 export const getLightNodeEvents = async () => {
@@ -66,7 +78,6 @@ export const getLightNodeEvents = async () => {
 export async function stopLightNode() {
   if (await self.luminaClient.isRunning()) {
     await self.luminaClient.stop()
-    console.log('stopped')
   }
 }
 
@@ -76,9 +87,6 @@ export async function updateStats() {
 
     const peerTrackerInfo = await self.luminaClient.peerTrackerInfo()
     console.log({ peerTrackerInfo })
-
-    const syncerInfo = await self.luminaClient.syncerInfo()
-    console.log({ syncerInfo })
 
     setTimeout(updateStats, 5000)
   } else {

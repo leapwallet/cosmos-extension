@@ -4,12 +4,12 @@ import {
   AutoFetchedCW20DenomsStore,
   CW20DenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { CardDivider, GenericCard, ThemeName, Toggle, useTheme } from '@leapwallet/leap-ui'
-import classNames from 'classnames'
+import { GenericCard, ThemeName, Toggle, useTheme } from '@leapwallet/leap-ui'
 import { useDefaultTokenLogo } from 'hooks'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo } from 'react'
+import { cn } from 'utils/cn'
 import { imgOnError } from 'utils/imgOnError'
 import { capitalize, sliceWord } from 'utils/strings'
 
@@ -62,12 +62,6 @@ export const SupportedTokenCard = observer(
 
     return (
       <>
-        {isFirst && (
-          <div className='font-bold text-sm text-gray-600 dark:text-gray-200 mb-2'>
-            Supported tokens
-          </div>
-        )}
-
         <GenericCard
           title={
             <TokenTitle
@@ -80,14 +74,14 @@ export const SupportedTokenCard = observer(
           isRounded={isLast}
           size='md'
           img={
-            <div className='relative mr-3'>
+            <div className='relative mr-3 !h-10 !w-10 !shrink-0 flex items-center justify-center'>
               <img
                 src={token.icon ?? defaultTokenLogo}
-                className='h-7 w-7'
+                className='h-8 rounded-full w-8'
                 onError={imgOnError(defaultTokenLogo)}
               />
               {token.verified && (
-                <div className='absolute group -bottom-[5px] -right-[5px]'>
+                <div className='absolute group -bottom-[2px] -right-[2px]'>
                   <img
                     src={
                       theme === ThemeName.DARK
@@ -112,15 +106,12 @@ export const SupportedTokenCard = observer(
               />
             </div>
           }
-          className={classNames({
-            '!rounded-t-2xl !rounded-b-none': isFirst && !isLast,
-            '!rounded-t-none !rounded-b-2xl': !isFirst && isLast,
-            '!rounded-2xl': isFirst && isLast,
-            '!rounded-none': !isFirst && !isLast,
-          })}
+          className={cn(
+            '!bg-secondary-100 hover:!bg-secondary-200 rounded-xl mb-4 w-full !h-[66px]',
+            isFirst ? 'mt-6' : '',
+          )}
         />
-
-        {!isLast ? <CardDivider /> : null}
+        {isLast ? <div className='h-[1px] bg-transparent mt-6' /> : null}
       </>
     )
   },

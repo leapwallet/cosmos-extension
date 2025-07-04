@@ -46,12 +46,7 @@ import { observer } from 'mobx-react-lite'
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { activeChainStore } from 'stores/active-chain-store'
-import {
-  aptosCoinDataStore,
-  evmBalanceStore,
-  solanaCoinDataStore,
-  suiCoinDataStore,
-} from 'stores/balance-store'
+import { evmBalanceStore, solanaCoinDataStore, suiCoinDataStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { chainApisStore } from 'stores/chains-api-store'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
@@ -226,7 +221,6 @@ const GasPriceOptions = observer(
 
     const chainInfo = chainInfoStore.chainInfos[activeChain]
     const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork)
-    const aptosBalance = aptosCoinDataStore.balances
     const solanaBalance = solanaCoinDataStore.getSolanaBalances(activeChain, selectedNetwork)
     const suiBalance = suiCoinDataStore.getSuiBalances(activeChain, selectedNetwork)
 
@@ -244,12 +238,8 @@ const GasPriceOptions = observer(
     useEnableEvmGasRefetch(activeChain, selectedNetwork)
 
     const allTokens = useMemo(() => {
-      const isAptosChain = chainInfo.chainId.startsWith('aptos')
       const _isSolanaChain = isSolanaChain(chainInfo.chainId)
       const _isSuiChain = isSuiChain(chainInfo.chainId)
-      if (isAptosChain) {
-        return aptosBalance
-      }
       if (_isSolanaChain) {
         return solanaBalance
       }
@@ -273,7 +263,6 @@ const GasPriceOptions = observer(
       chainInfo?.evmOnlyChain,
       spendableBalancesForChain,
       evmBalance?.evmBalance,
-      aptosBalance,
       solanaBalance,
       suiBalance,
       chainInfo.chainId,

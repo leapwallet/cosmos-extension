@@ -135,6 +135,8 @@ export const stakingDenoms: StakingDenoms = {
     solana: [],
     fogo: [],
     sui: [],
+    xrpl: ['axrp'],
+    citrea: [],
   },
   testnet: {
     akash: ['uakt'],
@@ -266,5 +268,7 @@ export const stakingDenoms: StakingDenoms = {
     solana: [],
     sui: [],
     fogo: [],
+    xrpl: ['axrp'],
+    citrea: [],
   },
 };

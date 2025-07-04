@@ -2,7 +2,7 @@ import { ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
 import BottomModal from 'components/new-bottom-modal'
 import { PriorityChains } from 'config/constants'
 import { useAllChainsPlaceholder } from 'pages/swaps-v2/hooks/useAllChainsPlaceholder'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ChainsList } from './ChainsList'
 
@@ -56,6 +56,12 @@ export function SelectChainSheet({
     },
     [onChainSelect],
   )
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchedChain('')
+    }
+  }, [isOpen])
 
   return (
     <BottomModal

@@ -121,6 +121,7 @@ const ChainLogos: Record<string, string | undefined> = {
   initia: ChainInfos.initia.chainSymbolImageUrl,
   humans: ChainInfos.humans.chainSymbolImageUrl,
   initiaEvm: ChainInfos.initiaEvm.chainSymbolImageUrl,
+  xrpl: ChainInfos.xrpl.chainSymbolImageUrl,
 }
 
 export const getChainImage = (name: string) => {

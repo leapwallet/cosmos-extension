@@ -2,19 +2,21 @@
 import { usePrimaryWalletAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Key, WALLETTYPE } from '@leapwallet/leap-keychain'
-import { Buttons, Header, HeaderActionType, Input, QrCode } from '@leapwallet/leap-ui'
-import { Lock } from '@phosphor-icons/react'
+import { QrCode } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
 import CountDownTimer from 'components/countdown-timer'
-import Resize from 'components/resize'
-import Text from 'components/text'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
+import { PasswordInput } from 'components/ui/input/password-input'
 import { PageName } from 'config/analytics'
-import { useChainPageInfo } from 'hooks'
+import { AnimatePresence, motion, Variants } from 'framer-motion'
 import { usePageView } from 'hooks/analytics/usePageView'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { Wallet } from 'hooks/wallet/useWallet'
-import React, { Dispatch, ReactElement, SetStateAction, useState } from 'react'
+import { LockIcon } from 'icons/lock'
+import React, { Dispatch, ReactElement, SetStateAction, useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { transition200 } from 'utils/motion-variants/global-layout-motions'
 import { uiErrorTags } from 'utils/sentry'
 
 type FormData = {
@@ -27,7 +29,6 @@ type EnterPasswordViewProps = {
   readonly setRevealed: Dispatch<SetStateAction<boolean>>
   readonly setPassword: Dispatch<SetStateAction<string>>
   readonly setQrData?: Dispatch<SetStateAction<string>>
-  readonly goBack: () => void
 }
 
 const getExportWallet = (wallets: Key<SupportedChain>[], primaryWalletAddress: string) => {
@@ -71,184 +72,240 @@ function EnterPasswordView({
   setRevealed,
   setPassword,
   setQrData,
-  goBack,
 }: EnterPasswordViewProps): ReactElement {
-  const { topChainColor } = useChainPageInfo()
   const primaryWalletAddress = usePrimaryWalletAddress()
   const testPassword = SeedPhrase.useTestPassword()
   const [walletError, setWalletError] = useState('')
+
+  const formRef = useRef<HTMLFormElement>(null)
 
   const {
     register,
     handleSubmit,
     setError,
+    watch,
     formState: { errors },
   } = useForm<FormData>({ mode: 'onChange' })
 
-  const onSubmit = (e?: React.BaseSyntheticEvent) => {
-    handleSubmit(async (values) => {
-      try {
-        const password = new TextEncoder().encode(values.rawPassword)
-        await testPassword(password)
+  const password = watch('rawPassword')
 
-        const wallets = await Wallet.getAllWallets()
-        const walletObjects = Object.values(wallets).filter(Boolean)
-        const exportWallet = getExportWallet(walletObjects, primaryWalletAddress)
-        const cipher = exportWallet.cipher
+  const onSubmit = async (values: FormData) => {
+    try {
+      const password = new TextEncoder().encode(values.rawPassword)
+      await testPassword(password)
 
-        const derivedWallets = walletObjects
-          .filter((a) => a.cipher === cipher)
-          .map((a) => {
-            return {
-              ai: a.addressIndex,
-              ci: a.colorIndex,
-              n: a.name,
-            }
-          })
+      const wallets = await Wallet.getAllWallets()
+      const walletObjects = Object.values(wallets).filter(Boolean)
+      const exportWallet = getExportWallet(walletObjects, primaryWalletAddress)
+      const cipher = exportWallet.cipher
 
-        // Sync on mobile fails if we do not include address index 0.
-        if (
-          exportWallet.walletType !== WALLETTYPE.PRIVATE_KEY &&
-          !derivedWallets.find((a) => a.ai === 0)
-        ) {
-          derivedWallets.push({ ai: 0, ci: 0, n: 'Primary' })
-        }
+      const derivedWallets = walletObjects
+        .filter((a) => a.cipher === cipher)
+        .map((a) => {
+          return {
+            ai: a.addressIndex,
+            ci: a.colorIndex,
+            n: a.name,
+          }
+        })
 
-        const exportObject = { 0: cipher, 1: derivedWallets }
-
-        setQrData && setQrData(JSON.stringify(exportObject))
-        setPassword(values.rawPassword)
-        setRevealed(true)
-      } catch (err: any) {
-        if (err.message.toLowerCase().includes('password')) {
-          setError('rawPassword', {
-            type: 'validate',
-            message: 'Incorrect Password',
-          })
-        } else {
-          captureException(err, {
-            tags: uiErrorTags,
-          })
-          setWalletError('Could not load your wallets')
-        }
+      // Sync on mobile fails if we do not include address index 0.
+      if (
+        exportWallet.walletType !== WALLETTYPE.PRIVATE_KEY &&
+        !derivedWallets.find((a) => a.ai === 0)
+      ) {
+        derivedWallets.push({ ai: 0, ci: 0, n: 'Primary' })
       }
-    })(e)
+
+      const exportObject = { 0: cipher, 1: derivedWallets }
+
+      setQrData && setQrData(JSON.stringify(exportObject))
+      setPassword(values.rawPassword)
+      setRevealed(true)
+    } catch (err: any) {
+      if (err.message.toLowerCase().includes('password')) {
+        setError('rawPassword', {
+          type: 'validate',
+          message: 'Incorrect Password',
+        })
+      } else {
+        captureException(err, {
+          tags: uiErrorTags,
+        })
+        setWalletError('Could not load your wallets')
+      }
+    }
   }
 
+  // delay auto focus to prevent jitter
+  useEffect(() => {
+    const passwordInput = formRef.current?.querySelector('#password') as HTMLInputElement
+    if (!passwordInput) {
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      passwordInput.focus()
+    }, 250)
+
+    return () => clearTimeout(timeout)
+  }, [])
+
   return (
-    <div className='panel-height enclosing-panel'>
-      <Header
-        title='Sync with mobile app'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
-      <div className='relative flex flex-col items-center h-[calc(100%-72px)] px-7'>
-        <div className='dark:bg-gray-900 bg-white-100 rounded-2xl mt-7'>
-          <div className='p-[12px] text-gray-400 dark:text-white-100'>
-            <Lock size={48} />
-          </div>
-        </div>
-        <Text size='lg' className='dark:text-white-100 text-gray-900 font-bold mt-4 text-center'>
-          Verify it&apos;s you
-        </Text>
-        <Text size='md' color='dark:text-gray-400 text-gray-700 mt-2 text0center'>
-          Enter your wallet password to view QR Code
-        </Text>
-        <form onSubmit={onSubmit} className='mt-8 flex-grow flex flex-col justify-start'>
-          <Resize>
-            <Input
-              autoFocus
-              type='password'
-              placeholder='Enter password'
-              {...register('rawPassword')}
-              isErrorHighlighted={!!errors.rawPassword}
-            />
-          </Resize>
-
-          {!!errors.rawPassword && (
-            <Text size='sm' color='text-red-300' className='justify-center text-center pt-2'>
-              {errors.rawPassword.message}
-            </Text>
-          )}
-
-          {walletError && (
-            <Text size='sm' color='text-red-300' className='justify-center text-center pt-2'>
-              {walletError}
-            </Text>
-          )}
-
-          <Resize className='mt-auto mb-7'>
-            <Buttons.Generic type='submit' color={topChainColor}>
-              Continue
-            </Buttons.Generic>
-          </Resize>
-        </form>
+    <>
+      <div className='p-5 bg-secondary-200 rounded-full grid place-content-center w-fit mx-auto mt-4'>
+        <LockIcon size={24} />
       </div>
-    </div>
+
+      <header className='flex flex-col items-center gap-2'>
+        <span className='text-xl font-bold'>Verify it&apos;s you</span>
+        <span className='text-sm'>Enter your wallet password to view QR Code</span>
+      </header>
+
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit(onSubmit)}
+        className='mt-2 flex-grow flex flex-col justify-start'
+      >
+        <PasswordInput
+          id='password'
+          type='password'
+          placeholder='Enter password'
+          {...register('rawPassword')}
+          autoFocus={false}
+          status={errors.rawPassword ? 'error' : 'default'}
+        />
+
+        {(!!errors.rawPassword || !!walletError) && (
+          <span className='text-sm text-destructive-100 font-medium mt-2 text-center animate-fadeIn duration-100'>
+            {errors.rawPassword?.message || walletError}
+          </span>
+        )}
+
+        <Button disabled={!password} className='mt-auto'>
+          Enter password
+        </Button>
+      </form>
+    </>
   )
 }
 
-function QrCodeView({
-  qrData,
-  setRevealed,
-  setPassword,
-  goBack,
-}: EnterPasswordViewProps): ReactElement {
+function QrCodeView({ qrData, setRevealed, setPassword }: EnterPasswordViewProps): ReactElement {
   usePageView(PageName.SyncWithMobileApp)
 
   return (
-    <div className='panel-height enclosing-panel'>
-      <Header
-        title='Sync with mobile app'
-        action={{ type: HeaderActionType.BACK, onClick: goBack }}
-      />
-      <div className='relative flex items-center justify-center flex-col'>
-        <div className='rounded-full bg-gray-900 px-4 py-2 my-8 text-gray-200 font-bold text-xs'>
-          This code expires in{' '}
-          <CountDownTimer
-            minutes={5}
-            seconds={30}
-            setRevealed={setRevealed}
-            setPassword={setPassword}
-          />
-        </div>
-        <div className='rounded-[48px] overflow-hidden bg-white-100 p-4 shadow-[0_4px_16px_8px_rgba(0,0,0,0.04)]'>
-          <QrCode
-            height={Math.min(400, window.innerWidth) - 88}
-            width={Math.min(400, window.innerWidth) - 88}
-            data={qrData as string}
-            margin={0}
-            qrOptions={{ errorCorrectionLevel: 'M' }}
-          />
-        </div>
-        <div className='text-sm dark:text-gray-400 text-gray-800 my-4 mx-10 text-center'>
-          Scan the <span className='font-bold dark:text-gray-200 text-gray-800'>QR code</span> using
-          the{' '}
-          <span className='font-bold dark:text-gray-200 text-gray-800'>Leap Cosmos mobile app</span>{' '}
-          to sync your primary accounts and settings
-        </div>
+    <>
+      <div className='rounded-full px-5 py-2.5 font-medium text-xs bg-secondary-100 w-fit mx-auto min-w-[11.75rem]'>
+        This code expires in{' '}
+        <CountDownTimer
+          minutes={5}
+          seconds={30}
+          setRevealed={setRevealed}
+          setPassword={setPassword}
+        />
       </div>
-    </div>
+
+      <div className='rounded-[48px] overflow-hidden bg-white-100 p-4 shadow-[0_4px_16px_8px_rgba(0,0,0,0.04)]'>
+        <QrCode
+          height={Math.min(400, window.innerWidth) - 88}
+          width={Math.min(400, window.innerWidth) - 88}
+          data={qrData as string}
+          margin={0}
+          qrOptions={{ errorCorrectionLevel: 'M' }}
+        />
+      </div>
+
+      <span className='text-xs font-medium text-secondary-800 text-center'>
+        Scan the QR code using the Leap mobile app to sync your primary accounts and settings.
+      </span>
+    </>
   )
 }
 
-export default function SyncWithMobile({ goBack }: { goBack: () => void }): ReactElement {
+const tabVariants: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: 10 },
+}
+
+export default function SyncWithMobile({
+  open,
+  goBack,
+}: {
+  open: boolean
+  goBack: () => void
+}): ReactElement {
   const [password, setPassword] = useState('')
   const [isRevealed, setRevealed] = useState(false)
   const [qrData, setQrData] = useState('')
 
-  return isRevealed && password !== '' && qrData.length > 0 ? (
-    <QrCodeView
-      qrData={qrData}
-      setRevealed={setRevealed}
-      setPassword={setPassword}
-      goBack={goBack}
-    />
-  ) : (
-    <EnterPasswordView
-      setRevealed={setRevealed}
-      setPassword={setPassword}
-      setQrData={setQrData}
-      goBack={goBack}
-    />
+  const showQrCode = isRevealed && password !== '' && qrData.length > 0
+
+  return (
+    <BottomModal
+      fullScreen
+      isOpen={open}
+      onClose={goBack}
+      title={
+        <AnimatePresence mode='wait' initial={false}>
+          {showQrCode ? (
+            <motion.span
+              key='sync-with-mobile-app'
+              initial='hidden'
+              animate='visible'
+              exit='exit'
+              variants={tabVariants}
+              transition={transition200}
+            >
+              Sync with mobile app
+            </motion.span>
+          ) : (
+            <motion.span
+              key='enter-password'
+              initial='hidden'
+              animate='visible'
+              exit='exit'
+              variants={tabVariants}
+              transition={transition200}
+            >
+              Enter Password
+            </motion.span>
+          )}
+        </AnimatePresence>
+      }
+      className='p-6 h-full'
+    >
+      <AnimatePresence mode='wait' initial={false}>
+        {showQrCode ? (
+          <motion.div
+            key='qr-code-view'
+            initial='hidden'
+            animate='visible'
+            exit='exit'
+            variants={tabVariants}
+            transition={transition200}
+            className='flex flex-col gap-6 h-full'
+          >
+            <QrCodeView qrData={qrData} setRevealed={setRevealed} setPassword={setPassword} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key='enter-password-view'
+            initial='hidden'
+            animate='visible'
+            exit='exit'
+            variants={tabVariants}
+            transition={transition200}
+            className='flex flex-col gap-6 h-full'
+          >
+            <EnterPasswordView
+              setRevealed={setRevealed}
+              setPassword={setPassword}
+              setQrData={setQrData}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </BottomModal>
   )
 }

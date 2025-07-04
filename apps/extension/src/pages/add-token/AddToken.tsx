@@ -20,21 +20,15 @@ import {
   RootDenomsStore,
   SelectedNetworkStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { Buttons, Header, HeaderActionType } from '@leapwallet/leap-ui'
+import { ExclamationMark } from '@phosphor-icons/react'
 import { InputComponent } from 'components/input-component/InputComponent'
-import PopupLayout from 'components/layout/popup-layout'
+import Loader from 'components/loader/Loader'
 import Text from 'components/text'
+import { Button } from 'components/ui/button'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
-import React, {
-  ChangeEvent,
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import ManageTokensHeader from 'pages/manage-tokens/components/ManageTokensHeader'
+import React, { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { activeChainStore } from 'stores/active-chain-store'
 import {
@@ -46,7 +40,6 @@ import {
 } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 import { selectedNetworkStore } from 'stores/selected-network-store'
-import { Colors } from 'theme/colors'
 import { getContractInfo } from 'utils/getContractInfo'
 import { isNotValidNumber, isNotValidURL } from 'utils/regex'
 
@@ -290,55 +283,46 @@ const AddTokenForm = observer(
       if (coinMinimalDenomRef.current) coinMinimalDenomRef.current.focus()
     }, [])
 
-    const handleSubmit = useCallback(
-      async (event: FormEvent) => {
-        event.preventDefault()
+    const handleSubmit = useCallback(async () => {
+      setLoading(true)
+      const _tokenInfo = { ...tokenInfo, coinDecimals: Number(tokenInfo.coinDecimals) }
 
-        setLoading(true)
-        const _tokenInfo = { ...tokenInfo, coinDecimals: Number(tokenInfo.coinDecimals) }
+      if (!_tokenInfo.name) {
+        _tokenInfo.name = undefined as unknown as string
+      }
 
-        if (!_tokenInfo.name) {
-          _tokenInfo.name = undefined as unknown as string
-        }
+      if (isAddingCw20Token) {
+        await betaCW20DenomsStore.setBetaCW20Denoms(tokenInfo.coinMinimalDenom, _tokenInfo, chain)
+      } else if (isAddingErc20Token) {
+        await betaERC20DenomsStore.setBetaERC20Denoms(tokenInfo.coinMinimalDenom, _tokenInfo, chain)
+      } else {
+        await betaNativeDenomsStore.setBetaNativeDenoms(
+          tokenInfo.coinMinimalDenom,
+          _tokenInfo,
+          chain,
+        )
+      }
 
-        if (isAddingCw20Token) {
-          await betaCW20DenomsStore.setBetaCW20Denoms(tokenInfo.coinMinimalDenom, _tokenInfo, chain)
-        } else if (isAddingErc20Token) {
-          await betaERC20DenomsStore.setBetaERC20Denoms(
-            tokenInfo.coinMinimalDenom,
-            _tokenInfo,
-            chain,
-          )
-        } else {
-          await betaNativeDenomsStore.setBetaNativeDenoms(
-            tokenInfo.coinMinimalDenom,
-            _tokenInfo,
-            chain,
-          )
-        }
+      const _enabledCW20Tokens = [...enabledCW20Tokens, tokenInfo.coinMinimalDenom]
+      await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Tokens, activeChain)
 
-        const _enabledCW20Tokens = [...enabledCW20Tokens, tokenInfo.coinMinimalDenom]
-        await enabledCW20DenomsStore.setEnabledCW20Denoms(_enabledCW20Tokens, activeChain)
-
-        rootBalanceStore.refetchBalances()
-        setLoading(false)
-        navigate('/')
-      },
-      [
-        activeChain,
-        betaCW20DenomsStore,
-        betaERC20DenomsStore,
-        betaNativeDenomsStore,
-        chain,
-        enabledCW20DenomsStore,
-        enabledCW20Tokens,
-        isAddingCw20Token,
-        isAddingErc20Token,
-        navigate,
-        rootBalanceStore,
-        tokenInfo,
-      ],
-    )
+      rootBalanceStore.refetchBalances()
+      setLoading(false)
+      navigate('/')
+    }, [
+      activeChain,
+      betaCW20DenomsStore,
+      betaERC20DenomsStore,
+      betaNativeDenomsStore,
+      chain,
+      enabledCW20DenomsStore,
+      enabledCW20Tokens,
+      isAddingCw20Token,
+      isAddingErc20Token,
+      navigate,
+      rootBalanceStore,
+      tokenInfo,
+    ])
 
     const showWarning = useMemo(
       () => !fetchingTokenInfo && !foundAsset && coinMinimalDenom && !errors.coinMinimalDenom,
@@ -377,139 +361,110 @@ const AddTokenForm = observer(
     }, [activeChain, chains])
 
     return (
-      <form className='mx-auto w-[344px] mb-5' onSubmit={handleSubmit}>
-        <InputComponent
-          placeholder={coinMinimalDenomPlaceholder}
-          value={coinMinimalDenom}
-          name='coinMinimalDenom'
-          onChange={handleChange}
-          error={errors.coinMinimalDenom}
-          warning={
-            showWarning
-              ? `Make sure the coin minimal denom is correct and it belongs to ${
-                  chains[activeChain as SupportedChain]?.chainName
-                } chain`
-              : ''
-          }
-          onBlur={fetchTokenInfo}
-          ref={coinMinimalDenomRef}
-        />
+      <>
+        <form className='mx-auto w-[344px] mb-5 pb-6 overflow-y-auto h-[calc(100%-66px)]'>
+          <div className='rounded-lg w-full flex items-center h-[56px] p-4 bg-secondary-100 my-6 gap-x-[10px]'>
+            <ExclamationMark className='text-secondary-100 bg-accent-yellow rounded-full h-5 w-5 p-[2px]' />
+            <div className='font-medium text-foreground text-sm !leading-[22px]'>
+              Only add tokens you trust.
+            </div>
+          </div>
 
-        <InputComponent
-          placeholder={coinDenomPlaceholder}
-          value={coinDenom}
-          name='coinDenom'
-          onChange={handleChange}
-          error={errors.coinDenom}
-        />
+          <InputComponent
+            placeholder={coinMinimalDenomPlaceholder}
+            value={coinMinimalDenom}
+            name='coinMinimalDenom'
+            onChange={handleChange}
+            error={errors.coinMinimalDenom}
+            warning={
+              showWarning
+                ? `Make sure the coin minimal denom is correct and it belongs to ${
+                    chains[activeChain as SupportedChain]?.chainName
+                  } chain`
+                : ''
+            }
+            onBlur={fetchTokenInfo}
+            ref={coinMinimalDenomRef}
+          />
 
-        <InputComponent
-          placeholder='Coin decimals (ex: 6)'
-          value={coinDecimals}
-          name='coinDecimals'
-          onChange={handleChange}
-          error={errors.coinDecimals}
-        />
+          <InputComponent
+            placeholder={coinDenomPlaceholder}
+            value={coinDenom}
+            name='coinDenom'
+            onChange={handleChange}
+            error={errors.coinDenom}
+          />
 
-        <InputComponent
-          placeholder='Token name (optional)'
-          value={name}
-          name='name'
-          onChange={handleChange}
-          error={errors.name}
-        />
+          <InputComponent
+            placeholder='Coin decimals (ex: 6)'
+            value={coinDecimals}
+            name='coinDecimals'
+            onChange={handleChange}
+            error={errors.coinDecimals}
+          />
 
-        <InputComponent
-          placeholder='Coin gecko id (optional)'
-          value={coinGeckoId}
-          name='coinGeckoId'
-          onChange={handleChange}
-          error={errors.coinGeckoId}
-        />
+          <InputComponent
+            placeholder='Token name (optional)'
+            value={name}
+            name='name'
+            onChange={handleChange}
+            error={errors.name}
+          />
 
-        <InputComponent
-          placeholder='Icon url (optional)'
-          value={icon}
-          name='icon'
-          onChange={handleChange}
-          error={errors.icon}
-        />
+          <InputComponent
+            placeholder='Coin gecko id (optional)'
+            value={coinGeckoId}
+            name='coinGeckoId'
+            onChange={handleChange}
+            error={errors.coinGeckoId}
+          />
 
-        {fetchingTokenInfo ? (
-          <p className='font-bold text-gray-900 dark:text-gray-50 text-center mb-2'>
-            Finding token info...
-          </p>
-        ) : null}
+          <InputComponent
+            placeholder='Icon url (optional)'
+            value={icon}
+            name='icon'
+            onChange={handleChange}
+            error={errors.icon}
+          />
+        </form>
 
-        <div className='flex gap-x-4 mt-3'>
-          <Buttons.Generic
-            className='rounded-2xl w-full font-bold py-3 dark:bg-gray-900 bg-gray-900 text-gray-900 dark:text-white-100 h-12'
-            type='reset'
-            onClick={() => navigate('/')}
-            style={{ boxShadow: 'none' }}
-          >
-            Cancel
-          </Buttons.Generic>
-
-          <Buttons.Generic
-            className='rounded-2xl w-full font-bold py-3 text-gray-900 dark:text-white-100 relative h-12'
-            style={{
-              backgroundColor: Colors.getChainColor(activeChain as SupportedChain),
-              boxShadow: 'none',
-            }}
-            type='submit'
-            disabled={disableAddToken}
-          >
-            Add Token
-          </Buttons.Generic>
+        <div className='absolute bottom-0 left-0 right-0 p-4 bg-secondary-100 backdrop-blur-xl'>
+          {fetchingTokenInfo || loading ? (
+            <div className='h-[44px]'>
+              <Loader />
+            </div>
+          ) : (
+            <Button
+              className='rounded-full w-full font-bold text-sm !leading-5 text-gray-900 dark:text-white-100 h-11 !bg-primary'
+              type='submit'
+              disabled={disableAddToken}
+              onClick={handleSubmit}
+            >
+              Add token
+            </Button>
+          )}
         </div>
-      </form>
+      </>
     )
   },
 )
 
 export default function AddToken() {
-  const navigate = useNavigate()
-
   return (
-    <div className='relative overflow-clip m-auto'>
-      <PopupLayout
-        header={
-          <Header
-            title='Add Token'
-            action={{
-              onClick: () => {
-                navigate('/home')
-              },
-              type: HeaderActionType.BACK,
-            }}
-          />
-        }
-      >
-        <div className='panel-width px-7 panel-height max-panel-height overflow-y-auto bg-gray-50 dark:bg-black-100'>
-          <div className='rounded-xl w-full flex items-center h-[68px] bg-white-100 dark:bg-gray-900 py-2 pl-5 pr-[10px] mt-7 mb-4'>
-            <img className='mr-[16px]' src={Images.Misc.Warning} width='40' height='40' />
-            <div className='flex flex-col gap-y-[2px]'>
-              <Text size='sm' color='text-gray-400 font-medium'>
-                Caution:
-              </Text>
-              <Text size='sm' color='font-bold dark:text-white-100 text-gray-900'>
-                Only add tokens you trust.
-              </Text>
-            </div>
-          </div>
-          <AddTokenForm
-            selectedNetworkStore={selectedNetworkStore}
-            betaCW20DenomsStore={betaCW20DenomsStore}
-            betaERC20DenomsStore={betaERC20DenomsStore}
-            betaNativeDenomsStore={betaNativeDenomsStore}
-            activeChainStore={activeChainStore}
-            rootDenomsStore={rootDenomsStore}
-            rootBalanceStore={rootBalanceStore}
-            enabledCW20DenomsStore={enabledCW20DenomsStore}
-          />
-        </div>
-      </PopupLayout>
+    <div className='bg-secondary-50 flex flex-col h-full'>
+      <ManageTokensHeader title='Add Token' />
+      <div className='panel-width px-6 flex-1 overflow-y-hidden relative'>
+        <AddTokenForm
+          selectedNetworkStore={selectedNetworkStore}
+          betaCW20DenomsStore={betaCW20DenomsStore}
+          betaERC20DenomsStore={betaERC20DenomsStore}
+          betaNativeDenomsStore={betaNativeDenomsStore}
+          activeChainStore={activeChainStore}
+          rootDenomsStore={rootDenomsStore}
+          rootBalanceStore={rootBalanceStore}
+          enabledCW20DenomsStore={enabledCW20DenomsStore}
+        />
+      </div>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { DenomsRecord, getBaseURL, isSuiChain, SupportedChain } from '@leapwalle
 import axios from 'axios';
 import { BigNumber } from 'bignumber.js';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
+import { computedFn } from 'mobx-utils';
 import { SelectedNetworkType } from 'types';
 
 import { ChainInfosStore, CoingeckoIdsStore, RootDenomsStore } from '../assets';
@@ -175,12 +176,24 @@ export class SuiCoinDataStore {
   get totalFiatValue() {
     let totalFiatValue = new BigNumber(0);
     const balances = this.balances;
-
+    let hasAnyBalance = false;
     for (const asset of balances) {
       if (asset.usdValue) {
         totalFiatValue = totalFiatValue.plus(new BigNumber(asset.usdValue));
       }
+      if (asset.amount && !new BigNumber(asset.amount).isNaN() && new BigNumber(asset.amount).gt(0)) {
+        hasAnyBalance = true;
+      }
     }
+
+    if (totalFiatValue.gt(0)) {
+      return totalFiatValue;
+    }
+
+    if (hasAnyBalance) {
+      return new BigNumber(NaN);
+    }
+
     return totalFiatValue;
   }
 
@@ -246,10 +259,34 @@ export class SuiCoinDataStore {
     return this.suiBalances[balanceKey] ? sortTokenBalances(this.suiBalances[balanceKey]) : [];
   }
 
-  getSuiBalances(chain: SupportedChain, network: SelectedNetworkType) {
+  getAggregatedBalances(forceNetwork?: SelectedNetworkType) {
+    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    const allChains = Object.keys(this.chainInfosStore.chainInfos).filter(
+      (chain) =>
+        (network === 'testnet' ||
+          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+            this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+        isSuiChain(chain),
+    );
+    const tokens: Token[] = [];
+    for (const chain of allChains) {
+      const balanceKey = this.getBalanceKey(
+        chain as SupportedChain,
+        this.addressStore.addresses?.[chain as SupportedChain],
+        network,
+      );
+      if (!this.suiBalances[balanceKey]) {
+        this.getData(chain as SupportedChain, network);
+      }
+      this.suiBalances[balanceKey] && tokens.push(...this.suiBalances[balanceKey]);
+    }
+    return sortTokenBalances(tokens);
+  }
+
+  getSuiBalances = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
     const balanceKey = this.getBalanceKey(chain, this.addressStore.addresses[chain], network);
     return this.suiBalances[balanceKey] ?? [];
-  }
+  });
 
   async getData(chain?: SupportedChain, network?: SelectedNetworkType, forceRefetch = false) {
     const currentChain = chain ?? this.currentChain;

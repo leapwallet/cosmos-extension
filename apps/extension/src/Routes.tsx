@@ -3,6 +3,7 @@ import {
   useFetchDualStakeProviderRewards,
   useFetchDualStakeProviders,
   useInitCustomChains,
+  useLuminaTxClientStore,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { useChains, useSkipSupportedChains } from '@leapwallet/elements-hooks'
 import * as Sentry from '@sentry/react'
@@ -38,6 +39,8 @@ import {
   unDelegationsStore,
   validatorsStore,
 } from 'stores/stake-store'
+import { LuminaTxClientWasm } from 'utils/luminaTxClient'
+import Browser from 'webextension-polyfill'
 
 import { AuthProvider, RequireAuth, RequireAuthOnboarding } from './context/auth-context'
 
@@ -87,6 +90,7 @@ const SwitchEthereumChain = React.lazy(() => import('pages/switch-ethereum-chain
 const SwitchSolanaChain = React.lazy(() => import('pages/switch-solana-chain'))
 const SuggestEthereumChain = React.lazy(() => import('pages/suggestChain/SuggestEthereumChain'))
 const SwitchChain = React.lazy(() => import('pages/switch-chain'))
+
 const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
 export default function AppRoutes(): JSX.Element {
@@ -106,6 +110,18 @@ export default function AppRoutes(): JSX.Element {
     chainTypes: ['cosmos', 'evm'],
   })
   useAssets()
+
+  const { setLuminaTxClient, setForceLuminaTxClient } = useLuminaTxClientStore()
+
+  useEffect(() => {
+    const rpcUrl = 'https://celestia-rpc.publicnode.com:443'
+    setLuminaTxClient(new LuminaTxClientWasm(rpcUrl))
+    Browser.storage.local.get('useCelestiaBalanceStore').then((res) => {
+      if (res.useCelestiaBalanceStore === 'true') {
+        setForceLuminaTxClient(true)
+      }
+    })
+  }, [setLuminaTxClient])
 
   useEffect(() => {
     if (activeWallet) {

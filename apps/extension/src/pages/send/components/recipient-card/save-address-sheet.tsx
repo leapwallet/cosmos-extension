@@ -51,7 +51,8 @@ export default function SaveAddressSheet({
   const [name, setName] = useState<string>('')
   const [emoji, setEmoji] = useState<number>(1)
   const [saveAsCEX, setSaveAsCEX] = useState<boolean>(false)
-  const [error, setError] = useState('')
+  const [addressError, setAddressError] = useState('')
+  const [nameError, setNameError] = useState('')
   const [addressValue, setAddressValue] = useState('')
 
   const [isSaving, setIsSaving] = useState<boolean>(false)
@@ -122,7 +123,7 @@ export default function SaveAddressSheet({
   }, [isOpen])
 
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    error && setError('')
+    nameError && setNameError('')
     const value = event.target.value
 
     if (value.length < 24) {
@@ -134,7 +135,11 @@ export default function SaveAddressSheet({
             sCAddress !== address && name.trim().toLowerCase() === value.trim().toLowerCase(),
         )
       ) {
-        setError('Contact with same name already exists')
+        setNameError('Contact with same name already exists')
+      } else {
+        if (nameError === 'Contact with same name already exists') {
+          setNameError('')
+        }
       }
 
       setName(value)
@@ -142,7 +147,7 @@ export default function SaveAddressSheet({
   }
 
   const handleAddressChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    error && setError('')
+    addressError && setAddressError('')
     const value = event.target.value
     setAddressValue(value)
     if (
@@ -152,18 +157,22 @@ export default function SaveAddressSheet({
       !isAptosAddress(value) &&
       !isSolanaAddress(value)
     ) {
-      setError('Invalid address')
+      setAddressError('Invalid address')
       return
     }
     if (Object.values(savedContacts).some(({ address: sCAddress }) => sCAddress === value)) {
       if (value !== (existingContact?.ethAddress || existingContact?.address)) {
-        setError('Contact with same address already exists')
+        setAddressError('Contact with same address already exists')
         return
       }
     }
   }
 
   const handleSubmit = async () => {
+    if (addressError || nameError) {
+      return
+    }
+
     if (name && addressValue && !isSaving) {
       setIsSaving(true)
       await AddressBook.save({
@@ -189,6 +198,12 @@ export default function SaveAddressSheet({
       })
       onClose()
       setIsSaving(false)
+      setAddressError('')
+      setNameError('')
+      setAddressValue('')
+      setName('')
+      setMemo('')
+      setSaveAsCEX(false)
     }
   }
 
@@ -275,9 +290,9 @@ export default function SaveAddressSheet({
               )}
             </div>
           )}
-          {error && (
+          {(addressError || nameError) && (
             <Text size='xs' color='text-red-300' className='font-bold'>
-              {error}
+              {addressError || nameError}
             </Text>
           )}
           {isSaving ? (
@@ -285,7 +300,13 @@ export default function SaveAddressSheet({
           ) : (
             <Button
               className='w-full mt-3'
-              disabled={!name || !addressValue || !!error || (saveAsCEX && memo.length === 0)}
+              disabled={
+                !name ||
+                !addressValue ||
+                !!addressError ||
+                !!nameError ||
+                (saveAsCEX && memo.length === 0)
+              }
               title='Save contact'
             >
               Save contact

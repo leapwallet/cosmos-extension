@@ -1,25 +1,20 @@
 import { useChainId } from '@leapwallet/cosmos-wallet-hooks'
-import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import { CheckCircle } from '@phosphor-icons/react'
-import classNames from 'classnames'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useSelectedNetwork, useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Colors } from 'theme/colors'
 import { sendMessageToTab } from 'utils'
-import { isSidePanel } from 'utils/isSidePanel'
-
-import Text from '../../../components/text'
+import { cn } from 'utils/cn'
 
 export default function NetworkDropUp({
-  onCloseHandler,
+  goBack,
   isVisible,
 }: {
   isVisible: boolean
-  onCloseHandler: () => void
+  goBack: () => void
 }) {
   const chainInfos = useChainInfos()
   const activeChain = useActiveChain()
@@ -74,46 +69,37 @@ export default function NetworkDropUp({
   )
 
   return (
-    <BottomModal isOpen={isVisible} closeOnBackdropClick onClose={onCloseHandler} title={'Network'}>
-      <div className='overflow-hidden rounded-2xl'>
-        {chains.map((chain, index) => {
+    <BottomModal
+      isOpen={isVisible}
+      onClose={goBack}
+      title={'Network'}
+      className='flex flex-col gap-3 !py-7 !px-5'
+    >
+      <div className='flex flex-col gap-2'>
+        {chains.map((chain) => {
           const unavailable = !chain.enabled ? '(Unavailable)' : ''
           return (
-            <React.Fragment key={chain.title}>
-              {index !== 0 && <CardDivider />}
-              <GenericCard
-                data-testing-id={chain.title === 'Testnet' ? 'network-testnet-option' : ''}
-                title={
-                  <Text
-                    size='md'
-                    className={classNames({ 'w-[400px]': !isSidePanel() })}
-                    color={chain.enabled ? undefined : 'dark:text-gray-400 text-gray-300'}
-                  >{`${chain.title} ${unavailable}`}</Text>
-                }
-                subtitle={
-                  <Text
-                    size='xs'
-                    color={chain.enabled ? undefined : 'dark:text-gray-400 text-gray-300'}
-                  >
-                    {chain.subTitle}
-                  </Text>
-                }
-                onClick={chain.onClick}
-                size='md'
-                icon={
-                  chain.isSelected && activeChain ? (
-                    <CheckCircle
-                      weight='fill'
-                      size={24}
-                      className='text-gray-600 dark:text-gray-400'
-                      style={{
-                        color: Colors.getChainColor(activeChain),
-                      }}
-                    />
-                  ) : null
-                }
-              />
-            </React.Fragment>
+            <button
+              key={chain.title}
+              onClick={chain.onClick}
+              data-testing-id={chain.title === 'Testnet' ? 'network-testnet-option' : ''}
+              className={cn(
+                'flex items-center justify-between text-start w-full p-4 bg-secondary-100 transition-colors rounded-xl',
+                chain.enabled
+                  ? 'hover:bg-secondary-200'
+                  : 'cursor-not-allowed text-muted-foreground',
+              )}
+            >
+              <div className='flex flex-col gap-1 flex-1'>
+                <span className='font-bold'>{`${chain.title} ${unavailable}`}</span>
+
+                <span className='text-xs font-medium'>{chain.subTitle}</span>
+              </div>
+
+              {chain.isSelected && activeChain ? (
+                <CheckCircle weight='fill' size={24} className='text-accent-foreground shrink-0' />
+              ) : null}
+            </button>
           )
         })}
       </div>

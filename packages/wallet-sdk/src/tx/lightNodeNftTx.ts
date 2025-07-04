@@ -94,8 +94,12 @@ async function signAndBroadcastTx(
   let signature;
   let v;
 
-  if (wallet instanceof LeapLedgerSignerEth) {
-    signature = await wallet.signTransaction(address, serialize(tx).replace('0x', ''));
+  if (wallet instanceof LeapLedgerSignerEth || wallet?.constructor?.name === 'LeapLedgerSignerEth') {
+    signature = (await wallet.signTransaction(address, serialize(tx).replace('0x', ''))) as {
+      r: string;
+      s: string;
+      v: number;
+    };
     v = Number('0x' + signature.v) - 2 * CHAIN_ID - 35;
   } else {
     signature = await wallet.sign(address, hash);
@@ -152,9 +156,14 @@ export async function getNFTBalance(_address: string) {
     // 2. Get token ID
     const tokenId = await leapLNContract.tokenOfOwnerByIndex(address, BigInt(0));
     const tokenURI = await leapLNContract.tokenURI(tokenId);
-    const response = await fetch(tokenURI);
-    if (!response.ok) throw new Error('Failed to fetch NFT metadata');
-    const metadata: NFTMetadata = await response.json();
+    let metadata = null;
+    try {
+      const base64 = tokenURI.slice('data:application/json;base64,'.length);
+      const jsonStr = Buffer.from(base64, 'base64').toString('utf-8');
+      metadata = JSON.parse(jsonStr);
+    } catch (err) {
+      throw new Error(`Failed to decode base64 tokenURI: ${err}`);
+    }
     metadata.image = metadata.image?.replace('ipfs://', IPFS_GATEWAY);
     metadata.animation_url = metadata.animation_url?.replace('ipfs://', IPFS_GATEWAY);
     metadata.chain = 'forma';

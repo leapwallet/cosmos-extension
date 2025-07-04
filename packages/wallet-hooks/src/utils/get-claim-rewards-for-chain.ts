@@ -77,7 +77,7 @@ export async function getClaimRewardsForChain({
 
       return {
         ...claim,
-        amount,
+        amount: denomInfo ? amount : '0',
         currencyAmount,
         formatted_amount,
         tokenInfo: denomInfo,

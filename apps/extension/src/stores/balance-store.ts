@@ -1,3 +1,4 @@
+import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   AggregatedChainsStore,
   AnkrChainMapStore,
@@ -26,6 +27,7 @@ import browser from 'webextension-polyfill'
 import { getStorageAdapter } from '../utils/storageAdapter'
 import { activeChainStore } from './active-chain-store'
 import { addressStore } from './address-store-instance'
+import { CelestiaBalanceStore } from './celestia-grpc-client-store'
 import { chainInfoStore } from './chain-infos-store'
 import {
   autoFetchedCW20DenomsStore,
@@ -84,6 +86,19 @@ export const balanceStore = new BalanceStore(
   balanceAPIStore,
   currencyStore,
   coingeckoIdsStore,
+  storageAdapter,
+  {
+    celestia: {
+      BalanceStoreClass: (
+        restUrl: string,
+        address: string,
+        chain: SupportedChain,
+        type: 'balances' | 'spendable_balances',
+        paginationLimit: number,
+        publicKey: string,
+      ) => new CelestiaBalanceStore(restUrl, address, chain, type, paginationLimit, publicKey),
+    },
+  },
 )
 
 export const cw20TokenBalanceStore = new CW20DenomBalanceStore(

@@ -1,4 +1,3 @@
-import Text from 'components/text'
 import React, { useEffect, useState } from 'react'
 import browser from 'webextension-polyfill'
 
@@ -7,12 +6,8 @@ export default function VersionIndicator() {
 
   useEffect(() => {
     const version = browser.runtime.getManifest().version
-    setVersion('Version ' + version)
+    setVersion(version)
   }, [])
 
-  return (
-    <Text size='sm' color='text-center text-gray-400 font-bold'>
-      {version}
-    </Text>
-  )
+  return <span className='block text-center text-muted-foreground py-7'>{version}</span>
 }

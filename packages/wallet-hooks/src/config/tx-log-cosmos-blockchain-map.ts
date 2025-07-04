@@ -90,4 +90,13 @@ export const TX_LOG_COSMOS_BLOCKCHAIN_MAP = {
   ['Scorum Network']: 'SCORUM_NETWORK' as CosmosBlockchain,
   saga: 'SAGA' as CosmosBlockchain,
   initia: 'INITIA' as CosmosBlockchain,
+  titan: 'TITAN' as CosmosBlockchain,
+  doravota: 'DORAVOTA' as CosmosBlockchain,
+  fxcore: 'FX_CORE' as CosmosBlockchain,
+  uniontestnet: 'UNION' as CosmosBlockchain,
+  cronos: 'CRYPTO_ORG_CHAIN' as CosmosBlockchain,
+  haqq: 'HAQQ_NETWORK' as CosmosBlockchain,
+  elystestnet: 'ELYS_NETWORK' as CosmosBlockchain,
+  mantrachaintestnet: 'MANTRA_HONGBAI' as CosmosBlockchain,
+  scorum: 'SCORUM_NETWORK' as CosmosBlockchain,
 };

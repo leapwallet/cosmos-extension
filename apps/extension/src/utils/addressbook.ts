@@ -1,12 +1,15 @@
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  getBlockChainFromAddress,
+  isAptosAddress,
+  isEthAddress,
+  isSolanaAddress,
+  isValidAddress,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-use-before-define */
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-import {
-  getBlockChainFromAddress,
-  isEthAddress,
-  isValidAddress,
-} from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/validateAddress'
+import { isValidSuiAddress } from 'pages/send-v2/hooks/useCheckAddressError'
 import { useEffect, useState } from 'react'
 import extension from 'webextension-polyfill'
 
@@ -55,7 +58,13 @@ export namespace AddressBook {
    */
 
   export async function save(entry: SavedAddress) {
-    if (!isValidAddress(entry.address) && !isEthAddress(entry.address)) {
+    if (
+      !isValidAddress(entry.address) &&
+      !isEthAddress(entry.address) &&
+      !isAptosAddress(entry.address) &&
+      !isSolanaAddress(entry.address) &&
+      !isValidSuiAddress(entry.address)
+    ) {
       DEBUG('Save contact', 'Address not valid')
       return
     }

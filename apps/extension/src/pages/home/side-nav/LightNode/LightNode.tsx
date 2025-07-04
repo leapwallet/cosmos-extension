@@ -1,6 +1,12 @@
-import { useAddressStore, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  useAddressStore,
+  useFeatureFlags,
+  useLuminaTxClientStore,
+} from '@leapwallet/cosmos-wallet-hooks'
+import { BalanceStore } from '@leapwallet/cosmos-wallet-store'
 import { CheckCircle } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
+import classNames from 'classnames'
 import { Button } from 'components/ui/button'
 import { ButtonName, ButtonType, EventName } from 'config/analytics'
 import { motion } from 'framer-motion'
@@ -14,12 +20,38 @@ import { clientIdStore } from 'stores/client-id-store'
 import { lightNodeStore } from 'stores/light-node-store'
 import browser from 'webextension-polyfill'
 
-import Text from '../../../../components/text'
 import BasicAccordion from './components/BaseAccordion'
 import LightNodeDetails from './components/LightNodeDetails'
 import LightNodeSyncProgress from './components/LightNodeSyncProgress'
 import LightNodeSettings from './components/Settings'
 import { LightNodeBanner } from './LumisNFT'
+
+const ToggleCard = ({
+  title,
+  isEnabled,
+  onClick,
+}: {
+  title: string
+  isEnabled: boolean
+  onClick: (val: boolean) => void
+}) => {
+  return (
+    <div
+      className={classNames(
+        'flex justify-between items-center p-4 bg-white-100 dark:bg-gray-900 cursor-pointer rounded-xl',
+      )}
+    >
+      <div className={'flex-1 text-xs font-medium text-black-100 dark:text-white-100'}>{title}</div>
+      <input
+        type='checkbox'
+        id='toggle-switch3'
+        checked={isEnabled}
+        onChange={({ target }) => onClick(target.checked)}
+        className='flex-2 h-7 w-[50px] appearance-none rounded-full cursor-pointer bg-gray-600/30 transition duration-200 checked:bg-green-600 relative'
+      />
+    </div>
+  )
+}
 
 const LoadingAnimation = () => {
   const initialRef = useRef<Record<string, never | number>>({ opacity: 0, y: 50 })
@@ -58,12 +90,14 @@ const LightNode = ({
   setShowLightNodeSettings,
   setActiveTab,
   showBanner,
+  balanceStore,
 }: {
   goBack: (toHome?: boolean) => void
   showLightNodeSettings: boolean
   setShowLightNodeSettings: (show: boolean) => void
   setActiveTab: React.Dispatch<React.SetStateAction<'Light Node' | 'Lumi NFT'>>
   showBanner: boolean
+  balanceStore: BalanceStore
 }) => {
   const { primaryAddress } = useAddressStore()
   const [showAnimation, setShowAnimation] = useState(false)
@@ -71,12 +105,19 @@ const LightNode = ({
   const handleAccordionClick = () => {
     setShowMoreDetails(!showMoreDetails)
   }
-
   const { data: featureFlags } = useFeatureFlags()
+
+  const { setForceLuminaTxClient } = useLuminaTxClientStore()
+
+  const enableLuminaTxClient = (v: boolean) => {
+    setForceLuminaTxClient(v)
+    balanceStore.setUseCelestiaBalanceStore(v)
+  }
 
   const toggleSampling = () => {
     if (lightNodeStore.isLightNodeRunning) {
       lightNodeStore.stopNode(primaryAddress, clientIdStore.clientId)
+      enableLuminaTxClient(false)
     } else {
       setShowAnimation(true)
       lightNodeStore.startNode(primaryAddress, clientIdStore.clientId).then(() => {
@@ -174,6 +215,12 @@ const LightNode = ({
                   latestHeader={lightNodeStore.latestHeader ?? undefined}
                   blockTime={lightNodeStore.blockTime}
                   onShareClick={handleShare}
+                />
+
+                <ToggleCard
+                  title='Use Light Node to fetch Celestia balances & broadcast transactions'
+                  isEnabled={balanceStore.useCelestiaBalanceStore}
+                  onClick={(v) => enableLuminaTxClient(v)}
                 />
                 <BasicAccordion
                   title='More Details'

@@ -64,7 +64,7 @@ export function useSetActiveChain() {
     await queryClient.cancelQueries()
     setActiveChain(chain as SupportedChain)
     rootStore.setActiveChain(chain)
-    browser.storage.local.set({ [ACTIVE_CHAIN]: chain })
+    await browser.storage.local.set({ [ACTIVE_CHAIN]: chain })
     setPendingTx(null)
 
     if (chain !== AGGREGATED_CHAIN_KEY) {

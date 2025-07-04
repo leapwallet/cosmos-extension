@@ -88,7 +88,7 @@ export async function ethSign(
 
   const signBytes = Buffer.from(signDoc.msgs[0].value.data, 'base64');
   if (type === 'message') {
-    if (wallet instanceof LeapKeystoneSignerEth || wallet.constructor.name === 'LeapKeystoneSignerEth') {
+    if (wallet instanceof LeapKeystoneSignerEth || wallet?.constructor?.name === 'LeapKeystoneSignerEth') {
       const _wallet = wallet as LeapKeystoneSignerEth;
       const signature = await _wallet.signPersonalMessage(signerAddress, Buffer.from(signBytes).toString('hex'));
       const formattedSignature = concat([
@@ -112,8 +112,11 @@ export async function ethSign(
     ]);
 
     const hash = keccak256(Buffer.from(tx));
-    if (wallet instanceof LeapLedgerSignerEth) {
-      const signature = await wallet.signPersonalMessage(signerAddress, Buffer.from(signBytes).toString('hex'));
+    if (wallet instanceof LeapLedgerSignerEth || wallet?.constructor?.name === 'LeapLedgerSignerEth') {
+      const signature = await (wallet as LeapLedgerSignerEth).signPersonalMessage(
+        signerAddress,
+        Buffer.from(signBytes).toString('hex'),
+      );
       const formattedSignature = ethSignatureToBytes(signature);
       return {
         signed: signDoc,
@@ -141,8 +144,11 @@ export async function ethSign(
     };
   } else if (type === 'transaction') {
     const tx = JSON.parse(Buffer.from(signBytes).toString());
-    if (wallet instanceof LeapLedgerSignerEth) {
-      const signature = await wallet.signTransaction(signerAddress, serialize(tx).replace('0x', ''));
+    if (wallet instanceof LeapLedgerSignerEth || wallet?.constructor?.name === 'LeapLedgerSignerEth') {
+      const signature = await (wallet as LeapLedgerSignerEth).signTransaction(
+        signerAddress,
+        serialize(tx).replace('0x', ''),
+      );
       const formattedSignature = concat([
         signature.r,
         signature.s,
@@ -224,8 +230,8 @@ async function signEip712Tx(
     };
   }
 
-  if (wallet instanceof LeapLedgerSignerEth) {
-    const signature = await wallet.signEip712(signerAddress, data);
+  if (wallet instanceof LeapLedgerSignerEth || wallet?.constructor?.name === 'LeapLedgerSignerEth') {
+    const signature = await (wallet as LeapLedgerSignerEth).signEip712(signerAddress, data);
     const formattedSignature = concat([
       signature.r,
       signature.s,

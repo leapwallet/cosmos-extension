@@ -10,9 +10,9 @@ import {
 import { isTerraClassic } from './isTerraClassic';
 
 export function getKeyToUseForDenoms(denom: string, originChainId: string) {
-  let skipSanitizedDenom = denom.replace(/(cw20:)/g, '');
-  if (denom.startsWith('erc20/0x')) {
-    skipSanitizedDenom = denom.replace('erc20', '');
+  let skipSanitizedDenom = denom?.replace(/(cw20:)/g, '');
+  if (denom?.startsWith('erc20/0x')) {
+    skipSanitizedDenom = denom?.replace('erc20', '');
   }
 
   const _denom = AptosTx.sanitizeTokenDenom(skipSanitizedDenom);

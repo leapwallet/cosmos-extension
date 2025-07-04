@@ -102,7 +102,14 @@ export function useSeiLinkedAddressState(forceChain?: SupportedChain) {
       const notSeiLedger = activeWallet?.walletType !== WALLETTYPE.LEDGER && activeWallet?.app !== 'sei';
       if (!isCompassWallet || notSeiLedger) return;
       try {
-        if (!(wallet instanceof EthWallet || wallet instanceof CompassSeiLedgerSigner)) {
+        if (
+          !(
+            wallet instanceof EthWallet ||
+            wallet instanceof CompassSeiLedgerSigner ||
+            wallet?.constructor?.name === 'EthWallet' ||
+            wallet?.constructor?.name === 'CompassSeiLedgerSigner'
+          )
+        ) {
           wallet = (await wallet(activeChainKey, true)) as unknown as EthWallet | CompassSeiLedgerSigner;
         }
 

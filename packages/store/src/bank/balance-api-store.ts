@@ -300,7 +300,9 @@ export class BalanceAPIStore {
         if (coingeckoPrices) {
           let tokenPrice;
 
-          const alternateCoingeckoKey = `${balance.chainId || denomChain?.chainId}-${balance.denom}`;
+          const alternateCoingeckoKey = `${balance.originChainId || denomChain?.chainId}-${
+            denomInfo?.coinMinimalDenom ?? balance.denom
+          }`;
           if (coinGeckoId) {
             tokenPrice = coingeckoPrices[coinGeckoId];
           }
@@ -341,7 +343,7 @@ export class BalanceAPIStore {
         amount,
         symbol: balance?.symbol,
         usdValue: usdValue ?? '',
-        coinMinimalDenom: balance?.denom,
+        coinMinimalDenom: denomInfo?.coinMinimalDenom ?? balance?.denom,
         img: balance?.icon,
         ibcDenom: balance?.ibcDenom,
         ibcChainInfo,

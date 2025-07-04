@@ -97,6 +97,9 @@ module.exports = {
         yellow: {
           DEFAULT: 'hsl(var(--accent-yellow))',
         },
+        blue: {
+          DEFAULT: 'hsl(var(--accent-blue))',
+        },
       },
       mainChainTheme: {
         100: '#754f9c66',

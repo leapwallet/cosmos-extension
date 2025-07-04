@@ -69,7 +69,7 @@ const Buy = () => {
 
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [selectedAsset, setSelectedAsset] = useState<AssetProps | undefined>(undefined)
-  const _selectedAddress = useAddress(selectedAsset?.chainKey)
+  const selectedAddress = useAddress(selectedAsset?.chainKey)
 
   const [payFiatAmount, setPayFiatAmount] = useState<string>('0')
   const debouncedPayAmount = useDebounce<string>(payFiatAmount, 500)
@@ -79,21 +79,6 @@ const Buy = () => {
   const [error, setError] = useState<string | null>(null)
   const inputAmountRef = useRef(null)
   const chains = useChainInfos()
-  const { activeWallet } = useActiveWallet()
-
-  const selectedAddress = useMemo(() => {
-    if (!selectedAsset?.chainKey) {
-      return _selectedAddress
-    }
-    const selectedAssetChainInfo = chains[selectedAsset.chainKey]
-    if (selectedAssetChainInfo.evmOnlyChain) {
-      const evmPublicKey = activeWallet?.pubKeys?.[selectedAsset?.chainKey]
-      if (evmPublicKey) {
-        return pubKeyToEvmAddressToShow(evmPublicKey)
-      }
-    }
-    return _selectedAddress
-  }, [selectedAsset?.chainKey, chains, _selectedAddress, activeWallet?.pubKeys])
 
   const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
 

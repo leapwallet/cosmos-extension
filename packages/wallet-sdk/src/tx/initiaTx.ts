@@ -88,6 +88,7 @@ export class InitiaTx extends Tx {
   }
 
   async initClient() {
+    if (!this.wallet) throw new Error('Wallet not connected');
     this.client = await SigningStargateClient.connectWithSigner(this.rpcEndPoint, this.wallet, {
       broadcastPollIntervalMs: this.options?.broadcastPollIntervalMs ?? 5_000,
       aminoTypes,

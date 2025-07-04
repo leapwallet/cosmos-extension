@@ -206,7 +206,8 @@ export const useExecuteSkipTx = () => {
             } else if (
               messageChain.key === 'dymension' ||
               messageChain.key === 'evmos' ||
-              messageChain.key === 'humans'
+              messageChain.key === 'humans' ||
+              messageChain.key === 'xrpl'
             ) {
               const ethermintTx = new EthermintTxHandler(
                 messageChain.restUrl,

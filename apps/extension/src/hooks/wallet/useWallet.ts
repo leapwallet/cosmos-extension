@@ -770,75 +770,93 @@ export namespace Wallet {
   export function useAptosSigner() {
     const { activeWallet } = useActiveWallet()
     const chainInfos = useChainInfos()
-    return async (chain: SupportedChain) => {
-      if (!activeWallet) throw new Error('No active wallet')
-      if (!passwordStore.password) throw new Error('Invalid Password')
+    return useCallback(
+      async (chain: SupportedChain) => {
+        if (!activeWallet) throw new Error('No active wallet')
+        if (!passwordStore?.password) throw new Error('Invalid Password')
 
-      const coinType = chainInfos[chain]?.bip44?.coinType
-      const walletType = activeWallet.walletType
-      const addressIndex = activeWallet.addressIndex
-      const path = getFullHDPath('44', coinType, addressIndex.toString())
-      if (walletType === WALLETTYPE.SEED_PHRASE || walletType === WALLETTYPE.SEED_PHRASE_IMPORTED) {
-        const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
-        const account = await customKeygenfnMove(mnemonic, path, 'seedPhrase')
-        return account
-      } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
-        const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
-        const account = await customKeygenfnMove(privateKey, path, 'privateKey')
-        return account
-      } else {
-        throw new Error('Invalid wallet type')
-      }
-    }
+        const coinType = chainInfos[chain]?.bip44?.coinType
+        const walletType = activeWallet.walletType
+        const addressIndex = activeWallet.addressIndex
+        const path = getFullHDPath('44', coinType, addressIndex.toString())
+        if (
+          walletType === WALLETTYPE.SEED_PHRASE ||
+          walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
+        ) {
+          const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
+          const account = await customKeygenfnMove(mnemonic, path, 'seedPhrase')
+          return account
+        } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
+          const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
+          const account = await customKeygenfnMove(privateKey, path, 'privateKey')
+          return account
+        } else {
+          throw new Error('Invalid wallet type')
+        }
+      },
+      [activeWallet, chainInfos, passwordStore?.password],
+    )
   }
 
   export function useSolanaSigner() {
     const { activeWallet } = useActiveWallet()
     const chainInfos = useChainInfos()
-    return async (chain: SupportedChain) => {
-      if (!activeWallet) throw new Error('No active wallet')
-      if (!passwordStore.password) throw new Error('Invalid Password')
+    return useCallback(
+      async (chain: SupportedChain) => {
+        if (!activeWallet) throw new Error('No active wallet')
+        if (!passwordStore?.password) throw new Error('Invalid Password')
 
-      const coinType = chainInfos[chain]?.bip44?.coinType
-      const walletType = activeWallet.walletType
-      const addressIndex = activeWallet.addressIndex
-      const path = getFullHDPath('44', coinType, addressIndex.toString())
-      if (walletType === WALLETTYPE.SEED_PHRASE || walletType === WALLETTYPE.SEED_PHRASE_IMPORTED) {
-        const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
-        const account = await customKeygenfnSolana(mnemonic, path, 'seedPhrase')
-        return account
-      } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
-        const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
-        const account = await customKeygenfnSolana(privateKey, path, 'privateKey')
-        return account
-      } else {
-        throw new Error('Invalid wallet type')
-      }
-    }
+        const coinType = chainInfos[chain]?.bip44?.coinType
+        const walletType = activeWallet.walletType
+        const addressIndex = activeWallet.addressIndex
+        const path = getFullHDPath('44', coinType, addressIndex.toString())
+        if (
+          walletType === WALLETTYPE.SEED_PHRASE ||
+          walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
+        ) {
+          const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
+          const account = await customKeygenfnSolana(mnemonic, path, 'seedPhrase')
+          return account
+        } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
+          const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
+          const account = await customKeygenfnSolana(privateKey, path, 'privateKey')
+          return account
+        } else {
+          throw new Error('Invalid wallet type')
+        }
+      },
+      [activeWallet, chainInfos, passwordStore?.password],
+    )
   }
 
   export function useSuiSigner() {
     const { activeWallet } = useActiveWallet()
     const chainInfos = useChainInfos()
-    return async (chain: SupportedChain) => {
-      if (!activeWallet) throw new Error('No active wallet')
-      if (!passwordStore.password) throw new Error('Invalid Password')
+    return useCallback(
+      async (chain: SupportedChain) => {
+        if (!activeWallet) throw new Error('No active wallet')
+        if (!passwordStore?.password) throw new Error('Invalid Password')
 
-      const coinType = chainInfos[chain]?.bip44?.coinType
-      const walletType = activeWallet.walletType
-      const addressIndex = activeWallet.addressIndex
-      const path = getFullHDPath('44', coinType, addressIndex.toString())
-      if (walletType === WALLETTYPE.SEED_PHRASE || walletType === WALLETTYPE.SEED_PHRASE_IMPORTED) {
-        const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
-        const account = await customKeygenfnSui(mnemonic, path, 'seedPhrase')
-        return account
-      } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
-        const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
-        const account = await customKeygenfnSui(privateKey, path, 'privateKey')
-        return account
-      } else {
-        throw new Error('Invalid wallet type')
-      }
-    }
+        const coinType = chainInfos[chain]?.bip44?.coinType
+        const walletType = activeWallet.walletType
+        const addressIndex = activeWallet.addressIndex
+        const path = getFullHDPath('44', coinType, addressIndex.toString())
+        if (
+          walletType === WALLETTYPE.SEED_PHRASE ||
+          walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
+        ) {
+          const mnemonic = decrypt(activeWallet.cipher, passwordStore.password)
+          const account = await customKeygenfnSui(mnemonic, path, 'seedPhrase')
+          return account
+        } else if (walletType === WALLETTYPE.PRIVATE_KEY) {
+          const privateKey = decrypt(activeWallet.cipher, passwordStore.password)
+          const account = await customKeygenfnSui(privateKey, path, 'privateKey')
+          return account
+        } else {
+          throw new Error('Invalid wallet type')
+        }
+      },
+      [activeWallet, chainInfos, passwordStore?.password],
+    )
   }
 }

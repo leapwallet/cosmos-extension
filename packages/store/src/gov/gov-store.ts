@@ -110,9 +110,9 @@ export class GovStore {
   get aggregatedGov() {
     let perChainShouldUseFallback: { [key: string]: boolean } = {};
     let perChainGovernance: { [key: string]: Proposal[] | ProposalApi[] } = {};
-    const aggregatedChains = this.aggregatedChainsStore.aggregatedChainsData;
+    const allChains = Object.keys(this.chainInfosStore?.chainInfos ?? {});
 
-    for (const chain of aggregatedChains) {
+    for (const chain of allChains) {
       const chainKey = this.getChainKey(chain as SupportedChain);
 
       perChainShouldUseFallback = {
@@ -448,7 +448,7 @@ export class GovStore {
 
       default: {
         proposals = data.proposals
-          .filter((p: { content: Proposal['content'] | undefined | null }) => p.content)
+          .filter((p: { content: Proposal['content'] | undefined | null }) => p.content && p.content?.title)
           .filter((proposal: any) => filterSpamProposals(proposal, spamProposals));
 
         break;

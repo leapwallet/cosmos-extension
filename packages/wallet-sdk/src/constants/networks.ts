@@ -310,6 +310,7 @@ export const networkData: NetworkData[] = [
   { enabled: true, name: 'elys' },
   { enabled: true, name: 'babylon' },
   { enabled: true, name: 'mainBabylon' },
+  { enabled: true, name: 'xrpl' },
 ];
 
 export default networkData;

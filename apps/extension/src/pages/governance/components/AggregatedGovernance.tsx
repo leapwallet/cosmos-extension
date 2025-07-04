@@ -116,24 +116,24 @@ export const AggregatedGovernance = observer(
                   />
                 ) : (
                   <>
-                    {searchedText.trim().length > 0 ? (
-                      <div className='w-full pb-6 h-full '>
-                        <div className='h-full px-5 w-full flex-col flex justify-center items-center gap-4 border border-secondary-200 rounded-2xl'>
-                          <div className='p-2 bg-secondary-200 rounded-full'>
-                            <CompassIcon size={40} className='text-muted-foreground' />
+                    <div className='w-full pb-6 h-full '>
+                      <div className='h-full px-5 w-full flex-col flex justify-center items-center gap-4 border border-secondary-200 rounded-2xl'>
+                        <div className='p-2 bg-secondary-200 rounded-full'>
+                          <CompassIcon size={40} className='text-muted-foreground' />
+                        </div>
+                        <div className='flex flex-col justify-start items-center w-full gap-3'>
+                          <div className='text-[18px] !leading-[24px] text-center font-bold text-foreground'>
+                            No proposals found
                           </div>
-                          <div className='flex flex-col justify-start items-center w-full gap-3'>
-                            <div className='text-[18px] !leading-[24px] text-center font-bold text-foreground'>
-                              No proposals found
-                            </div>
+                          {searchedText.trim().length > 0 ? (
                             <div className='text-xs !leading-[16px] text-secondary-800 text-center'>
                               We couldn&apos;t find a match. Try searching again or use a different
                               keyword.
                             </div>
-                          </div>
+                          ) : null}
                         </div>
                       </div>
-                    ) : null}
+                    </div>
                   </>
                 )}
               </div>

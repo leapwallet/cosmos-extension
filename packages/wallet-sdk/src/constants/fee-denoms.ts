@@ -141,6 +141,8 @@ export const feeDenoms: FeeDenoms = {
     solana: denoms['lamports'],
     sui: denoms['mist'],
     fogo: denoms['fogo-native'],
+    xrpl: denoms.axrp,
+    citrea: denoms['citrea-native'],
   },
   testnet: {
     akash: denoms.uakt,
@@ -272,5 +274,7 @@ export const feeDenoms: FeeDenoms = {
     solana: denoms['lamports'],
     sui: denoms['mist'],
     fogo: denoms['fogo-native'],
+    xrpl: denoms.axrp,
+    citrea: denoms['citrea-native'],
   },
 };

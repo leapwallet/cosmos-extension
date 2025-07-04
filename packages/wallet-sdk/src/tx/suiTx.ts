@@ -1,4 +1,5 @@
 import { StdFee } from '@cosmjs/amino';
+import { bcs } from '@mysten/bcs';
 import { blake2b } from '@noble/hashes/blake2b';
 import { base64 } from '@scure/base';
 import axios from 'axios';
@@ -18,6 +19,64 @@ export class SuiTx {
 
   static async getSuiClient(account?: SuiAccount | undefined, selectedNetwork?: string) {
     return new SuiTx(account, selectedNetwork);
+  }
+
+  Intent = bcs.struct('Intent', {
+    scope: bcs.u8(),
+    version: bcs.u8(),
+    appId: bcs.u8(),
+  });
+
+  IntentMessage = bcs.struct('IntentMessage', {
+    intent: this.Intent,
+    value: bcs.vector(bcs.u8()),
+  });
+
+  INTENT_SCOPE = {
+    TransactionData: 0,
+    TransactionEffects: 1,
+    CheckpointSummary: 2,
+    PersonalMessage: 3,
+  } as const;
+
+  INTENT_VERSION = {
+    V0: 0,
+  } as const;
+
+  APP_ID = {
+    Sui: 0,
+  } as const;
+
+  FLAG_ED25519 = 0x00;
+
+  messageWithIntent(scope: keyof typeof this.INTENT_SCOPE, message: Uint8Array) {
+    return this.IntentMessage.serialize({
+      intent: {
+        scope: this.INTENT_SCOPE[scope],
+        version: this.INTENT_VERSION.V0,
+        appId: this.APP_ID.Sui,
+      },
+      value: [...message],
+    }).toBytes();
+  }
+
+  async signMessage(message: Uint8Array): Promise<Uint8Array> {
+    const messageBytes = new Uint8Array(Object.values(message));
+    const intentMessage = this.messageWithIntent('PersonalMessage', messageBytes);
+    const digest = blake2b(intentMessage, { dkLen: 32 });
+    if (!this.account?.signer) {
+      throw new Error('Account is not defined');
+    }
+    const sig = nacl.sign.detached(digest, this.account?.signer);
+
+    const signatureBytes = sig;
+
+    const pubKeyBytes = this.account?.signer.slice(32);
+    const serializedSignature = new Uint8Array(1 + signatureBytes.length + pubKeyBytes.length);
+    serializedSignature.set([this.FLAG_ED25519]);
+    serializedSignature.set(signatureBytes, 1);
+    serializedSignature.set(pubKeyBytes, 1 + signatureBytes.length);
+    return serializedSignature;
   }
 
   async simulateTransaction(tx: Uint8Array | string, selectedNetwork: string) {
@@ -130,8 +189,8 @@ export class SuiTx {
       console.error('Transaction data is undefined');
       throw new Error('Transaction data is undefined');
     }
-    const INTENT_BYTES = new Uint8Array([0, 0, 0]);
-    const FLAG_ED25519 = 0x00;
+    const INTENT_BYTES = new Uint8Array([this.INTENT_SCOPE.TransactionData, this.INTENT_VERSION.V0, this.APP_ID.Sui]);
+
     const intentMessage = new Uint8Array(INTENT_BYTES.length + tx.length);
     intentMessage.set(INTENT_BYTES, 0);
     intentMessage.set(tx, INTENT_BYTES.length);
@@ -158,7 +217,7 @@ export class SuiTx {
     const serializedSignature = new Uint8Array(totalLength);
 
     try {
-      serializedSignature.set([FLAG_ED25519], 0);
+      serializedSignature.set([this.FLAG_ED25519], 0);
       serializedSignature.set(sig, 1);
       serializedSignature.set(pubKey, 1 + sig.length);
     } catch (e) {

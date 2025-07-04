@@ -1,5 +1,5 @@
 import { TransactionResponseType, UserTransactionResponse } from '@aptos-labs/ts-sdk';
-import { AptosTx, ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { AptosTx, ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { axiosWrapper } from '@leapwallet/cosmos-wallet-sdk/dist/browser/healthy-nodes/axiosWrapper';
 import { fromSmall } from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/token-converter';
 import { IbcTraceFetcher } from '@leapwallet/cosmos-wallet-store';
@@ -10,14 +10,7 @@ import qs from 'qs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
-import {
-  useActiveChain,
-  useActiveWallet,
-  useAddress,
-  useChainApis,
-  useChainsStore,
-  useSelectedNetwork,
-} from '../store';
+import { useActiveChain, useAddress, useChainApis, useChainsStore, useSelectedNetwork } from '../store';
 import { Activity, ActivityCardContent, getActivityContentProps, TxResponse } from '../types';
 import { sliceAddress } from '../utils';
 import { convertVoteOptionToString } from './../utils/vote-option';
@@ -216,22 +209,15 @@ export function useActivity(
   forceAddress?: string,
   forceNetwork?: 'mainnet' | 'testnet',
 ): TxResponse {
-  const userAddress = useAddress();
   const chain = useActiveChain();
   const network = useSelectedNetwork();
   const activeChain = forceChain ?? chain;
   const selectedNetwork = forceNetwork ?? network;
-  const activeWallet = useActiveWallet();
+  const userAddress = useAddress(activeChain);
 
   const { lcdUrl: restUrl = '', rpcUrl } = useChainApis(activeChain, selectedNetwork);
   const { chains } = useChainsStore();
-  const address = useMemo(() => {
-    if (chains[activeChain]?.evmOnlyChain) {
-      return pubKeyToEvmAddressToShow(activeWallet?.pubKeys?.[activeChain] ?? '');
-    }
-
-    return forceAddress ?? userAddress;
-  }, [forceAddress, userAddress, activeChain, activeWallet]);
+  const address = forceAddress ?? userAddress;
 
   const [activity, setActivity] = useState<Activity[]>([]);
   const resetActivity = () => setActivity([]);

@@ -388,7 +388,7 @@ export class EvmBalanceStore {
   private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
     const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
     const address = this.addressStore.addresses[chain as SupportedChain];
-    const userPreferredCurrency = this.currencyStore.preferredCurrency;
+    const userPreferredCurrency = this.currencyStore?.preferredCurrency;
 
     return `${chainKey}-${address}-${userPreferredCurrency}`;
   }

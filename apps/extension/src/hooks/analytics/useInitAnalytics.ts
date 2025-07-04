@@ -1,5 +1,4 @@
 import { useAddress } from '@leapwallet/cosmos-wallet-hooks'
-import { bech32ToEthAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { sha256 } from '@noble/hashes/sha256'
 import { utils } from '@noble/secp256k1'
 import { setUser as setSentryUser } from '@sentry/react'
@@ -10,8 +9,7 @@ import * as browser from 'webextension-polyfill'
 
 export const useInitAnalytics = () => {
   const activeWalletCosmosAddress = useAddress('cosmos')
-  const activeWalletEvmBech32Address = useAddress('ethereum')
-  const activeWalletEvmAddress = bech32ToEthAddress(activeWalletEvmBech32Address)
+  const activeWalletEvmAddress = useAddress('ethereum')
 
   useEffect(() => {
     ;(async function () {

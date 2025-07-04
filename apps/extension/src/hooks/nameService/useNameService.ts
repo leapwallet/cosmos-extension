@@ -9,7 +9,7 @@ export type { NameServiceResolveResult }
 export const useNameServiceResolver = (queryAddress: string, network: 'mainnet' | 'testnet') => {
   const [data, setData] = useState<Record<string, NameServiceResolveResult | null>>({})
 
-  const [isLoading, setLoading] = useState(false)
+  const [isLoading, setLoading] = useState(true)
   const { debounce } = useDebounceCallback()
   const getAllResolvedAddresses = useCallback(
     async (queryAddress: string) => {

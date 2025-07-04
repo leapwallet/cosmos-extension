@@ -1,7 +1,7 @@
 import { SearchInput } from 'components/ui/input/search-input'
 import { AnimatePresence } from 'framer-motion'
 import { motion } from 'framer-motion'
-import React from 'react'
+import React, { useEffect } from 'react'
 import { transition250 } from 'utils/motion-variants'
 
 const searchInputVariants = {
@@ -18,6 +18,12 @@ export const SearchTokensInput = ({
   setSearchQuery: (value: string) => void
   showSearch: boolean
 }) => {
+  useEffect(() => {
+    if (!showSearch) {
+      setSearchQuery('')
+    }
+  }, [showSearch])
+
   return (
     <AnimatePresence>
       {showSearch ? (

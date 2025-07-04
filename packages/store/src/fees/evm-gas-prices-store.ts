@@ -68,7 +68,11 @@ export class EvmGasPricesQueryStore extends BaseObservableQueryStore<EvmGasPrice
   }
 
   private get chainId() {
-    return getChainId(this.chainInfosStore.chainInfos[this.activeChain], this.activeNetwork);
+    return getChainId(
+      this.chainInfosStore.chainInfos[this.activeChain],
+      this.activeNetwork,
+      this.activeChain === 'xrpl',
+    );
   }
 
   private checkIsSeiEvmChain() {

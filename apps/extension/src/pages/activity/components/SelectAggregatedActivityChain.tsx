@@ -24,7 +24,13 @@ export const SelectAggregatedActivityChain = observer(
     chainTagsStore,
   }: SelectAggregatedActivityChainProps) => {
     return (
-      <BottomModal isOpen={isVisible} onClose={onClose} fullScreen title='Switch chain'>
+      <BottomModal
+        isOpen={isVisible}
+        onClose={onClose}
+        fullScreen
+        className='h-full'
+        title='Switch chain'
+      >
         <ListChains
           selectedChain={selectedChain}
           onChainSelect={onChainSelect}

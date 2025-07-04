@@ -138,7 +138,9 @@ export type SupportedChain =
   | 'zigchain'
   | 'solana'
   | 'sui'
-  | 'fogo';
+  | 'fogo'
+  | 'xrpl'
+  | 'citrea';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -256,7 +258,9 @@ export type AddressPrefix =
   | 'zig'
   | 'solana'
   | 'sui'
-  | 'fogo';
+  | 'fogo'
+  | 'ethm'
+  | 'citrea';
 
 export type Denom =
   | 'JUNO'
@@ -362,7 +366,9 @@ export type Denom =
   | 'ZAAR'
   | 'SOL'
   | 'SUI'
-  | 'FOGO';
+  | 'FOGO'
+  | 'XRP'
+  | 'CBTC';
 
 export type CoinType =
   | '0'
@@ -1481,12 +1487,12 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     denom: 'DYM',
     txExplorer: {
       mainnet: {
-        name: 'Mintscan',
+        name: 'DYM',
         txUrl: 'https://dym.fyi/tx',
         accountUrl: 'https://dym.fyi/address',
       },
       testnet: {
-        name: 'Mintscan',
+        name: 'DYM',
         txUrl: 'https://dym.fyi/tx',
         accountUrl: 'https://dym.fyi/address',
       },
@@ -3620,7 +3626,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       primaryColor: '#AF3450',
       gradient: 'linear-gradient(180deg, rgba(175, 52, 80, 0.32) 0%, rgba(175, 52, 80, 0) 100%)',
     },
-    enabled: true,
+    enabled: false,
   },
   sentinel: {
     chainId: 'sentinelhub-2',
@@ -4154,6 +4160,55 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
   },
+  xrpl: {
+    chainId: 'xrplevm_1440000-1',
+    testnetChainId: 'xrplevm_1449000-1',
+    evmChainId: '1440000',
+    evmChainIdTestnet: '1449000',
+    chainName: 'XRPL EVM',
+    key: 'xrpl',
+    chainRegistryPath: 'xrplevm',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/xrplevm.svg',
+    apis: {
+      rest: 'https://rest.cosmos.directory/xrplevm',
+      rpc: 'https://rpc.cosmos.directory/xrplevm',
+      restTest: 'https://rest.testcosmos.directory/xrplevmtestnet',
+      rpcTest: 'https://rpc.testcosmos.directory/xrplevmtestnet',
+      evmJsonRpc: 'https://rpc.xrplevm.org/',
+      evmJsonRpcTest: 'https://rpc.testnet.xrplevm.org/',
+    },
+    denom: 'XRP',
+    txExplorer: {
+      mainnet: {
+        name: 'XRPL EVM',
+        txUrl: 'https://governance.xrplevm.org/xrplevm/transactions/',
+        accountUrl: 'https://governance.xrplevm.org/xrplevm/accounts/',
+      },
+      testnet: {
+        name: 'XRPL EVM',
+        txUrl: 'https://governance.testnet.xrplevm.org/xrplevm/transactions/',
+        accountUrl: 'https://governance.testnet.xrplevm.org/xrplevm/accounts/',
+      },
+    },
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'ethm',
+    gasPriceStep: {
+      low: 200000000000,
+      average: 250000000000,
+      high: 400000000000,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      axrp: denoms.axrp,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    enabled: true,
+  },
   lava: {
     chainId: 'lava-mainnet-1',
     testnetChainId: 'lava-testnet-2',
@@ -4289,7 +4344,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     key: 'forma',
     chainName: 'Forma',
     chainRegistryPath: 'forma',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/forma-1.png',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/forma.png',
     apis: {
       rpc: 'https://rpc.forma.art',
       evmJsonRpc: 'https://rpc.forma.art',
@@ -5797,5 +5852,45 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       gradient: 'linear-gradient(180deg, rgba(36, 36, 36, 0.32) 0%, rgba(36 ,36 ,36 , 0) 100%)',
     },
     enabled: true,
+  },
+  citrea: {
+    chainId: '5115',
+    evmChainId: '5115',
+    testnetChainId: '5115',
+    evmChainIdTestnet: '5115',
+    key: 'citrea',
+    chainName: 'Citrea Testnet',
+    chainRegistryPath: 'citrea',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/citrea.png',
+    apis: {
+      rpcTest: 'https://rpc.testnet.citrea.xyz',
+      evmJsonRpcTest: 'https://rpc.testnet.citrea.xyz',
+    },
+    denom: 'CBTC',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'citrea',
+    txExplorer: {
+      testnet: {
+        name: 'Citrea Explorer',
+        txUrl: 'https://explorer.testnet.citrea.xyz/tx',
+        accountUrl: 'https://explorer.testnet.citrea.xyz/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'citrea-native': denoms['citrea-native'],
+    },
+    theme: {
+      primaryColor: '#eea13c',
+      gradient: 'linear-gradient(180deg, rgba(238, 161, 60, 0.32) 0%, rgba(238, 161, 60, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
   },
 };

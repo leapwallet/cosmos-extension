@@ -253,6 +253,13 @@ export const ReviewTransferSheet = observer(
       }
     }, [isCopied])
 
+    const senderChainIcon = useMemo(() => {
+      if (selectedToken?.tokenBalanceOnChain) {
+        return chains?.[selectedToken?.tokenBalanceOnChain as SupportedChain]?.chainSymbolImageUrl
+      }
+      return null
+    }, [chains, selectedToken?.tokenBalanceOnChain])
+
     const receiverChainIcon = useMemo(() => {
       if (
         !!chains?.[sendActiveChain]?.evmOnlyChain ||
@@ -285,7 +292,17 @@ export const ReviewTransferSheet = observer(
 
                 <p className='text-sm text-muted-foreground !leading-[18.9px]'>{fiatValue}</p>
               </div>
-              <img src={selectedToken?.img ?? defaultTokenLogo} width={48} height={48} />
+              <div className='relative flex flex-col items-center justify-center h-[48px] w-[48px] shrink-0'>
+                <img src={selectedToken?.img ?? defaultTokenLogo} width={42} height={42} />
+                {senderChainIcon ? (
+                  <img
+                    src={senderChainIcon}
+                    width={18}
+                    height={18}
+                    className='absolute bottom-0 right-0 rounded-full bg-secondary-50'
+                  />
+                ) : null}
+              </div>
             </div>
 
             <ArrowDown
