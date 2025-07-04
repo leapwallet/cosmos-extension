@@ -1,150 +1,139 @@
-import { useActiveChain, useFeatureFlags } from '@leapwallet/cosmos-wallet-hooks'
-import { CardDivider, NavCard, useTheme } from '@leapwallet/leap-ui'
-import { BetaTag } from 'components/BetaTag/BetaTag'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { currencyDetail, useUserPreferredCurrency } from 'hooks/settings/useCurrency'
-import { useSelectedNetwork } from 'hooks/settings/useNetwork'
-import { Images } from 'images'
+import { CardDivider } from '@leapwallet/leap-ui'
+import { Clock } from '@phosphor-icons/react'
+import BottomModal from 'components/new-bottom-modal'
+import { Switch } from 'components/ui/switch'
+import { DollarCircleIcon } from 'icons/dollar-icon'
+import { NetworkNodeIcon } from 'icons/network-node'
+import { ThemeIcon } from 'icons/theme'
+import { WalletIcon } from 'icons/wallet-icon'
 import { observer } from 'mobx-react-lite'
-import React, { useMemo } from 'react'
-import { manageChainsStore } from 'stores/manage-chains-store'
-import { AggregatedSupportedChain } from 'types/utility'
-import { capitalize } from 'utils/strings'
+import React, { useState } from 'react'
+import { hidePercentChangeStore } from 'stores/hide-percent-change'
+import { hideSmallBalancesStore } from 'stores/hide-small-balances-store'
 
-import { NavPages, SideNavSection, SideNavSectionContent, SideNavSectionHeader } from '.'
+import { SideNavSection } from '.'
+import ChangeCurrency from './ChangeCurrency'
+import { CustomEndpoints } from './CustomEndpoints'
+import { NavItem } from './NavItem'
+import ThemeDropUp from './Theme'
 
-export const Preferences = observer(
-  ({
-    setShowNavPage,
-    containerRef,
-    setShowNetworkDropUp,
-    setShowThemeDropUp,
-    isExpandViewVisible,
-  }: {
-    setShowNavPage: (page: NavPages) => void
-    isExpandViewVisible: boolean
-    containerRef: React.RefObject<HTMLDivElement>
-    setShowNetworkDropUp: (show: boolean) => void
-    setShowThemeDropUp: (show: boolean) => void
-  }) => {
-    const { data: featureFlags } = useFeatureFlags()
-    const { theme } = useTheme()
-    const currentNetwork = useSelectedNetwork()
-    const [selectedCurrency] = useUserPreferredCurrency()
-    const activeChain = useActiveChain() as AggregatedSupportedChain
+enum PreferencesTab {
+  Currency = 'Currency',
+  Theme = 'Theme',
+  CustomEndpoints = 'CustomEndpoints',
+}
 
-    const LightNodeItem = useMemo(
-      () => ({
-        title: 'Celestia Light Node',
-        titleIcon: Images.Misc.Sampling,
-        subTitle: '',
-        onClick: () => {
-          setShowNavPage(NavPages.LightNode)
-        },
-        enabled: featureFlags?.light_node?.extension === 'active',
-      }),
-      [featureFlags?.light_node?.extension, setShowNavPage],
-    )
+const SmallBalancesToggle = observer(() => {
+  return (
+    <Switch
+      className='data-[state=unchecked]:bg-secondary-400'
+      checked={hideSmallBalancesStore.isHidden}
+    />
+  )
+})
 
-    const manageChain = manageChainsStore.chains.find((chain) => chain.chainName === activeChain)
+const PercentChangeToggle = observer(() => {
+  return (
+    <Switch
+      className='data-[state=unchecked]:bg-secondary-400'
+      checked={hidePercentChangeStore.isHidden}
+    />
+  )
+})
 
-    const Preferences = useMemo(
-      () => [
-        {
-          title: 'Currency',
-          titleIcon: Images.Nav.CurrencyIcon,
-          subTitle: capitalize(currencyDetail[selectedCurrency].ISOname),
-          onClick: () => {
-            setShowNavPage(NavPages.SelectCurrency)
-          },
-          enabled: true,
-        },
-        // {
-        //   title: 'Language',
-        //   titleIcon: Images.Nav.getImage('translate.svg'),
-        //   subTitle: capitalize('English'),
-        //   onClick: () => {},
-        // },
-        {
-          title: 'Network',
-          titleIcon: Images.Nav.NetworkIcon,
-          subTitle: capitalize(currentNetwork ?? 'mainnet'),
-          onClick: () => {
-            containerRef.current?.scrollTo(0, 0)
-            setShowNetworkDropUp(true)
-          },
-          enabled: !(activeChain === AGGREGATED_CHAIN_KEY || manageChain?.beta),
-        },
-        // {
-        //   title: 'Finder',
-        //   titleIcon: Images.Nav.FinderIcon,
-        //   subTitle: 'Mintscan',
-        //   onClick: () => setShowFinderDropUp(true),
-        // },
-        {
-          title: 'Theme',
-          titleIcon: Images.Nav.ThemeIcon,
-          subTitle: capitalize(theme),
-          onClick: () => {
-            containerRef.current?.scrollTo(0, 0)
-            setShowThemeDropUp(true)
-          },
-          enabled: true,
-        },
-        LightNodeItem,
-        {
-          title: 'Custom endpoints',
-          titleIcon: Images.Nav.CustomEndpoints,
-          subTitle: '',
-          onClick: () => {
-            setShowNavPage(NavPages.ChangeEndpoints)
-          },
-          enabled: true,
-        },
-        {
-          title: 'Token Display',
-          titleIcon: Images.Nav.DollarCard,
-          subTitle: '',
-          onClick: () => {
-            setShowNavPage(NavPages.TokenDisplay)
-          },
-          enabled: true,
-        },
-      ],
-      [LightNodeItem, activeChain, currentNetwork, manageChain?.beta, selectedCurrency, theme],
-    )
+const preferences = [
+  [
+    {
+      tab: PreferencesTab.Currency,
+      title: 'Currency',
+      icon: <DollarCircleIcon />,
+    },
+  ],
+  [
+    {
+      tab: PreferencesTab.Theme,
+      title: 'Theme',
+      icon: <ThemeIcon />,
+    },
+  ],
+  [
+    {
+      tab: PreferencesTab.CustomEndpoints,
+      title: 'Custom Endpoints',
+      icon: <NetworkNodeIcon />,
+    },
+    {
+      title: 'Hide 24h price change',
+      icon: <Clock weight='fill' />,
+      trailingIcon: <PercentChangeToggle />,
+      onClick: () => hidePercentChangeStore.setHidden(!hidePercentChangeStore.isHidden),
+    },
+    {
+      title: 'Hide small balances',
+      icon: <WalletIcon />,
+      trailingIcon: <SmallBalancesToggle />,
+      onClick: () => hideSmallBalancesStore.setHidden(!hideSmallBalancesStore.isHidden),
+    },
+  ],
+]
 
-    return (
-      <SideNavSection className={!isExpandViewVisible ? '!mt-0' : ''}>
-        <SideNavSectionHeader>Preferences</SideNavSectionHeader>
-        <SideNavSectionContent>
-          {Preferences.filter((item) => item.enabled).map((item, index) => {
-            return (
-              <React.Fragment key={item.title}>
-                {index !== 0 && <CardDivider />}
-                {item.title === LightNodeItem.title ? (
-                  <div key={item.title} className='relative'>
-                    <NavCard
-                      property={item.title}
-                      imgSrc={item.titleIcon}
-                      value={item.subTitle}
-                      onClick={item.onClick}
-                    />
-                    <BetaTag className='top-[18px] left-[202px]' />
-                  </div>
-                ) : (
-                  <NavCard
-                    property={item.title}
-                    imgSrc={item.titleIcon}
-                    value={item.subTitle}
-                    onClick={item.onClick}
+const PreferencesView = ({ isVisible, goBack }: { isVisible: boolean; goBack: () => void }) => {
+  const [selectedTab, setSelectedTab] = useState<PreferencesTab | null>(null)
+
+  return (
+    <>
+      <BottomModal
+        fullScreen
+        isOpen={isVisible}
+        onClose={() => {
+          setSelectedTab(null)
+          goBack()
+        }}
+        title='Preferences'
+        className='pb-7 pt-2 !px-5'
+      >
+        {preferences.map((group) => (
+          <SideNavSection key={group[0].title}>
+            {group.map((item, index) => {
+              return (
+                <React.Fragment key={item.title}>
+                  {index !== 0 && <CardDivider />}
+                  <NavItem
+                    label={item.title}
+                    icon={item.icon}
+                    trailingIcon={item.trailingIcon}
+                    onClick={() => {
+                      if (item.tab) {
+                        setSelectedTab(item.tab)
+                      }
+                      if (item.onClick) {
+                        item.onClick()
+                      }
+                    }}
                   />
-                )}
-              </React.Fragment>
-            )
-          })}
-        </SideNavSectionContent>
-      </SideNavSection>
-    )
-  },
-)
+                </React.Fragment>
+              )
+            })}
+          </SideNavSection>
+        ))}
+      </BottomModal>
+
+      <CustomEndpoints
+        isVisible={selectedTab === PreferencesTab.CustomEndpoints}
+        goBack={() => setSelectedTab(null)}
+      />
+
+      <ThemeDropUp
+        isVisible={selectedTab === PreferencesTab.Theme}
+        onCloseHandler={() => setSelectedTab(null)}
+      />
+
+      <ChangeCurrency
+        isVisible={selectedTab === PreferencesTab.Currency}
+        goBack={() => setSelectedTab(null)}
+      />
+    </>
+  )
+}
+
+export const Preferences = observer(PreferencesView)

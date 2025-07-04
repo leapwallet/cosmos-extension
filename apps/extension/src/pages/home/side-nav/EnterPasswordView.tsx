@@ -1,11 +1,9 @@
 import { useActiveWallet } from '@leapwallet/cosmos-wallet-hooks'
-import { Buttons, Header, HeaderActionType, Input } from '@leapwallet/leap-ui'
-import { Lock } from '@phosphor-icons/react'
-import Resize from 'components/resize'
-import Text from 'components/text'
-import { useChainPageInfo } from 'hooks'
+import { Button } from 'components/ui/button'
+import { PasswordInput } from 'components/ui/input/password-input'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
-import React, { Dispatch, ReactElement, SetStateAction } from 'react'
+import { LockIcon } from 'icons/lock'
+import React, { Dispatch, ReactElement, SetStateAction, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 
 type FormData = {
@@ -16,18 +14,17 @@ type EnterPasswordViewProps = {
   readonly passwordTo: string
   readonly setRevealed: Dispatch<SetStateAction<boolean>>
   readonly setPassword: Dispatch<SetStateAction<Uint8Array | undefined>>
-  readonly goBack: () => void
+  readonly autoFocus?: boolean
 }
-
 export function EnterPasswordView({
   setRevealed,
   setPassword,
   passwordTo,
-  goBack,
+  autoFocus = false,
 }: EnterPasswordViewProps): ReactElement {
   const testPassword = SeedPhrase.useTestPassword()
   const activeWallet = useActiveWallet()
-  const { topChainColor } = useChainPageInfo()
+  const formRef = useRef<HTMLFormElement>(null)
 
   const {
     register,
@@ -35,76 +32,80 @@ export function EnterPasswordView({
     setError,
     formState: { errors },
     setValue,
+    watch,
   } = useForm<FormData>({ mode: 'onChange' })
 
-  const onSubmit = (e?: React.BaseSyntheticEvent) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    handleSubmit(async (values: FormData) => {
-      try {
-        const cipher = activeWallet?.cipher
-        if (!cipher) throw new Error('No cipher')
-        const password = new TextEncoder().encode(values.rawPassword)
-        await testPassword(password, cipher)
-        setPassword(password)
-        setRevealed(true)
-      } catch (err) {
-        setError('rawPassword', {
-          type: 'validate',
-          message: 'Incorrect Password',
-        })
-      } finally {
-        // to clear password from heap
-        setValue('rawPassword', '__')
-        setValue('rawPassword', '')
-      }
-    })(e)
+  const password = watch('rawPassword')
+
+  const onSubmit = async (values: FormData) => {
+    try {
+      const cipher = activeWallet?.cipher
+      if (!cipher) throw new Error('No cipher')
+      const password = new TextEncoder().encode(values.rawPassword)
+      await testPassword(password, cipher)
+      setPassword(password)
+      setRevealed(true)
+    } catch (err) {
+      setError('rawPassword', {
+        type: 'validate',
+        message: 'Incorrect Password',
+      })
+    } finally {
+      // to clear password from heap
+      setValue('rawPassword', '__')
+      setValue('rawPassword', '')
+    }
   }
 
+  // delay auto focus to prevent jitter
+  useEffect(() => {
+    const passwordInput = formRef.current?.querySelector('#password') as HTMLInputElement
+    if (!passwordInput || !autoFocus) {
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      passwordInput.focus()
+    }, 250)
+
+    return () => clearTimeout(timeout)
+  }, [autoFocus])
+
   return (
-    <div className='panel-height'>
-      <Header title='Enter Password' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
-      <div className='relative flex flex-col items-center h-[calc(100%-72px)] px-7'>
-        <div className='dark:bg-gray-900 bg-white-100 rounded-2xl mt-7'>
-          <div className='p-[12px] text-gray-400 dark:text-white-100'>
-            <Lock size={48} />
-          </div>
-        </div>
-        <Text
-          size='lg'
-          data-testing-id='password-verify-you-text'
-          className='dark:text-white-100 text-gray-900 font-bold mt-4 text-center'
-        >
-          Verify it&apos;s you
-        </Text>
-        <Text size='md' color='dark:text-gray-400 text-gray-700 mt-2 text-center'>
-          Enter your wallet password to {passwordTo}
-        </Text>
-        <form className='mt-8 flex-grow flex flex-col justify-start' onSubmit={onSubmit}>
-          <Resize>
-            <Input
-              autoFocus
-              type='password'
-              data-testing-id='password'
-              placeholder='Enter password'
-              {...register('rawPassword')}
-              isErrorHighlighted={!!errors.rawPassword}
-            />
-          </Resize>
-          <Text
-            size='sm'
-            data-testing-id='error-text'
-            color='text-red-300'
-            className='justify-center text-center pt-2'
-          >
-            {!!errors.rawPassword && errors?.rawPassword?.message}
-          </Text>
-          <Resize className='mt-auto mb-7'>
-            <Buttons.Generic type='submit' color={topChainColor} data-testing-id='submit'>
-              Proceed
-            </Buttons.Generic>
-          </Resize>
-        </form>
+    <div className='flex flex-col gap-6 h-full'>
+      <div className='p-5 bg-secondary-200 rounded-full grid place-content-center w-fit mx-auto'>
+        <LockIcon size={24} />
       </div>
+
+      <header className='flex flex-col items-center gap-2'>
+        <span className='text-xl font-bold'>Verify it&apos;s you</span>
+        <span className='text-sm'>Enter your wallet password to {passwordTo}</span>
+      </header>
+
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit(onSubmit)}
+        className='mt-2 flex-grow flex flex-col justify-start'
+      >
+        <PasswordInput
+          id='password'
+          type='password'
+          placeholder='Enter password'
+          {...register('rawPassword')}
+          autoFocus={false}
+          status={errors.rawPassword ? 'error' : 'default'}
+        />
+
+        {!!errors.rawPassword && (
+          <span className='text-sm text-destructive-100 font-medium mt-2 text-center animate-fadeIn duration-100'>
+            {errors.rawPassword?.message}
+          </span>
+        )}
+
+        <Button disabled={!password} className='mt-auto'>
+          Enter password
+        </Button>
+      </form>
     </div>
   )
 }

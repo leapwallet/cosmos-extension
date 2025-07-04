@@ -61,6 +61,9 @@ export function useGetEvmBalance(
       preferredCurrency,
       storage,
       address,
+      isSeiEvmChain,
+      evmJsonRpc,
+      activeChainInfo?.evmOnlyChain,
     ],
     async function getSeiEvmBalance() {
       const evmBalance: Token[] = [];

@@ -588,19 +588,19 @@ export function createTxRawEIP712(body: TxBody, authInfo: AuthInfo) {
 
 export function createProtoMsgSend(fromAddress: string, toAddress: string, amount: string, denom: string) {
   const value = Coin.fromPartial({
-    denom,
     amount,
+    denom,
   });
 
   const message: MsgSend = {
+    amount: [value],
     fromAddress,
     toAddress,
-    amount: [value],
   };
 
   return {
-    value: MsgSend.encode(MsgSend.fromPartial(message)).finish(),
     typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+    value: MsgSend.encode(MsgSend.fromPartial(message)).finish(),
   };
 }
 
@@ -682,6 +682,7 @@ export function createMessageSend(
       signBytes,
     },
     legacyAmino: tx.legacyAmino,
+    aminoTx: msg,
     eipToSign,
   };
 }

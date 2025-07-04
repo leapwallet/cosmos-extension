@@ -121,7 +121,7 @@ const FeesView = observer(
   },
 )
 
-export function AuthzDetails({ goBack, grant }: { goBack: () => void; grant: Grant }) {
+export function AuthzDetails({ grant }: { grant: Grant }) {
   const activeChain = useActiveChain()
   const [isGranteeAddressCopied, setIsGranteeAddressCopied] = useState(false)
   const { onReviewRevokeTx, isLoading, error, gasError } = useAuthZContext()
@@ -145,54 +145,50 @@ export function AuthzDetails({ goBack, grant }: { goBack: () => void; grant: Gra
   }
 
   return (
-    <div className={classNames('enclosing-panel panel-height')}>
-      <Header title='AuthZ Details' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
+    <div className='flex overflow-y-auto w-full flex-col items-center gap-4 p-[28px] h-[calc(100%-70px)] relative'>
+      <h1 className='text-gray-700 dark:text-gray-300 text-base w-full font-bold'>Delegate</h1>
+      <div
+        className='overflow-auto shrink-0 min-h-[40px] rounded-2xl w-full p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
+        onClick={handleCopyGranteeAddress}
+      >
+        <h2 className='w-full pb-1 font-bold text-xs text-gray-600 dark:text-gray-400 flex gap-1'>
+          Grantee Address
+          {isGranteeAddressCopied ? (
+            <span>copied</span>
+          ) : (
+            <img className='w-[16px] h-[16px]' src={Images.Activity.Copy} alt='' />
+          )}
+        </h2>
 
-      <div className='relative flex overflow-y-auto w-full flex-col items-center gap-4 p-[28px] h-[calc(100%-70px)] relative'>
-        <h1 className='text-gray-700 dark:text-gray-300 text-base w-full font-bold'>Delegate</h1>
-        <div
-          className='overflow-auto shrink-0 min-h-[40px] rounded-2xl w-full p-4 bg-white-100 dark:bg-gray-900 cursor-pointer'
-          onClick={handleCopyGranteeAddress}
-        >
-          <h2 className='w-full pb-1 font-bold text-xs text-gray-600 dark:text-gray-400 flex gap-1'>
-            Grantee Address
-            {isGranteeAddressCopied ? (
-              <span>copied</span>
-            ) : (
-              <img className='w-[16px] h-[16px]' src={Images.Activity.Copy} alt='' />
-            )}
+        <p className='dark:text-white-100 text-base font-bold break-all'>{grant.grantee}</p>
+      </div>
+      {grant.expiration && (
+        <div className='overflow-auto shrink-0 min-h-[30px] rounded-2xl w-full p-4 bg-white-100 dark:bg-gray-900'>
+          <h2 className='w-full pb-1 font-bold text-xs text-gray-600 dark:text-gray-400'>
+            Expiration Date
           </h2>
-
-          <p className='dark:text-white-100 text-base font-bold break-all'>{grant.grantee}</p>
+          <p className='dark:text-white-100 text-base font-bold'>{date}</p>
         </div>
-        {grant.expiration && (
-          <div className='overflow-auto shrink-0 min-h-[30px] rounded-2xl w-full p-4 bg-white-100 dark:bg-gray-900'>
-            <h2 className='w-full pb-1 font-bold text-xs text-gray-600 dark:text-gray-400'>
-              Expiration Date
-            </h2>
-            <p className='dark:text-white-100 text-base font-bold'>{date}</p>
-          </div>
-        )}
-        <pre className='max-h-[150px] min-h-[80px] text-xs rounded-2xl w-full bg-white-100 dark:bg-gray-900 p-4 dark:text-white-100 overflow-auto'>
-          {JSON.stringify(grant.authorization, null, 2)}
-        </pre>
+      )}
+      <pre className='max-h-[150px] min-h-[80px] text-xs rounded-2xl w-full bg-white-100 dark:bg-gray-900 p-4 dark:text-white-100 overflow-auto'>
+        {JSON.stringify(grant.authorization, null, 2)}
+      </pre>
 
-        {error ? <ErrorCard text={error} className='mx-auto shrink-0' /> : null}
+      {error ? <ErrorCard text={error} className='mx-auto shrink-0' /> : null}
 
-        <div className='w-full sticky bottom-0 mt-auto pt-[20px] bg-gray-50 dark:bg-black-100'>
-          <FeesView rootDenomsStore={rootDenomsStore} rootBalanceStore={rootBalanceStore} />
+      <div className='w-full sticky bottom-0 mt-auto pt-[20px] bg-gray-50 dark:bg-black-100'>
+        <FeesView rootDenomsStore={rootDenomsStore} rootBalanceStore={rootBalanceStore} />
 
-          <Buttons.Generic
-            style={{
-              background: Colors.getChainColor(activeChain),
-            }}
-            className='w-full h-[48px] cursor-pointer text-white-100'
-            onClick={onReviewRevokeTx}
-            disabled={isLoading || !!error || !!gasError}
-          >
-            {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Revoke'}
-          </Buttons.Generic>
-        </div>
+        <Buttons.Generic
+          style={{
+            background: Colors.getChainColor(activeChain),
+          }}
+          className='w-full h-[48px] cursor-pointer text-white-100'
+          onClick={onReviewRevokeTx}
+          disabled={isLoading || !!error || !!gasError}
+        >
+          {isLoading ? <LoaderAnimation color={Colors.white100} /> : 'Revoke'}
+        </Buttons.Generic>
       </div>
     </div>
   )

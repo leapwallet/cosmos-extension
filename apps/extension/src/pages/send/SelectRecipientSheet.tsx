@@ -1,25 +1,10 @@
-import {
-  Key,
-  SelectedAddress,
-  sliceAddress,
-  useAddressPrefixes,
-  WALLETTYPE,
-} from '@leapwallet/cosmos-wallet-hooks'
-import {
-  ChainInfo,
-  isAptosAddress,
-  isEthAddress,
-  isSolanaAddress,
-  pubKeyToEvmAddressToShow,
-  SupportedChain,
-} from '@leapwallet/cosmos-wallet-sdk'
+import { Key, SelectedAddress, sliceAddress, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
+import { ChainInfo, pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Buttons } from '@leapwallet/leap-ui'
 import { CaretRight, MagnifyingGlassMinus, PencilSimpleLine } from '@phosphor-icons/react'
-import { bech32 } from 'bech32'
 import classNames from 'classnames'
-import { CtaInput as SearchInputV1 } from 'components/cta-input'
 import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
-import { Button } from 'components/ui/button'
 import { SearchInput } from 'components/ui/input/search-input'
 import { useDefaultTokenLogo } from 'hooks'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -35,19 +20,16 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { chainFeatureFlagsStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { AddressBook } from 'utils/addressbook'
-import { UserClipboard } from 'utils/clipboard'
 import { cn } from 'utils/cn'
 
-import NameServiceMatchList from './components/recipient-card/match-lists'
-import { useCheckAddressError } from './hooks/useCheckAddressError'
-
-const SelectChain = observer(
+export const SelectChain = observer(
   ({
     isOpen,
     onClose,
     chainList,
     wallet,
     address,
+    forceName,
     setSelectedAddress,
   }: {
     isOpen: boolean
@@ -55,6 +37,7 @@ const SelectChain = observer(
     address?: string
     onClose: () => void
     chainList?: SupportedChain[]
+    forceName?: string
     setSelectedAddress: (address: SelectedAddress) => void
   }) => {
     const [searchedText, setSearchedText] = useState('')
@@ -89,6 +72,9 @@ const SelectChain = observer(
         fullScreen
         title='Select chain'
         className='!pb-0'
+        direction='right'
+        hideActionButton
+        secondaryActionButton={<Buttons.Back onClick={onClose} />}
       >
         <div className='flex flex-col items-start gap-7 p-2 h-full w-full'>
           <div className='flex flex-col items-center w-full'>
@@ -132,7 +118,7 @@ const SelectChain = observer(
                               ? wallet.name.length > 12
                                 ? `${wallet.name.slice(0, 12)}...`
                                 : wallet.name
-                              : sliceAddress(address)
+                              : forceName || sliceAddress(address)
                           }`,
                           selectionType: 'currentWallet',
                         })
@@ -193,6 +179,7 @@ function MyWallets({
   const wallets = Wallet.useWallets()
   const [selectedWallet, setSelectedWallet] = useState<Key | null>(null)
   const { activeWallet } = useActiveWallet()
+  const [showSelectChain, setShowSelectChain] = useState<boolean>(false)
 
   const walletsList = useMemo(() => {
     return wallets
@@ -202,9 +189,22 @@ function MyWallets({
       : []
   }, [wallets])
 
+  const handleChainSelect = useCallback(
+    (s: SelectedAddress) => {
+      setSelectedAddress(s)
+      setShowSelectChain(false)
+    },
+    [setSelectedAddress, setShowSelectChain],
+  )
+
+  const handleOnSelectChainClose = useCallback(() => {
+    setSelectedWallet(null)
+    setShowSelectChain(false)
+  }, [setSelectedWallet, setShowSelectChain])
+
   return (
     <>
-      <div className='relative mt-2 w-full h-[calc(100%-235px)]] overflow-auto'>
+      <div className='relative w-full h-[calc(100%-235px)]] overflow-auto'>
         {walletsList.length > 0 ? (
           walletsList.map((wallet, index) => {
             const isLast = index === walletsList.length - 1
@@ -221,6 +221,7 @@ function MyWallets({
                   className='w-full flex items-center gap-3 cursor-pointer mb-3 bg-secondary-100 hover:bg-secondary-200 px-4 py-3 rounded-xl'
                   onClick={() => {
                     setSelectedWallet(wallet)
+                    setShowSelectChain(true)
                   }}
                 >
                   <div className='flex items-center'>
@@ -272,14 +273,12 @@ function MyWallets({
           </div>
         )}
       </div>
-      {selectedWallet && (
-        <SelectChain
-          isOpen={!!selectedWallet}
-          onClose={() => setSelectedWallet(null)}
-          setSelectedAddress={setSelectedAddress}
-          wallet={selectedWallet}
-        />
-      )}
+      <SelectChain
+        isOpen={showSelectChain}
+        onClose={handleOnSelectChainClose}
+        setSelectedAddress={handleChainSelect}
+        wallet={selectedWallet ?? undefined}
+      />
     </>
   )
 }
@@ -293,9 +292,8 @@ function MyContacts({
   editContact: (s?: AddressBook.SavedAddress) => void
   minitiaChains: SupportedChain[]
 }) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const trimmedSearchQuery = searchQuery.trim()
-  const contacts = useContactsSearch(trimmedSearchQuery)
+  const [showSelectChain, setShowSelectChain] = useState<boolean>(false)
+  const contacts = useContactsSearch()
   const chainInfos = useChainInfos()
   const { setMemo } = useSendContext()
   const defaultTokenLogo = useDefaultTokenLogo()
@@ -304,6 +302,7 @@ function MyContacts({
   const handleAvatarClick = (contact: AddressBook.SavedAddress, chainImage: string | undefined) => {
     if (contact.address.startsWith('init')) {
       setSelectedContact(contact)
+      setShowSelectChain(true)
     } else {
       handleContactSelect({
         avatarIcon: '',
@@ -319,9 +318,22 @@ function MyContacts({
     setMemo(contact.memo ?? '')
   }
 
+  const handleOnSelectChainClose = useCallback(() => {
+    setSelectedContact(null)
+    setShowSelectChain(false)
+  }, [setSelectedContact, setShowSelectChain])
+
+  const handleSelectChain = useCallback(
+    (address: SelectedAddress) => {
+      handleContactSelect({ ...address, selectionType: 'saved' })
+      setShowSelectChain(false)
+    },
+    [handleContactSelect, setShowSelectChain],
+  )
+
   return (
     <>
-      <div className='relative mt-2 w-full h-full flex flex-col'>
+      <div className='relative w-full h-full flex flex-col'>
         {contacts.length > 0 ? (
           <>
             <div className='w-full h-[calc(100%-84px)] overflow-auto flex flex-col pb-6'>
@@ -406,35 +418,29 @@ function MyContacts({
           </div>
         )}
       </div>
-      {selectedContact && (
-        <SelectChain
-          isOpen={!!selectedContact}
-          onClose={() => setSelectedContact(null)}
-          chainList={minitiaChains}
-          address={selectedContact.address}
-          setSelectedAddress={(address) => {
-            handleContactSelect({ ...address, selectionType: 'saved' })
-          }}
-        />
-      )}
+      <SelectChain
+        isOpen={showSelectChain}
+        onClose={handleOnSelectChainClose}
+        chainList={minitiaChains}
+        address={selectedContact?.address}
+        setSelectedAddress={handleSelectChain}
+      />
     </>
   )
 }
 
-const nameServiceMatcher = /^[a-zA-Z0-9_-]+\.[a-z]+$/
 export const SelectRecipientSheet = observer(
   ({
     isOpen,
     onClose,
     editContact,
+    postSelectRecipient,
   }: {
     isOpen: boolean
     onClose: () => void
     editContact: (s?: AddressBook.SavedAddress) => void
+    postSelectRecipient: () => void
   }) => {
-    const recipient = useQuery().get('recipient') ?? undefined
-    const [recipientInputValue, setRecipientInputValue] = useState<string>(recipient ?? '')
-    const [showSelectChain, setShowSelectChain] = useState(false)
     const [selectedTab, setSelectedTab] = useState<'contacts' | 'wallets'>('contacts')
     const { contacts, loading: loadingContacts } = useContacts()
     const selectedNetwork = useSelectedNetwork()
@@ -442,16 +448,11 @@ export const SelectRecipientSheet = observer(
       setEthAddress,
       selectedAddress,
       setSelectedAddress,
-      addressError,
       setAddressError,
-      setAddressWarning,
       setMemo,
       setCustomIbcChannelId,
     } = useSendContext()
-    const existingContactMatch = AddressBook.useGetContact(recipientInputValue)
     const wallets = Wallet.useWallets()
-    const addressPrefixes = useAddressPrefixes()
-
     const walletsList = useMemo(() => {
       return wallets
         ? Object.values(wallets)
@@ -463,32 +464,6 @@ export const SelectRecipientSheet = observer(
             )
         : []
     }, [wallets])
-
-    const existingWalletMatch = useMemo(() => {
-      const res = walletsList.find((wallet) => {
-        return Object.values(wallet.addresses).some((address) => {
-          return recipientInputValue.toLowerCase() === address.toLowerCase()
-        })
-      })
-      if (res) return res
-    }, [recipientInputValue, walletsList])
-
-    const showNameServiceResults = useMemo(() => {
-      const allowedTopLevelDomains = [
-        ...Object.keys(addressPrefixes), // for ibcdomains, icns, stargazenames
-        'arch', // for archId
-        'sol', // for injective .sol domains by SNS
-        ...['sei', 'pp'], // for degeNS
-        'core', // for bdd
-        'i', //for celestials.id
-      ]
-      // ex: leap.arch --> name = leap, domain = arch
-      const [, domain] = recipientInputValue.split('.')
-      const isValidDomain = allowedTopLevelDomains.indexOf(domain) !== -1
-      return nameServiceMatcher.test(recipientInputValue) && isValidDomain
-    }, [recipientInputValue, addressPrefixes])
-
-    const existingResult = existingContactMatch ?? existingWalletMatch
 
     const chains = chainInfoStore.chainInfos
     const chainFeatureFlags = chainFeatureFlagsStore.chainFeatureFlagsData
@@ -513,100 +488,28 @@ export const SelectRecipientSheet = observer(
       return _minitiaChains
     }, [chainFeatureFlags, chains, selectedNetwork])
 
-    const actionPaste = () => {
-      UserClipboard.pasteText().then((text) => {
-        if (!text) return
-        setRecipientInputValue(text.trim())
-      })
-    }
-
     const handleContactSelect = useCallback(
       (s: SelectedAddress) => {
         setAddressError(undefined)
         setSelectedAddress(s)
         setEthAddress(s.ethAddress ?? '')
-        setRecipientInputValue(s.address ?? '')
+        postSelectRecipient()
+        onClose()
       },
-      [setAddressError, setEthAddress, setSelectedAddress],
+      [setAddressError, setEthAddress, setSelectedAddress, onClose, postSelectRecipient],
     )
 
     const handleWalletSelect = useCallback(
       (s: SelectedAddress) => {
         setAddressError(undefined)
-        setRecipientInputValue(s.address ?? '')
         setSelectedAddress(s)
         setEthAddress(s.ethAddress ?? '')
         setMemo('')
+        postSelectRecipient()
+        onClose()
       },
-      [setAddressError, setEthAddress, setMemo, setSelectedAddress],
+      [setAddressError, setEthAddress, setMemo, setSelectedAddress, onClose, postSelectRecipient],
     )
-
-    const handleSelectRecipient = useCallback(() => {
-      const cleanInputValue = recipientInputValue?.trim()
-      setMemo('')
-      try {
-        if (cleanInputValue.length === 0) {
-          setAddressError(undefined)
-          return
-        }
-
-        let chain: SupportedChain = 'cosmos'
-        try {
-          if (isAptosAddress(cleanInputValue)) {
-            chain = 'movement'
-          } else if (isEthAddress(cleanInputValue)) {
-            chain = 'ethereum'
-          } else if (cleanInputValue.startsWith('tb1q')) {
-            chain = 'bitcoinSignet'
-          } else if (cleanInputValue.startsWith('bc1q')) {
-            chain = 'bitcoin'
-          } else {
-            const { prefix } = bech32.decode(cleanInputValue)
-            chain = addressPrefixes[prefix] as SupportedChain
-            if (prefix === 'init') {
-              setShowSelectChain(true)
-              return
-            }
-          }
-        } catch {
-          if (isSolanaAddress(cleanInputValue)) {
-            chain = 'solana'
-          } else {
-            throw new Error('Invalid Address')
-          }
-        }
-
-        setSelectedAddress({
-          address: cleanInputValue,
-          ethAddress: cleanInputValue,
-          name: existingResult ? existingResult.name : sliceAddress(cleanInputValue),
-          avatarIcon: existingWalletMatch?.avatar || '',
-          selectionType: existingResult ? 'saved' : 'notSaved',
-          chainIcon: '',
-          chainName: chain,
-          emoji: undefined,
-        })
-      } catch (err) {
-        if (!(err as Error)?.message?.includes('too short')) {
-          setAddressError('Invalid Address')
-        }
-      }
-    }, [
-      addressPrefixes,
-      existingResult,
-      existingWalletMatch?.avatar,
-      recipientInputValue,
-      setAddressError,
-      setMemo,
-      setSelectedAddress,
-    ])
-
-    useCheckAddressError({
-      setAddressError,
-      setAddressWarning,
-      recipientInputValue,
-      showNameServiceResults,
-    })
 
     useEffect(() => {
       if (selectedAddress?.chainName) {
@@ -626,147 +529,61 @@ export const SelectRecipientSheet = observer(
           isOpen={isOpen}
           onClose={onClose}
           fullScreen
-          title='Select Recipient'
+          title='Address Book'
           className='h-full'
         >
-          <div className='flex flex-col items-start gap-5 w-full h-full'>
-            <div className='flex flex-col items-center w-full'>
-              <SearchInputV1
-                value={recipientInputValue}
-                autoFocus
-                action={'Paste'}
-                actionHandler={actionPaste}
-                onChange={(e) => setRecipientInputValue(e.target.value)}
-                placeholder='Enter recipient’s address'
-                onClear={() => {
-                  setEthAddress('')
-                  setRecipientInputValue('')
-                  setSelectedAddress(null)
-                  setMemo('')
-                }}
-                divClassName={cn(
-                  'rounded-2xl w-full flex items-center gap-[10px] bg-gray-50 dark:bg-gray-900 py-3 pr-3 pl-4   border border-transparent hover:border-secondary-400 focus-within:border-monochrome dark:focus-within:border-monochrome',
-                  {
-                    '!border-red-300': !!addressError,
-                  },
-                )}
-                inputClassName='flex flex-grow text-base text-gray-400 outline-none bg-white-0 font-bold dark:text-white-100 text-md placeholder:font-medium dark:placeholder:text-gray-400  !leading-[21px]'
-              />
-            </div>
-
-            {addressError ? (
-              <Text
-                size='sm'
-                color='text-red-300'
-                className='font-medium mt-1'
-                data-testing-id='send-recipient-address-error-ele'
-              >
-                {addressError}
-              </Text>
-            ) : null}
-
-            {recipientInputValue.length > 0 ? null : (
-              <>
-                {Object.values(contacts).length === 0 &&
-                walletsList.length === 0 ? null : walletsList.length === 0 ? (
-                  <Text className='font-bold mt-2' color='text-muted-foreground' size='xs'>
-                    Contacts
-                  </Text>
-                ) : (
-                  <div className='flex gap-2.5 mt-2'>
-                    <div
-                      className={cn(
-                        'font-medium text-xs border bg-secondary py-2 px-4 hover:border-secondary-400 cursor-pointer',
-                        {
-                          'text-monochrome !border-monochrome rounded-full':
-                            selectedTab === 'contacts',
-                          'text-muted-foreground border-transparent rounded-full':
-                            selectedTab !== 'contacts',
-                        },
-                      )}
-                      onClick={() => setSelectedTab('contacts')}
-                    >
-                      Your contacts
-                    </div>
-                    <div
-                      className={cn(
-                        'font-medium text-xs border bg-secondary py-2 px-4 hover:border-secondary-400 cursor-pointer',
-                        {
-                          'text-monochrome !border-monochrome rounded-full':
-                            selectedTab === 'wallets',
-                          'text-muted-foreground border-transparent rounded-full':
-                            selectedTab !== 'wallets',
-                        },
-                      )}
-                      onClick={() => setSelectedTab('wallets')}
-                    >
-                      Your wallets
-                    </div>
+          <div className='flex flex-col items-start gap-6 w-full h-full'>
+            <>
+              {Object.values(contacts).length === 0 &&
+              walletsList.length === 0 ? null : walletsList.length === 0 ? (
+                <Text className='font-bold mt-2' color='text-muted-foreground' size='xs'>
+                  Contacts
+                </Text>
+              ) : (
+                <div className='flex gap-2.5 mt-2'>
+                  <div
+                    className={cn(
+                      'font-medium text-xs border bg-secondary py-2 px-4 hover:border-secondary-400 cursor-pointer',
+                      {
+                        'text-monochrome !border-monochrome rounded-full':
+                          selectedTab === 'contacts',
+                        'text-muted-foreground border-transparent rounded-full':
+                          selectedTab !== 'contacts',
+                      },
+                    )}
+                    onClick={() => setSelectedTab('contacts')}
+                  >
+                    Your contacts
                   </div>
-                )}
-
-                {selectedTab === 'wallets' ? (
-                  <MyWallets setSelectedAddress={handleWalletSelect} />
-                ) : (
-                  <MyContacts
-                    handleContactSelect={handleContactSelect}
-                    editContact={editContact}
-                    minitiaChains={minitiaChains.map((chain) => chain.key)}
-                  />
-                )}
-              </>
-            )}
-
-            {recipientInputValue.length > 0 && !addressError && !showNameServiceResults ? (
-              <button
-                className={classNames('w-full flex items-center gap-3 cursor-pointer mt-2')}
-                onClick={handleSelectRecipient}
-              >
-                <div className='flex justify-between items-center w-full'>
-                  <div className='flex items-center gap-4'>
-                    <img
-                      className='h-11 w-11 rounded-full'
-                      src={existingWalletMatch?.avatar || Images.Misc.getWalletIconAtIndex(0)}
-                    />
-                    <div className='flex flex-col'>
-                      {existingResult && (
-                        <p className='font-bold text-left text-monochrome text-sm capitalize'>
-                          {existingResult.name}
-                        </p>
-                      )}
-                      {existingResult ? (
-                        <p className='text-sm text-muted-foreground text-left'>
-                          {sliceAddress(recipientInputValue)}
-                        </p>
-                      ) : (
-                        <p className='font-bold text-left text-monochrome text-sm'>
-                          {sliceAddress(recipientInputValue)}
-                        </p>
-                      )}
-                    </div>
+                  <div
+                    className={cn(
+                      'font-medium text-xs border bg-secondary py-2 px-4 hover:border-secondary-400 cursor-pointer',
+                      {
+                        'text-monochrome !border-monochrome rounded-full':
+                          selectedTab === 'wallets',
+                        'text-muted-foreground border-transparent rounded-full':
+                          selectedTab !== 'wallets',
+                      },
+                    )}
+                    onClick={() => setSelectedTab('wallets')}
+                  >
+                    Your wallets
                   </div>
-                  <CaretRight className='text-muted-foreground' size={16} />
                 </div>
-              </button>
-            ) : null}
-            {showNameServiceResults ? (
-              <NameServiceMatchList
-                address={recipientInputValue}
-                handleContactSelect={handleContactSelect}
-              />
-            ) : null}
+              )}
+
+              {selectedTab === 'wallets' ? (
+                <MyWallets setSelectedAddress={handleWalletSelect} />
+              ) : (
+                <MyContacts
+                  handleContactSelect={handleContactSelect}
+                  editContact={editContact}
+                  minitiaChains={minitiaChains.map((chain) => chain.key)}
+                />
+              )}
+            </>
           </div>
         </BottomModal>
-        <SelectChain
-          isOpen={showSelectChain}
-          onClose={() => setShowSelectChain(false)}
-          setSelectedAddress={(s) => {
-            setSelectedAddress(s)
-            setShowSelectChain(false)
-          }}
-          address={recipientInputValue}
-          chainList={minitiaChains.map((chain) => chain.key)}
-        />
       </>
     )
   },

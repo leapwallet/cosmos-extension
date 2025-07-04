@@ -278,27 +278,41 @@ export class AptosCoinDataStore {
   get totalFiatValue() {
     let totalFiatValue = new BigNumber(0);
     const balances = this.balances;
+    let hasAnyBalance = false;
 
     for (const asset of balances) {
       if (asset.usdValue) {
         totalFiatValue = totalFiatValue.plus(new BigNumber(asset.usdValue));
       }
+      if (asset.amount && !new BigNumber(asset.amount).isNaN() && new BigNumber(asset.amount).gt(0)) {
+        hasAnyBalance = true;
+      }
     }
+
+    if (totalFiatValue.gt(0)) {
+      return totalFiatValue;
+    }
+
+    if (hasAnyBalance) {
+      return new BigNumber(NaN);
+    }
+
     return totalFiatValue;
   }
 
   get loading() {
     const chain = this.activeChainStore.activeChain;
     const network = this.selectedNetworkStore.selectedNetwork;
+    if (!this.chainInfosStore) return false;
 
     if (chain === 'aggregated') {
       let loadingStatus: boolean = false;
-      const allMoveChains = Object.keys(this.chainInfosStore.chainInfos).filter(
+      const allMoveChains = Object.keys(this.chainInfosStore?.chainInfos).filter(
         (chain) =>
           (network === 'testnet' ||
-            this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
-              this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
-          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
+            this.chainInfosStore?.chainInfos[chain as SupportedChain]?.chainId !==
+              this.chainInfosStore?.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+          this.chainInfosStore?.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
       ) as SupportedChain[];
       for (const chain of allMoveChains) {
         const balanceKey = this.getBalanceKey(chain, network);
@@ -325,14 +339,15 @@ export class AptosCoinDataStore {
   get balances() {
     const chain = this.activeChainStore.activeChain;
     const network = this.selectedNetworkStore.selectedNetwork;
+    if (!this.chainInfosStore) return [];
     if (chain === 'aggregated') {
       const tokens: Token[] = [];
-      const allMoveChains = Object.keys(this.chainInfosStore.chainInfos).filter(
+      const allMoveChains = Object.keys(this.chainInfosStore?.chainInfos).filter(
         (chain) =>
           (network === 'testnet' ||
-            this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
-              this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
-          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
+            this.chainInfosStore?.chainInfos[chain as SupportedChain]?.chainId !==
+              this.chainInfosStore?.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+          this.chainInfosStore?.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
       ) as SupportedChain[];
       for (const chain of allMoveChains) {
         const balanceKey = this.getBalanceKey(chain, network);
@@ -356,11 +371,12 @@ export class AptosCoinDataStore {
   getAggregatedBalances(forceNetwork?: SelectedNetworkType) {
     const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
     const tokens: Token[] = [];
-    const allMoveChains = Object.keys(this.chainInfosStore.chainInfos).filter(
+    if (!this.chainInfosStore) return tokens;
+    const allMoveChains = Object.keys(this.chainInfosStore?.chainInfos).filter(
       (chain) =>
         (network === 'testnet' ||
-          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
-            this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+          this.chainInfosStore?.chainInfos[chain as SupportedChain]?.chainId !==
+            this.chainInfosStore?.chainInfos[chain as SupportedChain]?.testnetChainId) &&
         isAptosChain(chain),
     ) as SupportedChain[];
     for (const chain of allMoveChains) {
@@ -370,6 +386,11 @@ export class AptosCoinDataStore {
       }
     }
     return sortTokenBalances(tokens);
+  }
+
+  getAptosBalances(chain: SupportedChain, network: SelectedNetworkType) {
+    const balanceKey = this.getBalanceKey(chain, network);
+    return this.chainWiseBalances[balanceKey] ?? [];
   }
 
   async getChainData(
@@ -455,17 +476,18 @@ export class AptosCoinDataStore {
   async getData(forceChain?: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType, forceRefetch = false) {
     const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
     const _chain = forceChain ?? this.activeChainStore.activeChain;
+    if (!this.chainInfosStore) return;
 
     if (_chain === 'aggregated') {
       const allMoveChains: SupportedChain[] = [];
       const supportedChainWiseAddresses: Partial<Record<SupportedChain, string>> = {};
-      Object.keys(this.chainInfosStore.chainInfos)
+      Object.keys(this.chainInfosStore?.chainInfos)
         .filter(
           (chain) =>
             (network === 'testnet' ||
-              this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
-                this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId) &&
-            this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
+              this.chainInfosStore?.chainInfos[chain as SupportedChain]?.chainId !==
+                this.chainInfosStore?.chainInfos[chain as SupportedChain]?.testnetChainId) &&
+            this.chainInfosStore?.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos'),
         )
         .forEach((chain) => {
           const balanceKey = this.getBalanceKey(chain as SupportedChain, network);

@@ -13,7 +13,6 @@ import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { PENDING_SWAP_TXS } from 'config/storage-keys'
 import { useChainPageInfo } from 'hooks'
 import { SelectedNetwork } from 'hooks/settings/useNetwork'
-import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import PendingSwapsAlertStrip from 'pages/home/PendingSwapsAlertStrip'
@@ -76,15 +75,7 @@ const GeneralActivity = observer(
 
       return forceChain ?? chains.cosmos.key
     }, [activeChain, forceChain, chains.cosmos.key])
-    const _address = useAddress(selectedChain)
-    const walletAddresses = useGetWalletAddresses()
-    const address = useMemo(() => {
-      if (chains[selectedChain]?.evmOnlyChain) {
-        return walletAddresses[0]
-      }
-
-      return _address
-    }, [_address, chains, selectedChain, walletAddresses])
+    const address = useAddress(selectedChain)
 
     /**
      * Local states

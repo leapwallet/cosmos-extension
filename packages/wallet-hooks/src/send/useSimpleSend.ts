@@ -110,7 +110,7 @@ export type sendTokensReturnType =
       };
     };
 
-const getSourceChannelIdUnsafe = async (srcChain: string, destChain: string): Promise<string | undefined> => {
+export const getSourceChannelIdUnsafe = async (srcChain: string, destChain: string): Promise<string | undefined> => {
   try {
     const id = await getSourceChainChannelId(srcChain, destChain);
     return id;
@@ -844,6 +844,7 @@ export const useSimpleSend = (
         }
 
         const txType = isIBCTx ? CosmosTxType.IbcSend : CosmosTxType.Send;
+
         const pollPromise = _tx.pollForTx(txHash);
 
         return {

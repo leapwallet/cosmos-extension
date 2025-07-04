@@ -50,6 +50,7 @@ export * from './useIteratedUriEnabledNftContracts';
 export * from './useKadoBuyChains';
 export * from './useLastEvmActiveChain';
 export * from './useLSStrideEnabledDenoms';
+export * from './useLuminaTxClient';
 export * from './useNftChains';
 export * from './usePreferredCurrencyStore';
 export * from './useRpcUrl';

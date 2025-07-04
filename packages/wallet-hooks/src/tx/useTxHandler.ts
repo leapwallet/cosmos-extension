@@ -1,5 +1,5 @@
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
-import { OfflineSigner } from '@cosmjs/proto-signing';
+import { isOfflineDirectSigner, OfflineSigner } from '@cosmjs/proto-signing';
 import {
   AtomOneTx,
   BabylonTx,
@@ -20,7 +20,7 @@ import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/
 import { useCallback, useMemo } from 'react';
 import { Wallet } from 'secretjs';
 
-import { useActiveChain, useChainApis, useGetChains, useSelectedNetwork } from '../store';
+import { useActiveChain, useChainApis, useGetChains, useLuminaTxClientStore, useSelectedNetwork } from '../store';
 import { useChainId, useChainInfo, useIsMinitia } from '../utils-hooks';
 
 export function useTxHandler({
@@ -31,6 +31,7 @@ export function useTxHandler({
   const activeChain = useActiveChain();
   const chain = useMemo(() => forceChain ?? activeChain, [forceChain, activeChain]);
   const network = useMemo(() => forceNetwork ?? selectedNetwork, [forceNetwork, selectedNetwork]);
+  const { luminaTxClient, forceLuminaTxClient } = useLuminaTxClientStore();
 
   const { rpcUrl, lcdUrl } = useChainApis(chain, network);
   const chainInfo = useChainInfo(chain);
@@ -66,7 +67,6 @@ export function useTxHandler({
           isMinitiaEvmChain,
         );
       } else if (activeChain === 'initia' || isMinitiaEvmChain) {
-        const chainInfo = chainInfos[activeChain];
         const _tx = new InitiaTx(`${rpcUrl}/`, wallet, chainInfo.chainId);
         await _tx.initClient();
         _tx.setLcdEndPoint(lcdUrl ?? '');
@@ -118,6 +118,17 @@ export function useTxHandler({
         _tx.setLcdEndPoint(lcdUrl ?? '');
         _tx.addBabylonRegistry();
         return _tx;
+      } else if (
+        chainInfo.key === 'celestia' &&
+        luminaTxClient &&
+        forceLuminaTxClient &&
+        isOfflineDirectSigner(wallet)
+      ) {
+        const _tx = luminaTxClient;
+        _tx.setWallet(wallet);
+        await _tx.initClient();
+        _tx.setLcdEndPoint(lcdUrl ?? '');
+        return _tx;
       } else {
         const _tx = new Tx(`${rpcUrl}/`, wallet);
         await _tx.initClient();
@@ -125,7 +136,7 @@ export function useTxHandler({
         return _tx;
       }
     },
-    [chain, network],
+    [chain, network, luminaTxClient, forceLuminaTxClient],
   );
 }
 

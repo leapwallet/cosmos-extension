@@ -234,4 +234,9 @@ export const chainIdToChain: Record<string, string> = {
   'sui-101': 'sui',
   'sui-103': 'sui',
   'fogo-1': 'fogo',
+  'xrplevm_1440000-1': 'xrpl',
+  'xrplevm_1449000-1': 'xrpl',
+  '1440000': 'xrpl',
+  '1449000': 'xrpl',
+  '5115': 'citrea',
 };

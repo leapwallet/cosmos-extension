@@ -14,7 +14,7 @@ import { HomeButtons } from './index'
 
 export function BannersLoading() {
   return (
-    <div className='flex flex-col px-6 w-full'>
+    <div className='flex flex-col px-6 w-full mb-5'>
       <Skeleton
         className='w-full h-[64px]'
         containerClassName='block !leading-none rounded-xl overflow-hidden'
@@ -36,7 +36,7 @@ export const HomeLoadingState = () => {
   return (
     <>
       <div className='relative w-full overflow-auto panel-height'>
-        <GeneralHomeHeader disableWalletButton />
+        <GeneralHomeHeader disableWalletButton isLoading />
 
         <div className={cn('w-full flex flex-col justify-center items-center mb-20 relative')}>
           <div className='w-full p-8 flex flex-col items-center justify-center'>

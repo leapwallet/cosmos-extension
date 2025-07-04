@@ -38,6 +38,8 @@ type CustomState = {
   from: { pathname: string; search?: string } | string
 }
 
+const pagesWithDarkerBg = ['/send', '/assetDetails']
+
 export const v2LayoutPages = new Set([
   '/onboarding',
   '/onboardingCreate',
@@ -63,6 +65,8 @@ export const v2LayoutPages = new Set([
   '/airdropsDetails',
   '/gov',
   '/forgotPassword',
+  '/add-token',
+  '/manage-tokens',
 ])
 
 // TODO: Remove the location check once home layout is implemented
@@ -78,6 +82,7 @@ const GlobalLayoutView = observer((props: PropsWithChildren<GlobalLayoutProps>) 
   const isOnboarding =
     props.location?.pathname.includes('onboarding') ||
     props.location?.pathname.includes('importLedger')
+  const isDarkerBg = pagesWithDarkerBg.some((page) => props.location?.pathname.includes(page))
   const isLogin = props.location?.pathname === '/'
   const auth = useAuth()
 
@@ -97,6 +102,7 @@ const GlobalLayoutView = observer((props: PropsWithChildren<GlobalLayoutProps>) 
           isOnboarding
             ? 'h-[38.875rem] w-[28rem] bg-secondary border border-secondary-200 rounded-3xl'
             : 'panel-width bg-secondary panel-height max-panel-height',
+          isDarkerBg && 'bg-secondary-50',
         )}
       >
         <AnimatePresence mode='wait' presenceAffectsLayout initial={false}>

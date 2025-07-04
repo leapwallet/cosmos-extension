@@ -243,6 +243,10 @@ export const ReviewTransfer = observer(
     ])
 
     const btnText = useMemo(() => {
+      if (!!addressError && !!selectedAddress) {
+        return `Select a different token or address`
+      }
+
       if (!inputAmount) return 'Enter amount'
       if (routeError) return 'No routes found'
 
@@ -279,6 +283,10 @@ export const ReviewTransfer = observer(
         }
       }
 
+      if (!selectedAddress) {
+        return 'Select address'
+      }
+
       return 'Review Transfer'
     }, [
       addressError,
@@ -289,6 +297,7 @@ export const ReviewTransfer = observer(
       selectedToken?.chain,
       sendActiveChain,
       selectedToken?.coinMinimalDenom,
+      selectedAddress,
     ])
 
     const showAdjustmentSheet = () => {

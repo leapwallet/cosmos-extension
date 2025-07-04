@@ -16,10 +16,10 @@ import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import Browser, { Storage } from 'webextension-polyfill'
 
-import { GENERAL_SECURITY_PAGES } from './GeneralSecurity'
+import { NavPages } from './types'
 
 type Props = {
-  setPage: React.Dispatch<React.SetStateAction<number>>
+  setPage: React.Dispatch<React.SetStateAction<NavPages | null>>
 }
 
 type ConnectedSiteCardProps = {
@@ -149,7 +149,7 @@ const ConnectedSites = ({ setPage }: Props) => {
   }, [updateSites])
 
   const goBack = useCallback(() => {
-    setPage(GENERAL_SECURITY_PAGES.DEFAULT)
+    setPage(null)
   }, [setPage])
 
   const handleSearchSite = (e: React.ChangeEvent<HTMLInputElement>) => {

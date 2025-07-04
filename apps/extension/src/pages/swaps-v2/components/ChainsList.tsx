@@ -7,7 +7,7 @@ import { CompassIcon } from 'icons/compass-icon'
 import { SwapsCheckIcon } from 'icons/swaps-check-icon'
 import { GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
-import React, { useMemo } from 'react'
+import React, { forwardRef, useEffect, useMemo, useRef } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { Virtuoso } from 'react-virtuoso'
 import { SourceChain, SourceToken } from 'types/swap'
@@ -112,91 +112,99 @@ export function ChainCard({
   )
 }
 
-const ChainsListView = ({
-  onChainSelect,
-  selectedChain,
-  selectedToken,
-  chainsToShow,
-  searchedChain,
-  setSearchedChain,
-  loadingChains,
-}: ListChainsProps) => {
-  const chainsFuse = useMemo(() => {
-    return new Fuse(chainsToShow ?? [], {
-      threshold: 0.3,
-      keys: ['chain.chainName'],
-      shouldSort: false,
-    })
-  }, [chainsToShow])
+const ChainsListView = forwardRef<HTMLInputElement, ListChainsProps>(
+  (
+    {
+      onChainSelect,
+      selectedChain,
+      selectedToken,
+      chainsToShow,
+      searchedChain,
+      setSearchedChain,
+      loadingChains,
+    }: ListChainsProps,
+    ref,
+  ) => {
+    const chainsFuse = useMemo(() => {
+      return new Fuse(chainsToShow ?? [], {
+        threshold: 0.3,
+        keys: ['chain.chainName'],
+        shouldSort: false,
+      })
+    }, [chainsToShow])
 
-  const filteredChains = useMemo(() => {
-    if (!searchedChain) {
-      return chainsToShow ?? []
-    }
-    return chainsFuse?.search(searchedChain).map((chain) => chain.item) ?? []
-  }, [chainsFuse, searchedChain, chainsToShow])
+    const filteredChains = useMemo(() => {
+      if (!searchedChain) {
+        return chainsToShow ?? []
+      }
+      return chainsFuse?.search(searchedChain).map((chain) => chain.item) ?? []
+    }, [chainsFuse, searchedChain, chainsToShow])
 
-  return (
-    <>
-      <div className='flex flex-col items-center px-6 pt-6 pb-7'>
-        <SearchInput
-          value={searchedChain}
-          onChange={(e) => setSearchedChain(e.target.value)}
-          data-testing-id='switch-chain-input-search'
-          placeholder='Search by chain name'
-          onClear={() => setSearchedChain('')}
-        />
-      </div>
+    return (
+      <>
+        <div className='flex flex-col items-center px-6 pt-6 pb-7'>
+          <SearchInput
+            value={searchedChain}
+            ref={ref}
+            onChange={(e) => setSearchedChain(e.target.value)}
+            data-testing-id='switch-chain-input-search'
+            placeholder='Search by chain name'
+            onClear={() => setSearchedChain('')}
+          />
+        </div>
 
-      <div
-        className={classNames('w-full pb-6', {
-          'mt-3': filteredChains.length === 0 && !loadingChains,
-        })}
-        style={{ height: (isSidePanel() ? window.innerHeight : 600) - 160, overflowY: 'scroll' }}
-      >
-        {loadingChains ? (
-          Array.from({ length: 5 }).map((_, index) => (
-            <ChainsListSkeleton key={index} index={index} isLast={index === 4} />
-          ))
-        ) : filteredChains.length === 0 ? (
-          <div className='w-full px-6 h-full pb-6'>
-            <div className='h-full px-5 w-full flex-col flex justify-center items-center gap-4 border border-secondary-200 rounded-2xl'>
-              <div className='p-2 bg-secondary-200 rounded-full'>
-                <CompassIcon size={40} className='text-muted-foreground' />
-              </div>
-              <div className='flex flex-col justify-start items-center w-full gap-3'>
-                <div className='text-[18px] !leading-[24px] text-center font-bold text-foreground'>
-                  No chains found
+        <div
+          className={classNames('w-full pb-6', {
+            'mt-3': filteredChains.length === 0 && !loadingChains,
+          })}
+          style={{ height: (isSidePanel() ? window.innerHeight : 600) - 160, overflowY: 'scroll' }}
+        >
+          {loadingChains ? (
+            Array.from({ length: 5 }).map((_, index) => (
+              <ChainsListSkeleton key={index} index={index} isLast={index === 4} />
+            ))
+          ) : filteredChains.length === 0 ? (
+            <div className='w-full px-6 h-full pb-6'>
+              <div className='h-full px-5 w-full flex-col flex justify-center items-center gap-4 border border-secondary-200 rounded-2xl'>
+                <div className='p-2 bg-secondary-200 rounded-full'>
+                  <CompassIcon size={40} className='text-muted-foreground' />
                 </div>
-                <div className='text-xs !leading-[16px] text-secondary-800 text-center'>
-                  We couldn&apos;t find a match. Try searching again or use a different keyword.
+                <div className='flex flex-col justify-start items-center w-full gap-3'>
+                  <div className='text-[18px] !leading-[24px] text-center font-bold text-foreground'>
+                    No chains found
+                  </div>
+                  <div className='text-xs !leading-[16px] text-secondary-800 text-center'>
+                    We couldn&apos;t find a match. Try searching again or use a different keyword.
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <>
-            <Virtuoso
-              data={filteredChains}
-              style={{ flexGrow: '1', width: '100%' }}
-              itemContent={(index, tokenAssociatedChain) => (
-                <ChainCard
-                  key={`${tokenAssociatedChain?.chain?.chainName}-${tokenAssociatedChain?.asset?.skipAsset.denom}`}
-                  tokenAssociatedChain={tokenAssociatedChain}
-                  index={index}
-                  itemsLength={filteredChains.length}
-                  selectedChain={selectedChain}
-                  selectedToken={selectedToken}
-                  onChainSelect={onChainSelect}
-                  setSearchedChain={setSearchedChain}
-                />
-              )}
-            />
-          </>
-        )}
-      </div>
-    </>
-  )
-}
+          ) : (
+            <>
+              <Virtuoso
+                data={filteredChains}
+                style={{ flexGrow: '1', width: '100%' }}
+                itemContent={(index, tokenAssociatedChain) => (
+                  <ChainCard
+                    key={`${tokenAssociatedChain?.chain?.chainName}-${tokenAssociatedChain?.asset?.skipAsset.denom}`}
+                    tokenAssociatedChain={tokenAssociatedChain}
+                    index={index}
+                    itemsLength={filteredChains.length}
+                    selectedChain={selectedChain}
+                    selectedToken={selectedToken}
+                    onChainSelect={onChainSelect}
+                    setSearchedChain={setSearchedChain}
+                  />
+                )}
+              />
+            </>
+          )}
+        </div>
+      </>
+    )
+  },
+)
+
+ChainsListView.displayName = 'ChainsListView'
 
 export const ChainsList = observer(ChainsListView)

@@ -347,7 +347,7 @@ const SignTransaction = observer(
       setIsSigning(true)
       try {
         if (isSignMessage) {
-          const signedTxData = await suiClient.signTransaction(signDoc as Uint8Array)
+          const signedTxData = await suiClient.signMessage(signDoc as Uint8Array)
 
           await sleep(100)
 

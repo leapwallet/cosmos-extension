@@ -4,7 +4,7 @@ import TokenListSkeleton from 'components/Skeletons/TokenListSkeleton'
 import { SearchInput } from 'components/ui/input/search-input'
 import { AssetProps, useGetSupportedAssets } from 'hooks/swapped/useGetSupportedAssets'
 import { observer } from 'mobx-react-lite'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import AssetCard from './AssetCard'
 
@@ -19,6 +19,7 @@ const SelectAssetSheet = observer(
   ({ isVisible, onClose, onAssetSelect, selectedAsset }: SelectAssetSheetProps) => {
     const [searchTerm, setSearchTerm] = useState('')
     const { isLoading, data: supportedAssets = [] } = useGetSupportedAssets()
+    const searchInputRef = useRef<HTMLInputElement>(null)
 
     const assetList = useMemo<AssetProps[] | []>(
       () =>
@@ -30,6 +31,15 @@ const SelectAssetSheet = observer(
       [supportedAssets, searchTerm],
     )
 
+    useEffect(() => {
+      if (isVisible) {
+        setSearchTerm('')
+        setTimeout(() => {
+          searchInputRef.current?.focus()
+        }, 200)
+      }
+    }, [isVisible])
+
     return (
       <BottomModal
         isOpen={isVisible}
@@ -40,6 +50,7 @@ const SelectAssetSheet = observer(
       >
         <div className='flex flex-col items-center w-full pb-2'>
           <SearchInput
+            ref={searchInputRef}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             data-testing-id='buy-asset-input-search'

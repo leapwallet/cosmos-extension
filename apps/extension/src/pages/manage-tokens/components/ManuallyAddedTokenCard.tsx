@@ -6,10 +6,9 @@ import {
   DisabledCW20DenomsStore,
   EnabledCW20DenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
-import { CardDivider } from '@leapwallet/leap-ui'
-import classNames from 'classnames'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo } from 'react'
+import { cn } from 'utils/cn'
 import { capitalize, sliceWord } from 'utils/strings'
 
 import { CustomToggleCard } from './CustomToggleCard'
@@ -27,7 +26,6 @@ type ManuallyAddedTokenCardProps = {
   betaCW20DenomsStore: BetaCW20DenomsStore
   disabledCW20DenomsStore: DisabledCW20DenomsStore
   enabledCW20DenomsStore: EnabledCW20DenomsStore
-  hasSupportedTokens: boolean
 }
 
 export const ManuallyAddedTokenCard = observer(
@@ -42,7 +40,6 @@ export const ManuallyAddedTokenCard = observer(
     disabledCW20DenomsStore,
     enabledCW20DenomsStore,
     betaERC20DenomsStore,
-    hasSupportedTokens,
   }: ManuallyAddedTokenCardProps) => {
     const { betaCW20Denoms } = betaCW20DenomsStore
     const { betaERC20Denoms } = betaERC20DenomsStore
@@ -80,16 +77,6 @@ export const ManuallyAddedTokenCard = observer(
 
     return (
       <>
-        {isFirst && (
-          <div
-            className={classNames('font-bold text-sm text-gray-600 dark:text-gray-200 mb-2', {
-              'mt-4': hasSupportedTokens,
-            })}
-          >
-            Manually added tokens
-          </div>
-        )}
-
         <CustomToggleCard
           title={
             <TokenTitle
@@ -109,15 +96,14 @@ export const ManuallyAddedTokenCard = observer(
           }
           onToggleChange={(isEnabled) => handleToggleChange(isEnabled, token.coinMinimalDenom)}
           onDeleteClick={() => onDeleteClick(token)}
-          className={classNames({
-            '!rounded-t-2xl !rounded-b-none': isFirst && !isLast,
-            '!rounded-t-none !rounded-b-2xl': !isFirst && isLast,
-            '!rounded-2xl': isFirst && isLast,
-            '!rounded-none': !isFirst && !isLast,
-          })}
+          className={cn(
+            '!bg-secondary-100 hover:!bg-secondary-200 rounded-xl mb-4 w-full',
+            isFirst ? 'mt-6' : '',
+          )}
+          imageClassName='!h-10 !w-10 !rounded-full'
         />
 
-        {!isLast ? <CardDivider /> : null}
+        {isLast ? <div className='h-[1px] bg-transparent mt-6' /> : null}
       </>
     )
   },

@@ -545,8 +545,19 @@ export function useIbcTokensBalances(
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
 
   return useQuery(
-    [`${activeChain}-${bankQueryIds.ibcTokensBalance}`, activeChain, address, balances, currencyPreferred],
+    [
+      `${activeChain}-${bankQueryIds.ibcTokensBalance}`,
+      activeChain,
+      address,
+      balances,
+      currencyPreferred,
+      Object.keys(denoms ?? {}).length,
+      Object.keys(ibcTraceData ?? {}).length,
+    ],
     async () => {
+      if (!Object.keys(ibcTraceData ?? {}).length) {
+        return [];
+      }
       const formattedBalances: Promise<{
         formattedBalance: FormattedBalance;
         ibcTraceDataToAdd: Record<string, IbcDenomData>;

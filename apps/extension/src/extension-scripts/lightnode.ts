@@ -63,7 +63,6 @@ export class LightNode {
     await this.addLuminaClient()
     if (await this.luminaClient?.isRunning()) {
       // eslint-disable-next-line no-console
-      console.log('[background.ts]: node is already running')
       return
     }
     let networkConfig
@@ -80,13 +79,12 @@ export class LightNode {
       return
     }
     // eslint-disable-next-line no-console
-    console.log('[background.ts]: requesting connection to', networkConfig.bootnodes)
 
-    networkConfig.custom_syncing_window_secs = LIGHT_NODE_SYNC_WINDOW_SECS
+    networkConfig.customSamplingWindowSecs = LIGHT_NODE_SYNC_WINDOW_SECS
 
     const started = await this.luminaClient?.start(networkConfig)
+    await this.luminaClient?.waitConnected()
     // eslint-disable-next-line no-console
-    console.log('[background.ts]: started:', started)
   }
 
   async updateRunningTimeForLightNode() {

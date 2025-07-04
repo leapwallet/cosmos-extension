@@ -71,6 +71,18 @@ export async function getValidatorsList(
       validator.image = '';
     }
     validator.tokens = fromSmall(validator?.tokens ?? '0', decimals ?? 18);
+    try {
+      if (['initia', 'initiaEvm'].includes(chain)) {
+        const token = (validator?.delegator_shares as any)?.find(
+          (item: { denom: string; amount: string }) => item.denom === 'uinit',
+        );
+        if (token) {
+          validator.tokens = fromSmall(token?.amount ?? '0', decimals ?? 18);
+        }
+      }
+    } catch (error) {
+      //
+    }
     validator.moniker = validator?.description?.moniker ?? '';
     validator.address = validator?.operator_address;
     validator.active = validator?.status === 'BOND_STATUS_BONDED';

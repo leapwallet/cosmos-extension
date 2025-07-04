@@ -208,128 +208,131 @@ function TokenCardView({
   const tokenName = token.symbol ?? token?.name
 
   return (
-    <div
-      onClick={handleTokenSelect}
-      className={classNames('flex flex-1 items-center w-full mt-3', isLast ? 'mb-4' : '')}
-    >
+    <>
       <div
-        className={cn(
-          'flex items-center flex-1 flex-row justify-between w-full gap-2 rounded-xl pl-3 py-3 pr-4 border border-transparent',
-          isSelected
-            ? 'bg-secondary-200 hover:bg-secondary-200 cursor-not-allowed border-secondary-600'
-            : 'cursor-pointer bg-secondary-100 hover:bg-secondary-200',
-        )}
+        onClick={handleTokenSelect}
+        className={classNames('flex flex-1 items-center w-full', isLast ? 'mb-4' : 'mb-3')}
       >
-        <div className='flex items-center flex-1'>
-          <div className='relative mr-3'>
-            <img
-              src={token.img ?? defaultTokenLogo}
-              className='h-9 w-9 rounded-full'
-              onError={imgOnError(defaultTokenLogo)}
-            />
+        <div
+          className={cn(
+            'flex items-center flex-1 flex-row justify-between w-full gap-2 rounded-xl pl-3 py-3 pr-4 border border-transparent',
+            isSelected
+              ? 'bg-secondary-200 hover:bg-secondary-200 cursor-not-allowed border-secondary-600'
+              : 'cursor-pointer bg-secondary-100 hover:bg-secondary-200',
+          )}
+        >
+          <div className='flex items-center flex-1'>
+            <div className='relative mr-3'>
+              <img
+                src={token.img ?? defaultTokenLogo}
+                className='h-9 w-9 rounded-full'
+                onError={imgOnError(defaultTokenLogo)}
+              />
 
-            {verified && (
-              <div className='absolute group -bottom-[3px] -right-[6px]'>
-                <img
-                  src={
-                    theme === ThemeName.DARK
-                      ? Images.Misc.VerifiedWithBgStarDark
-                      : Images.Misc.VerifiedWithBgStar
-                  }
-                  alt='verified-token'
-                  className='h-5 w-5'
-                />
+              {verified && (
+                <div className='absolute group -bottom-[3px] -right-[6px]'>
+                  <img
+                    src={
+                      theme === ThemeName.DARK
+                        ? Images.Misc.VerifiedWithBgStarDark
+                        : Images.Misc.VerifiedWithBgStar
+                    }
+                    alt='verified-token'
+                    className='h-5 w-5'
+                  />
 
-                <div
-                  className={classNames(
-                    'group-hover:!block hidden absolute bottom-0 right-0 translate-x-full bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-xs dark:text-white-100',
-                    {
-                      '!max-w-max': isSidePanel(),
-                    },
-                  )}
-                >
-                  Whitelisted
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className='flex flex-col justify-center items-start gap-[2px]'>
-            <div className='flex items-center gap-[4px]'>
-              <div className='flex flex-col'>
-                <div className='flex space-x-1 items-center'>
-                  <Text
-                    size='md'
-                    className={classNames('font-bold !leading-[21.6px]', {
-                      'items-center justify-center gap-1':
-                        (activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
-                        token?.ibcChainInfo,
-                    })}
-                    data-testing-id={`switch-token-${tokenName.toLowerCase()}-ele`}
+                  <div
+                    className={classNames(
+                      'group-hover:!block hidden absolute bottom-0 right-0 translate-x-full bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-xs dark:text-white-100',
+                      {
+                        '!max-w-max': isSidePanel(),
+                      },
+                    )}
                   >
-                    {tokenName?.length > 20 ? sliceWord(tokenName, 6, 6) : tokenName}
-                  </Text>
-                  {token.ibcChainInfo && (
-                    <span
-                      className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] text-foreground bg-secondary-200'
-                      title={ibcInfo}
+                    Whitelisted
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className='flex flex-col justify-center items-start gap-[2px]'>
+              <div className='flex items-center gap-[4px]'>
+                <div className='flex flex-col'>
+                  <div className='flex space-x-1 items-center'>
+                    <Text
+                      size='md'
+                      className={classNames('font-bold !leading-[21.6px]', {
+                        'items-center justify-center gap-1':
+                          (activeChain === AGGREGATED_CHAIN_KEY || isChainAbstractionView) &&
+                          token?.ibcChainInfo,
+                      })}
+                      data-testing-id={`switch-token-${tokenName.toLowerCase()}-ele`}
                     >
-                      IBC
-                    </span>
+                      {tokenName?.length > 20 ? sliceWord(tokenName, 6, 6) : tokenName}
+                    </Text>
+                    {token.ibcChainInfo && (
+                      <span
+                        className='py-[2px] px-[6px] rounded-[4px] font-medium text-[10px] !leading-[16px] text-foreground bg-secondary-200'
+                        title={ibcInfo}
+                      >
+                        IBC
+                      </span>
+                    )}
+                  </div>
+                  {token.tokenBalanceOnChain && (
+                    <Text size='xs' color='text-muted-foreground' className='font-medium'>
+                      {chains[token.tokenBalanceOnChain].chainName}
+                    </Text>
                   )}
                 </div>
-                {token.tokenBalanceOnChain && (
-                  <Text size='xs' color='text-muted-foreground' className='font-medium'>
-                    {chains[token.tokenBalanceOnChain].chainName}
-                  </Text>
-                )}
-              </div>
-              {_showRedirection ? (
-                <button onClick={handleRedirectionClick} className='text-gray-400'>
-                  <ArrowSquareOut size={16} className='!text-md !leading-[20px]' />
-                </button>
-              ) : null}
+                {_showRedirection ? (
+                  <button onClick={handleRedirectionClick} className='text-gray-400'>
+                    <ArrowSquareOut size={16} className='!text-md !leading-[20px]' />
+                  </button>
+                ) : null}
 
-              {showAddressCopy ? (
-                <>
-                  {!isAddressCopied ? (
-                    <button onClick={handleContentCopyClick} className='text-gray-400'>
-                      <CopySimple size={16} />
-                    </button>
-                  ) : (
-                    <button className='text-gray-400 text-xs font-bold ml-[0.5px]'>copied</button>
-                  )}
-                </>
-              ) : null}
+                {showAddressCopy ? (
+                  <>
+                    {!isAddressCopied ? (
+                      <button onClick={handleContentCopyClick} className='text-gray-400'>
+                        <CopySimple size={16} />
+                      </button>
+                    ) : (
+                      <button className='text-gray-400 text-xs font-bold ml-[0.5px]'>copied</button>
+                    )}
+                  </>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
 
-        {hideAmount === false && (
-          <div className='flex flex-col items-end gap-y-0.5'>
-            {formattedFiatValue !== '-' && (
-              <Text size='sm' className='font-bold !leading-[19.6px]'>
-                {formattedFiatValue}
-              </Text>
-            )}
-            {parseFloat(token.amount) > 0 && (
-              <Text
-                size='xs'
-                className='font-medium !leading-[19.2px]'
-                color='text-gray-600 dark:text-gray-400'
-              >
-                {formatTokenAmount(
-                  token.amount,
-                  sliceWord(token.symbol, 4, 4),
-                  3,
-                  currencyDetail[preferredCurrency].locale,
-                )}
-              </Text>
-            )}
-          </div>
-        )}
+          {hideAmount === false && (
+            <div className='flex flex-col items-end gap-y-0.5'>
+              {formattedFiatValue !== '-' && (
+                <Text size='sm' className='font-bold !leading-[19.6px]'>
+                  {formattedFiatValue}
+                </Text>
+              )}
+              {parseFloat(token.amount) > 0 && (
+                <Text
+                  size='xs'
+                  className='font-medium !leading-[19.2px]'
+                  color='text-gray-600 dark:text-gray-400'
+                >
+                  {formatTokenAmount(
+                    token.amount,
+                    sliceWord(token.symbol, 4, 4),
+                    3,
+                    currencyDetail[preferredCurrency].locale,
+                  )}
+                </Text>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      {isLast && <div className='h-1 bg-transparent' />}
+    </>
   )
 }
 

@@ -3,7 +3,7 @@ import BottomModal from 'components/new-bottom-modal'
 import TokenListSkeleton from 'components/Skeletons/TokenListSkeleton'
 import { SearchInput } from 'components/ui/input/search-input'
 import { useSwappedAssets } from 'hooks/useGetSwappedDetails'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import CurrencyCard from './CurrencyCard'
 
@@ -29,6 +29,7 @@ export default function SelectCurrencySheet({
   const [searchedCurrency, setSearchedCurrency] = useState('')
   const { isLoading, data: data } = useSwappedAssets()
   const { fiatAssets = [] } = data ?? {}
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const currencyList = useMemo<CurrencyProps[] | []>(
     () =>
       fiatAssets.filter(
@@ -38,6 +39,15 @@ export default function SelectCurrencySheet({
       ),
     [fiatAssets, searchedCurrency],
   )
+
+  useEffect(() => {
+    if (isVisible) {
+      setSearchedCurrency('')
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 200)
+    }
+  }, [isVisible])
 
   return (
     <BottomModal
@@ -49,6 +59,7 @@ export default function SelectCurrencySheet({
     >
       <div className='flex flex-col items-center w-full pb-2'>
         <SearchInput
+          ref={searchInputRef}
           value={searchedCurrency}
           onChange={(e) => setSearchedCurrency(e.target.value)}
           data-testing-id='currency-input-search'

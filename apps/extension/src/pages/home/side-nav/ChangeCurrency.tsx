@@ -1,14 +1,13 @@
-import { Header, HeaderActionType } from '@leapwallet/leap-ui'
+import BottomModal from 'components/new-bottom-modal'
 import React from 'react'
 
 import { CurrencyList } from './CurrencyList'
 
-const ChangeCurrency = ({ goBack }: { goBack: () => void }) => {
+const ChangeCurrency = ({ isVisible, goBack }: { isVisible: boolean; goBack: () => void }) => {
   return (
-    <div className='pb-5 panel-width enclosing-panel '>
-      <Header title='Currency' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
+    <BottomModal fullScreen isOpen={isVisible} onClose={goBack} title='Currency' className='p-6'>
       <CurrencyList />
-    </div>
+    </BottomModal>
   )
 }
 

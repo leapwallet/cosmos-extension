@@ -69,13 +69,13 @@ function accountFromEthAccount({ address, pubKey, accountNumber, sequence }: Bas
 
 export class Tx {
   client: SigningStargateClient | null;
-  wallet: OfflineSigner;
+  wallet: OfflineSigner | undefined;
   options: SigningStargateClientOptions | undefined;
   rpcEndPoint: string;
   registry: Registry;
   lcdEndpoint: string | undefined;
 
-  constructor(rpcEndPoint: string, wallet: OfflineSigner, options?: SigningStargateClientOptions) {
+  constructor(rpcEndPoint: string, wallet?: OfflineSigner, options?: SigningStargateClientOptions) {
     this.client = null;
     this.wallet = wallet;
     this.options = options;
@@ -88,6 +88,7 @@ export class Tx {
   }
 
   async initClient() {
+    if (!this.wallet) throw new Error('Wallet not found');
     this.client = await SigningStargateClient.connectWithSigner(this.rpcEndPoint, this.wallet, {
       broadcastPollIntervalMs: this.options?.broadcastPollIntervalMs ?? 5_000,
       accountParser: (input: any) => {

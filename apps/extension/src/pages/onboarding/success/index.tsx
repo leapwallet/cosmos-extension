@@ -22,10 +22,9 @@ const ctrlKey =
 
 export default function OnboardingSuccess() {
   const activeWalletCosmosAddress = useAddress('cosmos')
-  const activeWalletEvmBech32Address = useAddress('ethereum')
+  const activeWalletEvmAddress = useAddress('ethereum')
   const activeWalletSolanaAddress = useAddress('solana')
   const activeWalletSuiAddress = useAddress('sui')
-  const activeWalletEvmAddress = bech32ToEthAddress(activeWalletEvmBech32Address)
 
   const activeWalletAddress = useMemo(
     () =>

@@ -42,8 +42,22 @@ export async function initResourceFromS3({
       const storedLastUpdatedAtObj = JSON.parse(lastUpdatedAtObj);
       let lastUpdatedAtData: { lastUpdatedAt: string };
 
+      // Get the current date
+      const currentDate = new Date();
+      // Subtract one day from the current date
+      const yesterday = new Date(currentDate);
+      yesterday.setDate(currentDate.getDate() - 1);
+
+      const modifiedSince = storedLastUpdatedAtObj?.lastUpdatedAt
+        ? new Date(storedLastUpdatedAtObj?.lastUpdatedAt).toUTCString()
+        : yesterday.toUTCString();
+
       try {
-        const { data } = await axios.get(lastUpdatedAtURL);
+        const { data } = await axios.get(lastUpdatedAtURL, {
+          headers: {
+            'If-Modified-Since': modifiedSince,
+          },
+        });
         lastUpdatedAtData = data;
       } catch (e) {
         lastUpdatedAtData = {
@@ -66,7 +80,11 @@ export async function initResourceFromS3({
 
       if (!isNaN(diffBtwLastUpdatedAt) && diffBtwLastUpdatedAt < 0) {
         try {
-          const { data: resourceData } = await axios.get(resourceURL);
+          const { data: resourceData } = await axios.get(resourceURL, {
+            headers: {
+              'If-Modified-Since': modifiedSince,
+            },
+          });
 
           resource = resourceData;
           await storage.set(resourceKey, JSON.stringify(resourceData));

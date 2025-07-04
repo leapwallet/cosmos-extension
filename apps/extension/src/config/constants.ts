@@ -43,7 +43,7 @@ export const LEAPBOARD_URL = 'https://app.leapwallet.io'
 export const LEAPBOARD_URL_OLD = 'https://cosmos.leapwallet.io'
 
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']
-export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'humans', 'initia', 'initiaEvm']
+export const SHOW_ETH_ADDRESS_CHAINS = ['dymension', 'humans', 'xrpl', 'initia', 'initiaEvm']
 
 export const AGGREGATED_CHAIN_KEY = 'aggregated'
 export const SEI_EVM_LEDGER_ERROR_MESSAGE =

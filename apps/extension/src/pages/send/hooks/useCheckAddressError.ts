@@ -10,6 +10,7 @@ import {
   isEthAddress,
   isSolanaAddress,
   isValidAddress,
+  SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { useEffect } from 'react'
 
@@ -18,6 +19,7 @@ export type UseCheckAddressErrorParams = {
   setAddressWarning: React.Dispatch<React.SetStateAction<AddressWarning>>
   recipientInputValue: string
   showNameServiceResults: boolean
+  sendActiveChain: SupportedChain
 }
 
 export function useCheckAddressError({
@@ -25,8 +27,9 @@ export function useCheckAddressError({
   setAddressWarning,
   recipientInputValue,
   showNameServiceResults,
+  sendActiveChain,
 }: UseCheckAddressErrorParams) {
-  const currentWalletAddress = useAddress()
+  const currentWalletAddress = useAddress(sendActiveChain)
 
   useEffect(() => {
     ;(async function () {

@@ -1,5 +1,11 @@
 import { formatTokenAmount, sliceWord, Token, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  isAptosChain,
+  isSolanaChain,
+  isSuiChain,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
+import { isBitcoinChain } from '@leapwallet/cosmos-wallet-store'
 import { useTheme } from '@leapwallet/leap-ui'
 import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
@@ -13,6 +19,8 @@ import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useSt
 import Skeleton from 'react-loading-skeleton'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { imgOnError } from 'utils/imgOnError'
+
+import { ErrorWarningTokenCard } from '../error-warning'
 
 type TokenInputCardProps = {
   isInputInUSDC: boolean
@@ -51,7 +59,15 @@ function TokenInputCardView({
   const [isFocused, setIsFocused] = useState(false)
   const [textInputValue, setTextInputValue] = useState<string>(value?.toString())
 
-  const { pfmEnabled, isIbcUnwindingDisabled, allGasOptions, gasOption } = useSendContext()
+  const {
+    pfmEnabled,
+    isIbcUnwindingDisabled,
+    allGasOptions,
+    gasOption,
+    selectedAddress,
+    addressError,
+    selectedToken,
+  } = useSendContext()
 
   const selectedAssetUSDPrice = useMemo(() => {
     if (token && token.usdPrice && token.usdPrice !== '0') {
@@ -203,126 +219,154 @@ function TokenInputCardView({
     return chains?.[token.tokenBalanceOnChain]
   }, [token?.tokenBalanceOnChain, chains])
 
+  const isIBCError = (addressError || '').includes('IBC transfers are not supported')
+
+  const sendChainEcosystem = useMemo(() => {
+    if (
+      isAptosChain(sendActiveChain) ||
+      isSuiChain(sendActiveChain) ||
+      chains?.[sendActiveChain]?.evmOnlyChain ||
+      isBitcoinChain(sendActiveChain) ||
+      isSolanaChain(sendActiveChain)
+    ) {
+      return chains?.[sendActiveChain]?.chainName ?? sendActiveChain
+    }
+    return 'Cosmos'
+  }, [sendActiveChain, chains])
+
   return (
-    <div className='w-full bg-secondary-100 rounded-xl p-5 flex flex-col gap-3' key={balanceAmount}>
-      <p className='text-muted-foreground text-sm font-medium !leading-[22.4px]'>Send</p>
-      <div className='flex rounded-2xl justify-between w-full items-center gap-2 h-[34px] p-[2px]'>
-        {loadingAssets ? (
-          <Skeleton
-            width={75}
-            height={32}
-            containerClassName='block !leading-none overflow-hidden rounded-full ml-auto'
-          />
-        ) : (
-          <>
-            <div className='flex gap-1 w-full'>
-              {isInputInUSDC && <span className='text-monochrome font-bold text-[24px]'>$</span>}
-              <input
-                type='number'
+    <>
+      <div className='w-full bg-secondary-100 rounded-xl flex flex-col' key={balanceAmount}>
+        <div className='flex flex-col p-5 gap-3'>
+          <p className='text-muted-foreground text-sm font-medium !leading-[22.4px]'>Send</p>
+          <div className='flex rounded-2xl justify-between w-full items-center gap-2 h-[34px] p-[2px]'>
+            {loadingAssets ? (
+              <Skeleton
+                width={75}
+                height={32}
+                containerClassName='block !leading-none overflow-hidden rounded-full ml-auto'
+              />
+            ) : (
+              <>
+                <div className='flex gap-1 w-full'>
+                  {isInputInUSDC && (
+                    <span className='text-monochrome font-bold text-[24px]'>$</span>
+                  )}
+                  <input
+                    type='number'
+                    className={classNames(
+                      'bg-transparent outline-none w-full text-left placeholder:font-bold placeholder:text-[24px] placeholder:text-monochrome font-bold !leading-[32.4px] caret-accent-green',
+                      {
+                        'text-destructive-100': amountError,
+                        'text-monochrome': !amountError,
+                        'text-[24px]': textInputValue.length < 12,
+                        'text-[22px]': textInputValue.length >= 12 && textInputValue.length < 15,
+                        'text-[20px]': textInputValue.length >= 15 && textInputValue.length < 18,
+                        'text-[18px]': textInputValue.length >= 18,
+                      },
+                    )}
+                    placeholder={'0'}
+                    value={isInputInUSDC ? textInputValue : value}
+                    onChange={(e) => setTextInputValue(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  className={classNames(
+                    'flex justify-end items-center gap-2 shrink-0 py-1 px-1.5 rounded-[40px] bg-secondary-300 hover:bg-secondary-400',
+                  )}
+                  onClick={onTokenSelectSheet}
+                >
+                  <div className='relative w-[24px] h-[24px] shrink-0 flex flex-row items-center justify-center'>
+                    <img
+                      src={token?.img ?? defaultTokenLogo}
+                      className='w-[19.2px] h-[19.2px] rounded-full'
+                      onError={imgOnError(defaultTokenLogo)}
+                    />
+                    {tokenHolderChain && (
+                      <img
+                        src={tokenHolderChain.chainSymbolImageUrl}
+                        className='w-[8.4px] h-[8.4px] bg-secondary-200 rounded-full absolute bottom-0 right-0'
+                        onError={imgOnError(defaultTokenLogo)}
+                      />
+                    )}
+                  </div>
+                  <div className='flex items-center gap-1'>
+                    <p
+                      className={classNames('dark:text-white-100 text-[16px] font-medium', {
+                        'flex flex-col justify-between items-start': !!selectedChain,
+                      })}
+                    >
+                      {token?.symbol ? sliceWord(token?.symbol ?? '', 4, 4) : 'Select Token'}
+                    </p>
+                    <CaretDown size={20} className='dark:text-white-100 p-1' />
+                  </div>
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className='flex flex-row items-center justify-between max-[399px]:!items-start text-gray-400 text-sm font-normal w-full min-h-[22px] mt-1'>
+            <div className='flex items-center gap-1'>
+              <span className='text-muted-foreground font-normal text-sm !leading-[22.4px]'>
+                {value === ''
+                  ? isInputInUSDC
+                    ? '0.00'
+                    : '$0.00'
+                  : isInputInUSDC
+                  ? formattedInputValue
+                  : formattedDollarAmount}
+              </span>
+
+              <button
+                disabled={switchToUSDDisabled}
+                onClick={handleInputTypeSwitchClick}
                 className={classNames(
-                  'bg-transparent outline-none w-full text-left placeholder:font-bold placeholder:text-[24px] placeholder:text-monochrome font-bold !leading-[32.4px] caret-accent-green',
+                  'rounded-full h-[22px] bg-secondary-200 hover:bg-secondary-300 items-center flex gap-1 justify-center shrink-0 text-gray-600 dark:text-gray-400 dark:hover:text-white-100 hover:text-black-100',
                   {
-                    'text-destructive-100': amountError,
-                    'text-monochrome': !amountError,
-                    'text-[24px]': textInputValue.length < 12,
-                    'text-[22px]': textInputValue.length >= 12 && textInputValue.length < 15,
-                    'text-[20px]': textInputValue.length >= 15 && textInputValue.length < 18,
-                    'text-[18px]': textInputValue.length >= 18,
+                    'opacity-50 pointer-events-none': switchToUSDDisabled,
                   },
                 )}
-                placeholder={'0'}
-                value={isInputInUSDC ? textInputValue : value}
-                onChange={(e) => setTextInputValue(e.target.value)}
-              />
+              >
+                <ArrowsLeftRight size={20} className='!leading-[12px] rotate-90 p-1' />
+              </button>
             </div>
 
-            <button
-              className={classNames(
-                'flex justify-end items-center gap-2 shrink-0 py-1 px-1.5 rounded-[40px] bg-secondary-300 hover:bg-secondary-400',
-              )}
-              onClick={onTokenSelectSheet}
-            >
-              <div className='relative w-[24px] h-[24px] shrink-0'>
-                <img
-                  src={token?.img ?? defaultTokenLogo}
-                  className='w-[24px] h-[24px] rounded-full'
-                  onError={imgOnError(defaultTokenLogo)}
-                />
-                {tokenHolderChain && (
-                  <img
-                    src={tokenHolderChain.chainSymbolImageUrl}
-                    className='w-[10px] h-[10px] bg-secondary-200 rounded-full absolute -bottom-[2px] -right-[2px]'
-                    onError={imgOnError(defaultTokenLogo)}
-                  />
+            <div className='flex justify-end items-center gap-2'>
+              <span className='text-sm font-medium !leading-[18.9px] text-muted-foreground'>
+                {!balanceStatus || balanceStatus === 'success' ? (
+                  balanceAmount
+                ) : (
+                  <Skeleton width={50} />
                 )}
-              </div>
-              <p
-                className={classNames('dark:text-white-100 text-sm font-medium', {
-                  'flex flex-col justify-between items-start text-xs border-r border-gray-800 pl-1 pr-2':
-                    !!selectedChain,
-                })}
-              >
-                {token?.symbol ? sliceWord(token?.symbol ?? '', 4, 4) : 'Select Token'}
-              </p>
-              <CaretDown size={14} className='dark:text-white-100' />
-            </button>
-          </>
-        )}
-      </div>
-
-      <div className='flex flex-row items-center justify-between max-[399px]:!items-start text-gray-400 text-sm font-normal w-full min-h-[22px] mt-1'>
-        <div className='flex items-center gap-1'>
-          <span className='text-muted-foreground font-normal text-sm !leading-[22.4px]'>
-            {value === ''
-              ? isInputInUSDC
-                ? '0.00'
-                : '$0.00'
-              : isInputInUSDC
-              ? formattedInputValue
-              : formattedDollarAmount}
-          </span>
-
-          <button
-            disabled={switchToUSDDisabled}
-            onClick={handleInputTypeSwitchClick}
-            className={classNames(
-              'rounded-full h-[22px] bg-secondary-200 hover:bg-secondary-300 items-center flex gap-1 justify-center shrink-0 text-gray-600 dark:text-gray-400 dark:hover:text-white-100 hover:text-black-100',
-              {
-                'opacity-50 pointer-events-none': switchToUSDDisabled,
-              },
-            )}
-          >
-            <ArrowsLeftRight size={20} className='!leading-[12px] rotate-90 p-1' />
-          </button>
-        </div>
-
-        <div className='flex justify-end items-center gap-2'>
-          <span className='text-sm font-medium !leading-[18.9px] text-muted-foreground'>
-            {!balanceStatus || balanceStatus === 'success' ? (
-              balanceAmount
-            ) : (
-              <Skeleton width={50} />
-            )}
-          </span>
-          {!balanceStatus || balanceStatus === 'success' ? (
-            <>
-              <button
-                onClick={onHalfBtnClick}
-                className='rounded-full bg-secondary-200 px-[6px] font-medium text-xs hover:bg-secondary-300 dark:hover:text-white-100 hover:text-black-100 !leading-[19.2px] text-muted-foreground'
-              >
-                50%
-              </button>
-              <button
-                onClick={onMaxBtnClick}
-                className='rounded-full bg-secondary-200 px-[6px] font-medium text-xs hover:bg-secondary-300 dark:hover:text-white-100 hover:text-black-100 !leading-[19.2px] text-muted-foreground'
-              >
-                Max
-              </button>
-            </>
+              </span>
+              {!balanceStatus || balanceStatus === 'success' ? (
+                <>
+                  <button
+                    onClick={onHalfBtnClick}
+                    className='rounded-full bg-secondary-200 px-[6px] font-medium text-xs hover:bg-secondary-300 dark:hover:text-white-100 hover:text-black-100 !leading-[19.2px] text-muted-foreground'
+                  >
+                    50%
+                  </button>
+                  <button
+                    onClick={onMaxBtnClick}
+                    className='rounded-full bg-secondary-200 px-[6px] font-medium text-xs hover:bg-secondary-300 dark:hover:text-white-100 hover:text-black-100 !leading-[19.2px] text-muted-foreground'
+                  >
+                    Max
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+          {!isIBCError && addressError && selectedAddress ? (
+            <div className='text-left text-xs text-destructive-100 font-medium !leading-[16px]'>
+              You can only send {selectedToken?.symbol} on {sendChainEcosystem}.
+            </div>
           ) : null}
         </div>
+        <ErrorWarningTokenCard />
       </div>
-    </div>
+    </>
   )
 }
 

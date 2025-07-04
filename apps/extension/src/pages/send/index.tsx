@@ -1,6 +1,5 @@
 import {
-  capitalize,
-  sliceAddress,
+  getKeyToUseForDenoms,
   useActiveChain,
   useActiveWallet,
   useAddressPrefixes,
@@ -11,39 +10,34 @@ import {
 import {
   getBlockChainFromAddress,
   isAptosAddress,
-  isAptosChain,
   isEthAddress,
   isSolanaAddress,
-  isSolanaChain,
-  isSuiChain,
-  isValidBtcAddress,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
-import { isBitcoinChain } from '@leapwallet/cosmos-wallet-store'
+import { Token } from '@leapwallet/cosmos-wallet-store'
 import {
   Asset,
   SkipDestinationChain,
   useSkipDestinationChains,
   useSkipSupportedChains,
 } from '@leapwallet/elements-hooks'
-import { PencilSimple } from '@phosphor-icons/react'
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr'
 import { bech32 } from 'bech32'
+import { BigNumber } from 'bignumber.js'
 import { WalletButtonV2 } from 'components/button'
 import { PageHeader } from 'components/header/PageHeaderV2'
-import Text from 'components/text'
-import { PageName } from 'config/analytics'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useWalletInfo } from 'hooks'
-import { usePageView } from 'hooks/analytics/usePageView'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
-import { Images } from 'images'
+import { useSelectedNetwork } from 'hooks/settings/useNetwork'
+import useQuery from 'hooks/useQuery'
 import { observer } from 'mobx-react-lite'
 import SelectWallet from 'pages/home/SelectWallet/v2'
 import TxPage, { TxType } from 'pages/nfts/send-nft/TxPage'
-import { isValidSuiAddress } from 'pages/send-v2/hooks/useCheckAddressError'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { evmBalanceStore } from 'stores/balance-store'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { chainFeatureFlagsStore, evmBalanceStore } from 'stores/balance-store'
+import { chainInfoStore } from 'stores/chain-infos-store'
 import {
   rootCW20DenomsStore,
   rootDenomsStore,
@@ -51,12 +45,15 @@ import {
 } from 'stores/denoms-store-instance'
 import { manageChainsStore } from 'stores/manage-chains-store'
 import { rootBalanceStore } from 'stores/root-store'
+import { AggregatedSupportedChain } from 'types/utility'
 import { AddressBook } from 'utils/addressbook'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
 
 import { AmountCard } from './components/amount-card'
-import { ErrorChannel, ErrorWarning } from './components/error-warning'
+import { SelectTokenSheet } from './components/amount-card/select-token-sheet'
+import { ErrorChannel } from './components/error-warning'
 import { Memo } from './components/memo'
+import RecipientCard from './components/recipient-card'
 import SaveAddressSheet from './components/recipient-card/save-address-sheet'
 import { ReviewTransfer } from './components/review-transfer'
 import { SendContextProvider, useSendContext } from './context'
@@ -71,6 +68,9 @@ const Send = observer(() => {
   const [showSelectWallet, setShowSelectWallet] = useState(false)
   const [showSelectRecipient, setShowSelectRecipient] = useState(false)
   const { walletAvatar, walletName } = useWalletInfo()
+  const locationState = useLocation().state
+  const activeChain = useActiveChain()
+  const [amount, setAmount] = useState('')
   const {
     selectedAddress,
     setSelectedAddress,
@@ -84,13 +84,22 @@ const Send = observer(() => {
     setSelectedChain,
     sendSelectedNetwork,
     selectedChain,
+    setGasError,
     setInputAmount,
+    setFeeDenom,
+    setSelectedToken,
   } = useSendContext()
+
+  const assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
+  const chainId = useQuery().get('chainId') ?? undefined
   const [showTxPage, setShowTxPage] = useState(false)
   const [isAddContactSheetVisible, setIsAddContactSheetVisible] = useState(false)
+  const [showTokenSelectSheet, setShowTokenSelectSheet] = useState<boolean>(!assetCoinDenom)
   const [selectedContact, setSelectedContact] = useState<AddressBook.SavedAddress | undefined>()
+  const [inputInProgress, setInputInProgress] = useState<boolean>(false)
   const [resetForm, setResetForm] = useState(false)
-  const activeChain = useActiveChain()
+
+  const chainInfos = chainInfoStore.chainInfos
 
   usePerformanceMonitor({
     page: 'send',
@@ -102,18 +111,19 @@ const Send = observer(() => {
   const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
 
   const handleCloseRecipientSheet = useCallback(() => {
-    if (!selectedAddress) {
-      navigate(-1)
-    } else {
-      setShowSelectRecipient(false)
-    }
-  }, [navigate, selectedAddress])
+    setShowSelectRecipient(false)
+  }, [])
 
-  useEffect(() => {
-    if (!selectedAddress) {
-      setShowSelectRecipient(true)
-    }
-  }, [selectedAddress])
+  const handleCloseTokenSelectSheet = useCallback(
+    (isTokenSelected?: boolean) => {
+      if (!selectedToken && !isTokenSelected) {
+        navigate(-1)
+      } else {
+        setShowTokenSelectSheet(false)
+      }
+    },
+    [navigate, selectedToken],
+  )
 
   const editContact = (savedAddress?: AddressBook.SavedAddress) => {
     if (savedAddress) {
@@ -127,7 +137,11 @@ const Send = observer(() => {
   const activeWallet = useActiveWallet()
 
   const { data: elementsChains } = useSkipSupportedChains({ chainTypes: ['cosmos'] })
+  const { getAggregatedSpendableBalances } = rootBalanceStore
+  const evmBalance = evmBalanceStore.evmBalance
   const { data: featureFlags } = useFeatureFlags()
+  const selectedNetwork = useSelectedNetwork()
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   const activeChainInfo = chains[sendActiveChain]
 
@@ -198,6 +212,13 @@ const Send = observer(() => {
     return chains[destinationChainKey]
   }, [addressPrefixes, chains, selectedAddress?.address])
 
+  const allAssets = rootBalanceStore.getAggregatedSpendableBalances(selectedNetwork)
+  const assets = useMemo(() => {
+    const _assets = allAssets
+
+    return _assets.sort((a, b) => Number(b.usdValue) - Number(a.usdValue))
+  }, [allAssets])
+
   useCheckIbcTransfer({
     sendActiveChain,
     selectedAddress,
@@ -205,7 +226,6 @@ const Send = observer(() => {
     isIbcUnwindingDisabled,
     skipSupportedDestinationChainsIDs,
     selectedToken,
-
     setAddressError,
     manageChainsStore,
   })
@@ -255,96 +275,6 @@ const Send = observer(() => {
   ])
 
   useEffect(() => {
-    if (!selectedAddress?.address) {
-      return
-    }
-
-    /**
-     * Bitcoin address validation
-     */
-    if (isBitcoinChain(sendActiveChain)) {
-      if (
-        !isValidBtcAddress(
-          selectedAddress.address,
-          sendSelectedNetwork === 'mainnet' ? 'mainnet' : 'testnet',
-        )
-      ) {
-        setAddressError('The entered address is invalid')
-      } else {
-        setAddressError(undefined)
-      }
-      return
-    }
-
-    /**
-     * EVM address validation
-     */
-    if (activeChainInfo?.evmOnlyChain) {
-      if (
-        !isEthAddress(selectedAddress.address) &&
-        !isEthAddress(selectedAddress?.ethAddress ?? '')
-      ) {
-        setAddressError('The entered address is invalid')
-      } else {
-        setAddressError(undefined)
-      }
-      return
-    }
-
-    /**
-     * Move/Aptos address validation
-     */
-    if (isAptosChain(sendActiveChain)) {
-      if (!isAptosAddress(selectedAddress.address)) {
-        setAddressError('The entered address is invalid')
-      } else {
-        setAddressError(undefined)
-      }
-      return
-    }
-
-    /**
-     * Sui address validation
-     */
-    if (isSuiChain(sendActiveChain)) {
-      if (!isValidSuiAddress(selectedAddress.address)) {
-        setAddressError('The entered address is invalid')
-      } else {
-        setAddressError(undefined)
-      }
-      return
-    }
-
-    /**
-     * Solana address validation
-     */
-    if (isSolanaChain(sendActiveChain)) {
-      if (!isSolanaAddress(selectedAddress.address)) {
-        setAddressError('The entered address is invalid')
-      } else {
-        setAddressError(undefined)
-      }
-      return
-    }
-
-    setAddressError(undefined)
-    // TODO: Add this. but also allow for hex addresses in some chains case
-    // /**
-    //  * Cosmos address validation
-    //  */
-    // if (
-    //   !selectedAddress.address?.startsWith('bc1q') &&
-    //   !selectedAddress.address?.startsWith('tb1q') &&
-    //   !isValidAddress(selectedAddress.address)
-    // ) {
-    //   setAddressError('The entered address is invalid')
-    // } else {
-    //   setAddressError(undefined)
-    // }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAddress?.address, sendActiveChain, sendSelectedNetwork, activeChainInfo])
-
-  useEffect(() => {
     if (
       selectedToken &&
       selectedToken.tokenBalanceOnChain &&
@@ -354,13 +284,98 @@ const Send = observer(() => {
     }
   }, [selectedToken, sendActiveChain])
 
+  const updateSelectedToken = useCallback(
+    (token: Token | null) => {
+      setSelectedToken(token)
+      setSelectedChain(token?.tokenBalanceOnChain || null)
+
+      if (token && token?.isEvm) {
+        setFeeDenom({
+          coinMinimalDenom: token.coinMinimalDenom,
+          coinDecimals: token.coinDecimals ?? 6,
+          coinDenom: token.symbol,
+          icon: token.img,
+          coinGeckoId: token.coinGeckoId ?? '',
+          chain: token.chain ?? '',
+        })
+      }
+
+      if (token && (activeChain as AggregatedSupportedChain) === AGGREGATED_CHAIN_KEY) {
+        const _token =
+          Object.values(
+            chainInfos[token.tokenBalanceOnChain as SupportedChain]?.nativeDenoms,
+          )?.[0] || token
+
+        setFeeDenom({
+          coinMinimalDenom: _token.coinMinimalDenom,
+          coinDecimals: _token.coinDecimals ?? 6,
+          coinDenom: _token.coinDenom || token.symbol,
+          icon: _token.icon || token.img,
+          coinGeckoId: _token.coinGeckoId ?? '',
+          chain: _token.chain ?? '',
+        })
+      }
+    },
+    [setSelectedToken, activeChain, setSelectedChain, setFeeDenom, chainInfos],
+  )
+
+  const isTokenStatusSuccess = useMemo(() => {
+    let status = isAllAssetsLoading === false
+    const addEvmDetails = chainInfos?.[sendActiveChain]?.evmOnlyChain ?? false
+
+    if (addEvmDetails) {
+      status = status && evmBalance.status === 'success'
+    }
+    return status
+  }, [chainInfos, evmBalance.status, isAllAssetsLoading, sendActiveChain])
+
+  useEffect(() => {
+    if (!selectedToken && !assetCoinDenom && isTokenStatusSuccess) {
+      if (locationState && (locationState as Token).coinMinimalDenom) {
+        const token = locationState as Token
+        updateSelectedToken(token)
+      }
+    }
+  }, [
+    assets,
+    locationState,
+    isTokenStatusSuccess,
+    selectedToken,
+    updateSelectedToken,
+    assetCoinDenom,
+    selectedChain,
+  ])
+
+  useEffect(() => {
+    if (assetCoinDenom) {
+      const tokenFromParams: Token | null =
+        assets.find((asset) => {
+          if (assetCoinDenom?.startsWith('ibc/')) {
+            return asset.ibcDenom === assetCoinDenom
+          }
+          if (
+            getKeyToUseForDenoms(asset.ibcDenom || asset.coinMinimalDenom, asset.chain || '') ===
+            getKeyToUseForDenoms(assetCoinDenom, chainId || '')
+          ) {
+            return true
+          }
+          return false
+        }) || null
+      updateSelectedToken(tokenFromParams)
+    } else if (chainId) {
+      const tokenFromParams: Token | null =
+        assets.find((asset) => new BigNumber(asset.amount).gt(0)) || null
+      updateSelectedToken(tokenFromParams)
+    }
+  }, [chainId, assetCoinDenom, activeChain, assets, updateSelectedToken])
+
   const isNotIBCError = addressError
     ? !addressError.includes('IBC transfers are not supported')
     : false
 
   return (
     <>
-      {selectedAddress ? (
+      {selectedToken ? (
         <>
           <PageHeader>
             <ArrowLeft
@@ -389,86 +404,26 @@ const Send = observer(() => {
               rootERC20DenomsStore={rootERC20DenomsStore}
               evmBalanceStore={evmBalanceStore}
               resetForm={resetForm}
+              setShowTokenSelectSheet={setShowTokenSelectSheet}
+              isTokenStatusSuccess={isTokenStatusSuccess}
+              setAmount={setAmount}
+              amount={amount}
             />
-            <div className=' bg-secondary-100 rounded-xl mx-6'>
-              <div className='w-full p-5 flex flex-col gap-4'>
-                <div className='flex justify-between items-center w-full'>
-                  <p className='text-muted-foreground text-sm font-medium !leading-[22.4px]'>
-                    Recipient
-                  </p>
-                  {isIBCTransfer && sendSelectedNetwork === 'mainnet' && destChainInfo ? (
-                    <div className='flex w-fit gap-0.5 py-0.5 px-[10px] bg-[#0A84FF] rounded-3xl items-center'>
-                      <Images.Misc.IbcProtocol color='#fff' />
-                      <Text
-                        size='xs'
-                        color='text-white-100'
-                        className='whitespace-nowrap font-medium'
-                      >
-                        IBC Transfer
-                      </Text>
-                    </div>
-                  ) : null}
-                </div>
-                <div className='flex justify-between items-center w-full'>
-                  <div className='flex gap-4 items-center'>
-                    <img
-                      className='h-11 w-11 rounded-full'
-                      src={selectedAddress.avatarIcon || Images.Misc.getWalletIconAtIndex(0)}
-                    />
-
-                    <div className='flex flex-col gap-1'>
-                      <p className='font-bold text-left text-monochrome text-sm'>
-                        {selectedAddress?.name
-                          ? capitalize(selectedAddress.name)
-                          : sliceAddress(
-                              selectedAddress?.ethAddress
-                                ? selectedAddress.ethAddress
-                                : selectedAddress?.address,
-                            )}
-                      </p>
-                      {selectedAddress?.name ? (
-                        <p className='text-sm text-muted-foreground'>
-                          {sliceAddress(
-                            selectedAddress?.ethAddress
-                              ? selectedAddress.ethAddress
-                              : selectedAddress?.address,
-                          )}
-                        </p>
-                      ) : (
-                        <div
-                          className='bg-secondary-200 hover:bg-secondary-300 text-xs text-muted-foreground hover:text-monochrome rounded-full py-0.5 pl-1.5 pr-2 cursor-pointer'
-                          onClick={() => {
-                            setSelectedContact({
-                              address:
-                                selectedAddress?.ethAddress || selectedAddress?.address || '',
-                              name: '',
-                              emoji: 0,
-                              blockchain: activeChain,
-                              ethAddress: selectedAddress?.ethAddress || '',
-                            })
-                            setIsAddContactSheetVisible(true)
-                          }}
-                        >
-                          + Add to contacts
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <PencilSimple
-                    size={32}
-                    weight='fill'
-                    className='bg-secondary-300 rounded-full p-2 text-monochrome cursor-pointer'
-                    onClick={() => {
-                      setAddressError(undefined)
-                      setSelectedAddress(null)
-                      setShowSelectRecipient(true)
-                    }}
-                  />
-                </div>
-              </div>
-              <ErrorWarning />
-            </div>
+            <RecipientCard
+              ref={inputRef}
+              isIBCTransfer={isIBCTransfer}
+              sendSelectedNetwork={sendSelectedNetwork}
+              destChainInfo={destChainInfo}
+              selectedAddress={selectedAddress}
+              activeChain={activeChain}
+              setSelectedContact={setSelectedContact}
+              setShowSelectRecipient={setShowSelectRecipient}
+              setIsAddContactSheetVisible={setIsAddContactSheetVisible}
+              setInputInProgress={setInputInProgress}
+              inputInProgress={inputInProgress}
+              chainInfoStore={chainInfoStore}
+              chainFeatureFlagsStore={chainFeatureFlagsStore}
+            />
             <Memo />
             <div className='mx-6'>
               <ErrorChannel />
@@ -481,8 +436,11 @@ const Send = observer(() => {
       ) : null}
 
       <SelectRecipientSheet
-        isOpen={showSelectRecipient && !selectedAddress && !isAddContactSheetVisible}
+        isOpen={showSelectRecipient && !isAddContactSheetVisible}
         onClose={handleCloseRecipientSheet}
+        postSelectRecipient={() => {
+          setInputInProgress(false)
+        }}
         editContact={editContact}
       />
 
@@ -520,6 +478,20 @@ const Send = observer(() => {
         sendActiveChain={activeChain}
         title={selectedContact ? 'Edit Contact' : 'Add Contact'}
         showDeleteBtn={!!selectedContact}
+      />
+
+      <SelectTokenSheet
+        denoms={rootDenomsStore.allDenoms}
+        isOpen={showTokenSelectSheet}
+        assets={assets}
+        selectedToken={selectedToken}
+        onClose={handleCloseTokenSelectSheet}
+        onTokenSelect={(token) => {
+          updateSelectedToken(token)
+          setGasError('')
+          setAmount('')
+          inputRef.current?.focus()
+        }}
       />
     </>
   )

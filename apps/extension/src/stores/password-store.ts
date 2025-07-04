@@ -30,6 +30,14 @@ export class AutoLockTimeStore {
 
   constructor() {
     makeAutoObservable(this)
+    this.init()
+  }
+
+  async init() {
+    const time = await browser.storage.local.get(AUTO_LOCK_TIME)
+    if (time) {
+      this.time = time[AUTO_LOCK_TIME]
+    }
   }
 
   setLockTime(time: TimerLockPeriodKey) {

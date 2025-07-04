@@ -4,7 +4,6 @@ import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { CaretLeft, CaretRight, MagnifyingGlassMinus, Plus } from '@phosphor-icons/react'
 import classNames from 'classnames'
-import { EmptyCard } from 'components/empty-card'
 import BottomModal from 'components/new-bottom-modal'
 import { SearchInput } from 'components/ui/input/search-input'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
@@ -345,6 +344,7 @@ export const ListChains = observer(
       window.addEventListener('resize', updateCarets)
 
       return () => {
+        setSearchedChain('')
         el.removeEventListener('scroll', updateCarets)
         window.removeEventListener('resize', updateCarets)
       }
@@ -534,12 +534,12 @@ const SelectChain = observer(
     const [searchedChain, setSearchedChain] = useState('')
     const [isAddChainOpen, setIsAddChainOpen] = useState<boolean>(false)
 
-    const onChainSelect = (chainName: AggregatedSupportedChain) => {
+    const onChainSelect = async (chainName: AggregatedSupportedChain) => {
       if (onChainSelectProp) {
         onChainSelectProp(chainName)
         return
       }
-      setActiveChain(chainName)
+      await setActiveChain(chainName)
       if (pathname !== '/home') {
         navigate('/home')
       }

@@ -136,6 +136,8 @@ export const nativeFeeDenoms: FeeDenoms = {
     solana: 'lamports',
     sui: 'mist',
     fogo: 'fogo-native',
+    xrpl: 'axrp',
+    citrea: 'citrea-native',
   },
   testnet: {
     akash: 'uakt',
@@ -267,5 +269,7 @@ export const nativeFeeDenoms: FeeDenoms = {
     solana: 'lamports',
     sui: 'mist',
     fogo: 'fogo-native',
+    xrpl: 'axrp',
+    citrea: 'citrea-native',
   },
 };

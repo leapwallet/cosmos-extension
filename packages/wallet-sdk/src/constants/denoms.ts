@@ -18,6 +18,15 @@ export type NativeDenom = {
 export type Denoms = Record<SupportedDenoms, NativeDenom>;
 
 export const denoms: DenomsRecord = {
+  axrp: {
+    name: 'XRP',
+    coinDenom: 'XRP',
+    coinMinimalDenom: 'axrp',
+    coinDecimals: 18,
+    coinGeckoId: '',
+    icon: 'https://assets.leapwallet.io/xrplevm.svg',
+    chain: 'xrpl',
+  },
   'evm/6ed1637781269560b204c27Cd42d95e057C4BE44': {
     name: 'INIT',
     coinDenom: 'INIT',
@@ -404,6 +413,14 @@ export const denoms: DenomsRecord = {
     icon: 'https://assets.leapwallet.io/berachain.svg',
     chain: 'berachain',
     coinGeckoId: 'berachain-bera',
+  },
+  'citrea-native': {
+    coinDenom: 'cBTC',
+    coinDecimals: 18,
+    coinMinimalDenom: 'citrea-native',
+    icon: 'https://assets.leapwallet.io/citrea.png',
+    chain: 'citrea',
+    coinGeckoId: '',
   },
   'hyperEVM-native': {
     coinDenom: 'HYPE',

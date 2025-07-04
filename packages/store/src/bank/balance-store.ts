@@ -1,8 +1,9 @@
 import { denoms as ConstantDenoms, DenomsRecord, isBabylon, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { getIsCompass } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
 import { computed, makeAutoObservable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
-import { AggregatedSupportedChainType, SelectedNetworkType } from 'types';
+import { AggregatedSupportedChainType, SelectedNetworkType, StorageAdapter } from 'types';
 
 import {
   AggregatedChainsStore,
@@ -14,6 +15,7 @@ import {
   NmsStore,
   RootDenomsStore,
 } from '../assets';
+import { getAppType } from '../globals/config';
 import { StakeEpochStore } from '../stake/epoch-store';
 import { getNativeDenom, isBitcoinChain } from '../utils';
 import { fromSmall } from '../utils/balance-converter';
@@ -51,10 +53,25 @@ export class BalanceStore {
   rawBalances: any = {};
   rawBalanceStores: Record<string, RawBalanceStore | BabylonBalanceStore> = {};
   rawSpendableBalanceStores: Record<string, RawBalanceStore | BabylonBalanceStore> = {};
+  useCelestiaBalanceStore: boolean = false;
 
   displayedAssets: Array<Token> = [];
   aggregateBalanceVisible: boolean = false;
   chainsWithoutSpendableBalance: Array<SupportedChain> = ['thorchain'];
+  storageAdapter: StorageAdapter;
+  chainCustomBalanceStore?: Record<
+    SupportedChain,
+    {
+      BalanceStoreClass: (
+        restUrl: string,
+        address: string,
+        chain: SupportedChain,
+        type: 'balances' | 'spendable_balances',
+        paginationLimit: number,
+        pubkey: string,
+      ) => RawBalanceStore;
+    }
+  >;
 
   epochStore: StakeEpochStore;
 
@@ -72,6 +89,20 @@ export class BalanceStore {
     balanceAPIStore: BalanceAPIStore,
     currencyStore: CurrencyStore,
     coingeckoIdsStore: CoingeckoIdsStore,
+    storageAdapter: StorageAdapter,
+    chainCustomBalanceStore?: Record<
+      string,
+      {
+        BalanceStoreClass: (
+          restUrl: string,
+          address: string,
+          chain: SupportedChain,
+          type: 'balances' | 'spendable_balances',
+          paginationLimit: number,
+          pubkey: string,
+        ) => RawBalanceStore;
+      }
+    >,
   ) {
     makeAutoObservable(this, {
       totalFiatValue: computed,
@@ -93,6 +124,10 @@ export class BalanceStore {
     this.balanceAPIStore = balanceAPIStore;
     this.currencyStore = currencyStore;
     this.coingeckoIdsStore = coingeckoIdsStore;
+    this.storageAdapter = storageAdapter;
+    this.chainCustomBalanceStore = chainCustomBalanceStore;
+
+    this.initCelestiaBalanceStore();
   }
 
   getBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
@@ -146,6 +181,25 @@ export class BalanceStore {
     return this.chainWiseStates?.[balanceKey] !== null && this.chainWiseStates?.[balanceKey] !== 'error';
   }
 
+  async initCelestiaBalanceStore() {
+    const useCelestiaBalanceStore = await this.storageAdapter.get('useCelestiaBalanceStore');
+    await this.setUseCelestiaBalanceStore(useCelestiaBalanceStore === 'true');
+  }
+
+  async setUseCelestiaBalanceStore(v: boolean) {
+    runInAction(() => {
+      this.useCelestiaBalanceStore = v;
+      this.storageAdapter.set('useCelestiaBalanceStore', this.useCelestiaBalanceStore ? 'true' : 'false');
+      this.fetchChainBalance(
+        'celestia',
+        this.selectedNetworkStore.selectedNetwork,
+        this.addressStore.addresses['celestia'],
+        false,
+        v ? true : false,
+      );
+    });
+  }
+
   async initialize() {
     await Promise.all([
       this.addressStore.readyPromise,
@@ -193,8 +247,8 @@ export class BalanceStore {
     const network = _network || this.selectedNetworkStore.selectedNetwork;
     const chainId =
       network === 'testnet'
-        ? this.chainInfosStore.chainInfos[chain].testnetChainId
-        : this.chainInfosStore.chainInfos[chain].chainId;
+        ? this.chainInfosStore.chainInfos?.[chain]?.testnetChainId
+        : this.chainInfosStore.chainInfos?.[chain]?.chainId;
 
     if (!chainId) return;
 
@@ -264,7 +318,52 @@ export class BalanceStore {
         throw new Error('No rest url found');
       }
 
-      if (!['aptos'].includes(chain) && !isBabylon(chain) && !this.rawBalanceStores[balanceKey]) {
+      const cosmosChain = !['aptos'].includes(chain) && !isBabylon(chain);
+
+      if (
+        cosmosChain &&
+        this.useCelestiaBalanceStore &&
+        this.chainCustomBalanceStore?.[chain] &&
+        !this.rawBalanceStores[balanceKey]
+      ) {
+        const balanceStoreClass = this.chainCustomBalanceStore[chain].BalanceStoreClass;
+        const pubkey = this.addressStore.pubKeys[chain];
+
+        const grpcUrl =
+          getAppType() !== 'mobile' ? this.nmsStore.grpcWebEndpoints[chainId] : this.nmsStore.grpcEndpoints[chainId];
+        this.rawBalanceStores[balanceKey] = balanceStoreClass(
+          grpcUrl[0].nodeUrl,
+          address,
+          chain,
+          'balances',
+          100,
+          pubkey,
+        );
+      }
+
+      if (
+        cosmosChain &&
+        this.useCelestiaBalanceStore &&
+        this.chainCustomBalanceStore?.[chain] &&
+        !this.rawSpendableBalanceStores[balanceKey]
+      ) {
+        const balanceStoreClass = this.chainCustomBalanceStore[chain].BalanceStoreClass;
+        const pubkey = this.addressStore.pubKeys[chain];
+        const grpcUrl =
+          getAppType() !== 'mobile' ? this.nmsStore.grpcWebEndpoints[chainId] : this.nmsStore.grpcEndpoints[chainId];
+        this.rawSpendableBalanceStores[balanceKey] = balanceStoreClass(
+          grpcUrl[0].nodeUrl,
+          address,
+          chain,
+          'spendable_balances',
+          100,
+          pubkey,
+        );
+      }
+
+      const skipCelestia = this.useCelestiaBalanceStore && chain === 'celestia';
+
+      if (cosmosChain && !skipCelestia && !this.rawBalanceStores[balanceKey]) {
         await this.chainFeatureFlagsStore.readyPromise;
         const rawBalanceStore = new RawBalanceStore(
           restUrl,
@@ -276,7 +375,7 @@ export class BalanceStore {
         this.rawBalanceStores[balanceKey] = rawBalanceStore;
       }
 
-      if (!['aptos'].includes(chain) && !isBabylon(chain) && !this.rawSpendableBalanceStores[balanceKey]) {
+      if (cosmosChain && !skipCelestia && !this.rawSpendableBalanceStores[balanceKey]) {
         await this.chainFeatureFlagsStore.readyPromise;
         const rawSpendableBalanceStore = new RawBalanceStore(
           restUrl,
@@ -363,8 +462,8 @@ export class BalanceStore {
       this.aggregateBalanceVisible = false;
       return this.fetchAggregatedBalances(_network, refetch);
     }
-
-    return this.fetchChainBalance(chain as SupportedChain, network, address, refetch);
+    const forceUseFallback = chain === 'celestia' ? this.useCelestiaBalanceStore : false;
+    return this.fetchChainBalance(chain as SupportedChain, network, address, refetch, forceUseFallback);
   }
 
   async fetchAggregatedBalances(network: SelectedNetworkType, forceRefetch = false) {
@@ -372,8 +471,15 @@ export class BalanceStore {
 
     const chainWiseAddresses: Partial<Record<SupportedChain, string>> = {};
     const chainsToUseFallbackFor = new Set<SupportedChain>();
+    if (this.useCelestiaBalanceStore) {
+      chainsToUseFallbackFor.add('celestia');
+    }
     await this.aggregatedChainsStore.readyPromise;
-    this.aggregatedChainsStore.aggregatedChainsData.forEach((chain) => {
+    const aggregatedChains = this.aggregatedChainsStore.aggregatedChainsData;
+    aggregatedChains.forEach((chain) => {
+      if (this.useCelestiaBalanceStore && chain === 'celestia') {
+        return;
+      }
       const evmOnlyChain = this.chainInfosStore.chainInfos[chain as SupportedChain]?.evmOnlyChain;
       const aptosChain = this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos');
       const bitcoinChain = isBitcoinChain(chain as SupportedChain);
@@ -433,7 +539,7 @@ export class BalanceStore {
 
     let completedRequests = 0;
 
-    this.aggregatedChainsStore.aggregatedChainsData
+    aggregatedChains
       ?.filter(
         (chain) =>
           (network === 'testnet' ||
@@ -478,7 +584,8 @@ export class BalanceStore {
     const rootDenoms = this.rootDenomsStore.allDenoms;
     const allDenoms: DenomsRecord = { ...ConstantDenoms, ...rootDenoms };
 
-    if (!!process.env.APP?.includes('compass') && balances.length === 0) {
+    const IS_COMPASS = getIsCompass();
+    if (!!IS_COMPASS && balances.length === 0) {
       const nativeDenom = getNativeDenom(chainInfos, chain, network);
       const denomInfo = allDenoms[nativeDenom?.coinMinimalDenom ?? ''] ?? nativeDenom;
 
@@ -548,9 +655,9 @@ export class BalanceStore {
 
           _denom = getKeyToUseForDenoms(trace.baseDenom, String(trace.sourceChainId || trace.originChainId || ''));
           ibcChainInfo = {
-            pretty_name: trace?.originChainId,
+            pretty_name: String(trace.sourceChainId || trace.originChainId || ''),
             icon: '',
-            name: trace?.originChainId,
+            name: String(trace.sourceChainId || trace.originChainId || ''),
             channelId: trace.channelId,
           };
         }
@@ -645,7 +752,10 @@ export class BalanceStore {
   ): string {
     const chainKey = this.getChainKey(chain as SupportedChain, forceNetwork);
     const address = _address ?? this.addressStore.addresses[chain as SupportedChain];
-    const userPreferredCurrency = this.currencyStore.preferredCurrency;
+    const userPreferredCurrency = this.currencyStore?.preferredCurrency;
+    if (chainKey === 'celestia-celestia' && this.useCelestiaBalanceStore) {
+      return `${chainKey}-${address}-${userPreferredCurrency}-celestia-grpc`;
+    }
 
     return `${chainKey}-${address}-${userPreferredCurrency}`;
   }

@@ -54,6 +54,7 @@ export type FeatureFlags = {
   };
   link_evm_address: {
     extension: 'redirect' | 'no-funds' | 'with-funds' | 'disabled';
+    mobile: 'redirect' | 'no-funds' | 'with-funds' | 'disabled';
   };
   ibc: {
     mobile: FeatureFlagState;

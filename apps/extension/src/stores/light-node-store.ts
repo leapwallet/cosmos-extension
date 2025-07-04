@@ -118,9 +118,10 @@ export class LightNodeStore {
     const info = await self.luminaClient.syncerInfo()
     const storedRanges = this.normalizeStoredRanges(info.subjective_head, info.stored_headers)
     const syncedPercentage = this.calculateSyncingPercentage(storedRanges)
-
-    this.syncedPercentage = syncedPercentage
-    this.latestHeader = storedRanges[0].end.toString()
+    runInAction(() => {
+      this.syncedPercentage = syncedPercentage
+      this.latestHeader = storedRanges[0].end.toString()
+    })
   }
 
   async onNodeEvent(event: MessageEvent) {

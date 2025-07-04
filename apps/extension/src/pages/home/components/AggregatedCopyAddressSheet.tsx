@@ -84,16 +84,6 @@ const AggregatedCopyAddressSheet = React.memo(
       )
     }, [walletAvatar, walletName])
 
-    const handleDifferentIconClick = useCallback(
-      (chain: SupportedChain) => {
-        if (walletAddresses[chain].length > 1) {
-          setShowCopyAddressSheet(true)
-          setSelectedChain(chain)
-        }
-      },
-      [walletAddresses],
-    )
-
     const handleCopyAddressSheetClose = useCallback(() => {
       setShowCopyAddressSheet(false)
       setSelectedChain('cosmos')
@@ -136,6 +126,8 @@ const AggregatedCopyAddressSheet = React.memo(
         setTimeout(() => {
           searchInputRef.current?.focus()
         }, 200)
+      } else {
+        setSearchQuery('')
       }
     }, [isVisible])
 

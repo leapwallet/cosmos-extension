@@ -58,14 +58,14 @@ export class FeeDenomsStore {
     }
 
     if (
-      this.chainInfosStore.chainInfos[activeChain].beta &&
-      this.chainInfosStore.chainInfos[activeChain].nativeDenoms
+      this.chainInfosStore.chainInfos?.[activeChain]?.beta &&
+      this.chainInfosStore.chainInfos?.[activeChain]?.nativeDenoms
     ) {
-      const nativeDenom = Object.values(this.chainInfosStore.chainInfos[activeChain].nativeDenoms)[0];
+      const nativeDenom = Object.values(this.chainInfosStore.chainInfos?.[activeChain]?.nativeDenoms ?? {})[0];
       return denoms[nativeDenom.coinMinimalDenom] ?? nativeDenom;
     }
 
-    const fallbackFeeDenom = fallbackFeeDenoms[selectedNetwork][activeChain];
+    const fallbackFeeDenom = fallbackFeeDenoms?.[selectedNetwork]?.[activeChain];
     if (fallbackFeeDenom?.coinMinimalDenom) {
       let denomKey = fallbackFeeDenom.coinMinimalDenom;
       if (activeChain === 'babylon' && denomKey === 'ubbn') {

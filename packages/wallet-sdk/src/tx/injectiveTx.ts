@@ -590,7 +590,7 @@ export class InjectiveTx {
   async signTx(signerAddress: string, msgs: EncodeObject[], fee: StdFee | 'auto' | number, memo = '') {
     try {
       const usedFee = await this.getFees(signerAddress, msgs, fee);
-      if (this.wallet instanceof LeapLedgerSignerEth) {
+      if (this.wallet instanceof LeapLedgerSignerEth || this.wallet?.constructor?.name === 'LeapLedgerSignerEth') {
         const wallet = this.wallet as LeapLedgerSignerEth;
         const { eip712Tx, txRaw } = await this.createEip712Tx(signerAddress, msgs, usedFee, memo);
 
@@ -604,7 +604,7 @@ export class InjectiveTx {
         return txRawEip712;
       }
 
-      if (this.wallet instanceof LeapKeystoneSignerEth || this.wallet.constructor.name === 'LeapKeystoneSignerEth') {
+      if (this.wallet instanceof LeapKeystoneSignerEth || this.wallet?.constructor?.name === 'LeapKeystoneSignerEth') {
         const wallet = this.wallet as LeapKeystoneSignerEth;
         const { eip712Tx, txRaw } = await this.createEip712Tx(signerAddress, msgs, usedFee, memo);
 
@@ -619,7 +619,7 @@ export class InjectiveTx {
       }
       const { txRaw, signBytes, signDoc } = await this.createTx(signerAddress, msgs, usedFee, memo);
 
-      if (!(this.wallet instanceof EthWallet)) {
+      if (!(this.wallet instanceof EthWallet || (this.wallet as any)?.constructor?.name === 'EthWallet')) {
         const _signDoc = createSignDocFromTransaction({
           txRaw,
           chainId: signDoc.chainId,
@@ -747,11 +747,11 @@ export class InjectiveTx {
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     //@ts-ignore
-    const walletAccount = !(this.wallet instanceof EthWallet)
+    const walletAccount = !(this.wallet instanceof EthWallet || this.wallet?.constructor?.name === 'EthWallet')
       ? // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         //@ts-ignore
         await this.wallet.getAccounts(this.chainId)
-      : this.wallet.getAccounts();
+      : await this.wallet.getAccounts();
     const pubkey = walletAccount[0].pubkey;
 
     const signerData: SignerData = {

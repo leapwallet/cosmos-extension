@@ -19,19 +19,27 @@ import { cn } from 'utils/cn'
 
 const NameServiceItemSkeleton = () => {
   return (
-    <div className='flex px-2 py-2 min-w-[344px] z-0'>
-      <div className='w-10 '>
+    <div className='flex w-full z-0'>
+      <Skeleton
+        circle
+        className='w-11 h-11'
+        containerClassName='block !leading-none shrink-0 w-11 h-11'
+      />
+      <div className='w-full z-0 ml-4 flex flex-col gap-1.5 justify-center items-start'>
         <Skeleton
-          circle
-          className='w-10 h-10'
-          style={{
-            zIndex: 0,
-          }}
+          count={1}
+          width={100}
+          height={16}
+          className='z-0'
+          containerClassName='block !leading-none'
         />
-      </div>
-      <div className='w-full z-0 ml-2'>
-        <Skeleton count={1} className='z-0' />
-        <Skeleton count={1} className='z-0' />
+        <Skeleton
+          count={1}
+          width={80}
+          height={16}
+          className='z-0'
+          containerClassName='block !leading-none'
+        />
       </div>
     </div>
   )
@@ -88,7 +96,7 @@ const NameServiceMatchList = ({
         <>
           {resultsList && resultsList.length > 0 ? (
             <>
-              <ul className='list-none space-y-2 mt-2 max-h-[180px] overflow-y-auto'>
+              <ul className='list-none space-y-2 mt-5 max-h-[180px] overflow-y-auto'>
                 {resultsList.map(([nameService, result]) => {
                   const nameServiceImg = Images.Logos.getNameServiceLogo(nameService)
                   if (result && typeof result === 'string') {
@@ -178,19 +186,19 @@ const NameServiceMatchList = ({
               </ul>
 
               {!anyResultsForCurrentChain && activeChain !== 'aggregated' && (
-                <p className='text-sm font-bold text-red-300 mt-2'>
+                <p className='text-sm font-bold text-red-300 mt-1'>
                   No results found for {chains[activeChain]?.chainName || activeChain}
                 </p>
               )}
             </>
           ) : (
-            <p className='text-sm font-bold text-red-300 mt-2'>
+            <p className='text-sm font-bold text-red-300 mt-5'>
               No results found in any name service
             </p>
           )}
         </>
       ) : (
-        <div className='space-y-1'>
+        <div className='mt-5'>
           <NameServiceItemSkeleton />
         </div>
       )}

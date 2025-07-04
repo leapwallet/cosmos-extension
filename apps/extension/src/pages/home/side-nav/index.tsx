@@ -1,43 +1,26 @@
-import { NavCard, SideNavHeader, ThemeName, useTheme } from '@leapwallet/leap-ui'
-import classnames from 'classnames'
-import { AlertStrip } from 'components/alert-strip'
-import { Drawer, DrawerContent } from 'components/ui/drawer'
-import { useChainPageInfo } from 'hooks'
-import { Images } from 'images'
+import { X } from '@phosphor-icons/react'
+import { Button } from 'components/ui/button'
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader } from 'components/ui/drawer'
+import { ExternalLinkIcon } from 'icons/external-link'
+import { HappyFrog } from 'icons/frog'
 import { observer } from 'mobx-react-lite'
-import React, { ReactElement, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { chainTagsStore } from 'stores/chain-infos-store'
+import React, { ReactElement, ReactNode, useCallback, useEffect, useState } from 'react'
 import { globalSheetsStore } from 'stores/global-sheets-store'
-import { Colors } from 'theme/colors'
 import { cn } from 'utils/cn'
 import { isSidePanel } from 'utils/isSidePanel'
 import browser from 'webextension-polyfill'
 
-import ChangeCurrency from './ChangeCurrency'
-import { CustomEndpoints } from './CustomEndpoints'
-import ExportPrivateKey from './ExportPrivateKey'
-import ExportSeedPhrase from './ExportSeedPhrase'
 import { Features } from './Features'
-import { Footer } from './Footer'
 import GeneralSecurity from './GeneralSecurity'
 import LightNodePage from './LightNode'
+import { NavItem } from './NavItem'
 import NetworkDropUp from './Network'
 import { Preferences } from './Preferences'
 import { Resources } from './Resources'
 import { Security } from './Security'
 import SyncWithMobile from './SyncWithMobile'
-import ThemeDropUp from './Theme'
-import { TokenDisplay } from './TokenDisplay'
-
-type InitialFaucetResp = {
-  msg: string
-  status: 'success' | 'fail' | null
-}
-
-const initialFaucetResp: InitialFaucetResp = {
-  msg: '',
-  status: null,
-}
+import { NavPages } from './types'
+import VersionIndicator from './VersionIndicator'
 
 export type SideNavProps = {
   readonly defaults?: {
@@ -45,121 +28,27 @@ export type SideNavProps = {
   }
 }
 
-export enum NavPages {
-  // eslint-disable-next-line no-unused-vars
-  ExportSeedPhrase,
-  // eslint-disable-next-line no-unused-vars
-  ExportPrivateKey,
-  // eslint-disable-next-line no-unused-vars
-  SyncWithMobile,
-  // eslint-disable-next-line no-unused-vars
-  SelectCurrency,
-  // eslint-disable-next-line no-unused-vars
-  SelectTheme,
-  // eslint-disable-next-line no-unused-vars
-  SelectNetwork,
-  // eslint-disable-next-line no-unused-vars
-  ChangeEndpoints,
-  // eslint-disable-next-line no-unused-vars
-  ManageAuthz,
-  // eslint-disable-next-line no-unused-vars
-  LightNode,
-  // eslint-disable-next-line no-unused-vars
-  TokenDisplay,
-}
-
-export function SideNavSectionHeader({ children }: { children: ReactNode }) {
-  return (
-    <div className='w-full font-medium text-muted-foreground !leading-[22px] text-sm'>
-      {children}
-    </div>
-  )
-}
-
-export function SideNavSectionContent({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn('overflow-hidden rounded-2xl bg-secondary-100 py-2 w-full', className)}>
-      {children}
-    </div>
-  )
-}
-
 export const SideNavSection = observer(
   ({ children, className }: { children: ReactNode; className?: string }) => {
     return (
-      <div
-        className={classnames('gap-y-3 flex flex-col justify-start items-start mt-7', className)}
+      <section
+        className={cn(
+          'bg-secondary-100 overflow-hidden rounded-xl flex flex-col justify-start items-start mt-5 first:mt-0',
+          className,
+        )}
       >
         {children}
-      </div>
+      </section>
     )
   },
 )
 
-export function OverflowSideNavSection({ children }: { children: ReactNode }) {
-  return <div className='rounded-2xl mt-4 min-h-fit'>{children}</div>
-}
-
 const SideNav = observer((): ReactElement => {
   const isShown = globalSheetsStore.isSideNavOpen
 
-  const [showGSDropUp, setShowGSDropUp] = useState(false)
-  const [showNetworkDropUp, setShowNetworkDropUp] = useState(false)
-  const [showFaucetResp, setShowFaucetResp] = useState<InitialFaucetResp>(initialFaucetResp)
-  const [showThemeDropUp, setShowThemeDropUp] = useState(false)
   const [showNavPage, setShowNavPage] = useState<NavPages | undefined>()
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const { theme } = useTheme()
-  const isDark = theme === ThemeName.DARK
-  const isInExpandView = browser.extension.getViews({ type: 'tab' }).length > 0
-  const { topChainColor } = useChainPageInfo()
 
-  const getPage = useCallback(() => {
-    switch (showNavPage) {
-      case NavPages.ExportSeedPhrase:
-        return <ExportSeedPhrase goBack={() => setShowNavPage(undefined)} />
-      case NavPages.ExportPrivateKey:
-        return <ExportPrivateKey goBack={() => setShowNavPage(undefined)} />
-      case NavPages.SyncWithMobile:
-        return <SyncWithMobile goBack={() => setShowNavPage(undefined)} />
-      case NavPages.SelectCurrency:
-        return (
-          <div className='overflow-y-scroll min-h-screen max-h-fit'>
-            <ChangeCurrency
-              goBack={() => {
-                setShowNavPage(undefined)
-              }}
-            />
-          </div>
-        )
-      case NavPages.ChangeEndpoints:
-        return (
-          <CustomEndpoints
-            goBack={() => setShowNavPage(undefined)}
-            chainTagsStore={chainTagsStore}
-          />
-        )
-      case NavPages.LightNode:
-        return (
-          <LightNodePage
-            goBack={(toHome?: boolean) => {
-              setShowNavPage(undefined)
-              if (toHome) {
-                globalSheetsStore.toggleSideNav()
-              }
-            }}
-          />
-        )
-      case NavPages.TokenDisplay:
-        return <TokenDisplay goBack={() => setShowNavPage(undefined)} />
-    }
-  }, [showNavPage])
+  const isInExpandView = browser.extension.getViews({ type: 'tab' }).length > 0
 
   const handleExpandView = useCallback(() => {
     const views = browser.extension.getViews({ type: 'popup' })
@@ -170,34 +59,12 @@ const SideNav = observer((): ReactElement => {
     }
   }, [])
 
-  const handleCloseGSDropUp = useCallback(() => {
-    setShowGSDropUp(false)
-  }, [])
-
-  useEffect(() => {
-    if (isShown) {
-      const sideNavParent = containerRef.current?.parentElement
-      let previousScrollTop = 0
-      if (sideNavParent) {
-        previousScrollTop = sideNavParent.scrollTop
-        sideNavParent.style.overflow = 'hidden'
-        containerRef.current?.scrollIntoView()
-      }
-      return () => {
-        if (sideNavParent && previousScrollTop > 0) {
-          sideNavParent.scrollTo(0, previousScrollTop)
-          sideNavParent.style.overflow = 'auto'
-        }
-      }
-    }
-  }, [isShown])
-
   useEffect(() => {
     if (globalSheetsStore.sideNavDefaults?.openLightNodePage) {
       setShowNavPage(NavPages.LightNode)
     }
     if (globalSheetsStore.sideNavDefaults?.openTokenDisplayPage) {
-      setShowNavPage(NavPages.TokenDisplay)
+      setShowNavPage(NavPages.Preferences)
     }
   }, [globalSheetsStore.sideNavDefaults])
 
@@ -209,80 +76,69 @@ const SideNav = observer((): ReactElement => {
     >
       <DrawerContent
         showHandle={false}
-        className={cn(
-          'panel-width panel-height overflow-clip overflow-y-auto rounded-none bg-secondary-50 isolate',
-          showNetworkDropUp || (showThemeDropUp && 'overflow-hidden'),
-        )}
+        className={
+          'panel-width panel-height overflow-clip overflow-y-auto rounded-none bg-secondary-50 isolate'
+        }
       >
-        {showGSDropUp && (
-          <GeneralSecurity goBack={handleCloseGSDropUp} chainTagsStore={chainTagsStore} />
-        )}
-
-        {showNavPage !== undefined && getPage()}
-
-        {showFaucetResp.msg && (
-          <div className='text-center'>
-            <AlertStrip
-              message={showFaucetResp.msg}
-              bgColor={showFaucetResp.status === 'success' ? Colors.green600 : Colors.red300}
-              alwaysShow={false}
-              onHide={() => {
-                setShowFaucetResp(initialFaucetResp)
-              }}
-              className='absolute bottom-[80px] right-7 left-7 rounded-xl w-80 h-auto p-2 z-50'
-              timeOut={6000}
-            />
+        <DrawerHeader className='flex items-center justify-between border-b border-border-bottom/50 px-6 py-4'>
+          <div className='flex items-center gap-2'>
+            <HappyFrog className='size-8' />
+            <h3 className='text-mdl font-bold'>Leap Wallet</h3>
           </div>
-        )}
 
-        {showNavPage === undefined && !showGSDropUp && (
-          <div className='flex flex-col h-full enclosing-panel'>
-            <div className='fixed'>
-              <div className='w-full h-1' style={{ backgroundColor: topChainColor }} />
-              <SideNavHeader
-                brandName=''
-                brandImage={
-                  <img
-                    src={isDark ? Images.Logos.LeapDarkMode : Images.Logos.LeapLightMode}
-                    className={'h-[30px]'}
-                  />
-                }
-                onBackClick={() => globalSheetsStore.toggleSideNav()}
-              />
-            </div>
-            <div className='p-7 mt-[72px] overflow-scroll'>
-              {isInExpandView || isSidePanel() ? null : (
-                <NavCard
-                  property='Expand View'
-                  isRounded
-                  imgSrc={Images.Nav.ExportIcon}
-                  onClick={handleExpandView}
-                />
-              )}
-              <Preferences
-                setShowNavPage={setShowNavPage}
-                isExpandViewVisible={!(isInExpandView || isSidePanel())}
-                containerRef={containerRef}
-                setShowNetworkDropUp={setShowNetworkDropUp}
-                setShowThemeDropUp={setShowThemeDropUp}
-              />
+          <DrawerClose asChild>
+            <Button variant={'ghost'} size={'icon'} className='size-12'>
+              <X weight='bold' size={18} />
+              <span className='sr-only'>close</span>
+            </Button>
+          </DrawerClose>
+        </DrawerHeader>
 
-              <Features />
+        <div className='py-7 px-6 overflow-scroll'>
+          {isInExpandView || isSidePanel() ? null : (
+            <SideNavSection>
+              <NavItem label='Expand View' icon={<ExternalLinkIcon />} onClick={handleExpandView} />
+            </SideNavSection>
+          )}
 
-              <Security setShowNavPage={setShowNavPage} setShowGSDropUp={setShowGSDropUp} />
+          <Features setShowNavPage={setShowNavPage} />
 
-              <Resources />
+          <Security setShowNavPage={setShowNavPage} />
 
-              <Footer />
-            </div>
-          </div>
-        )}
+          <Resources />
+
+          <VersionIndicator />
+        </div>
+
+        <GeneralSecurity
+          isVisible={showNavPage === NavPages.Security}
+          goBack={() => setShowNavPage(undefined)}
+        />
 
         <NetworkDropUp
-          isVisible={showNetworkDropUp}
-          onCloseHandler={() => setShowNetworkDropUp(false)}
+          isVisible={showNavPage === NavPages.Network}
+          goBack={() => setShowNavPage(undefined)}
         />
-        <ThemeDropUp isVisible={showThemeDropUp} onCloseHandler={() => setShowThemeDropUp(false)} />
+
+        <Preferences
+          isVisible={showNavPage === NavPages.Preferences}
+          goBack={() => setShowNavPage(undefined)}
+        />
+
+        <LightNodePage
+          isVisible={showNavPage === NavPages.LightNode}
+          goBack={(toHome?: boolean) => {
+            setShowNavPage(undefined)
+            if (toHome) {
+              globalSheetsStore.toggleSideNav()
+            }
+          }}
+        />
+
+        <SyncWithMobile
+          open={showNavPage === NavPages.SyncWithMobile}
+          goBack={() => setShowNavPage(undefined)}
+        />
       </DrawerContent>
     </Drawer>
   )

@@ -25,6 +25,7 @@ import {
   unDelegationsStore,
   validatorsStore,
 } from './stake-store'
+import { zeroStateTokensStore } from './zero-state-tokens-store'
 
 export const rootStakeStore = new RootStakeStore(
   delegationsStore,
@@ -49,6 +50,7 @@ export const rootBalanceStore = new RootBalanceStore(
   addressStore,
   selectedNetworkStore,
   currencyStore,
+  zeroStateTokensStore,
 )
 
 export const rootStore = new RootStore(

@@ -2,6 +2,7 @@ import { DenomsRecord, getBaseURL, isSolanaChain, SupportedChain } from '@leapwa
 import axios from 'axios';
 import { BigNumber } from 'bignumber.js';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
+import { computedFn } from 'mobx-utils';
 import { SelectedNetworkType } from 'types';
 
 import { ChainInfosStore, CoingeckoIdsStore, RootDenomsStore } from '../assets';
@@ -189,12 +190,24 @@ export class SolanaCoinDataStore {
   get totalFiatValue() {
     let totalFiatValue = new BigNumber(0);
     const balances = this.balances;
-
+    let hasAnyBalance = false;
     for (const asset of balances) {
       if (asset.usdValue) {
         totalFiatValue = totalFiatValue.plus(new BigNumber(asset.usdValue));
       }
+      if (asset.amount && !new BigNumber(asset.amount).isNaN() && new BigNumber(asset.amount).gt(0)) {
+        hasAnyBalance = true;
+      }
     }
+
+    if (totalFiatValue.gt(0)) {
+      return totalFiatValue;
+    }
+
+    if (hasAnyBalance) {
+      return new BigNumber(NaN);
+    }
+
     return totalFiatValue;
   }
 
@@ -293,10 +306,10 @@ export class SolanaCoinDataStore {
     return sortTokenBalances(tokens);
   }
 
-  getSolanaBalances(chain: SupportedChain, network: SelectedNetworkType) {
+  getSolanaBalances = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
     const balanceKey = this.getBalanceKey(chain, this.addressStore.addresses[chain], network);
     return this.solanaBalances[balanceKey] ?? [];
-  }
+  });
 
   async getData(chain?: SupportedChain, network?: SelectedNetworkType, forceRefetch = false) {
     const currentChain = chain ?? (this.activeChainStore.activeChain as SupportedChain);

@@ -2,7 +2,7 @@ import BottomModal from 'components/new-bottom-modal'
 import { EventName } from 'config/analytics'
 import { PriorityChains } from 'config/constants'
 import mixpanel from 'mixpanel-browser'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
 import { useAllChainsPlaceholder } from '../hooks/useAllChainsPlaceholder'
@@ -38,7 +38,7 @@ export function SelectChainSheet({
 }: SelectChainSheetProps) {
   const [searchedChain, setSearchedChain] = useState('')
   const allChainsPlaceholder = useAllChainsPlaceholder()
-
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const sortedChainsToShow = useMemo(() => {
     const priorityChains: TokenAssociatedChain[] = []
     ;(priorityChainsIds ?? PriorityChains).forEach((chain) => {
@@ -87,6 +87,15 @@ export function SelectChainSheet({
     [destinationAssets, emitMixpanelDropdownCloseEvent, onChainSelect],
   )
 
+  useEffect(() => {
+    if (isOpen) {
+      setSearchedChain('')
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 200)
+    }
+  }, [isOpen])
+
   return (
     <BottomModal
       title={title ?? `Select Chain`}
@@ -100,6 +109,7 @@ export function SelectChainSheet({
       className='p-0'
     >
       <ChainsList
+        ref={searchInputRef}
         onChainSelect={handleOnChainSelect}
         selectedChain={selectedChain}
         selectedToken={selectedToken}

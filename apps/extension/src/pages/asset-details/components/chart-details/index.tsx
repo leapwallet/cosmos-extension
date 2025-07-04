@@ -640,14 +640,18 @@ const TokensDetails = observer(
                       label='Send'
                       icon={UploadIconV2}
                       onClick={() => {
-                        navigate(
-                          `/send?assetCoinDenom=${
-                            portfolio?.ibcDenom || denomInfo?.coinMinimalDenom
-                          }`,
-                          {
-                            state: location.state,
-                          },
+                        const denomKey = getKeyToUseForDenoms(
+                          portfolio?.ibcDenom || denomInfo?.coinMinimalDenom || '',
+                          chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId ?? '',
                         )
+                        const chainId = chainInfos[activeChain]?.chainId
+                        let searchQuery = `assetCoinDenom=${denomKey}`
+                        if (chainId) {
+                          searchQuery += `&chainId=${chainId}`
+                        }
+                        navigate(`/send?${searchQuery}`, {
+                          state: location.state,
+                        })
                       }}
                     />
                     <ClickableIcon

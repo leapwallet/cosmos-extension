@@ -1,4 +1,5 @@
 import {
+  getSourceChannelIdUnsafe,
   SelectedAddress,
   sliceWord,
   Token,
@@ -7,13 +8,21 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   BTC_CHAINS,
+  ChainInfo,
   getBlockChainFromAddress,
   isAptosAddress,
   isAptosChain,
   isEthAddress,
   isSolanaAddress,
+  isSolanaChain,
+  isSuiChain,
+  isValidAddress,
+  isValidBtcAddress,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
+import { isBitcoinChain } from '@leapwallet/cosmos-wallet-store'
+import { SHOW_ETH_ADDRESS_CHAINS } from 'config/constants'
+import { isValidSuiAddress } from 'pages/send-v2/hooks/useCheckAddressError'
 import { useEffect } from 'react'
 import { ManageChainsStore } from 'stores/manage-chains-store'
 
@@ -29,6 +38,27 @@ export type UseCheckIbcTransferParams = {
   manageChainsStore: ManageChainsStore
 }
 
+export const getDefaultChannelId = async (
+  srcChain: SupportedChain,
+  destChain: SupportedChain,
+  chains: Record<SupportedChain, ChainInfo>,
+) => {
+  let defaultChannelId: string | undefined
+  try {
+    const srcChainRegistryPath = chains?.[srcChain]?.chainRegistryPath
+    const destChainRegistryPath = chains?.[destChain]?.chainRegistryPath
+
+    if (!srcChainRegistryPath || !destChainRegistryPath) {
+      return undefined
+    }
+
+    defaultChannelId = await getSourceChannelIdUnsafe(srcChainRegistryPath, destChainRegistryPath)
+  } catch (error) {
+    defaultChannelId = undefined
+  }
+  return defaultChannelId
+}
+
 export function useCheckIbcTransfer({
   sendActiveChain,
   selectedAddress,
@@ -36,7 +66,6 @@ export function useCheckIbcTransfer({
   isIbcUnwindingDisabled,
   skipSupportedDestinationChainsIDs,
   selectedToken,
-
   setAddressError,
   manageChainsStore,
 }: UseCheckIbcTransferParams) {
@@ -48,19 +77,94 @@ export function useCheckIbcTransfer({
   const activeChainInfo = chains[sendActiveChain]
 
   useEffect(() => {
-    let destinationChain: string | undefined
-    let destChainAddrPrefix: string | undefined
-    if (
-      isBtcTx ||
-      isAptosAddress(selectedAddress?.address ?? '') ||
-      isEthAddress(selectedAddress?.address ?? '') ||
-      isSolanaAddress(selectedAddress?.address ?? '')
-    ) {
-      return
-    }
+    async function checkAddressAndIBCTransfer() {
+      if (!selectedAddress?.address || !sendActiveChain || !selectedToken) {
+        return
+      }
 
-    if (selectedAddress?.address) {
-      destChainAddrPrefix = getBlockChainFromAddress(selectedAddress.address)
+      /**
+       * Bitcoin address validation
+       */
+      if (isBitcoinChain(sendActiveChain)) {
+        if (
+          !isValidBtcAddress(
+            selectedAddress.address,
+            sendSelectedNetwork === 'mainnet' ? 'mainnet' : 'testnet',
+          )
+        ) {
+          setAddressError('The entered address is invalid')
+        } else {
+          setAddressError(undefined)
+        }
+        return
+      }
+
+      /**
+       * EVM address validation
+       */
+      if (activeChainInfo?.evmOnlyChain) {
+        if (
+          !isEthAddress(selectedAddress.address) ||
+          !isEthAddress(selectedAddress?.ethAddress ?? '')
+        ) {
+          setAddressError('The entered address is invalid')
+        } else {
+          setAddressError(undefined)
+        }
+        return
+      }
+
+      /**
+       * Move/Aptos address validation
+       */
+      if (isAptosChain(sendActiveChain)) {
+        if (!isAptosAddress(selectedAddress.address)) {
+          setAddressError('The entered address is invalid')
+        } else {
+          setAddressError(undefined)
+        }
+        return
+      }
+
+      /**
+       * Sui address validation
+       */
+      if (isSuiChain(sendActiveChain)) {
+        if (!isValidSuiAddress(selectedAddress.address)) {
+          setAddressError('The entered address is invalid')
+        } else {
+          setAddressError(undefined)
+        }
+        return
+      }
+
+      /**
+       * Solana address validation
+       */
+      if (isSolanaChain(sendActiveChain)) {
+        if (!isSolanaAddress(selectedAddress.address)) {
+          setAddressError('The entered address is invalid')
+        } else {
+          setAddressError(undefined)
+        }
+        return
+      }
+
+      /**
+       * Cosmos address validation
+       */
+      if (
+        selectedAddress.address?.startsWith('bc1q') ||
+        selectedAddress.address?.startsWith('tb1q') ||
+        (!isValidAddress(selectedAddress.address) &&
+          (!SHOW_ETH_ADDRESS_CHAINS.includes(sendActiveChain) ||
+            !isEthAddress(selectedAddress?.ethAddress || selectedAddress.address)))
+      ) {
+        setAddressError('The entered address is invalid')
+      }
+
+      let destinationChain: string | undefined
+      const destChainAddrPrefix = getBlockChainFromAddress(selectedAddress.address)
 
       if (!destChainAddrPrefix) {
         setAddressError('The entered address is invalid')
@@ -68,54 +172,60 @@ export function useCheckIbcTransfer({
       } else {
         destinationChain = addressPrefixes[destChainAddrPrefix]
       }
-    } else {
-      return
-    }
 
-    const isIBC =
-      destChainAddrPrefix && destChainAddrPrefix !== chains[sendActiveChain].addressPrefix
+      const isIBC =
+        destChainAddrPrefix && destChainAddrPrefix !== chains[sendActiveChain].addressPrefix
 
-    if (!isIBC) {
-      setAddressError(undefined)
-      return
-    }
+      if (!isIBC) {
+        setAddressError(undefined)
+        return
+      }
 
-    // ibc not supported on testnet
-    if (isIBC && sendSelectedNetwork === 'testnet') {
-      setAddressError(`IBC transfers are not supported on testnet.`)
-      return
-    }
+      // ibc not supported on testnet
+      if (isIBC && sendSelectedNetwork === 'testnet') {
+        setAddressError(`IBC transfers are not supported on testnet.`)
+        return
+      }
 
-    // check if destination chain is supported
-    if (
-      !isIbcUnwindingDisabled &&
-      chains[destinationChain as SupportedChain]?.apiStatus === false
-    ) {
-      setAddressError(
-        `IBC transfers are not supported between ${
-          chains[destinationChain as SupportedChain]?.chainName || 'this address'
-        } and ${activeChainInfo.chainName}.`,
+      // check if destination chain is supported
+      if (
+        !isIbcUnwindingDisabled &&
+        chains[destinationChain as SupportedChain]?.apiStatus === false
+      ) {
+        setAddressError(
+          `IBC transfers are not supported between ${
+            chains[destinationChain as SupportedChain]?.chainName || 'this address'
+          } and ${activeChainInfo.chainName}.`,
+        )
+        return
+      } else {
+        setAddressError(undefined)
+      }
+
+      const isDestChainReachableViaSkip =
+        skipSupportedDestinationChainsIDs?.length > 0 &&
+        skipSupportedDestinationChainsIDs.includes(
+          chains[destinationChain as SupportedChain]?.chainId,
+        )
+
+      const defaultChannelId = await getDefaultChannelId(
+        sendActiveChain,
+        destinationChain as SupportedChain,
+        chains,
       )
-      return
-    } else {
-      setAddressError(undefined)
+
+      if (!isIbcUnwindingDisabled && !isDestChainReachableViaSkip && !defaultChannelId) {
+        setAddressError(
+          `IBC transfers are not supported between ${
+            chains[destinationChain as SupportedChain]?.chainName || 'this address'
+          } and ${activeChainInfo.chainName} for ${sliceWord(selectedToken?.symbol)} token.`,
+        )
+      } else {
+        setAddressError(undefined)
+      }
     }
 
-    if (
-      !isIbcUnwindingDisabled &&
-      skipSupportedDestinationChainsIDs?.length > 0 &&
-      !skipSupportedDestinationChainsIDs.includes(
-        chains[destinationChain as SupportedChain]?.chainId,
-      )
-    ) {
-      setAddressError(
-        `IBC transfers are not supported between ${
-          chains[destinationChain as SupportedChain]?.chainName || 'this address'
-        } and ${activeChainInfo.chainName} for ${sliceWord(selectedToken?.symbol)} token.`,
-      )
-    } else {
-      setAddressError(undefined)
-    }
+    checkAddressAndIBCTransfer()
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -127,6 +237,7 @@ export function useCheckIbcTransfer({
     manageChainsStore.chains,
     isIbcUnwindingDisabled,
     selectedToken?.symbol,
+    selectedToken?.coinMinimalDenom,
     sendActiveChain,
     sendSelectedNetwork,
     isBtcTx,

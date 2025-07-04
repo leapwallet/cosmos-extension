@@ -110,4 +110,5 @@ export const addressPrefixes: Record<string, SupportedChain | (string & {})> = {
   tb1q: 'bitcoinSignet',
   elys: 'elys',
   bbn: 'mainBabylon',
+  ethm: 'xrpl',
 };

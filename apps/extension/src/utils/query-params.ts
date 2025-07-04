@@ -2,7 +2,7 @@ export const queryParams = {
   search: 'search',
   copyAddress: 'copy-address',
   receive: 'receive',
-  btcDeposit: 'openBitcoinDepositSheet',
+  btcDeposit: 'btcDeposit',
   faucetError: 'faucet-error',
   faucetSuccess: 'faucet-success',
   txDeclined: 'tx-declined',

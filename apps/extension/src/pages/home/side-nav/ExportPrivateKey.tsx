@@ -8,19 +8,22 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { decrypt, getFullHDPath } from '@leapwallet/leap-keychain'
-import { Buttons, Header, HeaderActionType, ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { ThemeName, useTheme } from '@leapwallet/leap-ui'
+import { CaretRight } from '@phosphor-icons/react'
 import { base58 } from '@scure/base'
 import CanvasTextBox from 'components/canvas-box/CanvasTextBox'
-import Text from 'components/text'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
+import { CopyButton } from 'components/ui/button/copy-button'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { Images } from 'images'
+import { KeyIcon } from 'icons/key-icon'
 import { GenericDark, GenericLight } from 'images/logos'
 import { observer } from 'mobx-react-lite'
-import React, { ReactElement, useEffect, useState } from 'react'
+import React, { ReactElement, useEffect, useMemo, useState } from 'react'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -32,16 +35,15 @@ import {
 } from 'utils/getChainInfosList'
 import { imgOnError } from 'utils/imgOnError'
 
-import SelectChain from '../SelectChain'
+import { SelectChainSheet } from './CustomEndpoints'
 import { EnterPasswordView } from './EnterPasswordView'
 
 type PrivateKeyViewProps = {
   readonly activeChain: SupportedChain
   readonly password: Uint8Array
-  readonly goBack: () => void
 }
 
-function PrivateKeyView({ password, goBack, activeChain }: PrivateKeyViewProps): ReactElement {
+function PrivateKeyView({ password, activeChain }: PrivateKeyViewProps): ReactElement {
   const [privateKey, setPrivateKey] = useState('')
 
   const chainInfos = useChainInfos()
@@ -105,164 +107,196 @@ function PrivateKeyView({ password, goBack, activeChain }: PrivateKeyViewProps):
   }, [activeWallet])
 
   return (
-    <div className='panel-height'>
-      <Header title='Private Key' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
-      <div className='flex flex-col items-center px-7 py-6'>
-        <div className='p-4 rounded-2xl dark:bg-gray-900 bg-white-100'>
-          <img src={Images.Misc.KeyVpn} />
+    <div className='flex flex-col items-center gap-4'>
+      <div className='flex flex-col items-center gap-6 mb-4'>
+        <div className='size-16 rounded-full bg-secondary-100 grid place-items-center'>
+          <KeyIcon size={24} />
         </div>
-        <div className='dark:text-white-100 text-black-100 text-base mt-4 mb-1 font-bold text-center'>
-          These words are the keys to your wallet
-        </div>
-        <div className='dark:text-gray-400 text-gray-600 text-xs mb-5 w-4/5 text-center'>
-          Please store them somewhere safe. Anyone with these words will have full access to your
-          wallet
-        </div>
-        <CanvasTextBox text={privateKey} noSpace={true} size={'md'} />
-        <Buttons.CopyToClipboard
-          data-testing-id='copy-private-key'
-          color={Colors.getChainColor(activeChain)}
-          onCopy={() => {
-            UserClipboard.copyText(privateKey)
-          }}
-        />
-        <div className='w-full h-auto rounded-xl dark:bg-gray-900 bg-white-100 flex items-center p-[10px] mt-[20px] mb-[10px]'>
-          <img className='mr-[16px]' src={Images.Misc.Warning} />
-          <div className='flex flex-col gap-y-[2px]'>
-            <Text size='xs' className='tex font-black'>
-              Recommended security practice:
-            </Text>
-            <Text size='xs' color='text-gray-400'>
-              Write down private key instead of copying it
-            </Text>
+
+        <header className='flex flex-col items-center gap-2 text-center'>
+          <span className='text-xl font-bold'>Your private key</span>
+          <div className='text-muted-foreground text-sm'>
+            Please store them somewhere safe. Anyone with these words will have full access to your
+            wallet.
           </div>
-        </div>
+        </header>
       </div>
+
+      <CanvasTextBox text={privateKey} noSpace={true} size={'md'} />
+
+      {privateKey && (
+        <CopyButton onClick={() => UserClipboard.copyText(privateKey)} className='gap-1'>
+          Copy to clipboard
+        </CopyButton>
+      )}
     </div>
   )
 }
 
 type SelectChainViewProps = {
-  goBack: () => void
   selectedChain: AggregatedSupportedChain
   setSelectedChain: (chain: AggregatedSupportedChain) => void
 }
 
-const SelectChainView = observer(
-  ({ selectedChain, setSelectedChain, goBack }: SelectChainViewProps) => {
-    const [showSheet, setShowSheet] = useState(false)
-    const [targetChain, setTargetChain] = useState(selectedChain)
+const SelectChainView = observer(({ selectedChain, setSelectedChain }: SelectChainViewProps) => {
+  const [showSheet, setShowSheet] = useState(false)
+  const [targetChain, setTargetChain] = useState(selectedChain)
 
-    const { theme } = useTheme()
-    const defaultTokenLogo = useDefaultTokenLogo()
-    const chainsInfo = useChainInfos()
+  const { theme } = useTheme()
+  const defaultTokenLogo = useDefaultTokenLogo()
+  const chainsInfo = useChainInfos()
 
-    const allChainsImg = theme === ThemeName.DARK ? GenericDark : GenericLight
-    const defaultColor = Colors.cosmosPrimary
-    const chainDetails =
-      targetChain === AGGREGATED_CHAIN_KEY
-        ? {
-            chainName: 'Select a chain',
-            chainSymbolImageUrl: allChainsImg,
-            theme: {
-              primaryColor: defaultColor,
-            },
-          }
-        : chainsInfo[targetChain]
+  const allChainsImg = theme === ThemeName.DARK ? GenericDark : GenericLight
+  const defaultColor = Colors.cosmosPrimary
+  const chainDetails =
+    targetChain === AGGREGATED_CHAIN_KEY
+      ? {
+          chainName: 'Select a chain',
+          chainSymbolImageUrl: allChainsImg,
+          theme: {
+            primaryColor: defaultColor,
+          },
+        }
+      : chainsInfo[targetChain]
 
-    return (
-      <div className='panel-height flex flex-col'>
-        <Header title='Private Key' action={{ type: HeaderActionType.BACK, onClick: goBack }} />
+  return (
+    <>
+      <div className='flex flex-col gap-4 h-full'>
+        <div className='flex flex-col items-center gap-6'>
+          <div className='size-16 rounded-full bg-secondary-100 grid place-items-center'>
+            <KeyIcon size={24} />
+          </div>
 
-        <div className='flex flex-col gap-4 px-7 flex-grow py-6'>
-          <div className='flex flex-col items-center'>
-            <div className='p-4 rounded-2xl dark:bg-gray-900 bg-white-100'>
-              <img src={Images.Misc.KeyVpn} />
-            </div>
-            <div className='dark:text-white-100 text-black-100 text-base mt-4 mb-1 font-bold text-center'>
-              Select a chain to export key
-            </div>
-            <div className='dark:text-gray-400 text-gray-600 text-xs mb-5 text-center'>
+          <header className='flex flex-col items-center gap-2 text-center'>
+            <span className='text-xl font-bold'>Select a chain to export key</span>
+            <div className='text-muted-foreground text-sm'>
               You&apos;ll need to select a specific chain to export your private key, as each chain
               handles keys a bit differently.
             </div>
-          </div>
-
-          <button
-            className='dark:bg-gray-900 bg-white-100 w-full flex items-center justify-start px-3.5 py-2.5 cursor-pointer rounded-full text-sm gap-2'
-            onClick={() => setShowSheet(true)}
-          >
-            <img
-              src={chainDetails?.chainSymbolImageUrl ?? defaultTokenLogo}
-              className='h-5 w-5'
-              onError={imgOnError(defaultTokenLogo)}
-            />
-
-            <span className='dark:text-gray-100 text-black-100 mr-auto'>
-              {chainDetails?.chainName ?? 'Select a chain'}
-            </span>
-
-            <img src={Images.Misc.ArrowDown} className='w-2 h-2 mx-1' />
-          </button>
-
-          <Buttons.Generic
-            color={chainDetails?.theme.primaryColor ?? defaultColor}
-            size='normal'
-            className='w-full mt-auto'
-            title='Proceed'
-            disabled={targetChain === AGGREGATED_CHAIN_KEY}
-            onClick={() => {
-              setShowSheet(false)
-              setSelectedChain(targetChain)
-            }}
-          >
-            Proceed
-          </Buttons.Generic>
+          </header>
         </div>
 
-        <SelectChain
-          chainTagsStore={chainTagsStore}
-          isVisible={showSheet}
-          onChainSelect={(chain) => {
-            setTargetChain(chain)
-            setShowSheet(false)
-          }}
-          onClose={() => setShowSheet(false)}
-          selectedChain={targetChain as SupportedChain}
-          showAggregatedOption={false}
-        />
-      </div>
-    )
-  },
-)
+        <button
+          className='bg-secondary-100 w-full flex items-center justify-start px-5 py-4 cursor-pointer rounded-xl text-sm gap-3 mt-8 hover:bg-secondary-200'
+          onClick={() => setShowSheet(true)}
+        >
+          <img
+            className='size-5'
+            onError={imgOnError(defaultTokenLogo)}
+            src={chainDetails?.chainSymbolImageUrl ?? defaultTokenLogo}
+          />
 
-export default function ExportPrivateKey({ goBack }: { goBack: () => void }): ReactElement {
+          <span
+            className={
+              'text-sm font-bold mr-auto ' +
+              (targetChain && targetChain !== AGGREGATED_CHAIN_KEY
+                ? 'text-foreground'
+                : 'text-muted-foreground ')
+            }
+          >
+            {chainDetails?.chainName ?? 'Select a chain'}
+          </span>
+
+          <CaretRight size={14} className='text-muted-foreground' />
+        </button>
+
+        <Button
+          className='w-full mt-auto'
+          disabled={targetChain === AGGREGATED_CHAIN_KEY}
+          onClick={() => {
+            setShowSheet(false)
+            setSelectedChain(targetChain)
+          }}
+        >
+          Proceed
+        </Button>
+      </div>
+
+      <SelectChainSheet
+        chainTagsStore={chainTagsStore}
+        isVisible={showSheet}
+        onChainSelect={(chain) => {
+          setTargetChain(chain)
+          setShowSheet(false)
+        }}
+        onClose={() => setShowSheet(false)}
+        selectedChain={targetChain as SupportedChain}
+        showAggregatedOption={false}
+      />
+    </>
+  )
+})
+
+const tabToTitle = {
+  'select-chain': 'Select a chain',
+  'enter-password': 'Enter Password',
+  'private-key': 'Private Key',
+}
+
+export default function ExportPrivateKey({
+  isVisible,
+  onClose,
+}: {
+  isVisible: boolean
+  onClose: () => void
+}): ReactElement {
   const [password, setPassword] = useState<Uint8Array>()
   const [isRevealed, setRevealed] = useState(false)
   const activeChain = useActiveChain() as AggregatedSupportedChain
   const [selectedChain, setSelectedChain] = useState(activeChain)
 
-  if (selectedChain === AGGREGATED_CHAIN_KEY) {
-    return (
-      <SelectChainView
-        key={selectedChain}
-        goBack={goBack}
-        selectedChain={selectedChain}
-        setSelectedChain={setSelectedChain}
-      />
-    )
+  const handleClose = () => {
+    setPassword(undefined)
+    setRevealed(false)
+    setSelectedChain(activeChain)
+    onClose()
   }
 
-  if (!isRevealed || !password) {
-    return (
-      <EnterPasswordView
-        passwordTo='view the Private key'
-        setRevealed={setRevealed}
-        setPassword={setPassword}
-        goBack={goBack}
-      />
-    )
-  }
+  const tab = useMemo(() => {
+    if (selectedChain === AGGREGATED_CHAIN_KEY) {
+      return 'select-chain'
+    }
 
-  return <PrivateKeyView password={password} goBack={goBack} activeChain={selectedChain} />
+    if (!isRevealed || !password) {
+      return 'enter-password'
+    }
+
+    return 'private-key'
+  }, [selectedChain, isRevealed, password])
+
+  return (
+    <BottomModal
+      fullScreen
+      isOpen={isVisible}
+      onClose={handleClose}
+      title={tabToTitle[tab]}
+      className='max-h-full overflow-y-auto h-full p-6 !pt-12'
+    >
+      {tab === 'select-chain' && (
+        <SelectChainView
+          key={`${selectedChain}-${isVisible}`}
+          selectedChain={selectedChain}
+          setSelectedChain={setSelectedChain}
+        />
+      )}
+
+      {tab === 'enter-password' && (
+        <EnterPasswordView
+          key={isVisible ? 1 : 0}
+          passwordTo='view the Private key'
+          setRevealed={setRevealed}
+          setPassword={setPassword}
+          autoFocus={isVisible}
+        />
+      )}
+
+      {tab === 'private-key' && !!password && (
+        <PrivateKeyView
+          key={isVisible ? 1 : 0}
+          password={password}
+          activeChain={selectedChain as SupportedChain}
+        />
+      )}
+    </BottomModal>
+  )
 }

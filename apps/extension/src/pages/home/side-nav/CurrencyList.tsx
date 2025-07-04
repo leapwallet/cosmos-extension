@@ -2,6 +2,7 @@ import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import { CheckCircle } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import NoSearchResults from 'components/no-search-results'
+import { SearchInput } from 'components/ui/input/search-input'
 import { useChainPageInfo } from 'hooks'
 import {
   currencyDetail,
@@ -34,70 +35,40 @@ export const CurrencyList = () => {
         )
 
   return (
-    <div className='flex flex-col items-center px-[28px] h-full'>
-      <div className='mx-auto mt-[28px] w-[344px] mb-[16px] flex h-10 bg-white-100 dark:bg-gray-900 rounded-[30px] py-2 pl-5 pr-[10px]'>
-        <input
-          placeholder='Search Currency'
-          className='flex flex-grow text-base text-gray-400 outline-none bg-white-0'
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        {searchQuery.length === 0 ? (
-          <img src={Images.Misc.Search} />
-        ) : (
-          <img
-            className='cursor-pointer'
-            src={Images.Misc.CrossFilled}
-            onClick={() => setSearchQuery('')}
-          />
-        )}
-      </div>
-      <div
-        className={classNames('bg-white-100 dark:bg-gray-900 rounded-2xl min-h-fit w-fit', {
-          ' max-h-[420px]': !isSidePanel(),
-        })}
-        style={{ overflowY: 'scroll' }}
-      >
+    <div className='flex flex-col gap-7 items-center h-full'>
+      <SearchInput
+        onClear={() => setSearchQuery('')}
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder='Search Currency'
+        className='w-full'
+      />
+
+      <div className='flex flex-col gap-4 w-full pb-4'>
         {currencyData.length > 0 ? (
-          currencyData.map((currency, index) => {
-            const isFirst = index === 0
-            const isLast = index === CurrencyMap.length - 1
+          currencyData.map((currency) => {
             return (
-              <div className='mx-auto w-full' key={index}>
-                <GenericCard
-                  onClick={() => {
-                    currencyUpdater(currency.country)
-                    rootStore.setPreferredCurrency(currency.country)
-                  }}
-                  className='mx-auto'
-                  img={
-                    <ReactCountryFlag
-                      countryCode={currency.country}
-                      style={{
-                        width: '2em',
-                        height: '2em',
-                      }}
-                      title={currency.country}
-                      svg
-                    />
-                  }
-                  isRounded={isFirst || isLast}
-                  size='md'
-                  subtitle=''
-                  title={<span className='ml-2'>{currency.name}</span>}
-                  icon={
-                    selectedCurrency.toString() === currency.country ? (
-                      <CheckCircle
-                        weight='fill'
-                        size={24}
-                        style={{ color: topChainColor }}
-                        color={topChainColor}
-                      />
-                    ) : null
-                  }
+              <button
+                key={currency.country}
+                className='flex items-center gap-3 py-3 px-4 w-full rounded-xl bg-secondary-100 hover:bg-secondary-200 transition-colors'
+                onClick={() => {
+                  currencyUpdater(currency.country)
+                  rootStore.setPreferredCurrency(currency.country)
+                }}
+              >
+                <ReactCountryFlag
+                  svg
+                  countryCode={currency.country}
+                  title={currency.country}
+                  style={{ width: '32px', height: '32px' }}
                 />
-                <CardDivider />
-              </div>
+
+                <span className='mr-auto font-bold'>{currency.name}</span>
+
+                {selectedCurrency.toString() === currency.country ? (
+                  <CheckCircle className='text-accent-foreground' weight='fill' size={24} />
+                ) : null}
+              </button>
             )
           })
         ) : (

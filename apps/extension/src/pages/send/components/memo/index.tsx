@@ -1,5 +1,5 @@
 import { useGetChains } from '@leapwallet/cosmos-wallet-hooks'
-import { BTC_CHAINS, isAptosChain, isSolanaChain } from '@leapwallet/cosmos-wallet-sdk'
+import { BTC_CHAINS, isAptosChain, isSolanaChain, isSuiChain } from '@leapwallet/cosmos-wallet-sdk'
 import { Plus } from '@phosphor-icons/react'
 import classNames from 'classnames'
 import Text from 'components/text'
@@ -14,7 +14,8 @@ export const Memo = ({ containerClassname }: { containerClassname?: string }) =>
     isAptosChain(sendActiveChain) ||
     chains?.[sendActiveChain]?.evmOnlyChain ||
     BTC_CHAINS.includes(sendActiveChain) ||
-    isSolanaChain(sendActiveChain)
+    isSolanaChain(sendActiveChain) ||
+    isSuiChain(sendActiveChain)
   ) {
     return null
   }
@@ -22,7 +23,7 @@ export const Memo = ({ containerClassname }: { containerClassname?: string }) =>
   return (
     <div
       className={classNames(
-        'mx-6 p-5 rounded-xl bg-secondary-100 border border-secondary flex justify-between items-center dark:focus-within:border-white-100 hover:border-secondary-400 focus-within:border-black-100',
+        'mx-6 p-5 rounded-xl border border-secondary-100 flex justify-between items-center focus-within:border-secondary-400 hover:border-secondary-400',
         containerClassname,
       )}
     >
@@ -33,7 +34,9 @@ export const Memo = ({ containerClassname }: { containerClassname?: string }) =>
         className='!leading-[22.4px] bg-transparent font-medium text-sm text-monochrome placeholder:text-muted-foreground outline-none w-full'
         onChange={(e) => setMemo(e.target?.value)}
       />
-      {memo.length === 0 ? null : (
+      {memo.length === 0 ? (
+        <Plus className='w-5 h-5 p-[2px] shrink-0 text-muted-foreground' />
+      ) : (
         <div onClick={() => setMemo('')}>
           <Text size='xs' color='text-muted-foreground' className=' font-bold cursor-pointer ml-2'>
             Clear

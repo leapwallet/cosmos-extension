@@ -9,7 +9,7 @@ import { useDefaultTokenLogo } from 'hooks'
 import { CompassIcon } from 'icons/compass-icon'
 import { Images } from 'images'
 import mixpanel from 'mixpanel-browser'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GroupedVirtuoso } from 'react-virtuoso'
 import { popularTokensStore } from 'stores/chain-infos-store'
 import { SourceChain, SourceToken } from 'types/swap'
@@ -71,7 +71,7 @@ export function SelectTokenSheet({
     TokenAssociatedChain | undefined
   >(allChainsPlaceholder)
   const { chainsToShow } = useSwapContext()
-
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const isSourceTokenMovement = useMemo(() => {
     return sourceToken?.skipAsset?.chainId === ChainInfos.movement.chainId
   }, [sourceToken?.skipAsset?.chainId])
@@ -79,6 +79,9 @@ export function SelectTokenSheet({
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('')
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 200)
     }
   }, [isOpen])
 
@@ -398,6 +401,7 @@ export function SelectTokenSheet({
         <div className='mt-6 px-6 w-full'>
           <SearchInput
             value={searchQuery}
+            ref={searchInputRef}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-testing-id='switch-token-input-search'
             placeholder={

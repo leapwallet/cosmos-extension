@@ -7,7 +7,8 @@ import {
   ChainInfosStore,
 } from '@leapwallet/cosmos-wallet-store'
 import { Buttons } from '@leapwallet/leap-ui'
-import BottomModal from 'components/bottom-modal'
+import BottomModal from 'components/new-bottom-modal'
+import { Button } from 'components/ui/button'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useMemo } from 'react'
@@ -71,44 +72,38 @@ export const DeleteTokenSheet = observer(
     ])
 
     return (
-      <BottomModal
-        title='Delete Token'
-        closeOnBackdropClick={true}
-        onClose={onClose}
-        isOpen={isOpen}
-      >
-        <div className='rounded-2xl bg-white-100 dark:bg-gray-900 p-8 flex flex-col items-center mb-4 text-center'>
-          <div className='rounded-full bg-red-300 p-[18px] w-fit flex'>
+      <BottomModal title='Delete Token' onClose={onClose} className='p-6' isOpen={isOpen}>
+        <div className='rounded-2xl bg-secondary-100 p-6 flex flex-col items-center text-center'>
+          <div className='rounded-full bg-destructive-100 p-[18px] w-fit flex'>
             <img src={Images.Misc.DeleteTokenSheetBin} />
           </div>
 
-          <div className='font-bold text-gray-800 dark:text-white-100 text-base mt-3'>
+          <div className='font-bold text-gray-800 dark:text-white-100 text-base mt-4'>
             Confirm Delete?
           </div>
 
-          <div className='text-gray-400 font-medium text-sm'>
+          <div className='text-gray-400 font-medium text-sm mt-5'>
             Are you sure you want to delete your manually added “{tokenName}” token on{' '}
             {activeChainInfo.chainName}?
           </div>
         </div>
 
-        <div className='flex flex-row justify-between'>
-          <Buttons.Generic
-            style={{ height: '48px', background: Colors.gray900, color: Colors.white100 }}
+        <div className='flex flex-row justify-between mt-6 gap-3'>
+          <Button
+            type='button'
+            className='h-[48px] flex-1 !bg-secondary-100 hover:!bg-secondary-200'
             onClick={onClose}
           >
             Cancel
-          </Buttons.Generic>
+          </Button>
 
-          <Buttons.Generic
-            style={{
-              background: Colors.getChainColor(activeChain as SupportedChain),
-            }}
-            className='ml-3 h-[48px] cursor-pointer text-white-100'
+          <Button
+            type='button'
+            className='h-[48px] flex-1 cursor-pointer !bg-destructive-100 hover:!bg-destructive-400'
             onClick={onConfirm}
           >
             Confirm
-          </Buttons.Generic>
+          </Button>
         </div>
       </BottomModal>
     )

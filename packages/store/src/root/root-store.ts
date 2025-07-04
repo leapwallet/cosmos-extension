@@ -10,7 +10,7 @@ import BigNumber from 'bignumber.js';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import { computedFn } from 'mobx-utils';
 
-import { ChainInfosStore, CompassSeiTokensAssociationStore, NmsStore } from '../assets';
+import { ChainInfosStore, CompassSeiTokensAssociationStore, NmsStore, ZeroStateTokensStore } from '../assets';
 import {
   BalanceStore,
   CW20DenomBalanceStore,
@@ -78,6 +78,7 @@ export class RootBalanceStore {
   selectedNetworkStore: SelectedNetworkStore;
   forcedLoading: Record<string, boolean> = {};
   currencyStore: CurrencyStore;
+  zeroStateTokensStore: ZeroStateTokensStore;
 
   constructor(
     balanceStore: BalanceStore,
@@ -94,6 +95,7 @@ export class RootBalanceStore {
     addressStore: AddressStore,
     selectedNetworkStore: SelectedNetworkStore,
     currencyStore: CurrencyStore,
+    zeroStateTokensStore: ZeroStateTokensStore,
   ) {
     this.nativeBalanceStore = balanceStore;
     this.erc20BalanceStore = erc20BalanceStore;
@@ -109,6 +111,7 @@ export class RootBalanceStore {
     this.addressStore = addressStore;
     this.selectedNetworkStore = selectedNetworkStore;
     this.currencyStore = currencyStore;
+    this.zeroStateTokensStore = zeroStateTokensStore;
 
     makeObservable(this, {
       allTokens: computed,
@@ -169,7 +172,9 @@ export class RootBalanceStore {
       (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
     );
     const bitcoinTokens = this.bitcoinBalanceStore.balances;
+    const aptosTokens = this.aptosCoinDataStore.balances;
     const solanaTokens = this.solanaCoinDataStore.balances;
+    const suiTokens = this.suiCoinDataStore.balances;
 
     if (activeChain === 'seiTestnet2') {
       const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
@@ -207,6 +212,8 @@ export class RootBalanceStore {
           nonNativeBankTokens,
           bitcoinTokens,
           solanaTokens,
+          suiTokens,
+          aptosTokens,
         ),
       ),
     );
@@ -331,8 +338,8 @@ export class RootBalanceStore {
       const bitcoinTokens = this.bitcoinBalanceStore.getAggregatedBalances(network);
       const aptosTokens = this.aptosCoinDataStore.getAggregatedBalances(network);
       const solanaTokens = this.solanaCoinDataStore.getAggregatedBalances(network);
+      const suiTokens = this.suiCoinDataStore.getAggregatedBalances(network);
 
-      const suiTokens = this.suiCoinDataStore.balances;
       return nativeTokens.concat(
         sortTokenBalances(
           cw20Tokens.concat(
@@ -365,7 +372,7 @@ export class RootBalanceStore {
       const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain, network);
       const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain, network);
       const bitcoinTokens = this.bitcoinBalanceStore.balances;
-      const aptosTokens = this.aptosCoinDataStore.balances;
+      const aptosTokens = this.aptosCoinDataStore.getAptosBalances(chain, network);
       const solanaTokens = this.solanaCoinDataStore.getSolanaBalances(chain, network);
       const suiTokens = this.suiCoinDataStore.getSuiBalances(chain, network);
 
@@ -492,14 +499,34 @@ export class RootBalanceStore {
   get totalFiatValue() {
     let totalFiatValue = new BigNumber(0);
     const balances = this.allTokens;
+    let hasAnyBalance = false;
 
     for (const asset of balances) {
       if (asset.usdValue) {
         totalFiatValue = totalFiatValue.plus(new BigNumber(asset.usdValue));
       }
+      if (asset.amount && !new BigNumber(asset.amount).isNaN() && new BigNumber(asset.amount).gt(0)) {
+        hasAnyBalance = true;
+      }
     }
 
-    return totalFiatValue;
+    if (totalFiatValue.gt(0)) {
+      return totalFiatValue;
+    }
+
+    if (hasAnyBalance) {
+      return new BigNumber(NaN);
+    }
+
+    const zeroStateTokens = this.zeroStateTokensStore.zeroStateTokens;
+    let hasAnyUsdPrice = false;
+    for (const token of [...zeroStateTokens, ...balances]) {
+      if (token.usdPrice) {
+        hasAnyUsdPrice = true;
+      }
+    }
+
+    return new BigNumber(hasAnyUsdPrice ? 0 : NaN);
   }
 
   async loadBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType) {

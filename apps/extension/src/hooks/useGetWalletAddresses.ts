@@ -33,7 +33,8 @@ export function useGetWalletAddresses(forceChain?: SupportedChain) {
         getIsMinitias(selectedNetwork, activeChain))
     ) {
       if (activeChainInfo?.evmOnlyChain) {
-        return [pubKeyToEvmAddressToShow(activeWallet.pubKeys?.[activeChain])]
+        const evmAddress = pubKeyToEvmAddressToShow(activeWallet.pubKeys?.[activeChain])
+        return [evmAddress]
       }
 
       return [getEthereumAddress(address), address]
