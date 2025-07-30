@@ -5,7 +5,7 @@ import { TransferAssetRelease } from '@skip-go/client'
 import { useCallback, useEffect, useRef } from 'react'
 import { SourceChain, SwapTxnStatus, TransferSequence } from 'types/swap'
 
-import { RoutingInfo } from '../../useSwapsTx'
+import type { RoutingInfo } from '../../../types'
 
 export function usePollMosaicTx(
   setTrackingInSync: (value: boolean) => void,

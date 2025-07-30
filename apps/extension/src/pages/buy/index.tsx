@@ -1,24 +1,33 @@
 import { formatTokenAmount, useAddress, useDebounce } from '@leapwallet/cosmos-wallet-hooks'
 import { pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ArrowLeft, ArrowSquareOut, CaretDown } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
+import axios from 'axios'
 import BigNumber from 'bignumber.js'
 import { WalletButtonV2 } from 'components/button/WalletButtonV2'
 import { PageHeader } from 'components/header/PageHeaderV2'
+import { LoaderAnimation } from 'components/loader/Loader'
 import Text from 'components/text'
 import { Button } from 'components/ui/button'
 import { PageName } from 'config/analytics'
+import { LEAP_API_BASEURL } from 'config/config'
+import CryptoJS from 'crypto-js'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { AssetProps } from 'hooks/swapped/useGetSupportedAssets'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { getConversionRateKado, getQuoteSwapped } from 'hooks/useGetSwappedDetails'
+import {
+  getDefaultsOnramper,
+  getPaymentMethodsOnramper,
+  getProvidersOnramper,
+  getQuoteOnramper,
+  PaymentMethod,
+  Provider,
+  ProviderQuote,
+} from 'hooks/useGetOnramperDetails'
+import { getConversionRateKado } from 'hooks/useGetSwappedDetails'
 import useQuery from 'hooks/useQuery'
 import { useWalletInfo } from 'hooks/useWalletInfo'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
-import { useThemeColor } from 'hooks/utility/useThemeColor'
-import { Wallet } from 'hooks/wallet/useWallet'
-import { Images } from 'images'
 import { isString } from 'markdown-it/lib/common/utils'
 import SelectWallet from 'pages/home/SelectWallet/v2'
 import { convertObjInQueryParams } from 'pages/home/utils'
@@ -29,25 +38,38 @@ import { cn } from 'utils/cn'
 import { getCountryLogo } from 'utils/getCountryLogo'
 import { imgOnError } from 'utils/imgOnError'
 import { uiErrorTags } from 'utils/sentry'
-import { removeLeadingZeroes } from 'utils/strings'
+import { removeLeadingZeroes, sliceWord } from 'utils/strings'
 
 import SelectAssetSheet from './components/SelectAssetSheet'
-import SelectCurrencySheet from './components/SelectCurrencySheet'
-
-import useWallets = Wallet.useWallets
+import SelectCurrencySheet, { countryToCurrencyMap } from './components/SelectCurrencySheet'
+import SelectPaymentSheet from './components/SelectPaymentSheet'
+import SelectProviderSheet from './components/SelectProviderSheet'
 
 export enum ServiceProviderEnum {
-  SWAPPED = 'swapped',
+  ONRAMPER = 'onramper',
 }
 
 export enum ServiceProviderBaseUrlEnum {
-  SWAPPED = 'https://widget.swapped.com',
+  ONRAMPER = 'https://buy.onramper.com',
+}
+
+function generateSignature(secretKey: string, data: string): string {
+  const hmac = CryptoJS.HmacSHA256(data, secretKey)
+  return hmac.toString(CryptoJS.enc.Hex)
 }
 
 const Buy = () => {
   const { walletAvatar, walletName } = useWalletInfo()
   const [showSelectWallet, setShowSelectWallet] = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[] | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
+  const [providers, setProviders] = useState<Provider[] | null>(null)
+  const [availableProviders, setAvailableProviders] = useState<ProviderQuote[] | null>(null)
+  const [selectedProvider, setSelectedProvider] = useState<ProviderQuote | null>(null)
+  const [showSelectPaymentMethodSheet, setShowSelectPaymentMethodSheet] = useState(false)
+  const [showSelectProviderSheet, setShowSelectProviderSheet] = useState(false)
   const pageViewSource = useQuery().get('pageSource') ?? undefined
+  const quoteRequestIdRef = useRef(0)
   const pageViewAdditionalProperties = useMemo(
     () => ({
       pageViewSource,
@@ -55,8 +77,6 @@ const Buy = () => {
     [pageViewSource],
   )
   // usePageView(PageName.OnRampQuotePreview, true, pageViewAdditionalProperties)
-  const themeColor = useThemeColor()
-  const { theme } = useTheme()
   const defaultTokenLogo = useDefaultTokenLogo()
 
   const navigate = useNavigate()
@@ -67,7 +87,7 @@ const Buy = () => {
   const [showSelectCurrencySheet, setShowSelectCurrencySheet] = useState(false)
   const [showSelectTokenSheet, setShowSelectTokenSheet] = useState(false)
 
-  const [selectedCurrency, setSelectedCurrency] = useState('USD')
+  const [selectedCurrency, setSelectedCurrency] = useState('')
   const [selectedAsset, setSelectedAsset] = useState<AssetProps | undefined>(undefined)
   const selectedAddress = useAddress(selectedAsset?.chainKey)
 
@@ -83,21 +103,62 @@ const Buy = () => {
   const handleOpenWalletSheet = useCallback(() => setShowSelectWallet(true), [])
 
   useEffect(() => {
+    async function getPaymentMethods() {
+      const paymentMethods = await getPaymentMethodsOnramper({
+        fiat_currency: selectedCurrency.toLowerCase(),
+        crypto_currency: selectedAsset?.id ?? 'atom_cosmos',
+      })
+      setPaymentMethods(paymentMethods.message)
+      setSelectedPaymentMethod(paymentMethods.message.length > 0 ? paymentMethods.message[0] : null)
+    }
+    getPaymentMethods()
+  }, [selectedCurrency, selectedAsset])
+
+  useEffect(() => {
+    async function getProviders() {
+      const providers = await getProvidersOnramper()
+      setProviders(providers.message)
+    }
+    getProviders()
+  }, [])
+
+  useEffect(() => {
     async function getQuote() {
+      const fetchId = ++quoteRequestIdRef.current
       try {
+        setError(null)
         setLoadingQuote(true)
-        const quote = await getQuoteSwapped({
-          payment_method: 'credit-card',
+        const quote = await getQuoteOnramper({
+          payment_method: selectedPaymentMethod?.paymentTypeId ?? '',
           fiat_amount: new BigNumber(debouncedPayAmount).toNumber(),
-          fiat_currency: selectedCurrency,
-          crypto_currency: selectedAsset?.symbol ?? 'ATOM',
+          fiat_currency: selectedCurrency.toLowerCase(),
+          crypto_currency: selectedAsset?.id ?? 'atom_cosmos',
+          network: selectedAsset?.origin ?? 'cosmos',
         })
-        if (quote.success) {
-          setGetAssetAmount(quote?.data?.crypto_amount ?? '0')
+
+        const availableQuotes = quote.filter((q) => (q.payout ?? 0) > 0)
+        const ramps = availableQuotes.reduce((acc, q) => {
+          const provider = providers?.find((item) => item.id === q.ramp)
+          if (provider) {
+            acc.push({ provider, quote: q })
+          }
+          return acc
+        }, [] as ProviderQuote[])
+
+        if (fetchId !== quoteRequestIdRef.current) return
+
+        if (availableQuotes.length > 0) {
+          setGetAssetAmount((availableQuotes[0].payout ?? 0).toString())
+          setAvailableProviders(ramps)
+          setSelectedProvider(ramps[0])
         } else {
           setGetAssetAmount('0')
+          setError(
+            'No onramp available for these details. Please select a different payment method, fiat or crypto',
+          )
         }
       } catch (error) {
+        if (fetchId !== quoteRequestIdRef.current) return
         captureException(error, {
           tags: uiErrorTags,
         })
@@ -109,15 +170,27 @@ const Buy = () => {
           setError(message)
         }
       } finally {
-        setLoadingQuote(false)
+        if (fetchId === quoteRequestIdRef.current) {
+          setLoadingQuote(false)
+        }
       }
     }
-    if (debouncedPayAmount && new BigNumber(debouncedPayAmount).isGreaterThan('0')) {
+    if (
+      debouncedPayAmount &&
+      selectedPaymentMethod?.paymentTypeId &&
+      new BigNumber(debouncedPayAmount).isGreaterThan('0')
+    ) {
       getQuote()
     } else {
       setGetAssetAmount('0')
     }
-  }, [debouncedPayAmount, selectedAsset, selectedCurrency])
+  }, [
+    debouncedPayAmount,
+    providers,
+    selectedAsset,
+    selectedCurrency,
+    selectedPaymentMethod?.paymentTypeId,
+  ])
 
   useEffect(() => {
     if (inputAmountRef.current) {
@@ -187,19 +260,50 @@ const Buy = () => {
     setLimitError()
   }, [fiatAmountInUsd, selectedCurrency])
 
+  useEffect(() => {
+    async function getDefaults() {
+      try {
+        const res = await getDefaultsOnramper()
+        setSelectedCurrency(res.message.source.toUpperCase())
+        setPayFiatAmount(res.message.amount.toString())
+      } catch (error) {
+        setSelectedCurrency('USD')
+        setPayFiatAmount('300')
+      }
+    }
+    if (!selectedCurrency) {
+      getDefaults()
+    }
+  }, [selectedCurrency])
+
   const handleBuyClick = useCallback(() => {
     const params = {
-      baseCurrencyAmount: payFiatAmount,
-      baseCurrencyCode: selectedCurrency,
-      currencyCode: selectedAsset?.tags?.[0] ?? selectedAsset?.symbol,
-      walletAddress: selectedAddress,
+      apiKey: process.env.ONRAMPER_API_KEY,
+      wallets: selectedAsset?.id + ':' + selectedAddress,
+      skipTransactionScreen: true,
+      txnType: 'buy',
+      txnAmount: payFiatAmount,
+      txnFiat: selectedCurrency,
+      txnCrypto: selectedAsset?.id ?? '',
+      txnPaymentMethod: selectedPaymentMethod?.paymentTypeId,
+      txnOnramp: selectedProvider?.provider.id,
+      txnRedirect: true,
     }
-
+    const signature = generateSignature(
+      process.env.ONRAMPER_SIGNING_SECRET ?? '',
+      `wallets=${params.wallets}`,
+    )
     const queryParams = convertObjInQueryParams(params)
-    const url = `${ServiceProviderBaseUrlEnum.SWAPPED}?${queryParams}`
+    const url = `${ServiceProviderBaseUrlEnum.ONRAMPER}?${queryParams}&signature=${signature}`
     window.open(url, '_blank')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fiatAmountInUsd, payFiatAmount, selectedAddress, selectedAsset, selectedCurrency])
+  }, [
+    payFiatAmount,
+    selectedAddress,
+    selectedAsset?.id,
+    selectedCurrency,
+    selectedPaymentMethod?.paymentTypeId,
+    selectedProvider?.provider.id,
+  ])
 
   return (
     <>
@@ -309,8 +413,8 @@ const Buy = () => {
                 ) : (
                   <input
                     value={
-                      parseFloat(getAssetAmount) * 10000 > 0
-                        ? formatTokenAmount(getAssetAmount, undefined, 4)
+                      parseFloat(getAssetAmount) * 1000000 > 0
+                        ? formatTokenAmount(getAssetAmount, undefined, 6)
                         : getAssetAmount
                     }
                     placeholder='0'
@@ -340,22 +444,66 @@ const Buy = () => {
               </div>
             </div>
 
-            <div className='w-full flex justify-between mt-2'>
-              <Text size='sm' color='text-muted-foreground' className='font-medium'>
-                Provider
-              </Text>
-              <div className={cn('flex items-center gap-1')}>
-                <img
-                  src={
-                    theme === ThemeName.DARK ? Images.Logos.SwappedDark : Images.Logos.SwappedLight
-                  }
-                  className='w-5 h-5'
-                />
-                <Text size='sm' color='text-monochrome' className='font-medium'>
-                  Swapped
+            {selectedPaymentMethod && (
+              <div className='w-full flex justify-between mt-2'>
+                <Text size='sm' color='text-muted-foreground' className='font-medium'>
+                  Pay using
                 </Text>
+                <div
+                  className={cn('flex items-center gap-1', {
+                    'cursor-pointer': paymentMethods && paymentMethods.length > 1,
+                  })}
+                  onClick={() => {
+                    if (paymentMethods && paymentMethods.length > 1) {
+                      setShowSelectPaymentMethodSheet(true)
+                    }
+                  }}
+                >
+                  <img src={selectedPaymentMethod.icon} className='w-5 h-5' />
+                  <Text size='sm' color='text-monochrome' className='font-medium'>
+                    {sliceWord(selectedPaymentMethod.name, 15, 3)}
+                  </Text>
+                  {paymentMethods && paymentMethods.length > 1 && (
+                    <CaretDown size={14} className='text-secondary-600' />
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {selectedProvider && !error && (
+              <div className='w-full flex justify-between mt-1'>
+                <Text size='sm' color='text-muted-foreground' className='font-medium'>
+                  Provider
+                </Text>
+                {loadingQuote ? (
+                  <div className='flex items-center gap-0.5'>
+                    <LoaderAnimation color='text-green-600' className='h-7 w-7' />
+                    <Text size='sm' color='text-monochrome' className='font-medium'>
+                      Fetching best quote...
+                    </Text>
+                  </div>
+                ) : (
+                  <div
+                    className={cn('flex items-center gap-1', {
+                      'cursor-pointer': availableProviders && availableProviders.length > 1,
+                    })}
+                    onClick={() => {
+                      if (availableProviders && availableProviders.length > 1) {
+                        setShowSelectProviderSheet(true)
+                      }
+                    }}
+                  >
+                    <img src={selectedProvider.provider.icon} className='w-5 h-5' />
+                    <Text size='sm' color='text-monochrome' className='font-medium'>
+                      {selectedProvider.provider.displayName}
+                    </Text>
+                    {availableProviders && availableProviders.length > 1 && (
+                      <CaretDown size={14} className='text-secondary-600' />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className='w-full p-4 mt-auto sticky bottom-0 bg-secondary-100 '>
             <Button
@@ -412,12 +560,39 @@ const Buy = () => {
         }}
         onAssetSelect={(asset) => {
           setSelectedAsset(asset)
+          setSelectedPaymentMethod(null)
           setShowSelectTokenSheet(false)
           if (inputAmountRef.current) {
             ;(inputAmountRef.current as HTMLElement).focus()
           }
         }}
       />
+      {paymentMethods && selectedPaymentMethod && (
+        <SelectPaymentSheet
+          isVisible={showSelectPaymentMethodSheet}
+          onClose={() => setShowSelectPaymentMethodSheet(false)}
+          onPaymentSelect={(paymentMethod) => {
+            setSelectedPaymentMethod(paymentMethod)
+            setShowSelectPaymentMethodSheet(false)
+          }}
+          paymentMethods={paymentMethods}
+          selectedPaymentMethod={selectedPaymentMethod}
+        />
+      )}
+      {availableProviders && selectedProvider && (
+        <SelectProviderSheet
+          isVisible={showSelectProviderSheet}
+          onClose={() => setShowSelectProviderSheet(false)}
+          onProviderSelect={(provider) => {
+            setSelectedProvider(provider)
+            setGetAssetAmount(provider.quote.payout?.toString() ?? '0')
+            setShowSelectProviderSheet(false)
+          }}
+          providers={availableProviders}
+          selectedProvider={selectedProvider}
+          asset={selectedAsset}
+        />
+      )}
     </>
   )
 }

@@ -17,6 +17,7 @@ let platform: App = App.ChromeExtension;
 let appName = APP_NAME.Cosmos;
 let platformType = PLATFORM_TYPE.Extension;
 let numiaBannerBearer = '';
+let spindlBannerToken = '';
 
 export type storage = {
   set: (key: string, value: string) => Promise<void>;
@@ -84,4 +85,12 @@ export const getNumiaBannerBearer = () => {
 
 export const setNumiaBannerBearer = (bearer: string) => {
   numiaBannerBearer = bearer;
+};
+
+export const getSpindlBannerToken = () => {
+  return spindlBannerToken;
+};
+
+export const setSpindlBannerToken = (token: string) => {
+  spindlBannerToken = token;
 };

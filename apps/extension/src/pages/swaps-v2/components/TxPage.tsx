@@ -23,12 +23,12 @@ import { SourceChain, SourceToken, SwapFeeInfo, SwapTxAction } from 'types/swap'
 import { formatTokenAmount } from 'utils/strings'
 
 import {
-  RoutingInfo,
   useExecuteTx,
   useHandleTxProgressPageBlurEvent,
   useOnline,
   useTransactions,
 } from '../hooks'
+import type { RoutingInfo } from '../types'
 
 export type TxPageProps = {
   onClose: (

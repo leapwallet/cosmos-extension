@@ -6,6 +6,7 @@ import { useSelectedNetwork, useSetNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 import { sendMessageToTab } from 'utils'
 import { cn } from 'utils/cn'
 
@@ -35,7 +36,8 @@ export default function NetworkDropUp({
         onClick: async () => {
           if (chainInfos[activeChain]?.apis?.rpc) {
             setNetwork('mainnet')
-            navigate('/', { replace: true })
+            goBack()
+            globalSheetsStore.setSideNavOpen(false)
             try {
               await sendMessageToTab({ event: 'chainChanged', data: mainnetEvmChainId })
             } catch (_) {
@@ -52,8 +54,8 @@ export default function NetworkDropUp({
         onClick: async () => {
           if (chainInfos[activeChain]?.apis?.rpcTest) {
             setNetwork('testnet')
-            navigate('/', { replace: true })
-
+            goBack()
+            globalSheetsStore.setSideNavOpen(false)
             try {
               await sendMessageToTab({ event: 'chainChanged', data: testnetEvmChainId })
             } catch (_) {

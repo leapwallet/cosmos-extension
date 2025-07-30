@@ -1,5 +1,4 @@
 import { IconProps } from '@phosphor-icons/react'
-import { GoogleIcon } from 'icons/google-icon'
 import { KeyIcon } from 'icons/key'
 import { LedgerDriveIcon } from 'icons/ledger-icon'
 import { RecoveryPhraseIcon } from 'icons/recovery-phrase'
@@ -49,14 +48,7 @@ const importMethods = [
 ] as const
 
 const SelectImportType = () => {
-  const {
-    prevStep,
-    currentStep,
-    setCurrentStep,
-    setWalletName,
-    socialLogin,
-    moveToNextStepSocial,
-  } = useImportWalletContext()
+  const { prevStep, currentStep, setCurrentStep, setWalletName } = useImportWalletContext()
 
   return (
     <OnboardingWrapper
@@ -67,20 +59,6 @@ const SelectImportType = () => {
       entry={prevStep <= currentStep ? 'right' : 'left'}
     >
       <div className='flex flex-col gap-4 w-full'>
-        {/* <ImportTypeButton
-          onClick={async () => {
-            const loginRes = await socialLogin.login()
-            if (!loginRes) return
-
-            moveToNextStepSocial()
-          }}
-          icon={GoogleIcon}
-          title={socialLogin.isLoading ? 'Logging in...' : 'Import via Google account'}
-          className={
-            socialLogin.isLoading ? 'animate-pulse hover:bg-secondary-200 cursor-progress' : ''
-          }
-        /> */}
-
         {importMethods.map((method) => (
           <ImportTypeButton
             key={method.id}

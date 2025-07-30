@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-hooks",
-  "version": "6.5.2",
+  "version": "6.5.5",
   "description": "Wallet hooks for cosmos mobile app and extension.",
   "main": "dist/index.js",
   "scripts": {
@@ -26,13 +26,13 @@
   "dependencies": {
     "@aptos-labs/ts-sdk": "1.33.1",
     "@leapwallet/parser-parfait": "0.7.1",
-    "@leapwallet/cosmos-wallet-sdk": "6.5.2",
-    "@leapwallet/cosmos-wallet-store": "6.5.2",
+    "@leapwallet/cosmos-wallet-sdk": "6.5.5",
+    "@leapwallet/cosmos-wallet-store": "6.5.5",
     "@tanstack/react-query": "4.2.3",
     "@tanstack/react-query-devtools": "4.2.3",
     "dotenv": "16.3.1",
     "zustand": "4.1.1",
-    "@leapwallet/wallet-api": "*"
+    "@leapwallet/leap-api-js": "0.21.15"
   },
   "devDependencies": {
     "@babel/preset-env": "7.18.0",

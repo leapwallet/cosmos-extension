@@ -1,6 +1,6 @@
 import { Avatar, Buttons, CardDivider, Header, HeaderActionType } from '@leapwallet/leap-ui'
 import { captureException } from '@sentry/react'
-import classnames from 'classnames'
+import classNames from 'classnames'
 import Text from 'components/text'
 import { SearchInput } from 'components/ui/input/search-input'
 import { CONNECTIONS } from 'config/storage-keys'
@@ -38,7 +38,7 @@ const ConnectedSiteCard = ({ site, onClick, className }: ConnectedSiteCardProps)
 
   return (
     <div
-      className={classnames(
+      className={classNames(
         'flex gap-4 justify-between items-center bg-white-100 dark:bg-gray-900 rounded-2xl w-full px-4 py-3',
         className,
       )}

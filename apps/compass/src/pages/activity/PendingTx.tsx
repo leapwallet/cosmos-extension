@@ -27,7 +27,6 @@ import { Cross } from 'images/misc'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TxResponse } from 'secretjs'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
@@ -151,32 +150,6 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
             setPendingTx({ ...pendingTx, txStatus: 'success' })
           } else if ('status' in result) {
             setPendingTx({ ...pendingTx, txStatus: 'submitted' })
-          }
-
-          if (pendingTx.txType === 'secretTokenTransfer') {
-            setTxHash(result.transactionHash)
-
-            const _result = result as unknown as TxResponse
-            let feeQuantity
-
-            if (_result?.tx?.auth_info?.fee?.amount) {
-              feeQuantity = _result?.tx?.auth_info?.fee?.amount[0].amount
-            }
-
-            txPostToDB({
-              txHash: _result.transactionHash,
-              txType: CosmosTxType.SecretTokenTransaction,
-              metadata: getMetaDataForSecretTokenTransfer(
-                pendingTx.sentTokenInfo?.coinMinimalDenom ?? '',
-              ),
-              feeQuantity,
-              feeDenomination: 'uscrt',
-              amount: pendingTx.txnLogAmount,
-              forceChain: activeChain,
-              forceNetwork: selectedNetwork,
-              forceWalletAddress: address,
-              chainId: activeChainId,
-            })
           }
 
           if (pendingTx.txType === 'cw20TokenTransfer') {

@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { SwapIcon } from 'icons/swap-icon'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { Token } from 'types/bank'
 import { opacityFadeInOut, transition150 } from 'utils/motion-variants'
 
@@ -57,6 +58,7 @@ const YouStake = observer(
     delegationBalanceLoading,
   }: YouStakeProps) => {
     const inputRef = useRef<HTMLInputElement>(null)
+    const allowUpdateInputValue = useRef(false)
     const [activeStakingDenom] = useActiveStakingDenom(
       rootDenomsStore.allDenoms,
       activeChain,
@@ -135,6 +137,7 @@ const YouStake = observer(
       if (/^\d*\.?\d*$/.test(value)) {
         setInputValue(value)
         validateInput(value)
+        allowUpdateInputStore.disableUpdateInput()
       }
     }
 
@@ -170,10 +173,13 @@ const YouStake = observer(
       token?.usdValue,
     ])
 
-    const handleUpdateInputValue = (value: string) => {
-      setInputValue(value)
-      validateInput(value)
-    }
+    const handleUpdateInputValue = useCallback(
+      (value: string) => {
+        setInputValue(value)
+        validateInput(value)
+      },
+      [validateInput],
+    )
 
     useEffect(() => {
       if (adjustAmount) {
@@ -206,6 +212,82 @@ const YouStake = observer(
         setBalanceLoading(delegationBalanceLoading)
       }
     }, [mode, tokenLoading, delegationBalanceLoading])
+
+    useEffect(() => {
+      if (!allowUpdateInputStore.updateAllowed()) return
+      if (!fees || !token?.amount || !inputValue || mode !== 'DELEGATE') {
+        return
+      }
+
+      const inputValueBN = new BigNumber(inputValue ?? 0)
+      const tokenBalanceBN = new BigNumber(token?.amount ?? 0)
+
+      // Invalid input amount case - input <= 0 or input > balance
+      if (inputValueBN.lte(0) || inputValueBN.gt(tokenBalanceBN)) {
+        return
+      }
+
+      const _feeDenom = fees.denom
+      const isSelectedTokenFeeToken =
+        !!token?.ibcDenom || !!_feeDenom?.startsWith('ibc/')
+          ? token?.ibcDenom === _feeDenom
+          : token?.coinMinimalDenom === _feeDenom
+
+      const shouldTerminate = allowUpdateInputStore.shouldTerminate()
+      const decimals = token?.coinDecimals || 6
+      const feeValueBN = new BigNumber(fromSmall(fees.amount ?? '0', decimals))
+
+      if (
+        shouldTerminate &&
+        (!isSelectedTokenFeeToken || inputValueBN.plus(feeValueBN).lte(tokenBalanceBN))
+      ) {
+        return
+      }
+
+      const newInputValueBN = tokenBalanceBN.minus(isSelectedTokenFeeToken ? feeValueBN : 0)
+      const newInputValue = newInputValueBN.toFixed(decimals, BigNumber.ROUND_DOWN)
+      const oldInputValue = inputValueBN.toFixed(decimals, BigNumber.ROUND_DOWN)
+
+      /**
+       * If selected token is same as fee token, we need to deduct fee from input value
+       * Update logic:
+       * If input + fee > balance, deduct fee from total balance value and update input value if:
+       *   1. new value > 0
+       *   2. new value < old value (to avoid infinite loop)
+       *
+       * Note: Loop here is due to below state updates chain:
+       * input value -> simulate -> fee update -> input value -> ...
+       */
+      if (
+        newInputValueBN.lte(0) ||
+        newInputValue == oldInputValue ||
+        (shouldTerminate && newInputValue > oldInputValue)
+      ) {
+        return
+      }
+
+      if (isDollarInput) {
+        if (!token?.usdPrice) {
+          return
+        }
+        const usdAmount = newInputValueBN.multipliedBy(token.usdPrice)
+        handleUpdateInputValue(usdAmount.toString())
+      } else {
+        handleUpdateInputValue(newInputValue)
+      }
+      allowUpdateInputStore.incrementUpdateCount()
+    }, [
+      fees,
+      handleUpdateInputValue,
+      inputValue,
+      isDollarInput,
+      mode,
+      token?.amount,
+      token?.coinDecimals,
+      token?.coinMinimalDenom,
+      token?.ibcDenom,
+      token?.usdPrice,
+    ])
 
     return (
       <div className='flex flex-col gap-y-3 rounded-xl bg-secondary-100 p-5'>
@@ -281,7 +363,10 @@ const YouStake = observer(
                 'ml-0.5 text-muted-foreground text-sm font-medium bg-secondary-200 px-1.5 rounded-full hover:text-foreground hover:bg-secondary-300 transition-colors ' +
                 buttonRingClass
               }
-              onClick={() => handleUpdateInputValue(maxValue.dividedBy(2).toFixed(6, 1).toString())}
+              onClick={() => {
+                handleUpdateInputValue(maxValue.dividedBy(2).toFixed(6, 1).toString())
+                allowUpdateInputStore.disableUpdateInput()
+              }}
             >
               50%
             </button>
@@ -290,7 +375,10 @@ const YouStake = observer(
                 'text-muted-foreground text-sm font-medium bg-secondary-200 px-2 rounded-full hover:text-foreground hover:bg-secondary-300 transition-colors ' +
                 buttonRingClass
               }
-              onClick={() => handleUpdateInputValue(maxValue.toFixed(6, 1).toString())}
+              onClick={() => {
+                handleUpdateInputValue(maxValue.toFixed(6, 1).toString())
+                allowUpdateInputStore.allowUpdateInput()
+              }}
             >
               Max
             </button>

@@ -5,7 +5,8 @@ import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { SwapTxnStatus } from 'types/swap'
 
-import { RoutingInfo, useTransactions } from '../hooks'
+import { useTransactions } from '../hooks'
+import type { RoutingInfo } from '../types'
 import { TxPageStepsType } from './index'
 
 type TxPageStepsProps = {

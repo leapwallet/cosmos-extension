@@ -103,10 +103,7 @@ export function useCheckIbcTransfer({
        * EVM address validation
        */
       if (activeChainInfo?.evmOnlyChain) {
-        if (
-          !isEthAddress(selectedAddress.address) ||
-          !isEthAddress(selectedAddress?.ethAddress ?? '')
-        ) {
+        if (!isEthAddress(selectedAddress?.ethAddress || selectedAddress.address)) {
           setAddressError('The entered address is invalid')
         } else {
           setAddressError(undefined)

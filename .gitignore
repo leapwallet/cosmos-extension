@@ -15,3 +15,5 @@ lerna-debug.log
 .zed
 .zed
 staging-builds
+.cursorrules
+.cursor/

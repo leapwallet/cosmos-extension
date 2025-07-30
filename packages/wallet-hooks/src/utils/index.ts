@@ -84,6 +84,7 @@ export * from './useInitTxMetadata';
 export * from './useLiquidStakingProviders';
 export * from './useLowGasPriceStep';
 export * from './useNativeFeeDenom';
+export * from './usePopularTokensOnramper';
 export * from './useProviderApr';
 export * from './useSetDisabledCW20InStorage';
 export * from './useSetDisabledNFTsInStorage';

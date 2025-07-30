@@ -2,7 +2,6 @@ import { useDebounce } from '@leapwallet/cosmos-wallet-hooks'
 import { EventName, PageName } from 'config/analytics'
 import { motion } from 'framer-motion'
 import Fuse from 'fuse.js'
-import { usePageView } from 'hooks/analytics/usePageView'
 import {
   AlphaOpportunity as AlphaOpportunityType,
   Raffle,
@@ -51,19 +50,6 @@ export default observer(function AlphaTimeline() {
   const { opportunities, isLoading: isOpportunitiesLoading } = useAlphaOpportunities()
   const { raffles, isLoading: isRafflesLoading } = useRaffles()
   const { alphaUser } = useChadProvider()
-
-  const memoizedEcosystem = useMemo(() => {
-    return [...new Set(opportunities?.flatMap((opp) => opp?.ecosystemFilter ?? []))]
-  }, [opportunities])
-  const memoizedCategories = useMemo(() => {
-    return [...new Set(opportunities?.flatMap((opp) => opp?.categoryFilter ?? []))]
-  }, [opportunities])
-
-  usePageView(PageName.Alpha, true, {
-    isChad: alphaUser?.isChad ?? false,
-    ecosystem: memoizedEcosystem,
-    categories: memoizedCategories,
-  })
 
   const { raffleWins } = useRaffleWins(alphaUser?.id ?? '')
   const isLoading = isOpportunitiesLoading || isRafflesLoading

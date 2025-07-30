@@ -730,7 +730,7 @@ export const useSimpleSend = (
         setShowLedgerPopup(false);
       }
     },
-    [evmJsonRpc, showLedgerPopup],
+    [evmJsonRpc, showLedgerPopup, denoms],
   );
 
   const send = useCallback(

@@ -19,16 +19,12 @@ const NavHeader = () => {
         <ArrowLeft className='size-4' />
       </Button>
 
-      {walletName !== 'social' && (
-        <>
-          {currentStep > 0 && (
-            <StepProgress currentStep={currentStepToShow} totalSteps={totalStepsToShow} />
-          )}
-
-          {/* to center the progress bar horizontally */}
-          <div className='size-9 shrink-0' />
-        </>
+      {currentStep > 0 && (
+        <StepProgress currentStep={currentStepToShow} totalSteps={totalStepsToShow} />
       )}
+
+      {/* to center the progress bar horizontally */}
+      <div className='size-9 shrink-0' />
     </div>
   )
 }

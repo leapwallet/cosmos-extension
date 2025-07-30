@@ -21,6 +21,7 @@ export const GENERAL_SECURITY_PAGES = {
 
 const GeneralSecurity = observer(({ goBack }: { goBack: () => void }): ReactElement => {
   const activeChain = useActiveChain()
+  const autoLockTime = autoLockTimeStore?.time
   const [showLockTimeDropUp, setShowLockTimeDropUp] = useState(false)
   const [page, setPage] = useState(GENERAL_SECURITY_PAGES.DEFAULT)
 
@@ -29,7 +30,7 @@ const GeneralSecurity = observer(({ goBack }: { goBack: () => void }): ReactElem
       {
         imgSrc: Images.Misc.Timer,
         property: 'Auto-lock timer',
-        value: TimerLockPeriodRev[autoLockTimeStore.time],
+        value: TimerLockPeriodRev[autoLockTime],
         onClick: () => {
           setShowLockTimeDropUp(true)
         },
@@ -55,7 +56,7 @@ const GeneralSecurity = observer(({ goBack }: { goBack: () => void }): ReactElem
         disabled: false,
       },
     ],
-    [activeChain],
+    [activeChain, autoLockTime],
   )
 
   if (page === GENERAL_SECURITY_PAGES.CONNECTED_SITES) {

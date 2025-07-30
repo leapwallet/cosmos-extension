@@ -53,7 +53,7 @@ import { QueryStatus, useQuery as reactUseQuery } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import { calculateFeeAmount, useDefaultGasPrice } from 'components/gas-price-options'
 import { GasPriceOptionValue } from 'components/gas-price-options/context'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
+import { AGGREGATED_CHAIN_KEY, LEAPBOARD_SWAP_URL } from 'config/constants'
 import { useNonNativeCustomChains } from 'hooks'
 import { useChainInfos } from 'hooks/useChainInfos'
 import useQuery from 'hooks/useQuery'
@@ -1167,8 +1167,7 @@ export function useSwapsTx({
   const redirectUrl = useMemo(() => {
     if (!sourceChain || !destinationChain || !sourceToken || !destinationToken) return ''
 
-    const baseURL = 'https://swapfast.app'
-    return `${baseURL}/?sourceChainId=${sourceChain.chainId}&destinationChainId=${destinationChain.chainId}&sourceAsset=${sourceToken?.coinMinimalDenom}&destinationAsset=${destinationToken?.coinMinimalDenom}`
+    return `${LEAPBOARD_SWAP_URL}&sourceChainId=${sourceChain.chainId}&destinationChainId=${destinationChain.chainId}&sourceAsset=${sourceToken?.coinMinimalDenom}&destinationAsset=${destinationToken?.coinMinimalDenom}`
   }, [destinationChain, destinationToken, sourceChain, sourceToken])
 
   /**

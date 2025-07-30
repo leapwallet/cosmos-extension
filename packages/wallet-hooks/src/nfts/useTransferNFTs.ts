@@ -131,48 +131,51 @@ export const useSendNft = (
     return new Registry(registryTypes);
   }, []);
 
-  const getMsgs = useCallback((toAddress: string, tokenId: string, memo: string, fromAddress: string) => {
-    const tx = {
-      msg: {
-        transfer_nft: {
-          recipient: toAddress,
-          token_id: tokenId,
-        },
-      },
-      memo: memo,
-      funds: [],
-    };
-
-    const instruction: ExecuteInstruction = {
-      contractAddress: collectionId,
-      msg: tx.msg,
-      funds: tx.funds,
-    };
-
-    return [instruction].map((i) => {
-      if (['mainCoreum', 'coreum'].includes(activeChain)) {
-        return {
-          typeUrl: '/coreum.nft.v1beta1.MsgSend',
-          value: {
-            sender: fromAddress,
-            receiver: toAddress,
-            id: tokenId,
-            classId: i.contractAddress,
+  const getMsgs = useCallback(
+    (toAddress: string, tokenId: string, memo: string, fromAddress: string) => {
+      const tx = {
+        msg: {
+          transfer_nft: {
+            recipient: toAddress,
+            token_id: tokenId,
           },
-        };
-      }
-
-      return {
-        typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
-        value: MsgExecuteContract.fromPartial({
-          sender: fromAddress,
-          contract: i.contractAddress,
-          msg: toUtf8(JSON.stringify(i.msg)),
-          funds: [...(i.funds || [])],
-        }),
+        },
+        memo: memo,
+        funds: [],
       };
-    });
-  }, []);
+
+      const instruction: ExecuteInstruction = {
+        contractAddress: collectionId,
+        msg: tx.msg,
+        funds: tx.funds,
+      };
+
+      return [instruction].map((i) => {
+        if (['mainCoreum', 'coreum'].includes(activeChain)) {
+          return {
+            typeUrl: '/coreum.nft.v1beta1.MsgSend',
+            value: {
+              sender: fromAddress,
+              receiver: toAddress,
+              id: tokenId,
+              classId: i.contractAddress,
+            },
+          };
+        }
+
+        return {
+          typeUrl: '/cosmwasm.wasm.v1.MsgExecuteContract',
+          value: MsgExecuteContract.fromPartial({
+            sender: fromAddress,
+            contract: i.contractAddress,
+            msg: toUtf8(JSON.stringify(i.msg)),
+            funds: [...(i.funds || [])],
+          }),
+        };
+      });
+    },
+    [collectionId],
+  );
 
   const simulateTransferNFTContract = async ({
     wallet,

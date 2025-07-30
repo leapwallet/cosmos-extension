@@ -9,11 +9,20 @@ import {
   NumiaBannerAD,
   NumiaBannerAttribute,
   NumiaTrackAction,
+  SpindlApiResponse,
 } from '../types/banner';
-import { APP_NAME, getAppName, getNumiaBannerBearer, storage, useGetStorageLayer } from '../utils';
+import {
+  APP_NAME,
+  getAppName,
+  getNumiaBannerBearer,
+  getSpindlBannerToken,
+  storage,
+  useGetStorageLayer,
+} from '../utils';
 import { cachedRemoteDataWithLastModified } from '../utils/cached-remote-data';
 
 const NUMIA_BASE_URL = 'https://filament.numia.xyz';
+const SPINDL_BASE_URL = 'https://e.spindlembed.com/v1';
 const LEAP_BANNER_URL = 'https://assets.leapwallet.io/banner/banner-v3.json';
 const COMPASS_BANNER_URL = 'https://assets.leapwallet.io/banner/compass-banner-v3.json';
 
@@ -133,6 +142,8 @@ export function useGetNumiaBanner(addresses: string[], positionIds: string[], ba
     },
     {
       enabled: bannerConfigStatus !== 'loading',
+      cacheTime: 1000 * 60 * 5,
+      staleTime: 1000 * 60 * 5,
     },
   );
 }
@@ -190,8 +201,75 @@ export function useGetBannerData(chain: string) {
     },
     {
       enabled: status !== 'loading',
+      cacheTime: 1000 * 60 * 5,
+      staleTime: 1000 * 60 * 5,
     },
   );
 
   return { leapBanners, isLeapBannersLoading: leapBannersStatus === 'loading' || status === 'loading' };
+}
+
+export function useGetSpindlBanner(address: string) {
+  const spindlBannerToken = getSpindlBannerToken();
+  const isCompassWallet = getAppName() === APP_NAME.Compass;
+
+  return useQuery(
+    ['spindl-banner-ad-data', isCompassWallet, spindlBannerToken],
+    async () => {
+      if (isCompassWallet) {
+        return [];
+      }
+
+      const res = await axios.get<SpindlApiResponse>(
+        `${SPINDL_BASE_URL}/render/leap_wallet?placement_id=home_tab_banner_carousel&limit=1&address=${address}`,
+        {
+          headers: {
+            'X-API-ACCESS-KEY': spindlBannerToken,
+          },
+        },
+      );
+
+      const bannerList: BannerAD[] = res.data.items.map((item) => {
+        return {
+          start_date: new Date(Date.now() - 86400000).toISOString(),
+          end_date: new Date(Date.now() + 86400000).toISOString(),
+          description: item.description,
+          title: item.title,
+          banner_type: 'redirect-external' as BannerADType,
+          id: `spindl-banner-${item.id}`,
+          redirect_url: item.ctas[0].href,
+          image_url: item.imageUrl,
+          visibleOn: 'ALL',
+          spindl_attributes: {
+            impression_id: item.impressionId,
+          },
+        };
+      });
+
+      return bannerList;
+    },
+    {
+      enabled: !!address,
+      cacheTime: 1000 * 60 * 5,
+      staleTime: 1000 * 60 * 5,
+    },
+  );
+}
+
+export async function postSpindlEvent(action: NumiaTrackAction, impression_id: string) {
+  const data = {
+    type: action === NumiaTrackAction.CLICKED ? 'click' : 'impression',
+    impression_id,
+  };
+  const spindlBannerToken = getSpindlBannerToken();
+
+  try {
+    await axios.post(`${SPINDL_BASE_URL}/external/track`, data, {
+      headers: {
+        'X-API-ACCESS-KEY': spindlBannerToken,
+      },
+    });
+  } catch (_) {
+    //
+  }
 }

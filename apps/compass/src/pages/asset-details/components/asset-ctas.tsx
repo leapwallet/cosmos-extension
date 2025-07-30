@@ -12,6 +12,7 @@ import ClickableIcon from 'components/clickable-icons'
 import { useHardCodedActions } from 'components/search-modal/useHardCodedActions'
 import { PageName } from 'config/analytics'
 import { EventName } from 'config/analytics'
+import { LEAPBOARD_SWAP_URL } from 'config/constants'
 import { useChainInfos } from 'hooks/useChainInfos'
 import CardIcon from 'icons/card-icon'
 import { DollarIcon } from 'icons/dollar-icon'
@@ -121,7 +122,7 @@ export const AssetCtas = ({
             chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId,
           )
           handleSwapClick(
-            `https://swapfast.app/?destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
+            `${LEAPBOARD_SWAP_URL}&destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
             `/swap?destinationChainId=${chainInfos[activeChain].chainId}&destinationToken=${denomKey}&pageSource=assetDetails`,
           )
         }}

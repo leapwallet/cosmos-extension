@@ -1,4 +1,5 @@
 import { APTOS_COIN, APTOS_FA } from '@aptos-labs/ts-sdk'
+import { getAddress } from '@ethersproject/address'
 import {
   currencyDetail,
   formatPercentAmount,
@@ -48,6 +49,7 @@ import Text from 'components/text'
 import { TokenImageWithFallback } from 'components/token-image-with-fallback'
 import { Button } from 'components/ui/button'
 import { EventName, PageName } from 'config/analytics'
+import { LEAPBOARD_SWAP_URL } from 'config/constants'
 import { differenceInDays } from 'date-fns'
 import { useChainPageInfo } from 'hooks'
 import { usePageView } from 'hooks/analytics/usePageView'
@@ -645,7 +647,7 @@ const TokensDetails = observer(
                           chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId ?? '',
                         )
                         const chainId = chainInfos[activeChain]?.chainId
-                        let searchQuery = `assetCoinDenom=${denomKey}`
+                        let searchQuery = `assetCoinDenom=${denomKey}&holderChain=${activeChain}`
                         if (chainId) {
                           searchQuery += `&chainId=${chainId}`
                         }
@@ -663,12 +665,17 @@ const TokensDetails = observer(
                       label='Swap'
                       icon={SwapIconV2}
                       onClick={() => {
+                        let coinMinimalDenom =
+                          portfolio?.ibcDenom || denomInfo?.coinMinimalDenom || ''
+                        if (coinMinimalDenom?.startsWith('0x')) {
+                          coinMinimalDenom = getAddress(coinMinimalDenom)
+                        }
                         const denomKey = getKeyToUseForDenoms(
-                          portfolio?.ibcDenom || denomInfo?.coinMinimalDenom || '',
+                          coinMinimalDenom,
                           chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId ?? '',
                         )
                         handleSwapClick(
-                          `https://swapfast.app/?destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
+                          `${LEAPBOARD_SWAP_URL}&destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${coinMinimalDenom}`,
                           `/swap?destinationChainId=${chainInfos[activeChain].chainId}&destinationToken=${denomKey}&pageSource=assetDetails`,
                         )
                       }}

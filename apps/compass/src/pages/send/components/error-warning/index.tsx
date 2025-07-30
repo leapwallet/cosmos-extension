@@ -122,7 +122,7 @@ function ErrorWarning() {
 
   if (cw20Error || isAddressNotSupported) {
     return (
-      <div className='p-4 rounded-2xl bg-red-100 dark:bg-red-900 items-center flex gap-2'>
+      <div className='p-4 rounded-b-xl bg-red-100 dark:bg-red-900 items-center flex gap-2'>
         <Warning size={24} className='text-red-400 dark:text-red-300' />
         <Text size='xs' className='font-medium'>
           {amountError}
@@ -149,6 +149,17 @@ function ErrorWarning() {
         <Info size={16} className='text-accent-warning self-start min-w-4' />
         <Text size='xs' className='font-medium' color='text-accent-warning'>
           {addressWarning.message}
+        </Text>
+      </div>
+    )
+  }
+
+  if (selectedToken && selectedToken?.coinMinimalDenom !== 'usei') {
+    return (
+      <div className='px-3 py-2.5 rounded-b-xl bg-accent-warning-800 items-center flex gap-1.5'>
+        <Info size={16} className='text-accent-warning self-start min-w-4' />
+        <Text size='xs' className='font-medium' color='text-accent-warning'>
+          Avoid transferring IBC/Non-native tokens to centralised exchanges.
         </Text>
       </div>
     )

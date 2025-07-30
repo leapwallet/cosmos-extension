@@ -418,9 +418,17 @@ export const denoms: DenomsRecord = {
     coinDenom: 'cBTC',
     coinDecimals: 18,
     coinMinimalDenom: 'citrea-native',
-    icon: 'https://assets.leapwallet.io/citrea.png',
+    icon: 'https://assets.leapwallet.io/bitcoin.png',
     chain: 'citrea',
     coinGeckoId: '',
+  },
+  'lumia-native': {
+    coinDenom: 'LUMIA',
+    coinDecimals: 18,
+    coinMinimalDenom: 'lumia-native',
+    icon: 'https://assets.leapwallet.io/lumia.svg',
+    chain: 'lumia',
+    coinGeckoId: 'lumia',
   },
   'hyperEVM-native': {
     coinDenom: 'HYPE',

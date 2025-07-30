@@ -2,13 +2,9 @@ import { capitalize, Key, useChainInfo, WALLETTYPE } from '@leapwallet/cosmos-wa
 import { pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
 import { Check, DotsThreeVertical } from '@phosphor-icons/react'
 import Text from 'components/text'
-import { LEDGER_NAME_EDITED_SUFFIX_REGEX } from 'config/config'
-import { walletLabels } from 'config/constants'
 import { AnimatePresence, motion } from 'framer-motion'
 import { WatchWalletAvatar } from 'hooks'
-import { Wallet } from 'hooks/wallet/useWallet'
 import { CopyIcon } from 'icons/copy-icon'
-import { GoogleColorIcon } from 'icons/google-color-icon'
 import { LedgerDriveIcon } from 'icons/ledger-icon'
 import { getWalletIconAtIndex } from 'images/misc'
 import { observer } from 'mobx-react-lite'
@@ -21,7 +17,6 @@ import { opacityFadeInOut, transition150 } from 'utils/motion-variants'
 
 import useActiveWallet from '../../hooks/settings/useActiveWallet'
 import { sliceAddress } from '../../utils/strings'
-import { trimEmail } from './utils/trim-email'
 
 const WalletCardWrapper = observer(
   ({
@@ -42,7 +37,6 @@ const WalletCardWrapper = observer(
     const navigate = useNavigate()
     const activeChainInfo = useChainInfo()
     const { activeWallet, setActiveWallet } = useActiveWallet()
-    const socialWallets = Wallet.useSocialWallet()
 
     const { walletLabel, shortenedWalletName } = useMemo(() => {
       let walletLabel = ''
@@ -59,11 +53,6 @@ const WalletCardWrapper = observer(
         walletLabel = `Imported · ${wallet.path?.replace(/m\/44'\/(118'|60')\//, '')}`
       }
 
-      const socialWallet = socialWallets?.[wallet.id]
-      if (socialWallet?.id) {
-        walletLabel = trimEmail(socialWallet.email) || 'Social'
-      }
-
       const walletName = formatWalletName(wallet.name)
 
       const sliceLength = 19
@@ -72,7 +61,7 @@ const WalletCardWrapper = observer(
         walletNameLength > sliceLength ? walletName.slice(0, sliceLength) + '...' : walletName
 
       return { walletLabel, walletName, walletNameLength, shortenedWalletName }
-    }, [wallet, socialWallets])
+    }, [wallet])
 
     const { addressText, disableEdit } = useMemo(() => {
       let addressText =
@@ -117,8 +106,6 @@ const WalletCardWrapper = observer(
             className='size-9 rounded-full'
             iconClassName='size-7'
           />
-        ) : socialWallets?.[wallet.id]?.id ? (
-          <GoogleColorIcon className='size-9 rounded-full' />
         ) : (
           <img
             src={wallet?.avatar || getWalletIconAtIndex(wallet.colorIndex)}

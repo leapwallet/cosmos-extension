@@ -42,15 +42,18 @@ import { useGetIbcChannelId, useGetIBCSupport } from '../ibc';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
   getCompassSeiEvmConfigStoreSnapshot,
+  getGasEstimateCacheKey,
   useActiveChain,
   useActiveWallet,
   useAddress,
   useChainApis,
   useDefaultGasEstimates,
+  useGasEstimateCache,
   useGasPriceSteps,
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
+  useUpdateGasEstimateCache,
 } from '../store';
 import { TxCallback, WALLETTYPE } from '../types';
 import {
@@ -199,6 +202,8 @@ export function useSendModule({
   const defaultGasEstimates = useDefaultGasEstimates();
   const [preferredCurrency] = useUserPreferredCurrency();
   const allChainsGasPriceSteps = useGasPriceSteps();
+  const gasEstimateCache = useGasEstimateCache();
+  const updateGasEstimateCache = useUpdateGasEstimateCache();
 
   const isCW20Token = useCallback(
     (token: Token) => {
@@ -262,9 +267,6 @@ export function useSendModule({
   } = useFetchAccountDetails(activeChain, selectedNetwork);
 
   const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
-  const [gasEstimate, setGasEstimate] = useState<number>(
-    defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ?? DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
-  );
   const [gasError, setGasError] = useState<string | null>(null);
   const [computedGas, setComputedGas] = useState<number>(0);
 
@@ -358,6 +360,56 @@ export function useSendModule({
   const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
   const displayAccounts = useSendIbcChains(activeChain);
 
+  const isIBCTransfer = useMemo(() => {
+    if (selectedAddress && selectedAddress.address) {
+      try {
+        const { prefix: fromAddressPrefix } = bech32.decode(fromAddress);
+        const { prefix: toAddressPrefix } = bech32.decode(selectedAddress.address);
+        return fromAddressPrefix !== toAddressPrefix;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }, [selectedAddress, fromAddress]);
+
+  const cachedGasEstimate = useMemo(() => {
+    if (!activeChainId) return;
+    const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption];
+    let _feeDenom = feeDenom?.ibcDenom || feeDenom?.coinMinimalDenom;
+    if (!_feeDenom && _gasPrice) {
+      _feeDenom = _gasPrice.denom;
+    }
+    let txType = 'send';
+    if (
+      isSeiEvmTransaction &&
+      (hasToUsePointerLogic || isERC20Token(Object.keys(erc20Denoms), selectedToken?.coinMinimalDenom ?? ''))
+    ) {
+      txType = 'send-erc20';
+    }
+    if (isIBCTransfer) {
+      txType = 'send-ibc';
+    }
+    const key = getGasEstimateCacheKey(activeChainId, txType, _feeDenom);
+    return gasEstimateCache[key];
+  }, [
+    activeChainId,
+    feeDenom.coinMinimalDenom,
+    gasEstimateCache,
+    defaultGasEstimates,
+    activeChain,
+    isIBCTransfer,
+    isSeiEvmTransaction,
+    hasToUsePointerLogic,
+    selectedToken?.coinMinimalDenom,
+  ]);
+
+  const [gasEstimate, setGasEstimate] = useState<number>(
+    cachedGasEstimate ??
+      defaultGasEstimates[activeChain]?.DEFAULT_GAS_TRANSFER ??
+      DefaultGasEstimates.DEFAULT_GAS_TRANSFER,
+  );
+
   useEffect(() => {
     (async function () {
       if (feeDenom.coinMinimalDenom === 'uosmo' && activeChain === 'osmosis') {
@@ -400,19 +452,6 @@ export function useSendModule({
       return ibcChannelIds?.[0];
     },
   );
-
-  const isIBCTransfer = useMemo(() => {
-    if (selectedAddress && selectedAddress.address) {
-      try {
-        const { prefix: fromAddressPrefix } = bech32.decode(fromAddress);
-        const { prefix: toAddressPrefix } = bech32.decode(selectedAddress.address);
-        return fromAddressPrefix !== toAddressPrefix;
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  }, [selectedAddress, fromAddress]);
 
   /**
    * Fee Calculation:
@@ -670,7 +709,6 @@ export function useSendModule({
         (selectedToken && isCW20Token(selectedToken) ? 2 : 1);
 
       const inputAmountNumber = new BigNumber(inputAmount);
-      setGasEstimate(isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
 
       if (
         !selectedAddress?.address ||
@@ -679,10 +717,13 @@ export function useSendModule({
         inputAmountNumber.lte(0) ||
         activeChain === 'mayachain'
       ) {
+        // if no selected address, token, or input amount, set to default gas estimate
+        const _gasEstimate = cachedGasEstimate ?? (isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
+        setGasEstimate(_gasEstimate);
         return;
       }
 
-      const normalizedAmount = inputAmountNumber
+      let normalizedAmount = inputAmountNumber
         .multipliedBy(10 ** (selectedToken?.coinDecimals ?? 6))
         .toFixed(0, BigNumber.ROUND_DOWN);
 
@@ -713,6 +754,12 @@ export function useSendModule({
             );
 
             setGasEstimate(gasUsed);
+            updateGasEstimateCache({
+              chainId: activeChainId,
+              txType: erc20Token ? 'send-erc20' : 'send',
+              feeDenom: feeDenom.coinMinimalDenom,
+              gasEstimate: gasUsed,
+            });
           } catch (_) {
             const { ARCTIC_EVM_GAS_LIMIT } = await getCompassSeiEvmConfigStoreSnapshot();
             setGasEstimate(ARCTIC_EVM_GAS_LIMIT);
@@ -844,12 +891,53 @@ export function useSendModule({
         }
 
         const channelId = customIbcChannelId ?? ibcChannelId ?? '';
-        let token = selectedToken.ibcDenom || selectedToken.coinMinimalDenom;
+        if (isIBCTransfer && !channelId) {
+          throw new Error('No channel id');
+        }
 
+        let token = selectedToken?.ibcDenom || selectedToken?.coinMinimalDenom;
         token = isEthAddress(token) ? `erc20/${token}` : token;
-        const amountOfCoins = coin(normalizedAmount, token);
 
-        const fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom);
+        const _feeDenom = feeDenom?.ibcDenom ?? feeDenom?.coinMinimalDenom;
+        if (!_feeDenom) {
+          throw new Error('No fee denom');
+        }
+
+        const normalizedTokenBalance = new BigNumber(
+          toSmall(selectedToken?.amount ?? '0', selectedToken?.coinDecimals ?? 6) || '0',
+        );
+
+        if (new BigNumber(normalizedAmount ?? '0').gt(normalizedTokenBalance)) {
+          throw new Error('Insufficient balance');
+        }
+
+        let fee = getSimulationFee(_feeDenom);
+        const feeAmountBN = new BigNumber(fee?.[0]?.amount ?? '0');
+
+        const isSelectedTokenSameAsFeeToken =
+          !!selectedToken?.ibcDenom || !!_feeDenom?.startsWith('ibc/')
+            ? selectedToken?.ibcDenom === _feeDenom
+            : selectedToken?.coinMinimalDenom === _feeDenom;
+
+        // if selected token is same as fee token, and input amount + fee > token balance, deduct fee from input amount
+        if (
+          isSelectedTokenSameAsFeeToken &&
+          new BigNumber(normalizedAmount ?? '0').plus(feeAmountBN).gt(normalizedTokenBalance)
+        ) {
+          // deduct fees from token balance only if new value > 0, else we can update fee to be zero
+          const newNormalizedAmount = normalizedTokenBalance.minus(feeAmountBN);
+          if (newNormalizedAmount.gt(0)) {
+            normalizedAmount = String(newNormalizedAmount.toString());
+          } else {
+            fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom, '0');
+          }
+        }
+
+        if (new BigNumber(normalizedAmount).lte(0)) {
+          throw new Error('Amount is less than 0');
+        }
+
+        const amountOfCoins = coin(normalizedAmount, token);
         const toAddress = associatedSeiAddress || selectedAddress.address || '';
 
         let { gasUsed } = isIBCTransfer
@@ -871,8 +959,16 @@ export function useSendModule({
           gasUsed = 2200000;
         }
         setGasEstimate(gasUsed);
+        updateGasEstimateCache({
+          chainId: activeChainId,
+          txType: isIBCTransfer ? 'send-ibc' : 'send',
+          feeDenom: feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom,
+          gasEstimate: gasUsed,
+        });
       } catch (err) {
-        //
+        // if error, set to default gas estimate
+        const _gasEstimate = cachedGasEstimate ?? (isIBCTransfer ? defaultIbcGasEstimate : defaultNonIbcGasEstimate);
+        setGasEstimate(_gasEstimate);
       }
     };
 

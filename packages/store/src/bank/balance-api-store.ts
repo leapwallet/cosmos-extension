@@ -5,7 +5,7 @@ import { makeAutoObservable } from 'mobx';
 import { SelectedNetworkType } from 'types';
 
 import { ChainInfosStore, CoingeckoIdsStore, DenomsStore } from '../assets';
-import { getBaseURL } from '../globals/config';
+import { getBaseURL, getIsCompass } from '../globals/config';
 import { getNativeDenom } from '../utils';
 import { fromSmall } from '../utils/balance-converter';
 import { generateRandomString } from '../utils/random-string-generator';
@@ -319,11 +319,19 @@ export class BalanceAPIStore {
       }
       const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
 
+      let name = balance?.name;
+      let symbol = balance?.symbol;
+      if (getIsCompass() && _denom === 'usdc') {
+        // Override the symbol for USDC on Compass
+        name = 'USDC via Noble';
+        symbol = 'USDC.n';
+      }
+
       if (!denomInfo) {
         const denomInfoToStore: NativeDenom = {
           chain: chain,
-          name: balance?.name,
-          coinDenom: balance?.symbol,
+          name,
+          coinDenom: symbol,
           coinDecimals: balance?.decimals,
           coinMinimalDenom: balance.denom,
           coinGeckoId,
@@ -331,17 +339,26 @@ export class BalanceAPIStore {
         };
         denomsToAddInBase[balance.denom] = denomInfoToStore;
       } else if (coinGeckoId && !denomInfo.coinGeckoId) {
+        let coinDenom = denomInfo?.coinDenom;
+        let name = denomInfo?.name;
+        if (getIsCompass() && _denom === 'usdc') {
+          // Override the coinDenom for USDC on Compass
+          coinDenom = 'USDC.n';
+          name = 'USDC via Noble';
+        }
         denomsToAddInBase[_denom] = {
           ...denomInfo,
+          coinDenom,
+          name,
           coinGeckoId,
         };
       }
 
       return {
         chain: denomChain?.key ?? chain,
-        name: balance?.name,
+        name,
         amount,
-        symbol: balance?.symbol,
+        symbol,
         usdValue: usdValue ?? '',
         coinMinimalDenom: denomInfo?.coinMinimalDenom ?? balance?.denom,
         img: balance?.icon,

@@ -92,7 +92,9 @@ export const SelectTokenSheet = observer(
 
                       let isSelected = selectedToken?.coinMinimalDenom === asset.coinMinimalDenom
                       if (selectedToken?.ibcDenom || asset.ibcDenom) {
-                        isSelected = selectedToken?.ibcDenom === asset.ibcDenom
+                        isSelected =
+                          selectedToken?.ibcDenom === asset.ibcDenom &&
+                          asset.tokenBalanceOnChain === selectedToken?.tokenBalanceOnChain
                       }
                       if (selectedToken?.isEvm || asset?.isEvm) {
                         isSelected = isSelected && selectedToken?.isEvm === asset?.isEvm

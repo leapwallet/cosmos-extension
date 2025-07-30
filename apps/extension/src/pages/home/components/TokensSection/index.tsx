@@ -24,7 +24,6 @@ import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
 import { ChainInfoProp } from '../../utils'
 import { tokenHasBalance } from '../GeneralHome'
 import { ListTokens } from '../index'
-import { NativeTokenPlaceholder } from '../NativeTokenPlaceholder'
 import { ZeroStateBanner } from '../ZeroStateBanner'
 import { TokenSectionHeader } from './header'
 import { SearchTokensInput } from './SearchTokensInput'
@@ -139,8 +138,6 @@ export const TokensSection = observer(
           <WarningCard text={disabledCardMessage} />
         ) : showFundBanners ? (
           <ZeroStateBanner zeroStateBanner={zeroStateBanner} />
-        ) : balanceError ? (
-          <NativeTokenPlaceholder />
         ) : (
           <section className='flex flex-col w-full px-5 pb-20'>
             <TokenSectionHeader
@@ -158,9 +155,13 @@ export const TokensSection = observer(
               <AggregatedLoadingList />
             ) : (
               <>
-                <ListTokens allTokens={allTokensToShow} searchQuery={searchQuery} />
+                <ListTokens
+                  allTokens={allTokensToShow}
+                  searchQuery={searchQuery}
+                  balanceError={balanceError}
+                />
 
-                {evmStatus !== 'success' ? <AggregatedLoadingList className='mb-3' /> : null}
+                {evmStatus === 'loading' ? <AggregatedLoadingList className='mb-3' /> : null}
                 {activeChain === 'secret' && snip20TokensStatus !== 'success' && snip20Enabled ? (
                   <AggregatedLoadingList className='mb-3' />
                 ) : null}

@@ -8,7 +8,7 @@ import { OnboardingLayout } from '../layout'
 import { useCreateWalletContext } from './create-wallet-context'
 
 const NavHeader = () => {
-  const { backToPreviousStep, currentStep, totalSteps, createType } = useCreateWalletContext()
+  const { backToPreviousStep, currentStep, totalSteps } = useCreateWalletContext()
 
   return (
     <div className='flex flex-row items-center justify-between align-center w-full relative -m-1'>
@@ -16,20 +16,12 @@ const NavHeader = () => {
         <ArrowLeft className='size-4' />
       </Button>
 
-      {createType !== 'social' && (
-        <>
-          {currentStep > 0 && (
-            <StepProgress
-              currentStep={currentStep}
-              totalSteps={totalSteps}
-              className='mx-auto h-9'
-            />
-          )}
-
-          {/* to center the progress bar horizontally */}
-          <div className='size-9 shrink-0' />
-        </>
+      {currentStep > 0 && (
+        <StepProgress currentStep={currentStep} totalSteps={totalSteps} className='mx-auto h-9' />
       )}
+
+      {/* to center the progress bar horizontally */}
+      <div className='size-9 shrink-0' />
     </div>
   )
 }

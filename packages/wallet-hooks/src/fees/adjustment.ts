@@ -125,7 +125,7 @@ export const useShouldShowAutoAdjustSheet = (
   forceNetwork?: 'mainnet' | 'testnet',
 ): ((args: shouldShowAutoAdjustArgs) => AdjustmentType) => {
   const nativeDenom = useNativeFeeDenom(denoms, forceChain, forceNetwork);
-  const coinMinimalDenom = nativeDenom.coinMinimalDenom;
+  const coinMinimalDenom = nativeDenom?.coinMinimalDenom;
 
   const shouldShowAutoAdjustSheet = useCallback(
     ({ tokenAmount, tokenDenom, feeAmount, feeDenom, tokenBalance }: shouldShowAutoAdjustArgs): AdjustmentType => {

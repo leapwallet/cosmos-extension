@@ -8,8 +8,8 @@ import React, { Dispatch, SetStateAction, useCallback, useEffect } from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { rootBalanceStore } from 'stores/root-store'
 
+import { SWAP_NETWORK } from '../constants'
 import { useSwapContext } from '../context'
-import { SWAP_NETWORK } from '../hooks'
 
 const FeesSheet = ({
   showFeesSettingSheet,

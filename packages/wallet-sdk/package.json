@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-sdk",
-  "version": "6.5.2",
+  "version": "6.5.5",
   "description": "TypeScript library to create and manage non-custodial wallets for cosmos blockchains.",
   "main": "dist/node/index.js",
   "scripts": {
@@ -74,12 +74,12 @@
     "ethereumjs-util": "7.1.5",
     "ethers": "5.7.0",
     "futoin-hkdf": "1.5.1",
-    "joi": "17.9.2",
     "long": "5.2.1",
     "parse-duration": "1.0.2",
     "secretjs": "1.12.0",
     "secure-random": "1.1.2",
-    "viem": "2.5.0"
+    "viem": "2.5.0",
+    "zod": "3.20.6"
   },
   "devDependencies": {
     "@babel/node": "7.19.1",
@@ -88,14 +88,13 @@
     "@types/crypto-js": "4.1.1",
     "@types/elliptic": "6.4.14",
     "@types/jest": "27.5.1",
-    "@types/joi": "17.2.3",
     "@types/lodash": "4.14.182",
     "@types/secure-random": "1.1.0",
     "babel-plugin-transform-import-meta": "2.2.1",
     "cross-env": "7.0.3",
     "eslint-plugin-jsdoc": "39.3.0",
     "jest": "28.1.0",
-    "typescript": "5.2.2",
-    "tslib": "2.4.0"
+    "tslib": "2.4.0",
+    "typescript": "5.2.2"
   }
 }

@@ -137,4 +137,5 @@ export const gasAdjustments: GasAdjustments = {
   fogo: 1,
   xrpl: 1.5,
   citrea: 1,
+  lumia: 1,
 };

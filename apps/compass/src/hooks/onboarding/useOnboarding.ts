@@ -4,7 +4,6 @@ import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk/dist/browser/const
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { SeedPhrase } from 'hooks/wallet/seed-phrase/useSeedPhrase'
 import { LedgerAppId, Wallet } from 'hooks/wallet/useWallet'
-import { useWeb3Login } from 'pages/onboarding/use-social-login'
 import { useEffect, useRef, useState } from 'react'
 import { getDerivationPathToShow } from 'utils'
 
@@ -246,8 +245,6 @@ export function useOnboarding() {
   const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>()
   const [mnemonic, setMnemonic] = useState('')
 
-  const socialLogin = useWeb3Login()
-
   const importWalletAccounts = Wallet.useImportMultipleWalletAccounts()
 
   useEffect(() => {
@@ -261,8 +258,7 @@ export function useOnboarding() {
     mnemonic: string,
     password: Uint8Array,
     selectedIds: { [key: number]: boolean },
-    type: 'create' | 'import' | 'create-social' | 'import-social',
-    email?: string,
+    type: 'create' | 'import',
   ) => {
     if (mnemonic && password) {
       return importWalletAccounts({
@@ -272,7 +268,6 @@ export function useOnboarding() {
           .filter(([, selected]) => selected)
           .map(([addressIndex]) => parseInt(addressIndex)),
         type,
-        email,
       })
     }
   }
@@ -294,6 +289,5 @@ export function useOnboarding() {
     walletAccounts,
     getAccountDetails,
     onOnboardingComplete,
-    socialLogin,
   }
 }

@@ -6,7 +6,7 @@ import {
   useTransactions as useSkipTransactions,
 } from '@leapwallet/elements-hooks'
 
-import { RoutingInfo } from './useSwapsTx'
+import type { RoutingInfo } from '../types'
 
 export function useTransactions(routingInfo: RoutingInfo) {
   const { groupedTransactions: skipGroupedTransactions, actions: skipActions } =

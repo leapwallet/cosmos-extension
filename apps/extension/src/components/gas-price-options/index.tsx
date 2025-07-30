@@ -46,6 +46,7 @@ import { observer } from 'mobx-react-lite'
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { activeChainStore } from 'stores/active-chain-store'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { evmBalanceStore, solanaCoinDataStore, suiCoinDataStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { chainApisStore } from 'stores/chains-api-store'
@@ -829,6 +830,7 @@ function Selector({
               },
               feeTokenData,
             )
+            allowUpdateInputStore.resetUpdateCount()
           }
           const levelText = (level: GasOptions) => {
             if (activeChain === 'bitcoin' || activeChain === 'bitcoinSignet') {
@@ -1107,6 +1109,7 @@ GasPriceOptions.AdditionalSettings = observer(
         if (!userHasSelectedToken) {
           setUserHasSelectedToken(true)
         }
+        allowUpdateInputStore.resetUpdateCount()
         setTimeout(() => {
           document.getElementById(`gas-option-${value.option}`)?.click()
         }, 50)
@@ -1126,6 +1129,7 @@ GasPriceOptions.AdditionalSettings = observer(
 
       if (!isGasLimitInvalid(gasLimitInputValue) && _gasLimit !== recommendedGasLimit) {
         setGasLimit(_gasLimit)
+        allowUpdateInputStore.resetUpdateCount()
       }
     }
 

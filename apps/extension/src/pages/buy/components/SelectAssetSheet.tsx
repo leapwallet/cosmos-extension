@@ -1,3 +1,4 @@
+import { usePopularTokensOnramper } from '@leapwallet/cosmos-wallet-hooks'
 import { MagnifyingGlassMinus } from '@phosphor-icons/react'
 import BottomModal from 'components/new-bottom-modal'
 import TokenListSkeleton from 'components/Skeletons/TokenListSkeleton'
@@ -5,8 +6,13 @@ import { SearchInput } from 'components/ui/input/search-input'
 import { AssetProps, useGetSupportedAssets } from 'hooks/swapped/useGetSupportedAssets'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Virtuoso } from 'react-virtuoso'
+import { chainInfoStore } from 'stores/chain-infos-store'
+import { rootDenomsStore } from 'stores/denoms-store-instance'
 
 import AssetCard from './AssetCard'
+
+type AssetOrTitle = AssetProps | { title: string }
 
 type SelectAssetSheetProps = {
   isVisible: boolean
@@ -18,18 +24,73 @@ type SelectAssetSheetProps = {
 const SelectAssetSheet = observer(
   ({ isVisible, onClose, onAssetSelect, selectedAsset }: SelectAssetSheetProps) => {
     const [searchTerm, setSearchTerm] = useState('')
-    const { isLoading, data: supportedAssets = [] } = useGetSupportedAssets()
+    const { isLoading: isAllTokensLoading, data: supportedAssets = [] } = useGetSupportedAssets()
+    const { data: popularAssets = [] } = usePopularTokensOnramper()
     const searchInputRef = useRef<HTMLInputElement>(null)
+    const chainInfos = chainInfoStore.chainInfos
+    const denoms = rootDenomsStore.allDenoms
+    const denomsArray = Object.values(denoms)
+    const chainsArray = Object.values(chainInfos)
 
-    const assetList = useMemo<AssetProps[] | []>(
-      () =>
-        supportedAssets.filter(
+    const popularUpdatedAssets = useMemo(() => {
+      const res: AssetProps[] = popularAssets.reduce((acc: AssetProps[], asset) => {
+        const chain = chainsArray.find((chain) => {
+          return chain.chainRegistryPath === asset.origin || chain.key === asset.origin
+        })
+        const denomData = denomsArray.find(
+          (denom) => denom.coinDenom.toLowerCase() === asset.symbol.toLowerCase(),
+        )
+        if (chain) {
+          acc.push({
+            ...asset,
+            chainName: chain.chainName,
+            chainId: chain.chainId,
+            assetImg: denomData?.icon ?? '',
+            chainSymbolImageUrl: chain.chainSymbolImageUrl,
+            chainKey: chain.key,
+          })
+        }
+        return acc
+      }, [])
+      return res
+    }, [chainsArray, denomsArray, popularAssets])
+
+    const popularAssetsList = useMemo<AssetOrTitle[] | []>(() => {
+      const res = popularUpdatedAssets.filter(
+        (asset) =>
+          asset.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          asset.chainName.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+      if (res.length > 0) {
+        return [{ title: 'Popular tokens' }, ...res]
+      }
+      return res
+    }, [popularUpdatedAssets, searchTerm])
+
+    const assetList = useMemo<AssetOrTitle[] | []>(() => {
+      const res = supportedAssets
+        .filter(
           (asset: AssetProps) =>
-            asset.symbol.toLowerCase().includes(searchTerm) ||
-            asset.chainName.toLowerCase().includes(searchTerm),
-        ),
-      [supportedAssets, searchTerm],
-    )
+            (asset.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              asset.chainName.toLowerCase().includes(searchTerm.toLowerCase())) &&
+            !popularAssets.some((popularAsset) => popularAsset.id === asset.id),
+        )
+        .sort((a, b) => {
+          const aSymbolMatch = a.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ? 0 : 1
+          const bSymbolMatch = b.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ? 0 : 1
+          return aSymbolMatch - bSymbolMatch
+        })
+      if (res.length > 0) {
+        return [{ title: 'Available tokens' }, ...res]
+      }
+      return res
+    }, [supportedAssets, searchTerm, popularAssets])
+
+    const allAssets = useMemo(() => {
+      return [...popularAssetsList, ...assetList]
+    }, [popularAssetsList, assetList])
+
+    const isLoading = isAllTokensLoading && popularAssetsList.length === 0
 
     useEffect(() => {
       if (isVisible) {
@@ -46,7 +107,7 @@ const SelectAssetSheet = observer(
         onClose={onClose}
         fullScreen
         title='Select token to buy'
-        className='!p-6'
+        className='!p-6 h-full'
       >
         <div className='flex flex-col items-center w-full pb-2'>
           <SearchInput
@@ -60,8 +121,8 @@ const SelectAssetSheet = observer(
         </div>
         {isLoading && <TokenListSkeleton />}
         {!isLoading && (
-          <div>
-            {assetList?.length === 0 && (
+          <div className='h-[calc(100%-56px)] overflow-y-auto'>
+            {allAssets?.length === 0 && (
               <div className='py-[80px] px-4 w-full flex-col flex  justify-center items-center gap-4'>
                 <MagnifyingGlassMinus
                   size={64}
@@ -77,9 +138,18 @@ const SelectAssetSheet = observer(
                 </div>
               </div>
             )}
-            {assetList.length !== 0 &&
-              assetList.map((asset, index) => (
-                <>
+            <Virtuoso
+              data={allAssets}
+              style={{ flexGrow: '1', width: '100%' }}
+              itemContent={(index, asset) => {
+                if ('title' in asset) {
+                  return (
+                    <div className='text-muted-foreground pt-5 pb-1 font-bold text-xs'>
+                      {asset.title}
+                    </div>
+                  )
+                }
+                return (
                   <AssetCard
                     key={asset.id}
                     symbol={asset.symbol}
@@ -92,8 +162,9 @@ const SelectAssetSheet = observer(
                       asset.chainId === selectedAsset?.chainId
                     }
                   />
-                </>
-              ))}
+                )
+              }}
+            />
           </div>
         )}
       </BottomModal>

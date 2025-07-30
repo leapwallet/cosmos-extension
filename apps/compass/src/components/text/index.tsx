@@ -7,6 +7,7 @@ export type TextProps = {
   readonly className?: string
   readonly color?: string
   readonly style?: React.CSSProperties
+  readonly onClick?: () => void
 }
 
 /**

@@ -211,7 +211,7 @@ async function signEip712Tx(
   signDoc: StdSignDoc,
 ): Promise<AminoSignResponse> {
   const messageBuffer = Buffer.from(signBytes).toString();
-  const data = await EIP712MessageValidator.validateAsync(JSON.parse(messageBuffer));
+  const data = EIP712MessageValidator.parse(JSON.parse(messageBuffer));
 
   if (wallet instanceof LeapKeystoneSignerEth || wallet.constructor.name === 'LeapKeystoneSignerEth') {
     const _wallet = wallet as LeapKeystoneSignerEth;

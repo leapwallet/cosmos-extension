@@ -271,7 +271,7 @@ const StakeInputPage = observer(
 
     const token = useMemo(() => {
       return rootBalanceStore.allSpendableTokens?.find(
-        (e) => e.symbol === activeStakingDenom?.coinDenom,
+        (e) => e.symbol === activeStakingDenom?.coinDenom && !e.ibcChainInfo,
       )
     }, [activeStakingDenom?.coinDenom, rootBalanceStore.allSpendableTokens])
 

@@ -1,4 +1,3 @@
-import { GoogleColorIcon } from 'icons/google-color-icon'
 import { RecoveryPhraseIcon } from 'icons/recovery-phrase'
 import { WalletIcon } from 'icons/wallet-icon'
 import React from 'react'
@@ -33,7 +32,7 @@ const SelectWalletButton = (props: {
 }
 
 export const SelectCreateWalletType = () => {
-  const { moveToNextStep, prevStep, currentStep, socialLogin } = useCreateWalletContext()
+  const { moveToNextStep, prevStep, currentStep } = useCreateWalletContext()
 
   return (
     <OnboardingWrapper
@@ -42,21 +41,6 @@ export const SelectCreateWalletType = () => {
       entry={prevStep <= currentStep ? 'right' : 'left'}
     >
       <div className={'flex flex-col gap-6 justify-center'}>
-        {/* <SelectWalletButton
-          className={
-            socialLogin.isLoading ? 'animate-pulse hover:bg-secondary-200 cursor-progress' : ''
-          }
-          title={socialLogin.isLoading ? 'Logging in...' : 'Google'}
-          description='Create a wallet using your Google account'
-          icon={<GoogleColorIcon className='size-10' />}
-          onClick={async () => {
-            const res = await socialLogin.login()
-            if (!res) return
-
-            moveToNextStep('social')
-          }}
-        /> */}
-
         <SelectWalletButton
           title='Seed phrase'
           description='Create a seed phrase wallet'
@@ -64,10 +48,6 @@ export const SelectCreateWalletType = () => {
           onClick={() => moveToNextStep('seed-phrase')}
         />
       </div>
-
-      {socialLogin.error && (
-        <div className='text-destructive-100 text-sm text-center'>{socialLogin.error}</div>
-      )}
     </OnboardingWrapper>
   )
 }

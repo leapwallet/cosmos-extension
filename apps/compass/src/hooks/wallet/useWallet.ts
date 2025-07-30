@@ -13,7 +13,6 @@ import {
   isEthAddress,
   LeapLedgerSigner,
   LeapLedgerSignerEth,
-  pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
@@ -24,7 +23,6 @@ import {
   generateWalletFromPrivateKey,
   getFullHDPath,
   KeyChain,
-  pubkeyToAddress,
 } from '@leapwallet/leap-keychain'
 import { COMPASS_CHAINS } from 'config/config'
 import {
@@ -38,13 +36,11 @@ import {
   NETWORK_MAP,
   PRIMARY_WALLET_ADDRESS,
   SELECTED_NETWORK,
-  SOCIAL_WALLETS_IDS,
 } from 'config/storage-keys'
 import { useAuth } from 'context/auth-context'
 import { Address } from 'hooks/onboarding/types'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { getWalletName } from 'pages/home/utils/wallet-names'
-import { useWeb3Login } from 'pages/onboarding/use-social-login'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { passwordStore } from 'stores/password-store'
 import { getDerivationPathToShow } from 'utils'
@@ -91,45 +87,6 @@ export namespace Wallet {
     })
   }
 
-  type StoredSocialWallet = {
-    id: string
-    address: string
-    evmAddress: string
-    walletType: WALLETTYPE.PRIVATE_KEY
-    email: string
-  }
-
-  export async function getSocialWallet(): Promise<Record<string, StoredSocialWallet> | undefined> {
-    const data = await browser.storage.local.get([SOCIAL_WALLETS_IDS])
-    return data[SOCIAL_WALLETS_IDS]
-  }
-
-  export async function storeSocialWallet(
-    sWallet: Omit<StoredSocialWallet, 'walletType'>,
-  ): Promise<void> {
-    const prev = await getSocialWallet()
-    const newWallets = {
-      ...prev,
-      [sWallet.id]: {
-        ...sWallet,
-        walletType: WALLETTYPE.PRIVATE_KEY,
-      },
-    }
-    return browser.storage.local.set({
-      [SOCIAL_WALLETS_IDS]: newWallets,
-    })
-  }
-
-  export const useSocialWallet = () => {
-    const [socialWallet, setSocialWallet] = useState<Record<string, StoredSocialWallet>>()
-
-    useEffect(() => {
-      getSocialWallet().then(setSocialWallet)
-    }, [])
-
-    return socialWallet
-  }
-
   export async function getAccountDetails(
     mnemonic: string,
   ): Promise<{ accounts: readonly AccountData[]; mainWallet: DirectSecp256k1HdWallet }> {
@@ -154,7 +111,6 @@ export namespace Wallet {
   export function useRemoveWallet() {
     const { activeWallet, setActiveWallet } = useActiveWallet()
     const auth = useAuth()
-    const { logout } = useWeb3Login()
 
     const removeAll = async (signout = true) => {
       await browser.storage.local.set({
@@ -167,7 +123,6 @@ export namespace Wallet {
         [ACTIVE_CHAIN]: ChainInfos.seiTestnet2.key,
         [NETWORK_MAP]: null,
         [SELECTED_NETWORK]: 'mainnet',
-        [SOCIAL_WALLETS_IDS]: null,
       })
 
       await setActiveWallet(null)
@@ -176,21 +131,13 @@ export namespace Wallet {
     }
 
     const removeWallets = async (keyIds: string[]) => {
-      const data = await browser.storage.local.get([KEYSTORE, SOCIAL_WALLETS_IDS])
+      const data = await browser.storage.local.get([KEYSTORE])
 
       const storedWallets: Keystore = data[KEYSTORE]
-      const socialWallets: StoredSocialWallet | null = data[SOCIAL_WALLETS_IDS]
 
       keyIds.forEach((keyId) => {
         delete storedWallets[keyId]
       })
-
-      if (socialWallets && keyIds.includes(socialWallets.id)) {
-        await logout()
-        await browser.storage.local.set({
-          [SOCIAL_WALLETS_IDS]: null,
-        })
-      }
 
       // TODO: wallet type based updating
       if (Object.keys(storedWallets ?? {}).length === 0) {
@@ -331,8 +278,7 @@ export namespace Wallet {
     mnemonic: string
     selectedAddressIndexes: number[]
     password: Uint8Array
-    type: 'create' | 'import' | 'create-social' | 'import-social'
-    email?: string
+    type: 'create' | 'import'
   }
 
   // Import multiple wallet accounts from the same seed phrase
@@ -345,8 +291,6 @@ export namespace Wallet {
         mnemonic,
         selectedAddressIndexes,
         password,
-        type,
-        email,
       }: importMultipleWalletAccountsParams) => {
         const correctedMnemonic = correctMnemonic(mnemonic)
         const chainInfosList = getChainInfosList(chainInfos)
@@ -415,23 +359,6 @@ export namespace Wallet {
         }
 
         const firstWallet = allWallets[0]
-        if (
-          (type === 'create-social' || type === 'import-social') &&
-          firstWallet?.pubKeys?.cosmos
-        ) {
-          const seiAddress = pubkeyToAddress(
-            'sei',
-            Buffer.from(firstWallet.pubKeys.cosmos, 'base64'),
-          )
-          const evmAddress = pubKeyToEvmAddressToShow(firstWallet.pubKeys.cosmos, true)
-
-          await storeSocialWallet({
-            id: firstWallet.id,
-            address: seiAddress,
-            evmAddress,
-            email: email || '',
-          })
-        }
 
         setActiveWallet(firstWallet)
       },

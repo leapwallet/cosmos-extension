@@ -18,6 +18,7 @@ export * from './useBetaERC20Tokens';
 export * from './useBetaEvmNftTokenIds';
 export * from './useBetaNativeTokens';
 export * from './useBetaNFTsCollections';
+export * from './useCachedGasEstimate';
 export * from './useChainCosmosSDK';
 export * from './useChainFeatureFlags';
 export * from './useChainInfosConfig';

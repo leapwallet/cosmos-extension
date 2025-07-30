@@ -101,7 +101,7 @@ const StakeInputPage = observer(() => {
   }, [location?.state])
 
   const [showSelectValidatorSheet, setShowSelectValidatorSheet] = useState(
-    mode === 'DELEGATE' || mode === 'REDELEGATE',
+    (mode === 'DELEGATE' && !toValidator) || mode === 'REDELEGATE',
   )
 
   const activeChain = useActiveChain()
@@ -227,6 +227,7 @@ const StakeInputPage = observer(() => {
     setLoadingSelectedValidator(true)
     if (toValidator) {
       setSelectedValidator(toValidator)
+      setShowSelectValidatorSheet(false)
       return
     }
 

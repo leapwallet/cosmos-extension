@@ -17,6 +17,7 @@ import { useQueryParams } from 'hooks/useQuery'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso'
+import { oneTimePageViewStore } from 'stores/home-pageview-store'
 import { queryParams } from 'utils/query-params'
 import { mixpanelTrack } from 'utils/tracking'
 
@@ -57,19 +58,16 @@ export default observer(function ChadTimeline() {
   const [customScrollParent, setCustomScrollParent] = useState<HTMLDivElement | null>(null)
   const virtuosoRef = useRef<VirtuosoHandle>(null)
 
-  const memoizedEcosystem = useMemo(() => {
-    return [...new Set(raffles?.flatMap((r) => r?.ecosystem ?? []))]
-  }, [raffles])
-
-  const memoizedCategories = useMemo(() => {
-    return [...new Set(raffles?.flatMap((r) => r?.categories ?? []))]
-  }, [raffles])
-
-  usePageView(PageName.ChadExclusives, true, {
-    isChad: alphaUser?.isChad ?? false,
-    ecosystem: memoizedEcosystem,
-    categories: memoizedCategories,
-  })
+  usePageView(
+    PageName.ChadExclusives,
+    !oneTimePageViewStore.hasSeenChadExclusives,
+    {
+      isChad: alphaUser?.isChad ?? false,
+    },
+    () => {
+      oneTimePageViewStore.updateSeenChadExclusives(true)
+    },
+  )
 
   useEffect(() => {
     if (toast) {

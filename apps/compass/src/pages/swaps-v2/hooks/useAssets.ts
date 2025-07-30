@@ -118,7 +118,9 @@ export default function useAssets() {
             evmContract = skipAsset.originDenom
           } else {
             seiContract = skipAsset.originDenom?.replace('cw20:', '')
-            evmContract = reverseAssociations[seiContract]
+            evmContract =
+              reverseAssociations[seiContract] ??
+              reverseAssociations[skipAsset.denom?.replace('cw20:', '')]
             if (evmContract) {
               skipAsset.evmTokenContract = evmContract
               skipAsset.evmChainId = seiEvmChainId

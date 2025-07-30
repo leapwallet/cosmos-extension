@@ -33,6 +33,9 @@ import { imgOnError } from 'utils/imgOnError'
 import { isSidePanel } from 'utils/isSidePanel'
 import { sliceWord } from 'utils/strings'
 
+import { useSendContext } from '../context'
+import { handleTestnetChainName } from '../utils'
+
 export const TokenCardSkeleton = () => {
   return (
     <div className='flex py-3 w-full z-0'>
@@ -87,20 +90,12 @@ function TokenCardView({
   const [preferredCurrency] = useUserPreferredCurrency()
   const defaultTokenLogo = useDefaultTokenLogo()
   const { theme } = useTheme()
-  const formattedTokenAmount = hideAssetsStore.formatHideBalance(
-    formatTokenAmount(
-      token?.amount,
-      sliceWord(token?.symbol, 4, 4),
-      3,
-      currencyDetail[preferredCurrency].locale,
-    ),
-  )
+  const { sendSelectedNetwork } = useSendContext()
 
   const nonNativeChains = useNonNativeCustomChains()
   const chains = useGetChains()
 
   const { data: skipChains } = useChains()
-  const marketData = marketDataStore?.data
   const ibcChainInfo = useMemo(() => {
     if (!token.ibcChainInfo) return
 
@@ -152,26 +147,6 @@ function TokenCardView({
     )}`
   }, [ibcChainInfo])
 
-  const marketDataForToken = useMemo(() => {
-    let key = token.coinGeckoId ?? token.skipAsset?.coingeckoId ?? token.coinMinimalDenom
-    if (marketData?.[key]) {
-      return marketData[key]
-    }
-    key = token.coinMinimalDenom
-    if (marketData?.[key]) {
-      return marketData[key]
-    }
-    key = `${token.skipAsset?.chainId}-${token.coinMinimalDenom}`
-    if (marketData?.[key]) {
-      return marketData[key]
-    }
-    if (!token?.skipAsset?.evmTokenContract) {
-      return undefined
-    }
-    key = `${token.skipAsset?.chainId}-${token.skipAsset?.evmTokenContract}`
-    return marketData?.[key] ?? marketData?.[key?.toLowerCase()]
-  }, [marketData, token])
-
   const handleRedirectionClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation()
@@ -206,6 +181,14 @@ function TokenCardView({
   }, [isSelected, onTokenSelect, token])
 
   const tokenName = token.symbol ?? token?.name
+
+  const tokenHolderChainName = useMemo(() => {
+    if (!token?.tokenBalanceOnChain || !chains?.[token.tokenBalanceOnChain]?.chainName) {
+      return
+    }
+
+    return handleTestnetChainName(chains[token.tokenBalanceOnChain].chainName, sendSelectedNetwork)
+  }, [token.tokenBalanceOnChain, chains, sendSelectedNetwork])
 
   return (
     <>
@@ -279,9 +262,9 @@ function TokenCardView({
                       </span>
                     )}
                   </div>
-                  {token.tokenBalanceOnChain && (
+                  {tokenHolderChainName && (
                     <Text size='xs' color='text-muted-foreground' className='font-medium'>
-                      {chains[token.tokenBalanceOnChain].chainName}
+                      {tokenHolderChainName}
                     </Text>
                   )}
                 </div>

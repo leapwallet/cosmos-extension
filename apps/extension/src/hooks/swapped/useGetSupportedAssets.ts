@@ -2,7 +2,8 @@ import { useTokenPriorityKado } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQuery } from '@tanstack/react-query'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { useSwappedAssets } from 'hooks/useGetSwappedDetails'
+import { useOnramperAssets } from 'hooks/useGetOnramperDetails'
+import { useEffect, useState } from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 
 export type AssetProps = {
@@ -21,9 +22,9 @@ export type AssetProps = {
 export function useGetSupportedAssets() {
   const chainInfos = useChainInfos()
   const denoms = rootDenomsStore.allDenoms
-  const { data, isLoading: isAssetsLoading } = useSwappedAssets()
-  const { data: tokenPriority = {}, isLoading: isPriorityListLoading } = useTokenPriorityKado()
+  const { data, isLoading: isAssetsLoading } = useOnramperAssets()
   const { cryptoAssets = [] } = data ?? {}
+  const [isWaited, setIsWaited] = useState(false)
 
   function filterData() {
     const denomsArray = Object.values(denoms)
@@ -36,20 +37,19 @@ export function useGetSupportedAssets() {
       })
 
       const denomData = denomsArray.find(
-        (denom) => denom.coinDenom.toLowerCase() === asset.iso.toLowerCase(),
+        (denom) => denom.coinDenom.toLowerCase() === asset.symbol.toLowerCase(),
       )
 
       if (chain) {
         acc.push({
-          symbol: asset.iso,
+          symbol: asset.code,
           chainName: chain.chainName,
           chainId: chain.chainId,
-          assetImg: denomData?.icon,
+          assetImg: denomData?.icon ?? asset.icon,
           chainSymbolImageUrl: chain.chainSymbolImageUrl,
-          priority: tokenPriority[chain.key]?.[asset.iso],
           origin: asset.network,
           chainKey: chain.key,
-          tags: asset.tags,
+          id: asset.id,
         })
       }
       return acc
@@ -66,7 +66,13 @@ export function useGetSupportedAssets() {
     return filteredAssets
   }
 
+  useEffect(() => {
+    setTimeout(() => {
+      setIsWaited(true)
+    }, 1000)
+  }, [])
+
   return useQuery(['filtered-swapped-assets'], filterData, {
-    enabled: chainInfos && denoms && !isAssetsLoading && !isPriorityListLoading,
+    enabled: chainInfos && isWaited && denoms && !isAssetsLoading,
   })
 }

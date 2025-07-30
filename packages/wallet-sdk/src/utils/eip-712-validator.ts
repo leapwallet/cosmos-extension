@@ -1,73 +1,40 @@
-import Joi from 'joi';
+import { z } from 'zod';
 
-export const EIP712PropertyFieldValidator = Joi.object<{
-  name: string;
-  type: string;
-}>({
-  name: Joi.string().min(1).required(),
-  type: Joi.string().min(1).required(),
-});
+const domainFieldOrder = ['name', 'version', 'chainId', 'verifyingContract', 'salt'] as const;
 
-export const EIP712DomainTypeValidator = Joi.array()
-  .items(
-    Joi.object<{
-      name: string;
-      type: string;
-    }>({
-      name: Joi.string().valid('name').required(),
-      type: Joi.string().valid('string').required(),
-    }),
-    Joi.object<{
-      name: string;
-      type: string;
-    }>({
-      name: Joi.string().valid('version').required(),
-      type: Joi.string().valid('string').required(),
-    }),
-    Joi.object<{
-      name: string;
-      type: string;
-    }>({
-      name: Joi.string().valid('chainId').required(),
-      type: Joi.string().valid('uint256').required(),
-    }),
-    Joi.object<{
-      name: string;
-      type: string;
-    }>({
-      name: Joi.string().valid('verifyingContract').required(),
-      type: Joi.string().valid('address', 'string').required(),
-    }),
-    Joi.object<{
-      name: string;
-      type: string;
-    }>({
-      name: Joi.string().valid('salt').required(),
-      type: Joi.string().valid('bytes32', 'string').required(),
-    }),
-  )
-  .unique()
+const domainSchemas = [
+  z.object({ name: z.literal('name'), type: z.literal('string') }),
+  z.object({ name: z.literal('version'), type: z.literal('string') }),
+  z.object({ name: z.literal('chainId'), type: z.literal('uint256') }),
+  z.object({ name: z.literal('verifyingContract'), type: z.union([z.literal('address'), z.literal('string')]) }),
+  z.object({ name: z.literal('salt'), type: z.union([z.literal('bytes32'), z.literal('string')]) }),
+] as const;
+
+export const EIP712DomainTypeValidator = z
+  .array(z.union(domainSchemas))
   .min(1)
-  .custom((value: Array<{ name: string }>) => {
-    const domainFieldNames: Array<string> = ['name', 'version', 'chainId', 'verifyingContract', 'salt'];
-
-    return value.sort((a: { name: string }, b: { name: string }) => {
-      return domainFieldNames.indexOf(a.name) - domainFieldNames.indexOf(b.name);
-    });
+  .refine(
+    (arr) => {
+      const seen = new Set();
+      return arr.every((item) => {
+        if (seen.has(item.name)) return false;
+        seen.add(item.name);
+        return true;
+      });
+    },
+    { message: 'Duplicate domain fields are not allowed' },
+  )
+  .transform((arr) => {
+    return [...arr].sort((a, b) => domainFieldOrder.indexOf(a.name) - domainFieldOrder.indexOf(b.name));
   });
 
-export const EIP712MessageValidator = Joi.object<{
-  types: Record<string, unknown>;
-  primaryType: string;
-  domain: Record<string, unknown>;
-  message: Record<string, unknown>;
-}>({
-  types: Joi.object({
-    EIP712Domain: EIP712DomainTypeValidator.required(),
-  })
-    .unknown(true)
-    .required(),
-  primaryType: Joi.string().min(1).required(),
-  domain: Joi.object().required(),
-  message: Joi.object().required(),
+export const EIP712MessageValidator = z.object({
+  types: z
+    .object({
+      EIP712Domain: EIP712DomainTypeValidator,
+    })
+    .catchall(z.any()),
+  primaryType: z.string().min(1),
+  domain: z.record(z.any()),
+  message: z.record(z.any()),
 });

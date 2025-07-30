@@ -4,7 +4,7 @@ import { getChainIdsFromRoute } from 'pages/swaps-v2/utils'
 import { useCallback, useEffect, useRef } from 'react'
 import { SourceChain, SwapTxnStatus, TransferSequence } from 'types/swap'
 
-import { RoutingInfo } from '../../useSwapsTx'
+import type { RoutingInfo } from '../../../types'
 import { getAxelarTransactionSequence } from './transactionSequence/axelar'
 import { getCCTPTransactionSequence } from './transactionSequence/cctp'
 import { getEurekaTransactionSequence } from './transactionSequence/eureka'

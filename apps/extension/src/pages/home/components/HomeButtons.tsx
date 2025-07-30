@@ -82,11 +82,6 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
 
         {/* Vote Button */}
         <ClickableIcon label='Vote' icon={Vote} onClick={() => handleVoteClick()} />
-
-        {/* Airdrops Icon */}
-        {featureFlags?.airdrops.extension !== 'disabled' && (
-          <ClickableIcon label='Airdrops' icon={Parachute} onClick={() => navigate('/airdrops')} />
-        )}
       </div>
     )
   }
@@ -110,11 +105,6 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
           onClick={() => query.set('receive', 'true')}
           disabled={walletCtaDisabled}
         />
-
-        {/* Airdrops Icon */}
-        {featureFlags?.airdrops.extension !== 'disabled' ? (
-          <ClickableIcon label='Airdrops' icon={Parachute} onClick={() => navigate('/airdrops')} />
-        ) : null}
       </div>
     )
   }

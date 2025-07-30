@@ -7,6 +7,7 @@ import {
   getEthereumAddress,
   isAptosChain,
   isSolanaChain,
+  isSuiChain,
   pubKeyToEvmAddressToShow,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
@@ -31,6 +32,7 @@ import {
   Erc404DenomsStore,
   NmsStore,
 } from '../assets';
+import { isBitcoinChain } from '../utils';
 import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
 import { sortTokenBalances } from './balance-calculator';
 import { BalanceLoadingStatus, Token } from './balance-types';
@@ -383,15 +385,29 @@ export class ERC20DenomBalanceStore {
     skipStateUpdate = false,
     denomsInfo?: DenomsRecord,
   ): Promise<Token[] | undefined> {
-    let erc20DenomAddresses: string[] | undefined = forceERC20Denoms;
-    await this.erc20DenomsStore.readyPromise;
-    if (!erc20DenomAddresses) {
-      erc20DenomAddresses = this.getERC20DenomAddresses(activeChain);
-    }
     const chainInfo = this.chainInfosStore.chainInfos[activeChain];
 
     if (!chainInfo) {
       return;
+    }
+
+    const balanceKey = this.getBalanceKey(activeChain, network);
+    if (
+      isSolanaChain(activeChain) ||
+      isAptosChain(activeChain) ||
+      isBitcoinChain(activeChain) ||
+      isSuiChain(activeChain)
+    ) {
+      runInAction(() => {
+        this.chainWiseStatus[balanceKey] = null;
+      });
+      return;
+    }
+
+    let erc20DenomAddresses: string[] | undefined = forceERC20Denoms;
+    await this.erc20DenomsStore.readyPromise;
+    if (!erc20DenomAddresses) {
+      erc20DenomAddresses = this.getERC20DenomAddresses(activeChain);
     }
 
     const address = this.addressStore.addresses[chainInfo.key];
@@ -424,7 +440,6 @@ export class ERC20DenomBalanceStore {
     }
 
     let ethWalletAddress = getEthereumAddress(address);
-    const balanceKey = this.getBalanceKey(activeChain, network);
 
     try {
       if (isEvmChain) {
@@ -960,6 +975,7 @@ export class ERC20DenomBalanceStore {
 
     try {
       const tokensToAddInDenoms: Record<string, any> = {};
+      const allERC20TokensToAddInDenoms: Record<string, any> = {};
       const _denoms = this.denomsStore.denoms;
       const _compassDenoms = this.compassTokenTagsStore.compassTokenDenomInfo;
 
@@ -982,10 +998,19 @@ export class ERC20DenomBalanceStore {
         };
 
         const alternateContract = item?.token_association?.sei_hash;
-        return this.formatApiBalance(token, tokensToAddInDenoms, denoms, chain, alternateContract);
+        return this.formatApiBalance(
+          token,
+          tokensToAddInDenoms,
+          denoms,
+          chain,
+          alternateContract,
+          undefined,
+          allERC20TokensToAddInDenoms,
+        );
       });
 
       this.denomsStore.setTempBaseDenoms(tokensToAddInDenoms);
+      this.betaERC20DenomsStore.setTempBetaERC20Denoms(allERC20TokensToAddInDenoms, chain);
 
       runInAction(() => {
         formattedBalances.forEach((balance: any) => {
@@ -1106,6 +1131,8 @@ export class ERC20DenomBalanceStore {
     denoms: DenomsRecord,
     chain: SupportedChain,
     alternateContract?: string,
+    preferExternalFiatCurrencyValue = true,
+    allERC20TokensToAdd?: DenomsRecord,
   ) {
     const contract = token.address;
     let decimals = token.decimals;
@@ -1183,6 +1210,18 @@ export class ERC20DenomBalanceStore {
       coinMinimalDenom = denomInfo.coinMinimalDenom;
     }
 
+    if (allERC20TokensToAdd) {
+      allERC20TokensToAdd[coinMinimalDenom] = {
+        name,
+        coinDenom: symbol,
+        coinMinimalDenom,
+        coinDecimals: decimals,
+        coinGeckoId,
+        icon,
+        chain,
+      };
+    }
+
     const chainInfo = this.chainInfosStore.chainInfos[chain];
     const amount = fromSmall(token.value, decimals);
     let usdValue = token.usdValue;
@@ -1242,13 +1281,31 @@ export class ERC20DenomBalanceStore {
     );
 
     const betaERC20Denoms = Object.keys(this.betaERC20DenomsStore.denoms?.[chain] ?? {});
-    return Array.from(new Set([...enabledERC20Denoms, ...betaERC20Denoms]));
+    return Array.from(new Set([...enabledERC20Denoms, ...betaERC20Denoms])).map((denom) => {
+      try {
+        if (denom?.startsWith('0x')) {
+          return getAddress(denom);
+        }
+      } catch (e) {
+        console.error('Error while getting checksum address', e);
+      }
+      return denom;
+    });
   }
 
   get erc20Tokens() {
     const activeChain = this.activeChainStore.activeChain;
     if (activeChain === 'aggregated') {
       return this.allERC20Tokens;
+    }
+
+    if (
+      isSolanaChain(activeChain) ||
+      isAptosChain(activeChain) ||
+      isBitcoinChain(activeChain) ||
+      isSuiChain(activeChain)
+    ) {
+      return [];
     }
 
     const balanceKey = this.getBalanceKey(activeChain);
@@ -1270,6 +1327,10 @@ export class ERC20DenomBalanceStore {
     );
 
     chains.forEach((chain) => {
+      if (isSolanaChain(chain) || isAptosChain(chain) || isBitcoinChain(chain) || isSuiChain(chain)) {
+        return;
+      }
+
       const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
       const erc20Tokens = this.filterDisplayERC20Tokens(
         Object.values(this.chainWiseBalances[balanceKey] ?? {}),
@@ -1292,6 +1353,10 @@ export class ERC20DenomBalanceStore {
     );
 
     chains.forEach((chain) => {
+      if (isSolanaChain(chain) || isAptosChain(chain) || isBitcoinChain(chain) || isSuiChain(chain)) {
+        return;
+      }
+
       const balanceKey = this.getBalanceKey(chain as SupportedChain);
       const erc20Tokens = this.filterDisplayERC20Tokens(
         Object.values(this.chainWiseBalances[balanceKey] ?? {}),
@@ -1304,6 +1369,10 @@ export class ERC20DenomBalanceStore {
   }
 
   getERC20TokensForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
+    if (isSolanaChain(chain) || isAptosChain(chain) || isBitcoinChain(chain) || isSuiChain(chain)) {
+      return [];
+    }
+
     const balanceKey = this.getBalanceKey(chain, network);
     const erc20Tokens = this.filterDisplayERC20Tokens(Object.values(this.chainWiseBalances[balanceKey] ?? {}), chain);
     return sortTokenBalances(erc20Tokens ?? []);

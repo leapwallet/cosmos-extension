@@ -19,6 +19,7 @@ export const FeesView = observer(
   }) => {
     const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
     const {
+      inputAmount,
       userPreferredGasPrice,
       userPreferredGasLimit,
       setUserPreferredGasLimit,
@@ -81,43 +82,48 @@ export const FeesView = observer(
       setUserPreferredGasPrice(gasPriceOption.gasPrice)
     }, [gasPriceOption, setGasOption, setUserPreferredGasPrice])
 
+    // if (!inputAmount) return null
+
     return (
-      <div>
-        <GasPriceOptions
-          recommendedGasLimit={gasEstimate.toString()}
-          gasLimit={userPreferredGasLimit?.toString() ?? gasEstimate.toString()}
-          setGasLimit={(value: number | string | BigNumber) =>
-            setUserPreferredGasLimit(Number(value.toString()))
-          }
-          gasPriceOption={gasPriceOption}
-          onGasPriceOptionChange={handleGasPriceOptionChange}
-          error={gasError}
-          setError={setGasError}
-          isSelectedTokenEvm={selectedToken?.isEvm}
-          chain={sendActiveChain}
-          network={sendSelectedNetwork}
-          isSeiEvmTransaction={isSeiEvmTransaction}
-          rootDenomsStore={rootDenomsStore}
-          rootBalanceStore={rootBalanceStore}
-        >
-          {addressWarning.type === 'link' ? null : (
-            <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
-          )}
+      <GasPriceOptions
+        recommendedGasLimit={gasEstimate.toString()}
+        gasLimit={userPreferredGasLimit?.toString() ?? gasEstimate.toString()}
+        setGasLimit={(value: number | string | BigNumber) =>
+          setUserPreferredGasLimit(Number(value.toString()))
+        }
+        gasPriceOption={gasPriceOption}
+        onGasPriceOptionChange={handleGasPriceOptionChange}
+        error={gasError}
+        setError={setGasError}
+        isSelectedTokenEvm={selectedToken?.isEvm}
+        chain={sendActiveChain}
+        network={sendSelectedNetwork}
+        isSeiEvmTransaction={isSeiEvmTransaction}
+        rootDenomsStore={rootDenomsStore}
+        rootBalanceStore={rootBalanceStore}
+        className={!inputAmount ? 'hidden' : ''}
+      >
+        {!inputAmount ? null : (
+          <>
+            {addressWarning.type === 'link' ? null : (
+              <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
+            )}
 
-          {gasError && !showFeesSettingSheet ? (
-            <p className='text-red-300 text-sm font-medium mt-2 text-center'>{gasError}</p>
-          ) : null}
+            {gasError && !showFeesSettingSheet ? (
+              <p className='text-red-300 text-sm font-medium mt-2 text-center'>{gasError}</p>
+            ) : null}
 
-          <FeesSettingsSheet
-            showFeesSettingSheet={showFeesSettingSheet}
-            onClose={onClose}
-            gasError={gasError}
-            hideAdditionalSettings={
-              sendActiveChain === 'bitcoin' || sendActiveChain === 'bitcoinSignet'
-            }
-          />
-        </GasPriceOptions>
-      </div>
+            <FeesSettingsSheet
+              showFeesSettingSheet={showFeesSettingSheet}
+              onClose={onClose}
+              gasError={gasError}
+              hideAdditionalSettings={
+                sendActiveChain === 'bitcoin' || sendActiveChain === 'bitcoinSignet'
+              }
+            />
+          </>
+        )}
+      </GasPriceOptions>
     )
   },
 )

@@ -8,7 +8,8 @@ export const isCosmosLedgerChain = (chain: ChainInfo) => {
     chain.bip44.coinType !== '0' &&
     chain.bip44.coinType !== '1' &&
     chain.bip44.coinType !== '637' &&
-    chain.bip44.coinType !== '501'
+    chain.bip44.coinType !== '501' &&
+    chain.bip44.coinType !== '784'
   )
 }
 

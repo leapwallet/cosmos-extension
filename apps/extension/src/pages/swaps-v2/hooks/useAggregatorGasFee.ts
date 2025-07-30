@@ -15,8 +15,8 @@ import { useState } from 'react'
 import useSWR, { SWRConfiguration, unstable_serialize } from 'swr'
 import { SourceChain } from 'types/swap'
 
+import { SWAP_NETWORK } from '../constants'
 import { MosaicRouteQueryResponse } from './useMosaicRoute'
-import { SWAP_NETWORK } from './useSwapsTx'
 
 const tenMillion = new BigNumber(10).pow(6 + 1)
 

@@ -1,4 +1,4 @@
-import { sliceAddress, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
+import { SelectedAddress, sliceAddress, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import { CaretRight } from '@phosphor-icons/react'
 import {
   NameServiceResolveResult,
@@ -10,7 +10,7 @@ import { useSelectedNetwork } from 'hooks/settings/useNetwork'
 import { useChainInfos } from 'hooks/useChainInfos'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
-import { SelectedAddress } from 'pages/send/types'
+import { useSendContext } from 'pages/send/context'
 import React, { useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -51,14 +51,14 @@ const MatchListItem: React.FC<{
   nameServiceImg: string
   chainIcon?: string
   handleClick: () => void
-}> = ({ address, title, nameServiceImg, chainIcon, handleClick }) => (
+}> = ({ address, title, nameServiceImg, handleClick }) => (
   <button
     className={cn('w-full flex items-center gap-3 cursor-pointer pb-4')}
     onClick={handleClick}
   >
     <div className='flex justify-between items-center w-full'>
       <div className='flex items-center gap-4'>
-        <img className='h-11 w-11' src={Images.Misc.getWalletIconAtIndex(0)} />
+        <img className='h-11 w-11' src={nameServiceImg ?? Images.Misc.getWalletIconAtIndex(0)} />
         <div className='flex flex-col'>
           <p className='font-bold text-left text-monochrome text-sm capitalize'>{title}</p>
           <p className='text-sm text-muted-foreground text-left'>{sliceAddress(address)}</p>
@@ -78,8 +78,8 @@ const NameServiceMatchList = ({
 }) => {
   const network = useSelectedNetwork()
   const chainInfos = useChainInfos()
-  const activeChain = useActiveChain() as AggregatedSupportedChain
   const chains = useGetChains()
+  const { selectedToken, sendActiveChain: activeChain } = useSendContext()
 
   const [isLoading, nameServiceResults] = useNameServiceResolver(address, network)
 
@@ -100,7 +100,13 @@ const NameServiceMatchList = ({
                 {resultsList.map(([nameService, result]) => {
                   const nameServiceImg = Images.Logos.getNameServiceLogo(nameService)
                   if (result && typeof result === 'string') {
-                    const chain = Bech32Address.getChainKey(result)
+                    let chain = Bech32Address.getChainKey(result)
+                    if (!chain) {
+                      chain = selectedToken?.tokenBalanceOnChain
+                    }
+                    if (chain === activeChain) {
+                      anyResultsForCurrentChain = true
+                    }
                     return (
                       <MatchListItem
                         key={`${nameService}-${result}`}
@@ -113,9 +119,10 @@ const NameServiceMatchList = ({
                             chainIcon: chain
                               ? chainInfos[chain].chainSymbolImageUrl ?? GenericLight
                               : GenericLight,
-                            chainName: chain ? chainInfos[chain].chainName : 'Chain',
+                            chainName: '',
                             name: address,
                             address: result,
+                            ethAddress: selectedToken?.isEvm ? result : undefined,
                             emoji: undefined,
                             selectionType: 'nameService',
                             information: {
@@ -131,51 +138,37 @@ const NameServiceMatchList = ({
                   if (result && Array.isArray(result)) {
                     const filteredItems = result
                       .map(({ chain_id, address: resolvedAddress }) => {
-                        const chain = Bech32Address.getChainKey(resolvedAddress)
                         const chainDetails = Object.values(chainInfos).find(
                           (chain) => chain.chainId === chain_id,
                         )
                         const chainImage = chainDetails?.chainSymbolImageUrl ?? GenericLight
 
-                        let shouldShow = true
-                        if (activeChain !== 'aggregated') {
-                          if (chains[activeChain]?.evmOnlyChain) {
-                            //If active chain is EVM, only show addresses on the same chain
-                            if (chainDetails?.key !== activeChain) shouldShow = false
-                          } else {
-                            // If active chain is non-EVM, filter out EVM addresses
-                            if (resolvedAddress.startsWith('0x')) shouldShow = false
-                          }
-                        }
-
-                        if (shouldShow) {
-                          anyResultsForCurrentChain = true
-                          return (
-                            <MatchListItem
-                              title={chainDetails?.chainName ?? nameService}
-                              key={`${nameService}-${chain_id}-${resolvedAddress}`}
-                              address={resolvedAddress}
-                              nameServiceImg={nameServiceImg}
-                              chainIcon={chainImage}
-                              handleClick={() => {
-                                handleContactSelect({
-                                  avatarIcon: nameServiceImg,
-                                  chainIcon: chainImage,
-                                  chainName: chainDetails?.chainName ?? 'Chain',
-                                  name: address,
-                                  address: resolvedAddress,
-                                  emoji: undefined,
-                                  selectionType: 'nameService',
-                                  information: {
-                                    nameService: nameServices[nameService],
-                                    chain_id,
-                                  },
-                                })
-                              }}
-                            />
-                          )
-                        }
-                        return null
+                        return (
+                          <MatchListItem
+                            title={
+                              nameServices[nameService] ?? nameService ?? chainDetails?.chainName
+                            }
+                            key={`${nameService}-${chain_id}-${resolvedAddress}`}
+                            address={resolvedAddress}
+                            nameServiceImg={nameServiceImg}
+                            chainIcon={chainImage}
+                            handleClick={() => {
+                              handleContactSelect({
+                                avatarIcon: nameServiceImg,
+                                chainIcon: chainImage,
+                                chainName: '',
+                                name: address,
+                                address: resolvedAddress,
+                                emoji: undefined,
+                                selectionType: 'nameService',
+                                information: {
+                                  nameService: nameServices[nameService],
+                                  chain_id,
+                                },
+                              })
+                            }}
+                          />
+                        )
                       })
                       .filter(Boolean)
 
@@ -184,12 +177,6 @@ const NameServiceMatchList = ({
                   return null
                 })}
               </ul>
-
-              {!anyResultsForCurrentChain && activeChain !== 'aggregated' && (
-                <p className='text-sm font-bold text-red-300 mt-1'>
-                  No results found for {chains[activeChain]?.chainName || activeChain}
-                </p>
-              )}
             </>
           ) : (
             <p className='text-sm font-bold text-red-300 mt-5'>
