@@ -22,7 +22,11 @@ import { OnboardingSuspenseLoader } from 'pages/onboarding/suspense-loader'
 import useAssets from 'pages/swaps-v2/hooks/useAssets'
 import React, { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { compassSeiEvmConfigStore, marketDataStore } from 'stores/balance-store'
+import {
+  compassSeiEvmConfigStore,
+  percentageChangeDataStore,
+  priceStore,
+} from 'stores/balance-store'
 import { compassTokensAssociationsStore } from 'stores/chain-infos-store'
 import { compassTokenTagsStore, denomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
 import { nftStore } from 'stores/nft-store'
@@ -183,8 +187,9 @@ const AnimatedRoutes = () => {
                   rootDenomsStore={rootDenomsStore}
                   compassTokensAssociationsStore={compassTokensAssociationsStore}
                   compassSeiEvmConfigStore={compassSeiEvmConfigStore}
-                  marketDataStore={marketDataStore}
+                  percentageChangeDataStore={percentageChangeDataStore}
                   compassTokenTagsStore={compassTokenTagsStore}
+                  priceStore={priceStore}
                 />
               </Suspense>
             </RequireAuth>

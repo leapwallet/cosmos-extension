@@ -1,19 +1,12 @@
-import { Warning, X } from '@phosphor-icons/react'
-import React, { useState } from 'react'
+import React from 'react'
 
 import { AlertStrip } from './v2'
 
 export const ApiStatusWarningStrip = () => {
-  const [show, setShow] = useState(true)
-
-  if (!show) {
-    return null
-  }
-
   return (
-    <AlertStrip type='error'>
-      <span className='text-destructive-foreground text-xs !leading-[24px]'>
-        Failed to fetch network data. Check again later.
+    <AlertStrip type='warning' className='items-start' iconClassName='mt-0.5'>
+      <span className='text-foreground text-xs !leading-[18px]'>
+        Some of your token balances and prices may be outdated. Your funds are safe.
       </span>
     </AlertStrip>
   )

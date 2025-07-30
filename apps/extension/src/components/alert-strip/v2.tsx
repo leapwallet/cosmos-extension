@@ -37,6 +37,7 @@ export const AlertStrip = (props: {
   timeOut?: number
   onHide?: VoidFunction
   children: React.ReactNode
+  iconClassName?: string
 }) => {
   const { className, Icon, weight } =
     alertStripV2Config[props.type ?? 'info'] || alertStripV2Config.info
@@ -68,7 +69,7 @@ export const AlertStrip = (props: {
         props.className,
       )}
     >
-      <Icon weight={weight} className='size-4' />
+      <Icon weight={weight} className={cn('size-4 shrink-0', props.iconClassName)} />
       <p>{props.children}</p>
     </div>
   )

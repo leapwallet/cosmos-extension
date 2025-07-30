@@ -26,6 +26,10 @@ export type SkipRouteResponse = {
   amountOut: string
 }
 
+const defaultRefresh = () => {
+  return Promise.resolve()
+}
+
 function useSkipRoute(
   {
     amountIn,
@@ -186,9 +190,7 @@ function useSkipRoute(
         amountOut: '-',
         routeResponse: undefined,
         routeError: routeErrorWithFees || routeErrorWithoutFees,
-        refresh: () => {
-          return Promise.resolve()
-        },
+        refresh: defaultRefresh,
       }
     }
     return {
@@ -196,9 +198,7 @@ function useSkipRoute(
       amountOut: '-',
       routeResponse: undefined,
       routeError: undefined,
-      refresh: () => {
-        return Promise.resolve()
-      },
+      refresh: defaultRefresh,
     }
   }, [
     isSwapFeeEnabled,

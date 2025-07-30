@@ -19,7 +19,6 @@ export * from './use-is-testnet-active-chain';
 export * from './use-wallet-identifications';
 export * from './useFetchAccountDetails';
 export * from './useIsCW20Token';
-export * from './useIsERC20Token';
 export * from './useIsFeatureExistForChain';
 export * from './useIsSeiEvmChain';
 export * from './useRemoveBetaTokens';

@@ -108,7 +108,9 @@ const WalletInfoCard = ({
         if (response.status === 'fulfilled') {
           const { balances, chain } = response.value
           if (chain === chainDetails.chainId) {
-            acc += Number(balances?.[0].amount) / 10 ** chainDetails.decimals
+            const seiBalance =
+              balances.find((b: { denom: string }) => b.denom === 'usei')?.amount ?? 0
+            acc += Number(seiBalance) / 10 ** chainDetails.decimals
           }
         }
         return acc

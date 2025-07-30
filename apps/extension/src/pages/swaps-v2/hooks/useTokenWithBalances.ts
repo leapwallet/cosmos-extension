@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
-import { SWAP_NETWORK } from './useSwapsTx'
+import { SWAP_NETWORK } from '../constants'
 
 export function useTokenWithBalances(
   token: SourceToken | null,

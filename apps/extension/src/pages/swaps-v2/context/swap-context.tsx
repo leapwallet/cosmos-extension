@@ -16,7 +16,8 @@ import { observer } from 'mobx-react-lite'
 import React, { createContext, useContext } from 'react'
 import { assert } from 'utils/assert'
 
-import { SwapsTxType, useSwapsTx } from '../hooks'
+import { useSwapsTx } from '../hooks'
+import type { SwapsTxType } from '../types'
 
 export const SwapContext = createContext<SwapsTxType | null>(null)
 

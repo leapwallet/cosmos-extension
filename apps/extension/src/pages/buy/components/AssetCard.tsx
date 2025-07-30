@@ -33,7 +33,7 @@ export default function AssetCard({
   return (
     <div
       className={cn(
-        'flex gap-x-3 items-center px-4 py-3 rounded-xl mt-3 cursor-pointer border border-transparent',
+        'flex gap-x-3 items-center px-4 py-3 mt-3 rounded-xl cursor-pointer border border-transparent',
         isSelected
           ? 'bg-secondary-200 hover:bg-secondary-200 cursor-not-allowed border-secondary-600'
           : 'cursor-pointer bg-secondary-100 hover:bg-secondary-200',

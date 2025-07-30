@@ -2,6 +2,7 @@ import { BannerAD } from '@leapwallet/cosmos-wallet-hooks'
 
 // session storage key for storing the numia banner impression info
 export const NUMIA_IMPRESSION_INFO = 'numia-impression-info'
+export const SPINDL_IMPRESSION_INFO = 'spindl-impression-info'
 // session storage key for storing the mixpanel banner views info
 export const MIXPANEL_BANNER_VIEWS_INFO = 'mixpanel-banner-views-info'
 // seconds

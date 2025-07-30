@@ -1,4 +1,3 @@
-export * from './FeesView'
 export * from './InterchangeButton'
 export * from './MoreDetails'
 export * from './SelectChainSheet'

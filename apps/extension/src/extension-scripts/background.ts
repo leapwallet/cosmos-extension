@@ -971,10 +971,13 @@ const connectRemote = (remotePort: any) => {
       )
     }
 
-    async function getWalletAddress(payloadId: number) {
+    async function getWalletAddress(payloadId: number, skipPopup = false) {
       let store = await browser.storage.local.get([ACTIVE_WALLET])
 
       if (!passwordManager.getPassword()) {
+        if (skipPopup) {
+          return ''
+        }
         try {
           const sendMessageToInvoker = (eventName: string, payload: any) => {
             sendResponse(eventName, payload, payloadId)
@@ -1542,29 +1545,10 @@ const connectRemote = (remotePort: any) => {
                 if (method === ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS) {
                   sendResponse(sendResponseName, { success: [] }, payloadId)
                 } else {
-                  const seiEvmAddress = await getWalletAddress(payloadId)
+                  let seiEvmAddress = await getWalletAddress(payloadId, true)
                   if (seiEvmAddress === 'error') {
                     throw new Error('Unable to get wallet address')
                   }
-
-                  const successResponse =
-                    method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
-                      ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
-                        [
-                          {
-                            id: payloadId,
-                            parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
-                            invoker: msg?.origin,
-                            caveats: [
-                              {
-                                type: 'restrictReturnedAccounts',
-                                value: [seiEvmAddress],
-                              },
-                            ],
-                            date: Date.now(),
-                          },
-                        ]
-                      : [seiEvmAddress]
 
                   await browser.storage.local.set({
                     [REDIRECT_REQUEST]: { type: method, msg: { ...msg, validChainIds } },
@@ -1600,6 +1584,29 @@ const connectRemote = (remotePort: any) => {
                       enableAccessRequests.set(queryString, popupWindowId)
                     }
                   }
+
+                  if (seiEvmAddress === '') {
+                    seiEvmAddress = await getWalletAddress(payloadId, true)
+                  }
+
+                  const successResponse =
+                    method === ETHEREUM_METHOD_TYPE.WALLET__REQUEST_PERMISSIONS
+                      ? // Refer - https://docs.metamask.io/wallet/reference/wallet_requestpermissions
+                        [
+                          {
+                            id: payloadId,
+                            parentCapability: ETHEREUM_METHOD_TYPE.ETH__ACCOUNTS,
+                            invoker: msg?.origin,
+                            caveats: [
+                              {
+                                type: 'restrictReturnedAccounts',
+                                value: [seiEvmAddress],
+                              },
+                            ],
+                            date: Date.now(),
+                          },
+                        ]
+                      : [seiEvmAddress]
 
                   try {
                     await awaitEnableChainResponse()

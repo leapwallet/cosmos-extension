@@ -41,7 +41,7 @@ import { ChainInfoProp } from '../utils'
 import { GeneralHomeAlertStirps } from './general-home-alert-strips'
 import { GeneralHomeHeader } from './general-home-header'
 import { HeroSection } from './HeroSection'
-import { BannersLoading } from './home-loading-state'
+import { BannersLoading, HomeLoadingState } from './home-loading-state'
 import {
   AggregatedCopyAddressSheet,
   BitcoinDeposit,
@@ -185,13 +185,7 @@ export const GeneralHome = observer(() => {
    */
 
   if (!activeWallet) {
-    return (
-      <EmptyCard
-        classname='h-full !rounded-none'
-        src={Images.Logos.LeapCosmos}
-        heading='No wallet found'
-      />
-    )
+    return <HomeLoadingState />
   }
 
   if (!chain && activeChain !== AGGREGATED_CHAIN_KEY) {

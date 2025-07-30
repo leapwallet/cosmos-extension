@@ -6,7 +6,7 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import { captureException } from '@sentry/react'
 import { ButtonName, ButtonType, EventName, PageName } from 'config/analytics'
-import { AGGREGATED_CHAIN_KEY, LEAPBOARD_URL } from 'config/constants'
+import { AGGREGATED_CHAIN_KEY, LEAPBOARD_SWAP_URL, LEAPBOARD_URL } from 'config/constants'
 import { useAuth } from 'context/auth-context'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
@@ -48,8 +48,8 @@ export function useHardCodedActions() {
   function handleSwapClick(_redirectUrl?: string, navigateUrl?: string) {
     if (featureFlags?.all_chains?.swap === 'redirect') {
       const fallbackUrl = activeChainInfo?.chainId
-        ? `https://swapfast.app/?sourceChainId=${activeChainInfo.chainId}`
-        : 'https://swapfast.app'
+        ? `${LEAPBOARD_SWAP_URL}&sourceChainId=${activeChainInfo.chainId}`
+        : LEAPBOARD_SWAP_URL
       const redirectUrl = _redirectUrl ?? fallbackUrl
       window.open(redirectUrl, '_blank')
     } else {
@@ -82,15 +82,14 @@ export function useHardCodedActions() {
       !isEvmSwapEnabled ||
       ['mainCoreum', 'coreum'].includes(activeChainInfo?.key)
     ) {
-      const baseUrl = 'https://swapfast.app/bridge'
-      redirectURL = `${baseUrl}?destinationChainId=${activeChainInfo?.chainId}`
+      redirectURL = `${LEAPBOARD_SWAP_URL}&destinationChainId=${activeChainInfo?.chainId}`
 
       if (['mainCoreum', 'coreum'].includes(activeChainInfo?.key)) {
         redirectURL = 'https://sologenic.org/bridge/coreum-bridge'
       } else if (activeChainInfo?.key === 'mantra') {
-        redirectURL = 'https://mantra.swapfast.app'
+        redirectURL = LEAPBOARD_SWAP_URL
       } else if (activeChain === AGGREGATED_CHAIN_KEY) {
-        redirectURL = baseUrl
+        redirectURL = LEAPBOARD_SWAP_URL
       }
       window.open(redirectURL, '_blank')
     } else {

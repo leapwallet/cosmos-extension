@@ -19,6 +19,7 @@ import {
   useInitFeeDenoms,
   useInitFractionalizedNftContracts,
   useInitGasAdjustments,
+  useInitGasEstimateCache,
   useInitGasPriceSteps,
   useInitIbcTraceStore,
   useInitIteratedUriNftContracts,
@@ -112,6 +113,7 @@ const InitMainAppHooks = observer(() => {
 
   useGetBannerApi()
   useBannerConfig()
+  useInitGasEstimateCache()
 
   useInitEpochStore()
 

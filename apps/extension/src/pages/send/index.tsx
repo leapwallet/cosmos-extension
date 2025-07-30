@@ -36,6 +36,7 @@ import SelectWallet from 'pages/home/SelectWallet/v2'
 import TxPage, { TxType } from 'pages/nfts/send-nft/TxPage'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { chainFeatureFlagsStore, evmBalanceStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import {
@@ -74,7 +75,6 @@ const Send = observer(() => {
   const {
     selectedAddress,
     setSelectedAddress,
-    addressError,
     setAddressError,
     isIBCTransfer,
     setCustomIbcChannelId,
@@ -92,6 +92,7 @@ const Send = observer(() => {
 
   const assetCoinDenom = useQuery().get('assetCoinDenom') ?? undefined
   const chainId = useQuery().get('chainId') ?? undefined
+  const holderChain = useQuery().get('holderChain') ?? undefined
   const [showTxPage, setShowTxPage] = useState(false)
   const [isAddContactSheetVisible, setIsAddContactSheetVisible] = useState(false)
   const [showTokenSelectSheet, setShowTokenSelectSheet] = useState<boolean>(!assetCoinDenom)
@@ -137,7 +138,6 @@ const Send = observer(() => {
   const activeWallet = useActiveWallet()
 
   const { data: elementsChains } = useSkipSupportedChains({ chainTypes: ['cosmos'] })
-  const { getAggregatedSpendableBalances } = rootBalanceStore
   const evmBalance = evmBalanceStore.evmBalance
   const { data: featureFlags } = useFeatureFlags()
   const selectedNetwork = useSelectedNetwork()
@@ -231,6 +231,16 @@ const Send = observer(() => {
   })
 
   useEffect(() => {
+    /**
+     * Load testnet balances for aggregated chains.
+     * Reason: because we are not loading aggregated balances for testnet.
+     */
+    if (selectedNetwork === 'testnet') {
+      rootBalanceStore.loadBalances('aggregated')
+    }
+  }, [selectedNetwork])
+
+  useEffect(() => {
     if (selectedAddress?.chainName) {
       setCustomIbcChannelId(undefined)
     }
@@ -283,6 +293,10 @@ const Send = observer(() => {
       setSelectedChain(selectedToken.tokenBalanceOnChain)
     }
   }, [selectedToken, sendActiveChain])
+
+  useEffect(() => {
+    allowUpdateInputStore.resetUpdateCount()
+  }, [selectedToken?.ibcDenom, selectedToken?.coinMinimalDenom])
 
   const updateSelectedToken = useCallback(
     (token: Token | null) => {
@@ -351,7 +365,12 @@ const Send = observer(() => {
       const tokenFromParams: Token | null =
         assets.find((asset) => {
           if (assetCoinDenom?.startsWith('ibc/')) {
-            return asset.ibcDenom === assetCoinDenom
+            return (
+              asset.ibcDenom === assetCoinDenom &&
+              (!holderChain ||
+                holderChain === 'aggregated' ||
+                asset.tokenBalanceOnChain === holderChain)
+            )
           }
           if (
             getKeyToUseForDenoms(asset.ibcDenom || asset.coinMinimalDenom, asset.chain || '') ===
@@ -367,11 +386,7 @@ const Send = observer(() => {
         assets.find((asset) => new BigNumber(asset.amount).gt(0)) || null
       updateSelectedToken(tokenFromParams)
     }
-  }, [chainId, assetCoinDenom, activeChain, assets, updateSelectedToken])
-
-  const isNotIBCError = addressError
-    ? !addressError.includes('IBC transfers are not supported')
-    : false
+  }, [chainId, assetCoinDenom, activeChain, assets, updateSelectedToken, holderChain])
 
   return (
     <>
@@ -440,6 +455,7 @@ const Send = observer(() => {
         onClose={handleCloseRecipientSheet}
         postSelectRecipient={() => {
           setInputInProgress(false)
+          allowUpdateInputStore.resetUpdateCount()
         }}
         editContact={editContact}
       />

@@ -148,9 +148,35 @@ export const getEvmBalance = async (address: string) => {
   }
 }
 
-export const getSolanaBalance = async (address: string) => {
+export const getSolanaBalanceFallback = async (address: string) => {
   try {
     const { data: allBalances } = await axios({
+      url: `${getBaseURL()}/v1/balances/solana`,
+      method: 'POST',
+      data: {
+        address,
+        selectedNetwork: 'mainnet',
+        chain: 'solana',
+      },
+      timeout: 5_000,
+    })
+
+    const nativeSolMintAddress = '11111111111111111111111111111111'
+    const solToken = allBalances?.[nativeSolMintAddress]
+
+    if (!solToken?.amount || isNaN(+solToken.amount)) {
+      return new BigNumber(0)
+    }
+
+    return new BigNumber(solToken.amount)
+  } catch {
+    return new BigNumber(0)
+  }
+}
+
+export const getSolanaBalance = async (address: string) => {
+  try {
+    const { data: allBalances, status } = await axios({
       url: `https://go.getblock.io/e8924dbdeef24817a1b024dc6fe4c18b`,
       method: 'POST',
       data: {
@@ -162,6 +188,10 @@ export const getSolanaBalance = async (address: string) => {
       timeout: 5_000,
     })
 
+    if (status !== 200) {
+      throw new Error('Failed to get solana balance, trying fallback')
+    }
+
     const nativeBalance = allBalances.result.value
     if (!nativeBalance || isNaN(+nativeBalance)) {
       return new BigNumber(0)
@@ -169,7 +199,8 @@ export const getSolanaBalance = async (address: string) => {
 
     return new BigNumber(nativeBalance).div(10 ** 9)
   } catch {
-    return new BigNumber(0)
+    const fallbackBalance = await getSolanaBalanceFallback(address)
+    return fallbackBalance
   }
 }
 

@@ -40,6 +40,7 @@ export const ETHERMINT_CHAINS = [
 ]
 
 export const LEAPBOARD_URL = 'https://app.leapwallet.io'
+export const LEAPBOARD_SWAP_URL = 'https://app.leapwallet.io/trade?tab=aggregated'
 export const LEAPBOARD_URL_OLD = 'https://cosmos.leapwallet.io'
 
 export const FIXED_FEE_CHAINS = ['mayachain', 'thorchain']

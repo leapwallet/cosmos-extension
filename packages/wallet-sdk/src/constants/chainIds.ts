@@ -239,4 +239,6 @@ export const chainIdToChain: Record<string, string> = {
   '1440000': 'xrpl',
   '1449000': 'xrpl',
   '5115': 'citrea',
+  '994873017': 'lumia',
+  '1952959480': 'lumia',
 };

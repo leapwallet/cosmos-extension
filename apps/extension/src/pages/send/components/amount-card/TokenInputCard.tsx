@@ -1,12 +1,12 @@
 import { formatTokenAmount, sliceWord, Token, useGetChains } from '@leapwallet/cosmos-wallet-hooks'
 import {
+  fromSmall,
   isAptosChain,
   isSolanaChain,
   isSuiChain,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { isBitcoinChain } from '@leapwallet/cosmos-wallet-store'
-import { useTheme } from '@leapwallet/leap-ui'
 import { ArrowsLeftRight, CaretDown } from '@phosphor-icons/react'
 import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
@@ -17,10 +17,9 @@ import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send/context'
 import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { imgOnError } from 'utils/imgOnError'
-
-import { ErrorWarningTokenCard } from '../error-warning'
 
 type TokenInputCardProps = {
   isInputInUSDC: boolean
@@ -53,21 +52,11 @@ function TokenInputCardView({
 }: TokenInputCardProps) {
   const [formatCurrency] = useFormatCurrency()
   const chains = useGetChains()
-  const { theme } = useTheme()
 
   const defaultTokenLogo = useDefaultTokenLogo()
-  const [isFocused, setIsFocused] = useState(false)
   const [textInputValue, setTextInputValue] = useState<string>(value?.toString())
 
-  const {
-    pfmEnabled,
-    isIbcUnwindingDisabled,
-    allGasOptions,
-    gasOption,
-    selectedAddress,
-    addressError,
-    selectedToken,
-  } = useSendContext()
+  const { selectedAddress, addressError, fee } = useSendContext()
 
   const selectedAssetUSDPrice = useMemo(() => {
     if (token && token.usdPrice && token.usdPrice !== '0') {
@@ -150,39 +139,96 @@ function TokenInputCardView({
     }
   }, [resetForm])
 
-  const onMaxBtnClick = () => {
+  const onMaxBtnClick = useCallback(() => {
     if (isInputInUSDC) {
       if (!selectedAssetUSDPrice) throw 'USD price is not available'
 
       const usdAmount = new BigNumber(token?.amount ?? '0').multipliedBy(selectedAssetUSDPrice)
       setTextInputValue(usdAmount.toString())
     } else {
-      const isNativeToken = !!chains[sendActiveChain].nativeDenoms[token?.coinMinimalDenom ?? '']
       const decimals = token?.coinDecimals || 6
+      setTextInputValue(new BigNumber(token?.amount ?? 0).toFixed(decimals, BigNumber.ROUND_DOWN))
+    }
+    allowUpdateInputStore.allowUpdateInput()
+  }, [isInputInUSDC, selectedAssetUSDPrice, token?.amount, token?.coinDecimals])
 
-      if (!allGasOptions || !gasOption) {
+  /**
+   * Logic to update input value whenever max button is clicked or gas price, denom, limit (?) are updated
+   */
+  useEffect(() => {
+    if (!allowUpdateInputStore.updateAllowed()) return
+    if (!fee || !token?.amount || !value) {
+      return
+    }
+
+    const inputValueBN = new BigNumber(value ?? 0)
+    const tokenBalanceBN = new BigNumber(token?.amount ?? 0)
+
+    // Invalid input amount case - input <= 0 or input > balance
+    if (inputValueBN.lte(0) || inputValueBN.gt(tokenBalanceBN)) {
+      return
+    }
+
+    const _feeDenom = fee?.amount?.[0]?.denom
+    const isSelectedTokenFeeToken =
+      !!token?.ibcDenom || !!_feeDenom?.startsWith('ibc/')
+        ? token?.ibcDenom === _feeDenom
+        : token?.coinMinimalDenom === _feeDenom
+
+    const shouldTerminate = allowUpdateInputStore.shouldTerminate()
+    const decimals = token?.coinDecimals || 6
+    const feeValueBN = new BigNumber(fromSmall(fee?.amount?.[0]?.amount ?? '0', decimals))
+
+    if (
+      shouldTerminate &&
+      (!isSelectedTokenFeeToken || inputValueBN.plus(feeValueBN).lte(tokenBalanceBN))
+    ) {
+      return
+    }
+
+    const newInputValueBN = tokenBalanceBN.minus(isSelectedTokenFeeToken ? feeValueBN : 0)
+    const newInputValue = newInputValueBN.toFixed(decimals, BigNumber.ROUND_DOWN)
+    const oldInputValue = inputValueBN.toFixed(decimals, BigNumber.ROUND_DOWN)
+
+    /**
+     * If selected token is same as fee token, we need to deduct fee from input value
+     * Update logic:
+     * If input + fee > balance, deduct fee from total balance value and update input value if:
+     *   1. new value > 0
+     *   2. new value < old value (to avoid infinite loop)
+     *
+     * Note: Loop here is due to below state updates chain:
+     * input value -> simulate -> fee update -> input value -> ...
+     */
+    if (
+      newInputValueBN.lte(0) ||
+      newInputValue == oldInputValue ||
+      (shouldTerminate && newInputValue > oldInputValue)
+    ) {
+      return
+    }
+
+    if (isInputInUSDC) {
+      if (!selectedAssetUSDPrice) {
         return
       }
-
-      if (isNativeToken) {
-        const feeValue = parseFloat(allGasOptions[gasOption])
-
-        if (new BigNumber(token?.amount ?? 0).isGreaterThan(new BigNumber(feeValue))) {
-          setTextInputValue(
-            new BigNumber(token?.amount ?? 0)
-              .minus(new BigNumber(feeValue))
-              .toFixed(decimals, BigNumber.ROUND_DOWN),
-          )
-        } else {
-          setTextInputValue(
-            new BigNumber(token?.amount ?? 0).toFixed(decimals, BigNumber.ROUND_DOWN),
-          )
-        }
-      } else {
-        setTextInputValue(new BigNumber(token?.amount ?? 0).toFixed(decimals, BigNumber.ROUND_DOWN))
-      }
+      const usdAmount = newInputValueBN.multipliedBy(selectedAssetUSDPrice)
+      setTextInputValue(usdAmount.toString())
+    } else {
+      setTextInputValue(newInputValue)
     }
-  }
+
+    allowUpdateInputStore.incrementUpdateCount()
+  }, [
+    fee,
+    value,
+    isInputInUSDC,
+    token?.amount,
+    token?.coinDecimals,
+    token?.coinMinimalDenom,
+    token?.ibcDenom,
+    selectedAssetUSDPrice,
+  ])
 
   const onHalfBtnClick = useCallback(() => {
     if (isInputInUSDC) {
@@ -196,6 +242,7 @@ function TokenInputCardView({
       const amount = new BigNumber(token?.amount ?? '0').dividedBy(2).toFixed(6, 1)
       setTextInputValue(amount)
     }
+    allowUpdateInputStore.disableUpdateInput()
   }, [isInputInUSDC, selectedAssetUSDPrice, token?.amount, setTextInputValue])
 
   const handleInputTypeSwitchClick = useCallback(() => {
@@ -267,7 +314,10 @@ function TokenInputCardView({
                     )}
                     placeholder={'0'}
                     value={isInputInUSDC ? textInputValue : value}
-                    onChange={(e) => setTextInputValue(e.target.value)}
+                    onChange={(e) => {
+                      setTextInputValue(e.target.value)
+                      allowUpdateInputStore.disableUpdateInput()
+                    }}
                   />
                 </div>
 
@@ -360,11 +410,10 @@ function TokenInputCardView({
           </div>
           {!isIBCError && addressError && selectedAddress ? (
             <div className='text-left text-xs text-destructive-100 font-medium !leading-[16px]'>
-              You can only send {selectedToken?.symbol} on {sendChainEcosystem}.
+              You can only send {token?.symbol} on {sendChainEcosystem}.
             </div>
           ) : null}
         </div>
-        <ErrorWarningTokenCard />
       </div>
     </>
   )

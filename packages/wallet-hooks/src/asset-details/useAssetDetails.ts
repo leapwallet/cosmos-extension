@@ -66,7 +66,7 @@ export function useAssetDetails({
 
   const denomInfoKey = useMemo(() => {
     return ['denom-info', denom, tokenChain, Object.keys(combinedDenoms ?? {}).length, compassParams];
-  }, [Object.keys(combinedDenoms ?? {}).length]);
+  }, [denom, tokenChain, Object.keys(combinedDenoms ?? {}).length, compassParams]);
 
   const { data: denomInfo } = useQuery(denomInfoKey, async () => {
     if (isValidAddressWithPrefix(denom, 'secret') && secretTokens[denom]) {

@@ -20,8 +20,6 @@ import {
 } from '@leapwallet/elements-hooks'
 import { useTransferReturnType } from '@leapwallet/elements-hooks/dist/use-transfer'
 import { useQuery } from '@tanstack/react-query'
-import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
-import Text from 'components/text'
 import { Button } from 'components/ui/button'
 import { FIXED_FEE_CHAINS } from 'config/constants'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
@@ -44,15 +42,12 @@ export const ReviewTransfer = observer(
   ({ setShowTxPage }: { setShowTxPage: (val: boolean) => void }) => {
     const { activeWallet } = useActiveWallet()
     const [showReviewTxSheet, setShowReviewTxSheet] = useState(false)
-    const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
     const [routeError, setRouteError] = useState(false)
 
     const {
       sendDisabled,
       clearTxError,
-      fee,
       inputAmount,
-      setInputAmount,
       selectedToken,
       selectedAddress,
       setTransferData,
@@ -65,7 +60,6 @@ export const ReviewTransfer = observer(
       sendActiveChain,
       sendSelectedNetwork,
       hasToUseCw20PointerLogic,
-      feeDenom,
       gasError,
     } = useSendContext()
     const { status: aptosGasPriceStatus } = useGetAptosGasPrices(
@@ -300,17 +294,13 @@ export const ReviewTransfer = observer(
       selectedAddress,
     ])
 
-    const showAdjustmentSheet = () => {
+    const handleReviewTransfer = useCallback(() => {
       if (activeWallet?.watchWallet) {
         // globalSheetsStore.setImportWatchWalletSeedPopupOpen(true)
       } else {
-        setCheckForAutoAdjust(true)
+        setShowReviewTxSheet(true)
       }
-    }
-
-    const hideAdjustmentSheet = useCallback(() => {
-      setCheckForAutoAdjust(false)
-    }, [])
+    }, [activeWallet?.watchWallet, setShowReviewTxSheet])
 
     const isReviewDisabled = useMemo(() => {
       if (
@@ -361,11 +351,6 @@ export const ReviewTransfer = observer(
       minimumRentAmountError,
     ])
 
-    const feeValue = {
-      amount: fee?.amount[0].amount.toString() ?? '',
-      denom: feeDenom.coinMinimalDenom,
-    }
-
     if (isAptosTx && aptosGasPriceStatus === 'loading') {
       return <></>
     }
@@ -373,14 +358,13 @@ export const ReviewTransfer = observer(
     return (
       <>
         <div className='flex flex-col gap-4 w-full p-4 mt-auto sticky bottom-0 bg-secondary-100 '>
-          {inputAmount &&
-            (FIXED_FEE_CHAINS.includes(sendActiveChain) ? (
-              <FixedFee />
-            ) : (
-              <FeesView rootBalanceStore={rootBalanceStore} rootDenomsStore={rootDenomsStore} />
-            ))}
+          {FIXED_FEE_CHAINS.includes(sendActiveChain) ? (
+            <FixedFee />
+          ) : (
+            <FeesView rootBalanceStore={rootBalanceStore} rootDenomsStore={rootDenomsStore} />
+          )}
           <Button
-            onClick={showAdjustmentSheet}
+            onClick={handleReviewTransfer}
             disabled={isReviewDisabled}
             data-testing-id='send-review-transfer-btn'
             className={cn('w-full', {
@@ -391,20 +375,6 @@ export const ReviewTransfer = observer(
             {btnText}
           </Button>
         </div>
-
-        {selectedToken && fee && checkForAutoAdjust ? (
-          <AutoAdjustAmountSheet
-            amount={inputAmount}
-            setAmount={setInputAmount}
-            selectedToken={selectedToken}
-            fee={feeValue}
-            setShowReviewSheet={setShowReviewTxSheet}
-            closeAdjustmentSheet={hideAdjustmentSheet}
-            forceChain={sendActiveChain}
-            forceNetwork={sendSelectedNetwork}
-            rootDenomsStore={rootDenomsStore}
-          />
-        ) : null}
 
         <ReviewTransferSheet
           isOpen={showReviewTxSheet}

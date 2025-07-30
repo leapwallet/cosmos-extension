@@ -1,4 +1,4 @@
-import { isLedgerUnlocked, sleep } from '@leapwallet/cosmos-wallet-sdk'
+import { sleep } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import { AuthContextType, useAuth } from 'context/auth-context'
 import { WalletAccount } from 'hooks/onboarding/types'
@@ -13,7 +13,6 @@ import React, {
   SetStateAction,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -22,7 +21,6 @@ import correctMnemonic from 'utils/correct-mnemonic'
 import { hasMnemonicWallet } from 'utils/hasMnemonicWallet'
 import browser from 'webextension-polyfill'
 
-import { useWeb3Login } from '../use-social-login'
 import { LEDGER_CONNECTION_STEP } from './types'
 
 type StepName =
@@ -36,7 +34,7 @@ type StepName =
   | 'select-wallet'
   | 'choose-password'
   | 'onboarding-success'
-export type ImportWalletType = 'seed-phrase' | 'private-key' | 'ledger' | 'social'
+export type ImportWalletType = 'seed-phrase' | 'private-key' | 'ledger'
 
 const getStepName = (config: {
   currentStep: number
@@ -95,7 +93,6 @@ export type ImportWalletContextType = {
   importLedger: (fn: (idxs?: Array<number>) => Promise<void>) => Promise<void>
   backToPreviousStep: () => void
   moveToNextStep: () => void
-  moveToNextStepSocial: () => void
   onOnboardingCompleted: (password: Uint8Array) => void
   privateKeyError: string
   setPrivateKeyError: Dispatch<SetStateAction<string>>
@@ -111,7 +108,6 @@ export type ImportWalletContextType = {
   //getLedgerAccountDetails: () => Promise<void>
   getLedgerAccountDetailsForIdxs: (idxs?: Array<number>) => Promise<void>
   currentStepName: StepName
-  socialLogin: ReturnType<typeof useWeb3Login>
   customWalletAccounts?: WalletAccount[]
   getCustomLedgerAccountDetails: (
     customDerivationPath: string,
@@ -149,7 +145,6 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
     walletAccounts: hotWalletAccounts = [],
     getAccountDetails,
     onOnboardingComplete,
-    socialLogin,
   } = useOnboarding()
 
   const {
@@ -195,23 +190,6 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
           ) as string[]
 
         await onBoardingCompleteLedger(password, walletsToImport)
-      } else if (walletName === 'social') {
-        const [privateKey, userInfo] = await Promise.all([
-          socialLogin.getPrivateKey(),
-          socialLogin.getUserInfo(),
-        ])
-
-        if (!privateKey) {
-          throw new Error('Private key not found')
-        }
-
-        await onOnboardingComplete(
-          privateKey,
-          password,
-          { 0: true },
-          'import-social',
-          userInfo?.email,
-        )
       } else {
         const onBoardingSelectedIds = isPrivateKey ? { 0: true } : selectedIds
         await onOnboardingComplete(secret, password, onBoardingSelectedIds, 'import')
@@ -234,15 +212,6 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
     } finally {
       setLoading(false)
     }
-  }
-
-  const moveToNextStepSocial = () => {
-    setWalletName('social')
-    if (passwordStore.password) {
-      return onOnboardingCompleted(passwordStore.password)
-    }
-
-    setCurrentStep(3)
   }
 
   const moveToNextStep = async () => {
@@ -288,8 +257,7 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
       }
     }
 
-    if (currentStep === 3 && walletName === 'social') setCurrentStep(0)
-    else if (currentStep === 3 && isPrivateKey) setCurrentStep(currentStep - 2)
+    if (currentStep === 3 && isPrivateKey) setCurrentStep(currentStep - 2)
     else if (currentStep > 0) setCurrentStep(currentStep - 1)
     else {
       navigate(-1)
@@ -383,7 +351,6 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
         importLedger,
         backToPreviousStep,
         moveToNextStep,
-        moveToNextStepSocial,
         onOnboardingCompleted,
         privateKeyError,
         setPrivateKeyError,
@@ -401,7 +368,6 @@ export const ImportWalletProvider = observer(({ children }: { children: React.Re
           ? ledgerWalletAccounts.concat(ledgerCustomWalletAccounts)
           : hotWalletAccounts,
         currentStepName,
-        socialLogin,
         customWalletAccounts,
         getCustomLedgerAccountDetails,
         selectedApp,

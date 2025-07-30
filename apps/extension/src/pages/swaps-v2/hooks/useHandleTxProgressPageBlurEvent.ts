@@ -10,7 +10,7 @@ import {
 } from 'utils/pendingSwapsTxsStore'
 import Browser from 'webextension-polyfill'
 
-import { RoutingInfo } from './useSwapsTx'
+import type { RoutingInfo } from '../types'
 
 export function useHandleTxProgressPageBlurEvent(
   isLoading: boolean,

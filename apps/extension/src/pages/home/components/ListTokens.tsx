@@ -7,14 +7,22 @@ import { percentageChangeDataStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { hideSmallBalancesStore } from 'stores/hide-small-balances-store'
 
-import { AssetCard } from './index'
+import { AssetCard, tokenHasBalance } from './index'
 
 const maxAssets = 10
 
 const sideNavDefaults = { openTokenDisplayPage: true }
 
 export const ListTokens = observer(
-  ({ allTokens, searchQuery }: { allTokens: Token[]; searchQuery: string }) => {
+  ({
+    allTokens,
+    searchQuery,
+    balanceError,
+  }: {
+    allTokens: Token[]
+    searchQuery: string
+    balanceError: boolean
+  }) => {
     const [showMaxAssets, setShowMaxAssets] = useState(false)
 
     const assetsToShow = useMemo(() => {
@@ -44,12 +52,13 @@ export const ListTokens = observer(
 
     return (
       <div className={'w-full flex flex-col items-center justify-center gap-3'}>
-        {assetsToShow.map((asset: any) => (
+        {assetsToShow.map((asset: Token) => (
           <AssetCard
-            key={asset.id}
+            key={(asset as Token & { id: string })?.id}
             asset={asset}
             percentageChangeDataStore={percentageChangeDataStore}
             chainInfosStore={chainInfoStore}
+            isPlaceholder={balanceError && !tokenHasBalance(asset)}
           />
         ))}
 

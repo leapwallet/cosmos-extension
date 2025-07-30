@@ -347,7 +347,7 @@ const RequireAuthView = ({ children }: { children: JSX.Element }) => {
     return location.pathname === '/home' ? <HomeLoadingState /> : null
   }
 
-  if (auth?.locked === 'locked') {
+  if (auth?.locked === 'locked' && location.pathname !== '/') {
     return <Navigate to='/' state={{ from: location }} replace />
   }
 

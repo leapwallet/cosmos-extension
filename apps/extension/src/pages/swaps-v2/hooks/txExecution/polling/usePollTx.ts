@@ -3,7 +3,7 @@ import { TransferAssetRelease } from '@skip-go/client'
 import { useCallback } from 'react'
 import { SourceChain, SwapTxnStatus, TransferSequence } from 'types/swap'
 
-import { RoutingInfo } from '../../useSwapsTx'
+import type { RoutingInfo } from '../../../types'
 import { usePollMosaicTx } from './usePollMosaicTx'
 import { usePollSkipTx } from './usePollSkipTx'
 

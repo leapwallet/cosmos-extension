@@ -14,6 +14,7 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainFeatureFlagsStore, ChainInfosStore } from '@leapwallet/cosmos-wallet-store'
+import { allowedTopLevelDomains } from '@leapwallet/name-matcha'
 import { CaretRight } from '@phosphor-icons/react'
 import { bech32 } from 'bech32'
 import useQuery from 'hooks/useQuery'
@@ -25,6 +26,7 @@ import { useSendContext } from 'pages/send/context'
 import { useCheckAddressError } from 'pages/send/hooks/useCheckAddressError'
 import { SelectChain } from 'pages/send/SelectRecipientSheet'
 import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { AddressBook } from 'utils/addressbook'
 import { UserClipboard } from 'utils/clipboard'
 import { cn } from 'utils/cn'
@@ -43,6 +45,7 @@ interface InputCardProps {
 }
 
 const nameServiceMatcher = /^[a-zA-Z0-9_-]+\.[a-z]+$/
+const paymentIdMatcher = /^[a-zA-Z0-9_-]+@[a-z]+$/
 const InputCard = forwardRef<HTMLInputElement, InputCardProps>(
   (
     {
@@ -101,18 +104,24 @@ const InputCard = forwardRef<HTMLInputElement, InputCardProps>(
     const existingResult = existingContactMatch ?? existingWalletMatch
 
     const showNameServiceResults = useMemo(() => {
-      const allowedTopLevelDomains = [
+      const allowedDomains = [
         ...Object.keys(addressPrefixes), // for ibcdomains, icns, stargazenames
         'arch', // for archId
         'sol', // for injective .sol domains by SNS
         ...['sei', 'pp'], // for degeNS
         'core', // for bdd
-        'i', //for celestials.id
+        'i', //for celestials.id,
       ]
+      if (allowedTopLevelDomains.spaceIds) {
+        allowedDomains.push(...allowedTopLevelDomains.spaceIds)
+      }
       // ex: leap.arch --> name = leap, domain = arch
       const [, domain] = recipientInputValue.split('.')
-      const isValidDomain = allowedTopLevelDomains.indexOf(domain) !== -1
-      return nameServiceMatcher.test(recipientInputValue) && isValidDomain
+      const isValidDomain = allowedDomains.indexOf(domain) !== -1
+      return (
+        (nameServiceMatcher.test(recipientInputValue) && isValidDomain) ||
+        paymentIdMatcher.test(recipientInputValue)
+      )
     }, [recipientInputValue, addressPrefixes])
 
     const chains = chainInfoStore.chainInfos
@@ -221,10 +230,9 @@ const InputCard = forwardRef<HTMLInputElement, InputCardProps>(
             emoji: undefined,
           })
           setInputInProgress(false)
+          allowUpdateInputStore.resetUpdateCount()
         } catch (err) {
-          if (!(err as Error)?.message?.includes('too short')) {
-            setAddressError('Invalid Address')
-          }
+          //
         }
       },
       [
@@ -265,6 +273,7 @@ const InputCard = forwardRef<HTMLInputElement, InputCardProps>(
         setEthAddress(s.ethAddress ?? '')
         setRecipientInputValue(s.address ?? '')
         setInputInProgress(false)
+        allowUpdateInputStore.resetUpdateCount()
       },
       [
         setAddressError,
@@ -275,11 +284,19 @@ const InputCard = forwardRef<HTMLInputElement, InputCardProps>(
       ],
     )
 
+    const handleInputChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputInProgress(true)
+        setRecipientInputValue(e.target.value)
+        handledSelectedAddress(e.target.value)
+      },
+      [setInputInProgress, setRecipientInputValue, handledSelectedAddress],
+    )
+
     const showError = !showNameServiceResults && addressError
     const showRecipientPlaceholder =
       recipientInputValue?.length > 0 &&
       debouncedRecipientInputValue?.length > 0 &&
-      !addressError &&
       !addressError &&
       !showNameServiceResults
 
@@ -294,11 +311,7 @@ const InputCard = forwardRef<HTMLInputElement, InputCardProps>(
             )}
             placeholder={'Enter address'}
             value={recipientInputValue}
-            onChange={(e) => {
-              setInputInProgress(true)
-              setRecipientInputValue(e.target.value)
-              // should update the selected address if this value is modified
-            }}
+            onChange={handleInputChange}
           />
           <div className='flex flex-row justify-end items-center shrink-0 gap-2'>
             {!recipientInputValue && (
@@ -380,6 +393,7 @@ const InputCard = forwardRef<HTMLInputElement, InputCardProps>(
             setSelectedAddress(s)
             setShowSelectChain(false)
             setInputInProgress(false)
+            allowUpdateInputStore.resetUpdateCount()
           }}
           address={recipientInputValue}
           forceName={existingResult ? existingResult.name : undefined}

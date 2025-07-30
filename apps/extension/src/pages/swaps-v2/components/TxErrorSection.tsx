@@ -1,9 +1,9 @@
-import { useChains } from '@leapwallet/elements-hooks'
 import { WarningCircle } from '@phosphor-icons/react'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import React, { useMemo } from 'react'
 
-import { RoutingInfo, useGetChainsToShow, useOnline } from '../hooks'
+import { useGetChainsToShow, useOnline } from '../hooks'
+import type { RoutingInfo } from '../types'
 import { getChainIdsFromRoute } from '../utils'
 
 export function TxErrorSection({

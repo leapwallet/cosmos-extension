@@ -20,6 +20,7 @@ export class SuiCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
     private rootDenomsStore: RootDenomsStore,
     private selectedNetwork: string,
     private coingeckoIdsStore: CoingeckoIdsStore,
+    private forceRefetch: boolean = false,
   ) {
     super();
   }
@@ -45,6 +46,7 @@ export class SuiCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
         data: {
           address: this.address,
           selectedNetwork: this.selectedNetwork,
+          forceRefetch: this.forceRefetch,
         },
       });
       const tokens = Object.entries(allBalances).map(([tokenAddress, data]) => {
@@ -308,6 +310,7 @@ export class SuiCoinDataStore {
       this.rootDenomsStore,
       currentNetwork,
       this.coingeckoIdsStore,
+      forceRefetch,
     );
     const _suiBalances = await suiCoinDataStore.getData();
     runInAction(() => {

@@ -1,4 +1,10 @@
-import { denoms as ConstantDenoms, DenomsRecord, isBabylon, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import {
+  denoms as ConstantDenoms,
+  DenomsRecord,
+  isBabylon,
+  isSuiChain,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk';
 import { getIsCompass } from '@leapwallet/cosmos-wallet-sdk';
 import BigNumber from 'bignumber.js';
 import { computed, makeAutoObservable, runInAction } from 'mobx';
@@ -183,20 +189,22 @@ export class BalanceStore {
 
   async initCelestiaBalanceStore() {
     const useCelestiaBalanceStore = await this.storageAdapter.get('useCelestiaBalanceStore');
-    await this.setUseCelestiaBalanceStore(useCelestiaBalanceStore === 'true');
+    await this.setUseCelestiaBalanceStore(useCelestiaBalanceStore === 'true', true);
   }
 
-  async setUseCelestiaBalanceStore(v: boolean) {
+  async setUseCelestiaBalanceStore(v: boolean, skipFetch = false) {
     runInAction(() => {
       this.useCelestiaBalanceStore = v;
       this.storageAdapter.set('useCelestiaBalanceStore', this.useCelestiaBalanceStore ? 'true' : 'false');
-      this.fetchChainBalance(
-        'celestia',
-        this.selectedNetworkStore.selectedNetwork,
-        this.addressStore.addresses['celestia'],
-        false,
-        v ? true : false,
-      );
+      if (!skipFetch) {
+        this.fetchChainBalance(
+          'celestia',
+          this.selectedNetworkStore.selectedNetwork,
+          this.addressStore.addresses['celestia'],
+          false,
+          v ? true : false,
+        );
+      }
     });
   }
 
@@ -484,7 +492,8 @@ export class BalanceStore {
       const aptosChain = this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId?.startsWith('aptos');
       const bitcoinChain = isBitcoinChain(chain as SupportedChain);
       const solanaChain = this.chainInfosStore.chainInfos[chain as SupportedChain]?.bip44?.coinType === '501';
-      if (evmOnlyChain || aptosChain || bitcoinChain || solanaChain) {
+      const suiChain = isSuiChain(chain as SupportedChain);
+      if (evmOnlyChain || aptosChain || bitcoinChain || solanaChain || suiChain) {
         return;
       }
 
@@ -723,11 +732,18 @@ export class BalanceStore {
 
         const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
 
+        let name = denomInfo?.name;
+        let symbol = denomInfo?.coinDenom;
+        if (IS_COMPASS && _denom === 'usdc') {
+          symbol = 'USDC.n';
+          name = 'USDC via Noble';
+        }
+
         return {
           chain: denomInfo?.chain ?? '',
-          name: denomInfo?.name,
+          name,
           amount,
-          symbol: denomInfo?.coinDenom,
+          symbol,
           usdValue: usdValue ?? '',
           coinMinimalDenom: denomInfo?.coinMinimalDenom,
           img: denomInfo?.icon,

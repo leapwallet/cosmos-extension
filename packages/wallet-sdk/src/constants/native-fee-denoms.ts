@@ -138,6 +138,7 @@ export const nativeFeeDenoms: FeeDenoms = {
     fogo: 'fogo-native',
     xrpl: 'axrp',
     citrea: 'citrea-native',
+    lumia: 'lumia-native',
   },
   testnet: {
     akash: 'uakt',
@@ -271,5 +272,6 @@ export const nativeFeeDenoms: FeeDenoms = {
     fogo: 'fogo-native',
     xrpl: 'axrp',
     citrea: 'citrea-native',
+    lumia: 'lumia-native',
   },
 };

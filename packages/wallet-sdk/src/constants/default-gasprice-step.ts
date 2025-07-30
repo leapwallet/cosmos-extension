@@ -166,4 +166,5 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   fogo: { DEFAULT_GAS_TRANSFER: 10_000, DEFAULT_GAS_STAKE: 10_000, DEFAULT_GAS_IBC: 10_000 },
   xrpl: DefaultGasEstimates,
   citrea: DefaultGasEstimates,
+  lumia: DefaultGasEstimates,
 };

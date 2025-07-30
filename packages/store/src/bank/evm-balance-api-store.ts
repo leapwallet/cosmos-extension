@@ -6,7 +6,7 @@ import { makeAutoObservable } from 'mobx';
 import { SelectedNetworkType } from 'types';
 
 import { BetaERC20DenomsStore, ChainInfosStore, CoingeckoIdsStore, DenomsStore } from '../assets';
-import { getBaseURL } from '../globals/config';
+import { getBaseURL, getIsCompass } from '../globals/config';
 import { getNativeDenom } from '../utils';
 import { fromSmall } from '../utils/balance-converter';
 import { generateRandomString } from '../utils/random-string-generator';
@@ -225,8 +225,16 @@ export class EVMBalanceAPIStore {
 
       await Promise.all([this.waitForPriceStore(), this.waitForCoingeckoIdsStore()]);
       const denomsToAddInBase: DenomsRecord = {};
+      const denomsToAddInBetaERC20: DenomsRecord = {};
 
-      const formattedErc20Balances = this.formatBalanceFromAPI(erc20Balances, chain, network, true, denomsToAddInBase);
+      const formattedErc20Balances = this.formatBalanceFromAPI(
+        erc20Balances,
+        chain,
+        network,
+        true,
+        denomsToAddInBase,
+        denomsToAddInBetaERC20,
+      );
       const formattedNativeBalances = this.formatBalanceFromAPI(
         nativeBalances,
         chain,
@@ -235,6 +243,10 @@ export class EVMBalanceAPIStore {
         denomsToAddInBase,
       );
 
+      const isCompassWallet = getIsCompass();
+      if (isCompassWallet) {
+        this.betaERC20DenomsStore.setTempBetaERC20Denoms(denomsToAddInBetaERC20, 'seiTestnet2');
+      }
       if (Object.keys(denomsToAddInBase).length > 0) {
         this.denomsStore.setTempBaseDenoms(denomsToAddInBase);
       }
@@ -261,6 +273,7 @@ export class EVMBalanceAPIStore {
     network: SelectedNetworkType = 'mainnet',
     isErc20 = false,
     denomsToAddInBase: DenomsRecord = {},
+    denomsToAddInBetaERC20: DenomsRecord = {},
   ) {
     const chainInfos = this.chainInfosStore.chainInfos;
     const chainId =
@@ -343,6 +356,18 @@ export class EVMBalanceAPIStore {
         coingeckoIds[_denom] ??
         coingeckoIds[_denom?.toLowerCase()] ??
         '';
+
+      if (getIsCompass() && isErc20) {
+        denomsToAddInBetaERC20[_denom] = {
+          coinMinimalDenom: denomInfo?.coinMinimalDenom ?? _denom,
+          coinDenom: denomInfo?.coinDenom ?? balance.symbol,
+          coinDecimals: denomInfo?.coinDecimals ?? balance.decimals,
+          icon: denomInfo?.icon ?? balance.icon_url,
+          name: denomInfo?.name ?? balance.name,
+          chain: denomInfo?.chain ?? chain,
+          coinGeckoId: coinGeckoId ?? '',
+        };
+      }
 
       if (!denomInfo) {
         const denomInfoToStore: NativeDenom = {

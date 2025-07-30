@@ -5,9 +5,19 @@ import { PREFERRED_CURRENCY } from 'config/storage-keys'
 import { useCallback, useEffect } from 'react'
 import browser from 'webextension-polyfill'
 
-type SupportedCurrencies = 'US' | 'EU' | 'GB' | 'AU' | 'CN' | 'KR' | 'IN' | 'JP'
-type SupportedSymbols = '$' | '€' | '£' | 'A$' | '¥' | '₩' | '₹'
-type SupportedCurrencyISO = 'USD' | 'EUR' | 'GBP' | 'AUD' | 'CNY' | 'KRW' | 'INR' | 'JPY'
+type SupportedCurrencies = 'US' | 'EU' | 'GB' | 'AU' | 'CN' | 'KR' | 'IN' | 'JP' | 'PH' | 'ID'
+type SupportedSymbols = '$' | '€' | '£' | 'A$' | '¥' | '₩' | '₹' | '₱' | 'Rp'
+type SupportedCurrencyISO =
+  | 'USD'
+  | 'EUR'
+  | 'GBP'
+  | 'AUD'
+  | 'CNY'
+  | 'KRW'
+  | 'INR'
+  | 'JPY'
+  | 'PHP'
+  | 'IDR'
 
 interface CurrencyTypes {
   country: SupportedCurrencies
@@ -33,6 +43,8 @@ export const CurrencyMap: CurrencyTypes[] = [
   { country: 'KR', name: 'South Korean Won' },
   { country: 'IN', name: 'Indian Rupee' },
   { country: 'JP', name: 'Japanese Yen' },
+  { country: 'PH', name: 'Philippine Peso' },
+  { country: 'ID', name: 'Indonesian Rupiah' },
 ]
 
 export const currencyDetail: CurrencySymbolsTypes = {
@@ -44,6 +56,8 @@ export const currencyDetail: CurrencySymbolsTypes = {
   KR: { symbol: '₩', currencyPointer: Currency.Krw, ISOname: 'KRW', locale: 'ko-KR' },
   IN: { symbol: '₹', currencyPointer: Currency.Inr, ISOname: 'INR', locale: 'en-IN' },
   JP: { symbol: '¥', currencyPointer: Currency.Jpy, ISOname: 'JPY', locale: 'ja-JP' },
+  PH: { symbol: '₱', currencyPointer: Currency.Php, ISOname: 'PHP', locale: 'fil-PH' },
+  ID: { symbol: 'Rp', currencyPointer: Currency.Idr, ISOname: 'IDR', locale: 'id-ID' },
 }
 
 export type preferredCurrencySettings = SupportedCurrencies

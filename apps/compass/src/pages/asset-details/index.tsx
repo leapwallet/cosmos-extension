@@ -13,7 +13,8 @@ import {
   CompassSeiTokensAssociationStore,
   CompassTokenTagsStore,
   DenomsStore,
-  MarketDataStore,
+  PercentageChangeDataStore,
+  PriceStore,
   RootDenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
 import { ArrowLeft } from '@phosphor-icons/react'
@@ -45,8 +46,9 @@ type TokenDetailsProps = {
   rootDenomsStore: RootDenomsStore
   compassTokensAssociationsStore: CompassSeiTokensAssociationStore
   compassSeiEvmConfigStore: CompassSeiEvmConfigStore
-  marketDataStore: MarketDataStore
+  percentageChangeDataStore: PercentageChangeDataStore
   compassTokenTagsStore: CompassTokenTagsStore
+  priceStore: PriceStore
 }
 
 const AssetDetails = observer(
@@ -54,8 +56,9 @@ const AssetDetails = observer(
     rootDenomsStore,
     compassTokensAssociationsStore,
     compassSeiEvmConfigStore,
-    marketDataStore,
+    percentageChangeDataStore,
     compassTokenTagsStore,
+    priceStore,
   }: TokenDetailsProps) => {
     const [assetsId, setAssetsId] = useState<string | undefined>()
     const chainInfos = useChainInfos()
@@ -108,6 +111,14 @@ const AssetDetails = observer(
       seiEvmRpcUrl,
     ])
 
+    const denoms = useMemo(() => {
+      return Object.assign(
+        {},
+        rootDenomsStore.allDenoms,
+        compassTokenTagsStore.compassTokenDenomInfo,
+      )
+    }, [rootDenomsStore.allDenoms, compassTokenTagsStore.compassTokenDenomInfo])
+
     const {
       info,
       ChartDays,
@@ -120,16 +131,13 @@ const AssetDetails = observer(
       selectedDays,
       denomInfo: _denomInfo,
     } = useAssetDetails({
-      denoms: Object.assign(
-        {},
-        rootDenomsStore.allDenoms,
-        compassTokenTagsStore.compassTokenDenomInfo,
-      ),
+      denoms,
       denom: assetsId as unknown as SupportedDenoms,
       tokenChain: activeChain,
       compassParams,
-      marketDataStore,
+      percentageChangeDataStore,
       coingeckoIdsStore,
+      priceStore,
     })
 
     const denomInfo: NativeDenom = _denomInfo ?? {

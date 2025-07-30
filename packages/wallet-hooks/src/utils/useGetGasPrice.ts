@@ -46,9 +46,9 @@ export async function getThorChainTxFee(lcdUrl: string) {
 }
 
 function getGasPriceStep(chain: ChainInfo, allChainsGasPriceSteps: GasPriceStepsRecord): GasPriceStep {
-  let gasPrices = allChainsGasPriceSteps[chain.key];
-  if (!gasPrices && chain.beta && chain.gasPriceStep) {
-    gasPrices = chain.gasPriceStep;
+  let gasPrices = allChainsGasPriceSteps?.[chain?.key];
+  if (!gasPrices && chain?.beta && chain?.gasPriceStep) {
+    gasPrices = chain?.gasPriceStep;
   } else if (!gasPrices) {
     gasPrices = defaultGasPriceStep;
   }
@@ -209,10 +209,10 @@ export function useGasRateQuery(
     }
 
     return {
-      [nativeFeeDenom.coinMinimalDenom]: {
-        low: GasPrice.fromString(`${gasPriceStep.low}${nativeFeeDenom.coinMinimalDenom}`),
-        medium: GasPrice.fromString(`${gasPriceStep.medium}${nativeFeeDenom.coinMinimalDenom}`),
-        high: GasPrice.fromString(`${gasPriceStep.high}${nativeFeeDenom.coinMinimalDenom}`),
+      [nativeFeeDenom?.coinMinimalDenom]: {
+        low: GasPrice.fromString(`${gasPriceStep.low}${nativeFeeDenom?.coinMinimalDenom}`),
+        medium: GasPrice.fromString(`${gasPriceStep.medium}${nativeFeeDenom?.coinMinimalDenom}`),
+        high: GasPrice.fromString(`${gasPriceStep.high}${nativeFeeDenom?.coinMinimalDenom}`),
       },
     } as const;
   }, [

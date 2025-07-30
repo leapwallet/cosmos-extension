@@ -12,6 +12,8 @@ export const currencyDetail: CurrencySymbolsTypes = {
   KR: { symbol: '₩', currencyPointer: Currency.Krw, ISOname: 'KRW', locale: 'ko-KR' },
   IN: { symbol: '₹', currencyPointer: Currency.Inr, ISOname: 'INR', locale: 'en-IN' },
   JP: { symbol: '¥', currencyPointer: Currency.Jpy, ISOname: 'JPY', locale: 'ja-JP' },
+  PH: { symbol: '₱', currencyPointer: Currency.Php, ISOname: 'PHP', locale: 'fil-PH' },
+  ID: { symbol: 'Rp', currencyPointer: Currency.Idr, ISOname: 'IDR', locale: 'id-ID' },
 };
 
 export class CurrencyStore {

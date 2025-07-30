@@ -17,9 +17,10 @@ import { Wallet } from 'hooks/wallet/useWallet'
 import React, { useCallback } from 'react'
 import { SourceChain, SourceToken, SwapFeeInfo, SwapTxnStatus, TransferSequence } from 'types/swap'
 
+import { SWAP_NETWORK } from '../../constants'
+import type { RoutingInfo } from '../../types'
 import { useGetChainsToShow } from '../useGetChainsToShow'
 import { MosaicRouteQueryResponse } from '../useMosaicRoute'
-import { RoutingInfo, SWAP_NETWORK } from '../useSwapsTx'
 import { usePollTx } from './polling/usePollTx'
 import { useInvalidateSwapAssetsQueries } from './useInvalidateSwapAssetsQueries'
 

@@ -26,6 +26,7 @@ export class SolanaCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
     private selectedNetwork: string,
     private coingeckoIdsStore: CoingeckoIdsStore,
     private chainInfosStore: ChainInfosStore,
+    private forceRefetch: boolean = false,
   ) {
     super();
   }
@@ -52,6 +53,7 @@ export class SolanaCoinDataQueryStore extends BaseQueryStore<Array<Token>> {
           address: this.address,
           selectedNetwork: this.selectedNetwork,
           chain: this.chain,
+          forceRefetch: this.forceRefetch,
         },
       });
       const tokens = Object.entries(allBalances).map(([mintAddress, data]) => {
@@ -333,6 +335,7 @@ export class SolanaCoinDataStore {
       currentNetwork,
       this.coingeckoIdsStore,
       this.chainInfosStore,
+      forceRefetch,
     );
     try {
       const _solanaBalances = await solanaCoinDataStore.getData();

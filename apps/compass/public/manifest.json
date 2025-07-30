@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Compass DEVELOPMENT BUILD",
   "description": "THIS IS THE DEVELOPMENT DISTRIBUTION OF THE COMPASS EXTENSION, INTENDED FOR LOCAL DEVELOPMENT.",
-  "version": "0.17.2",
+  "version": "0.18.5",
   "options_page": "index.html#/home",
   "web_accessible_resources": [
     {

@@ -1,10 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import {
-  getKeyToUseForDenoms,
-  Token,
-  useGasAdjustmentForChain,
-} from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { Token, useGasAdjustmentForChain } from '@leapwallet/cosmos-wallet-hooks'
 import {
   EvmBalanceStore,
   RootBalanceStore,
@@ -15,18 +10,13 @@ import {
 import { BigNumber } from 'bignumber.js'
 import classNames from 'classnames'
 import { calculateFeeAmount } from 'components/gas-price-options'
-import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { motion } from 'framer-motion'
-import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useSelectedNetwork } from 'hooks/settings/useNetwork'
-import { useChainInfos } from 'hooks/useChainInfos'
-import useQuery from 'hooks/useQuery'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send/context'
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
-import { AggregatedSupportedChain } from 'types/utility'
 
 import { TokenInputCard } from './TokenInputCard'
 
@@ -189,10 +179,28 @@ export const AmountCard = observer(
       if (resetForm) {
         setAmount('')
         setSelectedToken((selectedToken) => {
-          const match = assets.find(
-            (asset) => asset.coinMinimalDenom === selectedToken?.coinMinimalDenom,
-          )
-          return match ?? selectedToken
+          const match = assets.find((asset) => {
+            if (asset.ibcDenom) {
+              return asset.ibcDenom === selectedToken?.ibcDenom
+            }
+            return asset.coinMinimalDenom === selectedToken?.coinMinimalDenom
+          })
+          // If the token is found in the assets, return it (Meaning token is still valid)
+          if (match) {
+            return match
+          }
+          if (selectedToken) {
+            /**
+             * If the transaction had been initiated with Max button,
+             * we need to reset the amount to 0, if we do not find the
+             * token in the assets.
+             */
+            if (allowUpdateInputStore.updateAllowed()) {
+              return { ...selectedToken, amount: '0' }
+            }
+            return selectedToken
+          }
+          return null
         })
       }
     }, [assets, resetForm, setSelectedToken])

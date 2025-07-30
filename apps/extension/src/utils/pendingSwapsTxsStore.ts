@@ -2,7 +2,7 @@ import { GasOptions } from '@leapwallet/cosmos-wallet-hooks'
 import { GasPrice, NativeDenom } from '@leapwallet/cosmos-wallet-sdk'
 import { TXN_STATUS } from '@leapwallet/elements-core'
 import { CURRENT_SWAP_TXS, PENDING_SWAP_TXS } from 'config/storage-keys'
-import { RoutingInfo } from 'pages/swaps-v2/hooks'
+import type { RoutingInfo } from 'pages/swaps-v2/types'
 import { SourceChain, SourceToken } from 'types/swap'
 import Browser from 'webextension-polyfill'
 

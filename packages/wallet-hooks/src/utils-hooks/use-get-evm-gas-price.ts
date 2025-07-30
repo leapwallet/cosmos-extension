@@ -140,6 +140,7 @@ export function useGetEvmGasPrices(forceChain?: SupportedChain, forceNetwork?: S
       }
     },
     {
+      enabled: isSeiEvmChain || !!chains[activeChain]?.evmOnlyChain,
       refetchInterval: evmGasConfig?.refetchInterval?.[activeChainId ?? ''] ?? 5 * 1000,
     },
   );

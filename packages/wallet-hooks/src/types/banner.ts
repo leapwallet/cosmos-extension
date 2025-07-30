@@ -15,6 +15,10 @@ export type NumiaBannerAttribute = {
   position_id?: string;
 };
 
+export type SpindlBannerAttribute = {
+  impression_id: string;
+};
+
 export type BannerAD = {
   id: string;
   image_url: string;
@@ -27,6 +31,7 @@ export type BannerAD = {
   position_id?: string;
   display_position?: string;
   attributes?: NumiaBannerAttribute;
+  spindl_attributes?: SpindlBannerAttribute;
   visibleOn?: 'ALL' | 'EXTENSION' | 'MOBILE';
   exclude_chain_ids?: string;
 };
@@ -49,3 +54,34 @@ export type NumiaBannerAD = NumiaBannerAttribute & {
 };
 
 export type BannerData = Record<string, BannerAD[]>;
+
+export type SpindlApiResponse = {
+  items: {
+    id: string;
+    type: string;
+    impressionId: string;
+    advertiserId: string;
+    placementSlug: string;
+    title: string;
+    context: string;
+    description: string;
+    imageUrl: string;
+    imageVariants: {
+      '1x': {
+        url: string;
+      };
+      raw: {
+        url: string;
+      };
+      orig: {
+        url: string;
+      };
+    };
+    category: string;
+    imageAltText: string;
+    ctas: {
+      title: string;
+      href: string;
+    }[];
+  }[];
+};

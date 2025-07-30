@@ -13,6 +13,7 @@ import {
   declinedSeiAppOpenError,
   deviceDisconnectedError,
   deviceLockedError,
+  ethAppEnableContractDataError,
   ledgerDisconnectMessage,
   LedgerError,
   ledgerLockedError,
@@ -204,6 +205,8 @@ export function handleError(e: any) {
     return sizeLimitExceededErrorUser;
   } else if (e.message === ledgerLockedError2) {
     return deviceLockedError;
+  } else if (e.message.includes(ethAppEnableContractDataError)) {
+    return new LedgerError(ethAppEnableContractDataError);
   } else if (
     e.message.includes('Please close the') ||
     e.message.includes(declinedCosmosAppOpenError) ||

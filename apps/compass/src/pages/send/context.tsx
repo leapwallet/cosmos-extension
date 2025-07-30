@@ -17,7 +17,6 @@ import {
 } from '@leapwallet/cosmos-wallet-store'
 import { useTransferReturnType } from '@leapwallet/elements-hooks/dist/use-transfer'
 import { EthWallet } from '@leapwallet/leap-keychain'
-import { useSecretWallet } from 'hooks/wallet/useScrtWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
@@ -80,7 +79,6 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
     })
     const getWallet = useGetWallet(sendActiveChain)
     const currentWalletAddress = useAddress()
-    const getSscrtWallet = useSecretWallet()
     const [transferData, setTransferData] = useState<useTransferReturnType | null>(null)
     const [isIbcUnwindingDisabled, setIsIbcUnwindingDisabled] = useState<boolean>(false)
     const [pfmEnabled, setPfmEnabled] = useState<boolean>(true)
@@ -94,22 +92,12 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
         await confirmSend(
           {
             ...args,
-            getWallet: () => {
-              const isSnip20 = isValidAddressWithPrefix(
-                selectedToken?.coinMinimalDenom ?? '',
-                'secret',
-              )
-              if (isSnip20) {
-                return getSscrtWallet()
-              }
-
-              return getWallet()
-            },
+            getWallet,
           },
           modifiedCallback,
         )
       },
-      [confirmSend, getSscrtWallet, getWallet, selectedToken?.coinMinimalDenom],
+      [confirmSend, getWallet, selectedToken?.coinMinimalDenom],
     )
     const confirmSendTxEth = useCallback(
       async (

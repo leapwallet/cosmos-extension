@@ -5,6 +5,7 @@ import {
   setLeapapiBaseUrl,
   setNumiaBannerBearer,
   setPlatformType,
+  setSpindlBannerToken,
   setStorageLayer,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { setAppType, setBaseURL, setIsCompass } from '@leapwallet/cosmos-wallet-store'
@@ -41,6 +42,7 @@ setStorageLayer(storageAdapter)
 // wallet hooks config
 setLeapapiBaseUrl(process.env.LEAP_WALLET_BACKEND_API_URL as string)
 setNumiaBannerBearer(process.env.NUMIA_BANNER_BEARER ?? '')
+setSpindlBannerToken(process.env.SPINDLE_API_KEY ?? '')
 setPlatformType(PLATFORM_TYPE.Extension)
 setAppName(APP_NAME.Cosmos) // setAppName is for tx logging
 

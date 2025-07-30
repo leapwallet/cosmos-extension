@@ -8,10 +8,11 @@ import {
 import { Info } from '@phosphor-icons/react'
 import { SHOW_ETH_ADDRESS_CHAINS } from 'config/constants'
 import { useSendContext } from 'pages/send/context'
+import { handleTestnetChainName } from 'pages/send/utils'
 import React, { useMemo } from 'react'
 
 export function RecipientChainInfo() {
-  const { sendActiveChain, addressError, selectedAddress } = useSendContext()
+  const { sendActiveChain, addressError, selectedAddress, sendSelectedNetwork } = useSendContext()
   const chains = useGetChains()
 
   const sendChainEcosystem = useMemo(() => {
@@ -21,20 +22,30 @@ export function RecipientChainInfo() {
       chains?.[sendActiveChain]?.evmOnlyChain ||
       isSolanaChain(sendActiveChain)
     ) {
-      return chains?.[sendActiveChain]?.chainName ?? sendActiveChain
+      return handleTestnetChainName(
+        chains?.[sendActiveChain]?.chainName ?? sendActiveChain,
+        sendSelectedNetwork,
+      )
     }
     if (
       SHOW_ETH_ADDRESS_CHAINS.includes(sendActiveChain) &&
       (!!selectedAddress?.ethAddress?.startsWith('0x') ||
         !!selectedAddress?.address?.startsWith('0x'))
     ) {
-      return chains?.[sendActiveChain]?.chainName ?? sendActiveChain
+      return handleTestnetChainName(
+        chains?.[sendActiveChain]?.chainName ?? sendActiveChain,
+        sendSelectedNetwork,
+      )
     }
     if (!!selectedAddress?.address?.startsWith('init') && selectedAddress?.chainName) {
-      return chains?.[selectedAddress?.chainName as SupportedChain]?.chainName ?? sendActiveChain
+      return handleTestnetChainName(
+        chains?.[selectedAddress?.chainName as SupportedChain]?.chainName ?? sendActiveChain,
+        sendSelectedNetwork,
+      )
     }
     return undefined
   }, [
+    sendSelectedNetwork,
     sendActiveChain,
     chains,
     selectedAddress?.ethAddress,

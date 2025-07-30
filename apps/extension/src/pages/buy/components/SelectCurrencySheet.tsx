@@ -2,7 +2,7 @@ import { MagnifyingGlassMinus } from '@phosphor-icons/react'
 import BottomModal from 'components/new-bottom-modal'
 import TokenListSkeleton from 'components/Skeletons/TokenListSkeleton'
 import { SearchInput } from 'components/ui/input/search-input'
-import { useSwappedAssets } from 'hooks/useGetSwappedDetails'
+import { useOnramperAssets } from 'hooks/useGetOnramperDetails'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import CurrencyCard from './CurrencyCard'
@@ -20,6 +20,56 @@ type CurrencyProps = {
   logo: string
 }
 
+export const countryToCurrencyMap: Record<string, string> = {
+  AE: 'AED',
+  AR: 'ARS',
+  AU: 'AUD',
+  BG: 'BGN',
+  BR: 'BRL',
+  CA: 'CAD',
+  CH: 'CHF',
+  CL: 'CLP',
+  CO: 'COP',
+  CZ: 'CZK',
+  DK: 'DKK',
+  DO: 'DOP',
+  DE: 'EUR',
+  FR: 'EUR',
+  IT: 'EUR',
+  NL: 'EUR',
+  PT: 'EUR',
+  ES: 'EUR',
+  IE: 'EUR',
+  AT: 'EUR',
+  BE: 'EUR',
+  GB: 'GBP',
+  HK: 'HKD',
+  HU: 'HUF',
+  ID: 'IDR',
+  IL: 'ILS',
+  IN: 'INR',
+  JP: 'JPY',
+  KE: 'KES',
+  KR: 'KRW',
+  MX: 'MXN',
+  MY: 'MYR',
+  NG: 'NGN',
+  NO: 'NOK',
+  NZ: 'NZD',
+  PE: 'PEN',
+  PH: 'PHP',
+  PL: 'PLN',
+  RO: 'RON',
+  SE: 'SEK',
+  SG: 'SGD',
+  TH: 'THB',
+  TR: 'TRY',
+  TW: 'TWD',
+  US: 'USD',
+  VN: 'VND',
+  ZA: 'ZAR',
+}
+
 export default function SelectCurrencySheet({
   isVisible,
   onClose,
@@ -27,7 +77,7 @@ export default function SelectCurrencySheet({
   selectedCurrency,
 }: SelectCurrencySheetProps) {
   const [searchedCurrency, setSearchedCurrency] = useState('')
-  const { isLoading, data: data } = useSwappedAssets()
+  const { isLoading, data: data } = useOnramperAssets()
   const { fiatAssets = [] } = data ?? {}
   const searchInputRef = useRef<HTMLInputElement>(null)
   const currencyList = useMemo<CurrencyProps[] | []>(

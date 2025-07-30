@@ -1,11 +1,8 @@
 import { useActiveWallet, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
-import { ChainInfo, ChainInfos, toSmall } from '@leapwallet/cosmos-wallet-sdk'
+import { ChainInfo, ChainInfos } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore } from '@leapwallet/cosmos-wallet-store'
-import { Buttons } from '@leapwallet/leap-ui'
-import { ArrowSquareOut } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
-import { AutoAdjustAmountSheet } from 'components/auto-adjust-amount-sheet'
 import Text from 'components/text'
 import { EventName, PageName } from 'config/analytics'
 import { usePageView } from 'hooks/analytics/usePageView'
@@ -21,6 +18,7 @@ import qs from 'qs'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { activeChainStore } from 'stores/active-chain-store'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { cw20TokenBalanceStore, priceStore } from 'stores/balance-store'
 import {
   autoFetchedCW20DenomsStore,
@@ -33,7 +31,6 @@ import {
   rootDenomsStore,
   whitelistedFactoryTokensStore,
 } from 'stores/denoms-store-instance'
-import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { SourceChain, SourceToken } from 'types/swap'
 import { cn } from 'utils/cn'
 
@@ -49,6 +46,7 @@ import {
   TokenInputCard,
   TxReviewSheet,
 } from './components'
+import ButtonSection from './components/ButtonSection'
 import { TokenAssociatedChain } from './components/ChainsList'
 import FeesSheet from './components/FeesSheet'
 import { SwapHeader } from './components/swap-header'
@@ -72,7 +70,6 @@ const SwapPage = observer(() => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
 
   const [showTxReviewSheet, setShowTxReviewSheet] = useState<boolean>(false)
-  const [checkForAutoAdjust, setCheckForAutoAdjust] = useState(false)
   const [isPriceImpactChecked, setIsPriceImpactChecked] = useState<boolean>(false)
   const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
 
@@ -138,24 +135,32 @@ const SwapPage = observer(() => {
     handleSwitchOrder,
     isSwitchOrderPossible,
     setInAmount,
-    displayFee,
     errorMsg,
     feeDenom,
     routingInfo,
     isChainAbstractionView,
     loadingRoutes,
     slippagePercent,
+    userPreferredGasLimit,
+    userPreferredGasPrice,
+    gasEstimate,
+    gasOption,
   } = useSwapContext()
+
   const {
     priceImpactPercent,
     usdValueDecreasePercent,
     destinationAssetUSDValue,
     sourceAssetUSDValue,
-  } = getPriceImpactVars(
-    routingInfo?.route,
-    sourceToken,
-    destinationToken,
-    rootDenomsStore.allDenoms,
+  } = useMemo(
+    () =>
+      getPriceImpactVars(
+        routingInfo?.route,
+        sourceToken,
+        destinationToken,
+        rootDenomsStore.allDenoms,
+      ),
+    [routingInfo?.route, sourceToken, destinationToken, rootDenomsStore.allDenoms],
   )
 
   const checkNeeded = useMemo(() => {
@@ -314,6 +319,15 @@ const SwapPage = observer(() => {
     errorMsg,
   ])
 
+  useEffect(() => {
+    allowUpdateInputStore.resetUpdateCount()
+  }, [
+    sourceToken?.ibcDenom,
+    sourceToken?.coinMinimalDenom,
+    destinationToken?.ibcDenom,
+    destinationToken?.coinMinimalDenom,
+  ])
+
   const _chainsToShow = useMemo(() => {
     if (activeWallet && activeWallet.walletType === WALLETTYPE.LEDGER) {
       return chainsToShow.filter((chain) => {
@@ -350,48 +364,6 @@ const SwapPage = observer(() => {
     }
   }, [_chainsToShow, destinationToken, destinationAssets])
 
-  const reviewBtnText = useMemo(() => {
-    if (invalidAmount) {
-      return 'Amount must be greater than 0'
-    }
-    if (amountExceedsBalance) {
-      return 'Insufficient balance'
-    }
-    if (isNoRoutesAvailableError(errorMsg)) {
-      return 'No transaction routes available'
-    }
-    if (
-      activeChainStore.activeChain === 'evmos' &&
-      activeWallet?.walletType === WALLETTYPE.LEDGER
-    ) {
-      return 'Not supported using Ledger wallet'
-    }
-    if (!inAmount || parseFloat(inAmount) === 0) {
-      return 'Enter amount'
-    }
-
-    return 'Review Transfer'
-  }, [activeWallet?.walletType, amountExceedsBalance, inAmount, errorMsg, invalidAmount])
-
-  const reviewDisabled = useMemo(() => {
-    if (
-      activeChainStore.activeChain === 'evmos' &&
-      activeWallet?.walletType === WALLETTYPE.LEDGER
-    ) {
-      return true
-    }
-    return reviewBtnDisabled || isRefreshing || (checkNeeded && !isPriceImpactChecked)
-  }, [activeWallet?.walletType, checkNeeded, isPriceImpactChecked, isRefreshing, reviewBtnDisabled])
-
-  const autoAdjustAmountFee = useMemo(() => {
-    if (!displayFee || !feeDenom) return null
-
-    return {
-      amount: toSmall(String(displayFee.value), feeDenom.coinDecimals),
-      denom: feeDenom.coinMinimalDenom,
-    }
-  }, [displayFee, feeDenom])
-
   const sourceTokenLoading = useMemo(() => {
     return (
       loadingChains ||
@@ -408,16 +380,6 @@ const SwapPage = observer(() => {
     sourceTokenBalanceStatus,
   ])
 
-  const autoAdjustAmountToken = useMemo(() => {
-    if (!sourceToken) return null
-
-    return {
-      amount: sourceToken.amount,
-      coinMinimalDenom: sourceToken.coinMinimalDenom,
-      chain: sourceToken?.skipAsset?.originChainId,
-    }
-  }, [sourceToken])
-
   const emitMixpanelDropdownOpenEvent = useCallback((dropdownType: string) => {
     try {
       mixpanel.track(EventName.DropdownOpened, {
@@ -427,18 +389,6 @@ const SwapPage = observer(() => {
       // ignore
     }
   }, [])
-
-  const handleOnBackClick = useCallback(() => {
-    if (pageViewSource === 'swapAgain') {
-      navigate('/home')
-    } else {
-      navigate(-1)
-    }
-  }, [navigate, pageViewSource])
-
-  const handleOnRefreshClick = useCallback(() => {
-    refresh()
-  }, [refresh])
 
   const handleOnSettingsClick = useCallback(() => {
     setShowSlippageSheet(true)
@@ -666,9 +616,12 @@ const SwapPage = observer(() => {
     setShowMoreDetailsSheet(false)
   }, [setShowMoreDetailsSheet])
 
-  const handleOnAutoAdjustmentSheetClose = useCallback(() => {
-    setCheckForAutoAdjust(false)
-  }, [setCheckForAutoAdjust])
+  const handleOnReviewClick = useCallback(
+    (val: boolean) => {
+      setShowTxReviewSheet(val)
+    },
+    [setShowTxReviewSheet],
+  )
 
   const handleOnTxReviewSheetClose = useCallback(() => {
     setShowTxReviewSheet(false)
@@ -701,7 +654,9 @@ const SwapPage = observer(() => {
         setInAmount('')
       }
       setShowTxPage(false)
-      refresh()
+      setTimeout(() => {
+        refresh()
+      }, 50)
     },
     [navigate, setInAmount, setShowTxPage, refresh],
   )
@@ -758,6 +713,12 @@ const SwapPage = observer(() => {
               showFor='source'
               selectedChain={isChainAbstractionView ? sourceChain : undefined}
               isChainAbstractionView={isChainAbstractionView}
+              feeDenom={feeDenom}
+              sourceChain={sourceChain}
+              userPreferredGasLimit={userPreferredGasLimit}
+              userPreferredGasPrice={userPreferredGasPrice}
+              gasEstimate={gasEstimate}
+              gasOption={gasOption}
             />
 
             <InterchangeButton
@@ -783,6 +744,12 @@ const SwapPage = observer(() => {
               isChainAbstractionView={isChainAbstractionView}
               showFor='destination'
               assetUsdValue={destinationAssetUSDValue}
+              feeDenom={feeDenom}
+              sourceChain={destinationChain}
+              userPreferredGasLimit={userPreferredGasLimit}
+              userPreferredGasPrice={userPreferredGasPrice}
+              gasEstimate={gasEstimate}
+              gasOption={gasOption}
             />
           </div>
 
@@ -797,44 +764,19 @@ const SwapPage = observer(() => {
             rootDenomsStore={rootDenomsStore}
           />
         </div>
-        <div className='sticky bottom-0 left-0 z-[2] right-0 bg-secondary-100 px-5 py-4'>
-          {isMoreThanOneStepTransaction ? (
-            <Buttons.Generic
-              className='w-full dark:!bg-white-100 !bg-black-100 text-white-100 dark:text-black-100 h-[52px]'
-              onClick={() => window.open(redirectUrl, '_blank')}
-              style={{ boxShadow: 'none' }}
-            >
-              <span className='flex items-center gap-1'>
-                Swap on Swapfast <ArrowSquareOut size={20} className='!leading-[20px] !text-lg' />
-              </span>
-            </Buttons.Generic>
-          ) : (
-            <>
-              <Buttons.Generic
-                className={classNames('w-full  h-[52px] text-white-100', {
-                  [`!bg-primary`]: !(
-                    invalidAmount ||
-                    amountExceedsBalance ||
-                    isNoRoutesAvailableError(errorMsg)
-                  ),
-                  '!bg-destructive-100/40':
-                    invalidAmount || amountExceedsBalance || isNoRoutesAvailableError(errorMsg),
-                })}
-                disabled={reviewDisabled}
-                style={{ boxShadow: 'none' }}
-                onClick={() => {
-                  if (activeWallet?.watchWallet) {
-                    importWatchWalletSeedPopupStore.setShowPopup(true)
-                  } else {
-                    setCheckForAutoAdjust(true)
-                  }
-                }}
-              >
-                {reviewBtnText}
-              </Buttons.Generic>
-            </>
-          )}
-        </div>
+        <ButtonSection
+          isMoreThanOneStepTransaction={isMoreThanOneStepTransaction}
+          redirectUrl={redirectUrl}
+          errorMsg={errorMsg}
+          invalidAmount={invalidAmount}
+          amountExceedsBalance={amountExceedsBalance}
+          isRefreshing={isRefreshing}
+          checkNeeded={checkNeeded}
+          isPriceImpactChecked={isPriceImpactChecked}
+          reviewBtnDisabled={reviewBtnDisabled}
+          inAmountEmpty={!inAmount || parseFloat(inAmount) === 0}
+          onReviewClick={handleOnReviewClick}
+        />
       </div>
       <SelectTokenSheet
         isOpen={showTokenSelectSheet}
@@ -892,22 +834,6 @@ const SwapPage = observer(() => {
         onSlippageInfoClick={handleOnSlippageInfoClick}
       />
       <SlippageInfoSheet isOpen={showSlippageInfo} onClose={handleOnSlippageInfoSheetClose} />
-      {checkForAutoAdjust &&
-        autoAdjustAmountFee &&
-        autoAdjustAmountToken &&
-        inAmount &&
-        sourceChain && (
-          <AutoAdjustAmountSheet
-            rootDenomsStore={rootDenomsStore}
-            amount={inAmount}
-            setAmount={setInAmount}
-            selectedToken={autoAdjustAmountToken}
-            fee={autoAdjustAmountFee}
-            forceChain={sourceChain?.key}
-            setShowReviewSheet={setShowTxReviewSheet}
-            closeAdjustmentSheet={handleOnAutoAdjustmentSheetClose}
-          />
-        )}
       <TxReviewSheet
         onSlippageInfoClick={handleOnSlippageInfoClick}
         isOpen={showTxReviewSheet}

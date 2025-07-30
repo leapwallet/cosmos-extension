@@ -16,10 +16,12 @@ import {
   IbcTraceFetcher,
   MarketDataStore,
   NmsStore,
+  PercentageChangeDataStore,
   PriceStore,
 } from '@leapwallet/cosmos-wallet-store'
 import { AptosCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/aptos-balance-store'
 import { SolanaCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/solana-balance-store'
+import { SuiCoinDataStore } from '@leapwallet/cosmos-wallet-store/dist/bank/sui-balance-store'
 import browser from 'webextension-polyfill'
 
 import { getStorageAdapter } from '../utils/storageAdapter'
@@ -50,6 +52,7 @@ export const chainFeatureFlagsStore = new ChainFeatureFlagsStore(app, version, s
 export const currencyStore = new CurrencyStore(storageAdapter)
 export const priceStore = new PriceStore(currencyStore)
 export const marketDataStore = new MarketDataStore(currencyStore)
+export const percentageChangeDataStore = new PercentageChangeDataStore(currencyStore)
 export const nmsStore = new NmsStore()
 
 export const ibcTraceFetcher = new IbcTraceFetcher(rootDenomsStore)
@@ -186,6 +189,17 @@ export const bitcoinBalanceStore = new BitcoinDataStore(
 )
 
 export const solanaCoinDataStore = new SolanaCoinDataStore(
+  activeChainStore,
+  selectedNetworkStore,
+  addressStore,
+  priceStore,
+  rootDenomsStore,
+  chainInfoStore,
+  currencyStore,
+  coingeckoIdsStore,
+)
+
+export const suiBalanceStore = new SuiCoinDataStore(
   activeChainStore,
   selectedNetworkStore,
   addressStore,

@@ -45,16 +45,19 @@ import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { currencyDetail, useformatCurrency, useUserPreferredCurrency } from '../settings';
 import {
+  getGasEstimateCacheKey,
   useActiveChain,
   useActiveWalletStore,
   useAddress,
   useChainApis,
   useChainsStore,
   useDefaultGasEstimates,
+  useGasEstimateCache,
   useGasPriceSteps,
   useGetChains,
   usePendingTxState,
   useSelectedNetwork,
+  useUpdateGasEstimateCache,
 } from '../store';
 import { useTxHandler } from '../tx';
 import { STAKE_MODE, Token, TxCallback, WALLETTYPE } from '../types';
@@ -332,10 +335,6 @@ export function useStakeTx(
   const [showLedgerPopup, setShowLedgerPopup] = useState(false);
   const [showKeystonePopup, setShowKeystonePopup] = useState(false);
   const [, setGasPriceFactor] = useState<'low' | 'average' | 'high'>('low');
-  const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
-    if (mode === 'REDELEGATE') return DEFAULT_GAS_REDELEGATE.toString();
-    return defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE.toString() ?? DefaultGasEstimates.DEFAULT_GAS_STAKE;
-  });
 
   const denom = getNativeDenom(chainInfos, activeChain, selectedNetwork);
   const { lcdUrl } = useChainApis(activeChain, selectedNetwork);
@@ -357,6 +356,33 @@ export function useStakeTx(
   const [userPreferredGasPrice, setUserPreferredGasPrice] = useState<GasPrice | undefined>(undefined);
   const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<number | undefined>(undefined);
   const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
+  const gasEstimateCache = useGasEstimateCache();
+  const updateGasEstimateCache = useUpdateGasEstimateCache();
+
+  const cachedGasEstimate = useMemo(() => {
+    if (!activeChainId) return;
+    const _gasPrice = userPreferredGasPrice ?? gasPriceOptions?.[gasOption];
+    let _feeDenom = feeDenom?.ibcDenom || feeDenom?.coinMinimalDenom;
+    if (!_feeDenom && _gasPrice) {
+      _feeDenom = _gasPrice.denom;
+    }
+    const key = getGasEstimateCacheKey(activeChainId, mode, _feeDenom);
+    return gasEstimateCache[key];
+  }, [
+    activeChainId,
+    feeDenom.coinMinimalDenom,
+    gasEstimateCache,
+    gasOption,
+    gasPriceOptions,
+    mode,
+    userPreferredGasPrice,
+  ]);
+
+  const [recommendedGasLimit, setRecommendedGasLimit] = useState(() => {
+    if (cachedGasEstimate) return cachedGasEstimate.toString();
+    if (mode === 'REDELEGATE') return DEFAULT_GAS_REDELEGATE.toString();
+    return defaultGasEstimates[activeChain]?.DEFAULT_GAS_STAKE.toString() ?? DefaultGasEstimates.DEFAULT_GAS_STAKE;
+  });
 
   useEffect(() => {
     (async function () {
@@ -706,6 +732,12 @@ export function useStakeTx(
           const { gasUsed } = await simulateTx(amt, gasPrice.denom, creationHeight);
           gasEstimate = gasUsed;
           setRecommendedGasLimit(gasUsed.toString());
+          updateGasEstimateCache({
+            chainId: activeChainId,
+            txType: mode,
+            feeDenom: gasPrice.denom,
+            gasEstimate: gasUsed,
+          });
         } catch (error: any) {
           if (error.message.includes('redelegation to this validator already in progress')) {
             setError(error.message);

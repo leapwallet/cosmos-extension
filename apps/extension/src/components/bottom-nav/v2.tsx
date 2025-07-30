@@ -78,7 +78,7 @@ const BottomNavView = ({ label, disableLottie }: BottomNavProps) => {
           <Link
             key={`${l}_${idx}`}
             ref={(ref) => childRefs.current.set(idx, ref)}
-            to={isDisabled ? '' : `${path}?${params || ''}`}
+            to={isDisabled ? '/home' : `${path}?${params || ''}`}
             className={cn(
               'flex flex-col gap-1 py-3 flex-1 justify-between items-center cursor-pointer relative disabled:cursor-not-allowed transition-colors duration-75 group',
               label === l ? 'text-primary' : 'text-muted-foreground hover:text-secondary-800 group',

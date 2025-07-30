@@ -48,21 +48,22 @@ import { BigNumber } from 'bignumber.js'
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx'
 import { Wallet } from 'hooks/wallet/useWallet'
+import { SWAP_NETWORK } from 'pages/swaps-v2/constants'
 import { useInvalidateSwapAssetsQueries } from 'pages/swaps-v2/hooks/txExecution/useInvalidateSwapAssetsQueries'
 import { useGetChainsToShow } from 'pages/swaps-v2/hooks/useGetChainsToShow'
 import { SkipRouteResponse } from 'pages/swaps-v2/hooks/useRoute'
-import { RoutingInfo, SkipMsgWithCustomTxHash, SWAP_NETWORK } from 'pages/swaps-v2/hooks/useSwapsTx'
 import { handleCosmosTx } from 'pages/swaps-v2/tx/cosmosTxHandler'
 import { handleEthermintTx } from 'pages/swaps-v2/tx/ethermintTxHandler'
 import { handleInitiaTx } from 'pages/swaps-v2/tx/initiaTxHandler'
 import { handleInjectiveTx } from 'pages/swaps-v2/tx/injectiveTxHandler'
+import type { RoutingInfo, SkipMsgWithCustomTxHash } from 'pages/swaps-v2/types'
 import {
   approveTokenAllowanceIfNeeded,
   capitalizeFirstLetter,
   getChainIdsFromRoute,
+  getTxInfoFromRoute,
   sendTrackingRequest,
 } from 'pages/swaps-v2/utils'
-import { routeDoesSwap } from 'pages/swaps-v2/utils/priceImpact'
 import { useCallback, useMemo } from 'react'
 import { SourceChain, SourceToken, SwapTxnStatus, TransferSequence } from 'types/swap'
 import { getLedgerEnabledEvmChainsIds } from 'utils/getLedgerEnabledEvmChains'
@@ -201,33 +202,7 @@ export function useExecuteSkipTransaction({
 
   const logTxToDB = useCallback(
     async (txHash: string, msgType: string, isEvmOnly?: boolean) => {
-      const operations = routingInfo?.route?.operations
-      const hasIBC = !!operations?.some((operation) => 'transfer' in operation)
-      const hasSwap = routeDoesSwap(routingInfo?.route) || false
-
-      let bridgeName
-      for (const operation of operations || []) {
-        if ('cctp_transfer' in operation) {
-          bridgeName = 'cctp'
-          break
-        }
-        if ('axelar_transfer' in operation) {
-          bridgeName = 'axelar'
-          break
-        }
-        if ('go_fast_transfer' in operation) {
-          bridgeName = 'go_fast'
-          break
-        }
-        if ('hyperlane_transfer' in operation) {
-          bridgeName = 'hyperlane'
-          break
-        }
-        if ('eureka_transfer' in operation) {
-          bridgeName = 'eureka'
-          break
-        }
-      }
+      const { txType, bridgeName } = getTxInfoFromRoute(routingInfo?.route)
       const sourceDenomChainInfo = chainInfos[(sourceToken?.chain ?? '') as SupportedChain]
       const destinationDenomChainInfo =
         chainInfos[(destinationToken?.chain ?? '') as SupportedChain]
@@ -251,23 +226,6 @@ export function useExecuteSkipTransaction({
           chain: (destinationToken?.chain ?? '') as SupportedChain,
         },
       )
-
-      let txType = CosmosTxType.IbcSend
-
-      if (hasSwap) {
-        txType = CosmosTxType.Swap
-        if (bridgeName) {
-          txType = CosmosTxType.BridgeSwap
-        } else if (hasIBC) {
-          txType = CosmosTxType.IBCSwap
-        }
-      } else {
-        if (bridgeName) {
-          txType = CosmosTxType.BridgeSend
-        } else if (hasIBC) {
-          txType = CosmosTxType.IbcSend
-        }
-      }
 
       let metadata
       switch (txType) {

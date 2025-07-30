@@ -6,10 +6,8 @@ import { AlphaHeader } from './alpha-header'
 import { BookmarkedChad } from './chad-components/ChadBookmarks'
 import RaffleDetailsDrawer from './chad-components/RaffleDetailsDrawer'
 import AlphaDetailsDrawer from './components/AlphaDetailsDrawer'
-import { BookmarkedAlpha } from './components/Bookmarks'
 import { useChadProvider } from './context/chad-exclusives-context'
 import { useFilters } from './context/filter-context'
-import { TabSwitch } from './tab-switch'
 import { Tabs } from './tabs'
 
 export default function Alpha() {
@@ -22,24 +20,16 @@ export default function Alpha() {
 
   const params = useQueryParams()
 
-  const activeTab = params.get(queryParams.alphaTab) || 'all'
   const showBookmarks = params.get(queryParams.alphaBookmarks) === 'true'
 
   return (
     <>
       <AlphaHeader />
 
-      {activeTab === 'all' ? (
-        <BookmarkedAlpha
-          isOpen={showBookmarks}
-          toggler={() => params.remove(queryParams.alphaBookmarks)}
-        />
-      ) : (
-        <BookmarkedChad
-          isOpen={showBookmarks}
-          toggler={() => params.remove(queryParams.alphaBookmarks)}
-        />
-      )}
+      <BookmarkedChad
+        isOpen={showBookmarks}
+        toggler={() => params.remove(queryParams.alphaBookmarks)}
+      />
 
       <AlphaDetailsDrawer
         isShown={showDetails}
@@ -53,9 +43,7 @@ export default function Alpha() {
         raffle={selectedChadOpportunity}
       />
 
-      <TabSwitch />
-
-      <Tabs activeTab={activeTab} />
+      <Tabs />
     </>
   )
 }

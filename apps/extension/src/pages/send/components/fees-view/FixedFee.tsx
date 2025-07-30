@@ -17,6 +17,7 @@ export function FixedFee() {
     feeTokenFiatValue,
     sendActiveChain: sourceChain,
     sendSelectedNetwork: sourceNetwork,
+    inputAmount,
   } = useSendContext()
   const { lcdUrl } = useChainApis(sourceChain, sourceNetwork)
 
@@ -39,6 +40,8 @@ export function FixedFee() {
       }
     })()
   }, [feeDenom.coinDecimals, lcdUrl, sourceChain])
+
+  // if (!inputAmount) return null
 
   return (
     <div className='flex items-center justify-center text-gray-600 dark:text-gray-400'>

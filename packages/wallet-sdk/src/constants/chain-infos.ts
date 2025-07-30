@@ -140,7 +140,8 @@ export type SupportedChain =
   | 'sui'
   | 'fogo'
   | 'xrpl'
-  | 'citrea';
+  | 'citrea'
+  | 'lumia';
 
 export type AddressPrefix =
   | 'cosmos'
@@ -260,7 +261,8 @@ export type AddressPrefix =
   | 'sui'
   | 'fogo'
   | 'ethm'
-  | 'citrea';
+  | 'citrea'
+  | 'lumia';
 
 export type Denom =
   | 'JUNO'
@@ -368,7 +370,8 @@ export type Denom =
   | 'SUI'
   | 'FOGO'
   | 'XRP'
-  | 'CBTC';
+  | 'CBTC'
+  | 'LUMIA';
 
 export type CoinType =
   | '0'
@@ -5889,6 +5892,48 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     theme: {
       primaryColor: '#eea13c',
       gradient: 'linear-gradient(180deg, rgba(238, 161, 60, 0.32) 0%, rgba(238, 161, 60, 0) 100%)',
+    },
+    enabled: true,
+    evmOnlyChain: true,
+  },
+  lumia: {
+    chainId: '994873017',
+    evmChainId: '994873017',
+    testnetChainId: '1952959480',
+    evmChainIdTestnet: '1952959480',
+    key: 'lumia',
+    chainName: 'Lumia',
+    chainRegistryPath: 'lumia',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/lumia.svg',
+    apis: {
+      rpc: 'https://mainnet-rpc.lumia.org',
+      evmJsonRpc: 'https://mainnet-rpc.lumia.org',
+      rpcTest: 'https://testnet-rpc.lumia.org',
+      evmJsonRpcTest: 'https://testnet-rpc.lumia.org',
+    },
+    denom: 'LUMIA',
+    bip44: {
+      coinType: '60',
+    },
+    addressPrefix: 'lumia',
+    txExplorer: {
+      mainnet: {
+        name: 'Lumia Explorer',
+        txUrl: 'https://explorer.lumia.org/tx',
+        accountUrl: 'https://explorer.lumia.org/address',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.025,
+      high: 0.04,
+    },
+    nativeDenoms: {
+      'lumia-native': denoms['lumia-native'],
+    },
+    theme: {
+      primaryColor: '#000000',
+      gradient: 'linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0) 100%)',
     },
     enabled: true,
     evmOnlyChain: true,

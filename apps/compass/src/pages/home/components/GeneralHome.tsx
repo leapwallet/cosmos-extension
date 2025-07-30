@@ -22,6 +22,7 @@ import { ChainInfoProp } from '../utils'
 import { BalanceHeader } from './balance-header'
 import { GeneralHomeAlertStirps } from './general-home-alert-strips'
 import { GeneralHomeHeader } from './general-home-header'
+import { HomeLoadingState } from './home-loading-state'
 import { GlobalBannersAD, HomeButtons } from './index'
 import { TokensSection } from './TokensSection'
 
@@ -69,15 +70,7 @@ export const GeneralHome = observer(() => {
   })
 
   if (!activeWallet) {
-    return (
-      <div className='relative w-full overflow-clip panel-height flex justify-center items-center'>
-        <EmptyCard
-          heading='No wallet found'
-          logoClassName='size-14'
-          src={Images.Logos.CompassCircle}
-        />
-      </div>
-    )
+    return <HomeLoadingState />
   }
 
   if (!chain && activeChain !== AGGREGATED_CHAIN_KEY) {

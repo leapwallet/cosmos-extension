@@ -23,7 +23,8 @@ import {
   CompassSeiTokensAssociationStore,
   CompassTokenTagsStore,
   DenomsStore,
-  MarketDataStore,
+  PercentageChangeDataStore,
+  PriceStore,
   RootDenomsStore,
 } from '@leapwallet/cosmos-wallet-store'
 import { ArrowLeft } from '@phosphor-icons/react'
@@ -35,6 +36,7 @@ import ReadMoreText from 'components/read-more-text'
 import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
+import { LEAPBOARD_SWAP_URL } from 'config/constants'
 import { differenceInDays } from 'date-fns'
 import { useChainPageInfo } from 'hooks'
 import useGetTopCGTokens from 'hooks/explore/useGetTopCGTokens'
@@ -72,7 +74,8 @@ type TokenDetailsProps = {
   rootDenomsStore: RootDenomsStore
   compassTokensAssociationsStore: CompassSeiTokensAssociationStore
   compassSeiEvmConfigStore: CompassSeiEvmConfigStore
-  marketDataStore: MarketDataStore
+  percentageChangeDataStore: PercentageChangeDataStore
+  priceStore: PriceStore
   compassTokenTagsStore: CompassTokenTagsStore
 }
 
@@ -82,7 +85,8 @@ const TokensDetails = observer(
     rootDenomsStore,
     compassTokensAssociationsStore,
     compassSeiEvmConfigStore,
-    marketDataStore,
+    percentageChangeDataStore,
+    priceStore,
     compassTokenTagsStore,
   }: TokenDetailsProps) => {
     const assetType = undefined
@@ -207,7 +211,8 @@ const TokensDetails = observer(
       denom: assetsId as unknown as SupportedDenoms,
       tokenChain: (tokenChain ?? 'cosmos') as unknown as SupportedChain,
       compassParams,
-      marketDataStore,
+      percentageChangeDataStore,
+      priceStore,
       coingeckoIdsStore,
     })
 
@@ -501,7 +506,7 @@ const TokensDetails = observer(
                   chainInfos[(denomInfo?.chain ?? '') as SupportedChain]?.chainId,
                 )
                 handleSwapClick(
-                  `https://swapfast.app/?destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
+                  `${LEAPBOARD_SWAP_URL}&destinationChainId=${chainInfos[activeChain].chainId}&destinationAsset=${denomInfo?.coinMinimalDenom}`,
                   `/swap?destinationChainId=${chainInfos[activeChain].chainId}&destinationToken=${denomKey}&pageSource=assetDetails`,
                 )
               }}

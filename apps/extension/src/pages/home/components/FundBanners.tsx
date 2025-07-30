@@ -5,7 +5,7 @@ import { captureException } from '@sentry/react'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
 import { ButtonName, ButtonType, EventName, PageName } from 'config/analytics'
-import { AGGREGATED_CHAIN_KEY, LEAPBOARD_URL } from 'config/constants'
+import { AGGREGATED_CHAIN_KEY, LEAPBOARD_SWAP_URL, LEAPBOARD_URL } from 'config/constants'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import { useAddress } from 'hooks/wallet/useAddress'
 import mixpanel from 'mixpanel-browser'
@@ -55,22 +55,9 @@ const FundBanners = React.memo(() => {
     }
   }, [showCopyAddress])
 
-  const transactUrl = useCallback(
-    (type: 'swap' | 'bridge') => {
-      if (type === 'swap') {
-        return `${LEAPBOARD_URL}/transact/${type}${
-          isAggregatedView ? '' : `?destinationChainId=${chain?.chainId}`
-        }`
-      }
-
-      if (type === 'bridge') {
-        return `https://swapfast.app/bridge${
-          isAggregatedView ? '' : `?destinationChainId=${chain?.chainId}`
-        }`
-      }
-    },
-    [chain?.chainId, isAggregatedView],
-  )
+  const transactUrl = useMemo(() => {
+    return `${LEAPBOARD_SWAP_URL}${isAggregatedView ? '' : `&destinationChainId=${chain?.chainId}`}`
+  }, [chain?.chainId, isAggregatedView])
 
   const trackCTAEvent = useCallback(
     (buttonName: string, redirectURL?: string) => {
@@ -118,10 +105,10 @@ const FundBanners = React.memo(() => {
           content: `Swap into ${token} from 300+ other tokens`,
           textColor: '#70B7FF',
           onClick: () => {
-            handleSwapClick(transactUrl('swap'), swapPath)
+            handleSwapClick(transactUrl, swapPath)
             trackCTAEvent(
               ButtonName.IBC_SWAP,
-              featureFlags?.all_chains?.swap === 'redirect' ? transactUrl('swap') : swapPath,
+              featureFlags?.all_chains?.swap === 'redirect' ? transactUrl : swapPath,
             )
           },
           hide: isAggregatedView,
@@ -142,8 +129,8 @@ const FundBanners = React.memo(() => {
           content: 'Swap & bridge tokens from other ecosystems',
           textColor: '#3ACF92',
           onClick: () => {
-            window.open(transactUrl('bridge'), '_blank')
-            trackCTAEvent(ButtonName.BRIDGE, transactUrl('bridge'))
+            window.open(transactUrl, '_blank')
+            trackCTAEvent(ButtonName.BRIDGE, transactUrl)
           },
         },
       ].filter((d) => !d?.hide),

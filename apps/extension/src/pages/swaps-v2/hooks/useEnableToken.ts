@@ -14,7 +14,7 @@ import {
 import { useCallback, useMemo } from 'react'
 import { SourceChain, SourceToken } from 'types/swap'
 
-import { SWAP_NETWORK } from './useSwapsTx'
+import { SWAP_NETWORK } from '../constants'
 
 export function useEnableToken(
   chain: SourceChain | undefined,

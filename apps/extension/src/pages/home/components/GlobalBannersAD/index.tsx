@@ -2,6 +2,7 @@ import {
   NumiaBannerAttribute,
   NumiaTrackAction,
   postNumiaEvent,
+  postSpindlEvent,
   useActiveWallet,
   useAddress,
   useBannerConfig,
@@ -9,8 +10,9 @@ import {
   useCustomChains,
   useGetBannerData,
   useGetNumiaBanner,
+  useGetSpindlBanner,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { bech32ToEthAddress, ChainInfo } from '@leapwallet/cosmos-wallet-sdk'
+import { bech32ToEthAddress, ChainInfo, isValidAddress } from '@leapwallet/cosmos-wallet-sdk'
 import { captureException } from '@sentry/react'
 import { EventName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
@@ -39,6 +41,7 @@ import {
   getMixpanelPositionId,
   MIXPANEL_BANNER_VIEWS_INFO,
   NUMIA_IMPRESSION_INFO,
+  SPINDL_IMPRESSION_INFO,
 } from './utils'
 
 export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) => {
@@ -72,15 +75,31 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
     bannerConfigStatus,
   )
 
+  const { data: spindlBanners, status: spindlStatus } = useGetSpindlBanner(ethWalletAddress ?? '')
+
   const bannerAds = useMemo(() => {
-    if (numiaStatus === 'loading' || isLeapBannersLoading) {
+    if (numiaStatus === 'loading' || isLeapBannersLoading || spindlStatus === 'loading') {
       return []
     }
 
-    return [...(numiaBanners ?? []), ...(leapBanners ?? [])].filter(
+    let externalBanners = []
+    if (isValidAddress(walletAddress)) {
+      externalBanners = [...(numiaBanners ?? []), ...(spindlBanners ?? [])]
+    } else {
+      externalBanners = [...(spindlBanners ?? []), ...(numiaBanners ?? [])]
+    }
+    return [...externalBanners, ...(leapBanners ?? [])].filter(
       (banner) => banner?.visibleOn === 'ALL' || banner?.visibleOn === 'EXTENSION',
     )
-  }, [isLeapBannersLoading, leapBanners, numiaBanners, numiaStatus])
+  }, [
+    isLeapBannersLoading,
+    leapBanners,
+    numiaBanners,
+    numiaStatus,
+    spindlBanners,
+    spindlStatus,
+    walletAddress,
+  ])
 
   const displayADs = useMemo(() => {
     return getDisplayAds(bannerAds, Array.from(disabledBannerAds))
@@ -156,6 +175,36 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
         if (activeBannerData && activeBannerData.attributes && osmoWalletAddress) {
           tryCatch(
             postNumiaEvent(osmoWalletAddress, NumiaTrackAction.VIEWED, activeBannerData.attributes),
+          )
+        }
+      }
+    }
+
+    if (activeBannerId.includes('spindl')) {
+      const storedSpindlImpressionInfo = sessionStorage.getItem(SPINDL_IMPRESSION_INFO)
+      const [spindlImpressionInfo] = tryCatchSync(() =>
+        JSON.parse(storedSpindlImpressionInfo ?? '{}'),
+      )
+
+      if (!spindlImpressionInfo) {
+        return
+      }
+
+      if (!spindlImpressionInfo[walletAddress]?.includes(activeBannerId)) {
+        sessionStorage.setItem(
+          SPINDL_IMPRESSION_INFO,
+          JSON.stringify({
+            ...spindlImpressionInfo,
+            [walletAddress]: [...(spindlImpressionInfo[walletAddress] ?? []), activeBannerId],
+          }),
+        )
+
+        if (activeBannerData && activeBannerData.spindl_attributes?.impression_id) {
+          tryCatch(
+            postSpindlEvent(
+              NumiaTrackAction.VIEWED,
+              activeBannerData.spindl_attributes.impression_id,
+            ),
           )
         }
       }
@@ -283,6 +332,10 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
         return
       }
 
+      if (banner.spindl_attributes?.impression_id) {
+        tryCatch(postSpindlEvent(NumiaTrackAction.CLICKED, banner.spindl_attributes.impression_id))
+      }
+
       if (banner.id.trim().toLowerCase().includes('nbtc-banner')) {
         query.set('btcDeposit', 'true')
         return
@@ -341,7 +394,10 @@ export const GlobalBannersAD = React.memo(({ show = true }: { show?: boolean }) 
     fn().catch(console.error)
   }, [cosmosWalletAddress, seiWalletAddress])
 
-  if (displayADs.length === 0 && (numiaStatus === 'loading' || isLeapBannersLoading)) {
+  if (
+    displayADs.length === 0 &&
+    (numiaStatus === 'loading' || isLeapBannersLoading || spindlStatus === 'loading')
+  ) {
     return <BannersLoading />
   }
 

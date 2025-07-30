@@ -180,10 +180,8 @@ export function useSwitchToUSDDisabled() {
 }
 
 export function ErrorWarning() {
-  const { isCexIbcTransferWarningNeeded, selectedAddress, selectedToken, sendActiveChain } =
-    useSendContext()
+  const { isCexIbcTransferWarningNeeded, selectedAddress, sendActiveChain } = useSendContext()
   const currentWalletAddress = useAddress(sendActiveChain)
-  const switchToUSDDisabled = useSwitchToUSDDisabled()
   const isSendingToSameWallet = currentWalletAddress === selectedAddress?.address
 
   // warning to show if sending to same wallet address
@@ -198,43 +196,12 @@ export function ErrorWarning() {
     )
   }
 
-  // warning to show if USD value cannot be calculated
-  if (switchToUSDDisabled && selectedToken?.chain) {
-    return null
-  }
-
   if (isCexIbcTransferWarningNeeded) {
     return (
       <div className='px-3 py-2.5 rounded-b-xl bg-accent-warning-800 items-center flex gap-1.5'>
         <Info size={16} className='text-accent-warning self-start min-w-4' />
         <Text size='xs' className='font-medium' color='text-accent-warning'>
           Avoid transferring IBC tokens to centralised exchanges.
-        </Text>
-      </div>
-    )
-  }
-
-  return null
-}
-
-export function ErrorWarningTokenCard() {
-  const switchToUSDDisabled = useSwitchToUSDDisabled()
-  const { selectedAddress, selectedToken, sendActiveChain } = useSendContext()
-  const currentWalletAddress = useAddress(sendActiveChain)
-  const isSendingToSameWallet = currentWalletAddress === selectedAddress?.address
-
-  // warning to show if sending to same wallet address
-  if (isSendingToSameWallet) {
-    return null
-  }
-
-  // warning to show if USD value cannot be calculated
-  if (switchToUSDDisabled && selectedToken?.chain) {
-    return (
-      <div className='px-3 py-2.5 rounded-b-xl bg-accent-warning-800 items-center flex gap-1.5'>
-        <Info size={16} className='text-accent-warning self-start min-w-4' />
-        <Text size='xs' className='font-medium' color='text-accent-warning'>
-          USD value cannot be calculated for this transaction
         </Text>
       </div>
     )

@@ -28,6 +28,7 @@ import useAssets from 'pages/swaps-v2/hooks/useAssets'
 import { SwapsLoader } from 'pages/swaps-v2/SwapsLoader'
 import React, { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { percentageChangeDataStore, priceStore } from 'stores/balance-store'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { denomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
@@ -156,6 +157,10 @@ export default function AppRoutes(): JSX.Element {
 
 const AnimatedRoutes = () => {
   const location = useLocation()
+
+  useEffect(() => {
+    allowUpdateInputStore.disableUpdateInput()
+  }, [location.pathname])
 
   return (
     <GlobalLayout location={location}>
