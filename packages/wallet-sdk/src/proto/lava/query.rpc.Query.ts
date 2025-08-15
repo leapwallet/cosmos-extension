@@ -27,12 +27,12 @@ export interface Query {
     request: DeepPartial<QueryProviderDelegatorsRequest>,
     metadata?: grpc.Metadata,
   ): Promise<QueryProviderDelegatorsResponse>;
-  /** Queries a the unclaimed rewards of a delegator. */
+  /** Queries the unclaimed rewards of a delegator. */
   delegatorRewards(
     request: DeepPartial<QueryDelegatorRewardsRequest>,
     metadata?: grpc.Metadata,
   ): Promise<QueryDelegatorRewardsResponse>;
-  /** Queries a the unclaimed rewards of a delegator. */
+  /** Queries the unclaimed rewards of a delegator. */
   delegatorRewardsList(
     request: DeepPartial<QueryDelegatorRewardsRequest>,
     metadata?: grpc.Metadata,
