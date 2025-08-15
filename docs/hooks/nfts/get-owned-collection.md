@@ -28,7 +28,7 @@ function ShowMyNFTCollection({
   return isLoading ? (
     <>
       {error ? (
-        <p>Some error occured</p>
+        <p>Some error occurred</p>
       ) : (
         <div>
           <h3>{data.collection.name}</h3>
