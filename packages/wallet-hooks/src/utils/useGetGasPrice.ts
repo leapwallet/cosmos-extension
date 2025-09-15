@@ -1,5 +1,4 @@
 import {
-  axiosWrapper,
   ChainInfo,
   defaultGasPriceStep,
   DenomsRecord,
@@ -18,20 +17,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useChainApis, useChainsStore, useGasPriceSteps, useGetChains, useSelectedNetwork } from '../store';
 import { useGetAptosGasPrices, useGetEvmGasPrices, useGetSolanaGasPrices, useGetSuiGasPrices } from '../utils-hooks';
 import { useNativeFeeDenom } from './useNativeFeeDenom';
-
-export async function getFeeMarketGasPrices(lcdUrl: string) {
-  try {
-    const { data } = await axiosWrapper({
-      baseURL: lcdUrl,
-      method: 'get',
-      url: '/feemarket/v1/gas_prices',
-    });
-
-    return data?.prices ?? [];
-  } catch {
-    return [];
-  }
-}
 
 export async function getMayaTxFee(lcdUrl: string) {
   const url = `${lcdUrl}/mayachain/mimir`;

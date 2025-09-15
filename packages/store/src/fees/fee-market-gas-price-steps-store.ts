@@ -1,4 +1,4 @@
-import { getChainId, getFeeMarketGasPrices, NetworkType, roundOf, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { getChainId, getFeeMarketAmountData, NetworkType, roundOf, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
 import { ChainInfosStore } from 'assets';
 
 import { ChainApisStore } from '../chains';
@@ -38,17 +38,17 @@ export class FeeMarketGasPriceStepStore {
     const activeNetwork = params.network;
 
     const { lcdUrl } = await this.chainApisStore.getChainApis(activeChain, activeNetwork);
-    const feeMarketData = await getFeeMarketGasPrices(lcdUrl ?? '');
-    const feeMarketDenomData = feeMarketData.find(({ denom }) => denom === feeDenom);
+
+    const feeMarketAmountData: string | undefined = await getFeeMarketAmountData(lcdUrl ?? '', activeChain, feeDenom);
 
     const chainId = getChainId(this.chainInfoStore.chainInfos[activeChain], activeNetwork, isEvm);
     const chainFeeMarketAdjustment = CHAIN_SPECIFIC_FEE_MARKET_ADJUSTMENT[chainId ?? ''] ?? 1;
 
-    if (!feeMarketDenomData) {
+    if (!feeMarketAmountData) {
       return forceBaseGasPriceStep || this.gasPriceStepForChainStore.getGasPriceSteps(activeChain, activeNetwork);
     }
 
-    const minGasPrice = roundOf(Number(feeMarketDenomData.amount) * chainFeeMarketAdjustment, 4);
+    const minGasPrice = roundOf(Number(feeMarketAmountData) * chainFeeMarketAdjustment, 4);
 
     const low = minGasPrice * 1.1;
     const medium = minGasPrice * 1.2;
