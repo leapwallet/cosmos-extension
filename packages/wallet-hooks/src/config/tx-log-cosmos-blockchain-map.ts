@@ -1,4 +1,4 @@
-import { CosmosBlockchain } from '@leapwallet/leap-api-js';
+import { CosmosBlockchain } from '../connectors';
 
 export const TX_LOG_COSMOS_BLOCKCHAIN_MAP = {
   akash: CosmosBlockchain.Akash,

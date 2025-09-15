@@ -10,9 +10,9 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/browser/tx/nft-transfer/contract';
+import { Wallet } from '@leapwallet/leap-keychain';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useCallback, useMemo, useState } from 'react';
-import { Wallet } from 'secretjs';
 
 import { LeapWalletApi } from '../apis';
 import { CosmosTxType } from '../connectors';
@@ -113,7 +113,7 @@ export function useNtrnGov(denoms: DenomsRecord, forceChain?: SupportedChain, fo
   ): Promise<sendTokensReturnType> => {
     try {
       const pollForTx = new PollForTx(lcdUrl ?? '');
-      const client = await getCW20TxClient(wallet as Wallet);
+      const client = await getCW20TxClient(wallet as unknown as Wallet);
 
       const result = await client.execute(
         address,
@@ -196,7 +196,7 @@ export function useNtrnGov(denoms: DenomsRecord, forceChain?: SupportedChain, fo
   const simulateNtrnVote = useCallback(
     async (wallet: OfflineSigner, proposalId: number, voteOption: VoteOptions) => {
       try {
-        const client = await getCW20TxClient(wallet as Wallet);
+        const client = await getCW20TxClient(wallet as unknown as Wallet);
         const result = await client.simulate(
           address,
           [
