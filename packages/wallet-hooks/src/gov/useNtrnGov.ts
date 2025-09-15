@@ -10,12 +10,12 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import PollForTx from '@leapwallet/cosmos-wallet-sdk/dist/browser/tx/nft-transfer/contract';
-import { CosmosTxType } from '@leapwallet/leap-api-js';
 import { Wallet } from '@leapwallet/leap-keychain';
 import { MsgExecuteContract } from 'cosmjs-types/cosmwasm/wasm/v1/tx';
 import { useCallback, useMemo, useState } from 'react';
 
 import { LeapWalletApi } from '../apis';
+import { CosmosTxType } from '../connectors';
 import { useGasAdjustmentForChain } from '../fees';
 import { sendTokensReturnType } from '../send';
 import {
