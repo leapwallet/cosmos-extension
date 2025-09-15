@@ -1,6 +1,7 @@
-import { useAddCustomChannel, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { useSendContext } from 'pages/send/context'
 import React, { useCallback, useState } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 
 type AddIBCChannelProps = {
   targetChain: string
@@ -20,9 +21,6 @@ const AddIBCChannel: React.FC<AddIBCChannelProps> = ({
   const [message, setMessage] = useState<string>('')
 
   const { sendActiveChain } = useSendContext()
-  const addCustomChannel = useAddCustomChannel({
-    targetChain,
-  })
 
   const { chains } = useChainsStore()
   const activeChainInfo = chains[sendActiveChain]
@@ -31,7 +29,7 @@ const AddIBCChannel: React.FC<AddIBCChannelProps> = ({
     async (channelId: string) => {
       setStatus('loading')
       try {
-        const result = await addCustomChannel(channelId)
+        const result = await ibcDataStore.addCustomChannel(sendActiveChain, targetChain, channelId)
         if (result.success) {
           onAddComplete(result.channel)
           setValue('')
@@ -46,7 +44,7 @@ const AddIBCChannel: React.FC<AddIBCChannelProps> = ({
         setMessage('Something went wrong')
       }
     },
-    [addCustomChannel, onAddComplete],
+    [onAddComplete, sendActiveChain, targetChain],
   )
 
   return (

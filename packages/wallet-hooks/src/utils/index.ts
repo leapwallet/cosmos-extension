@@ -64,7 +64,6 @@ export * from './useInitAstroportPoolsChains';
 export * from './useInitBetaNFTsCollections';
 export * from './useInitChainsApr';
 export * from './useInitCoingeckoPrices';
-export * from './useInitCustomChannelsStore';
 export * from './useInitDefaultGasEstimates';
 export * from './useInitDenoms';
 export * from './useInitDisabledCW20Tokens';

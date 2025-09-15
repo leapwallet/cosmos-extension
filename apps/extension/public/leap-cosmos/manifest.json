@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Leap Wallet",
   "description": "Multichain crypto wallet for Cosmos, EVM, Solana, Move, Bitcoin & more. Leap everywhere!",
-  "version": "0.22.0",
+  "version": "0.22.7",
   "options_page": "index.html#/home",
   "web_accessible_resources": [
     {

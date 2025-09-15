@@ -57,7 +57,12 @@ const StaticFeeDisplay: React.FC<StaticFeeDisplayProps> = observer(
     const defaultGasEstimates = useDefaultGasEstimates()
     const [preferredCurrency] = useUserPreferredCurrency()
 
-    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
+    // TODO: Add forceAddress (because undefined will be constant even if wallets are switched)
+    const allAssets = rootBalanceStore.getSpendableBalancesForChain(
+      activeChain,
+      selectedNetwork,
+      undefined,
+    )
     const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain, selectedNetwork)
     const allTokensStatus = useMemo(() => {
       return allTokensLoading ? 'loading' : 'success'

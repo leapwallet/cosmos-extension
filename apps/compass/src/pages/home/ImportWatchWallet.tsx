@@ -2,6 +2,7 @@ import {
   getBlockChainFromAddress,
   isEthAddress,
   isValidWalletAddress,
+  pubKeyToEvmAddressToShow,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { KeyChain } from '@leapwallet/leap-keychain'
 import BottomModal from 'components/bottom-modal'
@@ -91,6 +92,12 @@ export default function ImportWatchWallet({ isVisible, onClose }: ImportWatchAdd
           const existingAddress = wallet.addresses[chain?.key]
           if (existingAddress) {
             acc.push(existingAddress)
+          }
+        }
+        if (wallet.pubKeys?.['seiTestnet2']) {
+          const evmAddress = pubKeyToEvmAddressToShow(wallet.pubKeys?.['seiTestnet2'], true)
+          if (evmAddress) {
+            acc.push(evmAddress)
           }
         }
         return acc

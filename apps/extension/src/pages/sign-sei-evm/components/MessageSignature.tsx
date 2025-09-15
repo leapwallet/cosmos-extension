@@ -11,12 +11,14 @@ import { Avatar, Buttons, Header } from '@leapwallet/leap-ui'
 import assert from 'assert'
 import classNames from 'classnames'
 import { ErrorCard } from 'components/ErrorCard'
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
 import { LoaderAnimation } from 'components/loader/Loader'
 import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
 import { useDefaultTokenLogo } from 'hooks'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -26,6 +28,7 @@ import { Colors } from 'theme/colors'
 import { TransactionStatus } from 'types/utility'
 import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 import { isSidePanel } from 'utils/isSidePanel'
 import { trim } from 'utils/strings'
 import Browser from 'webextension-polyfill'
@@ -65,13 +68,24 @@ export function MessageSignature({
   const [txStatus, setTxStatus] = useState<TransactionStatus>('idle')
   const [signingError, setSigningError] = useState<string | null>(null)
   const [showLedgerPopup, setShowLedgerPopup] = useState(false)
+  const openLedgerReconnect = useOpenLedgerReconnect()
 
   const { chains } = useChainsStore()
   const chainInfo = chains[activeChain]
   const defaultImage = useDefaultTokenLogo()
 
+  const isLedgerDisconnectedError = useMemo(() => {
+    return isLedgerDisconnected(signingError)
+  }, [signingError])
+
   const handleSignClick = async () => {
     try {
+      if (isLedgerDisconnectedError) {
+        await handleRejectClick(navigate, txnData?.payloadId, true)
+        openLedgerReconnect()
+        return
+      }
+
       if (activeWallet.walletType === WALLETTYPE.LEDGER) {
         if (chainInfo?.evmOnlyChain === true) {
           setShowLedgerPopup(true)
@@ -127,7 +141,8 @@ export function MessageSignature({
     }
   }
 
-  const isApproveBtnDisabled = !!signingError || txStatus === 'loading'
+  const isApproveBtnDisabled =
+    (!!signingError && !isLedgerDisconnectedError) || txStatus === 'loading'
 
   return (
     <div
@@ -199,8 +214,11 @@ export function MessageSignature({
               </pre>
             )}
 
-            {signingError && txStatus === 'error' ? (
+            {!isLedgerDisconnectedError && signingError && txStatus === 'error' ? (
               <ErrorCard text={signingError} className='mt-3' />
+            ) : null}
+            {isLedgerDisconnectedError && txStatus === 'error' ? (
+              <LedgerDisconnectError className='mt-3' />
             ) : null}
 
             {txStatus !== 'error' && showLedgerPopup ? (
@@ -230,12 +248,18 @@ export function MessageSignature({
 
               <Buttons.Generic
                 title='Approve Button'
-                color={Colors.getChainColor(activeChain)}
+                color={Colors.green600}
                 onClick={handleSignClick}
                 disabled={isApproveBtnDisabled}
                 className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
               >
-                {txStatus === 'loading' ? <LoaderAnimation color='white' /> : 'Sign'}
+                {isLedgerDisconnectedError ? (
+                  'Connect Ledger'
+                ) : txStatus === 'loading' ? (
+                  <LoaderAnimation color='white' />
+                ) : (
+                  'Sign'
+                )}
               </Buttons.Generic>
             </div>
           </div>

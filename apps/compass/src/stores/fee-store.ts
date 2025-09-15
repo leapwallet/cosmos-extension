@@ -64,6 +64,7 @@ export const feeTokensStore = new FeeTokensStore({
   feeDenomsStore,
   gasPriceStepForChainStore,
   addIbcTraceData: useIbcTraceStore.getState().addIbcTraceData, // remove this when `useIbcTraceStore` is migrated to mobx
+  storage: storageAdapter,
 })
 
 export const gasPriceOptionsStore = new GasPriceOptionsStore({

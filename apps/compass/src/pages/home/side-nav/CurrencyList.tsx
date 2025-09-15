@@ -67,7 +67,7 @@ export const CurrencyList = () => {
                 <GenericCard
                   onClick={() => {
                     currencyUpdater(currency.country)
-                    rootStore.setPreferredCurrency(currency.country)
+                    rootStore.setPreferredCurrency(selectedCurrency, currency.country)
                   }}
                   className='mx-auto'
                   img={

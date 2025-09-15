@@ -19,6 +19,7 @@ import {
   SuiSignTransactionBlockFeature,
   SuiSignTransactionFeature,
 } from '@mysten/wallet-standard';
+import { SUPPORTED_METHODS } from 'provider/messaging/requester';
 
 export type WalletEventsMap = {
   [E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
@@ -36,6 +37,7 @@ export type Features = StandardConnectFeature &
   SuiSignAndExecuteTransactionBlockFeature;
 
 export enum SUI_FEATURE {
+  OPEN_SIDE_PANEL = SUPPORTED_METHODS.OPEN_SIDE_PANEL,
   STANDARD__CONNECT = 'standard:connect',
   STANDARD__DISCONNECT = 'standard:disconnect',
   STANDARD__EVENTS = 'standard:events',

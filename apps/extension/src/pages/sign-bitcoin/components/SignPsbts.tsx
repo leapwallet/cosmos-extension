@@ -225,7 +225,7 @@ export const SignPsbts = observer(({ txnData, rootDenomsStore }: SignPsbtsProps)
 
               <Buttons.Generic
                 title='Approve Button'
-                color={Colors.getChainColor(activeChain)}
+                color={Colors.green600}
                 onClick={handleSignClick}
                 disabled={isApproveBtnDisabled}
                 className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}

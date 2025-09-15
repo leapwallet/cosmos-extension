@@ -6,19 +6,22 @@ import {
   useformatCurrency,
   useValidatorImage,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { Provider, Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { Provider, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import { Info } from '@phosphor-icons/react'
 import BigNumber from 'bignumber.js'
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import BottomModal from 'components/new-bottom-modal'
 import { Button } from 'components/ui/button'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import { Images } from 'images'
 import { GenericLight } from 'images/logos'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
 import Lottie from 'lottie-react'
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { cn } from 'utils/cn'
 import { imgOnError } from 'utils/imgOnError'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 import { sidePanel } from 'utils/isSidePanel'
 
 import { transitionTitleMap } from '../utils/stake-text'
@@ -29,6 +32,7 @@ type ReviewStakeTxProps = {
   onClose: () => void
   onSubmit: () => void
   tokenAmount: string
+  activeChain: SupportedChain
   token?: Token
   error: string | undefined
   gasError: string | null
@@ -99,8 +103,10 @@ export default function ReviewStakeTx({
   showLedgerPopup,
   provider,
   ledgerError,
+  activeChain,
 }: ReviewStakeTxProps) {
   const [formatCurrency] = useformatCurrency()
+  const openLedgerReconnect = useOpenLedgerReconnect()
   const { data: validatorImage } = useValidatorImage(validator?.image ? undefined : validator)
   const imageUrl = validator?.image || validatorImage || Images.Misc.Validator
 
@@ -110,6 +116,18 @@ export default function ReviewStakeTx({
     }
     return ''
   }, [formatCurrency, token?.usdPrice, tokenAmount])
+
+  const isLedgerDisconnectedError = useMemo(() => {
+    return isLedgerDisconnected(ledgerError)
+  }, [ledgerError])
+
+  const handleSubmit = useCallback(() => {
+    if (isLedgerDisconnectedError) {
+      openLedgerReconnect()
+      return
+    }
+    onSubmit()
+  }, [isLedgerDisconnectedError, onSubmit, openLedgerReconnect])
 
   const anyError = ledgerError || error || gasError
 
@@ -145,9 +163,13 @@ export default function ReviewStakeTx({
                 )}
                 subTitle={'Validator'}
                 imgSrc={imageUrl}
-                className={mode === 'REDELEGATE' ? '!rounded-b-none' : ''}
+                className={
+                  mode === 'REDELEGATE' || (mode === 'UNDELEGATE' && activeChain === 'celestia')
+                    ? '!rounded-b-none'
+                    : ''
+                }
               />
-              {mode === 'REDELEGATE' && validator && (
+              {mode === 'REDELEGATE' && validator && activeChain !== 'celestia' && (
                 <div className='flex items-start gap-1.5 px-3 py-2.5 rounded-b-xl text-blue-400 bg-blue-400/10'>
                   <Info size={16} className='shrink-0' />
                   <span className='text-xs font-medium'>
@@ -156,6 +178,19 @@ export default function ReviewStakeTx({
                   </span>
                 </div>
               )}
+              {(mode === 'UNDELEGATE' || mode === 'REDELEGATE') &&
+                validator &&
+                activeChain === 'celestia' && (
+                  <div className='flex items-start gap-1.5 px-3 py-2.5 rounded-b-xl bg-orange-200 dark:bg-orange-900'>
+                    <Info size={16} className='shrink-0 text-orange-500 dark:text-orange-300' />
+                    <span className='text-xs font-medium text-orange-500 dark:text-orange-300'>
+                      {mode === 'REDELEGATE'
+                        ? `Claim your rewards from the existing validator before moving to a new one to
+                    avoid loss of rewards`
+                        : `Claim your rewards from the validator before undelegating to avoid loss of rewards`}
+                    </span>
+                  </div>
+                )}
             </div>
           )}
           {provider && (
@@ -171,14 +206,20 @@ export default function ReviewStakeTx({
               imgSrc={Images.Misc.Validator}
             />
           )}
-          {anyError && <p className='text-xs font-bold text-destructive-100 px-2'>{anyError}</p>}
+          {!isLedgerDisconnectedError && anyError && (
+            <p className='text-xs font-bold text-destructive-100 px-2'>{anyError}</p>
+          )}
+
+          {isLedgerDisconnectedError && <LedgerDisconnectError />}
 
           <Button
             className='w-full mt-4'
             disabled={isLoading || (!!error && !ledgerError) || !!gasError}
-            onClick={onSubmit}
+            onClick={handleSubmit}
           >
-            {isLoading ? (
+            {isLedgerDisconnectedError ? (
+              'Connect Ledger'
+            ) : isLoading ? (
               <Lottie
                 loop={true}
                 autoplay={true}

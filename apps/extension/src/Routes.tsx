@@ -1,19 +1,8 @@
-import {
-  useFetchDualStakeDelegations,
-  useFetchDualStakeProviderRewards,
-  useFetchDualStakeProviders,
-  useInitCustomChains,
-  useLuminaTxClientStore,
-} from '@leapwallet/cosmos-wallet-hooks'
-import { useChains, useSkipSupportedChains } from '@leapwallet/elements-hooks'
+import { useLuminaTxClientStore } from '@leapwallet/cosmos-wallet-hooks'
 import * as Sentry from '@sentry/react'
 import { AppInitLoader } from 'components/loader/AppInitLoader'
 import { SidePanelNavigation } from 'components/side-panel-navigation'
 import ImportWatchWalletSeedPopup from 'components/watch-watch/ImportWatchWalletSeedPopup'
-import { useActiveInfoEventDispatcher } from 'hooks/settings/useActiveInfoEventDispatcher'
-import useActiveWallet from 'hooks/settings/useActiveWallet'
-import { useChainAbstractionView } from 'hooks/settings/useChainAbstractionView'
-import { useAirdropsData } from 'hooks/useAirdropsData'
 import { InitHooks } from 'init-hooks'
 import { GlobalLayout } from 'layout'
 import { ActivityPageLoader } from 'pages/activity/ActivityPageLoader'
@@ -24,7 +13,6 @@ import EarnPage from 'pages/earnUSDN'
 import Home from 'pages/home/Home'
 import SideNav from 'pages/home/side-nav'
 import { NFTLoading } from 'pages/nfts/NFTLoading'
-import useAssets from 'pages/swaps-v2/hooks/useAssets'
 import { SwapsLoader } from 'pages/swaps-v2/SwapsLoader'
 import React, { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
@@ -32,7 +20,6 @@ import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { percentageChangeDataStore, priceStore } from 'stores/balance-store'
 import { chainTagsStore } from 'stores/chain-infos-store'
 import { denomsStore, rootDenomsStore } from 'stores/denoms-store-instance'
-import { nftStore } from 'stores/nft-store'
 import { rootBalanceStore, rootStakeStore, rootStore } from 'stores/root-store'
 import {
   claimRewardsStore,
@@ -73,6 +60,7 @@ const SignSui = React.lazy(() => import('pages/sign-sui/sign-transaction'))
 const Stake = React.lazy(() => import('pages/stake-v2'))
 const StakeInputPage = React.lazy(() => import('pages/stake-v2/StakeInputPage'))
 const StakeTxnPage = React.lazy(() => import('pages/stake-v2/StakeTxnPage'))
+const ReconnectLedger = React.lazy(() => import('pages/reconnect-ledger'))
 
 const AddChain = React.lazy(() => import('pages/suggestChain/addChain'))
 const SuggestChain = React.lazy(() => import('pages/suggestChain/suggestChain'))
@@ -95,23 +83,6 @@ const SwitchChain = React.lazy(() => import('pages/switch-chain'))
 const RoutesMatch = Sentry.withSentryReactRouterV6Routing(Routes)
 
 export default function AppRoutes(): JSX.Element {
-  const { activeWallet } = useActiveWallet()
-  const fetchAirdropsData = useAirdropsData()
-
-  useInitCustomChains()
-  useChainAbstractionView()
-  useFetchDualStakeDelegations(rootDenomsStore.allDenoms)
-  useFetchDualStakeProviders(rootDenomsStore.allDenoms)
-  useFetchDualStakeProviderRewards(rootDenomsStore.allDenoms)
-
-  useActiveInfoEventDispatcher()
-
-  useChains()
-  useSkipSupportedChains({
-    chainTypes: ['cosmos', 'evm'],
-  })
-  useAssets()
-
   const { setLuminaTxClient, setForceLuminaTxClient } = useLuminaTxClientStore()
 
   useEffect(() => {
@@ -124,24 +95,10 @@ export default function AppRoutes(): JSX.Element {
     })
   }, [setLuminaTxClient])
 
-  useEffect(() => {
-    if (activeWallet) {
-      fetchAirdropsData()
-    }
-  }, [activeWallet, activeWallet?.id, fetchAirdropsData])
-
-  useEffect(() => {
-    ;(function () {
-      if (nftStore.haveToFetchNfts === false) {
-        nftStore.haveToFetchNfts = true
-      }
-    })()
-  }, [activeWallet?.addresses])
-
   return (
     <Suspense fallback={<AppInitLoader />}>
-      <AuthProvider>
-        <HashRouter>
+      <HashRouter>
+        <AuthProvider>
           <InitHooks />
           <SidePanelNavigation />
           <SideNav />
@@ -149,8 +106,8 @@ export default function AppRoutes(): JSX.Element {
 
           <AnimatedRoutes />
           <ImportWatchWalletSeedPopup />
-        </HashRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </HashRouter>
     </Suspense>
   )
 }
@@ -543,6 +500,14 @@ const AnimatedRoutes = () => {
           element={
             <RequireAuth>
               <InitiaVip />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path='reconnect-ledger'
+          element={
+            <RequireAuth>
+              <ReconnectLedger />
             </RequireAuth>
           }
         />

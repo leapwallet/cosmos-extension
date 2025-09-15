@@ -1,6 +1,7 @@
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import { useSwapContext } from 'pages/swaps-v2/context'
 import { isNoRoutesAvailableError } from 'pages/swaps-v2/hooks'
-import React, { Dispatch, SetStateAction } from 'react'
+import React, { Dispatch, SetStateAction, useMemo } from 'react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 
 import PriceImpactWarnings from './PriceImpactWarnings'
@@ -10,12 +11,14 @@ type Props = {
   isPriceImpactChecked: boolean
   setIsPriceImpactChecked: Dispatch<SetStateAction<boolean>>
   ledgerError?: string
+  isLedgerDisconnectedError?: boolean
 }
 
 export function WarningsSection({
   isPriceImpactChecked,
   setIsPriceImpactChecked,
   ledgerError,
+  isLedgerDisconnectedError,
 }: Props) {
   const {
     routingInfo,
@@ -36,7 +39,7 @@ export function WarningsSection({
 
   if (isMoreThanOneStepTransaction) {
     return (
-      <WarningBox message='This is a multi-step route, please navigate to Swapfast to complete the swap' />
+      <WarningBox message='This is a multi-step route, please navigate to Leap web app to complete the swap' />
     )
   }
 
@@ -48,6 +51,10 @@ export function WarningsSection({
     if (gasError) {
       return <WarningBox message={gasError} type={'error'} />
     }
+  }
+
+  if (isLedgerDisconnectedError) {
+    return <LedgerDisconnectError />
   }
 
   if (ledgerError) {

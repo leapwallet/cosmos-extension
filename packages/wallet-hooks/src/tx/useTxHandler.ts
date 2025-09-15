@@ -17,8 +17,8 @@ import {
   Tx,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/sscrt';
+import { Wallet } from '@leapwallet/leap-keychain';
 import { useCallback, useMemo } from 'react';
-import { Wallet } from 'secretjs';
 
 import { useActiveChain, useChainApis, useGetChains, useLuminaTxClientStore, useSelectedNetwork } from '../store';
 import { useChainId, useChainInfo, useIsMinitia } from '../utils-hooks';
@@ -160,7 +160,7 @@ export function useCW20TxHandler(forceChain?: SupportedChain, forceNetwork?: 'ma
 
   return useCallback(
     async (wallet: Wallet) => {
-      const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet, {
+      const client = await SigningCosmWasmClient.connectWithSigner(rpcUrl, wallet as unknown as OfflineSigner, {
         broadcastPollIntervalMs: 2_000,
         broadcastTimeoutMs: 60_000,
       });

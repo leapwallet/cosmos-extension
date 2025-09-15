@@ -8,6 +8,7 @@ import { ChainInfosStore, CoingeckoIdsStore, DenomsStore } from '../assets';
 import { getBaseURL, getIsCompass } from '../globals/config';
 import { getNativeDenom } from '../utils';
 import { fromSmall } from '../utils/balance-converter';
+import { calculateTokenPriceAndValue } from '../utils/bank/price-calculator';
 import { generateRandomString } from '../utils/random-string-generator';
 import { Token } from './balance-types';
 import { PriceStore } from './price-store';
@@ -223,23 +224,16 @@ export class BalanceAPIStore {
       const nativeDenom = getNativeDenom(chainInfos, chain, network);
       const denomInfo = nativeDenom;
 
-      let tokenPrice: number | undefined;
-      if (coingeckoPrices) {
-        const coinGeckoId = denomInfo.coinGeckoId;
-
-        const alternateCoingeckoKey = `${chainInfos?.[chain]?.chainId}-${denomInfo.coinMinimalDenom}`;
-
-        if (coinGeckoId) {
-          tokenPrice = coingeckoPrices[coinGeckoId];
-        }
-
-        if (!tokenPrice) {
-          tokenPrice = coingeckoPrices[alternateCoingeckoKey] ?? coingeckoPrices[alternateCoingeckoKey?.toLowerCase()];
-        }
-      }
+      const coinGeckoId = denomInfo.coinGeckoId;
+      const { usdPrice } = calculateTokenPriceAndValue({
+        coingeckoPrices,
+        coinMinimalDenom: denomInfo?.coinMinimalDenom,
+        chainId: chainInfos?.[chain]?.chainId,
+        coinGeckoId,
+      });
 
       const internalDenomInfo = this.denomsStore.denoms[denomInfo.coinMinimalDenom];
-      if (tokenPrice && !internalDenomInfo) {
+      if (usdPrice && !internalDenomInfo) {
         denomsToAddInBase[denomInfo.coinMinimalDenom] = denomInfo;
       }
 
@@ -253,7 +247,7 @@ export class BalanceAPIStore {
           coinMinimalDenom: denomInfo?.coinMinimalDenom ?? '',
           img: denomInfo?.icon ?? '',
           ibcDenom: undefined,
-          usdPrice: tokenPrice ? String(tokenPrice) : '0',
+          usdPrice: usdPrice ? String(usdPrice) : '0',
           coinDecimals: denomInfo?.coinDecimals ?? 6,
           coinGeckoId: denomInfo?.coinGeckoId ?? '',
           tokenBalanceOnChain: chain,
@@ -283,8 +277,6 @@ export class BalanceAPIStore {
       }
 
       const amount = fromSmall(new BigNumber(balance.amount).toString(), balance?.decimals);
-      let usdValue;
-
       const denomInfo = this.denomsStore.denoms[_denom];
 
       const coinGeckoId =
@@ -296,27 +288,13 @@ export class BalanceAPIStore {
         coingeckoIds[denomInfo?.coinMinimalDenom?.toLowerCase()] ||
         '';
 
-      if (parseFloat(amount) > 0) {
-        if (coingeckoPrices) {
-          let tokenPrice;
-
-          const alternateCoingeckoKey = `${balance.originChainId || denomChain?.chainId}-${
-            denomInfo?.coinMinimalDenom ?? balance.denom
-          }`;
-          if (coinGeckoId) {
-            tokenPrice = coingeckoPrices[coinGeckoId];
-          }
-
-          if (!tokenPrice) {
-            tokenPrice =
-              coingeckoPrices[alternateCoingeckoKey] ?? coingeckoPrices[alternateCoingeckoKey?.toLowerCase()];
-          }
-
-          if (tokenPrice) {
-            usdValue = new BigNumber(amount).times(tokenPrice).toString();
-          }
-        }
-      }
+      const { usdValue } = calculateTokenPriceAndValue({
+        amount,
+        coingeckoPrices,
+        coinMinimalDenom: denomInfo?.coinMinimalDenom ?? balance.denom,
+        chainId: balance.originChainId || denomChain?.chainId,
+        coinGeckoId,
+      });
       const usdPrice = parseFloat(amount) > 0 && usdValue ? (Number(usdValue) / Number(amount)).toString() : '0';
 
       let name = balance?.name;

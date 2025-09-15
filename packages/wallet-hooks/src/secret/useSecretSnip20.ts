@@ -1,6 +1,6 @@
 import { ChainInfos, DefaultGasEstimates, GasPrice, SigningSscrt } from '@leapwallet/cosmos-wallet-sdk';
+import { Wallet } from '@leapwallet/leap-keychain';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { Wallet } from 'secretjs';
 
 import { useAddress, useChainApis, useDefaultGasEstimates } from '../store';
 import { GasOptions } from '../utils';
@@ -43,7 +43,7 @@ export function useSecretSnip20({ getWallet }: useSecretSnip20Params): useSecret
         try {
           const wallet = await getWallet();
           const sscrt = await SigningSscrt.create(lcdUrl as string, ChainInfos.secret.chainId, wallet);
-          const { gasUsed } = await sscrt.simulateCreateViewingKey(address, contractAddress);
+          const { gasUsed } = await sscrt.simulateCreateViewingKey();
 
           setRecommendedGasLimit(parseInt(gasUsed));
         } catch (_) {

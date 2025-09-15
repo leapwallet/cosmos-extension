@@ -199,6 +199,8 @@ export function useExecuteTx({
     setIsSigningComplete,
     feeDenom,
     getSwapFeeInfo,
+    setShowLedgerPopup,
+    setShowLedgerPopupText,
     ...props,
   })
 

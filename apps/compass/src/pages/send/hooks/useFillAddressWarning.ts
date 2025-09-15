@@ -14,6 +14,7 @@ export type UseFillAddressWarningParams = {
 
   addressWarningElementError: ReactElement
   setAddressWarning: React.Dispatch<React.SetStateAction<AddressWarning>>
+  isErc20ToSei1WithLedgerCosmos?: boolean
 }
 
 export function useFillAddressWarning({
@@ -22,11 +23,21 @@ export function useFillAddressWarning({
 
   addressWarningElementError,
   setAddressWarning,
+  isErc20ToSei1WithLedgerCosmos,
 }: UseFillAddressWarningParams) {
   const activeWallet = useActiveWallet()
 
   useEffect(() => {
     ;(async function fillAddressWarning() {
+      // Check for ERC20 to sei1 address with Ledger Cosmos app first
+      if (isErc20ToSei1WithLedgerCosmos) {
+        setAddressWarning({
+          type: 'erc20',
+          message: 'You can only transfer EVM tokens to an EVM address.',
+        })
+        return
+      }
+
       switch (fetchAccountDetailsStatus) {
         case 'loading': {
           setAddressWarning({
@@ -77,5 +88,9 @@ export function useFillAddressWarning({
     })()
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchAccountDetailsData?.pubKey?.key, fetchAccountDetailsStatus])
+  }, [
+    fetchAccountDetailsData?.pubKey?.key,
+    fetchAccountDetailsStatus,
+    isErc20ToSei1WithLedgerCosmos,
+  ])
 }

@@ -48,7 +48,11 @@ const SelectWallet = ({
           .sort((a, b) =>
             a.createdAt && b.createdAt
               ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-              : a.name.localeCompare(b.name),
+              : !a.createdAt && !b.createdAt
+              ? a.name.localeCompare(b.name)
+              : !a.createdAt
+              ? -1
+              : 1,
           )
           .filter(
             (wallet) =>
@@ -100,6 +104,11 @@ const SelectWallet = ({
             <WalletNotConnectedMsg currentWalletInfo={currentWalletInfo} onClose={onClose} />
           )}
 
+          {/**
+           * TODO: Convert this to virtualized list.
+           * Why? Because rendered items trigger balance fetching calls.
+           * So if we have many wallets, it will trigger many balance fetching calls.
+           *  */}
           {walletsList?.length > 0 ? (
             <div className='flex flex-col rounded-2xl overflow-y-auto mb-4 py-1 gap-3.5'>
               {walletsList?.map((wallet, index, array) => {

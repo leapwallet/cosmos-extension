@@ -5,12 +5,13 @@ import { IconContext } from '@phosphor-icons/react'
 import { useInitClientId } from 'hooks/settings/useClientId'
 import { useInitNodeUrls } from 'hooks/useInitNodeUrls'
 import { observer } from 'mobx-react-lite'
-import React, { PropsWithChildren, useEffect } from 'react'
+import React, { lazy, PropsWithChildren, Suspense, useEffect } from 'react'
 import { SkeletonTheme } from 'react-loading-skeleton'
 import { clientIdStore } from 'stores/client-id-store'
 
 import Routes from './Routes'
 import { Colors } from './theme/colors'
+const ElementsInitializer = lazy(() => import('./ElementsInitializer'))
 
 const AppWrapper = observer((props: PropsWithChildren) => {
   const { theme, setTheme } = useTheme()
@@ -30,12 +31,17 @@ const AppWrapper = observer((props: PropsWithChildren) => {
   }, [theme])
 
   return (
-    <SkeletonTheme
-      baseColor={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray300}
-      highlightColor={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray400}
-    >
-      {props.children}
-    </SkeletonTheme>
+    <>
+      <SkeletonTheme
+        baseColor={theme === ThemeName.DARK ? Colors.gray800 : Colors.gray300}
+        highlightColor={theme === ThemeName.DARK ? Colors.gray900 : Colors.gray400}
+      >
+        {props.children}
+      </SkeletonTheme>
+      <Suspense fallback={<></>}>
+        <ElementsInitializer />
+      </Suspense>
+    </>
   )
 })
 

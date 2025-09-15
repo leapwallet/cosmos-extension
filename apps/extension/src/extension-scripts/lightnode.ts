@@ -80,7 +80,7 @@ export class LightNode {
     }
     // eslint-disable-next-line no-console
 
-    networkConfig.customSamplingWindowSecs = LIGHT_NODE_SYNC_WINDOW_SECS
+    networkConfig.customPruningWindowSecs = LIGHT_NODE_SYNC_WINDOW_SECS
 
     const started = await this.luminaClient?.start(networkConfig)
     await this.luminaClient?.waitConnected()

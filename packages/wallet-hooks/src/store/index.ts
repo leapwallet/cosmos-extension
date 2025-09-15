@@ -26,7 +26,6 @@ export * from './useChainsAprStore';
 export * from './useChainsStore';
 export * from './useCoingeckoPricesStore';
 export * from './useCustomChains';
-export * from './useCustomChannelsStore';
 export * from './useCW20Tokens';
 export * from './useDappDefaultFee';
 export * from './useDefaultGasEstimates';

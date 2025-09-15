@@ -95,12 +95,10 @@ export class FeeDenomsStore {
         mainnet: {
           ...feeDenoms.mainnet,
           forma: 'forma-native',
-          flame: 'flame-native',
         },
         testnet: {
           ...feeDenoms.testnet,
           forma: 'forma-native',
-          flame: 'flame-native',
         },
       };
     });

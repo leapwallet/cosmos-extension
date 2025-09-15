@@ -86,7 +86,7 @@ export const SignTransaction = observer(
     const evmBalance = evmBalanceStore.evmBalance
     const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
-    const allAssets = rootBalanceStore.getBalancesForChain(activeChain, activeNetwork)
+    const allAssets = rootBalanceStore.getBalancesForChain(activeChain, activeNetwork, undefined)
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
 
     const assets = useMemo(() => {
@@ -98,13 +98,13 @@ export const SignTransaction = observer(
       )
 
       if (addEvmDetails) {
-        _assets = [..._assets, ...(evmBalance.evmBalance ?? [])].filter((token) =>
+        _assets = [..._assets, ...(evmBalance ?? [])].filter((token) =>
           new BigNumber(token.amount).gt(0),
         )
       }
 
       return _assets
-    }, [addressLinkState, allAssets, chainInfo?.evmOnlyChain, evmBalance.evmBalance])
+    }, [addressLinkState, allAssets, chainInfo?.evmOnlyChain, evmBalance])
 
     const isEvmTokenExist = useMemo(
       () =>
@@ -402,7 +402,7 @@ export const SignTransaction = observer(
 
     if (
       (!['done', 'unknown'].includes(addressLinkState) || chainInfo?.evmOnlyChain) &&
-      evmBalanceStore.evmBalance.status === 'loading'
+      evmBalanceStore.status === 'loading'
     ) {
       return (
         <SignTransactionWrapper

@@ -5,6 +5,7 @@ import BottomModal from 'components/new-bottom-modal'
 import { Switch } from 'components/ui/switch'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import { AuthZIcon } from 'icons/auth-z'
+import { GlobeIcon } from 'icons/globe'
 import { KeyIcon } from 'icons/key-icon'
 import { StopWatch } from 'icons/stop-watch'
 import { UserKeyIcon } from 'icons/user-key'
@@ -13,6 +14,7 @@ import React, { ReactElement, useState } from 'react'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 
 import { SideNavSection } from '.'
+import ConnectedSites from './ConnectedSites'
 import ExportPrivateKey from './ExportPrivateKey'
 import ExportSeedPhrase from './ExportSeedPhrase'
 import { ManageAuthZ } from './ManageAuthZ'
@@ -20,6 +22,7 @@ import { NavItem } from './NavItem'
 import SetLockTimerDropUp from './SetLockTimer'
 
 export enum GENERAL_SECURITY_PAGES {
+  CONNECTED_SITES = 'CONNECTED_SITES',
   RECOVERY_PHRASE = 'RECOVERY_PHRASE',
   PRIVATE_KEY = 'PRIVATE_KEY',
   AUTO_LOCK_TIMER = 'AUTO_LOCK_TIMER',
@@ -60,6 +63,20 @@ const securityOptions: {
   ],
   [
     {
+      tab: GENERAL_SECURITY_PAGES.CONNECTED_SITES,
+      label: 'Connected sites',
+      icon: <GlobeIcon />,
+      'data-testing-id': 'sidenav-connected-sites-card',
+    },
+    {
+      tab: GENERAL_SECURITY_PAGES.MANAGE_AUTHZ,
+      label: 'Manage AuthZ',
+      icon: <AuthZIcon />,
+      'data-testing-id': 'sidenav-manage-authz-card',
+    },
+  ],
+  [
+    {
       tab: GENERAL_SECURITY_PAGES.AUTO_LOCK_TIMER,
       label: 'Auto-Lock Timer',
       icon: <StopWatch />,
@@ -70,14 +87,6 @@ const securityOptions: {
       label: 'Hide Assets',
       icon: <EyeSlash weight='fill' />,
       trailingIcon: <HideAssetsToggle />,
-    },
-  ],
-  [
-    {
-      tab: GENERAL_SECURITY_PAGES.MANAGE_AUTHZ,
-      label: 'Manage AuthZ',
-      icon: <AuthZIcon />,
-      'data-testing-id': 'sidenav-manage-authz-card',
     },
   ],
 ]
@@ -97,9 +106,9 @@ const GeneralSecurityView = ({
     activeWallet?.walletType === WALLETTYPE.SEED_PHRASE ||
     activeWallet?.walletType === WALLETTYPE.SEED_PHRASE_IMPORTED
 
-  // if (page === GENERAL_SECURITY_PAGES.CONNECTED_SITES) {
-  //   return <ConnectedSites setPage={setPage} />
-  // }
+  const onClose = () => {
+    setSelectedTab(null)
+  }
 
   return (
     <>
@@ -147,22 +156,27 @@ const GeneralSecurityView = ({
 
       <ExportSeedPhrase
         isVisible={selectedTab === GENERAL_SECURITY_PAGES.RECOVERY_PHRASE}
-        onClose={() => setSelectedTab(null)}
+        onClose={onClose}
       />
 
       <ExportPrivateKey
         isVisible={selectedTab === GENERAL_SECURITY_PAGES.PRIVATE_KEY}
-        onClose={() => setSelectedTab(null)}
+        onClose={onClose}
       />
 
       <SetLockTimerDropUp
         isVisible={selectedTab === GENERAL_SECURITY_PAGES.AUTO_LOCK_TIMER}
-        onClose={() => setSelectedTab(null)}
+        onClose={onClose}
       />
 
       <ManageAuthZ
         isVisible={selectedTab === GENERAL_SECURITY_PAGES.MANAGE_AUTHZ}
-        onClose={() => setSelectedTab(null)}
+        onClose={onClose}
+      />
+
+      <ConnectedSites
+        isVisible={selectedTab === GENERAL_SECURITY_PAGES.CONNECTED_SITES}
+        onClose={onClose}
       />
     </>
   )

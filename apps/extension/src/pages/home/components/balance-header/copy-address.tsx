@@ -7,7 +7,7 @@ import { useGetWalletAddresses } from 'hooks/useGetWalletAddresses'
 import { useQueryParams } from 'hooks/useQuery'
 import { CopyIcon } from 'icons/copy-icon'
 import { observer } from 'mobx-react-lite'
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { UserClipboard } from 'utils/clipboard'
 import { cn } from 'utils/cn'
 import { opacityFadeInOut, transition150 } from 'utils/motion-variants'
@@ -18,7 +18,7 @@ export const CopyAddress = observer(() => {
   const activeWallet = useActiveWallet()
   const walletAddresses = useGetWalletAddresses()
 
-  const query = useQueryParams()
+  const { set: setQuery } = useQueryParams()
 
   const [isWalletAddressCopied, setIsWalletAddressCopied] = useState(false)
 
@@ -33,9 +33,9 @@ export const CopyAddress = observer(() => {
     return sliceAddress(walletAddresses[0])
   }, [activeWallet, showCopySheet, walletAddresses])
 
-  const handleCopyAddress = () => {
+  const handleCopyAddress = useCallback(() => {
     if (showCopySheet) {
-      query.set(queryParams.copyAddress, 'true')
+      setQuery(queryParams.copyAddress, 'true')
       return
     }
 
@@ -43,7 +43,7 @@ export const CopyAddress = observer(() => {
     setTimeout(() => setIsWalletAddressCopied(false), 2000)
 
     UserClipboard.copyText(walletAddresses?.[0])
-  }
+  }, [showCopySheet, setQuery, walletAddresses])
 
   if (!address && (activeChain as string) !== AGGREGATED_CHAIN_KEY) {
     return null

@@ -37,10 +37,12 @@ export const GeneralHome = observer(() => {
 
   const chain: ChainInfoProp = useChainInfo()
 
-  const evmStatus = evmBalanceStore.evmBalanceForChain(activeChain as SupportedChain)?.status
-  const balanceError =
-    activeChain !== 'aggregated' &&
-    rootBalanceStore.getErrorStatusForChain(activeChain, selectedNetwork)
+  const evmStatus = evmBalanceStore.statusForChain(
+    activeChain as SupportedChain,
+    selectedNetwork,
+    undefined,
+  )
+  const balanceError = rootBalanceStore.getErrorStatus(activeChain, selectedNetwork) !== 'no-error'
 
   const noAddress = activeChain !== AGGREGATED_CHAIN_KEY && !activeWallet?.addresses[activeChain]
 

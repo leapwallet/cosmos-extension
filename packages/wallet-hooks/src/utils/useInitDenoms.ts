@@ -20,9 +20,9 @@ export function useInitDenoms() {
   const { setDenoms } = useDenomsStore();
 
   const setResource = useCallback(async (resource: any) => {
-    const betaERC20Tokens = await storage.get(BETA_ERC20_TOKENS);
-    const betaCW20Tokens = await storage.get(BETA_CW20_TOKENS);
-    const betaNativeTokens = await storage.get(BETA_NATIVE_TOKENS);
+    const betaERC20Tokens = await storage.get<Record<string, Record<string, string>>>(BETA_ERC20_TOKENS);
+    const betaCW20Tokens = await storage.get<Record<string, Record<string, string>>>(BETA_CW20_TOKENS);
+    const betaNativeTokens = await storage.get<Record<string, Record<string, string>>>(BETA_NATIVE_TOKENS);
 
     if (betaERC20Tokens) {
       let allBetaERC20Tokens = {};

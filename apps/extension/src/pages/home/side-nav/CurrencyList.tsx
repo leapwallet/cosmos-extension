@@ -1,6 +1,4 @@
-import { CardDivider, GenericCard } from '@leapwallet/leap-ui'
 import { CheckCircle } from '@phosphor-icons/react'
-import classNames from 'classnames'
 import NoSearchResults from 'components/no-search-results'
 import { SearchInput } from 'components/ui/input/search-input'
 import { useChainPageInfo } from 'hooks'
@@ -10,13 +8,13 @@ import {
   useCurrencyUpdater,
   useUserPreferredCurrency,
 } from 'hooks/settings/useCurrency'
-import { Images } from 'images'
+import { observer } from 'mobx-react-lite'
 import React from 'react'
 import ReactCountryFlag from 'react-country-flag'
+import { globalSheetsStore } from 'stores/global-sheets-store'
 import { rootStore } from 'stores/root-store'
-import { isSidePanel } from 'utils/isSidePanel'
 
-export const CurrencyList = () => {
+export const CurrencyList = observer(({ onClose }: { onClose: () => void }) => {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [selectedCurrency] = useUserPreferredCurrency()
   const { topChainColor } = useChainPageInfo()
@@ -53,7 +51,9 @@ export const CurrencyList = () => {
                 className='flex items-center gap-3 py-3 px-4 w-full rounded-xl bg-secondary-100 hover:bg-secondary-200 transition-colors'
                 onClick={() => {
                   currencyUpdater(currency.country)
-                  rootStore.setPreferredCurrency(currency.country)
+                  rootStore.setPreferredCurrency(selectedCurrency, currency.country)
+                  onClose()
+                  globalSheetsStore.setSideNavOpen(false)
                 }}
               >
                 <ReactCountryFlag
@@ -77,4 +77,4 @@ export const CurrencyList = () => {
       </div>
     </div>
   )
-}
+})

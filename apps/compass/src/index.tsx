@@ -36,11 +36,13 @@ if (process.env.buildType === 'staging') {
   importSpeculosTransport()
 }
 
+const isProdBuild = process.env.NODE_ENV === 'production'
+
 if (process.env.SENTRY_DSN) {
   Sentry.init(
     createSentryConfig({
       dsn: process.env.SENTRY_DSN,
-      environment: `${process.env.NODE_ENV}`,
+      environment: isProdBuild ? 'production' : 'development',
       ignoreErrors: [
         'AxiosError: Network Error',
         'AxiosError: Request aborted',
@@ -63,15 +65,15 @@ if (process.env.SENTRY_DSN) {
       ],
       sampleRate: 0.3,
       tracesSampleRate: 0.1,
-      enabled: process.env.NODE_ENV === 'production',
+      enabled: isProdBuild,
     }),
   )
 }
 
 mixpanel.init(process.env.MIXPANEL_TOKEN as string, {
   ip: false,
-  debug: process.env.NODE_ENV === 'development',
-  ignore_dnt: process.env.NODE_ENV === 'development',
+  debug: !isProdBuild,
+  ignore_dnt: !isProdBuild,
   batch_requests: window.location.href.includes('sign') ? false : true,
   batch_flush_interval_ms: 1000 * 30,
 })

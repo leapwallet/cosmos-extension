@@ -63,9 +63,21 @@ const Website = ({ name }: WebsiteProps) => {
 
 /**
  * @desc Call this function to notify the background script that the popup has been closed. So it can clean up the state.
+ * @note Try block is used to send windowId to background script. If it fails, it will fallback to original behavior. Sending WindowId helps cleaning up earlier.
  */
-function closeWindow() {
-  browser.runtime.sendMessage({ type: 'popup-closed' })
+async function closeWindow() {
+  try {
+    const currentWindow = await browser.windows.getCurrent()
+    await browser.runtime.sendMessage({
+      type: 'popup-closed',
+      payload: {
+        windowId: currentWindow.id,
+      },
+    })
+  } catch (e) {
+    // Fallback to original behavior if window.getCurrent() fails
+    await browser.runtime.sendMessage({ type: 'popup-closed' })
+  }
   setTimeout(() => {
     window.close()
   }, 50)
@@ -112,10 +124,42 @@ const ApproveConnection = () => {
   const updateKeyStore = useUpdateKeyStore()
   const addressGenerationDone = useRef<boolean>(false)
 
+  const isMoveConnection = useMemo(
+    () => requestedChains.every((chain) => ['movement', 'aptos'].includes(chain.chain)),
+    [requestedChains],
+  )
+
+  const isEvmConnection = useMemo(
+    () => requestedChains.every((chain) => chains[chain.chain]?.evmOnlyChain),
+    [requestedChains, chains],
+  )
+
+  const isSolanaConnection = useMemo(
+    () => requestedChains.every((chain) => ['solana'].includes(chain.chain)),
+    [requestedChains],
+  )
+
+  const isSuiConnection = useMemo(
+    () => requestedChains.every((chain) => ['sui'].includes(chain.chain)),
+    [requestedChains],
+  )
+
+  const uniqueChainRequests = useMemo(
+    () =>
+      requestedChains.reduce(
+        (acc: Array<{ chain: SupportedChain; payloadId: string }>, element) => {
+          const existingRequest = acc.find((request) => request.chain === element.chain)
+          if (!existingRequest) {
+            acc.push(element)
+          }
+          return acc
+        },
+        [],
+      ),
+    [requestedChains],
+  )
+
   const displayedRequestedChains: DisplayRequestChains = useMemo(() => {
-    const isMoveConnection = requestedChains.every((chain) =>
-      ['movement', 'aptos'].includes(chain.chain),
-    )
     if (isMoveConnection) {
       return {
         type: 'address',
@@ -124,12 +168,10 @@ const ApproveConnection = () => {
       }
     }
 
-    const isEvmConnection = requestedChains.every((chain) => chains[chain.chain]?.evmOnlyChain)
     if (isEvmConnection && selectedWallets?.[0]?.pubKeys) {
       const address = pubKeyToEvmAddressToShow(
         selectedWallets[0].pubKeys[requestedChains[0]?.chain] || selectedWallets[0].pubKeys.evmos,
       )
-
       return {
         type: 'address',
         chains: requestedChains,
@@ -137,7 +179,6 @@ const ApproveConnection = () => {
       }
     }
 
-    const isSolanaConnection = requestedChains.every((chain) => ['solana'].includes(chain.chain))
     if (isSolanaConnection) {
       return {
         type: 'address',
@@ -146,7 +187,6 @@ const ApproveConnection = () => {
       }
     }
 
-    const isSuiConnection = requestedChains.every((chain) => ['sui'].includes(chain.chain))
     if (isSuiConnection) {
       return {
         type: 'address',
@@ -155,22 +195,19 @@ const ApproveConnection = () => {
       }
     }
 
-    const uniqueChainRequests = requestedChains.reduce(
-      (acc: Array<{ chain: SupportedChain; payloadId: string }>, element) => {
-        const existingRequest = acc.find((request) => request.chain === element.chain)
-        if (!existingRequest) {
-          acc.push(element)
-          return acc
-        }
-        return acc
-      },
-      [],
-    )
     return {
       type: 'chains',
       chains: uniqueChainRequests,
     }
-  }, [chains, requestedChains, selectedWallets])
+  }, [
+    isMoveConnection,
+    isEvmConnection,
+    isSolanaConnection,
+    isSuiConnection,
+    uniqueChainRequests,
+    requestedChains,
+    selectedWallets,
+  ])
 
   useEffect(() => {
     async function generateAddresses() {

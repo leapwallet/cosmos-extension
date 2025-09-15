@@ -151,7 +151,7 @@ export const getEvmBalance = async (address: string) => {
 export const getSolanaBalanceFallback = async (address: string) => {
   try {
     const { data: allBalances } = await axios({
-      url: `${getBaseURL()}/v1/balances/solana`,
+      url: `${getBaseURL()}/v1/balances/solana/native-balance`,
       method: 'POST',
       data: {
         address,

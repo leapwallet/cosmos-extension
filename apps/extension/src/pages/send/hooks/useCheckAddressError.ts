@@ -22,6 +22,18 @@ export type UseCheckAddressErrorParams = {
   sendActiveChain: SupportedChain
 }
 
+function isHex(value: string): boolean {
+  return /^(0x|0X)?[a-fA-F0-9]+$/.test(value) && value.length % 2 === 0
+}
+
+function getHexByteLength(value: string): number {
+  return /^(0x|0X)/.test(value) ? (value.length - 2) / 2 : value.length / 2
+}
+
+export function isValidSuiAddress(value: string): value is string {
+  return isHex(value) && getHexByteLength(value) === 32
+}
+
 export function useCheckAddressError({
   setAddressError,
   setAddressWarning,

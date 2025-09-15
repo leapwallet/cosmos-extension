@@ -41,6 +41,7 @@ import {
   erc20DenomsStore,
   erc404DenomsStore,
   rootDenomsStore,
+  rootERC20DenomsStore,
 } from './denoms-store-instance'
 import { stakeEpochStore } from './epoch-store'
 import { selectedNetworkStore } from './selected-network-store'
@@ -118,6 +119,7 @@ export const cw20TokenBalanceStore = new CW20DenomBalanceStore(
   compassTokenTagsStore,
   currencyStore,
   coingeckoIdsStore,
+  storageAdapter,
 )
 
 export const compassSeiEvmConfigStore = new CompassSeiEvmConfigStore()
@@ -129,6 +131,7 @@ export const evmBalanceApiStore = new EVMBalanceAPIStore(
   denomsStore,
   betaERC20DenomsStore,
   coingeckoIdsStore,
+  rootERC20DenomsStore,
 )
 
 export const evmBalanceStore = new EvmBalanceStore(
@@ -168,6 +171,8 @@ export const erc20TokenBalanceStore = new ERC20DenomBalanceStore(
   compassTokenTagsStore,
   evmBalanceApiStore,
   coingeckoIdsStore,
+  storageAdapter,
+  rootERC20DenomsStore,
 )
 
 export const aptosBalanceApiStore = new AptosBalanceApiStore(
@@ -187,6 +192,8 @@ export const aptosCoinDataStore = new AptosCoinDataStore(
   aptosBalanceApiStore,
   currencyStore,
   coingeckoIdsStore,
+  storageAdapter,
+  aggregatedChainsStore,
 )
 
 export const bitcoinBalanceStore = new BitcoinDataStore(
@@ -198,6 +205,7 @@ export const bitcoinBalanceStore = new BitcoinDataStore(
   chainInfoStore,
   aggregatedChainsStore,
   currencyStore,
+  storageAdapter,
 )
 
 export const solanaCoinDataStore = new SolanaCoinDataStore(
@@ -209,6 +217,8 @@ export const solanaCoinDataStore = new SolanaCoinDataStore(
   chainInfoStore,
   currencyStore,
   coingeckoIdsStore,
+  storageAdapter,
+  aggregatedChainsStore,
 )
 
 export const suiCoinDataStore = new SuiCoinDataStore(
@@ -220,4 +230,6 @@ export const suiCoinDataStore = new SuiCoinDataStore(
   chainInfoStore,
   currencyStore,
   coingeckoIdsStore,
+  storageAdapter,
+  aggregatedChainsStore,
 )

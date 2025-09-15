@@ -1,9 +1,8 @@
-import { DenomsRecord, fetchCW20Balances, fromSmall, SupportedChain } from '@leapwallet/cosmos-wallet-sdk';
+import { DenomsRecord, fetchCW20Balances, fromSmall, SupportedChain, toSmall } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
-import { makeAutoObservable, runInAction } from 'mobx';
+import { makeAutoObservable, runInAction, toJS } from 'mobx';
 import { computedFn } from 'mobx-utils';
-import { AggregatedSupportedChainType, SelectedNetworkType } from 'types';
 
 import {
   AggregatedChainsStore,
@@ -18,10 +17,14 @@ import {
   EnabledCW20DenomsStore,
   NmsStore,
 } from '../assets';
+import { AggregatedSupportedChainType, Currency, SelectedNetworkType, StorageAdapter } from '../types';
+import { calculateTokenPriceAndValue } from '../utils/bank/price-calculator';
 import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
 import { sortTokenBalances } from './balance-calculator';
 import { BalanceLoadingStatus, Token } from './balance-types';
 import { PriceStore } from './price-store';
+
+export const CACHED_CW20_BALANCES_KEY = 'cached-cw20-balances';
 
 export class CW20DenomBalanceStore {
   chainWiseBalances: Record<string, Record<string, Token>> = {};
@@ -45,6 +48,8 @@ export class CW20DenomBalanceStore {
   compassTokenTagsStore: CompassTokenTagsStore;
   currencyStore: CurrencyStore;
   coingeckoIdsStore: CoingeckoIdsStore;
+  storageAdapter: StorageAdapter;
+  saveCachedBalancesDebounce: NodeJS.Timeout | null = null;
 
   constructor(
     chainInfosStore: ChainInfosStore,
@@ -63,6 +68,7 @@ export class CW20DenomBalanceStore {
     compassTokenTagsStore: CompassTokenTagsStore,
     currencyStore: CurrencyStore,
     coingeckoIdsStore: CoingeckoIdsStore,
+    storageAdapter: StorageAdapter,
   ) {
     makeAutoObservable(this);
 
@@ -82,6 +88,9 @@ export class CW20DenomBalanceStore {
     this.compassTokenTagsStore = compassTokenTagsStore;
     this.currencyStore = currencyStore;
     this.coingeckoIdsStore = coingeckoIdsStore;
+    this.storageAdapter = storageAdapter;
+
+    this.initCachedBalances();
   }
 
   async initialize() {
@@ -101,17 +110,79 @@ export class CW20DenomBalanceStore {
     ]);
   }
 
-  loadBalances(_chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, refetch = false) {
+  loadBalances(
+    _chain?: AggregatedSupportedChainType,
+    network?: SelectedNetworkType,
+    refetch = false,
+    forceAddresses?: Record<string, string>,
+  ) {
     const _network = network ?? this.selectedNetworkStore.selectedNetwork;
     const chain = _chain || this.activeChainStore.activeChain;
     if (chain === 'aggregated') {
-      return this.fetchAggregatedBalances(_network, refetch);
+      return this.fetchAggregatedBalances(_network, refetch, forceAddresses);
     }
 
-    return this.fetchChainBalances(chain, _network, refetch);
+    return this.fetchChainBalances(chain, _network, refetch, forceAddresses?.[chain]);
   }
 
-  async fetchAggregatedBalances(network: SelectedNetworkType, refetch = false) {
+  updateCurrency(prevCurrency: Currency) {
+    const network = this.selectedNetworkStore.selectedNetwork;
+    const chain = this.activeChainStore.activeChain;
+
+    if (chain === 'aggregated') {
+      return this.updateAggregatedCurrency(network, prevCurrency);
+    }
+    return this.updateCurrencyForChain(chain as SupportedChain, network, prevCurrency);
+  }
+
+  async updateCurrencyForChain(chain: SupportedChain, network: SelectedNetworkType, prevCurrency: Currency) {
+    const oldBalanceKey = this.getBalanceKey(chain, network, undefined, prevCurrency);
+    const balanceKey = this.getBalanceKey(chain, network);
+    try {
+      runInAction(() => {
+        this.chainWiseStatus[balanceKey] = 'loading';
+      });
+
+      const formattedBalances: Token[] = [];
+      Object.values(this.chainWiseBalances[oldBalanceKey] ?? {}).map((denom) => {
+        const newVal = this.formatBalance(
+          { amount: new BigNumber(toSmall(denom.amount, denom.coinDecimals)), denom: denom.coinMinimalDenom },
+          chain,
+        );
+        if (newVal) {
+          formattedBalances.push(newVal);
+        }
+      });
+
+      runInAction(() => {
+        if (!this.chainWiseBalances[balanceKey]) {
+          this.chainWiseBalances[balanceKey] = {};
+        }
+        formattedBalances.map((balance) => {
+          this.chainWiseBalances[balanceKey][balance.coinMinimalDenom] = balance;
+        });
+        this.chainWiseStatus[balanceKey] = null;
+      });
+      if (oldBalanceKey !== balanceKey) {
+        /**
+         * Clean up balances for the old currency.
+         */
+        this.clearCachedBalancesForChain(chain, undefined, prevCurrency);
+      }
+      /**
+       * Save the balances for the new currency.
+       */
+      this.saveCachedBalances();
+    } catch (error) {
+      console.log(error);
+
+      runInAction(() => {
+        this.chainWiseStatus[balanceKey] = 'error';
+      });
+    }
+  }
+
+  async updateAggregatedCurrency(network: SelectedNetworkType, prevCurrency: Currency) {
     runInAction(() => {
       this.aggregatedLoadingStatus = true;
     });
@@ -119,7 +190,7 @@ export class CW20DenomBalanceStore {
     await this.aggregatedChainsStore.readyPromise;
     await Promise.allSettled(
       this.aggregatedChainsStore.aggregatedChainsData.map(async (chain) => {
-        return this.fetchChainBalances(chain as SupportedChain, network, refetch);
+        return this.updateCurrencyForChain(chain as SupportedChain, network, prevCurrency);
       }),
     );
     runInAction(() => {
@@ -128,15 +199,41 @@ export class CW20DenomBalanceStore {
     return;
   }
 
-  async fetchChainBalances(chain: SupportedChain, network: SelectedNetworkType, refetch = false) {
-    const balanceKey = this.getBalanceKey(chain, network);
-    if (!refetch && this.chainWiseBalances[balanceKey]) {
+  async fetchAggregatedBalances(
+    network: SelectedNetworkType,
+    refetch = false,
+    forceAddresses?: Record<string, string>,
+  ) {
+    runInAction(() => {
+      this.aggregatedLoadingStatus = true;
+    });
+
+    await this.aggregatedChainsStore.readyPromise;
+    await Promise.allSettled(
+      this.aggregatedChainsStore.aggregatedChainsData.map(async (chain) => {
+        return this.fetchChainBalances(chain as SupportedChain, network, refetch, forceAddresses?.[chain]);
+      }),
+    );
+    runInAction(() => {
+      this.aggregatedLoadingStatus = false;
+    });
+    return;
+  }
+
+  async fetchChainBalances(
+    chain: SupportedChain,
+    network: SelectedNetworkType,
+    refetch = false,
+    forceAddress?: string,
+  ) {
+    const balanceKey = this.getBalanceKey(chain, network, forceAddress);
+    if (!refetch && this.chainWiseBalances[balanceKey] && this.chainWiseStatus[balanceKey] === null) {
       return;
     }
 
     try {
       const isSeiEvm = this.activeChainStore.isSeiEvm(chain);
-      if (isSeiEvm && chain !== 'seiDevnet') {
+      if (isSeiEvm && chain !== 'seiDevnet' && network === 'mainnet') {
         runInAction(() => {
           if (!this.chainWiseBalances[balanceKey]) {
             this.chainWiseStatus[balanceKey] = 'loading';
@@ -147,15 +244,11 @@ export class CW20DenomBalanceStore {
 
         if (isApiDown) {
           return await this.fetchCW20TokenBalances(chain, network);
-        } else {
-          runInAction(() => {
-            this.chainWiseStatus[balanceKey] = null;
-          });
-          return;
         }
+        return;
       }
 
-      await this.fetchCW20TokenBalances(chain, network);
+      await this.fetchCW20TokenBalances(chain, network, undefined, undefined, forceAddress);
     } catch (e) {
       console.error('Error while fetching cw20 balances', e);
       runInAction(() => {
@@ -169,6 +262,7 @@ export class CW20DenomBalanceStore {
     network: SelectedNetworkType,
     forceCW20Denoms?: string[],
     skipStateUpdate = false,
+    forceAddress?: string,
   ): Promise<Token[] | undefined> {
     let cw20DenomAddresses: string[] | undefined = forceCW20Denoms;
     await this.cw20DenomsStore.readyPromise;
@@ -176,20 +270,20 @@ export class CW20DenomBalanceStore {
       cw20DenomAddresses = this.getCW20DenomAddresses(activeChain);
     }
 
-    const chainInfo = this.chainInfosStore.chainInfos[activeChain];
-    if (!chainInfo) {
+    const chainInfo = this.chainInfosStore.chainInfos?.[activeChain];
+    if (!chainInfo || !!chainInfo?.evmOnlyChain) {
       return;
     }
     const chainId = network === 'testnet' ? chainInfo.testnetChainId : chainInfo.chainId;
 
     if (!chainId) return;
     const nodeUrlKey = network === 'testnet' ? 'rpcTest' : 'rpc';
-    const hasEntryInNms = this.nmsStore.rpcEndPoints[chainId] && this.nmsStore.rpcEndPoints[chainId].length > 0;
+    const hasEntryInNms = this.nmsStore?.rpcEndPoints?.[chainId] && this.nmsStore.rpcEndPoints[chainId].length > 0;
     const rpcUrl = hasEntryInNms ? this.nmsStore.rpcEndPoints[chainId][0].nodeUrl : chainInfo.apis[nodeUrlKey];
-    const address = this.addressStore.addresses[chainInfo.key];
+    const address = forceAddress || this.addressStore.addresses[chainInfo.key];
 
-    const balanceKey = this.getBalanceKey(activeChain, network);
-    if (chainInfo?.evmOnlyChain || !rpcUrl || !address || !cw20DenomAddresses || cw20DenomAddresses.length === 0) {
+    const balanceKey = this.getBalanceKey(activeChain, network, forceAddress);
+    if (!rpcUrl || !address || !cw20DenomAddresses || cw20DenomAddresses.length === 0) {
       runInAction(() => {
         if (!this.chainWiseBalances[balanceKey]) {
           this.chainWiseBalances[balanceKey] = {};
@@ -234,7 +328,9 @@ export class CW20DenomBalanceStore {
       console.error('Error while fetching cw20 balances', e);
       runInAction(() => {
         this.chainWiseStatus[balanceKey] = 'error';
+        this.chainWiseBalances[balanceKey] = {};
       });
+      return [];
     }
 
     if (!skipStateUpdate) {
@@ -257,6 +353,8 @@ export class CW20DenomBalanceStore {
         this.chainWiseStatus[balanceKey] = null;
       });
     }
+
+    this.saveCachedBalances();
 
     return formattedBalances;
   }
@@ -291,12 +389,12 @@ export class CW20DenomBalanceStore {
     return allTokens.filter((token) => !!token.token_symbol);
   }
 
-  async fetchSeiCW20TokenBalances(chain: SupportedChain, network: SelectedNetworkType) {
-    const balanceKey = this.getBalanceKey(chain, network);
+  async fetchSeiCW20TokenBalances(chain: SupportedChain, network: SelectedNetworkType, forceAddress?: string) {
+    const balanceKey = this.getBalanceKey(chain, network, forceAddress);
     const chainInfo = this.chainInfosStore.chainInfos[chain];
     const chainId = network === 'testnet' ? chainInfo.testnetChainId : chainInfo.chainId;
 
-    const address = this.addressStore.addresses?.[chain];
+    const address = forceAddress || this.addressStore.addresses?.[chain];
 
     if (!chainId || !address) {
       runInAction(() => {
@@ -333,7 +431,7 @@ export class CW20DenomBalanceStore {
         return this.formatApiBalance(token, tokensToAddInDenoms, denoms, chain, alternateContract);
       });
 
-      this.denomsStore.setDenoms({ ...denoms, ...tokensToAddInDenoms });
+      this.denomsStore.setTempBaseDenoms(tokensToAddInDenoms);
       this.betaCW20DenomsStore.setTempBetaCW20Denoms(tokensToAddInDenoms, chain);
 
       runInAction(() => {
@@ -352,6 +450,8 @@ export class CW20DenomBalanceStore {
         this.chainWiseStatus[balanceKey] = null;
       });
 
+      this.saveCachedBalances();
+
       return false;
     } catch (e) {
       console.error('Error while fetching sei evm erc20 balances', e);
@@ -362,21 +462,25 @@ export class CW20DenomBalanceStore {
     }
   }
 
-  private getBalanceKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
+  private getBalanceKey(
+    chain: SupportedChain,
+    forceNetwork?: SelectedNetworkType,
+    forceAddress?: string,
+    forceCurrency?: Currency,
+  ): string {
     const chainKey = this.getChainKey(chain, forceNetwork);
-    const address = this.addressStore.addresses[chain];
-    const userPreferredCurrency = this.currencyStore?.preferredCurrency;
-
+    const address = forceAddress || this.addressStore?.addresses?.[chain];
+    const userPreferredCurrency = forceCurrency ?? this.currencyStore?.preferredCurrency;
     return `${chainKey}-${address}-${userPreferredCurrency}`;
   }
 
   private getChainKey(chain: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType): string {
-    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+    const network = forceNetwork ?? this.selectedNetworkStore?.selectedNetwork;
     if (chain === 'aggregated') return `aggregated-${network}`;
     const chainId =
       network === 'testnet'
-        ? this.chainInfosStore.chainInfos[chain]?.testnetChainId
-        : this.chainInfosStore.chainInfos[chain]?.chainId;
+        ? this.chainInfosStore.chainInfos?.[chain]?.testnetChainId
+        : this.chainInfosStore.chainInfos?.[chain]?.chainId;
     return `${chain}-${chainId}`;
   }
 
@@ -424,32 +528,19 @@ export class CW20DenomBalanceStore {
 
     const amount = fromSmall(new BigNumber(balance.amount).toString(), denomInfo?.coinDecimals);
 
-    let usdValue;
-    let tokenPrice;
-
     const coinGeckoId =
       denomInfo?.coinGeckoId ||
       coingeckoIds[denomInfo?.coinMinimalDenom] ||
       coingeckoIds[denomInfo?.coinMinimalDenom?.toLowerCase()] ||
       '';
 
-    if (parseFloat(amount) > 0) {
-      if (coingeckoPrices) {
-        const alternateCoingeckoKey = `${chainInfo.chainId}-${denomInfo.coinMinimalDenom}`;
-
-        if (coinGeckoId) {
-          tokenPrice = coingeckoPrices[coinGeckoId];
-        }
-        if (!tokenPrice) {
-          tokenPrice = coingeckoPrices[alternateCoingeckoKey];
-        }
-        if (tokenPrice) {
-          usdValue = new BigNumber(amount).times(tokenPrice).toString();
-        }
-      }
-    }
-
-    const usdPrice = tokenPrice ? String(tokenPrice) : undefined;
+    const { usdPrice, usdValue } = calculateTokenPriceAndValue({
+      coingeckoPrices,
+      coinMinimalDenom: denomInfo?.coinMinimalDenom,
+      chainId: chainInfo.chainId,
+      coinGeckoId,
+      amount,
+    });
 
     const formattedBalance: Token = {
       chain: denomInfo?.chain ?? '',
@@ -549,22 +640,14 @@ export class CW20DenomBalanceStore {
 
     const chainInfo = this.chainInfosStore.chainInfos[chain];
     const amount = fromSmall(token.value, decimals);
-    let usdValue = token.usdValue;
-    let tokenPrice;
 
-    if (!token.usdValue && coinGeckoPrices && parseFloat(amount) > 0) {
-      const alternateCoingeckoKey = `${chainInfo.chainId}-${contract}`;
-
-      if (coinGeckoId) {
-        tokenPrice = coinGeckoPrices[coinGeckoId];
-      }
-      if (!tokenPrice) {
-        tokenPrice = coinGeckoPrices[alternateCoingeckoKey] ?? coinGeckoPrices[alternateCoingeckoKey?.toLowerCase()];
-      }
-      if (tokenPrice) {
-        usdValue = new BigNumber(amount).times(tokenPrice).toString();
-      }
-    }
+    const { usdPrice: tokenPrice, usdValue } = calculateTokenPriceAndValue({
+      coingeckoPrices: coinGeckoPrices,
+      coinMinimalDenom: denomInfo?.coinMinimalDenom,
+      chainId: chainInfo.chainId,
+      coinGeckoId,
+      amount,
+    });
 
     const usdPrice = token.usdPrice ? token.usdPrice : tokenPrice ? String(tokenPrice) : undefined;
     return {
@@ -608,26 +691,31 @@ export class CW20DenomBalanceStore {
     return sortTokenBalances(cw20Tokens);
   }
 
-  getAggregatedCW20Tokens = computedFn((network: SelectedNetworkType) => {
-    let allTokens: Token[] = [];
-    const chains = Object.keys(this.chainInfosStore?.chainInfos)?.filter(
-      (chain) =>
-        network === 'testnet' ||
-        this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
-          this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId,
-    );
-
-    chains.forEach((chain) => {
-      const balanceKey = this.getBalanceKey(chain as SupportedChain, network);
-      const cw20Tokens = this.filterDisplayCW20Tokens(
-        Object.values(this.chainWiseBalances[balanceKey] ?? {}),
-        chain as SupportedChain,
+  getAggregatedCW20Tokens = computedFn(
+    (network: SelectedNetworkType, forceAddresses: Record<string, string> | undefined) => {
+      let allTokens: Token[] = [];
+      const chains = Object.keys(this.chainInfosStore?.chainInfos)?.filter(
+        (chain) =>
+          network === 'testnet' ||
+          this.chainInfosStore.chainInfos[chain as SupportedChain]?.chainId !==
+            this.chainInfosStore.chainInfos[chain as SupportedChain]?.testnetChainId,
       );
-      allTokens = allTokens.concat(cw20Tokens);
-    });
+      chains.forEach((chain) => {
+        if (forceAddresses && !forceAddresses[chain as SupportedChain]) {
+          return;
+        }
 
-    return sortTokenBalances(allTokens);
-  });
+        const balanceKey = this.getBalanceKey(chain as SupportedChain, network, forceAddresses?.[chain]);
+        const cw20Tokens = this.filterDisplayCW20Tokens(
+          Object.values(this.chainWiseBalances[balanceKey] ?? {}),
+          chain as SupportedChain,
+        );
+        allTokens = allTokens.concat(cw20Tokens);
+      });
+
+      return sortTokenBalances(allTokens);
+    },
+  );
 
   get allCW20Tokens() {
     let allTokens: Token[] = [];
@@ -651,19 +739,25 @@ export class CW20DenomBalanceStore {
     return sortTokenBalances(allTokens);
   }
 
-  getCW20TokensForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
-    const balanceKey = this.getBalanceKey(chain, network);
-    const cw20Tokens = this.filterDisplayCW20Tokens(Object.values(this.chainWiseBalances[balanceKey] ?? {}), chain);
-    return sortTokenBalances(cw20Tokens ?? []);
-  });
+  getCW20TokensForChain = computedFn(
+    (chain: SupportedChain, network: SelectedNetworkType, forceAddress: string | undefined) => {
+      const balanceKey = this.getBalanceKey(chain, network, forceAddress);
+      const cw20Tokens = this.filterDisplayCW20Tokens(Object.values(this.chainWiseBalances[balanceKey] ?? {}), chain);
+      return sortTokenBalances(cw20Tokens ?? []);
+    },
+  );
 
-  getLoadingStatusForChain = (chain: SupportedChain, network: SelectedNetworkType) => {
-    const balanceKey = this.getBalanceKey(chain, network);
-    return this.chainWiseStatus[balanceKey] === 'loading';
+  getLoadingStatusForChain = (
+    chain: SupportedChain,
+    network: SelectedNetworkType,
+    forceAddress: string | undefined,
+  ) => {
+    const balanceKey = this.getBalanceKey(chain, network, forceAddress);
+    return this.chainWiseStatus[balanceKey] === undefined || this.chainWiseStatus[balanceKey] === 'loading';
   };
 
-  getErrorStatusForChain = (chain: SupportedChain, network: SelectedNetworkType) => {
-    const balanceKey = this.getBalanceKey(chain, network);
+  getErrorStatusForChain = (chain: SupportedChain, network: SelectedNetworkType, forceAddress?: string) => {
+    const balanceKey = this.getBalanceKey(chain, network, forceAddress);
     return this.chainWiseStatus[balanceKey] === 'error';
   };
 
@@ -674,7 +768,7 @@ export class CW20DenomBalanceStore {
     }
 
     const balanceKey = this.getBalanceKey(activeChain);
-    return this.chainWiseStatus[balanceKey] === 'loading';
+    return this.chainWiseStatus[balanceKey] === undefined || this.chainWiseStatus[balanceKey] === 'loading';
   }
 
   private async waitForCoingeckoIdsStore() {
@@ -688,6 +782,97 @@ export class CW20DenomBalanceStore {
   private async waitForPriceStore() {
     try {
       await this.priceStore.readyPromise;
+    } catch (e) {
+      //
+    }
+  }
+
+  /**
+   * Debounce the save of cached balances to storage by 1 second.
+   * To avoid multiple calls to the storage adapter.
+   */
+  private async saveCachedBalances() {
+    try {
+      if (this.saveCachedBalancesDebounce) {
+        clearTimeout(this.saveCachedBalancesDebounce);
+      }
+
+      this.saveCachedBalancesDebounce = setTimeout(() => {
+        this.saveCachedBalancesToStorage();
+        this.saveCachedBalancesDebounce = null;
+      }, 1000);
+    } catch (e) {
+      //
+    }
+  }
+
+  private async saveCachedBalancesToStorage() {
+    try {
+      await this.storageAdapter.set(CACHED_CW20_BALANCES_KEY, toJS(this.chainWiseBalances), 'idb');
+    } catch (e) {
+      //
+    }
+  }
+
+  private async initCachedBalances() {
+    try {
+      const cachedBalances = await this.storageAdapter.get<Record<string, Record<string, Token>>>(
+        CACHED_CW20_BALANCES_KEY,
+        'idb',
+      );
+      if (!cachedBalances) {
+        return;
+      }
+
+      runInAction(() => {
+        this.chainWiseBalances = cachedBalances;
+      });
+    } catch (e) {
+      //
+    }
+  }
+
+  clearCachedBalancesForChain(chain: SupportedChain, address?: string, forceCurrency?: Currency) {
+    try {
+      const balanceKey = this.getBalanceKey(chain, 'mainnet', address, forceCurrency);
+      if (this.chainWiseBalances?.[balanceKey]) {
+        runInAction(() => {
+          delete this.chainWiseBalances[balanceKey];
+        });
+      }
+    } catch (e) {
+      //
+    }
+    try {
+      const balanceKey = this.getBalanceKey(chain, 'testnet', address, forceCurrency);
+      if (this.chainWiseBalances?.[balanceKey]) {
+        runInAction(() => {
+          delete this.chainWiseBalances[balanceKey];
+        });
+      }
+    } catch (e) {
+      //
+    }
+  }
+
+  /**
+   * Clear the cached balances for the given addresses.
+   * It will use `forceAddresses` and `chainInfosStore` to calculate the balance keys.
+   * It will clear the balances for the mainnet and testnet,
+   * If balances are present for corresponding networks.
+   *
+   * @param forceAddresses - The addresses to clear the balances for.
+   */
+  clearCachedBalances(forceAddresses: Record<string, string>) {
+    try {
+      Object.keys(this.chainInfosStore.chainInfos).forEach((chain) => {
+        if (!forceAddresses?.[chain as SupportedChain]) {
+          return;
+        }
+
+        this.clearCachedBalancesForChain(chain as SupportedChain, forceAddresses?.[chain as SupportedChain]);
+      });
+      this.saveCachedBalances();
     } catch (e) {
       //
     }

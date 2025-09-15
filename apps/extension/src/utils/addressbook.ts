@@ -9,7 +9,7 @@ import {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-use-before-define */
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-import { isValidSuiAddress } from 'pages/send-v2/hooks/useCheckAddressError'
+import { isValidSuiAddress } from 'pages/send/hooks/useCheckAddressError'
 import { useEffect, useState } from 'react'
 import extension from 'webextension-polyfill'
 

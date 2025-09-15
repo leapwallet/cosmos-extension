@@ -36,7 +36,7 @@ export function WarningsSection({
 
   if (isMoreThanOneStepTransaction) {
     return (
-      <WarningBox message='This is a multi-step route, please navigate to Swapfast to complete the swap' />
+      <WarningBox message='This is a multi-step route, please navigate to Leap web app to complete the swap' />
     )
   }
 

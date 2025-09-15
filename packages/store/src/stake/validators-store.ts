@@ -215,7 +215,7 @@ export class ValidatorsStore {
       let unbonding_time = 0;
       if (!isAggregated) {
         const chainData = await getChainInfo(activeChainKey, isTestnet);
-        const validatorsPromise = this.stakingApiStore.getValidators(activeChainInfo.chainId, denom.coinMinimalDenom);
+        const validatorsPromise = this.stakingApiStore.getValidators(activeChainId, denom.coinMinimalDenom);
 
         const unbondingTimePromise = getUnbondingTime(
           activeChainKey,
@@ -227,7 +227,7 @@ export class ValidatorsStore {
 
         const [{ data, error }, res] = await Promise.all([validatorsPromise, unbondingTimePromise]);
 
-        if (error && error.chainId === activeChainInfo.chainId) {
+        if (error && error.chainId === activeChainId) {
           validators = (await CosmosDirectory(isTestnet).getValidators(
             activeChainKey,
             lcdUrl,

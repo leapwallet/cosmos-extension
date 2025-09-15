@@ -7,7 +7,6 @@ import {
   useAddress,
   useChainId,
   useGetExplorerTxnUrl,
-  useInvalidateActivity,
   usePendingTxState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -21,6 +20,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { activityStore } from 'stores/activity-store'
 import { rootBalanceStore } from 'stores/root-store'
 import { formatTokenAmount, sliceWord } from 'utils/strings'
 
@@ -70,11 +70,11 @@ const TxPage = observer(
     const invalidateBalances = useCallback(() => {
       rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
       if (toAddress) {
-        rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, toAddress)
+        rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, {
+          [toChain ?? activeChain]: toAddress,
+        })
       }
     }, [activeChain, selectedNetwork, toAddress, toChain])
-
-    const invalidateActivity = useInvalidateActivity()
 
     const copies = useMemo(() => {
       switch (txType) {
@@ -117,7 +117,7 @@ const TxPage = observer(
     useEffect(() => {
       const invalidateQueries = () => {
         invalidateBalances()
-        invalidateActivity(activeChain)
+        activityStore.invalidateActivity(activeChain)
       }
 
       if (pendingTx && pendingTx.promise) {
@@ -133,6 +133,58 @@ const TxPage = observer(
               setPendingTx({ ...pendingTx, txStatus: 'success' })
             } else if ('status' in result) {
               setPendingTx({ ...pendingTx, txStatus: 'submitted' })
+            } else if ('result' in result) {
+              // solana
+              if ((result as any)?.result?.value?.err) {
+                setPendingTx({ ...pendingTx, txStatus: 'failed' })
+              } else {
+                setPendingTx({
+                  ...pendingTx,
+                  txHash: (result as any)?.signature,
+                  txStatus: 'success',
+                })
+                const metadata = getMetaDataForSendTx(pendingTx?.toAddress ?? '', {
+                  amount: new BigNumber(pendingTx.sentAmount ?? '')
+                    .times(10 ** (pendingTx.sentTokenInfo?.coinDecimals ?? 9))
+                    .toString(),
+                  denom: pendingTx.sentTokenInfo?.coinMinimalDenom ?? '',
+                })
+                txPostToDB({
+                  txHash: (result as any)?.signature,
+                  txType: CosmosTxType.Send,
+                  metadata: metadata,
+                  feeQuantity: pendingTx.feeQuantity,
+                  feeDenomination: pendingTx.feeDenomination,
+                  amount: pendingTx.txnLogAmount,
+                  forceChain: activeChain,
+                  forceNetwork: selectedNetwork,
+                  forceWalletAddress: address,
+                  chainId: activeChainId,
+                  isSolana: true,
+                })
+              }
+            } else if ('suiResult' in result) {
+              // sui
+              if ((result?.suiResult as any)?.status === 'success') {
+                setPendingTx({
+                  ...pendingTx,
+                  txHash: (result?.suiResult as any)?.txHash,
+                  txStatus: 'success',
+                })
+              } else {
+                setPendingTx({ ...pendingTx, txStatus: 'failed' })
+              }
+            } else if ('aptosResult' in result) {
+              // aptos
+              if ((result?.aptosResult as any)?.success === true) {
+                setPendingTx({
+                  ...pendingTx,
+                  txHash: (result?.aptosResult as any)?.hash,
+                  txStatus: 'success',
+                })
+              } else {
+                setPendingTx({ ...pendingTx, txStatus: 'failed' })
+              }
             }
             if (pendingTx.txType === 'cw20TokenTransfer') {
               setTxHash(result.transactionHash)
@@ -161,6 +213,8 @@ const TxPage = observer(
           .catch(() => {
             if (pendingTx.txType === 'cw20TokenTransfer') {
               setPendingTx({ ...pendingTx, txStatus: 'failed' })
+            } else if (pendingTx.txType === 'send') {
+              setPendingTx({ ...pendingTx, txStatus: 'failed' })
             }
 
             invalidateQueries()
@@ -173,11 +227,18 @@ const TxPage = observer(
       if (_txHash) setTxHash(_txHash)
     }, [_txHash])
 
-    const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({
+    const { explorerTxnUrl: _txnUrl } = useGetExplorerTxnUrl({
       forceTxHash: txHash,
       forceChain: activeChain,
       forceNetwork: selectedNetwork,
     })
+
+    const txnUrl = useMemo(() => {
+      if (txHash) {
+        return _txnUrl
+      }
+      return undefined
+    }, [_txnUrl, txHash])
 
     return (
       <BottomModal

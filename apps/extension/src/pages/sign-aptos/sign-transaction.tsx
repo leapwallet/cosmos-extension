@@ -35,6 +35,7 @@ import { Avatar, Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-u
 import { CheckSquare, Square } from '@phosphor-icons/react'
 import { base64 } from '@scure/base'
 import { captureException } from '@sentry/react'
+import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
@@ -513,13 +514,6 @@ const SignTransaction = observer(
       }
     }, [activeWallet.walletType, chainInfo.chainId, chainInfo.chainName, siteOrigin])
 
-    usePerformanceMonitor({
-      page: 'sign-aptos-transaction',
-      queryStatus: txnSigningRequest ? 'success' : 'loading',
-      op: 'signAptosTransactionPageLoad',
-      description: 'Load tome for sign aptos transaction page',
-    })
-
     const disableBalanceCheck = useMemo(() => {
       return !!fee?.granter || !!fee?.payer || !!signOptions?.disableBalanceCheck
     }, [fee?.granter, fee?.payer, signOptions?.disableBalanceCheck])
@@ -531,6 +525,46 @@ const SignTransaction = observer(
       (isFeesValid === false && !highFeeAccepted) ||
       isLoadingGasLimit ||
       isSigning
+
+    const performMonitorProps = useMemo(() => {
+      return {
+        page: 'sign-aptos-transaction',
+        queryStatus: isApproveBtnDisabled ? 'loading' : ('success' as QueryStatus),
+        op: 'signAptosTransactionPageApproveBtnLoad',
+        description: "Load time for aptos sign transaction page's approve button",
+        terminateProps: {
+          maxDuration: 5000,
+          logData: {
+            tags: {
+              isApproveBtnDisabled: isApproveBtnDisabled,
+              dappFeeDenom: dappFeeDenom,
+              signingError: !!signingError,
+              gasPriceError: !!gasPriceError,
+              isFeesValid: !!isFeesValid,
+              highFeeAccepted: highFeeAccepted,
+              isSigning: isSigning,
+              isLoadingGasLimit: isLoadingGasLimit,
+            },
+            context: {
+              dappFeeDenom: dappFeeDenom,
+              signingError: signingError,
+              gasPriceError: gasPriceError,
+            },
+          },
+        },
+      }
+    }, [
+      isApproveBtnDisabled,
+      dappFeeDenom,
+      signingError,
+      gasPriceError,
+      isFeesValid,
+      highFeeAccepted,
+      isSigning,
+      isLoadingGasLimit,
+    ])
+
+    usePerformanceMonitor(performMonitorProps)
 
     return (
       <div
@@ -767,7 +801,7 @@ const SignTransaction = observer(
                 </Buttons.Generic>
                 <Buttons.Generic
                   title={'Approve Button'}
-                  color={Colors.getChainColor(activeChain)}
+                  color={Colors.green600}
                   onClick={approveTransaction}
                   disabled={isApproveBtnDisabled}
                   className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}

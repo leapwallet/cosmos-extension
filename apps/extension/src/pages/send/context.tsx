@@ -6,6 +6,7 @@ import {
   useSendModule,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
+  DenomsRecord,
   getBlockChainFromAddress,
   isAptosChain,
   isSolanaChain,
@@ -24,6 +25,7 @@ import { useSecretWallet } from 'hooks/wallet/useScrtWallet'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 import { assert } from 'utils/assert'
 
 const useGetWallet = Wallet.useGetWallet
@@ -55,6 +57,10 @@ export type SendContextType = ReturnType<typeof useSendModule> &
       gasPrice?: number,
       options?: SendTokenEthParamOptions,
     ) => void
+    isSolanaTxnSimulationError: boolean
+    setIsSolanaTxnSimulationError: React.Dispatch<React.SetStateAction<boolean>>
+    isSolanaBalanceInsufficientForFee: boolean
+    setIsSolanaBalanceInsufficientForFee: React.Dispatch<React.SetStateAction<boolean>>
   }>
 
 export const SendContext = createContext<SendContextType | null>(null)
@@ -64,10 +70,11 @@ type SendContextProviderProps = React.PropsWithChildren<{
   rootDenomsStore: RootDenomsStore
   rootCW20DenomsStore: RootCW20DenomsStore
   rootERC20DenomsStore: RootERC20DenomsStore
+  denoms: DenomsRecord
 }>
 
 export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
-  ({ children, rootCW20DenomsStore, rootERC20DenomsStore, rootDenomsStore }) => {
+  ({ children, rootCW20DenomsStore, rootERC20DenomsStore, rootDenomsStore, denoms }) => {
     const allCW20Denoms = rootCW20DenomsStore.allCW20Denoms
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
     const {
@@ -87,7 +94,6 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
       inputAmount,
       setInputAmount,
       ibcSupportData,
-      isIbcSupportDataLoading,
       setSelectedToken,
       feeDenom,
       setFeeDenom,
@@ -141,10 +147,15 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
       clearTxError,
       sendSelectedNetwork,
       setAssociated0xAddress,
+      isSolanaTxnSimulationError,
+      setIsSolanaTxnSimulationError,
+      isSolanaBalanceInsufficientForFee,
+      setIsSolanaBalanceInsufficientForFee,
     } = useSendModule({
-      denoms: rootDenomsStore.allDenoms,
+      denoms,
       cw20Denoms: allCW20Denoms,
       erc20Denoms: allERC20Denoms,
+      ibcDataStore,
     })
 
     const getWallet = useGetWallet(sendActiveChain)
@@ -255,7 +266,6 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
         inputAmount,
         setInputAmount,
         ibcSupportData,
-        isIbcSupportDataLoading,
         setSelectedToken,
         feeDenom,
         setFeeDenom,
@@ -309,6 +319,10 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
         clearTxError,
         sendSelectedNetwork,
         setAssociated0xAddress,
+        isSolanaTxnSimulationError,
+        setIsSolanaTxnSimulationError,
+        isSolanaBalanceInsufficientForFee,
+        setIsSolanaBalanceInsufficientForFee,
       } as const
     }, [
       currentWalletAddress,
@@ -334,7 +348,6 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
       inputAmount,
       setInputAmount,
       ibcSupportData,
-      isIbcSupportDataLoading,
       setSelectedToken,
       feeDenom,
       setFeeDenom,
@@ -388,6 +401,10 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
       clearTxError,
       sendSelectedNetwork,
       setAssociated0xAddress,
+      isSolanaTxnSimulationError,
+      setIsSolanaTxnSimulationError,
+      isSolanaBalanceInsufficientForFee,
+      setIsSolanaBalanceInsufficientForFee,
     ])
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

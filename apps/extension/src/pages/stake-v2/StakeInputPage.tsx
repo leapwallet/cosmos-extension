@@ -12,7 +12,7 @@ import {
   useStakeTx,
   useStaking,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { isBabylon, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
+import { fromSmall, isBabylon, SupportedChain, Validator } from '@leapwallet/cosmos-wallet-sdk'
 import {
   Delegation,
   Provider,
@@ -34,12 +34,10 @@ import { DisplayFeeValue, GasPriceOptionValue } from 'components/gas-price-optio
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import { YouStakeSkeleton } from 'components/Skeletons/StakeSkeleton'
-import { EventName } from 'config/analytics'
 import { addSeconds } from 'date-fns'
 import useActiveWallet from 'hooks/settings/useActiveWallet'
 import useQuery from 'hooks/useQuery'
 import { Wallet } from 'hooks/wallet/useWallet'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -52,8 +50,10 @@ import SelectValidatorSheet from './components/SelectValidatorSheet'
 import YouStake from './components/YouStake'
 import useGetWallet = Wallet.useGetWallet
 
+import Text from 'components/text'
 import { Button } from 'components/ui/button'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
+import { useAddress } from 'hooks/wallet/useAddress'
 import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 
 import AutoAdjustAmountSheet from './components/AutoAdjustModal'
@@ -169,6 +169,7 @@ const StakeInputPage = observer(
     }, [activeChain, activeNetwork, validatorsStore])
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
+    const address = useAddress()
     const { network } = useStaking(
       denoms,
       chainDelegations,
@@ -270,10 +271,27 @@ const StakeInputPage = observer(
     const [displayFeeValue, setDisplayFeeValue] = useState<DisplayFeeValue>()
 
     const token = useMemo(() => {
-      return rootBalanceStore.allSpendableTokens?.find(
-        (e) => e.symbol === activeStakingDenom?.coinDenom && !e.ibcChainInfo,
+      return rootBalanceStore.allTokens?.find(
+        (e) =>
+          e.symbol === activeStakingDenom?.coinDenom &&
+          e.tokenBalanceOnChain === activeChain &&
+          !e.ibcChainInfo,
       )
-    }, [activeStakingDenom?.coinDenom, rootBalanceStore.allSpendableTokens])
+    }, [activeStakingDenom?.coinDenom, rootBalanceStore.allTokens, activeChain])
+
+    const spendableToken = useMemo(() => {
+      return rootBalanceStore.allSpendableTokens?.find(
+        (e) =>
+          e.symbol === activeStakingDenom?.coinDenom &&
+          e.tokenBalanceOnChain === activeChain &&
+          !e.ibcChainInfo,
+      )
+    }, [activeStakingDenom?.coinDenom, rootBalanceStore.allSpendableTokens, activeChain])
+
+    const noUnlockedToken =
+      (!spendableToken || spendableToken?.amount === '0') &&
+      token?.amount &&
+      parseFloat(token.amount) > 0
 
     const consensusValidators = useConsensusValidators(
       validators,
@@ -557,6 +575,11 @@ const StakeInputPage = observer(
                   )}
                 </div>
               )}
+              {noUnlockedToken && (
+                <Text className='px-3 font-medium text-center' size='sm' color='text-red-300'>
+                  Insufficient unlocked {token?.symbol} for gas fees. Please buy some and try again
+                </Text>
+              )}
             </div>
             <div className='flex flex-col gap-4 w-full p-4 mt-auto sticky bottom-0 bg-secondary-100'>
               <Button
@@ -589,6 +612,7 @@ const StakeInputPage = observer(
                 disabled={
                   !new BigNumber(amount).isGreaterThan(0) ||
                   hasError ||
+                  noUnlockedToken ||
                   ((fromValidator || mode === 'DELEGATE') && !selectedValidator) ||
                   (fromProvider && !selectedProvider) ||
                   !!ledgerError
@@ -646,6 +670,7 @@ const StakeInputPage = observer(
             unstakingPeriod={unstakingPeriod}
             showLedgerPopup={showLedgerPopup}
             ledgerError={ledgerError}
+            activeChain={activeChain}
           />
         )}
         {mode === 'DELEGATE' && token && customFee && showAdjustAmountSheet ? (

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Token, useGasAdjustmentForChain } from '@leapwallet/cosmos-wallet-hooks'
+import { isSuiChain } from '@leapwallet/cosmos-wallet-sdk'
 import {
   EvmBalanceStore,
   RootBalanceStore,
@@ -54,7 +55,7 @@ export const AmountCard = observer(
     const allCW20Denoms = rootCW20DenomsStore.allCW20Denoms
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
     const { getAggregatedSpendableBalances } = rootBalanceStore
-    const allAssets = getAggregatedSpendableBalances(selectedNetwork)
+    const allAssets = getAggregatedSpendableBalances(selectedNetwork, undefined)
     const assets = useMemo(() => {
       const _assets = allAssets
 
@@ -90,6 +91,7 @@ export const AmountCard = observer(
       sameChain,
       setFeeDenom,
       hasToUsePointerLogic,
+      computedGas,
     } = useSendContext()
 
     const gasAdjustment = useGasAdjustmentForChain()
@@ -129,6 +131,14 @@ export const AmountCard = observer(
         if (new BigNumber(inputAmount).gt(new BigNumber(selectedToken?.amount ?? ''))) {
           return 'Insufficient balance'
         }
+        if (
+          isSuiChain(sendActiveChain) &&
+          isSuiChain(selectedToken?.chain ?? '') &&
+          selectedToken?.coinMinimalDenom === 'mist' &&
+          new BigNumber(fee?.amount?.[0]?.amount ?? 0).eq(0)
+        ) {
+          return 'Insufficient balance for fees'
+        }
 
         const feeDenomValue = assets.find((asset) => {
           if (selectedToken?.isEvm && asset?.isEvm) {
@@ -151,6 +161,8 @@ export const AmountCard = observer(
           feeDenom: feeDenom,
           gasAdjustment,
           isSeiEvmTransaction: chainInfos?.[sendActiveChain]?.evmOnlyChain,
+          isSui: isSuiChain(sendActiveChain),
+          computedGas: computedGas,
         })
 
         if (amount.gt(feeDenomValue.amount)) {
@@ -173,6 +185,7 @@ export const AmountCard = observer(
       chainInfos,
       allERC20Denoms,
       hasToUsePointerLogic,
+      computedGas,
     ])
 
     useEffect(() => {
@@ -181,26 +194,31 @@ export const AmountCard = observer(
         setSelectedToken((selectedToken) => {
           const match = assets.find((asset) => {
             if (asset.ibcDenom) {
-              return asset.ibcDenom === selectedToken?.ibcDenom
+              return (
+                asset.ibcDenom === selectedToken?.ibcDenom &&
+                asset.tokenBalanceOnChain === selectedToken?.tokenBalanceOnChain
+              )
             }
-            return asset.coinMinimalDenom === selectedToken?.coinMinimalDenom
+            return (
+              asset.coinMinimalDenom === selectedToken?.coinMinimalDenom &&
+              asset.tokenBalanceOnChain === selectedToken?.tokenBalanceOnChain
+            )
           })
           // If the token is found in the assets, return it (Meaning token is still valid)
           if (match) {
             return match
           }
-          if (selectedToken) {
-            /**
-             * If the transaction had been initiated with Max button,
-             * we need to reset the amount to 0, if we do not find the
-             * token in the assets.
-             */
-            if (allowUpdateInputStore.updateAllowed()) {
-              return { ...selectedToken, amount: '0' }
-            }
-            return selectedToken
+          /**
+           * If the transaction had been initiated with Max button,
+           * we need to update the selected token to the highest balance token
+           */
+          if (allowUpdateInputStore.updateAllowed()) {
+            const highestBalanceToken = assets.sort(
+              (a, b) => Number(b.usdValue ?? 0) - Number(a.usdValue ?? 0),
+            )[0]
+            return highestBalanceToken
           }
-          return null
+          return selectedToken
         })
       }
     }, [assets, resetForm, setSelectedToken])

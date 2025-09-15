@@ -43,14 +43,14 @@ export class DisabledCW20DenomsStore {
     return this.denoms?.[address] ?? [];
   }
 
-  getDisabledCW20DenomsForChain = computedFn((chain: SupportedChain) => {
-    const address = this.addressStore.addresses[chain];
+  getDisabledCW20DenomsForChain = computedFn((chain: SupportedChain, forceAddress?: string) => {
+    const address = forceAddress || this.addressStore.addresses[chain];
     return this.denoms?.[address] ?? [];
   });
 
-  async setDisabledCW20Denoms(value: string[], forceChain?: AggregatedSupportedChainType) {
+  async setDisabledCW20Denoms(value: string[], forceChain?: AggregatedSupportedChainType, forceAddress?: string) {
     const activeChain = forceChain || this.activeChainStore.activeChain;
-    const address = this.addressStore.addresses[activeChain];
+    const address = forceAddress || this.addressStore.addresses[activeChain];
     runInAction(() => {
       this.denoms = { ...this.denoms, [address]: value };
     });

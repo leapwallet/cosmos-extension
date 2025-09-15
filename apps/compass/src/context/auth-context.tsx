@@ -237,7 +237,7 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
           setNoAccount(false)
           setLoading(false)
           passwordStore.setPassword(password)
-          rootStore.initStores()
+          rootStore.initStores(true, true)
           callback && callback()
         } catch (e) {
           setLoading(false)

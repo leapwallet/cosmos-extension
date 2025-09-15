@@ -105,7 +105,7 @@ function removeTrailingSlash(url: string) {
   return url.replace(/\/$/, '');
 }
 
-export function formatNewChainInfo(chainInfo: CustomChainsType) {
+export function formatNewChainInfo(chainInfo: CustomChainsType): ChainInfo & { features?: string[] } {
   if ('evmOnlyChain' in chainInfo) {
     return { ...chainInfo, beta: true };
   }

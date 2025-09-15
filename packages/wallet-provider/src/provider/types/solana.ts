@@ -2,6 +2,8 @@ import { IdentifierString } from '@aptos-labs/wallet-standard';
 import { type SolanaSignInInput, type SolanaSignInOutput } from '@solana/wallet-standard-features';
 import type { PublicKey, SendOptions, Transaction, TransactionSignature, VersionedTransaction } from '@solana/web3.js';
 
+import { SUPPORTED_METHODS } from '../messaging/requester';
+
 export enum SOLANA_METHOD_TYPE {
   CONNECT = 'connect',
   DISCONNECT = 'disconnect',
@@ -9,6 +11,7 @@ export enum SOLANA_METHOD_TYPE {
   SIGN_MESSAGE = 'sign-message',
   SIGN_AND_SEND_TRANSACTION = 'sign-and-send-transaction',
   CHANGE_NETWORK = 'change-network',
+  OPEN_SIDE_PANEL = SUPPORTED_METHODS.OPEN_SIDE_PANEL,
 }
 
 export interface LeapSolanaEvent {

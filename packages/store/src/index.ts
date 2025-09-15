@@ -1,3 +1,4 @@
+export * from './activity';
 export * from './assets';
 export * from './bank';
 export * from './banners';

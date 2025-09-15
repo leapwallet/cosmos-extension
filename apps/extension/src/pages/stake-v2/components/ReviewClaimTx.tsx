@@ -19,22 +19,22 @@ import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import BottomModal from 'components/new-bottom-modal'
-import { EventName } from 'config/analytics'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { imgOnError } from 'utils/imgOnError'
 import { sidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import { Button } from 'components/ui/button'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import Lottie from 'lottie-react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { hideAssetsStore } from 'stores/hide-assets-store'
@@ -45,6 +45,7 @@ import {
   unDelegationsStore,
   validatorsStore,
 } from 'stores/stake-store'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 
 import { transitionTitleMap } from '../utils/stake-text'
 
@@ -97,7 +98,7 @@ const ReviewClaimTx = observer(
     const activeChain = forceChain ?? _activeChain
     const _activeNetwork = useSelectedNetwork()
     const activeNetwork = forceNetwork ?? _activeNetwork
-
+    const openLedgerReconnect = useOpenLedgerReconnect()
     const getWallet = useGetWallet(activeChain)
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, {
@@ -160,9 +161,11 @@ const ReviewClaimTx = observer(
 
     const rewardValidators = useMemo(() => {
       if (rewards && validators) {
-        return rewards.rewards.map((reward) => validators[reward.validator_address])
+        return rewards.rewards
+          .filter((reward) => delegations?.[reward.validator_address])
+          .map((reward) => validators[reward.validator_address])
       }
-    }, [rewards, validators])
+    }, [delegations, rewards, validators])
 
     const { data: validatorImage } = useValidatorImage(
       rewardValidators?.[0]?.image ? undefined : rewardValidators?.[0],
@@ -288,6 +291,18 @@ const ReviewClaimTx = observer(
       activeNetwork,
     })
 
+    const isLedgerDisconnectedError = useMemo(() => {
+      return isLedgerDisconnected(ledgerError)
+    }, [ledgerError])
+
+    const handleClaimRewardsClick = useCallback(async () => {
+      if (isLedgerDisconnectedError) {
+        openLedgerReconnect()
+        return
+      }
+      onClaimRewardsClick()
+    }, [isLedgerDisconnectedError, onClaimRewardsClick, openLedgerReconnect])
+
     return (
       <GasPriceOptions
         recommendedGasLimit={recommendedGasLimit}
@@ -321,9 +336,10 @@ const ReviewClaimTx = observer(
           </div>
 
           <div className='flex flex-col items-center w-full gap-y-2'>
-            {ledgerError && (
+            {!isLedgerDisconnectedError && ledgerError && (
               <p className='text-sm font-bold text-destructive-100 px-2'>{ledgerError}</p>
             )}
+            {isLedgerDisconnectedError && <LedgerDisconnectError />}
             {error && <p className='text-sm font-bold text-destructive-100 px-2'>{error}</p>}
             {gasError && !showFeesSettingSheet && (
               <p className='text-sm font-bold text-destructive-100 px-2'>{gasError}</p>
@@ -331,10 +347,18 @@ const ReviewClaimTx = observer(
 
             <Button
               className='w-full'
-              disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
-              onClick={onClaimRewardsClick}
+              disabled={
+                isLoading ||
+                !!error ||
+                !!gasError ||
+                showLedgerPopup ||
+                (!isLedgerDisconnectedError && !!ledgerError)
+              }
+              onClick={handleClaimRewardsClick}
             >
-              {isLoading ? (
+              {isLedgerDisconnectedError ? (
+                'Connect Ledger'
+              ) : isLoading ? (
                 <Lottie
                   loop={true}
                   autoplay={true}

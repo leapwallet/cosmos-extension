@@ -43,10 +43,12 @@ import {
 } from '@leapwallet/parser-parfait'
 import { CheckSquare, Square } from '@phosphor-icons/react'
 import { captureException } from '@sentry/react'
+import { QueryStatus } from '@tanstack/react-query'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
 import { ErrorCard } from 'components/ErrorCard'
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
@@ -58,6 +60,7 @@ import { BG_RESPONSE } from 'config/storage-keys'
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx'
 import { decodeChainIdToChain } from 'extension-scripts/utils'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -74,6 +77,7 @@ import { Colors } from 'theme/colors'
 import { assert } from 'utils/assert'
 import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 import { isSidePanel } from 'utils/isSidePanel'
 import { uiErrorTags } from 'utils/sentry'
 import { trim } from 'utils/strings'
@@ -142,6 +146,7 @@ const SignTransaction = observer(
     const [gasPriceError, setGasPriceError] = useState<string | null>(null)
     const [userPreferredGasLimit, setUserPreferredGasLimit] = useState<string>('')
     const [userMemo, setUserMemo] = useState<string>('')
+    const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(false)
 
     const [checkedGrantAuthBox, setCheckedGrantAuthBox] = useState(false)
     const chainInfo = useChainInfo(activeChain)
@@ -448,7 +453,25 @@ const SignTransaction = observer(
       return defaultGasPrice.gasPrice.denom
     }, [defaultFee, defaultGasPrice.gasPrice])
 
+    const openLedgerReconnect = useOpenLedgerReconnect()
+
+    const isLedgerDisconnectedError = useMemo(() => {
+      return isLedgerDisconnected(ledgerError)
+    }, [ledgerError])
+
     const approveTransaction = useCallback(async () => {
+      if (isLedgerDisconnectedError) {
+        try {
+          await browser.runtime.sendMessage({
+            type: MessageTypes.signResponse,
+            payload: { status: 'error', data: 'Transaction cancelled by the user.' },
+          })
+          await openLedgerReconnect()
+        } catch (e) {
+          captureException(e)
+        }
+        return
+      }
       const activeAddress = activeWallet.addresses[activeChain]
       if (!activeChain || !signDoc || !activeAddress) {
         return
@@ -760,6 +783,7 @@ const SignTransaction = observer(
       txPostToDb,
       handleCancel,
       ethSignType,
+      isLedgerDisconnectedError,
     ])
 
     useEffect(() => {
@@ -811,13 +835,6 @@ const SignTransaction = observer(
       transactionTypes,
     ])
 
-    usePerformanceMonitor({
-      page: 'sign-transaction',
-      queryStatus: txnSigningRequest ? 'success' : 'loading',
-      op: 'signTransactionPageLoad',
-      description: 'Load tome for sign transaction page',
-    })
-
     const hasToShowCheckbox = useMemo(() => {
       if (isSignArbitrary) {
         return ''
@@ -840,6 +857,47 @@ const SignTransaction = observer(
       !!gasPriceError ||
       (!!hasToShowCheckbox && checkedGrantAuthBox === false) ||
       (isFeesValid === false && !highFeeAccepted)
+
+    const performMonitorProps = useMemo(() => {
+      return {
+        page: 'sign-transaction',
+        queryStatus: isApproveBtnDisabled ? 'loading' : ('success' as QueryStatus),
+        op: 'signTransactionPageApproveBtnLoad',
+        description: "Load time for sign transaction page's approve button",
+        terminateProps: {
+          maxDuration: 5000,
+          logData: {
+            tags: {
+              isApproveBtnDisabled: isApproveBtnDisabled,
+              dappFeeDenom: dappFeeDenom,
+              signingError: !!signingError,
+              gasPriceError: !!gasPriceError,
+              hasToShowCheckbox: !!hasToShowCheckbox,
+              checkedGrantAuthBox: checkedGrantAuthBox,
+              isFeesValid: !!isFeesValid,
+              highFeeAccepted: highFeeAccepted,
+            },
+            context: {
+              dappFeeDenom: dappFeeDenom,
+              signingError: signingError,
+              gasPriceError: gasPriceError,
+              hasToShowCheckbox: hasToShowCheckbox,
+            },
+          },
+        },
+      }
+    }, [
+      isApproveBtnDisabled,
+      dappFeeDenom,
+      signingError,
+      gasPriceError,
+      hasToShowCheckbox,
+      checkedGrantAuthBox,
+      isFeesValid,
+      highFeeAccepted,
+    ])
+
+    usePerformanceMonitor(performMonitorProps)
 
     return (
       <div
@@ -1093,9 +1151,10 @@ const SignTransaction = observer(
               )}
 
               <div className='mt-3'>
-                {signingError ?? ledgerError ? (
+                {!isLedgerDisconnectedError && (signingError || ledgerError) ? (
                   <ErrorCard text={signingError ?? ledgerError} />
                 ) : null}
+                {isLedgerDisconnectedError && <LedgerDisconnectError />}
               </div>
 
               <LedgerConfirmationModal
@@ -1172,12 +1231,12 @@ const SignTransaction = observer(
                 </Buttons.Generic>
                 <Buttons.Generic
                   title={'Approve Button'}
-                  color={Colors.getChainColor(activeChain)}
+                  color={Colors.green600}
                   onClick={approveTransaction}
                   disabled={isApproveBtnDisabled}
                   className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
-                  Approve
+                  {isLedgerDisconnectedError ? 'Connect Ledger' : 'Approve'}
                 </Buttons.Generic>
               </div>
             </div>

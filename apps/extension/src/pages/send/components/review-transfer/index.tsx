@@ -37,6 +37,7 @@ import { cn } from 'utils/cn'
 import { FeesView } from '../fees-view'
 import { FixedFee } from '../fees-view/FixedFee'
 import { ReviewTransferSheet } from './review-transfer-sheet'
+import { useChannelError } from './useChannelError'
 
 export const ReviewTransfer = observer(
   ({ setShowTxPage }: { setShowTxPage: (val: boolean) => void }) => {
@@ -82,6 +83,7 @@ export const ReviewTransfer = observer(
       onlyTestnets: sendSelectedNetwork === 'testnet',
     })
     const { data: featureFlags } = useFeatureFlags()
+    const { data: channelError, isLoading: isChannelErrorLoading } = useChannelError()
 
     const isInitiaTxn = selectedAddress?.address?.startsWith('init') ?? false
 
@@ -281,6 +283,10 @@ export const ReviewTransfer = observer(
         return 'Select address'
       }
 
+      if (channelError) {
+        return channelError
+      }
+
       return 'Review Transfer'
     }, [
       addressError,
@@ -292,6 +298,7 @@ export const ReviewTransfer = observer(
       sendActiveChain,
       selectedToken?.coinMinimalDenom,
       selectedAddress,
+      channelError,
     ])
 
     const handleReviewTransfer = useCallback(() => {
@@ -324,7 +331,9 @@ export const ReviewTransfer = observer(
 
       return (
         sendDisabled ||
+        isChannelErrorLoading ||
         !!gasError ||
+        !!channelError ||
         (!pfmEnabled && !isIbcUnwindingDisabled) ||
         (['error', 'loading'].includes(fetchAccountDetailsStatus) && !hasToUseCw20PointerLogic) ||
         minimumRentAmountError
@@ -338,6 +347,7 @@ export const ReviewTransfer = observer(
       // @ts-ignore
       transferData?.messages,
       selectedAddress?.chainName,
+      isChannelErrorLoading,
       gasError,
       chains,
       sendActiveChain,
@@ -349,6 +359,7 @@ export const ReviewTransfer = observer(
       aptosGasPriceStatus,
       isAptosTx,
       minimumRentAmountError,
+      channelError,
     ])
 
     if (isAptosTx && aptosGasPriceStatus === 'loading') {
@@ -369,7 +380,12 @@ export const ReviewTransfer = observer(
             data-testing-id='send-review-transfer-btn'
             className={cn('w-full', {
               '!bg-red-300 text-white-100':
-                addressError || amountError || routeError || gasError || minimumRentAmountError,
+                addressError ||
+                amountError ||
+                routeError ||
+                gasError ||
+                minimumRentAmountError ||
+                channelError,
             })}
           >
             {btnText}

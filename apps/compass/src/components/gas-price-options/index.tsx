@@ -188,10 +188,12 @@ const GasPriceOptions = observer(
     const spendableBalancesForChain = rootBalanceStore.getSpendableBalancesForChain(
       activeChain,
       selectedNetwork,
+      undefined,
     )
 
     const chainInfo = chainInfoStore.chainInfos[activeChain]
-    const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork)
+    const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork, undefined)
+    const evmBalanceStatus = evmBalanceStore.statusForChain(activeChain, selectedNetwork, undefined)
     const aptosBalance = aptosCoinDataStore.balances
 
     const isSeiEvmChain = chainGasPriceOptionsStore.isSeiEvmChain
@@ -216,7 +218,7 @@ const GasPriceOptions = observer(
         (isSeiEvmChain && isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) ||
         chainInfo?.evmOnlyChain
       ) {
-        return [...spendableBalancesForChain, ...(evmBalance?.evmBalance ?? [])].filter((token) =>
+        return [...spendableBalancesForChain, ...(evmBalance ?? [])].filter((token) =>
           new BigNumber(token.amount).gt(0),
         )
       }
@@ -228,8 +230,9 @@ const GasPriceOptions = observer(
       addressLinkState,
       chainInfo?.evmOnlyChain,
       spendableBalancesForChain,
-      evmBalance?.evmBalance,
+      evmBalance,
       aptosBalance,
+      chainInfo?.chainId,
     ])
 
     const allTokensStatus = useMemo(() => {
@@ -237,7 +240,7 @@ const GasPriceOptions = observer(
         (isSeiEvmChain && isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) ||
         chainInfo?.evmOnlyChain
       ) {
-        if (evmBalance?.status === 'loading' || allTokensLoading) {
+        if (evmBalanceStatus === 'loading' || allTokensLoading) {
           return 'loading'
         }
         return 'success'
@@ -247,7 +250,7 @@ const GasPriceOptions = observer(
       addressLinkState,
       allTokensLoading,
       chainInfo?.evmOnlyChain,
-      evmBalance?.status,
+      evmBalanceStatus,
       isSeiEvmChain,
       isSelectedTokenEvm,
     ])

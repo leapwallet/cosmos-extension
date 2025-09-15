@@ -43,7 +43,6 @@ const INITIAL_AGGREGATED_CHAINS_DATA: SupportedChain[] = [
   'blast',
   'manta',
   'lightlink',
-  'flame',
   'unichain',
   'bitcoin',
   'solana',

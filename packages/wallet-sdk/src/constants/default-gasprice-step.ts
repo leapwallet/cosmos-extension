@@ -139,7 +139,6 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   unichain: DefaultGasEstimates,
   bitcoin: DefaultGasEstimates,
   bitcoinSignet: DefaultGasEstimates,
-  flame: DefaultGasEstimates,
   avalanche: DefaultGasEstimates,
   bsc: DefaultGasEstimates,
   elys: DefaultGasEstimates,
@@ -167,4 +166,7 @@ export const defaultGasEstimates: Record<SupportedChain, GasEstimates> = {
   xrpl: DefaultGasEstimates,
   citrea: DefaultGasEstimates,
   lumia: DefaultGasEstimates,
+  // helios: DefaultGasEstimates,
+  sunrise: DefaultGasEstimates,
+  union: DefaultGasEstimates,
 };

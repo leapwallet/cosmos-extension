@@ -10,6 +10,7 @@ import {
   useSetEnabledCW20InStorage,
 } from '../utils';
 import { BETA_SNIP_20_TOKENS } from '../utils/useInitSnipDenoms';
+import { BetaTokens } from './useRemoveBetaTokens';
 
 async function setBetaTokens<T>(
   coinMinimalDenom: string,
@@ -18,10 +19,10 @@ async function setBetaTokens<T>(
   storageKey: string,
   storage: storage,
 ) {
-  const betaTokens = await storage.get(storageKey);
+  const betaTokens = await storage.get<BetaTokens<T>>(storageKey);
 
   if (betaTokens) {
-    await storage.set(storageKey, {
+    await storage.set<BetaTokens<T>>(storageKey, {
       ...betaTokens,
       [chain]: {
         ...(betaTokens[chain] ?? {}),
@@ -29,8 +30,7 @@ async function setBetaTokens<T>(
       },
     });
   } else {
-    await storage.set(storageKey, {
-      ...(betaTokens ?? {}),
+    await storage.set<BetaTokens<T>>(storageKey, {
       [chain]: {
         [coinMinimalDenom]: tokenInfo,
       },

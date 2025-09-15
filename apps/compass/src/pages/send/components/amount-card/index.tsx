@@ -107,6 +107,7 @@ export const AmountCard = observer(
 
     const isSeiEvmChain = useIsSeiEvmChain(sendActiveChain)
     const gasAdjustment = useGasAdjustmentForChain()
+    const evmBalanceStatus = evmBalanceStore.status
     const evmBalance = evmBalanceStore.evmBalance
 
     function getFlooredFixed(v: number, d: number) {
@@ -137,7 +138,7 @@ export const AmountCard = observer(
             )
 
       if (addEvmDetails) {
-        _assets = [..._assets, ...(evmBalance.evmBalance ?? [])].filter((token) =>
+        _assets = [..._assets, ...(evmBalance ?? [])].filter((token) =>
           new BigNumber(token.amount).gt(0),
         )
       }
@@ -150,7 +151,7 @@ export const AmountCard = observer(
       addressLinkState,
       allAssets,
       chainInfos,
-      evmBalance.evmBalance,
+      evmBalance,
       isSeiEvmChain,
       sendActiveChain,
     ])
@@ -164,13 +165,13 @@ export const AmountCard = observer(
       )
 
       if (addEvmDetails) {
-        status = status && evmBalance.status === 'success'
+        status = status && evmBalanceStatus === 'success'
       }
       return status
     }, [
       addressLinkState,
       chainInfos,
-      evmBalance.status,
+      evmBalanceStatus,
       isAllAssetsLoading,
       isSeiEvmChain,
       sendActiveChain,

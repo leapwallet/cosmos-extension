@@ -60,9 +60,9 @@ const AddFromChainStore = observer(
         return
       }
       if (isEvmChain) {
-        return newAddChain.apis?.evmJsonRpcTest ?? newAddChain.apis?.evmJsonRpc
+        return newAddChain.apis?.evmJsonRpcTest || newAddChain.apis?.evmJsonRpc
       }
-      return newAddChain.apis?.restTest ?? newAddChain.apis?.rest
+      return newAddChain.apis?.restTest || newAddChain.apis?.rest
     }, [isEvmChain, newAddChain])
 
     const newChainKey = newAddChain?.key ?? newAddChain?.chainName

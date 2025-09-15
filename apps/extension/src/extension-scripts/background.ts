@@ -1254,7 +1254,12 @@ const connectRemote = (remotePort: any) => {
 
           break
         } else {
-          const balance = await fetchERC20Balances(evmRpcUrl, seiEvmAddress, [options.address])
+          let balance = []
+          try {
+            balance = await fetchERC20Balances(evmRpcUrl, seiEvmAddress, [options.address])
+          } catch (e) {
+            balance = []
+          }
           if (balance.length === 0) {
             sendResponse(
               sendResponseName,

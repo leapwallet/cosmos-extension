@@ -1,8 +1,8 @@
-import { capitalize, SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
-import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import { capitalize, Key, SelectedAddress, sliceAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { pubKeyToEvmAddressToShow, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { EditIcon } from 'icons/edit-icon'
 import { Images } from 'images'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { AddressBook } from 'utils/addressbook'
 
 interface RecipientDisplayCardProps {
@@ -11,6 +11,7 @@ interface RecipientDisplayCardProps {
   setIsAddContactSheetVisible: (visible: boolean) => void
   activeChain: SupportedChain
   onEdit: () => void
+  wallets: Key[]
 }
 
 const RecipientDisplayCard = ({
@@ -19,7 +20,26 @@ const RecipientDisplayCard = ({
   setIsAddContactSheetVisible,
   activeChain,
   onEdit,
+  wallets,
 }: RecipientDisplayCardProps) => {
+  const existingWallet = useMemo(() => {
+    return wallets.find((wallet) => {
+      const addresses = Object.values(wallet.addresses) || []
+      const evmPubKey = wallet?.pubKeys?.ethereum
+      const ethAddress = evmPubKey ? pubKeyToEvmAddressToShow(evmPubKey, true) : undefined
+      if (ethAddress) {
+        addresses.push(ethAddress)
+      }
+      return addresses.some((address) => {
+        return (
+          address &&
+          (selectedAddress?.ethAddress?.toLowerCase() === address.toLowerCase() ||
+            selectedAddress?.address?.toLowerCase() === address.toLowerCase())
+        )
+      })
+    })
+  }, [selectedAddress?.address, selectedAddress?.ethAddress, wallets])
+
   return (
     <>
       <div className='flex justify-between items-center w-full'>
@@ -31,7 +51,9 @@ const RecipientDisplayCard = ({
 
           <div className='flex flex-col gap-1'>
             <p className='font-bold text-left text-monochrome text-sm'>
-              {selectedAddress?.name
+              {existingWallet
+                ? existingWallet.name
+                : selectedAddress?.name
                 ? capitalize(selectedAddress?.name)
                 : sliceAddress(
                     selectedAddress?.ethAddress

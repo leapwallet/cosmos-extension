@@ -1,4 +1,3 @@
-import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { createProtobufRpcClient, QueryClient, StargateClient } from '@cosmjs/stargate';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 import { Contract } from '@ethersproject/contracts';
@@ -70,28 +69,6 @@ export async function fetchSeiEvmBalances(evmJsonRpc: string, ethWalletAddress: 
   return { denom: 'usei', amount: formatEtherValue(balance.toString()) };
 }
 
-export async function fetchCW20Balances(rpcUrl: string, address: string, cw20Tokens: Array<string>) {
-  const client = await CosmWasmClient.connect(rpcUrl);
-  const promises = cw20Tokens.map(async (tokenAddress) => {
-    const balance = await client.queryContractSmart(tokenAddress, { balance: { address } });
-    return { denom: tokenAddress, amount: new BigNumber(balance.balance) };
-  });
-  const balances = await Promise.allSettled(promises);
-
-  const fulfilledBalances = balances.reduce(
-    (fulfilledBalances: Array<{ denom: string; amount: BigNumber }>, currentBalance) => {
-      if (currentBalance.status === 'fulfilled') {
-        return [...fulfilledBalances, { ...currentBalance.value }];
-      }
-
-      return fulfilledBalances;
-    },
-    [],
-  );
-
-  return fulfilledBalances;
-}
-
 export async function fetchERC20Balances(evmJsonRpc: string, ethWalletAddress: string, erc20Tokens: Array<string>) {
   const contractAbi = ['function balanceOf(address account) view returns (uint256)'];
   const promises = erc20Tokens.map(async (tokenAddress) => {
@@ -128,6 +105,13 @@ export async function fetchERC20Balances(evmJsonRpc: string, ethWalletAddress: s
     },
     [],
   );
+
+  if (!fulfilledBalances || fulfilledBalances?.length === 0) {
+    const allFailed = balances.every((balance) => balance.status === 'rejected');
+    if (allFailed) {
+      throw new Error('Error fetching ERC20 balances');
+    }
+  }
 
   return fulfilledBalances;
 }

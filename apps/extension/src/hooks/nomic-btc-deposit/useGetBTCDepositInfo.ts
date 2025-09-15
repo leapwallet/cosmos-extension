@@ -8,6 +8,8 @@ import {
 import { ChainInfos, getSourceChainChannelId, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { useQuery } from '@tanstack/react-query'
 import { DepositResult, generateDepositAddress } from 'nomic-bitcoin'
+import { useEffect } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 
 export type NomicBTCDepositConstants = {
   args: {
@@ -68,12 +70,18 @@ export function useGetBTCDepositInfo(forceChain?: SupportedChain) {
   const activeAddress = useAddress(chain)
   const { data } = useNomicBTCDepositConstants()
   const nomicChain = ChainInfos.nomic.chainRegistryPath
+  const channel = ibcDataStore.getSourceChainChannelId('nomic', chain)
+
+  useEffect(() => {
+    if (nomicChain && chain) {
+      ibcDataStore.loadIbcData('nomic', chain)
+    }
+  }, [nomicChain, chain])
 
   return useQuery<DepositResult | undefined>(
-    ['query-generate-deposit-address', data, activeAddress, chain, nomicChain],
+    ['query-generate-deposit-address', data, activeAddress, chain, nomicChain, channel],
     async () => {
       if (data) {
-        const channel = await getSourceChainChannelId(nomicChain, chain)
         return await generateDepositAddress({
           ...data.args,
           channel,
@@ -81,6 +89,6 @@ export function useGetBTCDepositInfo(forceChain?: SupportedChain) {
         })
       }
     },
-    { enabled: !!data },
+    { enabled: !!data && !!channel },
   )
 }
