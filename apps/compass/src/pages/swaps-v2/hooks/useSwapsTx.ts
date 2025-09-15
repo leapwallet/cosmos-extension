@@ -290,7 +290,7 @@ export function useSwapsTx({
 
   const customChains = useNonNativeCustomChains()
 
-  const aggregatedSourceTokens = getAggregatedSpendableBalances(SWAP_NETWORK)
+  const aggregatedSourceTokens = getAggregatedSpendableBalances(SWAP_NETWORK, undefined)
   const aggregatedSourceChainTokens = useMemo(() => {
     const chainToShowKeys = chainsToShow.map((chain) => chain.key)
     const allChainsInfo = Object.values({ ...customChains, ...chainInfoStore.chainInfos })?.filter(
@@ -324,23 +324,23 @@ export function useSwapsTx({
   const sourceChainTokens = isChainAbstractionView
     ? aggregatedSourceChainTokens
     : sourceChain
-    ? getSpendableBalancesForChain(sourceChain?.key, SWAP_NETWORK) ?? []
+    ? getSpendableBalancesForChain(sourceChain?.key, SWAP_NETWORK, undefined) ?? []
     : []
 
   const destinationChainTokens = isChainAbstractionView
-    ? getAggregatedSpendableBalances(SWAP_NETWORK)
+    ? getAggregatedSpendableBalances(SWAP_NETWORK, undefined)
     : destinationChain
-    ? getSpendableBalancesForChain(destinationChain?.key, SWAP_NETWORK) ?? []
+    ? getSpendableBalancesForChain(destinationChain?.key, SWAP_NETWORK, undefined) ?? []
     : []
 
   const sourceTokensLoading = sourceChain
     ? getLoadingStatusForChain(sourceChain?.key, SWAP_NETWORK) ||
-      evmBalanceStore.evmBalance.status === 'loading'
+      evmBalanceStore.status === 'loading'
     : false
 
   const destinationTokensLoading = destinationChain
     ? getLoadingStatusForChain(destinationChain?.key, SWAP_NETWORK) ||
-      evmBalanceStore.evmBalance.status === 'loading'
+      evmBalanceStore.status === 'loading'
     : false
 
   const combinedDenoms = useMemo(() => {
@@ -600,77 +600,10 @@ export function useSwapsTx({
       }
       if (sourceTokenNotYetSelectedRef.current) {
         sourceTokenNotYetSelectedRef.current = false
-        if (isChainAbstractionView) {
-          const firstToken = sourceAssets?.[0]
-          let highestBalanceToken = firstToken
-          if (!firstToken?.amount || new BigNumber(firstToken.amount).isEqualTo(0)) {
-            const tokenToPreselect = isCompassWallet()
-              ? {
-                  denom: 'usei',
-                  chainId: 'pacific-1',
-                }
-              : {
-                  denom: 'uatom',
-                  chainId: 'cosmoshub-4',
-                }
-            highestBalanceToken =
-              sourceAssets?.find(
-                (token) =>
-                  token.skipAsset?.denom === tokenToPreselect.denom &&
-                  token.skipAsset?.chainId === tokenToPreselect.chainId,
-              ) ?? firstToken
-          }
-          if (searchedDestinationToken) {
-            const isSameTokenAsSearchedDestinationToken =
-              highestBalanceToken.ibcDenom === searchedDestinationToken ||
-              (highestBalanceToken.skipAsset.evmTokenContract &&
-                highestBalanceToken.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
-                  searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '')) ||
-              getKeyToUseForDenoms(
-                highestBalanceToken.skipAsset.denom,
-                highestBalanceToken.skipAsset.originChainId,
-              ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') ||
-              (getKeyToUseForDenoms(
-                highestBalanceToken.skipAsset.originDenom,
-                highestBalanceToken.skipAsset.originChainId,
-              ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') &&
-                !!searchedDestinationChain &&
-                highestBalanceToken.skipAsset.chainId === searchedDestinationChain)
-
-            if (isSameTokenAsSearchedDestinationToken) {
-              highestBalanceToken =
-                sourceAssets?.find(
-                  (asset) =>
-                    !(
-                      asset.ibcDenom === searchedDestinationToken ||
-                      (asset.skipAsset.evmTokenContract &&
-                        asset.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
-                          searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '')) ||
-                      getKeyToUseForDenoms(asset.skipAsset.denom, asset.skipAsset.originChainId) ===
-                        searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') ||
-                      (getKeyToUseForDenoms(
-                        asset.skipAsset.originDenom,
-                        asset.skipAsset.originChainId,
-                      ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') &&
-                        !!searchedDestinationChain &&
-                        asset.skipAsset.chainId === searchedDestinationChain)
-                    ),
-                ) ?? highestBalanceToken
-            }
-          }
-          const _highestBalanceTokenChain = chainsToShow?.find(
-            (chain) => chain.chainId === highestBalanceToken?.skipAsset.chainId,
-          )
-          if (highestBalanceToken && _highestBalanceTokenChain) {
-            setSourceToken(highestBalanceToken)
-            setSourceChain(_highestBalanceTokenChain)
-            return
-          }
-        }
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         const baseDenomToSet = sourceChain.baseDenom ?? ''
-        const sourceToken = sourceAssets.find((asset) =>
+        let sourceToken = sourceAssets.find((asset) =>
           !destinationChain ||
           destinationChain.chainId !== sourceChain.chainId ||
           !destinationToken ||
@@ -679,6 +612,45 @@ export function useSwapsTx({
               getKeyToUseForDenoms(baseDenomToSet, sourceChain.chainId)
             : asset.coinMinimalDenom !== destinationToken.coinMinimalDenom,
         )
+
+        if (searchedDestinationToken && sourceToken) {
+          const isSameTokenAsSearchedDestinationToken =
+            sourceToken.ibcDenom === searchedDestinationToken ||
+            (sourceToken.skipAsset.evmTokenContract &&
+              sourceToken.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
+                searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '')) ||
+            getKeyToUseForDenoms(
+              sourceToken.skipAsset.denom,
+              sourceToken.skipAsset.originChainId,
+            ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') ||
+            (getKeyToUseForDenoms(
+              sourceToken.skipAsset.originDenom,
+              sourceToken.skipAsset.originChainId,
+            ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') &&
+              !!searchedDestinationChain &&
+              sourceToken.skipAsset.chainId === searchedDestinationChain)
+
+          if (isSameTokenAsSearchedDestinationToken) {
+            sourceToken =
+              sourceAssets?.find(
+                (asset) =>
+                  !(
+                    asset.ibcDenom === searchedDestinationToken ||
+                    (asset.skipAsset.evmTokenContract &&
+                      asset.skipAsset.evmTokenContract?.replace(/(cw20:|erc20\/)/g, '') ===
+                        searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '')) ||
+                    getKeyToUseForDenoms(asset.skipAsset.denom, asset.skipAsset.originChainId) ===
+                      searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') ||
+                    (getKeyToUseForDenoms(
+                      asset.skipAsset.originDenom,
+                      asset.skipAsset.originChainId,
+                    ) === searchedDestinationToken?.replace(/(cw20:|erc20\/)/g, '') &&
+                      !!searchedDestinationChain &&
+                      asset.skipAsset.chainId === searchedDestinationChain)
+                  ),
+              ) ?? sourceToken
+          }
+        }
 
         if (sourceToken) {
           setSourceToken(sourceToken)
@@ -698,10 +670,7 @@ export function useSwapsTx({
    * set destination token
    */
   useEffect(() => {
-    const customChainKeys = new Set(Object.values(customChains).map((chain) => chain.key))
-    const destinationAssets = (destinationAssetsData?.assets ?? []).filter(
-      (chain) => chain.tokenBalanceOnChain && !customChainKeys.has(chain.tokenBalanceOnChain),
-    )
+    const destinationAssets = destinationAssetsData?.assets ?? []
 
     if (
       destinationChain &&

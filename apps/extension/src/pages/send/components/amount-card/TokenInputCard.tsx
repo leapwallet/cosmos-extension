@@ -161,11 +161,14 @@ function TokenInputCardView({
       return
     }
 
+    if (token?.coinMinimalDenom === 'mist' && sendActiveChain === 'sui') {
+      return
+    }
+
     const inputValueBN = new BigNumber(value ?? 0)
     const tokenBalanceBN = new BigNumber(token?.amount ?? 0)
 
-    // Invalid input amount case - input <= 0 or input > balance
-    if (inputValueBN.lte(0) || inputValueBN.gt(tokenBalanceBN)) {
+    if (inputValueBN.lte(0)) {
       return
     }
 
@@ -177,11 +180,15 @@ function TokenInputCardView({
 
     const shouldTerminate = allowUpdateInputStore.shouldTerminate()
     const decimals = token?.coinDecimals || 6
-    const feeValueBN = new BigNumber(fromSmall(fee?.amount?.[0]?.amount ?? '0', decimals))
+    let feeValueBN = new BigNumber(fromSmall(fee?.amount?.[0]?.amount ?? '0', decimals))
+    if (_feeDenom === 'lamports') {
+      feeValueBN = feeValueBN.plus(5000 / 10 ** 9)
+    }
 
     if (
       shouldTerminate &&
-      (!isSelectedTokenFeeToken || inputValueBN.plus(feeValueBN).lte(tokenBalanceBN))
+      ((!isSelectedTokenFeeToken && inputValueBN.lte(tokenBalanceBN)) ||
+        inputValueBN.plus(feeValueBN).lte(tokenBalanceBN))
     ) {
       return
     }

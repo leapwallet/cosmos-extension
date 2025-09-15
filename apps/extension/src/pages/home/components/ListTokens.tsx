@@ -18,10 +18,12 @@ export const ListTokens = observer(
     allTokens,
     searchQuery,
     balanceError,
+    hideNotFound,
   }: {
     allTokens: Token[]
     searchQuery: string
     balanceError: boolean
+    hideNotFound?: boolean
   }) => {
     const [showMaxAssets, setShowMaxAssets] = useState(false)
 
@@ -34,8 +36,9 @@ export const ListTokens = observer(
       if (searchQuery) {
         truncatedAssets = truncatedAssets.filter(
           (asset) =>
-            asset.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            asset.name?.toLowerCase().includes(searchQuery.toLowerCase()),
+            (asset.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              asset.name?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+            asset.amount !== '0',
         )
       }
 
@@ -62,7 +65,7 @@ export const ListTokens = observer(
           />
         ))}
 
-        {searchQuery && assetsToShow.length === 0 && (
+        {searchQuery && assetsToShow.length === 0 && !hideNotFound && (
           <div className='w-full flex items-center justify-center h-[276px] bg-secondary-100 rounded-2xl border border-secondary-200'>
             <div className='flex items-center justify-center flex-col gap-4'>
               <div className='p-5 bg-secondary-200 rounded-full flex items-center justify-center'>

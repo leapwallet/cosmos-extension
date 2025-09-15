@@ -27,7 +27,8 @@ export type GasPriceOptionsContextType = {
   viewAdditionalOptions: boolean
   setViewAdditionalOptions: React.Dispatch<React.SetStateAction<boolean>>
   error: string | null
-  setError: React.Dispatch<React.SetStateAction<string | null>>
+  setGasLimitError: React.Dispatch<React.SetStateAction<string | null>>
+  setGasFeeError: React.Dispatch<React.SetStateAction<string | null>>
   feeTokenAsset: Token | undefined
   allTokens: Token[]
   allTokensStatus: 'loading' | 'error' | 'success'

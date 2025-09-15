@@ -104,4 +104,5 @@ export type SwapsTxType = {
   swapFeeInfo?: SwapFeeInfo
   isSanctionedAddressPresent: boolean
   isChainAbstractionView: boolean
+  bridgeFeeError: string | null
 }

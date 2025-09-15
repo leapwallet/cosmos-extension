@@ -2,6 +2,7 @@ import { useActiveWallet, WALLETTYPE } from '@leapwallet/cosmos-wallet-hooks'
 import { Buttons } from '@leapwallet/leap-ui'
 import { ArrowSquareOut } from '@phosphor-icons/react'
 import classNames from 'classnames'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
 import { activeChainStore } from 'stores/active-chain-store'
@@ -15,12 +16,14 @@ type ButtonSectionProps = {
   errorMsg: string
   invalidAmount: boolean
   amountExceedsBalance: boolean
+  bridgeFeeError: string | null
   onReviewClick: (val: boolean) => void
   inAmountEmpty: boolean
   isRefreshing: boolean
   checkNeeded: boolean
   isPriceImpactChecked: boolean
   reviewBtnDisabled: boolean
+  isLedgerDisconnectedError?: boolean
 }
 
 const ButtonSection = ({
@@ -29,15 +32,17 @@ const ButtonSection = ({
   isMoreThanOneStepTransaction,
   redirectUrl,
   errorMsg,
+  bridgeFeeError,
   inAmountEmpty,
   isRefreshing,
   checkNeeded,
   isPriceImpactChecked,
   reviewBtnDisabled,
   onReviewClick,
+  isLedgerDisconnectedError,
 }: ButtonSectionProps) => {
   const activeWallet = useActiveWallet()
-
+  const openLedgerReconnect = useOpenLedgerReconnect()
   const reviewBtnText = useMemo(() => {
     if (invalidAmount) {
       return 'Amount must be greater than 0'
@@ -54,12 +59,29 @@ const ButtonSection = ({
     ) {
       return 'Not supported using Ledger wallet'
     }
+
+    if (bridgeFeeError) {
+      return bridgeFeeError
+    }
+
     if (inAmountEmpty) {
       return 'Enter amount'
     }
 
+    if (isLedgerDisconnectedError) {
+      return 'Connect Ledger'
+    }
+
     return 'Review Transfer'
-  }, [activeWallet?.walletType, amountExceedsBalance, inAmountEmpty, errorMsg, invalidAmount])
+  }, [
+    activeWallet?.walletType,
+    amountExceedsBalance,
+    inAmountEmpty,
+    errorMsg,
+    invalidAmount,
+    bridgeFeeError,
+    isLedgerDisconnectedError,
+  ])
 
   const reviewDisabled = useMemo(() => {
     if (
@@ -80,7 +102,7 @@ const ButtonSection = ({
           style={{ boxShadow: 'none' }}
         >
           <span className='flex items-center gap-1'>
-            Swap on Swapfast <ArrowSquareOut size={20} className='!leading-[20px] !text-lg' />
+            Swap on Leap web app <ArrowSquareOut size={20} className='!leading-[20px] !text-lg' />
           </span>
         </Buttons.Generic>
       ) : (
@@ -90,14 +112,22 @@ const ButtonSection = ({
               [`!bg-primary`]: !(
                 invalidAmount ||
                 amountExceedsBalance ||
-                isNoRoutesAvailableError(errorMsg)
+                isNoRoutesAvailableError(errorMsg) ||
+                !!bridgeFeeError
               ),
               '!bg-destructive-100/40':
-                invalidAmount || amountExceedsBalance || isNoRoutesAvailableError(errorMsg),
+                invalidAmount ||
+                amountExceedsBalance ||
+                isNoRoutesAvailableError(errorMsg) ||
+                !!bridgeFeeError,
             })}
             disabled={reviewDisabled}
             style={{ boxShadow: 'none' }}
             onClick={() => {
+              if (isLedgerDisconnectedError) {
+                openLedgerReconnect()
+                return
+              }
               if (activeWallet?.watchWallet) {
                 importWatchWalletSeedPopupStore.setShowPopup(true)
               } else {

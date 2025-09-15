@@ -8,7 +8,6 @@ import {
   useInitChainsApr,
   useInitCoingeckoPrices,
   useInitCompassSeiEvmConfig,
-  useInitCustomChannelsStore,
   useInitDefaultGasEstimates,
   useInitDisabledNFTsCollections,
   useInitEnabledNftsCollections,
@@ -73,8 +72,6 @@ const InitMainAppHooks = observer(() => {
   useGetBannerApi()
   //useInitDenoms()
   useInitWhitelistedFactoryTokens()
-
-  useInitCustomChannelsStore()
 
   // useInitDisabledCW20Tokens()
   // useInitEnabledCW20Tokens()

@@ -347,11 +347,20 @@ export const TxPage = observer(
       onClose,
     ])
 
-    const { explorerTxnUrl: txnUrl } = useGetExplorerTxnUrl({
-      forceTxHash: txStatus?.[0].responses?.[0]?.packetTxs?.sendTx?.txHash,
+    const txHash = txStatus?.[0]?.responses?.[0]?.packetTxs?.sendTx?.txHash
+
+    const { explorerTxnUrl: _txnUrl } = useGetExplorerTxnUrl({
+      forceTxHash: txHash,
       forceChain: sourceChain?.key,
       forceNetwork: selectedNetwork,
     })
+
+    const txnUrl = useMemo(() => {
+      if (txHash) {
+        return _txnUrl
+      }
+      return undefined
+    }, [_txnUrl, txHash])
 
     if (isTrackingPage && !isTrackingInSync) {
       return (

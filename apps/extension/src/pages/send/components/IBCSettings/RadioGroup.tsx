@@ -1,9 +1,10 @@
-import { useAddCustomChannel, useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
+import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import classNames from 'classnames'
 import { CtaInput } from 'components/cta-input'
 import { useSendContext } from 'pages/send/context'
 import React, { CSSProperties, useCallback, useEffect, useState } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 
 type RadioGroupProps = {
   options: { title: string; subTitle?: string; value: string }[]
@@ -33,10 +34,6 @@ const RadioGroupSend: React.FC<RadioGroupProps> = ({
   const isCustomSelected = value !== '' && status === 'success'
 
   const { sendActiveChain } = useSendContext()
-  const addCustomChannel = useAddCustomChannel({
-    sourceChain: sendActiveChain,
-    targetChain,
-  })
 
   const { chains } = useChainsStore()
   const activeChainInfo = chains[sendActiveChain]
@@ -45,7 +42,7 @@ const RadioGroupSend: React.FC<RadioGroupProps> = ({
     async (channelId: string) => {
       setStatus('loading')
       try {
-        const result = await addCustomChannel(channelId)
+        const result = await ibcDataStore.addCustomChannel(sendActiveChain, targetChain, channelId)
         if (result.success) {
           onChange(result.channel)
           setStatus('success')
@@ -59,7 +56,7 @@ const RadioGroupSend: React.FC<RadioGroupProps> = ({
         setMessage('Something went wrong')
       }
     },
-    [addCustomChannel, onChange],
+    [onChange, sendActiveChain, targetChain],
   )
 
   useEffect(() => {

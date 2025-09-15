@@ -118,7 +118,7 @@ export const AggregatedTokenCardView = observer(
 
         <div className='flex flex-col justify-start mr-auto'>
           <span className='font-bold text-md truncate max-w-32 text-foreground !leading-[22px] flex items-center gap-1'>
-            {sliceWord(title, 7, 4)}
+            {sliceWord(title, 9, 4)}
             {ibcInfo ? (
               <span
                 title={ibcInfo}

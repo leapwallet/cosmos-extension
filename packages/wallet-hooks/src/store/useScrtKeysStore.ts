@@ -1,4 +1,4 @@
-import { Permit } from 'secretjs';
+import { Permit } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/secret';
 import create from 'zustand';
 
 type ScrtKeyStore = {

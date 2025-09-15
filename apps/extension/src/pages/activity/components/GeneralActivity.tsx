@@ -1,13 +1,12 @@
 import {
   removeTrailingSlash,
-  TxResponse,
   useActiveChain,
   useAddress,
   useGetChains,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
-import { ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
+import { ActivityStore, ChainTagsStore } from '@leapwallet/cosmos-wallet-store'
 import { AggregatedLoadingList } from 'components/aggregated'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { PENDING_SWAP_TXS } from 'config/storage-keys'
@@ -39,7 +38,7 @@ import {
 } from './index'
 
 type GeneralActivityProps = {
-  txResponse: TxResponse
+  activityStore: ActivityStore
   filteredChains?: string[]
   forceChain?: SupportedChain
   forceNetwork?: SelectedNetwork
@@ -49,7 +48,7 @@ type GeneralActivityProps = {
 
 const GeneralActivity = observer(
   ({
-    txResponse,
+    activityStore,
     filteredChains,
     forceChain,
     forceNetwork,
@@ -87,11 +86,21 @@ const GeneralActivity = observer(
     /**
      * Memoized values
      */
-    const { activity } = useMemo(() => txResponse ?? {}, [txResponse])
     const activeNetwork = useMemo(
       () => forceNetwork || _activeNetwork,
       [_activeNetwork, forceNetwork],
     )
+
+    const activity = activityStore.getActivity(selectedChain, activeNetwork, address)
+    const loadingStatus = activityStore.getLoadingStatus(selectedChain, activeNetwork, address)
+    const errorStatus = activityStore.getErrorStatus(selectedChain, activeNetwork, address)
+
+    useEffect(() => {
+      if (!loadingStatus || loadingStatus === 'error') {
+        activityStore.fetchActivity(selectedChain, activeNetwork, address)
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedChain, activeNetwork, address])
 
     const accountExplorerLink = useMemo(() => {
       if (chains[selectedChain]?.txExplorer?.[activeNetwork]?.accountUrl) {
@@ -154,7 +163,7 @@ const GeneralActivity = observer(
     }, [pendingSwapTxs])
 
     const ShowView = useMemo(() => {
-      if (!hasPendingSwapTxs && activity?.length === 0 && !txResponse?.loading) {
+      if (!hasPendingSwapTxs && activity?.length === 0 && loadingStatus !== 'loading') {
         return (
           <div className='mt-4'>
             <NoActivityView accountExplorerLink={accountExplorerLink} chain={selectedChain} />
@@ -162,7 +171,7 @@ const GeneralActivity = observer(
         )
       }
 
-      if (!hasPendingSwapTxs && txResponse?.error) {
+      if (!hasPendingSwapTxs && errorStatus) {
         return (
           <div className='mt-4'>
             <ErrorActivityView accountExplorerLink={accountExplorerLink} chain={selectedChain} />
@@ -189,9 +198,9 @@ const GeneralActivity = observer(
             </>
           ) : null}
 
-          {txResponse?.loading ? <AggregatedLoadingList className='mt-4' /> : null}
+          {loadingStatus === 'loading' ? <AggregatedLoadingList className='mt-4' /> : null}
 
-          {!txResponse?.loading &&
+          {loadingStatus !== 'loading' &&
             sections &&
             sections.map(({ data, title }, index) => {
               return (
@@ -218,7 +227,7 @@ const GeneralActivity = observer(
               )
             })}
 
-          {!txResponse?.loading && accountExplorerLink ? (
+          {loadingStatus !== 'loading' && accountExplorerLink ? (
             <a
               href={accountExplorerLink}
               target='_blank'
@@ -236,8 +245,8 @@ const GeneralActivity = observer(
       activity?.length,
       sections,
       selectedChain,
-      txResponse?.error,
-      txResponse?.loading,
+      errorStatus,
+      loadingStatus,
       hasPendingSwapTxs,
       pendingSwapTxs,
     ])

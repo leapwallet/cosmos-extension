@@ -82,3 +82,5 @@ export type CompassSeiEvmConfigType = {
 
   COMPASS_EVM_CHAIN_IDS: number[];
 };
+
+export type BalanceErrorStatus = 'no-error' | 'partial-failure' | 'complete-failure';

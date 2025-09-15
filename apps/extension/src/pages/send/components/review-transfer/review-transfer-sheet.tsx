@@ -23,10 +23,12 @@ import { captureException } from '@sentry/react'
 import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import { ErrorCard } from 'components/ErrorCard'
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import BottomModal from 'components/new-bottom-modal'
 import { Button } from 'components/ui/button'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { useDefaultTokenLogo } from 'hooks/utility/useDefaultTokenLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
@@ -38,7 +40,9 @@ import { observer } from 'mobx-react-lite'
 import { useExecuteSkipTx } from 'pages/send/components/review-transfer/executeSkipTx'
 import { useSendContext } from 'pages/send/context'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 import { UserClipboard } from 'utils/clipboard'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 import { opacityFadeInOut, transition150 } from 'utils/motion-variants'
 
 type ReviewTransactionSheetProps = {
@@ -56,6 +60,9 @@ export const ReviewTransferSheet = observer(
     const chains = useGetChains()
     const getWallet = Wallet.useGetWallet()
     const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
+
+    const [isLedgerDisconnectedError, setIsLedgerDisconnectedError] = useState(false)
+    const openLedgerReconnect = useOpenLedgerReconnect()
 
     const {
       memo,
@@ -104,6 +111,7 @@ export const ReviewTransferSheet = observer(
     const handleClose = useCallback(() => {
       setError('')
       onClose()
+      setIsLedgerDisconnectedError(false)
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -117,6 +125,11 @@ export const ReviewTransferSheet = observer(
     )
 
     const handleSend = useCallback(async () => {
+      if (isLedgerDisconnectedError) {
+        setIsLedgerDisconnectedError(false)
+        openLedgerReconnect()
+        return
+      }
       clearTxError()
       if (!fee || !selectedAddress?.address || !selectedToken) {
         return
@@ -197,12 +210,19 @@ export const ReviewTransferSheet = observer(
               amount: new BigNumber(inputAmount),
               memo: memo,
               fees: fee,
+              ibcChannelId: ibcDataStore.getSourceChainChannelId(
+                sendActiveChain,
+                selectedAddress?.chainName as SupportedChain,
+              ),
             },
             modifiedCallback,
           )
         }
       } catch (err: unknown) {
         if (err instanceof LedgerError) {
+          if (isLedgerDisconnected(err?.message)) {
+            setIsLedgerDisconnectedError(true)
+          }
           setTxError(err.message)
           setShowLedgerPopup(false)
           setShowLedgerPopupSkipTx(false)
@@ -236,6 +256,9 @@ export const ReviewTransferSheet = observer(
       setTxError,
       setShowLedgerPopup,
       setShowLedgerPopupSkipTx,
+      selectedAddress?.chainName,
+      openLedgerReconnect,
+      isLedgerDisconnectedError,
     ])
 
     useCaptureTxError(txError)
@@ -383,14 +406,21 @@ export const ReviewTransferSheet = observer(
               </div>
             ) : null}
 
-            {txError || error ? <ErrorCard text={txError || error} /> : null}
+            {!isLedgerDisconnectedError && (txError || error) ? (
+              <ErrorCard text={txError || error} />
+            ) : null}
+
+            {isLedgerDisconnectedError ? <LedgerDisconnectError /> : null}
+
             <Button
               className='w-full mt-4'
               onClick={handleSend}
               disabled={showLedgerPopup || isSending || sendDisabled || txnProcessing}
               data-testing-id='send-review-sheet-send-btn'
             >
-              {isSending || txnProcessing ? (
+              {isLedgerDisconnectedError ? (
+                'Connect Ledger'
+              ) : isSending || txnProcessing ? (
                 <Lottie
                   loop={true}
                   autoplay={true}

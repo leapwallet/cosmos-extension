@@ -1,8 +1,4 @@
-import {
-  useChainsStore,
-  useCustomChannels,
-  useDefaultChannelId,
-} from '@leapwallet/cosmos-wallet-hooks'
+import { useChainsStore } from '@leapwallet/cosmos-wallet-hooks'
 import { SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { SkipMsg, SkipMsgV2, UseRouteResponse, useTransactions } from '@leapwallet/elements-hooks'
 import { Buttons, ThemeName, useTheme } from '@leapwallet/leap-ui'
@@ -15,6 +11,7 @@ import BottomModal from 'components/new-bottom-modal'
 import Text from 'components/text'
 import { useSendContext } from 'pages/send/context'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 import { Colors } from 'theme/colors'
 
 import RadioGroupSend from './RadioGroup'
@@ -37,8 +34,8 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
   const sourceChainInfo = chains[sourceChain]
   const targetChainInfo = chains[targetChain]
 
-  const customChannels = useCustomChannels()
-  const { data, status } = useDefaultChannelId(sourceChain, targetChain)
+  const customChannels = ibcDataStore.getCustomChannels(sourceChain)
+  const data = ibcDataStore.getSourceChainChannelId(sourceChain, targetChain)
   const { transferData, setIsIbcUnwindingDisabled, customIbcChannelId, setCustomIbcChannelId } =
     useSendContext()
 
@@ -76,12 +73,12 @@ const IBCSettings: React.FC<IBCSettingsProps> = ({ targetChain, sourceChain }) =
   })
 
   useEffect(() => {
-    if (status === 'success') {
+    if (data) {
       setDefaultChannelId(data)
-    } else if (status === 'error') {
+    } else {
       setDefaultChannelId(undefined)
     }
-  }, [data, status])
+  }, [data])
 
   const handleClick = useCallback(() => {
     setIsSettingsOpen((prev) => !prev)

@@ -36,6 +36,7 @@ import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Text from 'components/text'
 import { TokenImageWithFallback } from 'components/token-image-with-fallback'
+import { INT53_MAX } from 'config/constants'
 import { useEnableEvmGasRefetch } from 'hooks/cosm-wasm/use-enable-evm-gas-refetch'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { Images } from 'images'
@@ -212,29 +213,52 @@ const GasPriceOptions = observer(
     const activeChain = chain ?? (activeChainStore.activeChain as SupportedChain)
     const selectedNetwork = network ?? selectedNetworkStore.selectedNetwork
 
+    const [gasFeeError, setGasFeeError] = useState<string | null>(null)
+    const [gasLimitError, setGasLimitError] = useState<string | null>(null)
+
+    useEffect(() => {
+      setError(gasFeeError ?? gasLimitError)
+    }, [gasFeeError, gasLimitError, setError])
+
     const chainGasPriceOptionsStore = gasPriceOptionsStore.getStore(activeChain, selectedNetwork)
 
     const allTokensLoading = rootBalanceStore.getLoadingStatusForChain(activeChain, selectedNetwork)
     const spendableBalancesForChain = rootBalanceStore.getSpendableBalancesForChain(
       activeChain,
       selectedNetwork,
+      undefined,
     )
 
     const chainInfo = chainInfoStore.chainInfos[activeChain]
     const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, selectedNetwork)
-    const solanaBalance = solanaCoinDataStore.getSolanaBalances(activeChain, selectedNetwork)
-    const suiBalance = suiCoinDataStore.getSuiBalances(activeChain, selectedNetwork)
+    const evmBalanceLoading = evmBalanceStore.loadingForChain(
+      activeChain,
+      selectedNetwork,
+      undefined,
+    )
+    const solanaBalance = solanaCoinDataStore.getSolanaBalances(
+      activeChain,
+      selectedNetwork,
+      undefined,
+    )
+    const suiBalance = suiCoinDataStore.getSuiBalances(activeChain, selectedNetwork, undefined)
 
-    const isSeiEvmChain = chainGasPriceOptionsStore.isSeiEvmChain
-    const feeTokenData = chainGasPriceOptionsStore.feeTokenData
+    // const feeTokenData = chainGasPriceOptionsStore.feeTokenData
     const finalRecommendedGasLimit = chainGasPriceOptionsStore.finalRecommendedGasLimit
     const hasToCalculateDynamicFee = chainGasPriceOptionsStore.hasToCalculateDynamicFee
 
     const feeTokens = feeTokensStore.getStore(activeChain, selectedNetwork, isSeiEvmTransaction)
     const chainNativeFeeTokenData = feeTokens?.data?.[0]
+    const feeTokenData =
+      chainGasPriceOptionsStore.feeTokenData ??
+      feeTokens?.data?.find((token) => {
+        if (initialFeeDenom?.startsWith('ibc/')) {
+          return token.ibcDenom === initialFeeDenom
+        }
+        return token.denom?.coinMinimalDenom === initialFeeDenom
+      }) ??
+      feeTokens?.data?.[0]
     const isPayingFeeInNonNativeToken = feeTokenData?.ibcDenom !== chainNativeFeeTokenData?.ibcDenom
-
-    const { addressLinkState } = useSeiLinkedAddressState()
 
     useEnableEvmGasRefetch(activeChain, selectedNetwork)
 
@@ -247,47 +271,31 @@ const GasPriceOptions = observer(
       if (_isSuiChain) {
         return suiBalance
       }
-      if (
-        (isSeiEvmChain && isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) ||
-        chainInfo?.evmOnlyChain
-      ) {
-        return [...spendableBalancesForChain, ...(evmBalance?.evmBalance ?? [])].filter((token) =>
+      if (chainInfo?.evmOnlyChain) {
+        return [...spendableBalancesForChain, ...(evmBalance ?? [])].filter((token) =>
           new BigNumber(token.amount).gt(0),
         )
       }
 
       return spendableBalancesForChain
     }, [
-      isSeiEvmChain,
-      isSelectedTokenEvm,
-      addressLinkState,
       chainInfo?.evmOnlyChain,
       spendableBalancesForChain,
-      evmBalance?.evmBalance,
+      evmBalance,
       solanaBalance,
       suiBalance,
       chainInfo.chainId,
     ])
 
     const allTokensStatus = useMemo(() => {
-      if (
-        (isSeiEvmChain && isSelectedTokenEvm && !['done', 'unknown'].includes(addressLinkState)) ||
-        chainInfo?.evmOnlyChain
-      ) {
-        if (evmBalance?.status === 'loading' || allTokensLoading) {
+      if (chainInfo?.evmOnlyChain) {
+        if (evmBalanceLoading || allTokensLoading) {
           return 'loading'
         }
         return 'success'
       }
       return allTokensLoading ? 'loading' : 'success'
-    }, [
-      addressLinkState,
-      allTokensLoading,
-      chainInfo?.evmOnlyChain,
-      evmBalance?.status,
-      isSeiEvmChain,
-      isSelectedTokenEvm,
-    ])
+    }, [allTokensLoading, chainInfo?.evmOnlyChain, evmBalanceLoading])
 
     const feeTokenAsset = allTokens.find((token: Token) => {
       if (isSelectedTokenEvm && token?.isEvm) {
@@ -451,11 +459,11 @@ const GasPriceOptions = observer(
       const gasPriceBN = new BigNumber(gasPriceOption.gasPrice.amount.toFloatApproximation())
       // if the dapp has specified a fee granter or has set disableFeeCheck on SignOptions, the fees is being paid by the dapp we ignore the fee asset balance checks
       if (disableBalanceCheck || gasPriceBN.isZero() || allTokensStatus === 'loading') {
-        setError(null)
+        setGasFeeError(null)
         return
       }
       if (!feeTokenAsset && feeTokenData?.denom.coinDenom) {
-        return setError(`You do not have any ${feeTokenData?.denom.coinDenom} tokens`)
+        return setGasFeeError(`You do not have any ${feeTokenData?.denom.coinDenom} tokens`)
       }
 
       const isIbcDenom = !!feeTokenAsset?.ibcDenom
@@ -482,12 +490,14 @@ const GasPriceOptions = observer(
           feeTokenAsset?.coinMinimalDenom === feeTokenData.denom?.coinMinimalDenom)
       ) {
         if (amount.isGreaterThan(feeTokenAsset?.amount ?? 0)) {
-          setError(
+          setGasFeeError(
             `You don't have enough ${feeTokenData?.denom.coinDenom.toUpperCase()} to pay gas fees`,
           )
         } else {
-          Number(gasLimit) && setError(null)
+          setGasFeeError(null)
         }
+      } else {
+        setGasFeeError(null)
       }
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -498,7 +508,7 @@ const GasPriceOptions = observer(
       gasLimit,
       gasPriceOption.gasPrice.amount,
       gasPriceOption.gasPrice.denom,
-      setError,
+      setGasFeeError,
       disableBalanceCheck,
       considerGasAdjustment,
       notUpdateInitialGasPrice,
@@ -574,6 +584,9 @@ const GasPriceOptions = observer(
       ) {
         return
       }
+
+      // this is the logic to autoselect fee token if the user has not selected a fee token
+      // if the user has selected a fee token, we don't need to do this
 
       let foundFeeTokenData = feeTokens?.data?.find((token) => {
         if (token.ibcDenom) {
@@ -657,7 +670,8 @@ const GasPriceOptions = observer(
                 )
             },
             error,
-            setError,
+            setGasFeeError,
+            setGasLimitError,
             feeTokenAsset,
             allTokens,
             //TODO: remove this
@@ -970,7 +984,8 @@ GasPriceOptions.AdditionalSettings = observer(
       value,
       feeTokenAsset,
       allTokens,
-      setError,
+      setGasFeeError,
+      setGasLimitError,
       gasLimit,
       setGasLimit,
       recommendedGasLimit,
@@ -1025,9 +1040,11 @@ GasPriceOptions.AdditionalSettings = observer(
 
     useEffect(() => {
       if (isGasLimitInvalid(gasLimitInputValue)) {
-        setError('Gas limit is invalid')
+        setGasLimitError('Gas limit is invalid')
+      } else {
+        setGasLimitError(null)
       }
-    }, [gasLimitInputValue, setError])
+    }, [gasLimitInputValue, setGasLimitError])
 
     useEffect(() => {
       const handleTouch = () => {
@@ -1105,7 +1122,7 @@ GasPriceOptions.AdditionalSettings = observer(
               forceBaseGasPriceStep,
             }),
         })
-        setError(null)
+        setGasFeeError(null)
         if (!userHasSelectedToken) {
           setUserHasSelectedToken(true)
         }
@@ -1114,12 +1131,15 @@ GasPriceOptions.AdditionalSettings = observer(
           document.getElementById(`gas-option-${value.option}`)?.click()
         }, 50)
       } else {
-        setError('Unable to calculate gas price for selected token')
+        setGasFeeError('Unable to calculate gas price for selected token')
       }
     }
 
     const handleGasLimitOnChange = (e: ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value
+      if (Number(value) > INT53_MAX) {
+        return
+      }
       setGasLimitInputValue(value)
 
       const _gasLimitInt =
@@ -1129,7 +1149,6 @@ GasPriceOptions.AdditionalSettings = observer(
 
       if (!isGasLimitInvalid(gasLimitInputValue) && _gasLimit !== recommendedGasLimit) {
         setGasLimit(_gasLimit)
-        allowUpdateInputStore.resetUpdateCount()
       }
     }
 
@@ -1190,6 +1209,7 @@ GasPriceOptions.AdditionalSettings = observer(
                     },
                   )}
                   value={gasLimitInputValue}
+                  max={INT53_MAX} // int53 max
                   onChange={handleGasLimitOnChange}
                   ref={inputRef}
                 />

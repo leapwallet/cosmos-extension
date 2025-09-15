@@ -20,6 +20,7 @@ import { EthWallet } from '@leapwallet/leap-keychain'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { observer } from 'mobx-react-lite'
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 import { assert } from 'utils/assert'
 
 const useGetWallet = Wallet.useGetWallet
@@ -76,6 +77,7 @@ export const SendContextProvider: React.FC<SendContextProviderProps> = observer(
       denoms: rootDenomsStore.allDenoms,
       cw20Denoms: allCW20Denoms,
       erc20Denoms: allERC20Denoms,
+      ibcDataStore,
     })
     const getWallet = useGetWallet(sendActiveChain)
     const currentWalletAddress = useAddress()

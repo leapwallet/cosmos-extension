@@ -298,22 +298,6 @@ export const getChainActivity = async (config: {
 
         break;
       }
-      case 'flame': {
-        try {
-          const explorer =
-            selectedNetwork === 'mainnet'
-              ? 'https://explorer.flame.astria.org'
-              : 'https://explorer.flame.dawn-1.astria.org';
-          const url = `${explorer}/api/v2/addresses/${address}/transactions?filter=to%20%7C%20from`;
-          const response = await fetch(url);
-          const data = await response.json();
-          parsedData = data?.items?.map((tx: any) => parseFormaTx(tx, Object.keys(chainInfo.nativeDenoms)[0]));
-        } catch (_) {
-          //
-        }
-
-        break;
-      }
       case 'manta': {
         try {
           const explorer =

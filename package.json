@@ -109,6 +109,11 @@
     "@cosmjs/math": "0.29.5",
     "@cosmjs/proto-signing": "0.29.5",
     "@cosmjs/stargate": "0.29.5",
+    "@sentry/browser": "7.56.0",
+    "@sentry/node": "7.56.0",
+    "@sentry/react": "7.56.0",
+    "@sentry/tracing": "7.56.0",
+    "@sentry/types": "7.56.0",
     "@types/react": "18.3.0",
     "@types/react-dom": "18.3.0",
     "bignumber.js": "9.0.2"

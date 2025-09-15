@@ -590,6 +590,15 @@ export async function awaitApproveChainResponse(payloadId: string) {
         reject({ status: 'rejected', payloadId: message.payload.payloadId })
         browser.runtime.onMessage.removeListener(listener)
       } else if (message.type === 'popup-closed') {
+        // Immediately clean up popup entry if window ID is provided
+        if (message?.payload?.windowId) {
+          const entries = Object.entries(popupIds)
+          entries.forEach(([url, popupId]) => {
+            if (popupId === message?.payload?.windowId) {
+              delete popupIds[url]
+            }
+          })
+        }
         resolve('popup-closed')
         browser.runtime.onMessage.removeListener(listener)
       } else if (message.type === 'user-logged-in' && message.status !== 'success') {

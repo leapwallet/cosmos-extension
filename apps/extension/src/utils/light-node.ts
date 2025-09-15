@@ -57,7 +57,7 @@ export async function startLightNode() {
   }
   console.log('requesting connection to', networkConfig.bootnodes, networkConfig)
 
-  networkConfig.customSamplingWindowSecs = LIGHT_NODE_SYNC_WINDOW_SECS
+  networkConfig.customPruningWindowSecs = LIGHT_NODE_SYNC_WINDOW_SECS
   networkConfig.usePersistentMemory = true
 
   const started = await self.luminaClient.start(networkConfig)

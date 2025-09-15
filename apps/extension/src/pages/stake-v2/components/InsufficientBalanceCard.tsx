@@ -42,7 +42,7 @@ const InsufficientBalanceCard = observer(
           </span>
         </div>
         <Button size={'slim'} variant='mono' asChild onClick={handleButtonClick}>
-          Get {activeStakingDenom.coinDenom ?? ''}
+          <span>Get {activeStakingDenom.coinDenom ?? ''}</span>
         </Button>
       </div>
     )

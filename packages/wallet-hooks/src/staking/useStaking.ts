@@ -552,7 +552,7 @@ export function useStakeTx(
 
   const simulateTx = useCallback(
     (amount: Coin, feeDenom: string, creationHeight?: string) => {
-      const fee = getSimulationFee(feeDenom);
+      const fee = getSimulationFee(feeDenom, '1');
       switch (mode) {
         case 'REDELEGATE':
           return simulateRedelegate(
@@ -663,6 +663,7 @@ export function useStakeTx(
     callback,
     isSimulation = true,
     customFee,
+    simulationParams,
   }: {
     wallet?: OfflineSigner;
     callback?: TxCallback;
@@ -670,6 +671,9 @@ export function useStakeTx(
     customFee?: {
       stdFee: StdFee | undefined;
       feeDenom: NativeDenom;
+    };
+    simulationParams?: {
+      forceSimulationFeeDenom?: string;
     };
   }) => {
     if (isLoading || !address || !activeChain) {
@@ -728,14 +732,16 @@ export function useStakeTx(
           gasEstimate = defaultGasStake * Math.max(delegations?.length, 1);
         }
 
+        const simulationFeeDenom = simulationParams?.forceSimulationFeeDenom ?? gasPrice.denom;
+
         try {
-          const { gasUsed } = await simulateTx(amt, gasPrice.denom, creationHeight);
+          const { gasUsed } = await simulateTx(amt, simulationFeeDenom, creationHeight);
           gasEstimate = gasUsed;
           setRecommendedGasLimit(gasUsed.toString());
           updateGasEstimateCache({
             chainId: activeChainId,
             txType: mode,
-            feeDenom: gasPrice.denom,
+            feeDenom: simulationFeeDenom,
             gasEstimate: gasUsed,
           });
         } catch (error: any) {
@@ -864,7 +870,11 @@ export function useStakeTx(
       const amountBN = new BigNumber(amount);
       if (!amountBN.isNaN() && amountBN.gt(0)) {
         try {
-          executeDelegateTx({ isSimulation: true });
+          const forceSimulationFeeDenom = userPreferredGasPrice?.denom;
+          executeDelegateTx({
+            isSimulation: true,
+            simulationParams: forceSimulationFeeDenom ? { forceSimulationFeeDenom } : undefined,
+          });
         } catch {
           //
         }

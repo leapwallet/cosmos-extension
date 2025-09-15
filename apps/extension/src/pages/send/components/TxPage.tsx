@@ -7,7 +7,6 @@ import {
   useAddress,
   useChainId,
   useGetExplorerTxnUrl,
-  useInvalidateActivity,
   usePendingTxState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
@@ -21,6 +20,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { activityStore } from 'stores/activity-store'
 import { rootBalanceStore } from 'stores/root-store'
 
 const TxPage = observer(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
@@ -53,16 +53,16 @@ const TxPage = observer(({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const invalidateBalances = useCallback(() => {
     rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
     if (toAddress) {
-      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, toAddress)
+      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, {
+        [toChain ?? activeChain]: toAddress,
+      })
     }
   }, [activeChain, selectedNetwork, toAddress, toChain])
-
-  const invalidateActivity = useInvalidateActivity()
 
   useEffect(() => {
     const invalidateQueries = () => {
       invalidateBalances()
-      invalidateActivity(activeChain)
+      activityStore.invalidateActivity(activeChain)
     }
 
     if (pendingTx && pendingTx.promise) {

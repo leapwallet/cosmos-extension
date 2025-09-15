@@ -8,10 +8,10 @@ export function useInitLightNode(store: LightNodeStore) {
   }, [store])
 
   useEffect(() => {
-    if (!store.isSubscribedToEvents) {
+    if (store.isLightNodeRunning && !store.isSubscribedToEvents) {
       store.subscribeToEvents()
     }
-  }, [store, store.isLightNodeRunning])
+  }, [store, store.isLightNodeRunning, store.isSubscribedToEvents])
 
   useEffect(() => {
     if (store.nodeStartError || store.nodeStopError) {

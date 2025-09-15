@@ -43,8 +43,13 @@ import { FeesView } from '../fees-view'
 import { FixedFee } from '../fees-view/FixedFee'
 import { ReviewTransferSheet } from './review-transfer-sheet'
 
+type ReviewTransferProps = {
+  setShowTxPage: (val: boolean) => void
+  isErc20ToSei1WithLedgerCosmos?: boolean
+}
+
 export const ReviewTransfer = observer(
-  ({ setShowTxPage }: { setShowTxPage: (val: boolean) => void }) => {
+  ({ setShowTxPage, isErc20ToSei1WithLedgerCosmos }: ReviewTransferProps) => {
     const { activeWallet } = useActiveWallet()
     const getWallet = Wallet.useGetWallet()
     const [showReviewTxSheet, setShowReviewTxSheet] = useState(false)
@@ -201,37 +206,6 @@ export const ReviewTransfer = observer(
       transferData?.messages,
     ])
 
-    useEffect(() => {
-      if (isInitiaTxn) {
-        if (
-          // @ts-ignore
-          !transferData?.isLoadingMessages &&
-          // @ts-ignore
-          !transferData?.isLoadingRoute &&
-          selectedAddress?.chainName &&
-          chains[selectedAddress?.chainName as SupportedChain]?.chainId !==
-            chains[sendActiveChain]?.chainId &&
-          // @ts-ignore
-          !transferData?.messages
-        ) {
-          setRouteError(true)
-        } else {
-          setRouteError(false)
-        }
-      }
-    }, [
-      chains,
-      isInitiaTxn,
-      selectedAddress?.chainName,
-      sendActiveChain,
-      // @ts-ignore
-      transferData?.isLoadingMessages,
-      // @ts-ignore
-      transferData?.messages,
-      // @ts-ignore
-      transferData?.isLoadingRoute,
-    ])
-
     const btnText = useMemo(() => {
       if (!inputAmount) return 'Enter amount'
       if (routeError) return 'No routes found'
@@ -340,20 +314,6 @@ export const ReviewTransfer = observer(
     }, [])
 
     const isReviewDisabled = useMemo(() => {
-      if (
-        isInitiaTxn &&
-        // @ts-ignore
-        (transferData?.isLoadingRoute ||
-          // @ts-ignore
-          transferData?.isLoadingMessages ||
-          (selectedAddress?.chainName &&
-            chains[selectedAddress?.chainName as SupportedChain]?.chainId !==
-              chains[sendActiveChain]?.chainId &&
-            // @ts-ignore
-            !transferData?.messages))
-      ) {
-        return true
-      }
       if (addressWarning.type === 'link') {
         return (
           ['loading', 'success'].includes(addressLinkState) ||
@@ -369,6 +329,7 @@ export const ReviewTransfer = observer(
       }
 
       return (
+        isErc20ToSei1WithLedgerCosmos ||
         sendDisabled ||
         !!gasError ||
         (!pfmEnabled && !isIbcUnwindingDisabled) ||
@@ -398,6 +359,7 @@ export const ReviewTransfer = observer(
       featureFlags?.link_evm_address?.extension,
       aptosGasPriceStatus,
       isAptosTx,
+      isErc20ToSei1WithLedgerCosmos,
     ])
 
     const feeValue = {

@@ -1,4 +1,11 @@
-import { capitalize, sliceAddress, useActiveChain } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  capitalize,
+  isERC20Token,
+  sliceAddress,
+  useActiveChain,
+  useActiveWallet,
+  WALLETTYPE,
+} from '@leapwallet/cosmos-wallet-hooks'
 import { PencilSimple } from '@phosphor-icons/react'
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr'
 import { WalletButton } from 'components/button'
@@ -10,7 +17,7 @@ import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import SelectWallet from 'pages/home/SelectWallet'
 import TxPage, { TxType } from 'pages/nfts-v2/send-nft/TxPage'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { evmBalanceStore } from 'stores/balance-store'
 import { compassTokensAssociationsStore } from 'stores/chain-infos-store'
@@ -67,6 +74,21 @@ const Send = observer(() => {
   const allERC20Denoms = rootERC20DenomsStore.allERC20Denoms
   const allCW20Denoms = rootCW20DenomsStore.allCW20Denoms
 
+  const isErc20token = useMemo(() => {
+    return isERC20Token(Object.keys(allERC20Denoms), selectedToken?.coinMinimalDenom ?? '')
+  }, [allERC20Denoms, selectedToken?.coinMinimalDenom])
+
+  const activeWallet = useActiveWallet()
+
+  const isErc20ToSei1WithLedgerCosmos = useMemo(() => {
+    return (
+      selectedAddress?.address?.toLowerCase?.()?.startsWith?.('sei1') &&
+      isErc20token &&
+      activeWallet?.walletType === WALLETTYPE.LEDGER &&
+      activeWallet?.app === 'cosmos'
+    )
+  }, [selectedAddress?.address, isErc20token, activeWallet?.walletType, activeWallet?.app])
+
   useFillAddressWarning({
     fetchAccountDetailsData,
     fetchAccountDetailsStatus,
@@ -78,6 +100,7 @@ const Send = observer(() => {
       </>
     ),
     setAddressWarning,
+    isErc20ToSei1WithLedgerCosmos,
   })
 
   useCheckAddressError({
@@ -236,7 +259,10 @@ const Send = observer(() => {
               </div>
               <Memo />
 
-              <ReviewTransfer setShowTxPage={setShowTxPage} />
+              <ReviewTransfer
+                setShowTxPage={setShowTxPage}
+                isErc20ToSei1WithLedgerCosmos={isErc20ToSei1WithLedgerCosmos}
+              />
             </div>
           </div>
         </>

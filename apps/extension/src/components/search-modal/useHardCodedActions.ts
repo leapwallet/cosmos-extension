@@ -11,7 +11,7 @@ import { useAuth } from 'context/auth-context'
 import { useActiveChain } from 'hooks/settings/useActiveChain'
 import mixpanel from 'mixpanel-browser'
 import { useProviderFeatureFlags } from 'pages/swaps-v2/hooks'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { earnFeatureShowStore } from 'stores/earn-feature-show'
 import { AggregatedSupportedChain } from 'types/utility'
@@ -33,7 +33,7 @@ export function useHardCodedActions() {
   const [showAlert, setShowAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
 
-  const handleBuyClick = () => {
+  const handleBuyClick = useCallback(() => {
     navigate(`/buy?pageSource=${PageName.Home}`)
     try {
       mixpanel.track(EventName.ButtonClick, {
@@ -43,19 +43,22 @@ export function useHardCodedActions() {
     } catch (error) {
       captureException(error)
     }
-  }
+  }, [navigate])
 
-  function handleSwapClick(_redirectUrl?: string, navigateUrl?: string) {
-    if (featureFlags?.all_chains?.swap === 'redirect') {
-      const fallbackUrl = activeChainInfo?.chainId
-        ? `${LEAPBOARD_SWAP_URL}&sourceChainId=${activeChainInfo.chainId}`
-        : LEAPBOARD_SWAP_URL
-      const redirectUrl = _redirectUrl ?? fallbackUrl
-      window.open(redirectUrl, '_blank')
-    } else {
-      navigate(navigateUrl ?? '/swap')
-    }
-  }
+  const handleSwapClick = useCallback(
+    (_redirectUrl?: string, navigateUrl?: string) => {
+      if (featureFlags?.all_chains?.swap === 'redirect') {
+        const fallbackUrl = activeChainInfo?.chainId
+          ? `${LEAPBOARD_SWAP_URL}&sourceChainId=${activeChainInfo.chainId}`
+          : LEAPBOARD_SWAP_URL
+        const redirectUrl = _redirectUrl ?? fallbackUrl
+        window.open(redirectUrl, '_blank')
+      } else {
+        navigate(navigateUrl ?? '/swap')
+      }
+    },
+    [featureFlags?.all_chains?.swap, activeChainInfo, navigate],
+  )
 
   function handleNftsClick(_redirectUrl?: string) {
     if (featureFlags?.nfts?.extension === 'redirect') {
@@ -66,14 +69,14 @@ export function useHardCodedActions() {
     }
   }
 
-  function handleVoteClick(_redirectUrl?: string) {
+  const handleVoteClick = useCallback(() => {
     if (featureFlags?.gov?.extension === 'redirect') {
-      const redirectUrl = _redirectUrl ?? `${LEAPBOARD_URL}/portfolio/gov`
+      const redirectUrl = `${LEAPBOARD_URL}/portfolio/gov`
       window.open(redirectUrl, '_blank')
     } else {
       navigate('/gov')
     }
-  }
+  }, [featureFlags?.gov?.extension, navigate])
 
   function handleBridgeClick(navigateUrl?: string) {
     let redirectURL = ''
@@ -108,17 +111,17 @@ export function useHardCodedActions() {
     }
   }
 
-  function onSendClick(_redirectUrl?: string) {
+  const onSendClick = useCallback(() => {
     if (featureFlags?.ibc?.extension === 'redirect') {
       const fallbackUrl = activeChainInfo?.chainId
         ? `${LEAPBOARD_URL}/transact/send?sourceChainId=${activeChainInfo.chainId}`
         : `${LEAPBOARD_URL}/transact/send`
-      const redirectUrl = _redirectUrl ?? fallbackUrl
+      const redirectUrl = fallbackUrl
       window.open(redirectUrl, '_blank')
     } else {
       navigate(`/send`)
     }
-  }
+  }, [featureFlags?.ibc?.extension, navigate, activeChainInfo])
 
   function handleNobleEarnClick() {
     if (earnFeatureShowStore.show !== 'false') {

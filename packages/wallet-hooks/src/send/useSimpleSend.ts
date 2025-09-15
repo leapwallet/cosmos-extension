@@ -1,4 +1,4 @@
-import { Ed25519Account } from '@aptos-labs/ts-sdk';
+import { Ed25519Account, SimpleTransaction } from '@aptos-labs/ts-sdk';
 import { coin, OfflineSigner } from '@cosmjs/proto-signing';
 import { StdFee } from '@cosmjs/stargate';
 import { parseEther, parseUnits } from '@ethersproject/units';
@@ -12,7 +12,7 @@ import {
   DenomsRecord,
   Dict,
   EthermintTxHandler,
-  getSourceChainChannelId,
+  getChainId,
   InjectiveTx,
   isEthAddress,
   isValidAddress,
@@ -36,16 +36,16 @@ import {
   txDeclinedErrorUser,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { Token } from '@leapwallet/cosmos-wallet-store';
+import { Wallet } from '@leapwallet/leap-keychain';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { BtcWallet, BtcWalletHD, BtcWalletPk } from '@leapwallet/leap-keychain/dist/browser/key/btc-wallet';
+import { base64 } from '@scure/base';
 import { bech32 } from 'bech32';
 import { BigNumber } from 'bignumber.js';
-import e from 'express';
 import { useCallback, useMemo, useState } from 'react';
-import { Wallet } from 'secretjs';
 
+import { LeapWalletApi } from '../apis/LeapWalletApi';
 import { CosmosTxType } from '../connectors';
-import { useValidateIbcChannelId } from '../ibc/useValidateIbcChannelId';
 import {
   PendingTx,
   useActiveChain,
@@ -58,7 +58,7 @@ import {
 import { useCWTxHandler, useScrtTxHandler, useTxHandler } from '../tx';
 import { WALLETTYPE } from '../types';
 import { ActivityCardContent } from '../types/activity';
-import { getMetaDataForIbcTx, getMetaDataForSendTx, sliceAddress } from '../utils';
+import { getMetaDataForIbcTx, getMetaDataForSendTx, getTxnLogAmountValue, sliceAddress } from '../utils';
 import { useChainId, useChainInfo } from '../utils-hooks';
 
 type _TokenDenom = {
@@ -110,15 +110,6 @@ export type sendTokensReturnType =
       };
     };
 
-export const getSourceChannelIdUnsafe = async (srcChain: string, destChain: string): Promise<string | undefined> => {
-  try {
-    const id = await getSourceChainChannelId(srcChain, destChain);
-    return id;
-  } catch (e) {
-    return undefined;
-  }
-};
-
 export const useSimpleSend = (
   denoms: DenomsRecord,
   isCW20Token: (token: Token) => boolean,
@@ -142,10 +133,10 @@ export const useSimpleSend = (
   const getCW20TxClient = useCWTxHandler(activeChain, selectedNetwork);
 
   const addressPrefixes = useAddressPrefixes();
-  const validateIbcChannelId = useValidateIbcChannelId();
   const { chains } = useChainsStore();
   const { evmJsonRpc, rpcUrl } = useChainApis(activeChain, selectedNetwork);
   const evmChainId = useChainId(activeChain, selectedNetwork, true);
+  const txPostToDB = LeapWalletApi.useOperateCosmosTx();
 
   const sendCW20 = useCallback(
     async ({
@@ -166,7 +157,7 @@ export const useSimpleSend = (
       amount: BigNumber;
     }): Promise<sendTokensReturnType> => {
       try {
-        const client = await getCW20TxClient(wallet);
+        const client = await getCW20TxClient(wallet as unknown as OfflineSigner);
 
         const hash = await client.execute(
           fromAddress,
@@ -229,7 +220,10 @@ export const useSimpleSend = (
       try {
         const _txHandler = txHandler ?? getScrtTxHandler(wallet);
         const promise = _txHandler.transfer(fromAddress, selectedDenom.coinMinimalDenom, {
-          transfer: { recipient: toAddress, amount: amount.decimalPlaces(selectedDenom?.coinDecimals ?? 6).toString() },
+          transfer: {
+            recipient: toAddress,
+            amount: amount.multipliedBy(10 ** (selectedDenom?.coinDecimals ?? 6)).toString(),
+          },
         });
 
         return {
@@ -362,8 +356,9 @@ export const useSimpleSend = (
         const aptos = await AptosTx.getAptosClient(lcdUrl ?? '', account);
         const normalizedAmount = toSmall(amount.toString(), selectedDenom?.coinDecimals ?? 6);
         let txHash = '';
+        let tx: SimpleTransaction | undefined;
         if (selectedDenom.aptosTokenType === 'v1') {
-          txHash = await aptos.sendTokens(
+          tx = await aptos.sendTokens(
             fromAddress,
             toAddress,
             [{ amount: normalizedAmount, denom: selectedDenom.coinMinimalDenom }],
@@ -371,8 +366,9 @@ export const useSimpleSend = (
             gasLimit,
             memo,
           );
+          txHash = base64.encode(tx.rawTransaction.sender.data);
         } else {
-          txHash = await aptos.sendFungibleAsset(
+          tx = await aptos.sendFungibleAsset(
             fromAddress,
             selectedDenom.coinMinimalDenom,
             toAddress,
@@ -380,22 +376,65 @@ export const useSimpleSend = (
             gasPrice,
             gasLimit,
           );
+          txHash = base64.encode(tx.rawTransaction.sender.data);
         }
+        const broadcastAndPollPromise = (async () => {
+          try {
+            const broadcastedTxn = await aptos.broadcastTransaction(tx ?? {});
+            try {
+              const denomChainInfo = chains[denoms[selectedDenom?.coinMinimalDenom ?? '']?.chain as SupportedChain];
+              const txLogAmountDenom = {
+                coinGeckoId: denoms[selectedDenom?.coinMinimalDenom ?? '']?.coinGeckoId,
+                chain: selectedDenom?.chain as SupportedChain,
+                chainId: getChainId(denomChainInfo, selectedNetwork),
+                coinMinimalDenom: selectedDenom?.coinMinimalDenom,
+              };
+              const txLogAmountValue = await getTxnLogAmountValue(amount.toString(), txLogAmountDenom);
+              await txPostToDB({
+                txHash: broadcastedTxn.hash,
+                txType: CosmosTxType.Send,
+                metadata: getMetaDataForSendTx(toAddress, coin(normalizedAmount, selectedDenom.coinMinimalDenom)),
+                feeQuantity: gasPrice && gasLimit ? (gasPrice * gasLimit).toString() : '',
+                feeDenomination: selectedDenom.coinMinimalDenom,
+                amount: txLogAmountValue,
+                forceChain: activeChain,
+                forceNetwork: selectedNetwork,
+                forceWalletAddress: fromAddress,
+                chainId: getChainId(chainInfo, selectedNetwork),
+                isAptos: true,
+              });
+            } catch (e: any) {
+              //
+            }
+
+            if (!broadcastedTxn.hash) {
+              throw new Error('Transaction failed');
+            }
+
+            return aptos.pollForTx(broadcastedTxn.hash);
+          } catch (e: any) {
+            return {
+              aptosResult: {
+                success: false,
+                errors: [e.message],
+              },
+            };
+          }
+        })();
+
         return {
           success: true,
           pendingTx: {
-            txHash: txHash ?? '',
+            txHash: '',
             img: chainInfo.chainSymbolImageUrl,
             sentAmount: amount.toString(),
             sentTokenInfo: selectedDenom as unknown as NativeDenom,
             sentUsdValue: '0',
             subtitle1: sliceAddress(fromAddress),
             title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
-            txStatus: 'submitted',
+            txStatus: 'loading',
             txType: 'send',
-            promise: new Promise((resolve) => {
-              resolve({ status: 'submitted' });
-            }),
+            promise: broadcastAndPollPromise,
           },
           data: {
             txHash,
@@ -460,11 +499,9 @@ export const useSimpleSend = (
             sentUsdValue: '0',
             subtitle1: sliceAddress(fromAddress),
             title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
-            txStatus: 'submitted',
+            txStatus: 'loading',
             txType: 'send',
-            promise: new Promise((resolve) => {
-              resolve({ status: 'submitted' });
-            }),
+            promise: solanaTx.pollForTx(txHash),
           },
           data: {
             txHash,
@@ -507,39 +544,92 @@ export const useSimpleSend = (
         const normalizedAmount = parseFloat(toSmall(amount.toString(), selectedDenom?.coinDecimals ?? 9));
 
         let txHash = '';
+        let txBytes: Uint8Array;
+        let signature: Uint8Array;
         if (selectedDenom.coinMinimalDenom === 'mist') {
-          const { digest } = await suiTx.sendSui(fromAddress, toAddress, normalizedAmount, fees);
-          txHash = digest;
+          const { txBytes: _txBytes, signature: _signature } = await suiTx.sendSui(
+            fromAddress,
+            toAddress,
+            normalizedAmount,
+            fees,
+          );
+          txBytes = _txBytes;
+          signature = _signature;
+          txHash = base64.encode(new Uint8Array(Object.values(txBytes)));
         } else {
-          const { digest } = await suiTx.sendNonNativeToken(
+          const { txBytes: _txBytes, signature: _signature } = await suiTx.sendNonNativeToken(
             selectedDenom.coinMinimalDenom,
             toAddress,
             normalizedAmount,
             selectedDenom.coinDecimals,
             fees,
           );
-          txHash = digest;
+          txBytes = _txBytes;
+          signature = _signature;
+          txHash = base64.encode(new Uint8Array(Object.values(txBytes)));
         }
 
         const feeQuantity =
           fees?.amount?.[0]?.amount && !new BigNumber(fees.amount[0].amount).isNaN()
             ? new BigNumber(fees.amount[0].amount).plus(computedGas ?? 0).toString()
             : fees?.amount?.[0]?.amount;
+
+        const broadcastAndPollPromise = (async () => {
+          try {
+            const broadcastedTxn = await suiTx.broadcastTransaction(txBytes, signature);
+            try {
+              const denomChainInfo = chains[denoms[selectedDenom?.coinMinimalDenom ?? '']?.chain as SupportedChain];
+              const txLogAmountDenom = {
+                coinGeckoId: denoms[selectedDenom?.coinMinimalDenom ?? '']?.coinGeckoId,
+                chain: selectedDenom?.chain as SupportedChain,
+                chainId: getChainId(denomChainInfo, selectedNetwork),
+                coinMinimalDenom: selectedDenom?.coinMinimalDenom,
+              };
+              const txLogAmountValue = await getTxnLogAmountValue(amount.toString(), txLogAmountDenom);
+              await txPostToDB({
+                txHash: broadcastedTxn.digest,
+                txType: CosmosTxType.Send,
+                metadata: getMetaDataForSendTx(toAddress, coin(normalizedAmount, selectedDenom.coinMinimalDenom)),
+                feeQuantity: feeQuantity,
+                feeDenomination: selectedDenom.coinMinimalDenom,
+                amount: txLogAmountValue,
+                forceChain: activeChain,
+                forceNetwork: selectedNetwork,
+                forceWalletAddress: fromAddress,
+                chainId: getChainId(chainInfo, selectedNetwork),
+                isSui: true,
+              });
+            } catch (e: any) {
+              //
+            }
+
+            if (!broadcastedTxn.digest) {
+              throw new Error('Transaction failed');
+            }
+
+            return suiTx.pollForTx(broadcastedTxn.digest);
+          } catch (e: any) {
+            return {
+              aptosResult: {
+                success: false,
+                errors: [e.message],
+              },
+            };
+          }
+        })();
         return {
           success: true,
           pendingTx: {
-            txHash,
+            txHash: '',
             img: chainInfo.chainSymbolImageUrl,
             sentAmount: amount.toString(),
             sentTokenInfo: selectedDenom as unknown as NativeDenom,
             sentUsdValue: '0',
             subtitle1: sliceAddress(fromAddress),
             title1: `${amount.toString()} ${selectedDenom.coinDenom}`,
-            txStatus: 'submitted',
+            txStatus: 'loading',
             txType: 'send',
-            promise: new Promise((resolve) => {
-              resolve({ status: 'submitted' });
-            }),
+            promise: broadcastAndPollPromise,
           },
           data: {
             txHash,
@@ -743,7 +833,7 @@ export const useSimpleSend = (
       memo,
       fees,
       txHandler,
-      ibcChannelId: _ibcChannelId,
+      ibcChannelId,
     }: {
       wallet: OfflineSigner;
       fromAddress: string;
@@ -802,23 +892,11 @@ export const useSimpleSend = (
           toChain?: string;
         };
 
-        const ibcChannelId =
-          _ibcChannelId || (await getSourceChannelIdUnsafe(srcChainRegistryPath, destChainRegistryPath));
-
         if (isIBCTx) {
           if (!ibcChannelId) {
             return {
               success: false,
               errors: [`No active IBC channels from ${srcChainName} to ${destChainName}`],
-            };
-          }
-
-          const response = await validateIbcChannelId(ibcChannelId, srcChainKey, destChainKey);
-
-          if (!response.success) {
-            return {
-              success: false,
-              errors: [response.message],
             };
           }
 
@@ -1097,7 +1175,9 @@ export const useSimpleSend = (
       }
 
       setShowLedgerPopup(false);
-      setIsSending(false);
+      if (!isSuiTx && !isAptosTx) {
+        setIsSending(false);
+      }
 
       return result;
     },

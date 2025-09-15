@@ -1,5 +1,4 @@
-import { useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
-import { MarketChartPrice } from '@leapwallet/leap-api-js'
+import { MarketChartPrice, useformatCurrency } from '@leapwallet/cosmos-wallet-hooks'
 import { BigNumber } from 'bignumber.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import {

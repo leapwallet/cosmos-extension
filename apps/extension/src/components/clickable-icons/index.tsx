@@ -1,3 +1,4 @@
+import { observer } from 'mobx-react-lite'
 import React, { ComponentPropsWithoutRef, forwardRef } from 'react'
 import { cn } from 'utils/cn'
 
@@ -33,4 +34,4 @@ const ClickableIcon = forwardRef<HTMLButtonElement, ClickableIconProps>(
 
 ClickableIcon.displayName = 'ClickableIcon'
 
-export default ClickableIcon
+export default observer(ClickableIcon)

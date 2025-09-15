@@ -8,6 +8,10 @@ import * as sol from 'micro-sol-signer';
 
 import { getBaseURL } from '../globals';
 
+const internalMapping: Record<string, string> = {
+  'wrapped-fogo': 'So11111111111111111111111111111111111111112',
+};
+
 export type SolanaAccount = {
   readonly address: string;
   readonly pubKey: string;
@@ -49,7 +53,7 @@ export class SolanaTx {
     };
   }
 
-  async simulateSendSolTransaction(fromAddress: string, toAddress: string, amount: number) {
+  async simulateSendSolTransaction(fromAddress: string, toAddress: string, amount: number, fee: StdFee) {
     try {
       const { data: result } = await axios({
         url: `${getBaseURL()}/adhoc/sdk/solana/simulateTx`,
@@ -62,15 +66,7 @@ export class SolanaTx {
           },
           recipient: toAddress,
           selectedNetwork: this.selectedNetwork,
-          feeSOL: {
-            amount: [
-              {
-                amount: 10_000,
-                decimals: 9,
-              },
-            ],
-            gas: 20_000,
-          },
+          feeSOL: fee,
           activeChain: this.chain,
         },
         timeout: 10000,
@@ -92,6 +88,9 @@ export class SolanaTx {
     tokenDecimals: number,
   ) {
     try {
+      if (internalMapping[tokenMintAddress]) {
+        tokenMintAddress = internalMapping[tokenMintAddress];
+      }
       const BASE_URL = `${getBaseURL()}/adhoc/sdk/solana-spl`;
       const { data: result } = await axios({
         url: `${BASE_URL}/simulateTx`,
@@ -230,9 +229,9 @@ export class SolanaTx {
     }
   }
 
-  async broadcastTransaction(signedTxData: string, waitConfirmation: boolean = true): Promise<string> {
+  async broadcastTransaction(signedTxData: string, waitConfirmation: boolean = true): Promise<any> {
     try {
-      const { data: signature } = await axios({
+      const { data } = await axios({
         url: `${getBaseURL()}/adhoc/sdk/solana/broadcastTx`,
         method: 'POST',
         data: {
@@ -242,7 +241,25 @@ export class SolanaTx {
           activeChain: this.chain,
         },
       });
-      return signature;
+      return data;
+    } catch (error) {
+      console.error('Error broadcasting transaction:', error);
+      throw error;
+    }
+  }
+
+  async pollForTx(signature: string): Promise<string> {
+    try {
+      const { data: result } = await axios({
+        url: `${getBaseURL()}/adhoc/sdk/solana/pollTx`,
+        method: 'POST',
+        data: {
+          signature,
+          selectedNetwork: this.selectedNetwork,
+          activeChain: this.chain,
+        },
+      });
+      return result;
     } catch (error) {
       console.error('Error broadcasting transaction:', error);
       throw error;
@@ -254,8 +271,7 @@ export class SolanaTx {
     // If the number is very large (> 1 million), it's likely already in lamports
 
     const signedTxData = await this.createAndSignSolTransfer(toAddress, amountSOL, feeSOL);
-    const txnHash = await this.broadcastTransaction(signedTxData);
-    return txnHash;
+    return signedTxData;
   }
 
   async sendSplToken(
@@ -265,6 +281,9 @@ export class SolanaTx {
     tokenDecimals: number,
     feeSOL?: StdFee,
   ): Promise<string> {
+    if (internalMapping[tokenMintAddress]) {
+      tokenMintAddress = internalMapping[tokenMintAddress];
+    }
     const signedTxData = await this.createAndSignSplTokenTransfer(
       tokenMintAddress,
       recipientTokenAccount,
@@ -272,8 +291,7 @@ export class SolanaTx {
       tokenDecimals,
       feeSOL,
     );
-    const txnHash = await this.broadcastTransaction(signedTxData);
-    return txnHash;
+    return signedTxData;
   }
 
   async getGasPrice() {
@@ -310,5 +328,14 @@ export class SolanaTx {
       console.error('Error getting minimum rent amount', error);
       return 0;
     }
+  }
+
+  async isMaliciousWallet(address: string, selectedNetwork: 'mainnet' | 'testnet') {
+    const { data } = await axios({
+      url: `${getBaseURL()}/malicious-account/solana`,
+      method: 'POST',
+      data: { address, selectedNetwork },
+    });
+    return data.isMalicious;
   }
 }

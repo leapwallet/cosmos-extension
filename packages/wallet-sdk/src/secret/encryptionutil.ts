@@ -1,9 +1,10 @@
 import { fromBase64, fromHex, fromUtf8, toHex, toUtf8 } from '@cosmjs/encoding';
-import { generateKeyPair, sharedKey as x25519 } from 'curve25519-js';
+import { x25519 } from '@noble/curves/ed25519';
 import hkdf from 'futoin-hkdf';
 import * as miscreant from 'miscreant';
-import { Query } from 'secretjs/dist/grpc_gateway/secret/registration/v1beta1/query.pb';
 import secureRandom from 'secure-random';
+
+import { Query } from '../proto/secret/grpc_gateway/secret/registration/v1beta1/query.pb';
 
 const cryptoProvider = new miscreant.PolyfillCryptoProvider();
 
@@ -53,7 +54,7 @@ export class EncryptionUtilsImpl implements EncryptionUtils {
     privkey: Uint8Array;
     pubkey: Uint8Array;
   } {
-    const { private: privkey, public: pubkey } = generateKeyPair(seed);
+    const { secretKey: privkey, publicKey: pubkey } = x25519.keygen(seed);
     return { privkey, pubkey };
   }
 
@@ -71,7 +72,7 @@ export class EncryptionUtilsImpl implements EncryptionUtils {
   public async getTxEncryptionKey(nonce: Uint8Array): Promise<Uint8Array> {
     const consensusIoPubKey = await this.getConsensusIoPubKey();
 
-    const txEncryptionIkm = x25519(this.privkey, consensusIoPubKey);
+    const txEncryptionIkm = x25519.getSharedSecret(this.privkey, consensusIoPubKey);
     const txEncryptionKey = hkdf(Buffer.from([...txEncryptionIkm, ...nonce]), 32, {
       salt: Buffer.from(hkdfSalt),
       hash: 'SHA-256',

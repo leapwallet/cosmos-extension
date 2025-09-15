@@ -63,7 +63,7 @@ export const TokensSection = observer(
     const allTokensToShow = useMemo(() => {
       let _allTokens = allTokens
       if (isEvmOnlyChain) {
-        _allTokens = [...(evmBalance?.evmBalance ?? []), ...(_allTokens ?? [])]
+        _allTokens = [...(evmBalance ?? []), ...(_allTokens ?? [])]
       }
 
       zeroStateTokens.forEach((token) => {
@@ -80,12 +80,16 @@ export const TokensSection = observer(
       })
 
       return _allTokens
-    }, [isEvmOnlyChain, allTokens, activeChain, evmBalance?.evmBalance, zeroStateTokens])
+    }, [isEvmOnlyChain, allTokens, activeChain, evmBalance, zeroStateTokens])
 
     const isWalletHasFunds = !!allTokensToShow?.some((token) => tokenHasBalance(token))
     const selectedNetwork = useSelectedNetwork()
     const atLeastOneTokenIsLoading = rootBalanceStore.loading
-    const { snip20TokensStatus, enabled: snip20Enabled } = useSnipGetSnip20TokenBalances()
+    const {
+      snip20TokensStatus,
+      enabled: snip20Enabled,
+      snip20Tokens,
+    } = useSnipGetSnip20TokenBalances()
 
     const apiUnavailable = useMemo(() => {
       return (
@@ -163,8 +167,15 @@ export const TokensSection = observer(
 
                 {evmStatus === 'loading' ? <AggregatedLoadingList className='mb-3' /> : null}
                 {activeChain === 'secret' && snip20TokensStatus !== 'success' && snip20Enabled ? (
-                  <AggregatedLoadingList className='mb-3' />
-                ) : null}
+                  <AggregatedLoadingList className='mb-3 mt-3' />
+                ) : (
+                  <ListTokens
+                    allTokens={snip20Tokens}
+                    balanceError={false}
+                    searchQuery={searchQuery}
+                    hideNotFound={true}
+                  />
+                )}
               </>
             )}
           </section>

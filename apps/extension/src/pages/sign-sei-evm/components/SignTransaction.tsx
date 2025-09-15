@@ -36,6 +36,7 @@ import BigNumber from 'bignumber.js'
 import classNames from 'classnames'
 import Tooltip from 'components/better-tooltip'
 import { ErrorCard } from 'components/ErrorCard'
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
 import PopupLayout from 'components/layout/popup-layout'
 import LedgerConfirmationModal from 'components/ledger-confirmation/confirmation-modal'
@@ -43,6 +44,7 @@ import { LoaderAnimation } from 'components/loader/Loader'
 import { Tabs } from 'components/tabs'
 import { SEI_EVM_LEDGER_ERROR_MESSAGE } from 'config/constants'
 import { MessageTypes } from 'config/message-types'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import { useSiteLogo } from 'hooks/utility/useSiteLogo'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
@@ -56,6 +58,7 @@ import { TransactionStatus } from 'types/utility'
 import { assert } from 'utils/assert'
 import { formatWalletName } from 'utils/formatWalletName'
 import { imgOnError } from 'utils/imgOnError'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 import { isSidePanel } from 'utils/isSidePanel'
 import { uiErrorTags } from 'utils/sentry'
 import { trim } from 'utils/strings'
@@ -91,13 +94,14 @@ export const SignTransaction = observer(
     const getWallet = useGetWallet(activeChain)
     const { theme } = useTheme()
     const { addressLinkState } = useSeiLinkedAddressState(activeChain)
-    const evmBalance = evmBalanceStore.evmBalance
+    const evmBalance = evmBalanceStore.evmBalanceForChain(activeChain, activeNetwork, undefined)
     const chainInfo = useChainInfo(activeChain)
     const activeWallet = useActiveWallet()
-    const allAssets = rootBalanceStore.getBalancesForChain(activeChain, activeNetwork)
+    const allAssets = rootBalanceStore.getBalancesForChain(activeChain, activeNetwork, undefined)
     feeTokensStore.getStore(activeChain, activeNetwork, true)
 
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
+    const openLedgerReconnect = useOpenLedgerReconnect()
 
     const assets = useMemo(() => {
       let _assets = allAssets
@@ -108,13 +112,13 @@ export const SignTransaction = observer(
       )
 
       if (addEvmDetails) {
-        _assets = [..._assets, ...(evmBalance.evmBalance ?? [])].filter((token) =>
+        _assets = [..._assets, ...(evmBalance ?? [])].filter((token) =>
           new BigNumber(token.amount).gt(0),
         )
       }
 
       return _assets
-    }, [addressLinkState, allAssets, chainInfo?.evmOnlyChain, evmBalance.evmBalance])
+    }, [addressLinkState, allAssets, chainInfo?.evmOnlyChain, evmBalance])
 
     const isEvmTokenExist = useMemo(
       () =>
@@ -282,6 +286,10 @@ export const SignTransaction = observer(
       userPreferredGasLimit,
     ])
 
+    const isLedgerDisconnectedError = useMemo(() => {
+      return isLedgerDisconnected(signingError)
+    }, [signingError])
+
     const refetchData = useCallback(() => {
       setTimeout(() => {
         rootBalanceStore.refetchBalances(activeChain, activeNetwork)
@@ -290,6 +298,12 @@ export const SignTransaction = observer(
 
     const handleApproveClick = async () => {
       try {
+        if (isLedgerDisconnectedError) {
+          await handleRejectClick(navigate, txnData?.payloadId, true)
+          openLedgerReconnect()
+          return
+        }
+
         if (activeWallet.walletType === WALLETTYPE.LEDGER) {
           if (chainInfo?.evmOnlyChain) {
             setShowLedgerPopup(true)
@@ -394,12 +408,12 @@ export const SignTransaction = observer(
       }
     }
 
-    if (chainInfo?.evmOnlyChain && evmBalanceStore.evmBalance.status === 'loading') {
+    if (chainInfo?.evmOnlyChain && evmBalanceStore.status === 'loading') {
       return <Loading />
     }
 
     const isApproveBtnDisabled =
-      !!signingError ||
+      (!!signingError && !isLedgerDisconnectedError) ||
       txStatus === 'loading' ||
       !!gasPriceError ||
       isLoadingGasLimit ||
@@ -530,8 +544,12 @@ export const SignTransaction = observer(
                 />
               </GasPriceOptions>
 
-              {signingError && txStatus === 'error' ? (
+              {!isLedgerDisconnectedError && signingError && txStatus === 'error' ? (
                 <ErrorCard text={signingError} className='mt-3' />
+              ) : null}
+
+              {isLedgerDisconnectedError && txStatus === 'error' ? (
+                <LedgerDisconnectError className='mt-3' />
               ) : null}
 
               {txStatus !== 'error' && showLedgerPopup ? (
@@ -561,12 +579,18 @@ export const SignTransaction = observer(
 
                 <Buttons.Generic
                   title='Approve Button'
-                  color={Colors.getChainColor(activeChain)}
+                  color={Colors.green600}
                   onClick={handleApproveClick}
                   disabled={isApproveBtnDisabled}
                   className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
-                  {txStatus === 'loading' ? <LoaderAnimation color='white' /> : 'Approve'}
+                  {isLedgerDisconnectedError ? (
+                    'Connect Ledger'
+                  ) : txStatus === 'loading' ? (
+                    <LoaderAnimation color='white' />
+                  ) : (
+                    'Approve'
+                  )}
                 </Buttons.Generic>
               </div>
             </div>

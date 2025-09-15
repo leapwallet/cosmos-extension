@@ -54,3 +54,7 @@ export const LIGHT_NODE_SYNC_WINDOW_SECS = 60 * 60 * 24 * 2 // 2 days
 export const LIGHT_NODE_TIME_CAPTURE_INTERVAL = 60_000 * 2 // 2 minute
 
 export const WALLET_NAME_SLICE_LENGTH = 19
+
+export const INT53_MAX = 9007199254740991
+
+export const SOLANA_MIN_RENT_EXEMPT = 890880

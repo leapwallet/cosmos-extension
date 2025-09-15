@@ -131,6 +131,10 @@ const PreferencesView = ({ isVisible, goBack }: { isVisible: boolean; goBack: ()
       <ChangeCurrency
         isVisible={selectedTab === PreferencesTab.Currency}
         goBack={() => setSelectedTab(null)}
+        onClose={() => {
+          setSelectedTab(null)
+          goBack()
+        }}
       />
     </>
   )

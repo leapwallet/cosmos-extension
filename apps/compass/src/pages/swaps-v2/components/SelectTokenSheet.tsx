@@ -73,7 +73,7 @@ const TokenCardWrapper = observer(
           marketDataStore={marketDataStore}
         />
 
-        {!isLast && <div className='border-b mx-6 border-gray-100 dark:border-gray-850' />}
+        {!isLast && <div className='border-b border-gray-100 dark:border-gray-850' />}
       </>
     )
   },
@@ -312,7 +312,7 @@ export function SelectTokenSheet({
                 style={{ flexGrow: '1', width: '100%' }}
                 groupContent={() => <div className='w-[1px] h-[1px] bg-transparent'></div>} //This is to avoid virtuoso errors in console logs
                 groupCounts={tokenGroups.map((group) => group.items.length)}
-                className='scrollbar'
+                className=''
                 itemContent={(index, groupIndex) => {
                   const group = tokenGroups[groupIndex]
                   const { Component } = group

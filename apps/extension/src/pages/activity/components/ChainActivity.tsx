@@ -1,7 +1,14 @@
-import { ActivityCardContent, useActivity } from '@leapwallet/cosmos-wallet-hooks'
-import { AnkrChainMapStore, ChainTagsStore, IbcTraceFetcher } from '@leapwallet/cosmos-wallet-store'
+import { ActivityCardContent, useAddress } from '@leapwallet/cosmos-wallet-hooks'
+import {
+  ActiveChainStore,
+  ActivityStore,
+  AddressStore,
+  ChainTagsStore,
+  SelectedNetworkStore,
+} from '@leapwallet/cosmos-wallet-store'
 import type { ParsedTransaction } from '@leapwallet/parser-parfait'
 import { QueryStatus } from '@tanstack/react-query'
+import { AGGREGATED_CHAIN_KEY } from 'config/constants'
 import { usePerformanceMonitor } from 'hooks/perf-monitoring/usePerformanceMonitor'
 import { observer } from 'mobx-react-lite'
 import React, { useMemo } from 'react'
@@ -15,20 +22,31 @@ export type SelectedTx = {
 
 type ChainActivityProps = {
   chainTagsStore: ChainTagsStore
-  ankrChainMapStore: AnkrChainMapStore
-  ibcTraceFetcher: IbcTraceFetcher
+  activityStore: ActivityStore
+  activeChainStore: ActiveChainStore
+  selectedNetworkStore: SelectedNetworkStore
 }
 
 const ChainActivity = observer(
-  ({ chainTagsStore, ankrChainMapStore, ibcTraceFetcher }: ChainActivityProps) => {
-    const txResponse = useActivity(ankrChainMapStore.ankrChainMap, ibcTraceFetcher)
+  ({
+    chainTagsStore,
+    activityStore,
+    activeChainStore,
+    selectedNetworkStore,
+  }: ChainActivityProps) => {
+    const activeChain = activeChainStore.activeChain
+    const selectedNetwork = selectedNetworkStore.selectedNetwork
+    const address = useAddress(activeChain === AGGREGATED_CHAIN_KEY ? 'cosmos' : activeChain)
+
+    const loadingStatus = activityStore.getLoadingStatus(activeChain, selectedNetwork, address)
+    const errorStatus = activityStore.getErrorStatus(activeChain, selectedNetwork, address)
 
     const queryStatus = useMemo(() => {
-      let status = txResponse.loading ? 'loading' : 'success'
-      status = txResponse.error ? 'error' : status
+      let status = loadingStatus === 'loading' ? 'loading' : 'success'
+      status = errorStatus ? 'error' : status
 
       return status
-    }, [txResponse.error, txResponse.loading])
+    }, [errorStatus, loadingStatus])
 
     usePerformanceMonitor({
       page: 'activity',
@@ -37,7 +55,7 @@ const ChainActivity = observer(
       description: 'loading state on activity page',
     })
 
-    return <GeneralActivity txResponse={txResponse} chainTagsStore={chainTagsStore} />
+    return <GeneralActivity chainTagsStore={chainTagsStore} activityStore={activityStore} />
   },
 )
 

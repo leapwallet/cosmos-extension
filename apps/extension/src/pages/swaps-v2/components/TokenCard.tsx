@@ -207,9 +207,8 @@ function TokenCardView({
   )
 
   const handleTokenSelect = useCallback(() => {
-    if (isSelected) return
     onTokenSelect(token)
-  }, [isSelected, onTokenSelect, token])
+  }, [onTokenSelect, token])
 
   const tokenName = token.symbol ?? token?.name
   const chainIcon =

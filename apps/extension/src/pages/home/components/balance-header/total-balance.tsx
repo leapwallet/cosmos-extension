@@ -23,7 +23,7 @@ export const TotalBalance = observer(() => {
 
     if (addEvmDetails) {
       return rootBalanceStore.totalFiatValue.plus(
-        rootBalanceStore.erc20BalanceStore.evmBalanceStore.evmBalance.currencyInFiatValue,
+        rootBalanceStore.erc20BalanceStore.evmBalanceStore.totalFiatValue,
       )
     }
 

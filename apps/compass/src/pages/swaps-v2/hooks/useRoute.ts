@@ -598,33 +598,32 @@ export const useAggregatedRoute = (
   )
 
   const { activeWallet } = useActiveWallet()
+  const walletSupportsEVM =
+    activeWallet?.walletType !== WALLETTYPE.LEDGER || activeWallet?.app === 'sei'
+
   const sei0xAddress =
-    isCompassWallet() && activeWallet
+    activeWallet && walletSupportsEVM
       ? pubKeyToEvmAddressToShow(activeWallet.pubKeys?.['seiTestnet2'])
       : undefined
 
   const formattedSourceChain = useMemo(() => {
-    return isCompassWallet()
-      ? sourceAssetChain
-        ? ({
-            ...sourceAssetChain,
-            chainType: 'evm' as 'cosmos',
-            chainId: String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
-          } as SkipSupportedChainData)
-        : undefined
-      : sourceAssetChain
+    return sourceAssetChain
+      ? ({
+          ...sourceAssetChain,
+          chainType: 'evm' as 'cosmos',
+          chainId: String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
+        } as SkipSupportedChainData)
+      : undefined
   }, [sourceAssetChain])
 
   const formattedDestinationChain = useMemo(() => {
-    return isCompassWallet()
-      ? destinationAssetChain
-        ? ({
-            ...destinationAssetChain,
-            chainType: 'evm' as 'cosmos',
-            chainId: String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
-          } as SkipSupportedChainData)
-        : undefined
-      : destinationAssetChain
+    return destinationAssetChain
+      ? ({
+          ...destinationAssetChain,
+          chainType: 'evm' as 'cosmos',
+          chainId: String(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
+        } as SkipSupportedChainData)
+      : undefined
   }, [destinationAssetChain])
 
   const sourceAndDestinationBothLifiSupported = useMemo(() => {
@@ -638,10 +637,10 @@ export const useAggregatedRoute = (
       enabled &&
       sourceAndDestinationBothLifiSupported &&
       !!isCompassWallet() &&
-      activeWallet?.walletType !== WALLETTYPE.LEDGER &&
+      walletSupportsEVM &&
       isLifiEnabled
     )
-  }, [enabled, sourceAndDestinationBothLifiSupported, activeWallet, isLifiEnabled])
+  }, [enabled, sourceAndDestinationBothLifiSupported, walletSupportsEVM, isLifiEnabled])
 
   const {
     routeResponse: lifiRouteResponse,

@@ -26,7 +26,7 @@ export const TotalBalance = observer(() => {
   )
 
   const chains = useGetChains()
-  const evmBalance = evmBalanceStore.evmBalance
+  const evmTotalFiatValue = evmBalanceStore.totalFiatValue
   const isEvmOnlyChain = chains?.[activeChain as SupportedChain]?.evmOnlyChain
   const isSeiEvmChain = useIsSeiEvmChain(
     activeChain === AGGREGATED_CHAIN_KEY ? 'seiTestnet2' : activeChain,
@@ -45,11 +45,11 @@ export const TotalBalance = observer(() => {
     )
 
     if (addEvmDetails) {
-      return rootBalanceStore.totalFiatValue.plus(evmBalance.currencyInFiatValue)
+      return rootBalanceStore.totalFiatValue.plus(evmTotalFiatValue)
     }
 
     return rootBalanceStore.totalFiatValue
-  }, [addressLinkState, evmBalance.currencyInFiatValue, isEvmOnlyChain, isSeiEvmChain])
+  }, [addressLinkState, evmTotalFiatValue, isEvmOnlyChain, isSeiEvmChain])
 
   useEffect(() => {
     if (totalFiatValue.toString() !== timedBalancesFiatValue.toString()) {

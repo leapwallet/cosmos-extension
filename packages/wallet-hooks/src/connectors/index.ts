@@ -1,1 +1,1 @@
-export * from '@leapwallet/wallet-api';
+export * from "@leapwallet/wallet-api";

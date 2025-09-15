@@ -6,19 +6,22 @@ import {
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { BigNumber } from 'bignumber.js';
-import { computed, makeObservable, observable, runInAction } from 'mobx';
+import { computed, makeObservable, observable, runInAction, toJS } from 'mobx';
+import { computedFn } from 'mobx-utils';
 
 import { AggregatedChainsStore } from '../assets/aggregated-chains-store';
 import { ChainInfosStore } from '../assets/chain-infos-store';
 import { DenomsStore } from '../assets/denoms-store';
 import { BaseQueryStore } from '../base/base-data-store';
-import { AggregatedSupportedChainType, SelectedNetworkType } from '../types';
+import { AggregatedSupportedChainType, Currency, SelectedNetworkType, StorageAdapter } from '../types';
 import { isBitcoinChain } from '../utils';
 import { generateRandomString } from '../utils/random-string-generator';
 import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
 import { sortTokenBalances } from './balance-calculator';
 import { Token } from './balance-types';
 import { PriceStore } from './price-store';
+
+export const CACHED_BITCOIN_BALANCES_KEY = 'cached-bitcoin-balances';
 
 export interface IRawBalanceResponse {
   balances: Array<{ amount: string; denom: string }>;
@@ -164,6 +167,8 @@ export class BitcoinDataStore {
     private chainInfosStore: ChainInfosStore,
     private aggregatedChainsStore: AggregatedChainsStore,
     private currencyStore: CurrencyStore,
+    private storageAdapter: StorageAdapter,
+    private saveCachedBalancesDebounce: NodeJS.Timeout | null = null,
   ) {
     makeObservable(this, {
       chainWiseBalances: observable,
@@ -173,6 +178,8 @@ export class BitcoinDataStore {
       balances: computed.struct,
       loading: computed,
     });
+
+    this.initCachedBalances();
   }
 
   get totalFiatValue() {
@@ -228,18 +235,28 @@ export class BitcoinDataStore {
     return this.chainWiseBalances[balanceKey] ? sortTokenBalances(this.chainWiseBalances[balanceKey] ?? []) : [];
   }
 
-  getAggregatedBalances(forceNetwork?: SelectedNetworkType) {
-    const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
+  getBitcoinBalances = computedFn(
+    (chain: SupportedChain, network: SelectedNetworkType, forceAddress: string | undefined) => {
+      const balanceKey = this.getBalanceKey(chain, network, forceAddress);
+      return this.chainWiseBalances[balanceKey] ? sortTokenBalances(this.chainWiseBalances[balanceKey] ?? []) : [];
+    },
+  );
+
+  getAggregatedBalances(network: SelectedNetworkType, forceAddresses: Record<string, string> | undefined) {
     const tokens: Token[] = [];
     if (!this.aggregatedChainsStore.aggregatedChainsData.includes('bitcoin')) {
       return tokens;
     }
-    const balanceKey = this.getBalanceKey('bitcoin', network);
+    if (forceAddresses && !forceAddresses['bitcoin']) {
+      return tokens;
+    }
+
+    const balanceKey = this.getBalanceKey('bitcoin', network, forceAddresses?.['bitcoin']);
     return sortTokenBalances(this.chainWiseBalances[balanceKey] ?? []);
   }
 
-  async getChainData(chain: SupportedChain, network: SelectedNetworkType, forceRefetch = false) {
-    const address = this.addressStore.addresses[chain];
+  async getChainData(chain: SupportedChain, network: SelectedNetworkType, forceRefetch = false, forceAddress?: string) {
+    const address = forceAddress || this.addressStore.addresses[chain];
     const balanceKey = this.getBalanceKey(chain as SupportedChain, network, address);
     if (!address || !isBitcoinChain(chain)) {
       runInAction(() => {
@@ -262,7 +279,7 @@ export class BitcoinDataStore {
       return;
     }
 
-    if (this.chainWiseBalances[balanceKey] && !forceRefetch) {
+    if (this.chainWiseBalances[balanceKey] && !forceRefetch && this.chainWiseLoadingStatus[balanceKey] === false) {
       runInAction(() => {
         this.chainWiseLoadingStatus[balanceKey] = false;
       });
@@ -291,9 +308,15 @@ export class BitcoinDataStore {
         this.chainWiseErrorStatus[balanceKey] = true;
       });
     }
+    await this.saveCachedBalances();
   }
 
-  async getData(forceChain?: AggregatedSupportedChainType, forceNetwork?: SelectedNetworkType, forceRefetch = false) {
+  async getData(
+    forceChain?: AggregatedSupportedChainType,
+    forceNetwork?: SelectedNetworkType,
+    forceRefetch = false,
+    forceAddresses?: Record<string, string>,
+  ) {
     const network = forceNetwork ?? this.selectedNetworkStore.selectedNetwork;
     const _chain = forceChain ?? this.activeChainStore.activeChain;
 
@@ -302,24 +325,186 @@ export class BitcoinDataStore {
       if (!this.aggregatedChainsStore.aggregatedChainsData.includes('bitcoin')) {
         return;
       }
-      await this.getChainData('bitcoin', network, forceRefetch);
+      await this.getChainData('bitcoin', network, forceRefetch, forceAddresses?.['bitcoin']);
       return;
     }
 
-    await this.getChainData(_chain, network, forceRefetch);
+    await this.getChainData(_chain, network, forceRefetch, forceAddresses?.[_chain]);
     return;
   }
 
-  private getBalanceKey(chain: SupportedChain, _network?: SelectedNetworkType, _address?: string): string {
-    const network = _network ?? this.selectedNetworkStore.selectedNetwork;
+  private getBalanceKey(
+    chain: SupportedChain,
+    _network?: SelectedNetworkType,
+    _address?: string,
+    forceCurrency?: Currency,
+  ): string {
+    const network = _network ?? this.selectedNetworkStore?.selectedNetwork;
     const chainKey = this.getChainKey(chain as SupportedChain, network);
-    const address = _address ?? this.addressStore.addresses[chain as SupportedChain];
-    const userPreferredCurrency = this.currencyStore.preferredCurrency;
+    const address = _address ?? this.addressStore?.addresses?.[chain as SupportedChain];
+    const userPreferredCurrency = forceCurrency ?? this.currencyStore?.preferredCurrency;
     return `${chainKey}-${address}-${userPreferredCurrency}`;
   }
 
   private getChainKey(chain: SupportedChain, network: SelectedNetworkType): string {
-    const chainId = network === 'testnet' ? ChainInfos[chain]?.testnetChainId : ChainInfos[chain]?.chainId;
+    const chainId = network === 'testnet' ? ChainInfos?.[chain]?.testnetChainId : ChainInfos?.[chain]?.chainId;
     return `${chain}-${chainId}`;
+  }
+
+  async updateCurrency(prevCurrency: Currency) {
+    const network = this.selectedNetworkStore.selectedNetwork;
+    const chain = this.activeChainStore.activeChain;
+
+    if (chain === 'aggregated') {
+      if (!this.aggregatedChainsStore.aggregatedChainsData.includes('bitcoin')) {
+        return;
+      }
+      return this.updateCurrencyForChain('bitcoin', network, prevCurrency);
+    }
+    return this.updateCurrencyForChain(chain, network, prevCurrency);
+  }
+
+  async updateCurrencyForChain(chain: SupportedChain, network: SelectedNetworkType, prevCurrency: Currency) {
+    const oldBalanceKey = this.getBalanceKey(chain, network, undefined, prevCurrency);
+    const balanceKey = this.getBalanceKey(chain, network);
+    const existingBalances = this.chainWiseBalances[oldBalanceKey];
+
+    if (!existingBalances || existingBalances.length === 0) {
+      return;
+    }
+
+    try {
+      runInAction(() => {
+        this.chainWiseLoadingStatus[balanceKey] = true;
+      });
+
+      await this.denomsStore.readyPromise;
+      const denoms = Object.assign({}, this.denomsStore.denoms, DefaultDenoms);
+      const denom = chain === 'bitcoin' ? 'bitcoin-native' : 'bitcoin-signet-native';
+      const coingeckoPrices = this.priceStore.data;
+      const chainId =
+        network === 'testnet'
+          ? this.chainInfosStore.chainInfos[chain].testnetChainId
+          : this.chainInfosStore.chainInfos[chain].chainId;
+
+      const updatedBalances = existingBalances.map((token) => {
+        const denomInfo = denoms[denom];
+        const coinGeckoId = token.coinGeckoId || denomInfo?.coinGeckoId || `${chainId}-${token.coinMinimalDenom}`;
+        const usdPrice = coingeckoPrices?.[coinGeckoId];
+        const formattedAmount = new BigNumber(token.amount);
+        const usdValue = usdPrice ? formattedAmount.multipliedBy(usdPrice).toString() : undefined;
+
+        return {
+          ...token,
+          usdValue,
+          usdPrice: usdPrice ? String(usdPrice) : undefined,
+        };
+      });
+
+      runInAction(() => {
+        this.chainWiseBalances[balanceKey] = updatedBalances;
+        this.chainWiseLoadingStatus[balanceKey] = false;
+      });
+      if (oldBalanceKey !== balanceKey) {
+        /**
+         * Clean up balances for the old currency.
+         */
+        this.clearCachedBalancesForChain(chain, undefined, prevCurrency);
+      }
+      /**
+       * Save the balances for the new currency.
+       */
+      this.saveCachedBalances();
+    } catch (error) {
+      console.error(`Error updating currency for bitcoin chain ${chain}`, error);
+      runInAction(() => {
+        this.chainWiseLoadingStatus[balanceKey] = false;
+        this.chainWiseErrorStatus[balanceKey] = true;
+      });
+    }
+  }
+
+  /**
+   * Debounce the save of cached balances to storage by 1 second.
+   * To avoid multiple calls to the storage adapter.
+   */
+  private async saveCachedBalances() {
+    if (this.saveCachedBalancesDebounce) {
+      clearTimeout(this.saveCachedBalancesDebounce);
+    }
+
+    this.saveCachedBalancesDebounce = setTimeout(() => {
+      this.saveCachedBalancesToStorage();
+      this.saveCachedBalancesDebounce = null;
+    }, 1000);
+  }
+
+  private async saveCachedBalancesToStorage() {
+    try {
+      await this.storageAdapter.set(CACHED_BITCOIN_BALANCES_KEY, toJS(this.chainWiseBalances), 'idb');
+    } catch (e) {
+      //
+    }
+  }
+
+  private async initCachedBalances() {
+    try {
+      const cachedBalances = await this.storageAdapter.get<Record<string, Token[]>>(CACHED_BITCOIN_BALANCES_KEY, 'idb');
+      if (!cachedBalances) {
+        return;
+      }
+
+      runInAction(() => {
+        this.chainWiseBalances = cachedBalances;
+      });
+    } catch (e) {
+      //
+    }
+  }
+
+  clearCachedBalancesForChain(chain: SupportedChain, address?: string, forceCurrency?: Currency) {
+    try {
+      const balanceKey = this.getBalanceKey(chain, 'mainnet', address, forceCurrency);
+      if (this.chainWiseBalances?.[balanceKey]) {
+        runInAction(() => {
+          delete this.chainWiseBalances[balanceKey];
+        });
+      }
+    } catch (e) {
+      //
+    }
+    try {
+      const balanceKey = this.getBalanceKey(chain, 'testnet', address, forceCurrency);
+      if (this.chainWiseBalances?.[balanceKey]) {
+        runInAction(() => {
+          delete this.chainWiseBalances[balanceKey];
+        });
+      }
+    } catch (e) {
+      //
+    }
+  }
+
+  /**
+   * Clear the cached balances for the given addresses.
+   * It will use `forceAddresses` and `chainInfosStore` to calculate the balance keys.
+   * It will clear the balances for the mainnet and testnet,
+   * If balances are present for corresponding networks.
+   *
+   * @param forceAddresses - The addresses to clear the balances for.
+   */
+  clearCachedBalances(forceAddresses: Record<string, string>) {
+    try {
+      Object.keys(this.chainInfosStore.chainInfos).forEach((chain) => {
+        if (!forceAddresses?.[chain as SupportedChain]) {
+          return;
+        }
+
+        this.clearCachedBalancesForChain(chain as SupportedChain, forceAddresses?.[chain as SupportedChain]);
+      });
+      this.saveCachedBalances();
+    } catch (e) {
+      //
+    }
   }
 }

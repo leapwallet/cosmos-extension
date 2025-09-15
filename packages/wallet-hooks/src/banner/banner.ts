@@ -6,6 +6,8 @@ import {
   BannerAD,
   BannerADType,
   BannerData,
+  BannerPlacementId,
+  BannerPlatform,
   NumiaBannerAD,
   NumiaBannerAttribute,
   NumiaTrackAction,
@@ -209,7 +211,18 @@ export function useGetBannerData(chain: string) {
   return { leapBanners, isLeapBannersLoading: leapBannersStatus === 'loading' || status === 'loading' };
 }
 
-export function useGetSpindlBanner(address: string) {
+export function getSpindlBannerPlacementId(platform?: BannerPlatform): string {
+  switch (platform) {
+    case BannerPlatform.IOS:
+      return BannerPlacementId.IOS;
+    case BannerPlatform.ANDROID:
+      return BannerPlacementId.ANDROID;
+    default:
+      return BannerPlacementId.EXTENSION;
+  }
+}
+
+export function useGetSpindlBanner(address: string, platform?: BannerPlatform) {
   const spindlBannerToken = getSpindlBannerToken();
   const isCompassWallet = getAppName() === APP_NAME.Compass;
 
@@ -220,8 +233,9 @@ export function useGetSpindlBanner(address: string) {
         return [];
       }
 
+      const placementId = getSpindlBannerPlacementId(platform);
       const res = await axios.get<SpindlApiResponse>(
-        `${SPINDL_BASE_URL}/render/leap_wallet?placement_id=home_tab_banner_carousel&limit=1&address=${address}`,
+        `${SPINDL_BASE_URL}/render/leap_wallet?placement_id=${placementId}&limit=1&address=${address}`,
         {
           headers: {
             'X-API-ACCESS-KEY': spindlBannerToken,

@@ -202,6 +202,7 @@ export const chainIdToChainName: Record<string, string> = {
   '1513': 'story',
   'zig-test-1': 'zigchain',
   'zig-test-2': 'zigchain',
+  'zigchain-1': 'zigchain',
   '999': 'hyperEVM',
   '998': 'hyperEVM',
   'nillion-1': 'nillion',
@@ -226,4 +227,8 @@ export const chainIdToChainName: Record<string, string> = {
   '5115': 'citrea',
   '994873017': 'lumia',
   '1952959480': 'lumia',
+  // '42000': 'helios',
+  'sunrise-1': 'sunrise',
+  'union-testnet-10': 'union',
+  'union-1': 'union',
 };

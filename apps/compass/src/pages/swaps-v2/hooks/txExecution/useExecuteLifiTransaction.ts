@@ -10,8 +10,15 @@ import {
   useGasPriceStepForChain,
   useGetChains,
   useInvalidateTokenBalances,
+  WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { NativeDenom, SeiEvmTx, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  CompassSeiLedgerSigner,
+  LedgerError,
+  NativeDenom,
+  SeiEvmTx,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { TRANSFER_STATE, TXN_STATUS } from '@leapwallet/elements-core'
 import { EthWallet } from '@leapwallet/leap-keychain'
 import { TransferAssetRelease } from '@skip-go/client'
@@ -32,7 +39,7 @@ import { isCompassWallet } from 'utils/isCompassWallet'
 import { usePollTx } from './polling/usePollTx'
 
 export type ExecuteLifiTransactionParams = {
-  setLedgerError?: (ledgerError?: string) => void
+  setLedgerError: ((ledgerError?: string) => void) | undefined
   setTrackingInSync: React.Dispatch<React.SetStateAction<boolean>>
   setIsSigningComplete: React.Dispatch<React.SetStateAction<boolean>>
   swapFeeInfo?: SwapFeeInfo
@@ -68,6 +75,8 @@ export type ExecuteLifiTransactionParams = {
     feeAmount: number | null
   } | null>
   callbackPostTx?: (() => void) | undefined
+  setShowLedgerPopup: (showLedgerPopup: boolean) => void
+  setShowLedgerPopupText: (showLedgerPopupText: string) => void
 }
 
 export function useExecuteLifiTransaction({
@@ -94,6 +103,8 @@ export function useExecuteLifiTransaction({
   refetchDestinationBalances,
   getSwapFeeInfo,
   callbackPostTx,
+  setShowLedgerPopup,
+  setShowLedgerPopupText,
 }: ExecuteLifiTransactionParams) {
   const defaultSeiGasPriceSteps = useGasPriceStepForChain('seiTestnet2', SWAP_NETWORK)
   const defaultSeiGasPrice = defaultSeiGasPriceSteps.low
@@ -288,19 +299,25 @@ export function useExecuteLifiTransaction({
         txHash = message?.customTxHash
 
         if (!txHash) {
-          const wallet = (await getWallet('seiTestnet2', true)) as unknown as EthWallet
-
-          const seiEvmTx = SeiEvmTx.GetSeiEvmClient(
-            wallet,
-            evmJsonRpc ?? '',
-            Number(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
-          )
+          let wallet = (await getWallet('seiTestnet2', true)) as unknown as EthWallet
 
           if (!fee) {
             handleTxError(messageIndex, 'Error calculating fee', messageChain)
             setIsLoading(false)
             return
           }
+          const isLedgerTypeWallet = activeWallet?.walletType === WALLETTYPE.LEDGER
+
+          if (isLedgerTypeWallet && activeWallet?.app !== 'sei') {
+            handleTxError(
+              messageIndex,
+              'This route requires importing a Sei Ledger Wallet',
+              messageChain,
+            )
+            setIsLoading(false)
+            return
+          }
+
           const gasPriceMultiplier = lifiGasPriceMultiplier?.[messageChain.chainId] ?? 1
           const gasLimitMultiplier = lifiGasLimitMultiplier?.[messageChain.chainId] ?? 1
 
@@ -333,13 +350,35 @@ export function useExecuteLifiTransaction({
             message.to,
             allowanceAmount,
             gasPrice,
-            false,
-            (show: boolean) => {
-              // TODO: replace this callback with a proper way to show ledger popup
-            },
-            (text: string) => {
-              // TODO: replace this callback with a proper way to show ledger popup
-            },
+            isLedgerTypeWallet,
+            setShowLedgerPopup,
+            setShowLedgerPopupText,
+          )
+
+          if (isLedgerTypeWallet) {
+            setShowLedgerPopup(true)
+            /**
+             * This is a workaround to get the wallet to reconnect to the ledger
+             * after the first transaction is sent. This is because the CompassSeiLedgerSigner
+             * is closing the transport after the `sendTransaction()` is called.
+             * Using `getAccounts(true)`, we close the transport if `sendTransaction()` was
+             * not invoked inside `approveTokenAllowanceIfNeeded`. And `getWallet()` will return
+             * a new instance of the wallet with the new transport.
+             */
+            if (wallet instanceof CompassSeiLedgerSigner) {
+              try {
+                await (wallet as CompassSeiLedgerSigner).getAccounts(true)
+              } catch (_) {
+                //
+              }
+            }
+            wallet = (await getWallet('seiTestnet2', true)) as unknown as EthWallet
+          }
+
+          const seiEvmTx = SeiEvmTx.GetSeiEvmClient(
+            wallet,
+            evmJsonRpc ?? '',
+            Number(compassSeiEvmConfigStore.compassSeiEvmConfig.PACIFIC_ETH_CHAIN_ID),
           )
 
           const res = await seiEvmTx.sendTransaction(
@@ -353,6 +392,8 @@ export function useExecuteLifiTransaction({
 
           txHash = res?.hash
         }
+
+        setShowLedgerPopup(false)
 
         if (!txHash) {
           setUnableToTrackError(true)
@@ -380,19 +421,24 @@ export function useExecuteLifiTransaction({
         return
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
-        let errorMessage = ''
-        if (e?.code === 'INSUFFICIENT_FUNDS') {
-          errorMessage = 'Insufficient funds for transaction'
-        } else if (e?.reason) {
-          errorMessage = capitalizeFirstLetter(e.reason)
+        if (e instanceof LedgerError) {
+          setLedgerError && setLedgerError(e.message)
+        } else {
+          let errorMessage = ''
+          if (e?.code === 'INSUFFICIENT_FUNDS') {
+            errorMessage = 'Insufficient funds for transaction'
+          } else if (e?.reason) {
+            errorMessage = capitalizeFirstLetter(e.reason)
+          }
+          if (!errorMessage) {
+            errorMessage = (e as Error)?.message ?? 'Transaction failed'
+          }
+          if (e?.transactionHash) {
+            errorMessage += ` - https://seitrace.com/tx/${e.transactionHash}?chain=pacific-1`
+          }
+          handleTxError(messageIndex, errorMessage, messageChain)
         }
-        if (!errorMessage) {
-          errorMessage = (e as Error)?.message ?? 'Transaction failed'
-        }
-        if (e?.transactionHash) {
-          errorMessage += ` - https://seitrace.com/tx/${e.transactionHash}?chain=pacific-1`
-        }
-        handleTxError(messageIndex, errorMessage, messageChain)
+        setShowLedgerPopup(false)
         setIsSigningComplete(true)
         setIsLoading(false)
         return
@@ -418,6 +464,12 @@ export function useExecuteLifiTransaction({
       defaultSeiGasPrice,
       inAmount,
       logTxToDB,
+      setShowLedgerPopup,
+      setShowLedgerPopupText,
+      activeWallet?.walletType,
+      activeWallet?.app,
+      lifiGasPriceMultiplier,
+      lifiGasLimitMultiplier,
     ],
   )
 }

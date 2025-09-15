@@ -102,6 +102,10 @@ module.exports = defineConfig({
   },
   output: {
     filenameHash: false,
+    sourceMap: {
+      js: isProdBuild ? 'source-map' : 'cheap-module-source-map',
+      css: false,
+    },
   },
   environments: {
     web: {

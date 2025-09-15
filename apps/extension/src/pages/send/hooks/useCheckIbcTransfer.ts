@@ -1,5 +1,4 @@
 import {
-  getSourceChannelIdUnsafe,
   SelectedAddress,
   sliceWord,
   Token,
@@ -8,7 +7,6 @@ import {
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
   BTC_CHAINS,
-  ChainInfo,
   getBlockChainFromAddress,
   isAptosAddress,
   isAptosChain,
@@ -22,8 +20,9 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import { isBitcoinChain } from '@leapwallet/cosmos-wallet-store'
 import { SHOW_ETH_ADDRESS_CHAINS } from 'config/constants'
-import { isValidSuiAddress } from 'pages/send-v2/hooks/useCheckAddressError'
+import { isValidSuiAddress } from 'pages/send/hooks/useCheckAddressError'
 import { useEffect } from 'react'
+import { ibcDataStore } from 'stores/chains-api-store'
 import { ManageChainsStore } from 'stores/manage-chains-store'
 
 export type UseCheckIbcTransferParams = {
@@ -36,27 +35,6 @@ export type UseCheckIbcTransferParams = {
 
   setAddressError: React.Dispatch<React.SetStateAction<string | undefined>>
   manageChainsStore: ManageChainsStore
-}
-
-export const getDefaultChannelId = async (
-  srcChain: SupportedChain,
-  destChain: SupportedChain,
-  chains: Record<SupportedChain, ChainInfo>,
-) => {
-  let defaultChannelId: string | undefined
-  try {
-    const srcChainRegistryPath = chains?.[srcChain]?.chainRegistryPath
-    const destChainRegistryPath = chains?.[destChain]?.chainRegistryPath
-
-    if (!srcChainRegistryPath || !destChainRegistryPath) {
-      return undefined
-    }
-
-    defaultChannelId = await getSourceChannelIdUnsafe(srcChainRegistryPath, destChainRegistryPath)
-  } catch (error) {
-    defaultChannelId = undefined
-  }
-  return defaultChannelId
 }
 
 export function useCheckIbcTransfer({
@@ -205,10 +183,9 @@ export function useCheckIbcTransfer({
           chains[destinationChain as SupportedChain]?.chainId,
         )
 
-      const defaultChannelId = await getDefaultChannelId(
+      const defaultChannelId = ibcDataStore.getSourceChainChannelId(
         sendActiveChain,
         destinationChain as SupportedChain,
-        chains,
       )
 
       if (!isIbcUnwindingDisabled && !isDestChainReachableViaSkip && !defaultChannelId) {

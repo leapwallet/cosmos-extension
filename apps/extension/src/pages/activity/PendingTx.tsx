@@ -11,11 +11,11 @@ import {
   useAddress,
   useChainId,
   useGetExplorerTxnUrl,
-  useInvalidateActivity,
   useMobileAppBanner,
   usePendingTxState,
   useSelectedNetwork,
 } from '@leapwallet/cosmos-wallet-hooks'
+import { TxResponse } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/secret'
 import { RootBalanceStore, RootStakeStore } from '@leapwallet/cosmos-wallet-store'
 import { Buttons, Header, ThemeName, useTheme } from '@leapwallet/leap-ui'
 import { ArrowSquareOut, CopySimple, UserCircle } from '@phosphor-icons/react'
@@ -28,7 +28,7 @@ import { Cross } from 'images/misc'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TxResponse } from 'secretjs'
+import { activityStore } from 'stores/activity-store'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { Colors } from 'theme/colors'
 import { UserClipboard } from 'utils/clipboard'
@@ -120,7 +120,9 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
   const invalidateBalances = useCallback(() => {
     rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
     if (toAddress) {
-      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, toAddress)
+      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, {
+        [toChain ?? activeChain]: toAddress,
+      })
     }
   }, [activeChain, rootBalanceStore, selectedNetwork, toAddress, toChain])
 
@@ -128,13 +130,11 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
     rootStakeStore.updateStake(activeChain, selectedNetwork, true)
   }, [activeChain, rootStakeStore, selectedNetwork])
 
-  const invalidateActivity = useInvalidateActivity()
-
   useEffect(() => {
     const invalidateQueries = () => {
       invalidateBalances()
       invalidateDelegations()
-      invalidateActivity(activeChain)
+      activityStore.invalidateActivity(activeChain)
     }
 
     if (pendingTx && pendingTx.promise) {

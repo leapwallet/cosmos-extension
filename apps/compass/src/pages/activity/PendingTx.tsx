@@ -118,7 +118,9 @@ const PendingTx = observer(({ rootBalanceStore, rootStakeStore }: PendingTxProps
   const invalidateBalances = useCallback(() => {
     rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
     if (toAddress) {
-      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, toAddress)
+      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, {
+        [toChain ?? activeChain]: toAddress,
+      })
     }
   }, [activeChain, rootBalanceStore, selectedNetwork, toAddress, toChain])
 

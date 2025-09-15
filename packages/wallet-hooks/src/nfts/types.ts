@@ -10,11 +10,11 @@ import {
   Tx,
 } from '@leapwallet/cosmos-wallet-sdk';
 import { SelectedNetworkType } from '@leapwallet/cosmos-wallet-store';
+import { Wallet } from '@leapwallet/leap-keychain';
 import { Coin } from '@leapwallet/parser-parfait';
 import { FetchStatus, QueryStatus } from '@tanstack/react-query';
 import { BigNumber } from 'bignumber.js';
 import { ReactNode } from 'react';
-import { Wallet } from 'secretjs';
 
 import { CosmosTxType } from '../connectors';
 import { ActivityCardContent, Token } from '../types';

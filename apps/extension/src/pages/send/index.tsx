@@ -5,13 +5,21 @@ import {
   useAddressPrefixes,
   useChainsStore,
   useFeatureFlags,
+  useSnipDenoms,
+  useSnipGetSnip20TokenBalances,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
 import {
+  BTC_CHAINS,
+  DenomsRecord,
   getBlockChainFromAddress,
   isAptosAddress,
+  isAptosChain,
   isEthAddress,
   isSolanaAddress,
+  isSolanaChain,
+  isSuiChain,
+  NativeDenom,
   SupportedChain,
 } from '@leapwallet/cosmos-wallet-sdk'
 import { Token } from '@leapwallet/cosmos-wallet-store'
@@ -39,6 +47,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { allowUpdateInputStore } from 'stores/allow-update-input-store'
 import { chainFeatureFlagsStore, evmBalanceStore } from 'stores/balance-store'
 import { chainInfoStore } from 'stores/chain-infos-store'
+import { ibcDataStore } from 'stores/chains-api-store'
 import {
   rootCW20DenomsStore,
   rootDenomsStore,
@@ -61,7 +70,7 @@ import { SendContextProvider, useSendContext } from './context'
 import { useCheckIbcTransfer } from './hooks/useCheckIbcTransfer'
 import { SelectRecipientSheet } from './SelectRecipientSheet'
 
-const Send = observer(() => {
+const Send = observer(({ denoms }: { denoms: DenomsRecord }) => {
   // usePageView(PageName.Send)
 
   const navigate = useNavigate()
@@ -138,7 +147,6 @@ const Send = observer(() => {
   const activeWallet = useActiveWallet()
 
   const { data: elementsChains } = useSkipSupportedChains({ chainTypes: ['cosmos'] })
-  const evmBalance = evmBalanceStore.evmBalance
   const { data: featureFlags } = useFeatureFlags()
   const selectedNetwork = useSelectedNetwork()
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -212,12 +220,22 @@ const Send = observer(() => {
     return chains[destinationChainKey]
   }, [addressPrefixes, chains, selectedAddress?.address])
 
-  const allAssets = rootBalanceStore.getAggregatedSpendableBalances(selectedNetwork)
+  const allAssets = rootBalanceStore.getAggregatedSpendableBalances(selectedNetwork, undefined)
+  const evmBalanceStatus = evmBalanceStore.statusForChain(
+    sendActiveChain as SupportedChain,
+    selectedNetwork,
+    undefined,
+  )
+  const { enabled: snip20Enabled, snip20Tokens } = useSnipGetSnip20TokenBalances()
   const assets = useMemo(() => {
-    const _assets = allAssets
+    let _assets = allAssets
+
+    if (activeChain === 'secret' && snip20Enabled && snip20Tokens?.length > 0) {
+      _assets = [..._assets, ...snip20Tokens]
+    }
 
     return _assets.sort((a, b) => Number(b.usdValue) - Number(a.usdValue))
-  }, [allAssets])
+  }, [activeChain, allAssets, snip20Enabled, snip20Tokens])
 
   useCheckIbcTransfer({
     sendActiveChain,
@@ -298,6 +316,48 @@ const Send = observer(() => {
     allowUpdateInputStore.resetUpdateCount()
   }, [selectedToken?.ibcDenom, selectedToken?.coinMinimalDenom])
 
+  useEffect(() => {
+    if (
+      isAptosChain(sendActiveChain) ||
+      chains?.[sendActiveChain]?.evmOnlyChain ||
+      BTC_CHAINS.includes(sendActiveChain) ||
+      isSolanaChain(sendActiveChain) ||
+      isSuiChain(sendActiveChain)
+    ) {
+      return
+    }
+    if (sendActiveChain) {
+      ibcDataStore.loadIbcChains(sendActiveChain)
+    }
+  }, [chains, sendActiveChain])
+
+  useEffect(() => {
+    if (
+      isAptosChain(sendActiveChain) ||
+      chains?.[sendActiveChain]?.evmOnlyChain ||
+      BTC_CHAINS.includes(sendActiveChain) ||
+      isSolanaChain(sendActiveChain) ||
+      isSuiChain(sendActiveChain)
+    ) {
+      return
+    }
+
+    if (
+      !destChainInfo?.key ||
+      isAptosChain(destChainInfo?.key) ||
+      chains?.[destChainInfo?.key]?.evmOnlyChain ||
+      BTC_CHAINS.includes(destChainInfo?.key) ||
+      isSolanaChain(destChainInfo?.key) ||
+      isSuiChain(destChainInfo?.key)
+    ) {
+      return
+    }
+
+    if (sendActiveChain && destChainInfo.key) {
+      ibcDataStore.loadIbcData(sendActiveChain, destChainInfo.key)
+    }
+  }, [sendActiveChain, chains, destChainInfo?.key])
+
   const updateSelectedToken = useCallback(
     (token: Token | null) => {
       setSelectedToken(token)
@@ -338,10 +398,10 @@ const Send = observer(() => {
     const addEvmDetails = chainInfos?.[sendActiveChain]?.evmOnlyChain ?? false
 
     if (addEvmDetails) {
-      status = status && evmBalance.status === 'success'
+      status = status && evmBalanceStatus === 'success'
     }
     return status
-  }, [chainInfos, evmBalance.status, isAllAssetsLoading, sendActiveChain])
+  }, [chainInfos, evmBalanceStatus, isAllAssetsLoading, sendActiveChain])
 
   useEffect(() => {
     if (!selectedToken && !assetCoinDenom && isTokenStatusSuccess) {
@@ -497,7 +557,7 @@ const Send = observer(() => {
       />
 
       <SelectTokenSheet
-        denoms={rootDenomsStore.allDenoms}
+        denoms={denoms}
         isOpen={showTokenSelectSheet}
         assets={assets}
         selectedToken={selectedToken}
@@ -515,14 +575,37 @@ const Send = observer(() => {
 
 const SendPage = observer(() => {
   const activeChain = useActiveChain()
+  const secretTokens = useSnipDenoms()
+  const denoms = useMemo(() => {
+    if (secretTokens) {
+      return {
+        ...rootDenomsStore.allDenoms,
+        ...Object.fromEntries(
+          Object.entries(secretTokens).map(([key, value]) => [
+            key,
+            {
+              ...value,
+              coinDenom: '',
+              coinMinimalDenom: key,
+              coinDecimals: value.decimals,
+              coinGeckoId: value.coingeckoId ?? '',
+            } as NativeDenom,
+          ]),
+        ),
+      }
+    }
+    return rootDenomsStore.allDenoms
+  }, [secretTokens])
+
   return (
     <SendContextProvider
       activeChain={activeChain}
       rootDenomsStore={rootDenomsStore}
       rootCW20DenomsStore={rootCW20DenomsStore}
       rootERC20DenomsStore={rootERC20DenomsStore}
+      denoms={denoms}
     >
-      <Send />
+      <Send denoms={denoms} />
     </SendContextProvider>
   )
 })

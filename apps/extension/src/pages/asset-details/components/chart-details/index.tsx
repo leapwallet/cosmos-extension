@@ -11,6 +11,7 @@ import {
   useAssetDetails,
   useAssetSocials,
   useChainInfo,
+  useDebounce,
   useFeatureFlags,
   useformatCurrency,
   useIsFeatureExistForChain,
@@ -47,8 +48,7 @@ import ReceiveToken from 'components/Receive'
 import { useHardCodedActions } from 'components/search-modal'
 import Text from 'components/text'
 import { TokenImageWithFallback } from 'components/token-image-with-fallback'
-import { Button } from 'components/ui/button'
-import { EventName, PageName } from 'config/analytics'
+import { PageName } from 'config/analytics'
 import { LEAPBOARD_SWAP_URL } from 'config/constants'
 import { differenceInDays } from 'date-fns'
 import { useChainPageInfo } from 'hooks'
@@ -66,7 +66,6 @@ import { ReceiveIcon } from 'icons/receive-icon'
 import { SwapIconV2 } from 'icons/swap-icon-v2'
 import { UploadIconV2 } from 'icons/upload-icon-v2'
 import { Images } from 'images'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import ReviewClaimTxSheet from 'pages/earnUSDN/ReviewClaimTx'
 import TxPage from 'pages/earnUSDN/TxPage'
@@ -95,6 +94,7 @@ import { imgOnError } from 'utils/imgOnError'
 import { capitalize } from 'utils/strings'
 
 import ChartSkeleton from '../chart-skeleton/ChartSkeleton'
+import { ChartErrorState } from './ChartErrorState'
 import SendToStakeModal from './SendToStakeModal'
 import { TokensChart } from './token-chart'
 
@@ -118,13 +118,14 @@ const TokensDetails = observer(
     const chainInfos = useChainInfos()
     const _activeChain = useActiveChain()
     const { activeWallet } = useActiveWallet()
-    const assetsId = useQuery().get('assetName') ?? undefined
+    const _assetsId = useQuery().get('assetName') ?? undefined
+    const debouncedAssetsId = useDebounce(_assetsId, 100)
+    const assetsId = !_assetsId ? debouncedAssetsId : _assetsId
     const tokenChain = useQuery().get('tokenChain') ?? undefined
     const pageSource = useQuery().get('pageSource') ?? undefined
     const navigate = useNavigate()
     const { data: cgTokens = [] } = useGetTopCGTokens()
     const { data: featureFlags } = useFeatureFlags()
-    const percentageChangeData = percentageChangeDataStore.data ?? {}
     const [earnBannerVisible, setEarnBannerVisible] = useState(earnBannerShowStore.show === 'true')
     const [claimAmount, setClaimAmount] = useState('')
     const getWallet = Wallet.useGetWallet()
@@ -589,7 +590,9 @@ const TokensDetails = observer(
           </div>
 
           <div className='flex flex-col gap-y-5 items-center'>
-            {!chartsErrors && !errorInfo && (
+            {chartsErrors || errorInfo ? (
+              <ChartErrorState />
+            ) : (
               <>
                 {chartsLoading ? (
                   <ChartSkeleton />
@@ -603,7 +606,9 @@ const TokensDetails = observer(
                     key={selectedDays}
                     selectedDays={selectedDays}
                   />
-                ) : null}
+                ) : (
+                  <ChartErrorState />
+                )}
               </>
             )}
 

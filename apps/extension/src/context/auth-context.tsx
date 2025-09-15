@@ -55,6 +55,7 @@ import { isSidePanel } from 'utils/isSidePanel'
 import browser, { extension } from 'webextension-polyfill'
 
 import { SeedPhrase } from '../hooks/wallet/seed-phrase/useSeedPhrase'
+import { individualPages } from '../init-hooks'
 
 export type LockedState = 'pending' | 'locked' | 'unlocked'
 
@@ -74,6 +75,7 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
   const [noAccount, setNoAccount] = useState<boolean | undefined>(false)
   const testPassword = SeedPhrase.useTestPassword()
   const chains = useGetChains()
+  const location = useLocation()
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,7 +92,7 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
   }, [])
 
   const signin = useCallback(
-    async (password: Uint8Array, callback?: VoidFunction) => {
+    async (password: Uint8Array, callback?: VoidFunction, pathname?: string) => {
       if (!password) {
         setNoAccount(true)
       } else {
@@ -268,7 +270,9 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
           setNoAccount(false)
           setLoading(false)
           passwordStore.setPassword(password)
-          rootStore.initStores()
+          const loadBalances = pathname !== '/approveConnection' && pathname !== '/suggest-chain'
+          const loadStake = !individualPages.includes(pathname ?? '')
+          rootStore.initStores(loadBalances, loadStake)
           callback && callback()
         } catch (e) {
           setLoading(false)
@@ -311,7 +315,7 @@ export const AuthProvider = observer(({ children }: { children: ReactNode }): Re
           try {
             const passwordBase64 = message.data.password
             const password = Buffer.from(passwordBase64, 'base64')
-            await signin(password)
+            await signin(password, undefined, location.pathname)
           } catch (_) {
             signout()
             setLoading(false)

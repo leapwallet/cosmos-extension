@@ -24,7 +24,7 @@ import {
   SelectedNetworkType,
   Undelegations,
 } from '../types';
-import { formatTokenAmount, isFeatureExistForChain } from '../utils';
+import { calculateTokenPriceAndValue, formatTokenAmount, isFeatureExistForChain } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
 import { StakingApiStore, UndelegationsAPIRequest } from './staking-api-store';
 import { ActiveStakingDenomStore } from './utils-store';
@@ -197,7 +197,7 @@ export class UndelegationsStore {
           throw new Error('Missing details or stake is not supported');
         }
         let unbonding_responses: UnbondingDelegation[] = [];
-        const hasError = errors && errors.some((item) => item.chainId === activeChainInfo.chainId);
+        const hasError = errors && errors.some((item) => item.chainId === activeChainId);
         if (hasError) {
           const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
           const hasEntryInNms =
@@ -220,7 +220,7 @@ export class UndelegationsStore {
 
           unbonding_responses = (res.data as UnbondingDelegationResponse).unbonding_responses;
         } else {
-          unbonding_responses = Object.values(chains[activeChainInfo.chainId]).filter(
+          unbonding_responses = Object.values(chains[activeChainId]).filter(
             (item) => typeof item !== 'number',
           ) as UnbondingDelegation[];
         }
@@ -298,24 +298,17 @@ export class UndelegationsStore {
     }
 
     let denomFiatValue: string | undefined = undefined;
-    if (activeStakingDenom?.coinGeckoId) {
-      if (coingeckoPrices) {
-        let tokenPrice;
-        const coinGeckoId = activeStakingDenom?.coinGeckoId;
-        const alternateCoingeckoKey = `${activeChainInfo.chainId}-${activeStakingDenom?.coinMinimalDenom}`;
+    const coinGeckoId = activeStakingDenom?.coinGeckoId;
 
-        if (coinGeckoId) {
-          tokenPrice = coingeckoPrices[coinGeckoId];
-        }
-
-        if (!tokenPrice) {
-          tokenPrice = coingeckoPrices[alternateCoingeckoKey];
-        }
-
-        if (tokenPrice) {
-          denomFiatValue = new BigNumber('1').times(tokenPrice).toString();
-        }
-      }
+    const { usdPrice } = calculateTokenPriceAndValue({
+      amount: '1',
+      coingeckoPrices,
+      coinMinimalDenom: activeStakingDenom?.coinMinimalDenom ?? '',
+      chainId: activeChainInfo.chainId,
+      coinGeckoId,
+    });
+    if (usdPrice) {
+      denomFiatValue = new BigNumber('1').times(usdPrice).toString();
     }
 
     const uDelegations: Record<string, UnbondingDelegation> = unbonding_responses.reduce(

@@ -20,7 +20,7 @@ import { StakeIcon } from 'icons/stake-icon'
 import { SwapIcon } from 'icons/swap-icon'
 import Vote from 'icons/vote'
 import { observer } from 'mobx-react-lite'
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AggregatedSupportedChain } from 'types/utility'
 import { isLedgerEnabled } from 'utils/isLedgerEnabled'
@@ -61,6 +61,14 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
     isSolanaChain(chain?.key) ||
     skipVote
 
+  const handleStakeClick = useCallback(() => {
+    navigate('/stake')
+  }, [navigate])
+
+  const handleReceiveClick = useCallback(() => {
+    query.set('receive', 'true')
+  }, [query])
+
   if (activeChain === 'initia') {
     return (
       <div className='flex flex-row justify-evenly mb-5 px-7 w-full'>
@@ -68,7 +76,7 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
         <ClickableIcon
           label='Receive'
           icon={ArrowDown}
-          onClick={() => query.set('receive', 'true')}
+          onClick={handleReceiveClick}
           disabled={walletCtaDisabled}
         />
 
@@ -76,12 +84,12 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
         <ClickableIcon
           label='Send'
           icon={SendIcon}
-          onClick={() => onSendClick()}
+          onClick={onSendClick}
           disabled={walletCtaDisabled}
         />
 
         {/* Vote Button */}
-        <ClickableIcon label='Vote' icon={Vote} onClick={() => handleVoteClick()} />
+        <ClickableIcon label='Vote' icon={Vote} onClick={handleVoteClick} />
       </div>
     )
   }
@@ -93,7 +101,7 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
         <ClickableIcon
           label='Send'
           icon={SendIcon}
-          onClick={() => onSendClick()}
+          onClick={onSendClick}
           disabled={walletCtaDisabled}
           data-testing-id='home-generic-send-btn'
         />
@@ -102,7 +110,7 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
         <ClickableIcon
           label='Receive'
           icon={ArrowDown}
-          onClick={() => query.set('receive', 'true')}
+          onClick={handleReceiveClick}
           disabled={walletCtaDisabled}
         />
       </div>
@@ -115,7 +123,7 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
       <ClickableIcon
         label='Buy'
         icon={BuyIcon}
-        onClick={() => handleBuyClick()}
+        onClick={handleBuyClick}
         disabled={walletCtaDisabled}
       />
 
@@ -123,14 +131,14 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
       <ClickableIcon
         label='Send'
         icon={SendIcon}
-        onClick={() => onSendClick()}
+        onClick={onSendClick}
         disabled={walletCtaDisabled}
       />
 
       <ClickableIcon
         label='Swap'
         icon={SwapIcon}
-        onClick={() => handleSwapClick()}
+        onClick={handleSwapClick as () => void}
         disabled={featureFlags?.all_chains?.swap === 'disabled' || walletCtaDisabled}
       />
 
@@ -138,7 +146,7 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
         <ClickableIcon
           label='Stake'
           icon={StakeIcon}
-          onClick={() => navigate('/stake')}
+          onClick={handleStakeClick}
           disabled={walletCtaDisabled}
         />
       )}
@@ -147,7 +155,7 @@ export const HomeButtons = observer(({ skipVote = false }: { skipVote?: boolean 
         <ClickableIcon
           label='Vote'
           icon={Vote}
-          onClick={() => handleVoteClick()}
+          onClick={handleVoteClick}
           disabled={walletCtaDisabled}
         />
       ) : null}

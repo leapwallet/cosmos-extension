@@ -15,7 +15,7 @@ export class AddressStore {
   }
 
   async loadAddresses() {
-    let activeWallet = await this.storageLayer.get('active-wallet');
+    let activeWallet = await this.storageLayer.get<any>('active-wallet');
     if (typeof activeWallet === 'string') {
       activeWallet = JSON.parse(activeWallet);
     }

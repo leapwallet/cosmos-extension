@@ -26,7 +26,7 @@ export class LuminaTxClientWasm extends LuminaTxClient {
       return base64.decode(signedTx.signature.signature)
     }
 
-    const txClient = await new TxClient(grpcUrl, signerAddress, pubkey, signerFn)
+    const txClient = await new TxClient(grpcUrl, pubkey, signerFn)
     const txBodyEncodeObject: TxBodyEncodeObject = {
       typeUrl: '/cosmos.tx.v1beta1.TxBody',
       value: {

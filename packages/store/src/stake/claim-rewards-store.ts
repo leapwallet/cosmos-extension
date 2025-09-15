@@ -21,7 +21,7 @@ import {
   LoadingStatusType,
   SelectedNetworkType,
 } from '../types';
-import { formatTokenAmount, isFeatureExistForChain } from '../utils';
+import { calculateTokenPriceAndValue, formatTokenAmount, isFeatureExistForChain } from '../utils';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
 import { ClaimRewardAPIRequest, StakingApiStore } from './staking-api-store';
 import { ActiveStakingDenomStore, IbcDenomInfoStore } from './utils-store';
@@ -223,7 +223,7 @@ export class ClaimRewardsStore {
           rewards: [],
           total: [],
         };
-        const hasError = errors && errors.some((item) => item.chainId === activeChainInfo.chainId);
+        const hasError = errors && errors.some((item) => item.chainId === activeChainId);
         if (hasError) {
           const nodeUrlKey = isTestnet ? 'restTest' : 'rest';
           const hasEntryInNms =
@@ -340,24 +340,18 @@ export class ClaimRewardsStore {
         let denomFiatValue = '0';
         const coingeckoPrices = this.priceStore.data;
 
-        if (denomInfo?.coinGeckoId) {
-          if (coingeckoPrices) {
-            let tokenPrice;
-            const coinGeckoId = denomInfo?.coinGeckoId;
-            const alternateCoingeckoKey = `${activeChainInfo.chainId}-${denomInfo?.coinMinimalDenom}`;
+        const coinGeckoId = denomInfo?.coinGeckoId;
 
-            if (coinGeckoId) {
-              tokenPrice = coingeckoPrices[coinGeckoId];
-            }
+        const { usdPrice } = calculateTokenPriceAndValue({
+          amount,
+          coingeckoPrices,
+          coinMinimalDenom: denomInfo?.coinMinimalDenom ?? '',
+          chainId: activeChainInfo.chainId,
+          coinGeckoId,
+        });
 
-            if (!tokenPrice) {
-              tokenPrice = coingeckoPrices[alternateCoingeckoKey];
-            }
-
-            if (tokenPrice) {
-              denomFiatValue = new BigNumber('1').times(tokenPrice).toString();
-            }
-          }
+        if (usdPrice) {
+          denomFiatValue = new BigNumber('1').times(usdPrice).toString();
         }
 
         const currencyAmount = new BigNumber(amount).multipliedBy(denomFiatValue).toString();

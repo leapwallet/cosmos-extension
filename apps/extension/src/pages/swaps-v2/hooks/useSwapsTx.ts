@@ -75,6 +75,7 @@ import {
 } from './index'
 import { useAggregatorGasFeeSWR } from './useAggregatorGasFee'
 import useAssets from './useAssets'
+import { useBridgeFeesCheck } from './useBridgeFeesCheck'
 import { useEnableToken } from './useEnableToken'
 import { useFeeAffiliates } from './useFeeAffiliates'
 import { MosaicRouteQueryResponse } from './useMosaicRoute'
@@ -180,7 +181,7 @@ export function useSwapsTx({
 
   const customChains = useNonNativeCustomChains()
 
-  const aggregatedSourceTokens = getAggregatedSpendableBalances(SWAP_NETWORK)
+  const aggregatedSourceTokens = getAggregatedSpendableBalances(SWAP_NETWORK, undefined)
   const aggregatedSourceChainTokens = useMemo(() => {
     const chainToShowKeys = chainsToShow.map((chain) => chain.key)
     const allChainsInfo = Object.values({ ...customChains, ...chainInfoStore.chainInfos })?.filter(
@@ -214,13 +215,13 @@ export function useSwapsTx({
   const sourceChainTokens = isChainAbstractionView
     ? aggregatedSourceChainTokens
     : sourceChain
-    ? getSpendableBalancesForChain(sourceChain?.key, SWAP_NETWORK) ?? []
+    ? getSpendableBalancesForChain(sourceChain?.key, SWAP_NETWORK, undefined) ?? []
     : []
 
   const destinationChainTokens = isChainAbstractionView
-    ? getAggregatedSpendableBalances(SWAP_NETWORK)
+    ? getAggregatedSpendableBalances(SWAP_NETWORK, undefined)
     : destinationChain
-    ? getSpendableBalancesForChain(destinationChain?.key, SWAP_NETWORK) ?? []
+    ? getSpendableBalancesForChain(destinationChain?.key, SWAP_NETWORK, undefined) ?? []
     : []
 
   const sourceTokensLoading = sourceChain
@@ -1017,6 +1018,16 @@ export function useSwapsTx({
     return false
   }, [inAmount, sourceTokenWithBalance])
 
+  const bridgeFeeError = useBridgeFeesCheck(
+    routeResponse,
+    aggregatedSourceTokens,
+    inAmount,
+    sourceToken,
+    sourceChain,
+    userPreferredGasLimit ?? gasEstimate,
+    userPreferredGasPrice ?? gasPriceOption?.gasPrice,
+  )
+
   /**
    * review button disabled
    */
@@ -1040,6 +1051,7 @@ export function useSwapsTx({
       isSanctionedAddressPresent ||
       !skipGasFee ||
       !amountOut ||
+      !!bridgeFeeError ||
       (!isMosaicRoute && loadingMessages)
     )
   }, [
@@ -1061,6 +1073,7 @@ export function useSwapsTx({
     skipGasFee,
     amountOut,
     loadingMessages,
+    bridgeFeeError,
   ])
 
   const isSwitchOrderPossible = useMemo(() => {
@@ -1196,6 +1209,7 @@ export function useSwapsTx({
       swapFeeInfo,
       isSanctionedAddressPresent,
       isChainAbstractionView,
+      bridgeFeeError,
     }
   }, [
     amountExceedsBalance,
@@ -1253,6 +1267,7 @@ export function useSwapsTx({
     loadingMessages,
     setSourceChainWrapper,
     setDestinationChainWrapper,
+    bridgeFeeError,
   ])
 
   return value
