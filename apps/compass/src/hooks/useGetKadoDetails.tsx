@@ -94,11 +94,15 @@ export function useGetKadoCurrencies() {
 }
 
 export async function getQuoteKado(args: RequestQuoteArgs) {
-  const queryParams = convertObjInQueryParams(args)
-  const result = await axios.get(`${BASE_API}/v2/ramp/quote?${queryParams}`, {
-    timeout: 15000,
-  })
-  return result?.data
+  try {
+    const queryParams = convertObjInQueryParams(args)
+    const result = await axios.get(`${BASE_API}/v2/ramp/quote?${queryParams}`, {
+      timeout: 15000,
+    })
+    return result?.data
+  } catch (error) {
+    return { data: [], success: false }
+  }
 }
 
 export async function getConversionRateKado({ from, to }: ConversionRateArgs) {

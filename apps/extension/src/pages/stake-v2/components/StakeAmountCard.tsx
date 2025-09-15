@@ -120,8 +120,29 @@ const StakeAmountCard = observer(({ onClaim, forceChain, forceNetwork }: StakeAm
     if (activeChain === 'evmos' && activeWallet?.walletType === WALLETTYPE.LEDGER) {
       return true
     }
+    if (activeChain === 'celestia') {
+      const _totalRewards = (chainClaimRewards?.rewards?.result?.rewards ?? []).reduce(
+        (acc, curr) => {
+          if (!chainDelegations?.delegationInfo?.delegations?.[curr.validator_address]) return acc
+          const nativeReward = curr.reward.find(
+            (r) => r.denom === activeStakingDenom?.coinMinimalDenom,
+          )
+          if (!nativeReward) return acc
+          return new BigNumber(nativeReward.amount).plus(acc)
+        },
+        new BigNumber(0),
+      )
+      return _totalRewards.lt(0.00001)
+    }
     return !totalRewards || new BigNumber(totalRewards).lt(0.00001)
-  }, [activeChain, activeWallet?.walletType, totalRewards])
+  }, [
+    activeChain,
+    activeStakingDenom?.coinMinimalDenom,
+    activeWallet?.walletType,
+    chainClaimRewards?.rewards?.result?.rewards,
+    chainDelegations?.delegationInfo?.delegations,
+    totalRewards,
+  ])
 
   const formattedRewardAmount = useMemo(() => {
     const nativeTokenReward = rewards?.total?.find(

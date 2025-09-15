@@ -32,6 +32,7 @@ const dAppPages = new Set([
   '/switch-ethereum-chain',
   '/switch-chain',
   '/suggest-ethereum-chain',
+  '/reconnect-ledger',
 ])
 
 type CustomState = {
@@ -67,6 +68,7 @@ export const v2LayoutPages = new Set([
   '/forgotPassword',
   '/add-token',
   '/manage-tokens',
+  '/reconnect-ledger',
 ])
 
 // TODO: Remove the location check once home layout is implemented
@@ -81,7 +83,8 @@ export const GlobalLayout = (props: PropsWithChildren<GlobalLayoutProps>) => {
 const GlobalLayoutView = observer((props: PropsWithChildren<GlobalLayoutProps>) => {
   const isOnboarding =
     props.location?.pathname.includes('onboarding') ||
-    props.location?.pathname.includes('importLedger')
+    props.location?.pathname.includes('importLedger') ||
+    props.location?.pathname.includes('reconnect-ledger')
   const isDarkerBg = pagesWithDarkerBg.some((page) => props.location?.pathname.includes(page))
   const isLogin = props.location?.pathname === '/'
   const auth = useAuth()

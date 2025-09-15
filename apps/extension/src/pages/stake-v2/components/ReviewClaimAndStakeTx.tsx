@@ -33,8 +33,10 @@ import { useNavigate } from 'react-router-dom'
 import { sidePanel } from 'utils/isSidePanel'
 import useGetWallet = Wallet.useGetWallet
 
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
 import { Button } from 'components/ui/button'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import Lottie from 'lottie-react'
 import { rootDenomsStore } from 'stores/denoms-store-instance'
 import { hideAssetsStore } from 'stores/hide-assets-store'
@@ -45,6 +47,7 @@ import {
   unDelegationsStore,
   validatorsStore,
 } from 'stores/stake-store'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 
 import { transitionTitleMap } from '../utils/stake-text'
 import { ClaimCard } from './ReviewClaimTx'
@@ -82,6 +85,8 @@ const ReviewClaimAndStakeTx = observer(
     const chainValidators = validatorsStore.validatorsForChain(activeChain)
     const chainUnDelegations = unDelegationsStore.unDelegationsForChain(activeChain)
     const chainClaimRewards = claimRewardsStore.claimRewardsForChain(activeChain)
+
+    const openLedgerReconnect = useOpenLedgerReconnect()
 
     const [activeStakingDenom] = useActiveStakingDenom(denoms, activeChain, activeNetwork)
     const { delegations, totalRewardsDollarAmt, rewards } = useStaking(
@@ -143,12 +148,14 @@ const ReviewClaimAndStakeTx = observer(
     const rewardValidators = useMemo(() => {
       if (rewards && Object.values(validators ?? {}).length) {
         return rewards.rewards
-          .filter((reward) =>
-            reward.reward.some((r) => r.denom === activeStakingDenom?.coinMinimalDenom),
+          .filter(
+            (reward) =>
+              reward.reward.some((r) => r.denom === activeStakingDenom?.coinMinimalDenom) &&
+              delegations?.[reward.validator_address],
           )
           .map((reward) => validators[reward.validator_address])
       }
-    }, [activeStakingDenom?.coinMinimalDenom, rewards, validators])
+    }, [activeStakingDenom?.coinMinimalDenom, delegations, rewards, validators])
 
     const { data: validatorImage } = useValidatorImage(
       rewardValidators?.[0]?.image ? undefined : rewardValidators?.[0],
@@ -265,6 +272,18 @@ const ReviewClaimAndStakeTx = observer(
       return { title, subText, imgSrc, fallbackImgSrc: Images.Misc.Validator }
     }, [imageUrl, rewardValidators])
 
+    const isLedgerDisconnectedError = useMemo(() => {
+      return isLedgerDisconnected(ledgerError)
+    }, [ledgerError])
+
+    const handleClaimRewardsClick = useCallback(async () => {
+      if (isLedgerDisconnectedError) {
+        openLedgerReconnect()
+        return
+      }
+      onClaimRewardsClick()
+    }, [isLedgerDisconnectedError, onClaimRewardsClick, openLedgerReconnect])
+
     return (
       <GasPriceOptions
         recommendedGasLimit={recommendedGasLimit}
@@ -298,9 +317,10 @@ const ReviewClaimAndStakeTx = observer(
           </div>
 
           <div className='flex flex-col gap-y-2 items-center'>
-            {ledgerError && (
+            {!isLedgerDisconnectedError && ledgerError && (
               <p className='text-sm font-bold text-destructive-100 px-2'>{ledgerError}</p>
             )}
+            {isLedgerDisconnectedError && <LedgerDisconnectError />}
             {error && <p className='text-sm font-bold text-destructive-100 px-2'>{error}</p>}
             {gasError && !showFeesSettingSheet && (
               <p className='text-sm font-bold text-destructive-100 px-2'>{gasError}</p>
@@ -308,10 +328,18 @@ const ReviewClaimAndStakeTx = observer(
 
             <Button
               className='w-full'
-              disabled={loading || !!error || !!gasError || !!ledgerError || showLedgerPopup}
-              onClick={onClaimRewardsClick}
+              disabled={
+                loading ||
+                !!error ||
+                !!gasError ||
+                showLedgerPopup ||
+                (!isLedgerDisconnectedError && !!ledgerError)
+              }
+              onClick={handleClaimRewardsClick}
             >
-              {loading ? (
+              {isLedgerDisconnectedError ? (
+                'Connect Ledger'
+              ) : loading ? (
                 <Lottie
                   loop={true}
                   autoplay={true}

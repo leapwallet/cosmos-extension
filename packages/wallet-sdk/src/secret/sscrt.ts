@@ -1,8 +1,9 @@
 import { Random } from '@cosmjs/crypto';
-import { Permit, SecretNetworkClient, Wallet, WalletOptions } from 'secretjs';
+import { Wallet } from '@leapwallet/leap-keychain';
 import { GasPriceStepsRecord } from 'types';
 
 import { ChainInfos, defaultGasPriceStep } from '../constants';
+import { BroadcastMode, Permit, SecretNetworkClient } from '../proto/secret';
 import { EncryptionUtilsImpl } from './encryptionutil';
 
 const DEFAULT_GAS = 135000;
@@ -21,11 +22,12 @@ export class Sscrt {
   }
 
   static create(url: string, chainId: string, walletAddress: string, encryptionUtils?: EncryptionUtilsImpl) {
+    const encryption = encryptionUtils ?? new EncryptionUtilsImpl(url, chainId);
     const secretjs = new SecretNetworkClient({
       url,
       chainId,
       walletAddress,
-      encryptionUtils: encryptionUtils ?? new EncryptionUtilsImpl(url, chainId),
+      encryptionUtils: encryption,
     });
 
     return new Sscrt(secretjs);
@@ -86,18 +88,6 @@ export class Sscrt {
   }
 }
 
-export class SscrtWallet {
-  constructor(public wallet: Wallet) {
-    //
-  }
-
-  static async create(mnemonic: string, options: WalletOptions) {
-    const wallet = await new Wallet(mnemonic, options);
-
-    return wallet;
-  }
-}
-
 export class SigningSscrt {
   constructor(private client: SecretNetworkClient) {
     //
@@ -107,8 +97,8 @@ export class SigningSscrt {
     const secretjs = new SecretNetworkClient({
       url,
       chainId,
-      wallet,
-      walletAddress: wallet.address,
+      wallet: wallet as any,
+      walletAddress: wallet.getAccounts()[0].address,
       encryptionUtils: encryptionutil ?? new EncryptionUtilsImpl(url, chainId),
     });
 
@@ -119,15 +109,16 @@ export class SigningSscrt {
     const { code_hash = '' } = await this.client.query.snip20.codeHashByContractAddress({
       contract_address: contractAddress,
     });
-    const res = await this.client.tx.snip20.transfer.simulate(
-      {
-        sender,
-        contract_address: contractAddress,
-        msg,
-        code_hash,
-      },
-      { gasLimit: DEFAULT_GAS },
-    );
+
+    // const res = await this.client.tx.snip20.transfer.simulate(
+    //   {
+    //     sender,
+    //     contract_address: contractAddress,
+    //     msg,
+    //     code_hash,
+    //   },
+    //   { gasLimit: DEFAULT_GAS },
+    // );
 
     const result = await this.client.tx.snip20.transfer(
       {
@@ -136,37 +127,43 @@ export class SigningSscrt {
         msg,
         code_hash,
       },
-      { gasLimit: parseInt(res.gas_info?.gas_used ?? DEFAULT_GAS.toString()), gasPriceInFeeDenom: 0.02 },
+      {
+        gasLimit: parseInt(DEFAULT_GAS.toString()),
+        gasPriceInFeeDenom: 0.02,
+        feeDenom: 'uscrt',
+        broadcastMode: BroadcastMode.Async,
+      },
     );
 
     return result;
   }
 
-  async simulateCreateViewingKey(senderAddress: string, contractAddress: string, key?: string) {
-    const random = Random.getBytes(32);
-    const { code_hash = '' } = await this.client.query.snip20.codeHashByContractAddress({
-      contract_address: contractAddress,
-    });
-    let _key = key;
-    if (!_key) {
-      _key = Buffer.from(random).toString('hex');
-    }
+  async simulateCreateViewingKey() {
+    // const random = Random.getBytes(32);
+    // const { code_hash = '' } = await this.client.query.snip20.codeHashByContractAddress({
+    //   contract_address: contractAddress,
+    // });
+    // let _key = key;
+    // if (!_key) {
+    //   _key = Buffer.from(random).toString('hex');
+    // }
 
-    try {
-      const txStatus = await this.client.tx.snip20.setViewingKey.simulate(
-        {
-          sender: senderAddress,
-          contract_address: contractAddress,
-          code_hash,
-          msg: { set_viewing_key: { key: _key } },
-        },
-        { gasLimit: DEFAULT_GAS },
-      );
+    // try {
+    // const txStatus = await this.client.tx.snip20.setViewingKey.simulate(
+    //   {
+    //     sender: senderAddress,
+    //     contract_address: contractAddress,
+    //     code_hash,
+    //     msg: { set_viewing_key: { key: _key } },
+    //   },
+    //   { gasLimit: DEFAULT_GAS },
+    // );
 
-      return { gasUsed: txStatus.gas_info?.gas_used ?? DEFAULT_GAS.toString() };
-    } catch (e) {
-      throw new Error('Unable to simulate viewing key');
-    }
+    // return { gasUsed: txStatus.gas_info?.gas_used ?? DEFAULT_GAS.toString() };
+    return { gasUsed: DEFAULT_GAS.toString() };
+    // } catch (e) {
+    //   throw new Error('Unable to simulate viewing key');
+    // }
   }
 
   async createViewingKey(
@@ -197,6 +194,7 @@ export class SigningSscrt {
           gasLimit: options?.gasLimit ?? DEFAULT_GAS,
           gasPriceInFeeDenom: options?.gasPriceStep ?? gasPriceSteps.secret?.low ?? defaultGasPriceStep.low,
           feeDenom: options?.feeDenom ?? 'uscrt',
+          broadcastMode: BroadcastMode.Async,
         },
       );
 

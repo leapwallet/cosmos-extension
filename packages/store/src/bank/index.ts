@@ -13,3 +13,5 @@ export * from './market-data-store';
 export * from './percentage-change-data-store';
 export * from './price-store';
 export * from './raw-balance-store';
+export * from './solana-balance-store';
+export * from './sui-balance-store';

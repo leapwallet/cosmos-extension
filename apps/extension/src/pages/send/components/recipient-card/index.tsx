@@ -1,11 +1,12 @@
-import { SelectedAddress } from '@leapwallet/cosmos-wallet-hooks'
+import { Key, SelectedAddress } from '@leapwallet/cosmos-wallet-hooks'
 import { ChainInfo, SupportedChain } from '@leapwallet/cosmos-wallet-sdk'
 import { ChainFeatureFlagsStore, ChainInfosStore } from '@leapwallet/cosmos-wallet-store'
 import Text from 'components/text'
+import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send/context'
-import React, { forwardRef, useState } from 'react'
+import React, { forwardRef, useEffect, useMemo, useState } from 'react'
 import { AddressBook } from 'utils/addressbook'
 
 import { ErrorWarning } from '../error-warning'
@@ -48,6 +49,10 @@ const RecipientCard = forwardRef(
   ) => {
     const [recipientInputValue, setRecipientInputValue] = useState<string>('')
     const { setSelectedAddress } = useSendContext()
+    const wallets = Wallet.useWallets()
+    const walletsArray: Key[] = useMemo(() => {
+      return wallets ? Object.values(wallets) : []
+    }, [wallets])
 
     return (
       <div className=' bg-secondary-100 rounded-xl mx-6'>
@@ -70,6 +75,7 @@ const RecipientCard = forwardRef(
               setSelectedContact={setSelectedContact}
               setIsAddContactSheetVisible={setIsAddContactSheetVisible}
               activeChain={activeChain}
+              wallets={walletsArray}
               onEdit={() => {
                 setInputInProgress(true)
                 setRecipientInputValue(

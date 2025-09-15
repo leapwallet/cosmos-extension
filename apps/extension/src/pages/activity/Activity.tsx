@@ -1,14 +1,13 @@
 import { useActiveChain, useIsFeatureExistForChain } from '@leapwallet/cosmos-wallet-hooks'
 import { BottomNavLabel } from 'components/bottom-nav/BottomNav'
 import { ComingSoon } from 'components/coming-soon'
-import { PageName } from 'config/analytics'
 import { AGGREGATED_CHAIN_KEY } from 'config/constants'
-import { usePageView } from 'hooks/analytics/usePageView'
 import React from 'react'
-import { aggregatedChainsStore, ibcTraceFetcher } from 'stores/balance-store'
-import { ankrChainMapStore } from 'stores/balance-store'
+import { activeChainStore } from 'stores/active-chain-store'
+import { activityStore } from 'stores/activity-store'
+import { aggregatedChainsStore } from 'stores/balance-store'
 import { chainTagsStore } from 'stores/chain-infos-store'
-import { denomsStore } from 'stores/denoms-store-instance'
+import { selectedNetworkStore } from 'stores/selected-network-store'
 import { AggregatedSupportedChain } from 'types/utility'
 
 import { AggregatedActivity, ChainActivity } from './components'
@@ -26,8 +25,8 @@ export default function Activity() {
     return (
       <AggregatedActivity
         chainTagsStore={chainTagsStore}
-        ibcTraceFetcher={ibcTraceFetcher}
         aggregatedChainsStore={aggregatedChainsStore}
+        selectedNetworkStore={selectedNetworkStore}
       />
     )
   }
@@ -45,8 +44,9 @@ export default function Activity() {
   return (
     <ChainActivity
       chainTagsStore={chainTagsStore}
-      ankrChainMapStore={ankrChainMapStore}
-      ibcTraceFetcher={ibcTraceFetcher}
+      activityStore={activityStore}
+      activeChainStore={activeChainStore}
+      selectedNetworkStore={selectedNetworkStore}
     />
   )
 }

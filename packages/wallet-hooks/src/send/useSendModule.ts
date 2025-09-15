@@ -3,6 +3,7 @@ import { coin, StdFee } from '@cosmjs/amino';
 import { calculateFee, GasPrice } from '@cosmjs/stargate';
 import {
   AccountDetails,
+  addressPrefixes,
   AptosTx,
   ChainInfos,
   DefaultGasEstimates,
@@ -11,6 +12,7 @@ import {
   estimateVSize,
   fetchUtxos,
   fromSmall,
+  getBlockChainFromAddress,
   getOsmosisGasPriceSteps,
   getSimulationFee,
   isAptosChain,
@@ -28,7 +30,7 @@ import {
   SupportedChain,
   toSmall,
 } from '@leapwallet/cosmos-wallet-sdk';
-import { Token } from '@leapwallet/cosmos-wallet-store';
+import { IbcDataStore, Token } from '@leapwallet/cosmos-wallet-store';
 import { EthWallet } from '@leapwallet/leap-keychain';
 import { base64 } from '@scure/base';
 import { FetchStatus, QueryStatus, useQuery } from '@tanstack/react-query';
@@ -38,7 +40,6 @@ import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'rea
 
 import { LeapWalletApi } from '../apis/LeapWalletApi';
 import { useGasAdjustmentForChain } from '../fees';
-import { useGetIbcChannelId, useGetIBCSupport } from '../ibc';
 import { currencyDetail, useUserPreferredCurrency } from '../settings';
 import {
   getCompassSeiEvmConfigStoreSnapshot,
@@ -74,7 +75,6 @@ import {
   useHasToCalculateDynamicFee,
   useIsSeiEvmChain,
 } from '../utils-hooks';
-import { useSendIbcChains } from './useSendIbcChains';
 import { SendTokenEthParamOptions, sendTokensParams, useSimpleSend } from './useSimpleSend';
 
 export type AddressWarning = {
@@ -107,8 +107,7 @@ export type SendModuleType = Readonly<{
   setMemo: React.Dispatch<React.SetStateAction<string>>;
   inputAmount: string;
   setInputAmount: React.Dispatch<React.SetStateAction<string>>;
-  ibcSupportData: ReturnType<typeof useGetIBCSupport>['data'];
-  isIbcSupportDataLoading: ReturnType<typeof useGetIBCSupport>['isLoading'];
+  ibcSupportData: Record<string, boolean> | undefined;
   tokenFiatValue?: string;
   feeTokenFiatValue?: string;
   selectedToken: Token | null;
@@ -180,16 +179,22 @@ export type SendModuleType = Readonly<{
   setHasToUseCw20PointerLogic: React.Dispatch<React.SetStateAction<boolean>>;
   computedGas?: number;
   setComputedGas?: React.Dispatch<React.SetStateAction<number>>;
+  isSolanaTxnSimulationError: boolean;
+  setIsSolanaTxnSimulationError: React.Dispatch<React.SetStateAction<boolean>>;
+  isSolanaBalanceInsufficientForFee: boolean;
+  setIsSolanaBalanceInsufficientForFee: React.Dispatch<React.SetStateAction<boolean>>;
 }>;
 
 export function useSendModule({
   denoms,
   cw20Denoms,
   erc20Denoms,
+  ibcDataStore,
 }: {
   denoms: DenomsRecord;
   cw20Denoms: DenomsRecord;
   erc20Denoms: DenomsRecord;
+  ibcDataStore: IbcDataStore;
 }): SendModuleType {
   /**
    * Universal Hooks
@@ -269,6 +274,8 @@ export function useSendModule({
   const [gasOption, setGasOption] = useState<GasOptions>(GasOptions.LOW);
   const [gasError, setGasError] = useState<string | null>(null);
   const [computedGas, setComputedGas] = useState<number>(0);
+  const [isSolanaTxnSimulationError, setIsSolanaTxnSimulationError] = useState<boolean>(false);
+  const [isSolanaBalanceInsufficientForFee, setIsSolanaBalanceInsufficientForFee] = useState<boolean>(false);
 
   const [addressError, setAddressError] = useState<string | undefined>(undefined);
   const [addressWarning, setAddressWarning] = useState<AddressWarning>(INITIAL_ADDRESS_WARNING);
@@ -284,7 +291,6 @@ export function useSendModule({
    * Send Tx related hooks
    */
   const { setPendingTx } = usePendingTxState();
-  const getIbcChannelId = useGetIbcChannelId(activeChain);
   const txPostToDB = LeapWalletApi.useOperateCosmosTx();
   const { isSending, sendTokens, showLedgerPopup, sendTokenEth, setIsSending, setShowLedgerPopup } = useSimpleSend(
     denoms,
@@ -292,7 +298,7 @@ export function useSendModule({
     activeChain,
     selectedNetwork,
   );
-  const { data: ibcSupportData, isLoading: isIbcSupportDataLoading } = useGetIBCSupport(activeChain);
+  const ibcSupportData = ibcDataStore.getIbcChains(activeChain);
   const nativeFeeDenom = useNativeFeeDenom(denoms, activeChain, selectedNetwork);
   const gasAdjustment = useGasAdjustmentForChain(activeChain);
 
@@ -358,7 +364,6 @@ export function useSendModule({
   const getFeeMarketGasPricesSteps = useGetFeeMarketGasPricesSteps(activeChain, selectedNetwork);
   const gasPrices = useGasRateQuery(denoms, activeChain, selectedNetwork, isSeiEvmTransaction);
   const [gasPriceOptions, setGasPriceOptions] = useState(gasPrices?.[feeDenom.coinMinimalDenom]);
-  const displayAccounts = useSendIbcChains(activeChain);
 
   const isIBCTransfer = useMemo(() => {
     if (selectedAddress && selectedAddress.address) {
@@ -372,6 +377,19 @@ export function useSendModule({
     }
     return false;
   }, [selectedAddress, fromAddress]);
+
+  const displayAccounts = useMemo(() => {
+    if (activeWallet?.addresses && ibcSupportData) {
+      return Object.entries(activeWallet.addresses).filter(([chain]) => {
+        const chainInfo = chains[chain as SupportedChain];
+        const chainRegistryPath = chainInfo?.chainRegistryPath;
+
+        return ibcSupportData[chainRegistryPath] && chainInfo?.enabled;
+      });
+    }
+
+    return [];
+  }, [activeWallet, chains, ibcSupportData]);
 
   const cachedGasEstimate = useMemo(() => {
     if (!activeChainId) return;
@@ -444,15 +462,14 @@ export function useSendModule({
   /**
    * Ibc Related tx
    */
-  const { data: ibcChannelId } = useQuery(
-    ['ibc-channel-id', 'send', selectedAddress?.address, activeChain, selectedNetwork],
-    async () => {
-      if (!selectedAddress?.address) return undefined;
-      const ibcChannelIds = await getIbcChannelId(selectedAddress.address);
-      return ibcChannelIds?.[0];
-    },
-  );
-
+  const ibcChannelId = useMemo(() => {
+    if (!selectedAddress?.address) return undefined;
+    const recipientChainPrefix = getBlockChainFromAddress(selectedAddress.address);
+    if (!recipientChainPrefix) return;
+    const recipientChain = addressPrefixes[recipientChainPrefix];
+    if (typeof recipientChain !== 'string') return;
+    return ibcDataStore.getChannelIds(activeChain, recipientChain as SupportedChain)?.[0];
+  }, [selectedAddress?.address, activeChain]);
   /**
    * Fee Calculation:
    * all gas options are used to display fees in big denom to the user.
@@ -565,6 +582,9 @@ export function useSendModule({
 
         const txLogAmountValue = await getTxnLogAmountValue(inputAmount, txLogAmountDenom);
 
+        let feeQuantity;
+        let feeDenomination;
+
         if (result.data) {
           const txLog = {
             ...result.data,
@@ -577,7 +597,12 @@ export function useSendModule({
             isSolana: isSolanaTx,
             isSui: isSuiTx,
           };
-          txPostToDB(txLog);
+          feeQuantity = result.data.feeQuantity;
+          feeDenomination = result.data.feeDenomination;
+
+          if (!isSolanaTx && !isSuiTx && !isAptosTx) {
+            txPostToDB(txLog);
+          }
         }
 
         setPendingTx({
@@ -586,8 +611,13 @@ export function useSendModule({
           txnLogAmount: txLogAmountValue,
           sourceChain: activeChain,
           sourceNetwork: selectedNetwork,
+          feeQuantity: feeQuantity,
+          feeDenomination: feeDenomination,
         });
         callback('success');
+        if (isAptosTx || isSuiTx) {
+          setIsSending(false);
+        }
       } else {
         if (result.errors.includes('txDeclined')) {
           callback('txDeclined');
@@ -797,6 +827,7 @@ export function useSendModule({
 
         if (isSolanaTx) {
           try {
+            setIsSolanaTxnSimulationError(false);
             const solana = await SolanaTx.getSolanaClient(rpcUrl ?? '', undefined, selectedNetwork, activeChain);
 
             if (selectedToken.coinMinimalDenom === 'lamports' || selectedToken.coinMinimalDenom === 'fogo-native') {
@@ -810,11 +841,18 @@ export function useSendModule({
                 fromAddress,
                 selectedAddress.address,
                 Number(normalizedAmount),
+                fee as StdFee,
               );
               const gasEstimate = Number(tx.unitsConsumed);
               setGasEstimate(gasEstimate);
+              const error = tx.gasUsed.result.value.err;
+              if (error) {
+                setIsSolanaTxnSimulationError(true);
+              } else {
+                setIsSolanaTxnSimulationError(false);
+              }
             } else {
-              // Same for SPL tokens
+              setIsSolanaTxnSimulationError(false);
               if (!fromAddress || !selectedAddress.address) {
                 console.warn('Missing addresses for SPL token simulation');
                 setGasEstimate(1000); // Use default
@@ -830,9 +868,16 @@ export function useSendModule({
               );
               const gasEstimate = Number(tx.unitsConsumed);
               setGasEstimate(gasEstimate);
+              const error = tx.gasUsed.result.value.err;
+              if (error) {
+                setIsSolanaTxnSimulationError(true);
+              } else {
+                setIsSolanaTxnSimulationError(false);
+              }
             }
           } catch (err) {
             console.error('Solana simulation error:', err);
+            setIsSolanaTxnSimulationError(true);
           }
           return;
         }
@@ -856,14 +901,19 @@ export function useSendModule({
                 selectedAddress.address,
                 Number(normalizedAmount),
               );
+              if (!tx?.gasUsed) {
+                setComputedGas(0);
+                setGasEstimate(0);
+                setAmountError('Insufficient balance for fees');
+                return;
+              }
               const computedGas =
-                Number(tx.gasUsed.storageCost ?? 0) -
-                Number(tx.gasUsed.storageRebate ?? 0) +
-                Number(tx.gasUsed.nonRefundableStorageFee ?? 0);
+                Number(tx?.gasUsed?.storageCost ?? 0) -
+                Number(tx?.gasUsed?.storageRebate ?? 0) +
+                Number(tx?.gasUsed?.nonRefundableStorageFee ?? 0);
               setComputedGas(computedGas);
-              setGasEstimate(tx.gasUsed.gasUnits);
+              setGasEstimate(tx?.gasUsed?.gasUnits ?? 0);
             } else {
-              // Same for SPL tokens
               if (!fromAddress || !selectedAddress.address) {
                 console.warn('Missing addresses for Non native token simulation');
                 setGasEstimate(1000); // Use default
@@ -876,12 +926,18 @@ export function useSendModule({
                 selectedToken.coinMinimalDenom,
                 selectedToken.coinDecimals ?? 9,
               );
+              if (!tx?.gasUsed) {
+                setComputedGas(0);
+                setGasEstimate(0);
+                setAmountError('Insufficient balance for fees');
+                return;
+              }
               const computedGas =
-                Number(tx.gasUsed.storageCost ?? 0) -
-                Number(tx.gasUsed.storageRebate ?? 0) +
-                Number(tx.gasUsed.nonRefundableStorageFee ?? 0);
+                Number(tx?.gasUsed?.storageCost ?? 0) -
+                Number(tx?.gasUsed?.storageRebate ?? 0) +
+                Number(tx?.gasUsed?.nonRefundableStorageFee ?? 0);
               setComputedGas(computedGas);
-              setGasEstimate(tx.gasUsed.gasUnits);
+              setGasEstimate(tx?.gasUsed?.gasUnits ?? 0);
             }
           } catch (err) {
             console.error('Sui simulation error:', err);
@@ -911,8 +967,8 @@ export function useSendModule({
           throw new Error('Insufficient balance');
         }
 
-        let fee = getSimulationFee(_feeDenom);
-        const feeAmountBN = new BigNumber(fee?.[0]?.amount ?? '0');
+        let simulationFee = getSimulationFee(_feeDenom);
+        const feeAmountBN = new BigNumber(simulationFee?.[0]?.amount ?? '0');
 
         const isSelectedTokenSameAsFeeToken =
           !!selectedToken?.ibcDenom || !!_feeDenom?.startsWith('ibc/')
@@ -929,7 +985,7 @@ export function useSendModule({
           if (newNormalizedAmount.gt(0)) {
             normalizedAmount = String(newNormalizedAmount.toString());
           } else {
-            fee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom, '0');
+            simulationFee = getSimulationFee(feeDenom.ibcDenom ?? feeDenom.coinMinimalDenom, '0');
           }
         }
 
@@ -950,9 +1006,16 @@ export function useSendModule({
               'transfer',
               Math.floor(Date.now() / 1000) + 120,
               undefined,
-              fee,
+              simulationFee,
             )
-          : await simulateSend(lcdUrl ?? '', fromAddress, toAddress, [amountOfCoins], fee, isCW20Token(selectedToken));
+          : await simulateSend(
+              lcdUrl ?? '',
+              fromAddress,
+              toAddress,
+              [amountOfCoins],
+              simulationFee,
+              isCW20Token(selectedToken),
+            );
 
         // Fees is high for evmos non-ibc send txn using ledger
         if (!isIBCTransfer && activeChain === 'evmos' && activeWallet?.walletType === WALLETTYPE.LEDGER) {
@@ -1010,7 +1073,6 @@ export function useSendModule({
       inputAmount,
       setInputAmount,
       ibcSupportData,
-      isIbcSupportDataLoading,
       tokenFiatValue,
       feeTokenFiatValue,
       selectedToken,
@@ -1071,6 +1133,10 @@ export function useSendModule({
       setHasToUseCw20PointerLogic,
       computedGas,
       setComputedGas,
+      isSolanaTxnSimulationError,
+      setIsSolanaTxnSimulationError,
+      isSolanaBalanceInsufficientForFee,
+      setIsSolanaBalanceInsufficientForFee,
     } as const;
   }, [
     displayAccounts,
@@ -1081,7 +1147,6 @@ export function useSendModule({
     inputAmount,
     setInputAmount,
     ibcSupportData,
-    isIbcSupportDataLoading,
     tokenFiatValue,
     feeTokenFiatValue,
     selectedToken,
@@ -1142,5 +1207,9 @@ export function useSendModule({
     setHasToUseCw20PointerLogic,
     computedGas,
     setComputedGas,
+    isSolanaTxnSimulationError,
+    setIsSolanaTxnSimulationError,
+    isSolanaBalanceInsufficientForFee,
+    setIsSolanaBalanceInsufficientForFee,
   ]);
 }

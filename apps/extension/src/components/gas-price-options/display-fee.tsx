@@ -34,6 +34,7 @@ export const DisplayFee: React.FC<DisplayFeeProps> = ({
 
   const { gasLimit, value, feeTokenData, activeChain, selectedNetwork, computedGas } =
     useGasPriceContext()
+
   const chainId = useChainId(activeChain, selectedNetwork)
   const chainGasAdjustment = useGasAdjustmentForChain(activeChain)
   const chains = useGetChains()

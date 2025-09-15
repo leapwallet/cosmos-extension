@@ -1,13 +1,16 @@
 import { FeeTokenData } from '@leapwallet/cosmos-wallet-hooks'
+import { isSolanaChain } from '@leapwallet/cosmos-wallet-sdk'
 import { RootBalanceStore, RootDenomsStore } from '@leapwallet/cosmos-wallet-store'
 import BigNumber from 'bignumber.js'
 import GasPriceOptions, { useDefaultGasPrice } from 'components/gas-price-options'
-import { GasPriceOptionValue } from 'components/gas-price-options/context'
+import { DisplayFeeValue, GasPriceOptionValue } from 'components/gas-price-options/context'
 import { DisplayFee } from 'components/gas-price-options/display-fee'
 import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sheet'
+import { SOLANA_MIN_RENT_EXEMPT } from 'config/constants'
 import { observer } from 'mobx-react-lite'
 import { useSendContext } from 'pages/send/context'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { solanaCoinDataStore } from 'stores/balance-store'
 
 export const FeesView = observer(
   ({
@@ -18,6 +21,12 @@ export const FeesView = observer(
     rootBalanceStore: RootBalanceStore
   }) => {
     const [showFeesSettingSheet, setShowFeesSettingSheet] = useState(false)
+    const [displayFee, setDisplayFeeValue] = useState<DisplayFeeValue>({
+      value: 0,
+      formattedAmount: '0',
+      fiatValue: '0',
+    })
+
     const {
       inputAmount,
       userPreferredGasPrice,
@@ -35,7 +44,18 @@ export const FeesView = observer(
       sendActiveChain,
       sendSelectedNetwork,
       isSeiEvmTransaction,
+      setIsSolanaBalanceInsufficientForFee,
+      computedGas,
     } = useSendContext()
+
+    const allAssets = solanaCoinDataStore.getSolanaBalances(
+      sendActiveChain,
+      sendSelectedNetwork,
+      undefined,
+    )
+
+    const solanaBalance = allAssets.filter((asset) => asset.coinMinimalDenom === 'lamports')[0]
+      ?.amount
 
     const denoms = rootDenomsStore.allDenoms
 
@@ -82,6 +102,55 @@ export const FeesView = observer(
       setUserPreferredGasPrice(gasPriceOption.gasPrice)
     }, [gasPriceOption, setGasOption, setUserPreferredGasPrice])
 
+    /**
+     * specific to solana and spl tokens transfer
+     * check if solana balance is insufficient for fee after transaction
+     */
+    useEffect(() => {
+      if (displayFee.value === 0) {
+        return
+      }
+
+      setIsSolanaBalanceInsufficientForFee(false)
+
+      const feeAmount = displayFee.value
+      const inputAmountNum = Number(inputAmount)
+
+      const totalAmount = Number.parseFloat((feeAmount + inputAmountNum).toFixed(9))
+
+      let error = ''
+
+      if (isSolanaChain(sendActiveChain)) {
+        let remainingBalance = 0
+        if (selectedToken?.coinMinimalDenom === 'lamports') {
+          remainingBalance = Number(selectedToken.amount) - totalAmount
+        } else {
+          remainingBalance = Number(solanaBalance) - feeAmount
+        }
+
+        if (remainingBalance === 0) {
+          return
+        }
+
+        if (remainingBalance < 0) {
+          error = 'Insufficient balance for transaction'
+        } else if (remainingBalance < SOLANA_MIN_RENT_EXEMPT / 1000000000) {
+          error = 'Balance after transaction would be below minimum required balance'
+        }
+
+        if (error.length > 0) {
+          setIsSolanaBalanceInsufficientForFee(true)
+        }
+      }
+    }, [
+      displayFee.value,
+      solanaBalance,
+      setIsSolanaBalanceInsufficientForFee,
+      inputAmount,
+      selectedToken,
+      sendActiveChain,
+    ])
+
     // if (!inputAmount) return null
 
     return (
@@ -101,12 +170,16 @@ export const FeesView = observer(
         isSeiEvmTransaction={isSeiEvmTransaction}
         rootDenomsStore={rootDenomsStore}
         rootBalanceStore={rootBalanceStore}
+        computedGas={computedGas}
         className={!inputAmount ? 'hidden' : ''}
       >
         {!inputAmount ? null : (
           <>
             {addressWarning.type === 'link' ? null : (
-              <DisplayFee setShowFeesSettingSheet={setShowFeesSettingSheet} />
+              <DisplayFee
+                setShowFeesSettingSheet={setShowFeesSettingSheet}
+                setDisplayFeeValue={setDisplayFeeValue}
+              />
             )}
 
             {gasError && !showFeesSettingSheet ? (

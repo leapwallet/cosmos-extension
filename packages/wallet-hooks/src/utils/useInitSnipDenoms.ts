@@ -19,7 +19,7 @@ export function useInitSnipDenoms() {
   const { setDenoms } = useSnipDenomsStore();
 
   const setResource = useCallback(async (resource: any) => {
-    const betaSnipTokens = await storage.get(BETA_SNIP_20_TOKENS);
+    const betaSnipTokens = await storage.get<Record<string, Record<string, string>>>(BETA_SNIP_20_TOKENS);
     if (betaSnipTokens) {
       let allBetaSnipTokens: Record<string, any> = {};
       for (const chain in betaSnipTokens) {

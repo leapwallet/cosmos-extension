@@ -110,7 +110,6 @@ export const gasAdjustments: GasAdjustments = {
   unichain: 1,
   bitcoin: 1,
   bitcoinSignet: 1,
-  flame: 1,
   avalanche: 1,
   bsc: 1,
   elys: 1.5,
@@ -138,4 +137,7 @@ export const gasAdjustments: GasAdjustments = {
   xrpl: 1.5,
   citrea: 1,
   lumia: 1,
+  // helios: 1,
+  sunrise: 1.5,
+  union: 1.5,
 };

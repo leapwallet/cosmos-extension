@@ -5,6 +5,18 @@ export enum NumiaTrackAction {
   CLICKED = 'clicked',
 }
 
+export enum BannerPlatform {
+  IOS = 'ios',
+  ANDROID = 'android',
+  EXTENSION = 'extension',
+}
+
+export enum BannerPlacementId {
+  IOS = 'home_tab_banner_carousel_ios',
+  ANDROID = 'home_tab_banner_carousel_android',
+  EXTENSION = 'home_tab_banner_carousel',
+}
+
 export const ALL_CHAIN_BANNERS = 'ALL_CHAIN_BANNERS';
 
 export type NumiaBannerAttribute = {

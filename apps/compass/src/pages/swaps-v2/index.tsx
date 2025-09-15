@@ -609,7 +609,7 @@ const SwapPage = observer(() => {
         </div>
       )}
 
-      <div className='flex flex-1 flex-col justify-between p-4 w-full gap-3 relative overflow-y-scroll'>
+      <div className='flex flex-1 flex-col justify-between p-4 !pb-[64px] w-full gap-3 relative overflow-y-scroll'>
         <div className={classNames('flex flex-col w-full gap-4 relative p-2')}>
           <div className='w-full flex flex-col items-center gap-y-1'>
             <TokenInputCard
@@ -779,7 +779,7 @@ const Swap = observer(({ rootBalanceStore }: { rootBalanceStore: RootBalanceStor
 
   const totalFiatValue = useMemo(() => {
     return rootBalanceStore
-      .getAggregatedBalances('mainnet')
+      .getAggregatedBalances('mainnet', undefined)
       .reduce(
         (acc, asset) => (asset.usdValue ? acc.plus(new BigNumber(asset.usdValue)) : acc),
         new BigNumber(0),

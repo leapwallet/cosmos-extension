@@ -20,8 +20,8 @@ let numiaBannerBearer = '';
 let spindlBannerToken = '';
 
 export type storage = {
-  set: (key: string, value: string) => Promise<void>;
-  get: (key: string) => Promise<any>;
+  set: <T = string>(key: string, value: T) => Promise<void>;
+  get: <T = string>(key: string) => Promise<T>;
   remove: (key: string) => Promise<void>;
 };
 

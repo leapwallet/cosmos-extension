@@ -96,11 +96,8 @@ export class AptosTx {
   ) {
     try {
       const txn = await this.generateSendTokensTx(fromAddress, toAddress, amount, gasPrice, gasLimit, memo);
-      const committedTxn = await this.signAndBroadcastTransaction(txn);
 
-      const tx = await this.pollForTx(committedTxn.hash);
-
-      return tx.hash;
+      return txn;
     } catch (error) {
       throw new Error(error.response?.data?.message ?? error);
     }
@@ -116,11 +113,8 @@ export class AptosTx {
   ) {
     try {
       const txn = await this.generateFungibleAssetTx(fromAddress, tokenAddress, toAddress, amount, gasPrice, gasLimit);
-      const committedTxn = await this.signAndBroadcastTransaction(txn);
 
-      const tx = await this.pollForTx(committedTxn.hash);
-
-      return tx.hash;
+      return txn;
     } catch (error) {
       throw new Error(error.response?.data?.message ?? error);
     }
@@ -196,14 +190,23 @@ export class AptosTx {
     return { gasPrice, deprioritizedGasPrice, prioritizedGasPrice };
   }
 
-  async pollForTx(txHash: string) {
+  async pollForTx(txnHash: string) {
     const tx = await this.aptos.waitForTransaction({
-      transactionHash: txHash,
+      transactionHash: txnHash,
       options: {
         timeoutSecs: 30,
       },
     });
-    return tx;
+    return { aptosResult: tx };
+  }
+
+  async broadcastTransaction(txn: SimpleTransaction) {
+    const committedTxn = await this.signTransaction(txn);
+    const submittedTxn = await this.aptos.transaction.submit.simple({
+      transaction: txn,
+      senderAuthenticator: committedTxn,
+    });
+    return submittedTxn;
   }
 
   async signAndBroadcastTransaction(txn: SimpleTransaction) {

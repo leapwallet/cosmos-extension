@@ -1,6 +1,6 @@
 {
   "name": "@leapwallet/cosmos-wallet-store",
-  "version": "6.5.5",
+  "version": "6.5.7",
   "description": "Wallet data store for cosmos mobile app and extension.",
   "main": "dist/index.js",
   "scripts": {
@@ -24,7 +24,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@leapwallet/cosmos-wallet-sdk": "6.5.5",
+    "@leapwallet/cosmos-wallet-sdk": "6.5.7",
     "@leapwallet/parser-parfait": "0.7.1",
     "currency.js": "2.0.4",
     "dotenv": "16.3.1",

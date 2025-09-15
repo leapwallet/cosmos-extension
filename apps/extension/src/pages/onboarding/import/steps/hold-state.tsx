@@ -37,7 +37,7 @@ export const HoldState = ({
         // eslint-disable-next-line no-console
         console.error(error)
       }
-    }, 1000)
+    }, 4000)
 
     return () => {
       clearInterval(interval)

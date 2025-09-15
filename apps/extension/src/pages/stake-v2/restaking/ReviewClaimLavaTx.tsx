@@ -19,25 +19,24 @@ import { FeesSettingsSheet } from 'components/gas-price-options/fees-settings-sh
 import LedgerConfirmationPopup from 'components/ledger-confirmation/LedgerConfirmationPopup'
 import BottomModal from 'components/new-bottom-modal'
 import { Button } from 'components/ui/button'
-import { EventName } from 'config/analytics'
 import { useCaptureUIException } from 'hooks/perf-monitoring/useCaptureUIException'
 import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { useCaptureTxError } from 'hooks/utility/useCaptureTxError'
 import { Wallet } from 'hooks/wallet/useWallet'
 import { Images } from 'images'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
-import mixpanel from 'mixpanel-browser'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hideAssetsStore } from 'stores/hide-assets-store'
 import { isSidePanel } from 'utils/isSidePanel'
 
-import { StakeTxnPageState } from '../StakeTxnPage'
-
 import useGetWallet = Wallet.useGetWallet
 
+import { LedgerDisconnectError } from 'components/ErrorCard/LedgerDisconnectError'
+import { useOpenLedgerReconnect } from 'hooks/useOpenLedgerReconnect'
 import Lottie from 'lottie-react'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 
 import { ClaimCard } from '../components/ReviewClaimTx'
 import { transitionTitleMap } from '../utils/stake-text'
@@ -128,7 +127,7 @@ export const ReviewClaimLavaTx = observer(
       gasPrice: userPreferredGasPrice ?? defaultGasPrice.gasPrice,
     })
     const navigate = useNavigate()
-
+    const openLedgerReconnect = useOpenLedgerReconnect()
     useCaptureTxError(error)
     useEffect(() => {
       setAmount(rewards?.totalRewards ?? '0')
@@ -204,6 +203,18 @@ export const ReviewClaimLavaTx = observer(
 
     useCaptureUIException(ledgerError || error)
 
+    const isLedgerDisconnectedError = useMemo(() => {
+      return isLedgerDisconnected(ledgerError)
+    }, [ledgerError])
+
+    const handleClaimRewardsClick = useCallback(async () => {
+      if (isLedgerDisconnectedError) {
+        openLedgerReconnect()
+        return
+      }
+      onClaimRewardsClick()
+    }, [isLedgerDisconnectedError, onClaimRewardsClick, openLedgerReconnect])
+
     return (
       <GasPriceOptions
         recommendedGasLimit={recommendedGasLimit}
@@ -259,9 +270,10 @@ export const ReviewClaimLavaTx = observer(
           </div>
 
           <div className='flex flex-col items-center w-full gap-y-2'>
-            {ledgerError && (
+            {!isLedgerDisconnectedError && ledgerError && (
               <p className='text-sm font-bold text-destructive-100 px-2'>{ledgerError}</p>
             )}
+            {isLedgerDisconnectedError && <LedgerDisconnectError />}
             {error && <p className='text-sm font-bold text-destructive-100 px-2'>{error}</p>}
             {gasError && !showFeesSettingSheet && (
               <p className='text-sm font-bold text-destructive-100 px-2'>{gasError}</p>
@@ -269,10 +281,18 @@ export const ReviewClaimLavaTx = observer(
 
             <Button
               className='w-full'
-              disabled={isLoading || !!error || !!gasError || showLedgerPopup || !!ledgerError}
-              onClick={onClaimRewardsClick}
+              disabled={
+                isLoading ||
+                !!error ||
+                !!gasError ||
+                showLedgerPopup ||
+                (!isLedgerDisconnectedError && !!ledgerError)
+              }
+              onClick={handleClaimRewardsClick}
             >
-              {isLoading ? (
+              {isLedgerDisconnectedError ? (
+                'Connect Ledger'
+              ) : isLoading ? (
                 <Lottie
                   loop={true}
                   autoplay={true}

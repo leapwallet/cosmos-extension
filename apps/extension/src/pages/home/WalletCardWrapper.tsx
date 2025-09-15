@@ -5,10 +5,14 @@ import {
   useGetChains,
   WALLETTYPE,
 } from '@leapwallet/cosmos-wallet-hooks'
-import { isAptosChain, pubKeyToEvmAddressToShow } from '@leapwallet/cosmos-wallet-sdk'
+import {
+  isAptosChain,
+  pubKeyToEvmAddressToShow,
+  SupportedChain,
+} from '@leapwallet/cosmos-wallet-sdk'
 import { Check, DotsThreeVertical } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useChainPageInfo } from 'hooks'
+import { useFormatCurrency } from 'hooks/settings/useCurrency'
 import { CopyIcon } from 'icons/copy-icon'
 import { EyeIcon } from 'icons/eye-icon'
 import { LedgerDriveIcon } from 'icons/ledger-icon'
@@ -16,6 +20,9 @@ import { getWalletIconAtIndex } from 'images/misc'
 import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { hideAssetsStore } from 'stores/hide-assets-store'
+import { rootBalanceStore } from 'stores/root-store'
+import { selectedNetworkStore } from 'stores/selected-network-store'
 import { Colors } from 'theme/colors'
 import { AggregatedSupportedChain } from 'types/utility'
 import { UserClipboard } from 'utils/clipboard'
@@ -46,7 +53,7 @@ export const WatchWalletAvatar = (props: {
   )
 }
 
-const AddressLabel = ({ address }: { address: string }) => {
+const AddressLabel = observer(({ address }: { address: string }) => {
   const [isCopied, setIsCopied] = useState(false)
 
   useEffect(() => {
@@ -99,7 +106,7 @@ const AddressLabel = ({ address }: { address: string }) => {
       </AnimatePresence>
     </button>
   )
-}
+})
 
 const WalletCardWrapper = observer(
   ({
@@ -120,7 +127,7 @@ const WalletCardWrapper = observer(
     const activeChain = useActiveChain() as AggregatedSupportedChain
     const { activeWallet, setActiveWallet } = useActiveWallet()
     const chains = useGetChains()
-    const { topChainColor } = useChainPageInfo()
+    const [formatCurrency] = useFormatCurrency()
 
     const ledgerEnabledEvmChainsKeys = useMemo(() => {
       return getLedgerEnabledEvmChainsKey(Object.values(chains))
@@ -213,12 +220,51 @@ const WalletCardWrapper = observer(
       navigate('/home')
     }, [setActiveWallet, wallet, onClose, navigate])
 
+    const isActiveWallet = activeWallet?.id === wallet.id
+
+    const forceAddresses = useMemo(() => {
+      const _forceAddresses: Record<string, string> = {}
+      Object.keys(wallet.addresses).forEach((chain) => {
+        if (chains[chain as SupportedChain]?.evmOnlyChain) {
+          const pubKey = wallet?.pubKeys?.[chain as SupportedChain]
+          if (!pubKey) {
+            return
+          }
+          const evmAddress = pubKeyToEvmAddressToShow(pubKey, true)
+          if (!evmAddress) {
+            return
+          }
+          _forceAddresses[chain] = evmAddress
+        } else {
+          const address = wallet.addresses?.[chain as SupportedChain]
+          if (!address) {
+            return
+          }
+          _forceAddresses[chain] = address
+        }
+      })
+      return _forceAddresses
+    }, [wallet?.addresses, wallet?.pubKeys, chains])
+
+    const totalFiatValue = rootBalanceStore.getTotalFiatValue(
+      'aggregated',
+      selectedNetworkStore.selectedNetwork,
+      forceAddresses,
+    )
+
+    const hasAnyBalances =
+      rootBalanceStore.getAllTokens(
+        'aggregated',
+        selectedNetworkStore.selectedNetwork,
+        forceAddresses,
+      )?.length > 0
+
     return (
       <div
         onClick={onClick}
         className={cn(
           'flex items-center justify-between gap-3 py-3 px-4 bg-secondary-100 rounded-2xl transition-colors cursor-pointer',
-          activeWallet?.id === wallet.id
+          isActiveWallet
             ? 'bg-accent-green/10 border border-spacing-0.5 border-accent-green-600'
             : 'hover:bg-secondary-200',
         )}
@@ -251,6 +297,16 @@ const WalletCardWrapper = observer(
             )}
           </div>
           <span className='text-xs text-muted-foreground max-w-56 whitespace-nowrap w-full flex items-center gap-1'>
+            {hasAnyBalances ? (
+              <>
+                <span className='text-xs text-muted-foreground truncate whitespace-nowrap max-w-24'>
+                  {hideAssetsStore.formatHideBalance(formatCurrency(totalFiatValue, true))}
+                </span>
+                {activeChain !== 'aggregated' ? (
+                  <span className='w-1 h-1 bg-muted-foreground rounded-full'></span>
+                ) : null}
+              </>
+            ) : null}
             {activeChain !== 'aggregated' ? (
               disableEdit ? (
                 addressText
@@ -261,18 +317,20 @@ const WalletCardWrapper = observer(
           </span>
         </div>
 
-        <button
-          className='size-7 cursor-pointer justify-center text-monochrome/60 hover:text-monochrome grid place-content-center'
-          onClick={(e) => {
-            e.stopPropagation()
-            if (disableEdit) return
-            setEditWallet(wallet)
-            setIsEditWalletVisible(true)
-          }}
-          data-testing-id={isLast ? 'btn-more-horiz' : ''}
-        >
-          <DotsThreeVertical size={20} />
-        </button>
+        <div className='flex items-center gap-2'>
+          <button
+            className='size-7 cursor-pointer justify-center text-monochrome/60 hover:text-monochrome grid place-content-center'
+            onClick={(e) => {
+              e.stopPropagation()
+              if (disableEdit) return
+              setEditWallet(wallet)
+              setIsEditWalletVisible(true)
+            }}
+            data-testing-id={isLast ? 'btn-more-horiz' : ''}
+          >
+            <DotsThreeVertical size={20} />
+          </button>
+        </div>
       </div>
     )
   },

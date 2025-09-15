@@ -3,10 +3,18 @@ import React from 'react'
 
 import { CurrencyList } from './CurrencyList'
 
-const ChangeCurrency = ({ isVisible, goBack }: { isVisible: boolean; goBack: () => void }) => {
+const ChangeCurrency = ({
+  isVisible,
+  goBack,
+  onClose,
+}: {
+  isVisible: boolean
+  goBack: () => void
+  onClose: () => void
+}) => {
   return (
     <BottomModal fullScreen isOpen={isVisible} onClose={goBack} title='Currency' className='p-6'>
-      <CurrencyList />
+      <CurrencyList onClose={onClose} />
     </BottomModal>
   )
 }

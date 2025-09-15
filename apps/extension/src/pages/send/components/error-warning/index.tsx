@@ -180,7 +180,14 @@ export function useSwitchToUSDDisabled() {
 }
 
 export function ErrorWarning() {
-  const { isCexIbcTransferWarningNeeded, selectedAddress, sendActiveChain } = useSendContext()
+  const {
+    isCexIbcTransferWarningNeeded,
+    selectedAddress,
+    sendActiveChain,
+    isSolanaTxnSimulationError,
+    isSolanaBalanceInsufficientForFee,
+  } = useSendContext()
+
   const currentWalletAddress = useAddress(sendActiveChain)
   const isSendingToSameWallet = currentWalletAddress === selectedAddress?.address
 
@@ -202,6 +209,17 @@ export function ErrorWarning() {
         <Info size={16} className='text-accent-warning self-start min-w-4' />
         <Text size='xs' className='font-medium' color='text-accent-warning'>
           Avoid transferring IBC tokens to centralised exchanges.
+        </Text>
+      </div>
+    )
+  }
+
+  if (isSolanaTxnSimulationError || isSolanaBalanceInsufficientForFee) {
+    return (
+      <div className='px-3 py-2.5 rounded-b-xl bg-accent-warning-800 items-center flex gap-1.5'>
+        <Info size={16} className='text-accent-warning self-start min-w-4' />
+        <Text size='xs' className='font-medium' color='text-accent-warning'>
+          This transaction will likely fail if submitted.
         </Text>
       </div>
     )

@@ -292,7 +292,11 @@ const StakePage = observer(
       if (activeChain === 'lava' && featureFlags?.restaking?.extension) {
         setShowLavaClaimInfo(true)
       } else {
-        setShowClaimInfo(true)
+        if (activeChain === 'celestia') {
+          setShowReviewClaimTx(true)
+        } else {
+          setShowClaimInfo(true)
+        }
       }
     }, [activeChain, featureFlags?.restaking?.extension])
 

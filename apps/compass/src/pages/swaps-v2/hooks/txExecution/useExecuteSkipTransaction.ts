@@ -99,7 +99,7 @@ export type ExecuteSkipTransactionParams = {
   setFirstTxnError: (firstTxnError: string | undefined) => void
   setUnableToTrackError: (unableToTrackError: boolean | null) => void
   updateTxStatus: (messageIndex: number, args: SwapTxnStatus) => void
-  setLedgerError: (((ledgerError?: string) => void) & ((ledgerError?: string) => void)) | undefined
+  setLedgerError: ((ledgerError?: string) => void) | undefined
   setIsSigningComplete: (isSigningComplete: boolean) => void
   setTrackingInSync: (trackingInSync: boolean) => void
   refetchSourceBalances?: (() => void) | undefined

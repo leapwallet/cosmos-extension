@@ -4,11 +4,13 @@ import { useDenoms, useDenomsStore } from '../store';
 import { storage, useGetStorageLayer } from '../utils/global-vars';
 import { BETA_CW20_TOKENS, BETA_ERC20_TOKENS, BETA_NATIVE_TOKENS } from '../utils/useInitDenoms';
 
+export type BetaTokens<T> = Record<string, Record<string, T>>;
+
 async function removeBetaTokens(tokenInfo: NativeDenom, chain: string, storageKey: string, storage: storage) {
-  const betaTokens = await storage.get(storageKey);
+  const betaTokens = await storage.get<BetaTokens<NativeDenom>>(storageKey);
   delete betaTokens[chain][tokenInfo.coinMinimalDenom];
 
-  await storage.set(storageKey, {
+  await storage.set<BetaTokens<NativeDenom>>(storageKey, {
     ...betaTokens,
     [chain]: {
       ...betaTokens[chain],

@@ -52,6 +52,7 @@ import {
   WalletNotConnected,
 } from './index'
 import { LedgerNotSupported } from './ledger-not-supported'
+import { MaliciousWalletAlert } from './malicious-wallet-alert'
 import { PrivateKeyNotSupported } from './private-key-not-supported'
 import { TokensSection } from './TokensSection'
 
@@ -76,10 +77,12 @@ export const GeneralHome = observer(() => {
   const chain: ChainInfoProp = useChainInfo()
   const walletAddresses = useGetWalletAddresses()
 
-  const evmStatus = evmBalanceStore.evmBalanceForChain(activeChain as SupportedChain)?.status
-  const balanceError =
-    activeChain !== 'aggregated' &&
-    rootBalanceStore.getErrorStatusForChain(activeChain, selectedNetwork)
+  const evmStatus = evmBalanceStore.statusForChain(
+    activeChain as SupportedChain,
+    selectedNetwork,
+    undefined,
+  )
+  const balanceError = rootBalanceStore.getErrorStatus(activeChain, selectedNetwork)
 
   const query = useQueryParams()
   const showCopyAddressSheet = query.get(queryParams.copyAddress) === 'true'
@@ -223,6 +226,11 @@ export const GeneralHome = observer(() => {
 
           {activeChain !== AGGREGATED_CHAIN_KEY && <DepositBTCBanner />}
 
+          <MaliciousWalletAlert
+            activeChain={activeChain as SupportedChain}
+            selectedNetwork={selectedNetwork}
+          />
+
           {!activeWallet.watchWallet && <HomeButtons />}
 
           <RewardCard chainTagsStore={chainTagsStore} />
@@ -236,7 +244,7 @@ export const GeneralHome = observer(() => {
 
           <TokensSection
             noAddress={noAddress}
-            balanceError={balanceError}
+            balanceError={balanceError !== 'no-error'}
             evmStatus={evmStatus}
             isTokenLoading={isTokenLoading}
           />

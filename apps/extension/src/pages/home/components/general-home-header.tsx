@@ -9,7 +9,7 @@ import useQuery from 'hooks/useQuery'
 import { useWalletInfo } from 'hooks/useWalletInfo'
 import { useChainPageInfo } from 'hooks/utility/useChainPageInfo'
 import { observer } from 'mobx-react-lite'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import { useNavigate } from 'react-router'
 import { earnFeatureShowStore } from 'stores/earn-feature-show'
@@ -67,6 +67,14 @@ const GeneralHomeHeaderView = (props: { disableWalletButton?: boolean; isLoading
     }
   }, [navigate, query])
 
+  const handleDropdownClick = useCallback(() => {
+    setShowSelectWallet(true && !props.disableWalletButton)
+  }, [props.disableWalletButton])
+
+  const handleChainDropdownClick = useCallback(() => {
+    globalSheetsStore.toggleChainSelector()
+  }, [])
+
   return (
     <>
       <PageHeader>
@@ -82,12 +90,12 @@ const GeneralHomeHeaderView = (props: { disableWalletButton?: boolean; isLoading
           className='absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2'
           walletName={walletInfo.walletName}
           walletAvatar={walletInfo.walletAvatar}
-          handleDropdownClick={() => setShowSelectWallet(true && !props.disableWalletButton)}
+          handleDropdownClick={handleDropdownClick}
         />
 
         <button
           className='bg-secondary-200 hover:bg-secondary-300 rounded-full px-3 py-2 transition-colors flex items-center gap-1'
-          onClick={() => globalSheetsStore.toggleChainSelector()}
+          onClick={handleChainDropdownClick}
           key={activeChain}
         >
           {!props.isLoading ? (

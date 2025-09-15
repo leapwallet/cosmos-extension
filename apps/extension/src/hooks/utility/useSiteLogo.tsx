@@ -6,29 +6,39 @@ export const useSiteLogo = (siteOrigin: string | undefined) => {
 
   useEffect(() => {
     if (!siteOrigin) return
-    // Fetch the root HTML document
-    fetch(siteOrigin)
-      .then((response) => response.text())
-      .then((html) => {
-        // Create a temporary div to parse the HTML content
-        const tempDiv = document.createElement('div')
-        // create shadow dom
-        const shadow = tempDiv.attachShadow({ mode: 'closed' })
-        // Set the HTML content
-        shadow.innerHTML = html
 
-        // Find the favicon link in the document head
-        const iconLinkElement: HTMLLinkElement | null =
-          shadow.querySelector("link[rel='icon']") ??
-          shadow.querySelector("link[rel='shortcut icon']")
+    const fetcher = async () => {
+      const response = await fetch(siteOrigin)
+      const html = await response.text()
+      // Create a temporary div to parse the HTML content
+      const tempDiv = document.createElement('div')
+      // create shadow dom
+      const shadow = tempDiv.attachShadow({ mode: 'closed' })
+      // Set the HTML content
+      shadow.innerHTML = html
 
-        if (iconLinkElement) {
-          // replace origin
-          const link = new URL(new URL(iconLinkElement.href).pathname, siteOrigin)
-          setLogoURL(link.toString())
+      // Find the favicon link in the document head
+      const iconLinkElement: HTMLLinkElement | null =
+        shadow.querySelector("link[rel='icon']") ??
+        shadow.querySelector("link[rel='shortcut icon']")
+
+      if (iconLinkElement) {
+        // replace origin
+        const link = new URL(new URL(iconLinkElement.href).pathname, siteOrigin)
+        setLogoURL(link.toString())
+      } else {
+        const res = await fetch(`https://www.google.com/s2/favicons?domain=${siteOrigin}&sz=128`)
+        if (res.ok) {
+          setLogoURL(res.url)
         }
-      })
-      .catch()
+      }
+    }
+
+    try {
+      fetcher()
+    } catch (error) {
+      //
+    }
   }, [siteOrigin])
 
   return logoURL

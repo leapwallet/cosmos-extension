@@ -5,10 +5,11 @@ import BigNumber from 'bignumber.js';
 import { makeAutoObservable } from 'mobx';
 import { SelectedNetworkType } from 'types';
 
-import { BetaERC20DenomsStore, ChainInfosStore, CoingeckoIdsStore, DenomsStore } from '../assets';
+import { BetaERC20DenomsStore, ChainInfosStore, CoingeckoIdsStore, DenomsStore, RootERC20DenomsStore } from '../assets';
 import { getBaseURL, getIsCompass } from '../globals/config';
 import { getNativeDenom } from '../utils';
 import { fromSmall } from '../utils/balance-converter';
+import { calculateTokenPriceAndValue } from '../utils/bank/price-calculator';
 import { generateRandomString } from '../utils/random-string-generator';
 import { Token } from './balance-types';
 import { PriceStore } from './price-store';
@@ -34,6 +35,7 @@ export class EVMBalanceAPIStore {
     private readonly denomsStore: DenomsStore,
     private readonly betaERC20DenomsStore: BetaERC20DenomsStore,
     private readonly coingeckoIdsStore: CoingeckoIdsStore,
+    private readonly rootERC20DenomsStore: RootERC20DenomsStore,
   ) {
     makeAutoObservable(this);
     const baseURL = getBaseURL() ?? 'https://api.leapwallet.io';
@@ -120,6 +122,7 @@ export class EVMBalanceAPIStore {
 
             const erc20Balances = Object.values(_erc20Balances ?? {}) as BalanceFromAPI[];
             const nativeBalances = Object.values(_nativeBalances ?? {}) as BalanceFromAPI[];
+            const allERC20TokensToAddInDenoms: DenomsRecord = {};
 
             const formattedErc20Balances = this.formatBalanceFromAPI(
               erc20Balances,
@@ -127,6 +130,7 @@ export class EVMBalanceAPIStore {
               network,
               true,
               denomsToAddInBase,
+              allERC20TokensToAddInDenoms,
             );
             const formattedNativeBalances = this.formatBalanceFromAPI(
               nativeBalances,
@@ -141,6 +145,9 @@ export class EVMBalanceAPIStore {
               useFallbackERC20: !_erc20Balances,
               useFallbackNative: !_nativeBalances,
             };
+            if (Object.keys(allERC20TokensToAddInDenoms).length > 0) {
+              this.rootERC20DenomsStore.setTempERC20Denoms(allERC20TokensToAddInDenoms, chainIdToKey[chainId]);
+            }
           } catch (e) {
             chainWiseBalancesResponse[chainIdToKey[chainId]] = {
               erc20Balances: [],
@@ -246,6 +253,8 @@ export class EVMBalanceAPIStore {
       const isCompassWallet = getIsCompass();
       if (isCompassWallet) {
         this.betaERC20DenomsStore.setTempBetaERC20Denoms(denomsToAddInBetaERC20, 'seiTestnet2');
+      } else {
+        this.rootERC20DenomsStore.setTempERC20Denoms(denomsToAddInBetaERC20, chain);
       }
       if (Object.keys(denomsToAddInBase).length > 0) {
         this.denomsStore.setTempBaseDenoms(denomsToAddInBase);
@@ -287,20 +296,14 @@ export class EVMBalanceAPIStore {
     if (!isErc20 && balances.length === 0) {
       const nativeDenom = getNativeDenom(chainInfos, chain, network);
       const denomInfo = nativeDenom;
-      let tokenPrice: number | undefined;
-      if (coingeckoPrices) {
-        const coinGeckoId = denomInfo.coinGeckoId;
 
-        const alternateCoingeckoKey = `${chainInfos?.[chain]?.chainId}-${denomInfo.coinMinimalDenom}`;
-
-        if (coinGeckoId) {
-          tokenPrice = coingeckoPrices[coinGeckoId];
-        }
-
-        if (!tokenPrice) {
-          tokenPrice = coingeckoPrices[alternateCoingeckoKey] ?? coingeckoPrices[alternateCoingeckoKey?.toLowerCase()];
-        }
-      }
+      const coinGeckoId = denomInfo.coinGeckoId;
+      const { usdPrice } = calculateTokenPriceAndValue({
+        coingeckoPrices,
+        coinMinimalDenom: denomInfo?.coinMinimalDenom,
+        chainId: chainInfos?.[chain]?.chainId,
+        coinGeckoId,
+      });
 
       const _internalDenomInfo = this.denomsStore.denoms[denomInfo.coinMinimalDenom];
       if (!_internalDenomInfo) {
@@ -317,7 +320,7 @@ export class EVMBalanceAPIStore {
           coinMinimalDenom: denomInfo?.coinMinimalDenom ?? '',
           img: denomInfo?.icon ?? '',
           ibcDenom: undefined,
-          usdPrice: tokenPrice ? String(tokenPrice) : '0',
+          usdPrice,
           coinDecimals: denomInfo?.coinDecimals ?? 6,
           coinGeckoId: denomInfo?.coinGeckoId ?? '',
           tokenBalanceOnChain: chain,
@@ -357,7 +360,7 @@ export class EVMBalanceAPIStore {
         coingeckoIds[_denom?.toLowerCase()] ??
         '';
 
-      if (getIsCompass() && isErc20) {
+      if (isErc20) {
         denomsToAddInBetaERC20[_denom] = {
           coinMinimalDenom: denomInfo?.coinMinimalDenom ?? _denom,
           coinDenom: denomInfo?.coinDenom ?? balance.symbol,
@@ -389,29 +392,15 @@ export class EVMBalanceAPIStore {
 
       const amount = fromSmall(new BigNumber(balance.balance).toString(), balance?.decimals);
       // TODO: add balance?.balanceUsd in future with exchange rates to use prices from external APIs
-      let usdValue;
-      let tokenPrice;
 
-      if (parseFloat(amount) > 0) {
-        if (coingeckoPrices) {
-          const alternateCoingeckoKey = `${chainId}-${_denom}`;
-
-          if (coinGeckoId) {
-            tokenPrice = coingeckoPrices[coinGeckoId];
-          }
-
-          if (!tokenPrice) {
-            tokenPrice =
-              coingeckoPrices[alternateCoingeckoKey] ?? coingeckoPrices[alternateCoingeckoKey?.toLowerCase()];
-          }
-
-          if (tokenPrice) {
-            usdValue = new BigNumber(amount).times(tokenPrice).toString();
-          }
-        }
-      }
+      const { usdPrice, usdValue } = calculateTokenPriceAndValue({
+        coingeckoPrices,
+        coinMinimalDenom: _denom,
+        chainId: chainInfos?.[chain]?.chainId,
+        coinGeckoId,
+        amount,
+      });
       // TODO: add balance?.tokenPrice in future with exchange rates to use prices from external APIs
-      const usdPrice = String(tokenPrice ?? '0');
 
       return {
         chain,

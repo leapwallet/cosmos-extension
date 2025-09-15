@@ -1,9 +1,9 @@
 import { useChainApis, useChainId, useScrtKeysStore } from '@leapwallet/cosmos-wallet-hooks'
+import { Permit } from '@leapwallet/cosmos-wallet-sdk/dist/browser/proto/secret'
 import { SigningSscrt } from '@leapwallet/cosmos-wallet-sdk/dist/browser/secret/sscrt'
 import { decrypt, encrypt } from '@leapwallet/leap-keychain'
 import { useSecretWallet } from 'hooks/wallet/useScrtWallet'
 import { useCallback } from 'react'
-import { Permit } from 'secretjs'
 import { passwordStore } from 'stores/password-store'
 import browser from 'webextension-polyfill'
 

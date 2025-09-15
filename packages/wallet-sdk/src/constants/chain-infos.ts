@@ -114,7 +114,6 @@ export type SupportedChain =
   | 'unichain'
   | 'bitcoin'
   | 'bitcoinSignet'
-  | 'flame'
   | 'avalanche'
   | 'bsc'
   | 'elys'
@@ -141,6 +140,9 @@ export type SupportedChain =
   | 'fogo'
   | 'xrpl'
   | 'citrea'
+  // | 'helios'
+  | 'sunrise'
+  | 'union'
   | 'lumia';
 
 export type AddressPrefix =
@@ -235,7 +237,6 @@ export type AddressPrefix =
   | 'unichain'
   | 'bc1q'
   | 'tb1q'
-  | 'flame'
   | 'avalanche'
   | 'bsc'
   | 'elys'
@@ -262,6 +263,9 @@ export type AddressPrefix =
   | 'fogo'
   | 'ethm'
   | 'citrea'
+  // | 'helios'
+  | 'sunrise'
+  | 'union'
   | 'lumia';
 
 export type Denom =
@@ -371,6 +375,9 @@ export type Denom =
   | 'FOGO'
   | 'XRP'
   | 'CBTC'
+  // | 'HELIOS'
+  | 'RISE'
+  | 'U'
   | 'LUMIA';
 
 export type CoinType =
@@ -4787,53 +4794,6 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     useBip84: true,
     btcNetwork: TEST_NETWORK,
   },
-  flame: {
-    chainId: '253368190',
-    evmChainId: '253368190',
-    testnetChainId: '16604737732183',
-    evmChainIdTestnet: '16604737732183',
-    key: 'flame',
-    chainName: 'Flame',
-    chainRegistryPath: 'flame',
-    chainSymbolImageUrl: 'https://assets.leapwallet.io/flame.png',
-    apis: {
-      rpc: 'https://rpc.flame.astria.org',
-      evmJsonRpc: 'https://rpc.flame.astria.org',
-      rpcTest: 'https://rpc.flame.dawn-1.astria.org',
-      evmJsonRpcTest: 'https://rpc.flame.dawn-1.astria.org',
-    },
-    denom: 'TIA',
-    bip44: {
-      coinType: '60',
-    },
-    addressPrefix: 'flame',
-    txExplorer: {
-      mainnet: {
-        name: 'Blockscout',
-        txUrl: 'https://explorer.flame.astria.org/tx',
-        accountUrl: 'https://explorer.flame.astria.org/address',
-      },
-      testnet: {
-        name: 'Blockscout',
-        txUrl: 'https://explorer.flame.dawn-1.astria.org/tx',
-        accountUrl: 'https://explorer.flame.dawn-1.astria.org/address',
-      },
-    },
-    gasPriceStep: {
-      low: 0.01,
-      average: 0.025,
-      high: 0.04,
-    },
-    nativeDenoms: {
-      'flame-native': denoms['flame-native'],
-    },
-    theme: {
-      primaryColor: '#E26423',
-      gradient: 'linear-gradient(180deg, rgba(226, 100, 35, 0.32) 0%, rgba(226, 100, 35, 0) 100%)',
-    },
-    enabled: true,
-    evmOnlyChain: true,
-  },
   avalanche: {
     chainId: '43114',
     evmChainId: '43114',
@@ -5300,13 +5260,15 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     evmOnlyChain: true,
   },
   zigchain: {
-    chainId: 'zig-test-2',
+    chainId: 'zigchain-1',
     testnetChainId: 'zig-test-2',
     key: 'zigchain',
-    chainName: 'ZIGChain Testnet',
+    chainName: 'ZIGChain',
     chainRegistryPath: 'zigchain',
     chainSymbolImageUrl: 'https://assets.leapwallet.io/zigchain.svg',
     apis: {
+      rest: 'https://rest.cosmos.directory/zigchain',
+      rpc: 'https://rpc.cosmos.directory/zigchain',
       restTest: 'https://rest.testcosmos.directory/zigchaintestnet',
       rpcTest: 'https://rpc.testcosmos.directory/zigchaintestnet',
     },
@@ -5315,12 +5277,18 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
       coinType: '118',
     },
     gasPriceStep: {
-      low: 0,
-      high: 0.1,
-      average: 0.15,
+      low: 0.0025,
+      average: 0.025,
+      high: 0.05,
     },
     addressPrefix: 'zig',
-    txExplorer: {},
+    txExplorer: {
+      mainnet: {
+        name: 'ZIGChain Explorer',
+        txUrl: 'https://zigscan.org/tx',
+        accountUrl: 'https://zigscan.org/address',
+      },
+    },
     nativeDenoms: {
       uzig: denoms.uzig,
     },
@@ -5937,5 +5905,114 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
     },
     enabled: true,
     evmOnlyChain: true,
+  },
+  // helios: {
+  //   chainId: '42000',
+  //   evmChainId: '42000',
+  //   testnetChainId: '42000',
+  //   evmChainIdTestnet: '42000',
+  //   key: 'helios',
+  //   chainName: 'Helios',
+  //   chainRegistryPath: 'helios',
+  //   chainSymbolImageUrl: 'https://assets.leapwallet.io/helios.png',
+  //   apis: {
+  //     rpcTest: 'https://testnet1.helioschainlabs.org',
+  //     evmJsonRpcTest: 'https://testnet1.helioschainlabs.org',
+  //   },
+  //   denom: 'HELIOS',
+  //   bip44: {
+  //     coinType: '60',
+  //   },
+  //   addressPrefix: 'helios',
+  //   txExplorer: {
+  //     testnet: {
+  //       name: 'Helios Explorer',
+  //       txUrl: 'https://explorer.helioschainlabs.org/tx',
+  //       accountUrl: 'https://explorer.helioschainlabs.org/address',
+  //     },
+  //   },
+  //   gasPriceStep: {
+  //     low: 0.01,
+  //     average: 0.025,
+  //     high: 0.04,
+  //   },
+  //   nativeDenoms: {
+  //     'helios-native': denoms['helios-native'],
+  //   },
+  //   theme: {
+  //     primaryColor: '#0137FF',
+  //     gradient: 'linear-gradient(180deg, rgba(1, 55, 255, 0.32) 0%, rgba(1, 55, 255, 0) 100%)',
+  //   },
+  //   enabled: false,
+  //   evmOnlyChain: true,
+  // },
+  sunrise: {
+    chainId: 'sunrise-1',
+    key: 'sunrise',
+    chainName: 'Sunrise',
+    chainRegistryPath: 'sunrise',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/sunrise.svg',
+    apis: {
+      rest: 'https://a.consensus.sunrise-1.sunriselayer.io:1318',
+      rpc: 'https://a.consensus.sunrise-1.sunriselayer.io',
+    },
+    denom: 'RISE',
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'sunrise',
+    txExplorer: {
+      mainnet: {
+        name: 'Risescan',
+        txUrl: 'https://risescan.sunriselayer.io/txs',
+        accountUrl: 'https://risescan.sunriselayer.io/accounts',
+      },
+    },
+    gasPriceStep: {
+      low: 0.01,
+      average: 0.02,
+      high: 0.1,
+    },
+    nativeDenoms: {
+      urise: denoms.urise,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(236, 188, 100, 0.32) 0%, rgba(236, 188, 100, 0) 100%)',
+      primaryColor: '#ecbc64',
+    },
+    enabled: true,
+  },
+  union: {
+    chainId: 'union-1',
+    testnetChainId: 'union-testnet-10',
+    key: 'union',
+    chainName: 'Union',
+    chainRegistryPath: 'union',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/union.png',
+    apis: {
+      rest: 'https://rest.union.build',
+      rpc: 'https://rpc.union.build',
+      restTest: 'https://rest.union-testnet-10.union.chain.kitchen',
+      rpcTest: 'https://rpc.union-testnet-10.union.chain.kitchen',
+    },
+    denom: 'U',
+    bip44: {
+      coinType: '118',
+    },
+    addressPrefix: 'union',
+    txExplorer: {},
+    gasPriceStep: {
+      low: 100000000,
+      average: 100000000,
+      high: 200000000,
+    },
+    nativeDenoms: {
+      au: denoms.au,
+    },
+    theme: {
+      gradient: 'linear-gradient(180deg, rgba(50, 129, 250, 0.32) 0%, rgba(50, 129, 250, 0) 100%)',
+      primaryColor: '#3281fa',
+    },
+    enabled: true,
   },
 };

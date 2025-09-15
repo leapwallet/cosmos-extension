@@ -10,6 +10,7 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk';
 import axios from 'axios';
 import { makeObservable, reaction, runInAction } from 'mobx';
+import { StorageAdapter } from 'types';
 
 import { ChainInfosStore, fetchIbcTraceData, getIbcTrace, RootDenomsStore } from '../assets';
 import { Token } from '../bank/balance-types';
@@ -52,6 +53,7 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
   private rootBalanceStore: RootBalanceStore;
   private addIbcTraceData: (data: Record<string, IbcDenomData>) => void;
   private feeTokenChains: string[] = [];
+  private storage: StorageAdapter;
 
   constructor(params: {
     activeChain: SupportedChain;
@@ -70,6 +72,7 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
     rootBalanceStore: RootBalanceStore;
     addIbcTraceData: (data: Record<string, IbcDenomData>) => void;
     feeTokenChains: string[];
+    storage: StorageAdapter;
   }) {
     super();
 
@@ -89,12 +92,26 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
     this.rootBalanceStore = params.rootBalanceStore;
     this.addIbcTraceData = params.addIbcTraceData;
     this.feeTokenChains = params.feeTokenChains;
+    this.storage = params.storage;
 
     makeObservable(this);
 
+    this.getFeeTokensFromCache();
+
     reaction(
       () => this.dappDefaultFeeStore.defaultFee,
-      async () => {
+      async (value, prev) => {
+        /**
+         * If fees are not changed, we don't need to fetch fee tokens data.
+         * This is to avoid loop of below updates:
+         * `defaultFee` -> `feeTokens` -> `gasPriceOptions` -> `defaultFee` -> ...
+         */
+        if (
+          value?.gasLimit === prev?.gasLimit &&
+          value?.amount?.length === prev?.amount?.length &&
+          value?.amount?.every((a, i) => a.amount === prev?.amount?.[i]?.amount && a.denom === prev?.amount?.[i]?.denom)
+        )
+          return;
         try {
           const newData = await this.fetchData();
           this.setData(newData);
@@ -103,6 +120,35 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
         }
       },
     );
+  }
+
+  async saveFeeTokensToCache(data: FeeTokensStoreData) {
+    const chain = this.activeChain;
+    const network = this.activeNetwork;
+    const isSeiEvmTransaction = this.isSeiEvmTransaction;
+
+    if (!data) {
+      return;
+    }
+
+    const cacheKey = `${chain}-${network}-${isSeiEvmTransaction}`;
+
+    this.storage.set(`fee-tokens-cached`, { [cacheKey]: data }, 'idb');
+  }
+
+  async getFeeTokensFromCache() {
+    try {
+      const cacheKey = `${this.activeChain}-${this.activeNetwork}-${this.isSeiEvmTransaction}`;
+      const cachedFeeTokens = await this.storage.get<Record<string, FeeTokensStoreData>>(`fee-tokens-cached`, 'idb');
+      const cachedFeeTokensData = cachedFeeTokens?.[cacheKey];
+      if (cachedFeeTokensData && !this.data) {
+        runInAction(() => {
+          this.setData(cachedFeeTokensData);
+        });
+      }
+    } catch (e) {
+      console.error('Failed to get fee tokens from cache:', e);
+    }
   }
 
   async getDappSuggestedTokens(denoms: DenomsRecord): Promise<{ denom: NativeDenom; ibcDenom?: string } | undefined> {
@@ -310,7 +356,7 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
     switch (chain) {
       case 'osmosis': {
         const { lcdUrl = '' } = await this.chainApisStore.getChainApis(chain, this.activeNetwork);
-        const allAssets = this.rootBalanceStore.getSpendableBalancesForChain(chain, network);
+        const allAssets = this.rootBalanceStore.getSpendableBalancesForChain(chain, network, undefined);
 
         feeTokens = await this.getOsmosisFeeTokens({
           baseGasPriceStep: baseGasPriceStep!,
@@ -373,6 +419,7 @@ export class FeeTokensQueryStore extends BaseObservableQueryStore<FeeTokensStore
       }
     }
 
+    this.saveFeeTokensToCache(feeTokens);
     return feeTokens;
   }
 }
@@ -395,7 +442,7 @@ export class FeeTokensStore {
   private addIbcTraceData: (data: Record<string, IbcDenomData>) => void;
   private feeTokenChains: string[] = [];
   private initializing: 'pending' | 'done' | 'error' = 'pending';
-
+  private storage: StorageAdapter;
   constructor(params: {
     dappDefaultFeeStore: DappDefaultFeeStore;
     chainApisStore: ChainApisStore;
@@ -409,6 +456,7 @@ export class FeeTokensStore {
     rootDenomsStore: RootDenomsStore;
     rootBalanceStore: RootBalanceStore;
     addIbcTraceData: (data: Record<string, IbcDenomData>) => void;
+    storage: StorageAdapter;
   }) {
     this.dappDefaultFeeStore = params.dappDefaultFeeStore;
     this.chainApisStore = params.chainApisStore;
@@ -422,7 +470,7 @@ export class FeeTokensStore {
     this.rootDenomsStore = params.rootDenomsStore;
     this.rootBalanceStore = params.rootBalanceStore;
     this.addIbcTraceData = params.addIbcTraceData;
-
+    this.storage = params.storage;
     this.getFeeTokenChains();
   }
 
@@ -467,6 +515,7 @@ export class FeeTokensStore {
         rootBalanceStore: this.rootBalanceStore,
         addIbcTraceData: this.addIbcTraceData,
         feeTokenChains: this.feeTokenChains,
+        storage: this.storage,
       });
 
       this.store[key]?.getData();

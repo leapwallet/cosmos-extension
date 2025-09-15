@@ -15,6 +15,17 @@ import {
 } from '@leapwallet/cosmos-wallet-sdk'
 import getHDPath from '@leapwallet/cosmos-wallet-sdk/dist/browser/utils/get-hdpath'
 import {
+  CACHED_APTOS_BALANCES_KEY,
+  CACHED_BITCOIN_BALANCES_KEY,
+  CACHED_CW20_BALANCES_KEY,
+  CACHED_ERC20_BALANCES_KEY,
+  CACHED_EVM_BALANCES_KEY,
+  CACHED_NATIVE_BALANCES_KEY,
+  CACHED_NATIVE_SPENDABLE_BALANCES_KEY,
+  CACHED_SOLANA_BALANCES_KEY,
+  CACHED_SUI_BALANCES_KEY,
+} from '@leapwallet/cosmos-wallet-store'
+import {
   decrypt,
   encrypt,
   generateWalletFromMnemonic,
@@ -39,13 +50,13 @@ import { useAuth } from 'context/auth-context'
 import { Address } from 'hooks/onboarding/types'
 import { isAllChainsEnabled, useIsAllChainsEnabled } from 'hooks/settings'
 import { useChainInfos } from 'hooks/useChainInfos'
+import * as idbKeyval from 'idb-keyval'
 import { Images } from 'images'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { importWatchWalletSeedPopupStore } from 'stores/import-watch-wallet-seed-popup-store'
 import { lightNodeStore } from 'stores/light-node-store'
 import { passwordStore } from 'stores/password-store'
-import { getDerivationPathToShow } from 'utils'
 import { closeSidePanel } from 'utils/closeSidePanel'
 import correctMnemonic from 'utils/correct-mnemonic'
 import { generateAddresses } from 'utils/generateAddresses'
@@ -190,6 +201,23 @@ export namespace Wallet {
         [NETWORK_MAP]: null,
         [SELECTED_NETWORK]: 'mainnet',
       })
+
+      try {
+        await idbKeyval.delMany([
+          CACHED_NATIVE_BALANCES_KEY,
+          CACHED_NATIVE_SPENDABLE_BALANCES_KEY,
+          CACHED_BITCOIN_BALANCES_KEY,
+          CACHED_CW20_BALANCES_KEY,
+          CACHED_ERC20_BALANCES_KEY,
+          CACHED_APTOS_BALANCES_KEY,
+          CACHED_EVM_BALANCES_KEY,
+          CACHED_SOLANA_BALANCES_KEY,
+          CACHED_SUI_BALANCES_KEY,
+        ])
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(error)
+      }
 
       await setActiveWallet(null)
       await lightNodeStore.clearLastSyncedInfo()

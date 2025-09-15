@@ -33,7 +33,7 @@ export class SelectedNetworkStore {
   }
 
   async initializeStore() {
-    const selectedNetwork = await this.storageAdapter.get('selected-network');
+    const selectedNetwork = await this.storageAdapter.get<SelectedNetworkType>('selected-network');
     const networkMapJson = await this.storageAdapter.get('networkMap');
     runInAction(() => {
       this.networkMap = networkMapJson ? JSON.parse(networkMapJson) : {};

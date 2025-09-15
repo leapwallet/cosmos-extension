@@ -25,9 +25,12 @@ export const useQueryParams = () => {
     [location.pathname, navigate],
   )
 
-  const get = (key: string) => {
-    return searchParams.get(key)
-  }
+  const get = useCallback(
+    (key: string) => {
+      return searchParams.get(key)
+    },
+    [searchParams],
+  )
 
   const set = useCallback(
     (key: string, value: string) => {
@@ -40,17 +43,20 @@ export const useQueryParams = () => {
 
   const debouncedSet = useDebounceCallback().debounce(set, 250)
 
-  const remove = (key: string | string[]) => {
-    const newSearchParams = new URLSearchParams(searchParams)
+  const remove = useCallback(
+    (key: string | string[]) => {
+      const newSearchParams = new URLSearchParams(searchParams)
 
-    if (Array.isArray(key)) {
-      key.forEach((k) => newSearchParams.delete(k))
-    } else {
-      newSearchParams.delete(key)
-    }
+      if (Array.isArray(key)) {
+        key.forEach((k) => newSearchParams.delete(k))
+      } else {
+        newSearchParams.delete(key)
+      }
 
-    setSearchParams(newSearchParams)
-  }
+      setSearchParams(newSearchParams)
+    },
+    [searchParams, setSearchParams],
+  )
 
   return {
     searchParams,

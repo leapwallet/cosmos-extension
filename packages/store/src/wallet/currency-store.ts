@@ -34,7 +34,7 @@ export class CurrencyStore {
   }
 
   async init() {
-    const preferredCurrency = await this.storageAdapter.get('preferred-currency');
+    const preferredCurrency = await this.storageAdapter.get<SupportedCurrencies>('preferred-currency');
     if (preferredCurrency) {
       runInAction(() => {
         this.preferredCountry = preferredCurrency;

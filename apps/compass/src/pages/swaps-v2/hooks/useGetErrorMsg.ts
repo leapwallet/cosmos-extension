@@ -8,6 +8,7 @@ const noTransactionRoutesErrors = [
   'no routes found',
   'cannot swap on a chain',
   'cannot transfer across',
+  'source token not found',
 ]
 
 export function isNoRoutesAvailableError(routeError: string | undefined) {

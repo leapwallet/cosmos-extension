@@ -160,7 +160,11 @@ const SignTransaction = observer(
         : 'mainnet'
     }, [chainInfo?.testnetChainId, chainId])
 
-    const allAssets = rootBalanceStore.getSpendableBalancesForChain(activeChain, selectedNetwork)
+    const allAssets = rootBalanceStore.getSpendableBalancesForChain(
+      activeChain,
+      selectedNetwork,
+      undefined,
+    )
     const denoms = rootDenomsStore.allDenoms
     const defaultGasPrice = useDefaultGasPrice(denoms, { activeChain })
     const txPostToDb = LeapWalletApi.useLogCosmosDappTx()

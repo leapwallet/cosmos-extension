@@ -24,7 +24,7 @@ export async function fetchAutoFetchedCW20BalancesQueryFn(
   setAutoFetchedCW20Tokens: (resource: any, chain: SupportedChain) => void,
 ) {
   const setResource = async (resource: any) => {
-    const betaCW20Tokens = await storage.get(BETA_CW20_TOKENS);
+    const betaCW20Tokens = await storage.get<Record<string, Record<string, string>>>(BETA_CW20_TOKENS);
 
     if (betaCW20Tokens) {
       let allBetaCW20Tokens = {};

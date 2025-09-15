@@ -12,8 +12,7 @@ import { PageName } from 'config/analytics'
 import { useWalletInfo } from 'hooks'
 import { AssetProps } from 'hooks/kado/useGetSupportedAssets'
 import { useChainInfos } from 'hooks/useChainInfos'
-import { getConversionRateKado, getQuoteKado } from 'hooks/useGetKadoDetails'
-import { getQuoteMoonpay } from 'hooks/useGetMoonpayDetails'
+import { getConversionRateKado } from 'hooks/useGetKadoDetails'
 import { getQuoteTransak } from 'hooks/useGetTransakDetails'
 import useQuery from 'hooks/useQuery'
 import { useAddress } from 'hooks/wallet/useAddress'
@@ -37,8 +36,6 @@ import useWallets = Wallet.useWallets
 import SelectProvider from './components/SelectProvider'
 
 export enum ServiceProviderEnum {
-  KADO = 'kado',
-  MOONPAY = 'moonpay',
   TRANSAK = 'transak',
 }
 
@@ -58,16 +55,6 @@ export type ProviderDetailsType = {
 }
 
 export const ProviderDetails: ProviderDetailsType = {
-  [ServiceProviderEnum.KADO]: {
-    name: 'Kado',
-    image: 'https://assets.leapwallet.io/kado.svg',
-    url: 'https://app.kado.money',
-  },
-  [ServiceProviderEnum.MOONPAY]: {
-    name: 'MoonPay',
-    image: 'https://assets.leapwallet.io/moonpay.svg',
-    url: 'https://buy.moonpay.com',
-  },
   [ServiceProviderEnum.TRANSAK]: {
     name: 'Transak',
     image: 'https://assets.leapwallet.io/transak.svg',
@@ -129,15 +116,6 @@ const Buy = () => {
       try {
         setLoadingQuote(true)
         const allQuotes = await Promise.all([
-          getQuoteKado({
-            transactionType: 'buy',
-            fiatMethod: 'credit_card',
-            partner: 'fortress',
-            amount: new BigNumber(debouncedPayAmount).toNumber(),
-            currency: selectedCurrency,
-            asset: selectedAsset?.symbol ?? 'ATOM',
-            blockchain: selectedAsset?.origin.toLowerCase() ?? 'cosmos hub',
-          }),
           getQuoteTransak({
             partnerApiKey: process.env.TRANSAK_API_KEY ?? '',
             fiatCurrency: selectedCurrency,
@@ -147,38 +125,15 @@ const Buy = () => {
             paymentMethod: 'credit_debit_card',
             fiatAmount: new BigNumber(debouncedPayAmount).toNumber(),
           }),
-          getQuoteMoonpay({
-            apiKey: process.env.MOONPAY_API_KEY ?? '',
-            baseCurrencyAmount: new BigNumber(debouncedPayAmount).toNumber(),
-            baseCurrencyCode: selectedCurrency.toLowerCase(),
-            paymentMethod: 'credit_debit_card',
-            symbol: selectedAsset?.symbol?.toLowerCase() ?? '',
-          }),
         ])
         if (!isCancelled) {
           if (allQuotes[0].success) {
             setProvidersQuote((prevState) => ({
               ...prevState,
-              [ServiceProviderEnum.KADO]: {
-                crypto: allQuotes[0]?.data?.quote?.receiveUnitCountAfterFees?.amount,
-                fiat: allQuotes[0]?.data?.quote?.receiveAmountAfterFees?.amount,
-              },
-            }))
-          } else {
-            setProvidersQuote((prevState) => {
-              const newVal = { ...prevState }
-              delete newVal[ServiceProviderEnum.KADO]
-              return newVal
-            })
-          }
-
-          if (allQuotes[1].success) {
-            setProvidersQuote((prevState) => ({
-              ...prevState,
               [ServiceProviderEnum.TRANSAK]: {
-                crypto: allQuotes[1]?.response?.cryptoAmount,
-                fiat: new BigNumber(allQuotes[1]?.response?.cryptoAmount)
-                  .dividedBy(allQuotes[1]?.response?.conversionPrice)
+                crypto: allQuotes[0]?.response?.cryptoAmount,
+                fiat: new BigNumber(allQuotes[0]?.response?.cryptoAmount)
+                  .dividedBy(allQuotes[0]?.response?.conversionPrice)
                   .toFixed(2),
               },
             }))
@@ -186,24 +141,6 @@ const Buy = () => {
             setProvidersQuote((prevState) => {
               const newVal = { ...prevState }
               delete newVal[ServiceProviderEnum.TRANSAK]
-              return newVal
-            })
-          }
-
-          if (allQuotes[2].success) {
-            setProvidersQuote((prevState) => ({
-              ...prevState,
-              [ServiceProviderEnum.MOONPAY]: {
-                crypto: allQuotes[2]?.quoteCurrencyAmount,
-                fiat: new BigNumber(allQuotes[2]?.quoteCurrencyAmount)
-                  .multipliedBy(allQuotes[2]?.quoteCurrencyPrice)
-                  .toFixed(2),
-              },
-            }))
-          } else {
-            setProvidersQuote((prevState) => {
-              const newVal = { ...prevState }
-              delete newVal[ServiceProviderEnum.MOONPAY]
               return newVal
             })
           }
@@ -304,13 +241,6 @@ const Buy = () => {
         setProvider(ServiceProviderEnum.TRANSAK)
         setProvidersQuote({
           [ServiceProviderEnum.TRANSAK]: {},
-          [ServiceProviderEnum.KADO]: {},
-          [ServiceProviderEnum.MOONPAY]: {},
-        })
-      } else {
-        setProvider(ServiceProviderEnum.KADO)
-        setProvidersQuote({
-          [ServiceProviderEnum.KADO]: {},
         })
       }
     }
@@ -346,19 +276,6 @@ const Buy = () => {
   const getQueryParams = useCallback(
     (val: ServiceProviderEnum) => {
       switch (val) {
-        case ServiceProviderEnum.KADO:
-          return {
-            apiKey: process.env.KADO_API_KEY,
-            onPayAmount: payFiatAmount,
-            onPayCurrency: selectedCurrency,
-            onRevCurrency: selectedAsset?.symbol,
-            onToAddress: selectedAddress,
-            network: selectedAsset?.origin,
-            product: 'BUY',
-            productList: 'BUY',
-            mode: 'minimal',
-            theme: 'dark',
-          }
         case ServiceProviderEnum.TRANSAK:
           return {
             apiKey: process.env.TRANSAK_API_KEY,
@@ -370,23 +287,9 @@ const Buy = () => {
             cryptoCurrencyCode: selectedAsset?.symbol,
             walletAddress: selectedAddress,
           }
-        case ServiceProviderEnum.MOONPAY:
-          return {
-            apiKey: process.env.MOONPAY_API_KEY,
-            currencyCode: `${selectedAsset?.symbol?.toLowerCase()}_sei`,
-            walletAddress: selectedAddress,
-            baseCurrencyCode: selectedCurrency?.toLowerCase(),
-            baseCurrencyAmount: payFiatAmount,
-          }
       }
     },
-    [
-      payFiatAmount,
-      selectedAddress,
-      selectedAsset?.origin,
-      selectedAsset?.symbol,
-      selectedCurrency,
-    ],
+    [payFiatAmount, selectedAddress, selectedAsset?.symbol, selectedCurrency],
   )
 
   const handleBuyClick = useCallback(() => {

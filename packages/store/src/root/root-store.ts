@@ -21,14 +21,14 @@ import {
 } from '../bank';
 import { AptosCoinDataStore } from '../bank/aptos-balance-store';
 import { sortTokenBalances } from '../bank/balance-calculator';
-import { Token } from '../bank/balance-types';
 import { BitcoinDataStore } from '../bank/bitcoin-balance-store';
 import { SolanaCoinDataStore } from '../bank/solana-balance-store';
 import { SuiCoinDataStore } from '../bank/sui-balance-store';
 import { ClaimRewardsStore, DelegationsStore, StakeEpochStore, UndelegationsStore, ValidatorsStore } from '../stake';
-import { AggregatedSupportedChainType, SelectedNetworkType, SupportedCurrencies } from '../types';
+import { AggregatedSupportedChainType, BalanceErrorStatus, SelectedNetworkType, SupportedCurrencies } from '../types';
+import { filterDuplicateSeiToken } from '../utils/filter-tokens';
 import { isBitcoinChain } from '../utils/is-bitcoin-chain';
-import { ActiveChainStore, AddressStore, CurrencyStore, SelectedNetworkStore } from '../wallet';
+import { ActiveChainStore, AddressStore, currencyDetail, CurrencyStore, SelectedNetworkStore } from '../wallet';
 
 export class RootStakeStore {
   delegationStore: DelegationsStore;
@@ -149,11 +149,34 @@ export class RootBalanceStore {
   get allTokens() {
     const activeChain = this.activeChainStore?.activeChain;
     if (activeChain === 'aggregated') {
+      const allNativeDenoms = Object.values(this.chainInfosStore?.chainInfos ?? {}).reduce(
+        (acc: Record<string, NativeDenom>, chainInfo) => Object.assign(acc, chainInfo.nativeDenoms),
+        {},
+      );
+      const nativeBalances = this.nativeBalanceStore.balances.filter(
+        (token) => Object.keys(allNativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
+      );
+      const nonNativeBalances = this.nativeBalanceStore.balances.filter(
+        (token) => !Object.keys(allNativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
+      );
       return sortTokenBalances(
-        this.nativeBalanceStore.balances.concat(
+        nativeBalances.concat(
+          nonNativeBalances.filter((token) =>
+            filterDuplicateSeiToken(
+              token,
+              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+              this.erc20BalanceStore.erc20Tokens,
+            ),
+          ),
           this.erc20BalanceStore.erc20Tokens,
-          this.cw20BalanceStore.cw20Tokens,
-          (this.evmBalanceStore.evmBalance?.evmBalance ?? [])?.filter(
+          this.cw20BalanceStore.cw20Tokens.filter((token) =>
+            filterDuplicateSeiToken(
+              token,
+              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+              this.erc20BalanceStore.erc20Tokens,
+            ),
+          ),
+          (this.evmBalanceStore.evmBalance ?? [])?.filter(
             (token) => !isNaN(Number(token.amount)) && new BigNumber(token.amount).gt(0),
           ),
           this.bitcoinBalanceStore.balances,
@@ -177,32 +200,23 @@ export class RootBalanceStore {
     const suiTokens = this.suiCoinDataStore.balances;
 
     if (activeChain === 'seiTestnet2') {
-      const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
-      const filterDuplicateSeiToken = (token: Token) => {
-        let evmContract =
-          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
-          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
-        if (!evmContract && token.ibcDenom) {
-          evmContract =
-            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom] ??
-            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom.toLowerCase()];
-        }
-        if (!evmContract) {
-          return true;
-        }
-        const matchFound = erc20Tokens.find(
-          (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
-        );
-        if (matchFound && !matchFound.coinGeckoId) {
-          runInAction(() => {
-            matchFound.coinGeckoId = token.coinGeckoId;
-          });
-        }
-        return !matchFound;
-      };
-      const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter(filterDuplicateSeiToken);
-      const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
-      return nativeTokens.concat(sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
+      const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter((token) =>
+        filterDuplicateSeiToken(
+          token,
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+          this.erc20BalanceStore.erc20Tokens,
+        ),
+      );
+      const nonNativeSeiBankTokens = nonNativeBankTokens.filter((token) =>
+        filterDuplicateSeiToken(
+          token,
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+          this.erc20BalanceStore.erc20Tokens,
+        ),
+      );
+      return nativeTokens.concat(
+        sortTokenBalances(cw20Tokens.concat(this.erc20BalanceStore.erc20Tokens, nonNativeSeiBankTokens)),
+      );
     }
 
     return nativeTokens.concat(
@@ -219,14 +233,51 @@ export class RootBalanceStore {
     );
   }
 
+  getAllTokens = computedFn(
+    (
+      activeChain: AggregatedSupportedChainType,
+      selectedNetwork: SelectedNetworkType,
+      forceAddresses: Record<string, string> | undefined,
+    ) => {
+      if (activeChain === 'aggregated') {
+        return this.getAggregatedBalances(selectedNetwork, forceAddresses);
+      }
+
+      return this.getBalancesForChain(activeChain, selectedNetwork, forceAddresses);
+    },
+  );
+
   get allSpendableTokens() {
     const activeChain = this.activeChainStore?.activeChain;
     if (activeChain === 'aggregated') {
+      const allNativeDenoms = Object.values(this.chainInfosStore?.chainInfos ?? {}).reduce(
+        (acc: Record<string, NativeDenom>, chainInfo) => Object.assign(acc, chainInfo.nativeDenoms),
+        {},
+      );
+      const nativeBalances = this.nativeBalanceStore.spendableBalances.filter(
+        (token) => Object.keys(allNativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
+      );
+      const nonNativeBalances = this.nativeBalanceStore.spendableBalances.filter(
+        (token) => !Object.keys(allNativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
+      );
       return sortTokenBalances(
-        this.nativeBalanceStore.spendableBalances.concat(
+        nativeBalances.concat(
+          nonNativeBalances.filter((token) =>
+            filterDuplicateSeiToken(
+              token,
+              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+              this.erc20BalanceStore.erc20Tokens,
+            ),
+          ),
           this.erc20BalanceStore.erc20Tokens,
-          this.cw20BalanceStore.cw20Tokens,
-          (this.evmBalanceStore.evmBalance?.evmBalance ?? [])?.filter(
+          this.cw20BalanceStore.cw20Tokens.filter((token) =>
+            filterDuplicateSeiToken(
+              token,
+              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+              this.erc20BalanceStore.erc20Tokens,
+            ),
+          ),
+          (this.evmBalanceStore.evmBalance ?? [])?.filter(
             (token) => !isNaN(Number(token.amount)) && new BigNumber(token.amount).gt(0),
           ),
           this.bitcoinBalanceStore.balances,
@@ -251,30 +302,20 @@ export class RootBalanceStore {
     const suiTokens = this.suiCoinDataStore.balances;
     if (activeChain === 'seiTestnet2') {
       const erc20Tokens = this.erc20BalanceStore.erc20Tokens;
-      const filterDuplicateSeiToken = (token: Token) => {
-        let evmContract =
-          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
-          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
-        if (!evmContract && token.ibcDenom) {
-          evmContract =
-            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom] ??
-            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom.toLowerCase()];
-        }
-        if (!evmContract) {
-          return true;
-        }
-        const matchFound = erc20Tokens.find(
-          (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
-        );
-        if (matchFound && !matchFound.coinGeckoId) {
-          runInAction(() => {
-            matchFound.coinGeckoId = token.coinGeckoId;
-          });
-        }
-        return !matchFound;
-      };
-      const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter(filterDuplicateSeiToken);
-      const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
+      const cw20Tokens = this.cw20BalanceStore.cw20Tokens.filter((token) =>
+        filterDuplicateSeiToken(
+          token,
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+          this.erc20BalanceStore.erc20Tokens,
+        ),
+      );
+      const nonNativeSeiBankTokens = nonNativeBankTokens.filter((token) =>
+        filterDuplicateSeiToken(
+          token,
+          this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping,
+          this.erc20BalanceStore.erc20Tokens,
+        ),
+      );
       return nativeTokens.concat(
         sortTokenBalances(cw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens, solanaTokens, suiTokens)),
       );
@@ -317,28 +358,35 @@ export class RootBalanceStore {
   }
 
   getAggregatedBalancesForNetwork = computedFn(
-    (balanceType: 'balances' | 'spendableBalances', network: SelectedNetworkType) => {
+    (
+      balanceType: 'balances' | 'spendableBalances',
+      network: SelectedNetworkType,
+      forceAddresses: Record<string, string> | undefined,
+    ) => {
       const nativeDenoms = Object.values(this.chainInfosStore?.chainInfos ?? {}).reduce(
         (acc: Record<string, NativeDenom>, chainInfo) => Object.assign(acc, chainInfo.nativeDenoms),
         {},
       );
       const bankTokens =
         balanceType === 'spendableBalances'
-          ? this.nativeBalanceStore.getAggregatedSpendableBalances(network)
-          : this.nativeBalanceStore.getAggregatedBalances(network);
+          ? this.nativeBalanceStore.getAggregatedSpendableBalances(network, forceAddresses)
+          : this.nativeBalanceStore.getAggregatedBalances(network, forceAddresses);
       const nativeTokens = bankTokens.filter(
         (token) => Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
       );
       const nonNativeBankTokens = bankTokens.filter(
         (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
       );
-      const erc20Tokens = this.erc20BalanceStore.getAggregatedERC20Tokens(network);
-      const cw20Tokens = this.cw20BalanceStore.getAggregatedCW20Tokens(network);
-      const evmTokens = this.evmBalanceStore.getAggregatedEvmTokens(network);
-      const bitcoinTokens = this.bitcoinBalanceStore.getAggregatedBalances(network);
-      const aptosTokens = this.aptosCoinDataStore.getAggregatedBalances(network);
-      const solanaTokens = this.solanaCoinDataStore.getAggregatedBalances(network);
-      const suiTokens = this.suiCoinDataStore.getAggregatedBalances(network);
+
+      const erc20Tokens = this.erc20BalanceStore.getAggregatedERC20Tokens(network, forceAddresses);
+      const cw20Tokens = this.cw20BalanceStore.getAggregatedCW20Tokens(network, forceAddresses);
+      const aptosTokens = this.aptosCoinDataStore.getAggregatedBalances(network, forceAddresses);
+      const evmTokens = this.evmBalanceStore
+        .getAggregatedEvmTokens(network, forceAddresses)
+        ?.filter((token) => !isNaN(Number(token.amount)) && new BigNumber(token.amount).gt(0));
+      const solanaTokens = this.solanaCoinDataStore.getAggregatedBalances(network, forceAddresses);
+      const suiTokens = this.suiCoinDataStore.getAggregatedBalances(network, forceAddresses);
+      const bitcoinTokens = this.bitcoinBalanceStore.getAggregatedBalances(network, forceAddresses);
 
       return nativeTokens.concat(
         sortTokenBalances(
@@ -357,50 +405,41 @@ export class RootBalanceStore {
   );
 
   getTokensForChain = computedFn(
-    (chain: SupportedChain, balanceType: 'balances' | 'spendableBalances', network: SelectedNetworkType) => {
+    (
+      chain: SupportedChain,
+      balanceType: 'balances' | 'spendableBalances',
+      network: SelectedNetworkType,
+      forceAddresses: Record<string, string> | undefined,
+    ) => {
+      if (forceAddresses && !forceAddresses[chain]) {
+        return [];
+      }
+
       const nativeDenoms = this.chainInfosStore?.chainInfos?.[chain]?.nativeDenoms ?? [];
       const bankTokens =
         balanceType === 'spendableBalances'
-          ? this.nativeBalanceStore.getSpendableBalancesForChain(chain, network)
-          : this.nativeBalanceStore.getBalancesForChain(chain, network);
+          ? this.nativeBalanceStore.getSpendableBalancesForChain(chain, network, forceAddresses)
+          : this.nativeBalanceStore.getBalancesForChain(chain, network, forceAddresses);
       const nativeTokens = bankTokens.filter(
         (token) => Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) && !token.ibcDenom,
       );
       const nonNativeBankTokens = bankTokens.filter(
         (token) => !Object.keys(nativeDenoms)?.includes(token.coinMinimalDenom) || !!token.ibcDenom,
       );
-      const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain, network);
-      const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain, network);
-      const bitcoinTokens = this.bitcoinBalanceStore.balances;
-      const aptosTokens = this.aptosCoinDataStore.getAptosBalances(chain, network);
-      const solanaTokens = this.solanaCoinDataStore.getSolanaBalances(chain, network);
-      const suiTokens = this.suiCoinDataStore.getSuiBalances(chain, network);
+      const erc20Tokens = this.erc20BalanceStore.getERC20TokensForChain(chain, network, forceAddresses?.[chain]);
+      const cw20Tokens = this.cw20BalanceStore.getCW20TokensForChain(chain, network, forceAddresses?.[chain]);
+      const aptosTokens = this.aptosCoinDataStore.getAptosBalances(chain, network, forceAddresses?.[chain]);
+      const solanaTokens = this.solanaCoinDataStore.getSolanaBalances(chain, network, forceAddresses?.[chain]);
+      const suiTokens = this.suiCoinDataStore.getSuiBalances(chain, network, forceAddresses?.[chain]);
+      const bitcoinTokens = this.bitcoinBalanceStore.getBitcoinBalances(chain, network, forceAddresses?.[chain]);
 
       if (chain === 'seiTestnet2') {
-        const filterDuplicateSeiToken = (token: Token) => {
-          let evmContract =
-            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom] ??
-            this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.coinMinimalDenom.toLowerCase()];
-          if (!evmContract && token.ibcDenom) {
-            evmContract =
-              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom] ??
-              this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping[token.ibcDenom.toLowerCase()];
-          }
-          if (!evmContract) {
-            return true;
-          }
-          const matchFound = erc20Tokens.find(
-            (erc20Token) => erc20Token.coinMinimalDenom.toLowerCase() === evmContract.toLowerCase(),
-          );
-          if (matchFound && !matchFound.coinGeckoId) {
-            runInAction(() => {
-              matchFound.coinGeckoId = token.coinGeckoId;
-            });
-          }
-          return !matchFound;
-        };
-        const seiCw20Tokens = cw20Tokens.filter(filterDuplicateSeiToken);
-        const nonNativeSeiBankTokens = nonNativeBankTokens.filter(filterDuplicateSeiToken);
+        const seiCw20Tokens = cw20Tokens.filter((token) =>
+          filterDuplicateSeiToken(token, this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping, erc20Tokens),
+        );
+        const nonNativeSeiBankTokens = nonNativeBankTokens.filter((token) =>
+          filterDuplicateSeiToken(token, this.compassSeiTokensAssociationsStore.compassSeiToEvmMapping, erc20Tokens),
+        );
         return nativeTokens.concat(sortTokenBalances(seiCw20Tokens.concat(erc20Tokens, nonNativeSeiBankTokens)));
       }
 
@@ -412,48 +451,91 @@ export class RootBalanceStore {
     },
   );
 
-  getBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
-    return this.getTokensForChain(chain, 'balances', network);
-  });
+  getBalancesForChain = computedFn(
+    (chain: SupportedChain, network: SelectedNetworkType, forceAddresses: Record<string, string> | undefined) => {
+      return this.getTokensForChain(chain, 'balances', network, forceAddresses);
+    },
+  );
 
-  getSpendableBalancesForChain = computedFn((chain: SupportedChain, network: SelectedNetworkType) => {
-    return this.getTokensForChain(chain, 'spendableBalances', network);
-  });
+  getSpendableBalancesForChain = computedFn(
+    (chain: SupportedChain, network: SelectedNetworkType, forceAddresses: Record<string, string> | undefined) => {
+      return this.getTokensForChain(chain, 'spendableBalances', network, forceAddresses);
+    },
+  );
 
-  getAggregatedBalances = computedFn((network: SelectedNetworkType) => {
-    return this.getAggregatedBalancesForNetwork('balances', network);
-  });
+  getAggregatedBalances = computedFn(
+    (network: SelectedNetworkType, forceAddresses: Record<string, string> | undefined) => {
+      return this.getAggregatedBalancesForNetwork('balances', network, forceAddresses);
+    },
+  );
 
-  getAggregatedSpendableBalances = computedFn((network: SelectedNetworkType) => {
-    return this.getAggregatedBalancesForNetwork('spendableBalances', network);
-  });
+  getAggregatedSpendableBalances = computedFn(
+    (network: SelectedNetworkType, forceAddresses: Record<string, string> | undefined) => {
+      return this.getAggregatedBalancesForNetwork('spendableBalances', network, forceAddresses);
+    },
+  );
 
   getLoadingStatusForChain = (chain: SupportedChain, network: SelectedNetworkType) => {
     return (
       this.nativeBalanceStore.getLoadingStatusForChain(chain, network) ||
       this.erc20BalanceStore.getLoadingStatusForChain(chain, network) ||
-      this.cw20BalanceStore.getLoadingStatusForChain(chain, network)
+      this.cw20BalanceStore.getLoadingStatusForChain(chain, network, undefined)
     );
   };
 
-  getErrorStatusForChain = (chain: SupportedChain, network: SelectedNetworkType) => {
-    if (this.chainInfosStore.chainInfos[chain]?.evmOnlyChain) {
-      return this.evmBalanceStore.getErrorStatusForChain(chain, network);
-    }
-
+  getErrorStatusForChain = (chain: SupportedChain, network: SelectedNetworkType): BalanceErrorStatus => {
     if (isAptosChain(chain)) {
-      return this.aptosCoinDataStore.getErrorStatusForChain(chain, network);
+      return this.aptosCoinDataStore.getErrorStatusForChain(chain, network) ? 'complete-failure' : 'no-error';
     }
 
     if (isSolanaChain(chain)) {
-      return this.solanaCoinDataStore.getErrorStatusForChain(chain, network);
+      return this.solanaCoinDataStore.getErrorStatusForChain(chain, network) ? 'complete-failure' : 'no-error';
     }
 
     if (isBitcoinChain(chain)) {
-      return this.bitcoinBalanceStore.getErrorStatusForChain(chain, network);
+      return this.bitcoinBalanceStore.getErrorStatusForChain(chain, network) ? 'complete-failure' : 'no-error';
     }
 
-    return this.nativeBalanceStore.getErrorStatusForChain(chain, network);
+    if (isSuiChain(chain)) {
+      return this.suiCoinDataStore.getErrorStatusForChain(chain, network) ? 'complete-failure' : 'no-error';
+    }
+
+    const erc20Error = this.erc20BalanceStore.getErrorStatusForChain(chain, network);
+
+    if (this.chainInfosStore.chainInfos[chain]?.evmOnlyChain) {
+      const evmError = this.evmBalanceStore.getErrorStatusForChain(chain, network);
+      if (evmError || erc20Error) {
+        return evmError && erc20Error ? 'complete-failure' : 'partial-failure';
+      }
+      return 'no-error';
+    }
+
+    const cw20Error = this.cw20BalanceStore.getErrorStatusForChain(chain, network);
+    const nativeError = this.nativeBalanceStore.getErrorStatusForChain(chain, network);
+
+    if (nativeError || cw20Error || erc20Error) {
+      return nativeError && cw20Error && erc20Error ? 'complete-failure' : 'partial-failure';
+    }
+    return 'no-error';
+  };
+
+  getAggregatedErrorStatus = (network: SelectedNetworkType): BalanceErrorStatus => {
+    let allChainsErrored = true;
+    let partialChainsErrored = false;
+    Object.keys(this.chainInfosStore.chainInfos).forEach((chain) => {
+      const chainErrorStatus = this.getErrorStatusForChain(chain as SupportedChain, network);
+      const chainHasError = chainErrorStatus !== 'no-error';
+      allChainsErrored = allChainsErrored && chainHasError;
+      partialChainsErrored = partialChainsErrored || chainHasError;
+    });
+    return allChainsErrored ? 'complete-failure' : partialChainsErrored ? 'partial-failure' : 'no-error';
+  };
+
+  getErrorStatus = (chain: AggregatedSupportedChainType, network: SelectedNetworkType): BalanceErrorStatus => {
+    if (chain === 'aggregated') {
+      return this.getAggregatedErrorStatus(network);
+    }
+    return this.getErrorStatusForChain(chain as SupportedChain, network);
   };
 
   get loading() {
@@ -478,7 +560,7 @@ export class RootBalanceStore {
     }
     if (chainInfo?.evmOnlyChain) {
       return (
-        this.evmBalanceStore.evmBalance.status === 'loading' ||
+        this.evmBalanceStore.loading ||
         this.erc20BalanceStore.loading ||
         (this.forcedLoading[this.getBalanceKey(activeChain)] ?? false)
       );
@@ -529,29 +611,94 @@ export class RootBalanceStore {
     return new BigNumber(hasAnyUsdPrice ? 0 : NaN);
   }
 
-  async loadBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType) {
+  getTotalFiatValue = computedFn(
+    (chain: AggregatedSupportedChainType, network: SelectedNetworkType, forceAddresses: Record<string, string>) => {
+      let totalFiatValue = new BigNumber(0);
+      const balances = this.getAllTokens(chain, network, forceAddresses);
+      let hasAnyBalance = false;
+
+      for (const asset of balances) {
+        if (asset.usdValue) {
+          totalFiatValue = totalFiatValue.plus(new BigNumber(asset.usdValue));
+        }
+        if (asset.amount && !new BigNumber(asset.amount).isNaN() && new BigNumber(asset.amount).gt(0)) {
+          hasAnyBalance = true;
+        }
+      }
+
+      if (totalFiatValue.gt(0)) {
+        return totalFiatValue;
+      }
+
+      if (hasAnyBalance) {
+        return new BigNumber(NaN);
+      }
+
+      return totalFiatValue;
+    },
+  );
+
+  async loadBalances(
+    chain?: AggregatedSupportedChainType,
+    network?: SelectedNetworkType,
+    forceAddresses?: Record<string, string>,
+  ) {
     await Promise.allSettled([
-      this.nativeBalanceStore.loadBalances(chain, network),
-      this.erc20BalanceStore.loadBalances(chain, network),
-      this.cw20BalanceStore.loadBalances(chain, network),
-      this.evmBalanceStore.loadEvmBalance(chain, network),
-      this.bitcoinBalanceStore.getData(chain, network),
-      this.aptosCoinDataStore.getData(chain, network),
-      this.solanaCoinDataStore.getData(chain as SupportedChain, network),
-      this.suiCoinDataStore.getData(chain as SupportedChain, network),
+      this.nativeBalanceStore.loadBalances(chain, network, forceAddresses),
+      this.erc20BalanceStore.loadBalances(chain, network, undefined, forceAddresses),
+      this.cw20BalanceStore.loadBalances(chain, network, undefined, forceAddresses),
+      this.evmBalanceStore.loadEvmBalance(chain, network, undefined, undefined, forceAddresses),
+      this.bitcoinBalanceStore.getData(chain, network, undefined, forceAddresses),
+      this.aptosCoinDataStore.getData(chain, network, undefined, forceAddresses),
+      this.solanaCoinDataStore.getData(chain, network, undefined, forceAddresses),
+      this.suiCoinDataStore.getData(chain, network, undefined, forceAddresses),
     ]);
   }
 
-  async refetchBalances(chain?: AggregatedSupportedChainType, network?: SelectedNetworkType, address?: string) {
+  async refetchBalances(
+    chain?: AggregatedSupportedChainType,
+    network?: SelectedNetworkType,
+    forceAddresses?: Record<string, string>,
+  ) {
     await Promise.allSettled([
-      this.nativeBalanceStore.loadBalances(chain, network, address, true),
-      this.erc20BalanceStore.loadBalances(chain, network, true),
-      this.cw20BalanceStore.loadBalances(chain, network, true),
-      this.evmBalanceStore.loadEvmBalance(chain, network, true),
-      this.bitcoinBalanceStore.getData(chain, network, true),
-      this.aptosCoinDataStore.getData(chain, network, true),
-      this.solanaCoinDataStore.getData(chain as SupportedChain, network, true),
-      this.suiCoinDataStore.getData(chain as SupportedChain, network, true),
+      this.nativeBalanceStore.loadBalances(chain, network, forceAddresses, true),
+      this.erc20BalanceStore.loadBalances(chain, network, true, forceAddresses),
+      this.cw20BalanceStore.loadBalances(chain, network, true, forceAddresses),
+      this.evmBalanceStore.loadEvmBalance(chain, network, true, undefined, forceAddresses),
+      this.bitcoinBalanceStore.getData(chain, network, true, forceAddresses),
+      this.aptosCoinDataStore.getData(chain, network, true, forceAddresses),
+      this.solanaCoinDataStore.getData(chain, network, true, forceAddresses),
+      this.suiCoinDataStore.getData(chain, network, true, forceAddresses),
+    ]);
+  }
+
+  clearCachedBalances(forceAddresses: Record<string, string>) {
+    try {
+      this.nativeBalanceStore.clearCachedBalances(forceAddresses);
+      this.erc20BalanceStore.clearCachedBalances(forceAddresses);
+      this.cw20BalanceStore.clearCachedBalances(forceAddresses);
+      this.evmBalanceStore.clearCachedBalances(forceAddresses);
+      this.bitcoinBalanceStore.clearCachedBalances(forceAddresses);
+      this.aptosCoinDataStore.clearCachedBalances(forceAddresses);
+      this.solanaCoinDataStore.clearCachedBalances(forceAddresses);
+      this.suiCoinDataStore.clearCachedBalances(forceAddresses);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(e);
+    }
+  }
+
+  async updateCurrency(prevCurrency: SupportedCurrencies) {
+    const currency = currencyDetail[prevCurrency].currencyPointer;
+    await Promise.allSettled([
+      this.nativeBalanceStore.updateCurrency(currency),
+      this.erc20BalanceStore.updateCurrency(currency),
+      this.cw20BalanceStore.updateCurrency(currency),
+      this.evmBalanceStore.updateCurrency(currency),
+      this.bitcoinBalanceStore.updateCurrency(currency),
+      this.aptosCoinDataStore.updateCurrency(currency),
+      this.solanaCoinDataStore.updateCurrency(currency),
+      this.suiCoinDataStore.updateCurrency(currency),
     ]);
   }
 }
@@ -604,7 +751,7 @@ export class RootStore {
     });
   }
 
-  async initStores() {
+  async initStores(loadBalances?: boolean, loadStake?: boolean) {
     if (this.initializing !== 'pending') return;
     runInAction(() => {
       this.initializing = 'inprogress';
@@ -618,8 +765,8 @@ export class RootStore {
     ]);
 
     this.initPromise = Promise.all([
-      this.rootBalanceStore.loadBalances(),
-      this.skipLoadingStake ? Promise.resolve() : this.rootStakeStore.updateStake(),
+      loadBalances ? this.rootBalanceStore.loadBalances() : Promise.resolve(),
+      this.skipLoadingStake || !loadStake ? Promise.resolve() : this.rootStakeStore.updateStake(),
     ]);
     await this.initPromise;
     runInAction(() => {
@@ -674,13 +821,14 @@ export class RootStore {
     ]);
   }
 
-  async setPreferredCurrency(currency: SupportedCurrencies) {
+  async setPreferredCurrency(prevCurrency: SupportedCurrencies, currency: SupportedCurrencies) {
+    if (prevCurrency === currency) return;
     this.currencyStore.updatePreferredCurrency(currency);
     if (this.initializing !== 'done') return;
     await this.priceStore.getData();
     await this.percentageChangeDataStore.getData();
     await Promise.all([
-      this.rootBalanceStore.refetchBalances(),
+      this.rootBalanceStore.updateCurrency(prevCurrency),
       this.skipLoadingStake ? Promise.resolve() : this.rootStakeStore.updateStake(undefined, undefined, true),
     ]);
   }

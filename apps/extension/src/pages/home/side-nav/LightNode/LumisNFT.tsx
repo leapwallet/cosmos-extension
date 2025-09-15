@@ -29,7 +29,7 @@ import { CopySvg, getWalletIconAtIndex } from 'images/misc'
 import loadingImage from 'lottie-files/swaps-btn-loading.json'
 import Lottie from 'lottie-react'
 import { observer } from 'mobx-react-lite'
-import { Chip, NonFractionalizedNftDescription } from 'pages/nfts-v2/components'
+import { Chip, NonFractionalizedNftDescription } from 'pages/nfts/components'
 import React, { useCallback, useEffect, useState } from 'react'
 import { chainInfoStore } from 'stores/chain-infos-store'
 import { lightNodeStore } from 'stores/light-node-store'
@@ -289,12 +289,10 @@ const LumisNFT = observer(
     const [showLedgerPopup, setShowLedgerPopup] = useState(false)
     const [gasLimit, setGasLimit] = useState(0)
     const nativeDenom = Object.values(chainInfoStore.chainInfos['forma'].nativeDenoms)[0]
-    const nativeBalance = evmBalanceStore
-      .evmBalanceForChain('forma')
-      .evmBalance.find(
-        (token) =>
-          token.chain === 'forma' && token.coinMinimalDenom === nativeDenom.coinMinimalDenom,
-      )
+    const evmBalance = evmBalanceStore.evmBalanceForChain('forma', undefined, undefined)
+    const nativeBalance = evmBalance.find(
+      (token) => token.chain === 'forma' && token.coinMinimalDenom === nativeDenom.coinMinimalDenom,
+    )
     const fees = (gasLimit * gasPrice.low) / 10 ** nativeDenom.coinDecimals
 
     const handleMintClick = async () => {

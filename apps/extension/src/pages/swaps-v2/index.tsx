@@ -33,6 +33,7 @@ import {
 } from 'stores/denoms-store-instance'
 import { SourceChain, SourceToken } from 'types/swap'
 import { cn } from 'utils/cn'
+import { isLedgerDisconnected } from 'utils/isLedgerDisconnectedError'
 
 import {
   InterchangeButton,
@@ -145,6 +146,7 @@ const SwapPage = observer(() => {
     userPreferredGasPrice,
     gasEstimate,
     gasOption,
+    bridgeFeeError,
   } = useSwapContext()
 
   const {
@@ -363,6 +365,10 @@ const SwapPage = observer(() => {
       _destinationChainsToShow,
     }
   }, [_chainsToShow, destinationToken, destinationAssets])
+
+  const isLedgerDisconnectedError = useMemo(() => {
+    return isLedgerDisconnected(ledgerError)
+  }, [ledgerError])
 
   const sourceTokenLoading = useMemo(() => {
     return (
@@ -757,6 +763,7 @@ const SwapPage = observer(() => {
             isPriceImpactChecked={isPriceImpactChecked}
             setIsPriceImpactChecked={setIsPriceImpactChecked}
             ledgerError={ledgerError}
+            isLedgerDisconnectedError={isLedgerDisconnectedError}
           />
 
           <SwapInfo
@@ -768,6 +775,7 @@ const SwapPage = observer(() => {
           isMoreThanOneStepTransaction={isMoreThanOneStepTransaction}
           redirectUrl={redirectUrl}
           errorMsg={errorMsg}
+          bridgeFeeError={bridgeFeeError}
           invalidAmount={invalidAmount}
           amountExceedsBalance={amountExceedsBalance}
           isRefreshing={isRefreshing}
@@ -776,6 +784,7 @@ const SwapPage = observer(() => {
           reviewBtnDisabled={reviewBtnDisabled}
           inAmountEmpty={!inAmount || parseFloat(inAmount) === 0}
           onReviewClick={handleOnReviewClick}
+          isLedgerDisconnectedError={isLedgerDisconnectedError}
         />
       </div>
       <SelectTokenSheet
@@ -880,7 +889,7 @@ const Swap = observer(({ rootBalanceStore }: { rootBalanceStore: RootBalanceStor
 
   const totalFiatValue = useMemo(() => {
     return rootBalanceStore
-      .getAggregatedBalances('mainnet')
+      .getAggregatedBalances('mainnet', undefined)
       .reduce(
         (acc, asset) => (asset.usdValue ? acc.plus(new BigNumber(asset.usdValue)) : acc),
         new BigNumber(0),

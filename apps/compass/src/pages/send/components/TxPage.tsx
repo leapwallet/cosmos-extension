@@ -53,7 +53,9 @@ const TxPage = observer(({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const invalidateBalances = useCallback(() => {
     rootBalanceStore.refetchBalances(activeChain, selectedNetwork)
     if (toAddress) {
-      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, toAddress)
+      rootBalanceStore.refetchBalances(toChain ?? activeChain, selectedNetwork, {
+        [toChain ?? activeChain]: toAddress,
+      })
     }
   }, [activeChain, selectedNetwork, toAddress, toChain])
 

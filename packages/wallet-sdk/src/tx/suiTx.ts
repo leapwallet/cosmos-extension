@@ -342,13 +342,12 @@ export class SuiTx {
     toAddress: string,
     amountSui: number,
     feeSui?: StdFee,
-  ): Promise<{ digest: string; effects: any }> {
+  ): Promise<{ txBytes: Uint8Array; signature: Uint8Array }> {
     const [unsignedTx, signature] = await this.createAndSignSuiTransfer(fromAddress, toAddress, amountSui, feeSui);
 
     const txBytes = new Uint8Array(Object.values(unsignedTx));
 
-    const { digest, effects } = await this.broadcastTransaction(txBytes, signature);
-    return { digest, effects };
+    return { txBytes, signature };
   }
 
   async sendNonNativeToken(
@@ -357,7 +356,7 @@ export class SuiTx {
     amountTokens: number | string,
     tokenDecimals: number,
     feeSOL?: StdFee,
-  ): Promise<{ digest: string; effects: any }> {
+  ): Promise<{ txBytes: Uint8Array; signature: Uint8Array }> {
     const [txBytes, signature] = await this.createAndSignNonNativeTokenTransfer(
       tokenMintAddress,
       recipientTokenAccount,
@@ -365,8 +364,7 @@ export class SuiTx {
       tokenDecimals,
       feeSOL,
     );
-    const { digest, effects } = await this.broadcastTransaction(new Uint8Array(Object.values(txBytes)), signature);
-    return { digest, effects };
+    return { txBytes, signature };
   }
 
   async getGasPrice() {
@@ -397,5 +395,65 @@ export class SuiTx {
     });
 
     return { txBase64: new Uint8Array(Object.values(data.data.txBase64)), txHash: data.data.txDigest };
+  }
+
+  async pollForTx(txHash: string): Promise<{ suiResult: { status: string; txHash: string } }> {
+    try {
+      let status = 'pending';
+      let retries = 0;
+      const maxRetries = 5;
+      const delayMs = 2000;
+
+      while (status !== 'success' && retries < maxRetries) {
+        try {
+          const response = await axios({
+            url: `https://fullnode.${this.selectedNetwork}.sui.io:443`,
+            method: 'POST',
+            data: {
+              jsonrpc: '2.0',
+              id: 2,
+              method: 'sui_getTransactionBlock',
+              params: [
+                txHash,
+                {
+                  showInput: false,
+                  showRawInput: false,
+                  showEffects: true,
+                  showEvents: false,
+                  showObjectChanges: false,
+                  showBalanceChanges: false,
+                  showRawEffects: false,
+                },
+              ],
+            },
+          });
+
+          if (response.data.result) {
+            status = response.data.result.effects.status.status;
+            if (status === 'success') {
+              return { suiResult: { status, txHash } };
+            }
+            if (status === 'failure') {
+              return { suiResult: { status, txHash } };
+            }
+          }
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          retries++;
+        } catch (pollError) {
+          console.warn(`Polling attempt ${retries + 1} failed:`, pollError);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          retries++;
+        }
+      }
+
+      if (status === 'pending') {
+        throw new Error(`Transaction still pending after ${maxRetries} attempts`);
+      }
+
+      return { suiResult: { status, txHash } };
+    } catch (error) {
+      console.error('Error polling for transaction:', error);
+      return { suiResult: { status: 'failure', txHash } };
+    }
   }
 }

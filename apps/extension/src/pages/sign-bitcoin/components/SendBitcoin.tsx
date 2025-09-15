@@ -353,7 +353,7 @@ export const SendBitcoin = observer(
 
                 <Buttons.Generic
                   title='Approve Button'
-                  color={Colors.getChainColor(activeChain)}
+                  color={Colors.green600}
                   onClick={handleApproveClick}
                   disabled={isApproveBtnDisabled}
                   className={`${isApproveBtnDisabled ? 'cursor-not-allowed opacity-50' : ''}`}

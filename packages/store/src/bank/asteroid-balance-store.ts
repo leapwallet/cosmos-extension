@@ -5,6 +5,7 @@ import { makeAutoObservable, runInAction } from 'mobx';
 import { AggregatedSupportedChainType } from 'types';
 
 import { ChainInfosStore, DenomsStore, NmsStore } from '../assets';
+import { calculateTokenPriceAndValue } from '../utils/bank/price-calculator';
 import { ActiveChainStore, AddressStore, SelectedNetworkStore } from '../wallet';
 import { sortTokenBalances } from './balance-calculator';
 import { Token } from './balance-types';
@@ -142,24 +143,15 @@ export class AsteroidDenomBalanceStore {
     const { decimals, id, name, ticker, content_path, last_price_base } = token;
     const amount = fromSmall(new BigNumber(token.amount).toString(), decimals);
 
-    let oneAtomUsdValue;
-    if (parseFloat(amount) > 0) {
-      if (coingeckoPrices) {
-        let tokenPrice;
-        const coinGeckoId = uAtomToken.coinGeckoId;
-        const alternateCoingeckoKey = `${chainInfo.chainId}-${uAtomToken.coinMinimalDenom}`;
+    const coinGeckoId = uAtomToken.coinGeckoId;
 
-        if (coinGeckoId) {
-          tokenPrice = coingeckoPrices[coinGeckoId];
-        }
-        if (!tokenPrice) {
-          tokenPrice = coingeckoPrices[alternateCoingeckoKey];
-        }
-        if (tokenPrice) {
-          oneAtomUsdValue = new BigNumber(amount).times(tokenPrice).toString();
-        }
-      }
-    }
+    const { usdValue: oneAtomUsdValue } = calculateTokenPriceAndValue({
+      amount,
+      coingeckoPrices,
+      coinMinimalDenom: uAtomToken.coinMinimalDenom,
+      chainId: chainInfo.chainId,
+      coinGeckoId,
+    });
 
     const usdValue = oneAtomUsdValue
       ? String((last_price_base / 10 ** uAtomToken.coinDecimals) * parseFloat(oneAtomUsdValue))
