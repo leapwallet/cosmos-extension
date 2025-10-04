@@ -52,13 +52,13 @@ export const networkData: NetworkData[] = [
   {
     enabled: true,
     name: 'terra',
+    gasPrice: '28.325uluna',
+  },
+  {
+    enabled: true,
+    name: 'terra2',
     gasPrice: '0.015uluna',
   },
-  // {
-  //   enabled: false,
-  //   name: 'terra2',
-  //   gasPrice: '0.015uluna',
-  // },
   {
     enabled: false,
     name: 'sentinel',
