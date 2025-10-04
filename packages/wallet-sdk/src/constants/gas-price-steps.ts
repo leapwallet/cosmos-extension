@@ -270,6 +270,11 @@ export const GAS_PRICE_STEPS = {
     high: 0.5,
   },
   terra: {
+    low: 28.325,
+    average: 28.325,
+    high: 40,
+  },
+  terra2: {
     low: 0.15,
     average: 0.15,
     high: 0.4,
