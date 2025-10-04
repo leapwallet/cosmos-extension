@@ -53,6 +53,7 @@ export type SupportedChain =
   | 'passage'
   | 'archway'
   | 'terra'
+  | 'terratestnet'
   | 'terra2'
   | 'migaloo'
   | 'neutron'
@@ -190,6 +191,7 @@ export type AddressPrefix =
   | 'pasg'
   | 'archway'
   | 'terra'
+  | 'terratestnet'
   | 'terra2'
   | 'migaloo'
   | 'neutron'
@@ -3974,7 +3976,7 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
   },
   terra: {
     chainId: 'columbus-5',
-    // testnetChainId: 'pisco-1',
+    testnetChainId: 'rebel-2',
     key: 'terra',
     chainRegistryPath: 'terra',
     chainName: 'Terra Classic',
@@ -3990,6 +3992,44 @@ export const ChainInfos: Record<SupportedChain, ChainInfo> = {
         txUrl: 'https://finder.terra-classic.hexxagon.io/mainnet/tx',
         accountUrl: 'https://finder.terraclassic.community/mainnet/address',
       }, 
+      testnet: {
+        name: 'Hexxagon Testnet Finder',
+        txUrl: 'https://finder.terra-classic.hexxagon.io/testnet/tx',
+        accountUrl: 'https://finder.terraclassic.community/testnet/address',
+      },
+    },
+    bip44: {
+      coinType: '330',
+    },
+    addressPrefix: 'terra',
+    gasPriceStep: {
+      low: 28.325,
+      average: 28.325,
+      high: 50,
+    },
+    ibcChannelIds: {},
+    nativeDenoms: {
+      uluna: denoms.uluna,
+    },
+
+    theme: {
+      primaryColor: '#29A874',
+      gradient: 'linear-gradient(180deg, rgba(41, 168, 116, 0.32) 0%, rgba(41, 168, 116, 0) 100%)',
+    },
+    enabled: true,
+  },
+  terratestnet: {
+    chainId: 'rebel-2', 
+    key: 'terra',
+    chainRegistryPath: 'terra',
+    chainName: 'Terra Classic Testnet',
+    chainSymbolImageUrl: 'https://assets.leapwallet.io/lunc.png',
+    apis: {
+      rest: 'https://rebel-lcd.luncgoblins.com',
+      rpc: 'https://rebel-rpc.luncgoblins.com', 
+    },
+    denom: 'LUNC',
+    txExplorer: { 
       testnet: {
         name: 'Hexxagon Testnet Finder',
         txUrl: 'https://finder.terra-classic.hexxagon.io/testnet/tx',
