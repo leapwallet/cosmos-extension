@@ -73,7 +73,7 @@ export const AssetCard = observer(
     const handleCardClick = () => {
       let tokenChain = chain?.replace('cosmoshub', 'cosmos')
       if (isTerraClassic(ibcChainInfo?.pretty_name ?? '') && coinMinimalDenom === 'uluna') {
-        tokenChain = 'terra-classic'
+        tokenChain = 'terra'
       }
 
       if (!tokenChain) return
