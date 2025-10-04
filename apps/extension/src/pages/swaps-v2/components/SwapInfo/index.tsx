@@ -21,8 +21,7 @@ type SwapInfoProps = {
 }
 
 const providerMapping = {
-  'terra-astroport': 'Astroport',
-  'terra-garuda': 'Garuda Defi',
+  'terra-astroport': 'Astroport', 
   'injective-white-whale': 'White Whale',
   'terra-nauticus': 'Nauticus',
   'archway-astrovault': 'Astrovault',
