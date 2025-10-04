@@ -38,7 +38,7 @@ export async function getDenomInfo(
    *       used lunc for Luna Classic in the denoms and uluna
    *       for Luna
    */
-  if (chain === 'terra-classic' && denom === 'uluna') {
+  if (chain === 'terra' && denom === 'uluna') {
     denom = 'lunc';
   }
 
